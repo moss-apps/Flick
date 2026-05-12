@@ -207,6 +207,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   Future<void> _scanFolder(String uri, String displayName) async {
+    final previousCount = _songCount;
     setState(() {
       _isScanning = true;
       _scanProgress = null;
@@ -228,10 +229,13 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         _isScanning = false;
         _scanProgress = null;
       });
+      final added = _songCount - previousCount;
+      _showToast('Scan completed: $added songs added');
     }
   }
 
   Future<void> _rescanAllFolders() async {
+    final previousCount = _songCount;
     setState(() {
       _isScanning = true;
       _scanProgress = null;
@@ -253,6 +257,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         _isScanning = false;
         _scanProgress = null;
       });
+      final added = _songCount - previousCount;
+      _showToast('Rescan completed: $added songs added');
     }
   }
 
