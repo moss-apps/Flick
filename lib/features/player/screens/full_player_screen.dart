@@ -22,6 +22,7 @@ import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_screen_mode_preference_service.dart';
 import 'package:flick/providers/album_color_provider.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/line_seek_bar.dart';
@@ -33,15 +34,15 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/uac2/uac2_error_notification.dart';
 
-class FullPlayerScreen extends StatefulWidget {
+class FullPlayerScreen extends ConsumerStatefulWidget {
   final Object heroTag;
   const FullPlayerScreen({super.key, this.heroTag = 'album_art_hero'});
 
   @override
-  State<FullPlayerScreen> createState() => _FullPlayerScreenState();
+  ConsumerState<FullPlayerScreen> createState() => _FullPlayerScreenState();
 }
 
-class _FullPlayerScreenState extends State<FullPlayerScreen>
+class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     with TickerProviderStateMixin {
   final PlayerService _playerService = PlayerService();
   final ExternalPlaybackService _externalPlaybackService =
@@ -71,12 +72,18 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
   double _cachedTopBarTextWidth = 0;
   bool _isLyricsMode = false;
   bool _isVisualizationMode = false;
+  bool _isImmersiveFullView = false;
   int _songTransitionDirection = 1;
   PlayerScreenMode _playerScreenMode = PlayerScreenMode.immersive;
+  int _immersiveAutoFullViewDelaySeconds = 0;
+  Timer? _immersiveFullViewTimer;
 
   @override
   void initState() {
     super.initState();
+    _immersiveAutoFullViewDelaySeconds = ref
+        .read(appPreferencesProvider)
+        .immersiveAutoFullViewSeconds;
 
     // Initialize drag animation controller for smooth return animation
     _dragController = AnimationController(
@@ -104,9 +111,12 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
     });
 
     _playerService.currentSongNotifier.addListener(_handleCurrentSongChanged);
-    _playerService.favoriteNotificationToggleNotifier.addListener(_handleFavoriteToggledFromNotification);
+    _playerService.favoriteNotificationToggleNotifier.addListener(
+      _handleFavoriteToggledFromNotification,
+    );
     _updateTopBarTextMeasurement(_playerService.currentSongNotifier.value);
     _loadPlayerScreenMode();
+    _refreshImmersiveFullViewTimer();
   }
 
   @override
@@ -124,6 +134,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
       _handleFavoriteToggledFromNotification,
     );
     _positionThrottleTimer?.cancel();
+    _immersiveFullViewTimer?.cancel();
     _throttledPositionNotifier.dispose();
     _dragController.dispose();
     super.dispose();
@@ -133,7 +144,13 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
     if (_playerService.currentSongNotifier.value == null) {
       return;
     }
+    if (_isImmersiveFullView) {
+      setState(() {
+        _isImmersiveFullView = false;
+      });
+    }
     _updateTopBarTextMeasurement(_playerService.currentSongNotifier.value);
+    _refreshImmersiveFullViewTimer();
   }
 
   void _handleFavoriteToggledFromNotification() {
@@ -142,18 +159,98 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
 
   Future<void> _loadPlayerScreenMode() async {
     final mode = await _playerScreenModePreferenceService.getMode();
-    if (!mounted || _playerScreenMode == mode) return;
-    setState(() {
-      _playerScreenMode = mode;
-    });
+    if (!mounted) return;
+    if (_playerScreenMode != mode) {
+      setState(() {
+        _playerScreenMode = mode;
+        if (mode != PlayerScreenMode.immersive) {
+          _isImmersiveFullView = false;
+        }
+      });
+    }
+    _refreshImmersiveFullViewTimer();
   }
 
   Future<void> _setPlayerScreenMode(PlayerScreenMode mode) async {
     if (_playerScreenMode == mode) return;
     setState(() {
       _playerScreenMode = mode;
+      if (mode != PlayerScreenMode.immersive) {
+        _isImmersiveFullView = false;
+      }
     });
+    _refreshImmersiveFullViewTimer();
     await _playerScreenModePreferenceService.setMode(mode);
+  }
+
+  bool get _canUseImmersiveFullView =>
+      _playerScreenMode == PlayerScreenMode.immersive && !_isLyricsMode;
+
+  void _refreshImmersiveFullViewTimer() {
+    _immersiveFullViewTimer?.cancel();
+    if (!_canUseImmersiveFullView ||
+        _isImmersiveFullView ||
+        _immersiveAutoFullViewDelaySeconds <= 0) {
+      return;
+    }
+
+    _immersiveFullViewTimer = Timer(
+      Duration(seconds: _immersiveAutoFullViewDelaySeconds),
+      () {
+        if (!mounted || !_canUseImmersiveFullView || _isImmersiveFullView) {
+          return;
+        }
+        setState(() {
+          _isImmersiveFullView = true;
+        });
+      },
+    );
+  }
+
+  void _setImmersiveAutoFullViewDelaySeconds(int value) {
+    if (_immersiveAutoFullViewDelaySeconds == value) return;
+    _immersiveAutoFullViewDelaySeconds = value;
+    _refreshImmersiveFullViewTimer();
+  }
+
+  void _setLyricsMode(bool value) {
+    final nextVisualizationMode = value ? false : _isVisualizationMode;
+    final nextImmersiveFullView = value ? false : _isImmersiveFullView;
+    if (_isLyricsMode == value &&
+        _isVisualizationMode == nextVisualizationMode &&
+        _isImmersiveFullView == nextImmersiveFullView) {
+      return;
+    }
+
+    setState(() {
+      _isLyricsMode = value;
+      _isVisualizationMode = nextVisualizationMode;
+      _isImmersiveFullView = nextImmersiveFullView;
+    });
+    _refreshImmersiveFullViewTimer();
+  }
+
+  void _setVisualizationMode(bool value) {
+    final nextLyricsMode = value ? false : _isLyricsMode;
+    if (_isVisualizationMode == value && _isLyricsMode == nextLyricsMode) {
+      return;
+    }
+
+    setState(() {
+      _isVisualizationMode = value;
+      _isLyricsMode = nextLyricsMode;
+    });
+    _refreshImmersiveFullViewTimer();
+  }
+
+  void _handleImmersiveSceneTap() {
+    if (_playerScreenMode != PlayerScreenMode.immersive) return;
+    if (_isLyricsMode) return;
+
+    setState(() {
+      _isImmersiveFullView = !_isImmersiveFullView;
+    });
+    _refreshImmersiveFullViewTimer();
   }
 
   Future<void> _animateToNextSong() async {
@@ -456,8 +553,9 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
           return Container(
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               border: Border.all(color: AppColors.glassBorder),
             ),
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -489,8 +587,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
                   title: PlayerScreenMode.immersive.label,
                   subtitle: PlayerScreenMode.immersive.description,
                   icon: Icons.fit_screen_rounded,
-                  isSelected:
-                      _playerScreenMode == PlayerScreenMode.immersive,
+                  isSelected: _playerScreenMode == PlayerScreenMode.immersive,
                   onTap: () async {
                     Navigator.of(sheetContext).pop();
                     await _setPlayerScreenMode(PlayerScreenMode.immersive);
@@ -501,12 +598,10 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
                   title: PlayerScreenMode.artworkCard.label,
                   subtitle: PlayerScreenMode.artworkCard.description,
                   icon: Icons.rounded_corner_rounded,
-                  isSelected:
-                      _playerScreenMode == PlayerScreenMode.artworkCard,
+                  isSelected: _playerScreenMode == PlayerScreenMode.artworkCard,
                   onTap: () async {
                     Navigator.of(sheetContext).pop();
-                    await _setPlayerScreenMode(
-                        PlayerScreenMode.artworkCard);
+                    await _setPlayerScreenMode(PlayerScreenMode.artworkCard);
                   },
                 ),
                 const SizedBox(height: 20),
@@ -537,9 +632,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
                     final isSelected = colorMode == mode;
                     return GestureDetector(
                       onTap: () {
-                        ref
-                            .read(albumColorModeProvider.notifier)
-                            .setMode(mode);
+                        ref.read(albumColorModeProvider.notifier).setMode(mode);
                       },
                       child: AnimatedContainer(
                         duration: AppConstants.animationFast,
@@ -910,11 +1003,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
                 label: 'Lyrics',
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  if (mounted) {
-                    setState(() {
-                      _isLyricsMode = true;
-                    });
-                  }
+                  _setLyricsMode(true);
                 },
               ),
               _buildSongActionTile(
@@ -923,11 +1012,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
                 label: _isVisualizationMode ? 'Hide Visualizer' : 'Visualizer',
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  if (mounted) {
-                    setState(() {
-                      _isVisualizationMode = !_isVisualizationMode;
-                    });
-                  }
+                  _setVisualizationMode(!_isVisualizationMode);
                 },
               ),
               _buildSongActionTile(
@@ -1022,7 +1107,9 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
           context.responsive(10.0, 11.0, 12.0),
         ),
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: context.responsive(10.0, 11.0, 12.0)),
+          padding: EdgeInsets.symmetric(
+            vertical: context.responsive(10.0, 11.0, 12.0),
+          ),
           child: Row(
             children: [
               Container(
@@ -1314,20 +1401,28 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
     final hasAlbumTint = albumColor != null && accentBlend > 0;
 
     final lyricsActiveBg = hasAlbumTint
-        ? _AnimatedSongScene.albumAccent(albumColor, accentBlend)
-            .withValues(alpha: 0.28)
+        ? _AnimatedSongScene.albumAccent(
+            albumColor,
+            accentBlend,
+          ).withValues(alpha: 0.28)
         : AppColors.accent.withValues(alpha: 0.28);
     final lyricsActiveBorder = hasAlbumTint
-        ? _AnimatedSongScene.albumAccent(albumColor, accentBlend)
-            .withValues(alpha: 0.45)
+        ? _AnimatedSongScene.albumAccent(
+            albumColor,
+            accentBlend,
+          ).withValues(alpha: 0.45)
         : AppColors.accent.withValues(alpha: 0.45);
     final inactiveBg = hasAlbumTint
-        ? _AnimatedSongScene.albumSurface(albumColor, surfaceBlend)
-            .withValues(alpha: 0.15)
+        ? _AnimatedSongScene.albumSurface(
+            albumColor,
+            surfaceBlend,
+          ).withValues(alpha: 0.15)
         : Colors.white.withValues(alpha: 0.15);
     final inactiveBorder = hasAlbumTint
-        ? _AnimatedSongScene.albumSurface(albumColor, surfaceBlend)
-            .withValues(alpha: 0.08)
+        ? _AnimatedSongScene.albumSurface(
+            albumColor,
+            surfaceBlend,
+          ).withValues(alpha: 0.08)
         : Colors.white.withValues(alpha: 0.08);
 
     return Row(
@@ -1420,10 +1515,11 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
                   decoration: BoxDecoration(
                     color: isFavorite
                         ? (hasAlbumTint
-                            ? _AnimatedSongScene.albumAccent(
-                                    albumColor, accentBlend)
-                                .withValues(alpha: 0.25)
-                            : Colors.red.withValues(alpha: 0.25))
+                              ? _AnimatedSongScene.albumAccent(
+                                  albumColor,
+                                  accentBlend,
+                                ).withValues(alpha: 0.25)
+                              : Colors.red.withValues(alpha: 0.25))
                         : inactiveBg,
                     borderRadius: BorderRadius.circular(actionRadius),
                   ),
@@ -1431,9 +1527,11 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
                     isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: isFavorite
                         ? (hasAlbumTint
-                            ? _AnimatedSongScene.albumAccent(
-                                    albumColor, accentBlend)
-                            : Colors.red)
+                              ? _AnimatedSongScene.albumAccent(
+                                  albumColor,
+                                  accentBlend,
+                                )
+                              : Colors.red)
                         : Colors.white.withValues(alpha: 0.9),
                     size: favoriteIconSize,
                   ),
@@ -1530,20 +1628,23 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(appPreferencesProvider, (previous, next) {
+      _setImmersiveAutoFullViewDelaySeconds(next.immersiveAutoFullViewSeconds);
+    });
+
+    final colorMode = ref.watch(albumColorModeProvider);
+    final dominantColor = ref.watch(albumDominantColorSyncProvider);
+    final Color? albumColor =
+        (colorMode != AlbumColorMode.off && dominantColor != null)
+        ? dominantColor
+        : null;
+
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: Consumer(
-          builder: (context, ref, _) {
-            final colorMode = ref.watch(albumColorModeProvider);
-            final dominantColor = ref.watch(albumDominantColorSyncProvider);
-            final Color? albumColor =
-                (colorMode != AlbumColorMode.off && dominantColor != null)
-                    ? dominantColor
-                    : null;
-            return ValueListenableBuilder<Song?>(
-              valueListenable: _playerService.currentSongNotifier,
-              builder: (context, song, _) {
+        body: ValueListenableBuilder<Song?>(
+          valueListenable: _playerService.currentSongNotifier,
+          builder: (context, song, _) {
             if (song == null) {
               // Should usually close the screen if song becomes null or error
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1553,6 +1654,8 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
             }
 
             return GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _handleImmersiveSceneTap,
               onVerticalDragStart: (_) {
                 _dragController.stop();
               },
@@ -1610,6 +1713,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
                   song: song,
                   lyricsMode: _isLyricsMode,
                   visualizationMode: _isVisualizationMode,
+                  immersiveFullView: _isImmersiveFullView,
                   playerScreenMode: _playerScreenMode,
                   albumColorMode: colorMode,
                   albumColor: albumColor,
@@ -1623,11 +1727,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
                   formatDuration: _formatDuration,
                   onClose: () => Navigator.of(context).pop(),
                   onOpenQueue: () => _openQueue(context),
-                  onToggleLyrics: () {
-                    setState(() {
-                      _isLyricsMode = !_isLyricsMode;
-                    });
-                  },
+                  onToggleLyrics: () => _setLyricsMode(!_isLyricsMode),
                   onQueueSwipe: () => _queueSong(context, song),
                   onReturnToLocker: () async {
                     final returned = await _externalPlaybackService
@@ -1654,8 +1754,6 @@ class _FullPlayerScreenState extends State<FullPlayerScreen>
                 ),
               ),
             );
-              },
-            );
           },
         ),
       ),
@@ -1667,6 +1765,7 @@ class _AnimatedSongScene extends StatelessWidget {
   final Song song;
   final bool lyricsMode;
   final bool visualizationMode;
+  final bool immersiveFullView;
   final PlayerScreenMode playerScreenMode;
   final AlbumColorMode albumColorMode;
   final Color? albumColor;
@@ -1687,6 +1786,7 @@ class _AnimatedSongScene extends StatelessWidget {
         .toColor()
         .withValues(alpha: (blend + 0.3).clamp(0.0, 1.0));
   }
+
   final String topBarTextFontFamily;
   final FontWeight topBarTextFontWeight;
   final double cachedTopBarTextWidth;
@@ -1707,10 +1807,10 @@ class _AnimatedSongScene extends StatelessWidget {
   final Widget Function(Song song) buildDirectoryInfo;
 
   const _AnimatedSongScene({
-    super.key,
     required this.song,
     required this.lyricsMode,
     required this.visualizationMode,
+    required this.immersiveFullView,
     required this.playerScreenMode,
     required this.albumColorMode,
     this.albumColor,
@@ -1738,25 +1838,75 @@ class _AnimatedSongScene extends StatelessWidget {
   Widget build(BuildContext context) {
     final direction = transitionDirection >= 0 ? 1.0 : -1.0;
     final sceneKey = ValueKey('${song.id}_${playerScreenMode.storageValue}');
+    final showVisualizerOnly =
+        visualizationMode &&
+        immersiveFullView &&
+        playerScreenMode == PlayerScreenMode.immersive;
+    final showImmersiveFullView =
+        immersiveFullView && playerScreenMode == PlayerScreenMode.immersive;
 
     final scene = RepaintBoundary(
       key: sceneKey,
       child: Stack(
         children: [
           Positioned.fill(child: _buildBackground(context)),
-          SafeArea(
-            child: Column(
-              children: [
-                const Uac2ErrorNotification(),
-                _buildTopChrome(context),
-                SizedBox(height: context.responsive(8.0, 10.0, 12.0)),
-                Expanded(
-                  child: playerScreenMode == PlayerScreenMode.artworkCard
-                      ? _buildArtworkCardLayout(context)
-                      : _buildImmersiveLayout(context),
-                ),
-              ],
-            ),
+          AnimatedSwitcher(
+            duration: AppConstants.animationNormal,
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            layoutBuilder: (currentChild, previousChildren) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [...previousChildren, ?currentChild],
+              );
+            },
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              final isFullView =
+                  child.key == const ValueKey('immersive-full-view');
+              final slideOffset = isFullView
+                  ? const Offset(0, 0.12)
+                  : const Offset(0, 0.03);
+              return SlideTransition(
+                position: Tween<Offset>(begin: slideOffset, end: Offset.zero)
+                    .animate(
+                      CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    ),
+                child: FadeTransition(opacity: animation, child: child),
+              );
+            },
+            child: showVisualizerOnly
+                ? const KeyedSubtree(
+                    key: ValueKey('immersive-empty-overlay'),
+                    child: SizedBox.shrink(),
+                  )
+                : showImmersiveFullView
+                ? KeyedSubtree(
+                    key: const ValueKey('immersive-full-view'),
+                    child: SafeArea(
+                      child: _buildImmersiveFullViewLayout(context),
+                    ),
+                  )
+                : KeyedSubtree(
+                    key: const ValueKey('immersive-default-layout'),
+                    child: SafeArea(
+                      child: Column(
+                        children: [
+                          const Uac2ErrorNotification(),
+                          _buildTopChrome(context),
+                          SizedBox(height: context.responsive(8.0, 10.0, 12.0)),
+                          Expanded(
+                            child:
+                                playerScreenMode == PlayerScreenMode.artworkCard
+                                ? _buildArtworkCardLayout(context)
+                                : _buildImmersiveLayout(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -1780,18 +1930,20 @@ class _AnimatedSongScene extends StatelessWidget {
         );
       },
       transitionBuilder: (child, animation) {
-        final offsetAnimation = Tween<Offset>(
-          begin: Offset(direction * 0.4, 0),
-          end: Offset.zero,
-        ).animate(
-          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-        );
-        final outgoingOffsetAnimation = Tween<Offset>(
-          begin: Offset(-direction * 0.4, 0),
-          end: Offset.zero,
-        ).animate(
-          CurvedAnimation(parent: animation, curve: Curves.easeInCubic),
-        );
+        final offsetAnimation =
+            Tween<Offset>(
+              begin: Offset(direction * 0.4, 0),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            );
+        final outgoingOffsetAnimation =
+            Tween<Offset>(
+              begin: Offset(-direction * 0.4, 0),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeInCubic),
+            );
         final isIncoming = child.key == sceneKey;
 
         return FadeTransition(
@@ -1816,9 +1968,7 @@ class _AnimatedSongScene extends StatelessWidget {
           : const Color(0xFF0A0A0A);
       return Stack(
         children: [
-          Positioned.fill(
-            child: AudioVisualizer(playerService: playerService),
-          ),
+          Positioned.fill(child: AudioVisualizer(playerService: playerService)),
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -2269,6 +2419,98 @@ class _AnimatedSongScene extends StatelessWidget {
     );
   }
 
+  Widget _buildImmersiveFullViewLayout(BuildContext context) {
+    final artworkSize = context.responsive(56.0, 60.0, 64.0);
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          context.responsive(16.0, 20.0, 24.0),
+          0,
+          context.responsive(16.0, 20.0, 24.0),
+          context.responsive(20.0, 24.0, 28.0),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(context.responsive(10.0, 12.0, 14.0)),
+          decoration: BoxDecoration(
+            color: const Color(0xFF121212).withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: SizedBox(
+                  width: artworkSize,
+                  height: artworkSize,
+                  child: CachedImageWidget(
+                    imagePath: song.albumArt,
+                    audioSourcePath: song.filePath,
+                    fit: BoxFit.cover,
+                    placeholder: Container(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      child: Icon(
+                        LucideIcons.music,
+                        color: Colors.white.withValues(alpha: 0.5),
+                        size: artworkSize * 0.44,
+                      ),
+                    ),
+                    errorWidget: Container(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      child: Icon(
+                        LucideIcons.music,
+                        color: Colors.white.withValues(alpha: 0.5),
+                        size: artworkSize * 0.44,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: context.responsive(12.0, 14.0, 16.0)),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      song.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'ProductSans',
+                        fontSize: context.responsiveText(
+                          context.responsive(18.0, 19.0, 21.0),
+                        ),
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.12,
+                      ),
+                    ),
+                    SizedBox(height: context.responsive(6.0, 7.0, 8.0)),
+                    Text(
+                      song.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'ProductSans',
+                        fontSize: context.responsiveText(
+                          context.responsive(13.0, 14.0, 15.0),
+                        ),
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.78),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildImmersiveSongHeader(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -2310,7 +2552,6 @@ class _AnimatedSongScene extends StatelessWidget {
             ],
           ),
         ),
-
       ],
     );
   }
@@ -2868,7 +3109,9 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
     final viewportHeight = _scrollController.position.viewportDimension;
     final maxScroll = _scrollController.position.maxScrollExtent;
     final target =
-        (index * _lineHeight) + (_lineHeight / 2) - (viewportHeight * (0.5 - _centerFactor));
+        (index * _lineHeight) +
+        (_lineHeight / 2) -
+        (viewportHeight * (0.5 - _centerFactor));
     final clampedTarget = target.clamp(0.0, maxScroll);
 
     _lastScrolledIndex = index;
@@ -3059,14 +3302,16 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
                                   borderRadius: BorderRadius.circular(22),
                                   color: widget.albumColor != null
                                       ? _AnimatedSongScene.albumAccent(
-                                              widget.albumColor!, 0.3)
-                                          .withValues(alpha: 0.16)
+                                          widget.albumColor!,
+                                          0.3,
+                                        ).withValues(alpha: 0.16)
                                       : Colors.white.withValues(alpha: 0.16),
                                   border: Border.all(
                                     color: widget.albumColor != null
                                         ? _AnimatedSongScene.albumAccent(
-                                                widget.albumColor!, 0.3)
-                                            .withValues(alpha: 0.22)
+                                            widget.albumColor!,
+                                            0.3,
+                                          ).withValues(alpha: 0.22)
                                         : Colors.white.withValues(alpha: 0.22),
                                   ),
                                 ),
