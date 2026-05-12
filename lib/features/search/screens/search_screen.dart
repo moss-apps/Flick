@@ -8,6 +8,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/providers/providers.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -19,6 +20,7 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
+  final _focusNode = FocusNode();
   final _songRepository = SongRepository();
   List<Song> _results = [];
   bool _isSearching = false;
@@ -28,6 +30,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -53,6 +56,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(navigationIndexProvider, (prev, next) {
+      if (next == NavBarButton.search.pageIndex) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _focusNode.requestFocus();
+        });
+      } else if (prev == NavBarButton.search.pageIndex) {
+        _focusNode.unfocus();
+      }
+    });
+
     final query = _controller.text.trim();
     final hasQuery = query.isNotEmpty;
 
@@ -66,7 +79,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: TextField(
                 controller: _controller,
-                autofocus: false,
+                focusNode: _focusNode,
                 onChanged: _onSearchChanged,
                 style: TextStyle(
                   fontFamily: 'ProductSans',
