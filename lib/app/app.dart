@@ -86,8 +86,12 @@ class _MainShellState extends ConsumerState<MainShell>
     // listener doesn't treat the restored song as "new" on cold start.
     _previousSong = ref.read(currentSongProvider);
     _playerService = ref.read(playerServiceProvider);
-    final initialIndex = ref.read(navigationIndexProvider);
     final initialConfig = ref.read(navBarConfigProvider);
+    final defaultPage = initialConfig.orderedButtons.contains(NavBarButton.songs)
+        ? NavBarButton.songs.pageIndex
+        : NavBarButton.menu.pageIndex;
+    ref.read(navigationIndexProvider.notifier).setIndex(defaultPage);
+    final initialIndex = ref.read(navigationIndexProvider);
     final initialOrder = _getPageOrder(initialConfig);
     final initialPosition =
         initialOrder.indexWhere((b) => b.pageIndex == initialIndex);
@@ -189,6 +193,7 @@ class _MainShellState extends ConsumerState<MainShell>
 
         if (oldPosition != newPosition && _pageController.hasClients) {
           _pageController.jumpToPage(newPosition);
+          ref.read(navigationIndexProvider.notifier).setIndex(currentPageIndex);
         }
       },
     );
@@ -434,13 +439,15 @@ class _MainShellState extends ConsumerState<MainShell>
                 controller: _pageController,
                 physics: const ClampingScrollPhysics(),
                 onPageChanged: (position) {
-                  if (position < 0 || position >= pageOrder.length) return;
-                  final enabledCount = navBarConfig.orderedButtons.length;
+                  final currentConfig = ref.read(navBarConfigProvider);
+                  final currentOrder = _getPageOrder(currentConfig);
+                  if (position < 0 || position >= currentOrder.length) return;
+                  final enabledCount = currentConfig.orderedButtons.length;
                   if (position >= enabledCount) {
                     _pageController.jumpToPage(enabledCount - 1);
                     return;
                   }
-                  final pageIndex = pageOrder[position].pageIndex;
+                  final pageIndex = currentOrder[position].pageIndex;
                   if (ref.read(navigationIndexProvider) != pageIndex) {
                     ref
                         .read(navigationIndexProvider.notifier)
