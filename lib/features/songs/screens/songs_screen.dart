@@ -17,6 +17,7 @@ import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
 import 'package:flick/features/songs/widgets/sort_filter_bottom_sheet.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
@@ -79,6 +80,8 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
     final navBarVisible = ref.watch(navBarVisibleProvider);
     final swipeActionsEnabled =
         ref.watch(appPreferencesProvider).swipeActionsEnabled;
+    final navBarConfig = ref.watch(navBarConfigProvider);
+    final searchInNavBar = navBarConfig.orderedButtons.contains(NavBarButton.search);
 
     final shouldReserveOrbitBottomSpace =
         viewMode != SongViewMode.list && navBarVisible;
@@ -98,52 +101,54 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
                 // Header with sort option
                 _buildHeader(songsAsync),
 
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppConstants.spacingLg,
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.surfaceLight.withValues(alpha: 0.75),
-                          AppColors.surface.withValues(alpha: 0.85),
+                // Search Bar (hidden when Search tab is in the nav bar)
+                if (!searchInNavBar) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingLg,
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.surfaceLight.withValues(alpha: 0.75),
+                            AppColors.surface.withValues(alpha: 0.85),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          AppConstants.radiusXl,
+                        ),
+                        border: Border.all(
+                          color: AppColors.glassBorder,
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 16,
+                            spreadRadius: 1,
+                            offset: const Offset(0, 4),
+                          ),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusXl,
+                      child: GlassSearchBar(
+                        controller: _searchController,
+                        hintText: 'Search songs, artists...',
+                        showBackground: false,
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value.toLowerCase();
+                            _selectedIndex = 0;
+                            _lastSyncedSong = null;
+                          });
+                        },
                       ),
-                      border: Border.all(
-                        color: AppColors.glassBorder,
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 16,
-                          spreadRadius: 1,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: GlassSearchBar(
-                      controller: _searchController,
-                      hintText: 'Search songs, artists...',
-                      showBackground: false,
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value.toLowerCase();
-                          _selectedIndex = 0;
-                          _lastSyncedSong = null;
-                        });
-                      },
                     ),
                   ),
-                ),
-                const SizedBox(height: AppConstants.spacingMd),
+                  const SizedBox(height: AppConstants.spacingMd),
+                ],
 
                 // Content based on async state
                 Expanded(
