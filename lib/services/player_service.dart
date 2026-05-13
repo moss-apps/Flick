@@ -3364,10 +3364,10 @@ class PlayerService {
         await player.setAudioSource(
           _audioSourceSequence!,
           initialIndex: _currentIndex,
+          initialPosition: currentPosition,
           preload: true,
         );
 
-        await player.seek(currentPosition, index: _currentIndex);
         await _updateLoopMode();
       });
 
@@ -3406,6 +3406,7 @@ class PlayerService {
     isShuffleNotifier.value = enable;
 
     final current = currentSongNotifier.value;
+    final oldCurrentIndex = _currentIndex;
     final basePlaylist = <Song>[];
     for (var i = 0; i < _playlist.length; i++) {
       if (_playlistQueueEntryIds[i] == null) {
@@ -3435,11 +3436,70 @@ class PlayerService {
     }
     _insertQueuedEntriesAfterCurrent();
 
-    // Rebuild playlist with new order (just_audio only).
     if (!_usingRustBackend) {
-      await _rebuildPlaylist();
+      await _syncPlaylistAfterShuffle(oldCurrentIndex: oldCurrentIndex);
     }
     await _updateNotificationState();
+  }
+
+  Future<void> _syncPlaylistAfterShuffle({required int oldCurrentIndex}) async {
+    final player = _justAudioPlayer;
+    final seq = _audioSourceSequence;
+    if (player == null || seq == null) {
+      await _rebuildPlaylist();
+      return;
+    }
+    if (_playlist.isEmpty || _currentIndex < 0) {
+      await _rebuildPlaylist();
+      return;
+    }
+    final seqLen = seq.children.length;
+    if (oldCurrentIndex < 0 || oldCurrentIndex >= seqLen) {
+      await _rebuildPlaylist();
+      return;
+    }
+    if (seqLen != _playlist.length) {
+      await _rebuildPlaylist();
+      return;
+    }
+
+    _isRebuildingPlaylist = true;
+    try {
+      final newSources = <just_audio.AudioSource>[];
+      for (final song in _playlist) {
+        newSources.add(await _buildAudioSourceForSong(song));
+      }
+
+      await _runWithSuppressedSequenceStateUpdates(() async {
+        final int newIdx = _currentIndex;
+
+        if (oldCurrentIndex > 0) {
+          seq.removeRange(0, oldCurrentIndex);
+        }
+        final afterCurrent = seq.children.length - 1;
+        if (afterCurrent > 0) {
+          seq.removeRange(1, seq.children.length);
+        }
+
+        if (newIdx > 0) {
+          seq.insertAll(0, newSources.sublist(0, newIdx));
+        }
+        if (newIdx + 1 < newSources.length) {
+          seq.insertAll(
+            newIdx + 1,
+            newSources.sublist(newIdx + 1),
+          );
+        }
+
+        await _updateLoopMode();
+
+        // Give ExoPlayer's queued index-change events time to drain while
+        // suppression is still active so they don't flash the wrong song.
+        await Future.delayed(const Duration(milliseconds: 50));
+      });
+    } finally {
+      _isRebuildingPlaylist = false;
+    }
   }
 
   Future<void> toggleLoopMode() async {
