@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flick/models/song.dart';
 
@@ -19,11 +21,25 @@ class LyricsData {
   final List<LyricsLine> lines;
   final bool isSynchronized;
   final String? source;
+  final String rawContent;
 
   const LyricsData({
     required this.lines,
     required this.isSynchronized,
     this.source,
+    required this.rawContent,
+  });
+}
+
+class LyricsSaveResult {
+  final LyricsData data;
+  final String path;
+  final bool savedBesideSong;
+
+  const LyricsSaveResult({
+    required this.data,
+    required this.path,
+    required this.savedBesideSong,
   });
 }
 
@@ -31,15 +47,36 @@ class LyricsService {
   static const MethodChannel _storageChannel = MethodChannel(
     'com.mossapps.flick/storage',
   );
+  static const String _manualLyricsOverridesKey = 'lyrics_manual_overrides_v1';
+  static const String _managedLyricsDirectoryName = 'lyrics';
 
   final Map<String, LyricsData?> _cache = {};
 
-  Future<LyricsData?> loadLyricsForSong(Song song) async {
+  Future<LyricsData?> loadLyricsForSong(
+    Song song, {
+    bool forceRefresh = false,
+  }) async {
     final filePath = song.filePath;
     if (filePath == null || filePath.isEmpty) return null;
 
-    if (_cache.containsKey(filePath)) {
+    if (forceRefresh) {
+      _cache.remove(filePath);
+    }
+
+    if (!forceRefresh && _cache.containsKey(filePath)) {
       return _cache[filePath];
+    }
+
+    final manualPath = await getManualLyricsPathForSong(song);
+    if (manualPath != null && manualPath.isNotEmpty) {
+      final manualLoaded = await _loadLyricsFromAbsolutePath(manualPath);
+      if (manualLoaded != null && manualLoaded.content.trim().isNotEmpty) {
+        final parsed = _parseLyrics(manualLoaded.content, source: manualLoaded.source);
+        _cache[filePath] = parsed;
+        return parsed;
+      }
+
+      await clearManualLyricsPathForSong(song);
     }
 
     final embedded = await _loadEmbeddedLyricsText(filePath);
@@ -58,6 +95,95 @@ class LyricsService {
     final parsed = _parseLyrics(loaded.content, source: loaded.source);
     _cache[filePath] = parsed;
     return parsed;
+  }
+
+  Future<String?> getManualLyricsPathForSong(Song song) async {
+    final filePath = song.filePath;
+    if (filePath == null || filePath.isEmpty) return null;
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_manualLyricsOverridesKey);
+    if (raw == null || raw.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      final value = decoded[filePath];
+      if (value is String && value.isNotEmpty) {
+        return value;
+      }
+    } catch (_) {
+      // Ignore malformed preference payload and fall back to auto lookup.
+    }
+
+    return null;
+  }
+
+  Future<void> clearManualLyricsPathForSong(Song song) async {
+    await _setManualLyricsPath(song, null);
+  }
+
+  Future<LyricsSaveResult> importLyricsForSong({
+    required Song song,
+    required String fileName,
+    required String content,
+  }) async {
+    final extension = _preferredLyricsExtension(fileName);
+    final savedPath = await _writeManagedLyricsCopy(
+      song: song,
+      extension: extension,
+      content: content,
+    );
+    await _setManualLyricsPath(song, savedPath);
+    final data = (await loadLyricsForSong(song, forceRefresh: true)) ??
+        _parseLyrics(content, source: savedPath);
+    return LyricsSaveResult(
+      data: data,
+      path: savedPath,
+      savedBesideSong: false,
+    );
+  }
+
+  Future<LyricsSaveResult> saveLyricsForSong({
+    required Song song,
+    required String content,
+  }) async {
+    final sidecarPath = suggestSidecarLrcPath(song);
+    var savedBesideSong = false;
+    late final String savedPath;
+
+    if (sidecarPath != null) {
+      try {
+        final file = File(sidecarPath);
+        await file.parent.create(recursive: true);
+        await file.writeAsString(content);
+        await _setManualLyricsPath(song, null);
+        savedBesideSong = true;
+        savedPath = file.path;
+      } catch (_) {
+        savedPath = await _writeManagedLyricsCopy(
+          song: song,
+          extension: 'lrc',
+          content: content,
+        );
+        await _setManualLyricsPath(song, savedPath);
+      }
+    } else {
+      savedPath = await _writeManagedLyricsCopy(
+        song: song,
+        extension: 'lrc',
+        content: content,
+      );
+      await _setManualLyricsPath(song, savedPath);
+    }
+
+    final data = (await loadLyricsForSong(song, forceRefresh: true)) ??
+        _parseLyrics(content, source: savedPath);
+    return LyricsSaveResult(
+      data: data,
+      path: savedPath,
+      savedBesideSong: savedBesideSong,
+    );
   }
 
   int findCurrentLineIndex(LyricsData lyrics, Duration position) {
@@ -82,6 +208,57 @@ class LyricsService {
     return result;
   }
 
+  LyricsData parseLyricsText(String raw, {String? source}) {
+    return _parseLyrics(raw, source: source);
+  }
+
+  Duration? parseTimestamp(String timestamp) {
+    return _parseTimestamp(timestamp);
+  }
+
+  String formatTimestamp(Duration duration) {
+    final totalMinutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    final centiseconds = (duration.inMilliseconds.remainder(1000) ~/ 10);
+    return '[${totalMinutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}.${centiseconds.toString().padLeft(2, '0')}]';
+  }
+
+  String buildLrcContent({
+    required List<LyricsLine> lines,
+    Song? song,
+  }) {
+    final buffer = StringBuffer();
+    if (song?.title case final title? when title.trim().isNotEmpty) {
+      buffer.writeln('[ti:${title.trim()}]');
+    }
+    if (song?.artist case final artist? when artist.trim().isNotEmpty) {
+      buffer.writeln('[ar:${artist.trim()}]');
+    }
+    if (song?.album case final album? when album.trim().isNotEmpty) {
+      buffer.writeln('[al:${album.trim()}]');
+    }
+    if (buffer.isNotEmpty) {
+      buffer.writeln();
+    }
+
+    for (final line in lines) {
+      buffer.writeln('${formatTimestamp(line.timestamp)}${line.text}');
+    }
+    return buffer.toString().trimRight();
+  }
+
+  String? suggestSidecarLrcPath(Song song) {
+    final filePath = song.filePath;
+    if (filePath == null || filePath.isEmpty) return null;
+    final localPath = _resolveLocalPath(filePath);
+    if (localPath == null || localPath.isEmpty) return null;
+
+    final audioFile = File(localPath);
+    final parent = audioFile.parent;
+    final stem = _basenameWithoutExtension(audioFile.path);
+    return '${parent.path}${Platform.pathSeparator}$stem.lrc';
+  }
+
   Future<_LoadedLyrics?> _loadEmbeddedLyricsText(String filePath) async {
     try {
       final result = await _storageChannel.invokeMapMethod<String, dynamic>(
@@ -99,6 +276,14 @@ class LyricsService {
       // Best-effort lookup. Fall back to sidecar lookup.
     }
     return null;
+  }
+
+  Future<_LoadedLyrics?> _loadLyricsFromAbsolutePath(String absolutePath) async {
+    final file = File(absolutePath);
+    if (!await file.exists()) return null;
+    final content = await _readTextFile(file);
+    if (content == null || content.trim().isEmpty) return null;
+    return _LoadedLyrics(content: content, source: file.path);
   }
 
   Future<_LoadedLyrics?> _loadLyricsText(String filePath) async {
@@ -262,6 +447,7 @@ class LyricsService {
         lines: parsedLines,
         isSynchronized: true,
         source: source,
+        rawContent: raw,
       );
     }
 
@@ -269,6 +455,7 @@ class LyricsService {
       lines: parsedLines.where((line) => line.text.isNotEmpty).toList(),
       isSynchronized: false,
       source: source,
+      rawContent: raw,
     );
   }
 
@@ -311,7 +498,12 @@ class LyricsService {
 
       if (lines.isNotEmpty) {
         lines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-        return LyricsData(lines: lines, isSynchronized: hasTimestamps, source: source);
+        return LyricsData(
+          lines: lines,
+          isSynchronized: hasTimestamps,
+          source: source,
+          rawContent: xml,
+        );
       }
     } catch (_) {
       // Fall through to plain-text parser
@@ -358,6 +550,78 @@ class LyricsService {
     if (fractionRaw.length == 1) return int.parse(fractionRaw) * 100;
     if (fractionRaw.length == 2) return int.parse(fractionRaw) * 10;
     return int.parse(fractionRaw.substring(0, 3));
+  }
+
+  Future<void> _setManualLyricsPath(Song song, String? manualPath) async {
+    final filePath = song.filePath;
+    if (filePath == null || filePath.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final existingRaw = prefs.getString(_manualLyricsOverridesKey);
+    final map = <String, String>{};
+    if (existingRaw != null && existingRaw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(existingRaw);
+        if (decoded is Map) {
+          for (final entry in decoded.entries) {
+            if (entry.key is String && entry.value is String) {
+              map[entry.key as String] = entry.value as String;
+            }
+          }
+        }
+      } catch (_) {
+        // Reset malformed preferences payload.
+      }
+    }
+
+    if (manualPath == null || manualPath.isEmpty) {
+      map.remove(filePath);
+    } else {
+      map[filePath] = manualPath;
+    }
+
+    if (map.isEmpty) {
+      await prefs.remove(_manualLyricsOverridesKey);
+    } else {
+      await prefs.setString(_manualLyricsOverridesKey, jsonEncode(map));
+    }
+    _cache.remove(filePath);
+  }
+
+  Future<String> _writeManagedLyricsCopy({
+    required Song song,
+    required String extension,
+    required String content,
+  }) async {
+    final documentsDirectory = await getApplicationDocumentsDirectory();
+    final lyricsDirectory = Directory(
+      '${documentsDirectory.path}${Platform.pathSeparator}$_managedLyricsDirectoryName',
+    );
+    await lyricsDirectory.create(recursive: true);
+
+    final safeStem = _safeLyricsStem(song);
+    final file = File(
+      '${lyricsDirectory.path}${Platform.pathSeparator}$safeStem.$extension',
+    );
+    await file.writeAsString(content);
+    return file.path;
+  }
+
+  String _preferredLyricsExtension(String fileName) {
+    final normalized = fileName.toLowerCase();
+    if (normalized.endsWith('.txt')) return 'txt';
+    if (normalized.endsWith('.xml')) return 'xml';
+    return 'lrc';
+  }
+
+  String _safeLyricsStem(Song song) {
+    final parts = [
+      if (song.artist.trim().isNotEmpty) song.artist.trim(),
+      if (song.title.trim().isNotEmpty) song.title.trim(),
+      song.id,
+    ];
+    final stem = parts.join('_');
+    return stem.replaceAll(RegExp(r'[^a-zA-Z0-9._-]+'), '_');
   }
 }
 
