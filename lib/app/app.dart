@@ -78,6 +78,8 @@ class _MainShellState extends ConsumerState<MainShell>
   Song? _previousSong;
   late final PlayerService _playerService;
 
+  DateTime? _lastBackPressTime;
+
   @override
   void initState() {
     super.initState();
@@ -144,27 +146,6 @@ class _MainShellState extends ConsumerState<MainShell>
         _maybeOpenExternalPlayer(nextSong);
       }
 
-      if (songChanged && context.mounted) {
-        final isPlaying = ref.read(isPlayingProvider);
-        if (!isPlaying) {
-          // Song changed but not playing yet — don't auto-navigate.
-          _previousSong = nextSong;
-          return;
-        }
-        if (NavigationHelper.isFullPlayerOpen) {
-          _previousSong = nextSong;
-          return;
-        }
-        final song = nextSong;
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (context.mounted) {
-            NavigationHelper.navigateToFullPlayer(
-              context,
-              heroTag: 'auto_nav_${song.id}',
-            );
-          }
-        });
-      }
       _previousSong = nextSong;
     });
 
@@ -396,6 +377,26 @@ class _MainShellState extends ConsumerState<MainShell>
     return false;
   }
 
+  void _handleBackPress(bool didPop, dynamic result) {
+    if (didPop) return;
+
+    final now = DateTime.now();
+    if (_lastBackPressTime == null ||
+        now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+      _lastBackPressTime = now;
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Press back again to exit'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+    } else {
+      SystemNavigator.pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(navigationIndexProvider);
@@ -403,9 +404,12 @@ class _MainShellState extends ConsumerState<MainShell>
     final navBarConfig = ref.watch(navBarConfigProvider);
     final pageOrder = _getPageOrder(navBarConfig);
 
-    return AdaptiveColorProvider(
-      backgroundColor: backgroundColor,
-      child: Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: _handleBackPress,
+      child: AdaptiveColorProvider(
+        backgroundColor: backgroundColor,
+        child: Scaffold(
         backgroundColor: AppColors.background,
         extendBody: true,
         body: NotificationListener<ScrollNotification>(
@@ -479,7 +483,8 @@ class _MainShellState extends ConsumerState<MainShell>
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   List<NavBarButton> _getPageOrder(NavBarConfig config) {
