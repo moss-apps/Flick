@@ -323,6 +323,7 @@ class PlayerService {
 
   // Queue State
   final ValueNotifier<List<Song>> queueNotifier = ValueNotifier(const []);
+  final ValueNotifier<List<Song>> upNextNotifier = ValueNotifier(const []);
   final ValueNotifier<int> currentIndexNotifier = ValueNotifier(-1);
   int _nextQueueEntryId = 0;
 
@@ -542,6 +543,10 @@ class PlayerService {
     );
   }
 
+  void _notifyUpNextChanged() {
+    upNextNotifier.value = upNext;
+  }
+
   void _debounceQueueChanged() {
     _queueDebounceTimer?.cancel();
     _queueDebounceTimer = Timer(_queueDebounce, () {
@@ -556,6 +561,7 @@ class PlayerService {
     if (_currentIndex == newIndex) return;
     _currentIndex = newIndex;
     currentIndexNotifier.value = newIndex;
+    _notifyUpNextChanged();
   }
 
   void _replacePlaybackContext(List<Song> songs) {
@@ -569,6 +575,7 @@ class PlayerService {
     _playlistQueueEntryIds
       ..clear()
       ..addAll(List<int?>.filled(songs.length, null));
+    _notifyUpNextChanged();
   }
 
   void syncAlbumArtPaths({
@@ -671,6 +678,7 @@ class PlayerService {
       _playlist.insert(insertIndex + i, entry.song);
       _playlistQueueEntryIds.insert(insertIndex + i, entry.id);
     }
+    _notifyUpNextChanged();
   }
 
   void _consumeQueueEntryAt(int playlistIndex) {
@@ -682,6 +690,7 @@ class PlayerService {
     _playlistQueueEntryIds[playlistIndex] = null;
     _queuedEntries.removeWhere((entry) => entry.id == queueEntryId);
     _notifyQueueChanged();
+    _notifyUpNextChanged();
   }
 
   int _findPlaylistIndexForQueueEntry(int queueEntryId) {
@@ -700,6 +709,7 @@ class PlayerService {
       _removeFromAudioSequence(playlistIndex);
     }
     _notifyQueueChanged();
+    _notifyUpNextChanged();
     if (_usingRustBackend || _audioSourceSequence == null) {
       _debounceQueueChanged();
     }
@@ -3565,6 +3575,7 @@ class PlayerService {
       }
     }
     _notifyQueueChanged();
+    _notifyUpNextChanged();
     if (!_playlist.isNotEmpty ||
         _usingRustBackend ||
         _audioSourceSequence == null) {
@@ -3590,6 +3601,7 @@ class PlayerService {
     }
 
     _notifyQueueChanged();
+    _notifyUpNextChanged();
     await _playInternal(entry.song);
   }
 
@@ -3607,6 +3619,7 @@ class PlayerService {
       }
     }
     _queuedEntries.clear();
+    _notifyUpNextChanged();
     _debounceQueueChanged();
   }
 
@@ -3635,7 +3648,22 @@ class PlayerService {
       }
     }
     _insertQueuedEntriesAfterCurrent();
+    _notifyUpNextChanged();
     _debounceQueueChanged();
+  }
+
+  Future<void> playFromUpNextIndex(int index) {
+    return _enqueuePlaybackRequest(() => _playFromUpNextIndexInternal(index));
+  }
+
+  Future<void> _playFromUpNextIndexInternal(int index) async {
+    final playlistIndex = _currentIndex + 1 + index;
+    if (playlistIndex < 0 || playlistIndex >= _playlist.length) {
+      return;
+    }
+
+    _setCurrentIndex(playlistIndex);
+    await _playSongAtCurrentIndex();
   }
 
   Future<void> moveQueueItemToNext(int index) async {

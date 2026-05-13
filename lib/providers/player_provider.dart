@@ -23,6 +23,7 @@ class PlayerState {
   final double playbackSpeed;
   final Duration? sleepTimerRemaining;
   final List<Song> queue;
+  final List<Song> upNext;
   final int currentIndex;
 
   const PlayerState({
@@ -36,6 +37,7 @@ class PlayerState {
     this.playbackSpeed = 1.0,
     this.sleepTimerRemaining,
     this.queue = const [],
+    this.upNext = const [],
     this.currentIndex = -1,
   });
 
@@ -50,6 +52,7 @@ class PlayerState {
     double? playbackSpeed,
     Duration? sleepTimerRemaining,
     List<Song>? queue,
+    List<Song>? upNext,
     int? currentIndex,
     bool clearSong = false,
     bool clearSleepTimer = false,
@@ -67,6 +70,7 @@ class PlayerState {
           ? null
           : (sleepTimerRemaining ?? this.sleepTimerRemaining),
       queue: queue ?? this.queue,
+      upNext: upNext ?? this.upNext,
       currentIndex: currentIndex ?? this.currentIndex,
     );
   }
@@ -79,12 +83,6 @@ class PlayerState {
 
   /// Whether there is a song loaded.
   bool get hasSong => currentSong != null;
-
-  List<Song> get upNext {
-    if (queue.isEmpty) return const [];
-    final startIndex = (currentIndex + 1).clamp(0, queue.length);
-    return queue.sublist(startIndex);
-  }
 }
 
 /// Provider for the PlayerService singleton.
@@ -122,6 +120,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       playbackSpeed: _service.playbackSpeedNotifier.value,
       sleepTimerRemaining: _service.sleepTimerRemainingNotifier.value,
       queue: _service.queueNotifier.value,
+      upNext: _service.upNextNotifier.value,
       currentIndex: _service.currentIndexNotifier.value,
     );
 
@@ -172,6 +171,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
         playbackSpeed: _service.playbackSpeedNotifier.value,
         sleepTimerRemaining: _service.sleepTimerRemainingNotifier.value,
         queue: _service.queueNotifier.value,
+        upNext: _service.upNextNotifier.value,
         currentIndex: _service.currentIndexNotifier.value,
         clearSong: _service.currentSongNotifier.value == null,
         clearSleepTimer: _service.sleepTimerRemainingNotifier.value == null,
@@ -236,6 +236,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
     _service.playbackSpeedNotifier.addListener(syncState);
     _service.sleepTimerRemainingNotifier.addListener(syncState);
     _service.queueNotifier.addListener(syncState);
+    _service.upNextNotifier.addListener(syncState);
     _service.currentIndexNotifier.addListener(syncState);
 
     // Cleanup listeners when provider is disposed
@@ -250,6 +251,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       _service.playbackSpeedNotifier.removeListener(syncState);
       _service.sleepTimerRemainingNotifier.removeListener(syncState);
       _service.queueNotifier.removeListener(syncState);
+      _service.upNextNotifier.removeListener(syncState);
       _service.currentIndexNotifier.removeListener(syncState);
     });
 
@@ -343,6 +345,10 @@ class PlayerNotifier extends Notifier<PlayerState> {
 
   Future<void> playFromQueueIndex(int index) async {
     await _service.playFromQueueIndex(index);
+  }
+
+  Future<void> playFromUpNextIndex(int index) async {
+    await _service.playFromUpNextIndex(index);
   }
 
   Future<void> clearQueue() async {
