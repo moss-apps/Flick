@@ -891,9 +891,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
     required List<Song> songs,
     required int index,
   }) async {
-    // Use the sorted songs list so next/previous follows the current sort order
+    // Play just the selected song — no playlist context so the queue stays empty
     final songToPlay = songs[index];
-    await ref.read(playerProvider.notifier).play(songToPlay, playlist: songs);
+    await ref.read(playerProvider.notifier).play(songToPlay);
 
     if (!mounted) return;
 

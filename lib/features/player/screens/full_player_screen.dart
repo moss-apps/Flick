@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
@@ -25,6 +26,7 @@ import 'package:flick/providers/album_color_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
+import 'package:flick/features/player/widgets/lyrics_editor_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/line_seek_bar.dart';
 import 'package:flick/features/player/widgets/waveform_seek_bar.dart';
 import 'package:flick/models/progress_bar_style.dart';
@@ -3040,6 +3042,7 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
   final ScrollController _scrollController = ScrollController();
   LyricsData? _lyricsData;
   bool _isLoading = true;
+  bool _hasManualLyricsSelection = false;
   int _activeLineIndex = -1;
   int _lastScrolledIndex = -1;
 
@@ -3087,12 +3090,20 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
       _lastScrolledIndex = -1;
     });
 
-    final loaded = await widget.lyricsService.loadLyricsForSong(song);
+    final loaded = await widget.lyricsService.loadLyricsForSong(
+      song,
+      forceRefresh: true,
+    );
+    final manualSource = await widget.lyricsService.getManualLyricsPathForSong(
+      song,
+    );
     if (!mounted) return;
     if (widget.song.id != song.id) return;
 
     setState(() {
       _lyricsData = loaded;
+      _hasManualLyricsSelection =
+          manualSource != null && manualSource.isNotEmpty;
       _isLoading = false;
     });
 
@@ -3158,6 +3169,126 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
     return normalized.split('/').last;
   }
 
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
+  }
+
+  Future<void> _openLyricsEditor() async {
+    final result = await LyricsEditorBottomSheet.show(
+      context: context,
+      song: widget.song,
+      playerService: widget.playerService,
+      lyricsService: widget.lyricsService,
+      initialLyrics: _lyricsData,
+    );
+    if (!mounted || result == null) return;
+    _showMessage(result.message);
+    await _loadLyricsForSong(widget.song);
+  }
+
+  Future<void> _importLyricsFile() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['lrc', 'txt', 'xml'],
+        withData: true,
+      );
+      final pickedFile = result?.files.single;
+      if (pickedFile == null) return;
+
+      final content = await readTextFromPickedLyricsFile(pickedFile);
+      if (content == null || content.trim().isEmpty) {
+        _showMessage('Could not read the selected lyrics file.');
+        return;
+      }
+
+      await widget.lyricsService.importLyricsForSong(
+        song: widget.song,
+        fileName: pickedFile.name,
+        content: content,
+      );
+      if (!mounted) return;
+      await _loadLyricsForSong(widget.song);
+      _showMessage('Linked "${pickedFile.name}" to this song.');
+    } catch (_) {
+      _showMessage('Could not use the selected lyrics file.');
+    }
+  }
+
+  Future<void> _resetManualLyricsSource() async {
+    await widget.lyricsService.clearManualLyricsPathForSong(widget.song);
+    if (!mounted) return;
+    await _loadLyricsForSong(widget.song);
+    if (!mounted) return;
+    _showMessage('Switched back to the automatic lyrics source.');
+  }
+
+  Widget _buildActionButtons() {
+    Widget action({
+      required IconData icon,
+      required String label,
+      required VoidCallback onPressed,
+      bool emphasized = false,
+    }) {
+      final fillColor = emphasized
+          ? Colors.white.withValues(alpha: 0.16)
+          : Colors.white.withValues(alpha: 0.08);
+      return TextButton.icon(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          backgroundColor: fillColor,
+          foregroundColor: Colors.white.withValues(alpha: 0.92),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
+          ),
+        ),
+        icon: Icon(icon, size: 16),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'ProductSans',
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          action(
+            icon: LucideIcons.pencilLine,
+            label: _lyricsData == null ? 'Create Lyrics' : 'Edit & Sync',
+            onPressed: () => unawaited(_openLyricsEditor()),
+            emphasized: true,
+          ),
+          action(
+            icon: LucideIcons.filePlus,
+            label: 'Use Existing File',
+            onPressed: () => unawaited(_importLyricsFile()),
+          ),
+          if (_hasManualLyricsSelection)
+            action(
+              icon: LucideIcons.refreshCcw,
+              label: 'Use Auto Source',
+              onPressed: () => unawaited(_resetManualLyricsSource()),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLyricsMeta(LyricsData lyrics) {
     final sourceLabel = _lyricsSourceLabel(lyrics.source);
     final textColor = Colors.white.withValues(alpha: 0.82);
@@ -3189,21 +3320,32 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          chip(LucideIcons.fileText, 'Lyrics'),
-          chip(
-            lyrics.isSynchronized ? LucideIcons.clock3 : Icons.notes_rounded,
-            lyrics.isSynchronized ? 'Tap a line to seek' : 'Static lyrics',
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              chip(LucideIcons.fileText, 'Lyrics'),
+              chip(
+                lyrics.isSynchronized
+                    ? LucideIcons.clock3
+                    : Icons.notes_rounded,
+                lyrics.isSynchronized ? 'Tap a line to seek' : 'Static lyrics',
+              ),
+              chip(
+                LucideIcons.slidersHorizontal,
+                'Simple + advanced sync tools',
+              ),
+              if (sourceLabel != null) chip(LucideIcons.badgeInfo, sourceLabel),
+            ],
           ),
-          if (sourceLabel != null) chip(LucideIcons.badgeInfo, sourceLabel),
-        ],
-      ),
+        ),
+        _buildActionButtons(),
+      ],
     );
   }
 
@@ -3367,15 +3509,22 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text(
-            'No lyrics file found.\nAdd an .lrc or .txt file with the same name as the song.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'ProductSans',
-              fontSize: 14,
-              height: 1.5,
-              color: Colors.white.withValues(alpha: 0.72),
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'No lyrics file found yet.\nCreate a new `.lrc`, sync it while the song plays, or choose an existing lyric file.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 14,
+                  height: 1.5,
+                  color: Colors.white.withValues(alpha: 0.72),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildActionButtons(),
+            ],
           ),
         ),
       );
