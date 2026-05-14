@@ -1634,6 +1634,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       _setImmersiveAutoFullViewDelaySeconds(next.immersiveAutoFullViewSeconds);
     });
 
+    final appPrefs = ref.watch(appPreferencesProvider);
+    final visStyle = appPrefs.visualizerAnimationStyle;
+    final visFreq = appPrefs.visualizerFrequencyMode;
+
     final colorMode = ref.watch(albumColorModeProvider);
     final dominantColor = ref.watch(albumDominantColorSyncProvider);
     final Color? albumColor =
@@ -1753,6 +1757,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       ),
                   buildDirectoryInfo: (song) =>
                       _buildDirectoryInfo(context, song, compact: false),
+                  visualizerAnimationStyle: visStyle,
+                  visualizerFrequencyMode: visFreq,
                 ),
               ),
             );
@@ -1807,6 +1813,8 @@ class _AnimatedSongScene extends StatelessWidget {
   final Widget Function(Song song, bool lyricsMode, PlayerScreenMode mode)
   buildFileInfoRow;
   final Widget Function(Song song) buildDirectoryInfo;
+  final String visualizerAnimationStyle;
+  final String visualizerFrequencyMode;
 
   const _AnimatedSongScene({
     required this.song,
@@ -1834,6 +1842,8 @@ class _AnimatedSongScene extends StatelessWidget {
     required this.onNext,
     required this.buildFileInfoRow,
     required this.buildDirectoryInfo,
+    this.visualizerAnimationStyle = 'bars',
+    this.visualizerFrequencyMode = 'full',
   });
 
   @override
@@ -1970,7 +1980,7 @@ class _AnimatedSongScene extends StatelessWidget {
           : const Color(0xFF0A0A0A);
       return Stack(
         children: [
-          Positioned.fill(child: AudioVisualizer(playerService: playerService)),
+          Positioned.fill(child: AudioVisualizer(playerService: playerService, animationStyle: visualizerAnimationStyle, frequencyMode: visualizerFrequencyMode, albumColor: albumColor)),
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -2048,6 +2058,25 @@ class _AnimatedSongScene extends StatelessWidget {
     final gradientBase = hasAlbumTint
         ? albumSurface(albumColor!, bgBlend)
         : const Color(0xFF121212);
+
+    final gradientColors = immersiveFullView
+        ? [
+            gradientBase.withValues(alpha: 0.3),
+            gradientBase.withValues(alpha: 0.25),
+            gradientBase.withValues(alpha: 0.2),
+            gradientBase.withValues(alpha: 0.15),
+            gradientBase.withValues(alpha: 0.08),
+            Colors.transparent,
+          ]
+        : [
+            gradientBase,
+            gradientBase.withValues(alpha: 0.95),
+            gradientBase.withValues(alpha: 0.85),
+            gradientBase.withValues(alpha: 0.6),
+            gradientBase.withValues(alpha: 0.3),
+            Colors.transparent,
+          ];
+
     return Stack(
       children: [
         Positioned.fill(
@@ -2074,19 +2103,13 @@ class _AnimatedSongScene extends StatelessWidget {
           ),
         ),
         Positioned.fill(
-          child: Container(
+          child: AnimatedContainer(
+            duration: AppConstants.animationNormal,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
-                colors: [
-                  gradientBase,
-                  gradientBase.withValues(alpha: 0.95),
-                  gradientBase.withValues(alpha: 0.85),
-                  gradientBase.withValues(alpha: 0.6),
-                  gradientBase.withValues(alpha: 0.3),
-                  Colors.transparent,
-                ],
+                colors: gradientColors,
                 stops: const [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
               ),
             ),
@@ -2636,6 +2659,9 @@ class _AnimatedSongScene extends StatelessWidget {
                               ? _VisualizerArtBox(
                                   playerService: playerService,
                                   size: artworkSize,
+                                  animationStyle: visualizerAnimationStyle,
+                                  frequencyMode: visualizerFrequencyMode,
+                                  albumColor: albumColor,
                                 )
                               : _AlbumArtBox(song: song, size: artworkSize),
                         ),
@@ -2869,8 +2895,17 @@ class _AlbumArtBox extends StatelessWidget {
 class _VisualizerArtBox extends StatelessWidget {
   final PlayerService playerService;
   final double? size;
+  final String animationStyle;
+  final String frequencyMode;
+  final Color? albumColor;
 
-  const _VisualizerArtBox({required this.playerService, this.size});
+  const _VisualizerArtBox({
+    required this.playerService,
+    this.size,
+    this.animationStyle = 'bars',
+    this.frequencyMode = 'full',
+    this.albumColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2916,7 +2951,7 @@ class _VisualizerArtBox extends StatelessWidget {
           borderRadius: BorderRadius.circular(innerRadius),
           child: Container(
             color: const Color(0xFF0A0A0A),
-            child: AudioVisualizer(playerService: playerService),
+            child: AudioVisualizer(playerService: playerService, animationStyle: animationStyle, frequencyMode: frequencyMode, albumColor: albumColor),
           ),
         ),
       ),
