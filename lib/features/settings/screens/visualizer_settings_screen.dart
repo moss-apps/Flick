@@ -38,6 +38,14 @@ class VisualizerSettingsScreen extends ConsumerWidget {
               ),
               const SettingsDivider(),
               SelectionSetting(
+                icon: LucideIcons.wand,
+                title: 'Curved Wave',
+                subtitle: 'Silky smooth Bézier curves — fluid and organic',
+                selected: prefs.visualizerAnimationStyle == 'curved_wave',
+                onTap: () => notifier.setVisualizerAnimationStyle('curved_wave'),
+              ),
+              const SettingsDivider(),
+              SelectionSetting(
                 icon: LucideIcons.copy,
                 title: 'Mirrored',
                 subtitle: 'Symmetrical bars mirrored from the center',

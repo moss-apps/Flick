@@ -455,6 +455,8 @@ class _VisualizerBarPainter extends CustomPainter {
     switch (animationStyle) {
       case 'wave':
         _paintWave(canvas, size);
+      case 'curved_wave':
+        _paintCurvedWave(canvas, size);
       case 'mirrored':
         _paintMirrored(canvas, size);
       case 'dots':
@@ -546,6 +548,82 @@ class _VisualizerBarPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
       canvas.drawCircle(Offset(x, y), 1.5, dotPaint);
     }
+  }
+
+  void _paintCurvedWave(Canvas canvas, Size size) {
+    final barCount = barHeights.length;
+    final maxHeight = size.height * 0.50;
+    final baseline = size.height;
+    final spacing = size.width / (barCount - 1);
+
+    // Build sample points along the wave.
+    final points = <Offset>[];
+    for (int i = 0; i < barCount; i++) {
+      final x = i * spacing;
+      final y = baseline - barHeights[i] * maxHeight;
+      points.add(Offset(x, y));
+    }
+
+    // Convert Catmull-Rom control points to smooth cubic Bézier path.
+    Path _smoothPath(List<Offset> pts) {
+      final path = Path();
+      if (pts.length < 2) return path;
+      path.moveTo(pts[0].dx, pts[0].dy);
+      if (pts.length == 2) {
+        path.lineTo(pts[1].dx, pts[1].dy);
+        return path;
+      }
+      for (int i = 0; i < pts.length - 1; i++) {
+        final p0 = i > 0 ? pts[i - 1] : pts[i];
+        final p1 = pts[i];
+        final p2 = pts[i + 1];
+        final p3 = i + 2 < pts.length ? pts[i + 2] : pts[i + 1];
+        // Catmull-Rom → cubic Bézier control points
+        final cp1x = p1.dx + (p2.dx - p0.dx) / 6.0;
+        final cp1y = p1.dy + (p2.dy - p0.dy) / 6.0;
+        final cp2x = p2.dx - (p3.dx - p1.dx) / 6.0;
+        final cp2y = p2.dy - (p3.dy - p1.dy) / 6.0;
+        path.cubicTo(cp1x, cp1y, cp2x, cp2y, p2.dx, p2.dy);
+      }
+      return path;
+    }
+
+    // --- Filled area ---
+    final curvePath = _smoothPath(points);
+    final fillPath = Path.from(curvePath);
+    fillPath.lineTo(size.width, baseline);
+    fillPath.lineTo(0, baseline);
+    fillPath.close();
+
+    final topColor = _barColor(0.3);
+    final bottomColor = _barColor(0.7);
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          topColor.withValues(alpha: 0.70),
+          bottomColor.withValues(alpha: 0.08),
+        ],
+      ).createShader(
+          Rect.fromLTWH(0, baseline - maxHeight, size.width, maxHeight));
+    canvas.drawPath(fillPath, fillPaint);
+
+    // --- Glow stroke ---
+    final glowPaint = Paint()
+      ..color = _barColor(0.5).withValues(alpha: 0.30)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawPath(curvePath, glowPaint);
+
+    // --- Main stroke ---
+    final strokePaint = Paint()
+      ..color = _barColor(0.5).withValues(alpha: 0.95)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(curvePath, strokePaint);
   }
 
   void _paintMirrored(Canvas canvas, Size size) {
