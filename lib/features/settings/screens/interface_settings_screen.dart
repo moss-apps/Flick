@@ -6,6 +6,7 @@ import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/settings/screens/bottom_bar_settings_screen.dart';
+import 'package:flick/features/settings/screens/visualizer_settings_screen.dart';
 
 class InterfaceSettingsScreen extends ConsumerWidget {
   const InterfaceSettingsScreen({super.key});
@@ -68,6 +69,19 @@ class InterfaceSettingsScreen extends ConsumerWidget {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const BottomBarSettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SettingsDivider(),
+              NavigationSetting(
+                icon: LucideIcons.audioLines,
+                title: 'Visualizer',
+                subtitle: 'Animation style and frequency focus',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const VisualizerSettingsScreen(),
                     ),
                   );
                 },

@@ -893,7 +893,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
   }) async {
     // Play just the selected song — no playlist context so the queue stays empty
     final songToPlay = songs[index];
-    await ref.read(playerProvider.notifier).play(songToPlay);
+    await ref.read(playerProvider.notifier).play(songToPlay, playlist: songs);
 
     if (!mounted) return;
 

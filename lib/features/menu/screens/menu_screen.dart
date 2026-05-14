@@ -422,7 +422,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                                     ),
                                   )
                                 : SizedBox(
-                                    height: 236,
+                                    height: 280,
                                     child: ListView.separated(
                                       scrollDirection: Axis.horizontal,
                                       itemCount:
