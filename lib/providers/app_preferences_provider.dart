@@ -146,6 +146,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .read(appPreferencesServiceProvider)
         .setVisualizerFrequencyMode(value);
   }
+
+  Future<void> setVisualizerMovementMode(String value) async {
+    if (state.visualizerMovementMode == value) return;
+    state = state.copyWith(visualizerMovementMode: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setVisualizerMovementMode(value);
+  }
 }
 
 final appPreferencesProvider =

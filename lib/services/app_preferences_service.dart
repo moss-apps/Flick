@@ -19,6 +19,7 @@ class AppPreferences {
   final int immersiveAutoFullViewSeconds;
   final String visualizerAnimationStyle;
   final String visualizerFrequencyMode;
+  final String visualizerMovementMode;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -39,6 +40,7 @@ class AppPreferences {
     this.immersiveAutoFullViewSeconds = 0,
     this.visualizerAnimationStyle = 'bars',
     this.visualizerFrequencyMode = 'full',
+    this.visualizerMovementMode = 'bouncy',
   });
 
   AppPreferences copyWith({
@@ -60,6 +62,7 @@ class AppPreferences {
     int? immersiveAutoFullViewSeconds,
     String? visualizerAnimationStyle,
     String? visualizerFrequencyMode,
+    String? visualizerMovementMode,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -85,6 +88,8 @@ class AppPreferences {
           visualizerAnimationStyle ?? this.visualizerAnimationStyle,
       visualizerFrequencyMode:
           visualizerFrequencyMode ?? this.visualizerFrequencyMode,
+      visualizerMovementMode:
+          visualizerMovementMode ?? this.visualizerMovementMode,
     );
   }
 }
@@ -108,6 +113,7 @@ class AppPreferencesService {
   static const _immersiveAutoFullViewKey = 'immersive_auto_full_view_seconds';
   static const _visualizerAnimationStyleKey = 'visualizer_animation_style';
   static const _visualizerFrequencyModeKey = 'visualizer_frequency_mode';
+  static const _visualizerMovementModeKey = 'visualizer_movement_mode';
 
   Future<AppPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -133,6 +139,8 @@ class AppPreferencesService {
           prefs.getString(_visualizerAnimationStyleKey) ?? 'bars',
       visualizerFrequencyMode:
           prefs.getString(_visualizerFrequencyModeKey) ?? 'full',
+      visualizerMovementMode:
+          prefs.getString(_visualizerMovementModeKey) ?? 'bouncy',
     );
   }
 
@@ -314,5 +322,15 @@ class AppPreferencesService {
   Future<void> setVisualizerFrequencyMode(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_visualizerFrequencyModeKey, value);
+  }
+
+  Future<String> getVisualizerMovementMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_visualizerMovementModeKey) ?? 'bouncy';
+  }
+
+  Future<void> setVisualizerMovementMode(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_visualizerMovementModeKey, value);
   }
 }
