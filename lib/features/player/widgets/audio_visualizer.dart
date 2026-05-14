@@ -301,9 +301,19 @@ class _AudioVisualizerState extends State<AudioVisualizer>
 
     for (int i = 0; i < _barCount; i++) {
       switch (widget.movementMode) {
-        case 'fluid':
-          _currentHeights[i] =
-              _currentHeights[i] * 0.94 + _targetHeights[i] * 0.06;
+        case 'smooth':
+          // Asymmetric attack / decay for a natural equalizer feel.
+          // Fast attack so beats register immediately, gentler decay
+          // so bars don't snap to zero.
+          if (_targetHeights[i] >= _currentHeights[i]) {
+            // Rising — fast attack
+            _currentHeights[i] =
+                _currentHeights[i] * 0.45 + _targetHeights[i] * 0.55;
+          } else {
+            // Falling — moderate decay
+            _currentHeights[i] =
+                _currentHeights[i] * 0.65 + _targetHeights[i] * 0.35;
+          }
         case 'snappy':
           _currentHeights[i] =
               _currentHeights[i] * 0.25 + _targetHeights[i] * 0.75;
@@ -430,11 +440,11 @@ class _VisualizerBarPainter extends CustomPainter {
 
   Color _barColor(double t) {
     if (albumColor == null) {
-      final b = 1.0 - t * 0.55;
+      final b = 1.0 - t * 0.40;
       return Color.fromRGBO((255 * b).round(), (255 * b).round(), (255 * b).round(), 1.0);
     }
     final hsl = HSLColor.fromColor(albumColor!);
-    final l = (0.30 + t * 0.55).clamp(0.1, 0.85);
+    final l = (0.45 + t * 0.45).clamp(0.15, 0.92);
     final s = (hsl.saturation * (0.7 + t * 0.4)).clamp(0.15, 1.0);
     return hsl.withLightness(l).withSaturation(s).toColor();
   }
