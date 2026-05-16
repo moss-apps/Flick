@@ -200,6 +200,30 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .read(appPreferencesServiceProvider)
         .setImmersiveFullViewScale(value);
   }
+
+  Future<void> setWidgetBgOpacity(int value) async {
+    if (state.widgetBgOpacity == value) return;
+    state = state.copyWith(widgetBgOpacity: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetBgOpacity(value);
+  }
+
+  Future<void> setWidgetShowAlbumArt(bool value) async {
+    if (state.widgetShowAlbumArt == value) return;
+    state = state.copyWith(widgetShowAlbumArt: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetShowAlbumArt(value);
+  }
+
+  Future<void> setWidgetShowArtist(bool value) async {
+    if (state.widgetShowArtist == value) return;
+    state = state.copyWith(widgetShowArtist: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetShowArtist(value);
+  }
+
+  Future<void> setWidgetAccentColor(String value) async {
+    if (state.widgetAccentColor == value) return;
+    state = state.copyWith(widgetAccentColor: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetAccentColor(value);
+  }
 }
 
 final appPreferencesProvider =

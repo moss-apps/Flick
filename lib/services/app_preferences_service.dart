@@ -26,6 +26,10 @@ class AppPreferences {
   final double immersiveTextScale;
   final double immersiveVerticalOffset;
   final double immersiveFullViewScale;
+  final int widgetBgOpacity;
+  final bool widgetShowAlbumArt;
+  final bool widgetShowArtist;
+  final String widgetAccentColor;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -53,6 +57,10 @@ class AppPreferences {
     this.immersiveTextScale = 1.0,
     this.immersiveVerticalOffset = 0.0,
     this.immersiveFullViewScale = 1.0,
+    this.widgetBgOpacity = 3,
+    this.widgetShowAlbumArt = true,
+    this.widgetShowArtist = true,
+    this.widgetAccentColor = 'white',
   });
 
   AppPreferences copyWith({
@@ -81,6 +89,10 @@ class AppPreferences {
     double? immersiveTextScale,
     double? immersiveVerticalOffset,
     double? immersiveFullViewScale,
+    int? widgetBgOpacity,
+    bool? widgetShowAlbumArt,
+    bool? widgetShowArtist,
+    String? widgetAccentColor,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -118,6 +130,10 @@ class AppPreferences {
           immersiveVerticalOffset ?? this.immersiveVerticalOffset,
       immersiveFullViewScale:
           immersiveFullViewScale ?? this.immersiveFullViewScale,
+      widgetBgOpacity: widgetBgOpacity ?? this.widgetBgOpacity,
+      widgetShowAlbumArt: widgetShowAlbumArt ?? this.widgetShowAlbumArt,
+      widgetShowArtist: widgetShowArtist ?? this.widgetShowArtist,
+      widgetAccentColor: widgetAccentColor ?? this.widgetAccentColor,
     );
   }
 }
@@ -148,6 +164,10 @@ class AppPreferencesService {
   static const _immersiveTextScaleKey = 'immersive_text_scale';
   static const _immersiveVerticalOffsetKey = 'immersive_vertical_offset';
   static const _immersiveFullViewScaleKey = 'immersive_full_view_scale';
+  static const _widgetBgOpacityKey = 'widget_bg_opacity';
+  static const _widgetShowAlbumArtKey = 'widget_show_album_art';
+  static const _widgetShowArtistKey = 'widget_show_artist';
+  static const _widgetAccentColorKey = 'widget_accent_color';
 
   Future<AppPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -186,6 +206,11 @@ class AppPreferencesService {
           prefs.getDouble(_immersiveVerticalOffsetKey) ?? 0.0,
       immersiveFullViewScale:
           prefs.getDouble(_immersiveFullViewScaleKey) ?? 1.0,
+      widgetBgOpacity: prefs.getInt(_widgetBgOpacityKey) ?? 3,
+      widgetShowAlbumArt: prefs.getBool(_widgetShowAlbumArtKey) ?? true,
+      widgetShowArtist: prefs.getBool(_widgetShowArtistKey) ?? true,
+      widgetAccentColor:
+          prefs.getString(_widgetAccentColorKey) ?? 'white',
     );
   }
 
@@ -407,5 +432,25 @@ class AppPreferencesService {
   Future<void> setImmersiveFullViewScale(double value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_immersiveFullViewScaleKey, value);
+  }
+
+  Future<void> setWidgetBgOpacity(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_widgetBgOpacityKey, value);
+  }
+
+  Future<void> setWidgetShowAlbumArt(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_widgetShowAlbumArtKey, value);
+  }
+
+  Future<void> setWidgetShowArtist(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_widgetShowArtistKey, value);
+  }
+
+  Future<void> setWidgetAccentColor(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_widgetAccentColorKey, value);
   }
 }
