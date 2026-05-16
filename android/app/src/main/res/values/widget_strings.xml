@@ -1,20 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_mini_player_label">Flick — Mini Player</string>
-    <string name="widget_now_playing_label">Flick — Now Playing</string>
-    <string name="widget_library_label">Flick — Library</string>
+    <string name="widget_mini_player_name">Flick Mini Player</string>
+
+    <string name="widget_mini_player_desc">Compact player with transport controls</string>
 
     <string name="widget_nothing_playing">Nothing playing</string>
     <string name="widget_open_app">Open Flick</string>
     <string name="widget_play_pause">Play / pause</string>
     <string name="widget_next">Next track</string>
     <string name="widget_previous">Previous track</string>
-    <string name="widget_now_playing_title">Now playing</string>
-    <string name="widget_queue_empty">Queue is empty</string>
-
-    <string name="widget_lib_songs">Songs</string>
-    <string name="widget_lib_albums">Albums</string>
-    <string name="widget_lib_artists">Artists</string>
-    <string name="widget_lib_playlists">Playlists</string>
-    <string name="widget_lib_favorites">Favorites</string>
 </resources>
