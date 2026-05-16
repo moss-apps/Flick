@@ -20,6 +20,12 @@ class AppPreferences {
   final String visualizerAnimationStyle;
   final String visualizerFrequencyMode;
   final String visualizerMovementMode;
+  final double artworkCardArtworkScale;
+  final double artworkCardTextScale;
+  final double artworkCardVerticalOffset;
+  final double immersiveTextScale;
+  final double immersiveVerticalOffset;
+  final double immersiveFullViewScale;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -41,6 +47,12 @@ class AppPreferences {
     this.visualizerAnimationStyle = 'bars',
     this.visualizerFrequencyMode = 'full',
     this.visualizerMovementMode = 'bouncy',
+    this.artworkCardArtworkScale = 1.0,
+    this.artworkCardTextScale = 1.0,
+    this.artworkCardVerticalOffset = 0.0,
+    this.immersiveTextScale = 1.0,
+    this.immersiveVerticalOffset = 0.0,
+    this.immersiveFullViewScale = 1.0,
   });
 
   AppPreferences copyWith({
@@ -63,6 +75,12 @@ class AppPreferences {
     String? visualizerAnimationStyle,
     String? visualizerFrequencyMode,
     String? visualizerMovementMode,
+    double? artworkCardArtworkScale,
+    double? artworkCardTextScale,
+    double? artworkCardVerticalOffset,
+    double? immersiveTextScale,
+    double? immersiveVerticalOffset,
+    double? immersiveFullViewScale,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -90,6 +108,16 @@ class AppPreferences {
           visualizerFrequencyMode ?? this.visualizerFrequencyMode,
       visualizerMovementMode:
           visualizerMovementMode ?? this.visualizerMovementMode,
+      artworkCardArtworkScale:
+          artworkCardArtworkScale ?? this.artworkCardArtworkScale,
+      artworkCardTextScale: artworkCardTextScale ?? this.artworkCardTextScale,
+      artworkCardVerticalOffset:
+          artworkCardVerticalOffset ?? this.artworkCardVerticalOffset,
+      immersiveTextScale: immersiveTextScale ?? this.immersiveTextScale,
+      immersiveVerticalOffset:
+          immersiveVerticalOffset ?? this.immersiveVerticalOffset,
+      immersiveFullViewScale:
+          immersiveFullViewScale ?? this.immersiveFullViewScale,
     );
   }
 }
@@ -114,6 +142,12 @@ class AppPreferencesService {
   static const _visualizerAnimationStyleKey = 'visualizer_animation_style';
   static const _visualizerFrequencyModeKey = 'visualizer_frequency_mode';
   static const _visualizerMovementModeKey = 'visualizer_movement_mode';
+  static const _artworkCardArtworkScaleKey = 'artwork_card_artwork_scale';
+  static const _artworkCardTextScaleKey = 'artwork_card_text_scale';
+  static const _artworkCardVerticalOffsetKey = 'artwork_card_vertical_offset';
+  static const _immersiveTextScaleKey = 'immersive_text_scale';
+  static const _immersiveVerticalOffsetKey = 'immersive_vertical_offset';
+  static const _immersiveFullViewScaleKey = 'immersive_full_view_scale';
 
   Future<AppPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -130,7 +164,8 @@ class AppPreferencesService {
       crossfadeDurationSecs: prefs.getDouble(_crossfadeDurationKey) ?? 3.0,
       crossfadeCurveIndex: prefs.getInt(_crossfadeCurveKey) ?? 0,
       swipeActionsEnabled: prefs.getBool(_swipeActionsEnabledKey) ?? false,
-      favoriteRemovalMode: prefs.getString(_favoriteRemovalModeKey) ?? 'longpress',
+      favoriteRemovalMode:
+          prefs.getString(_favoriteRemovalModeKey) ?? 'longpress',
       fastIndexEnabled: prefs.getBool(_fastIndexEnabledKey) ?? true,
       fastIndexTimeoutSeconds: prefs.getInt(_fastIndexTimeoutKey) ?? 3,
       immersiveAutoFullViewSeconds:
@@ -141,6 +176,16 @@ class AppPreferencesService {
           prefs.getString(_visualizerFrequencyModeKey) ?? 'full',
       visualizerMovementMode:
           prefs.getString(_visualizerMovementModeKey) ?? 'bouncy',
+      artworkCardArtworkScale:
+          prefs.getDouble(_artworkCardArtworkScaleKey) ?? 1.0,
+      artworkCardTextScale: prefs.getDouble(_artworkCardTextScaleKey) ?? 1.0,
+      artworkCardVerticalOffset:
+          prefs.getDouble(_artworkCardVerticalOffsetKey) ?? 0.0,
+      immersiveTextScale: prefs.getDouble(_immersiveTextScaleKey) ?? 1.0,
+      immersiveVerticalOffset:
+          prefs.getDouble(_immersiveVerticalOffsetKey) ?? 0.0,
+      immersiveFullViewScale:
+          prefs.getDouble(_immersiveFullViewScaleKey) ?? 1.0,
     );
   }
 
@@ -332,5 +377,35 @@ class AppPreferencesService {
   Future<void> setVisualizerMovementMode(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_visualizerMovementModeKey, value);
+  }
+
+  Future<void> setArtworkCardArtworkScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_artworkCardArtworkScaleKey, value);
+  }
+
+  Future<void> setArtworkCardTextScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_artworkCardTextScaleKey, value);
+  }
+
+  Future<void> setArtworkCardVerticalOffset(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_artworkCardVerticalOffsetKey, value);
+  }
+
+  Future<void> setImmersiveTextScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_immersiveTextScaleKey, value);
+  }
+
+  Future<void> setImmersiveVerticalOffset(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_immersiveVerticalOffsetKey, value);
+  }
+
+  Future<void> setImmersiveFullViewScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_immersiveFullViewScaleKey, value);
   }
 }
