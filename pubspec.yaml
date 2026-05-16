@@ -43,6 +43,7 @@ dependencies:
   flutter_rust_bridge: ^2.12.0
   flutter_secure_storage: ^10.0.0
   flutter_svg: ^2.2.3
+  home_widget: ^0.7.0
   freezed_annotation: ^3.0.0
   http: ^1.2.0
   image_picker: ^1.1.2
