@@ -80,6 +80,10 @@
 
         <!-- Home-screen widgets -->
         <receiver
+            android:name=".widgets.WidgetActionReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".widgets.MiniPlayerWidgetProvider"
             android:exported="true">
             <intent-filter>
@@ -88,33 +92,6 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/mini_player_widget_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widgets.NowPlayingWidgetProvider"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/now_playing_widget_info" />
-        </receiver>
-
-        <service
-            android:name=".widgets.NowPlayingRemoteViewsService"
-            android:exported="false"
-            android:permission="android.permission.BIND_REMOTEVIEWS" />
-
-        <receiver
-            android:name=".widgets.LibraryWidgetProvider"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/library_widget_info" />
         </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
