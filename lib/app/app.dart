@@ -315,6 +315,7 @@ class _MainShellState extends ConsumerState<MainShell>
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       unawaited(ref.read(playerServiceProvider).persistLastPlayed());
+      unawaited(WidgetSyncService.instance.pushPaused());
 
       // Attempt to scrobble the current track before the app suspends.
       // Only fire if playback is not active — audio apps often keep playing
