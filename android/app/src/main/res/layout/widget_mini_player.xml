@@ -1,83 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Mini player widget layout. Designed to be resizable from 4x1 (single row)
-  to 4x2. The text container collapses gracefully when the widget is narrow.
--->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_background_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal"
-    android:background="@drawable/widget_background"
-    android:padding="10dp"
-    android:gravity="center_vertical">
-
-    <ImageView
-        android:id="@+id/widget_album_art"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:background="@drawable/widget_art_background"
-        android:scaleType="centerCrop"
-        android:contentDescription="@string/widget_open_app"
-        android:src="@drawable/widget_default_art" />
+    android:background="@drawable/widget_bg_3">
 
     <LinearLayout
-        android:id="@+id/widget_text_container"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:layout_marginStart="10dp"
-        android:layout_marginEnd="6dp"
-        android:orientation="vertical">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/widget_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:singleLine="true"
-            android:ellipsize="end"
-            android:text="@string/widget_nothing_playing" />
+        <ImageView
+            android:id="@+id/widget_album_art"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/widget_art_background"
+            android:scaleType="centerCrop"
+            android:contentDescription="@string/widget_open_app"
+            android:src="@drawable/widget_default_art" />
 
-        <TextView
-            android:id="@+id/widget_artist"
-            android:layout_width="match_parent"
+        <LinearLayout
+            android:id="@+id/widget_text_container"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:textColor="#BBBBBB"
-            android:textSize="12sp"
-            android:singleLine="true"
-            android:ellipsize="end"
-            android:layout_marginTop="2dp" />
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:fontFamily="sans-serif-medium"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:text="@string/widget_nothing_playing" />
+
+            <TextView
+                android:id="@+id/widget_artist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#AAAAAA"
+                android:textSize="11sp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:layout_marginTop="1dp" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/widget_previous"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/widget_button_transport_bg"
+            android:padding="6dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/widget_ic_previous"
+            android:contentDescription="@string/widget_previous" />
+
+        <ImageButton
+            android:id="@+id/widget_play_pause"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/widget_button_play_bg"
+            android:padding="8dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/widget_ic_play"
+            android:contentDescription="@string/widget_play_pause" />
+
+        <ImageButton
+            android:id="@+id/widget_next"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/widget_button_transport_bg"
+            android:padding="6dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/widget_ic_next"
+            android:contentDescription="@string/widget_next" />
     </LinearLayout>
-
-    <ImageButton
-        android:id="@+id/widget_previous"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:padding="4dp"
-        android:scaleType="centerInside"
-        android:src="@drawable/widget_ic_previous"
-        android:contentDescription="@string/widget_previous" />
-
-    <ImageButton
-        android:id="@+id/widget_play_pause"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:padding="4dp"
-        android:scaleType="centerInside"
-        android:src="@drawable/widget_ic_play"
-        android:contentDescription="@string/widget_play_pause" />
-
-    <ImageButton
-        android:id="@+id/widget_next"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:padding="4dp"
-        android:scaleType="centerInside"
-        android:src="@drawable/widget_ic_next"
-        android:contentDescription="@string/widget_next" />
-</LinearLayout>
+</FrameLayout>
