@@ -88,15 +88,18 @@ class _MainShellState extends ConsumerState<MainShell>
     // listener doesn't treat the restored song as "new" on cold start.
     _previousSong = ref.read(currentSongProvider);
     _playerService = ref.read(playerServiceProvider);
+    ref.read(updateCheckProvider.notifier);
     final initialConfig = ref.read(navBarConfigProvider);
-    final defaultPage = initialConfig.orderedButtons.contains(NavBarButton.songs)
+    final defaultPage =
+        initialConfig.orderedButtons.contains(NavBarButton.songs)
         ? NavBarButton.songs.pageIndex
         : NavBarButton.menu.pageIndex;
     ref.read(navigationIndexProvider.notifier).setIndex(defaultPage);
     final initialIndex = ref.read(navigationIndexProvider);
     final initialOrder = _getPageOrder(initialConfig);
-    final initialPosition =
-        initialOrder.indexWhere((b) => b.pageIndex == initialIndex);
+    final initialPosition = initialOrder.indexWhere(
+      (b) => b.pageIndex == initialIndex,
+    );
     _pageController = PageController(
       initialPage: initialPosition >= 0 ? initialPosition : 0,
     );
@@ -149,35 +152,34 @@ class _MainShellState extends ConsumerState<MainShell>
       _previousSong = nextSong;
     });
 
-    ref.listenManual<NavBarConfig>(
-      navBarConfigProvider,
-      (previous, next) {
-        if (previous == null || !mounted) return;
-        final currentPageIndex = ref.read(navigationIndexProvider);
-        final oldOrder = _getPageOrder(previous);
-        final newOrder = _getPageOrder(next);
-        final oldPosition =
-            oldOrder.indexWhere((b) => b.pageIndex == currentPageIndex);
-        final newPosition =
-            newOrder.indexWhere((b) => b.pageIndex == currentPageIndex);
+    ref.listenManual<NavBarConfig>(navBarConfigProvider, (previous, next) {
+      if (previous == null || !mounted) return;
+      final currentPageIndex = ref.read(navigationIndexProvider);
+      final oldOrder = _getPageOrder(previous);
+      final newOrder = _getPageOrder(next);
+      final oldPosition = oldOrder.indexWhere(
+        (b) => b.pageIndex == currentPageIndex,
+      );
+      final newPosition = newOrder.indexWhere(
+        (b) => b.pageIndex == currentPageIndex,
+      );
 
-        if (newPosition < 0) {
-          // Current page was removed, jump to first page in new order
-          if (_pageController.hasClients && newOrder.isNotEmpty) {
-            _pageController.jumpToPage(0);
-            ref
-                .read(navigationIndexProvider.notifier)
-                .setIndex(newOrder[0].pageIndex);
-          }
-          return;
+      if (newPosition < 0) {
+        // Current page was removed, jump to first page in new order
+        if (_pageController.hasClients && newOrder.isNotEmpty) {
+          _pageController.jumpToPage(0);
+          ref
+              .read(navigationIndexProvider.notifier)
+              .setIndex(newOrder[0].pageIndex);
         }
+        return;
+      }
 
-        if (oldPosition != newPosition && _pageController.hasClients) {
-          _pageController.jumpToPage(newPosition);
-          ref.read(navigationIndexProvider.notifier).setIndex(currentPageIndex);
-        }
-      },
-    );
+      if (oldPosition != newPosition && _pageController.hasClients) {
+        _pageController.jumpToPage(newPosition);
+        ref.read(navigationIndexProvider.notifier).setIndex(currentPageIndex);
+      }
+    });
 
     _navigationIndexSubscription = ref.listenManual<int>(
       navigationIndexProvider,
@@ -193,8 +195,7 @@ class _MainShellState extends ConsumerState<MainShell>
 
           final config = ref.read(navBarConfigProvider);
           final pageOrder = _getPageOrder(config);
-          final position =
-              pageOrder.indexWhere((b) => b.pageIndex == next);
+          final position = pageOrder.indexWhere((b) => b.pageIndex == next);
           if (position == -1) return;
 
           final currentPage =
@@ -233,6 +234,7 @@ class _MainShellState extends ConsumerState<MainShell>
       }
       _maybeOpenExternalPlayer(ref.read(currentSongProvider));
       _refreshLibraryDeletions();
+      ref.read(updateCheckProvider.notifier).refreshIfOnline();
     });
 
     _playerService.playbackDesyncedNotifier.addListener(
@@ -322,6 +324,7 @@ class _MainShellState extends ConsumerState<MainShell>
       }
     }
     if (state == AppLifecycleState.resumed) {
+      ref.read(updateCheckProvider.notifier).refreshIfOnline();
       ref.read(lastFmScrobbleQueueProvider).flush().catchError((e) {
         debugPrint('[LastFm] queue flush on resume failed: $e');
       });
@@ -410,81 +413,81 @@ class _MainShellState extends ConsumerState<MainShell>
       child: AdaptiveColorProvider(
         backgroundColor: backgroundColor,
         child: Scaffold(
-        backgroundColor: AppColors.background,
-        extendBody: true,
-        body: NotificationListener<ScrollNotification>(
-          onNotification: _handleScrollNotification,
-          child: Stack(
-            children: [
-              // Base Gradient
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: AppColors.backgroundGradient,
-                ),
-              ),
-
-              // Persistent Background - uses Riverpod
-              Positioned.fill(
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final ambientBackgroundEnabled = ref.watch(
-                      ambientBackgroundEnabledProvider,
-                    );
-                    final currentSong = ref.watch(currentSongProvider);
-                    return ambientBackgroundEnabled
-                        ? AmbientBackground(song: currentSong)
-                        : const SizedBox.shrink();
-                  },
-                ),
-              ),
-
-              // Main content area with swipeable page navigation.
-              PageView(
-                controller: _pageController,
-                physics: const ClampingScrollPhysics(),
-                onPageChanged: (position) {
-                  final currentConfig = ref.read(navBarConfigProvider);
-                  final currentOrder = _getPageOrder(currentConfig);
-                  if (position < 0 || position >= currentOrder.length) return;
-                  final enabledCount = currentConfig.orderedButtons.length;
-                  if (position >= enabledCount) {
-                    _pageController.jumpToPage(enabledCount - 1);
-                    return;
-                  }
-                  final pageIndex = currentOrder[position].pageIndex;
-                  if (ref.read(navigationIndexProvider) != pageIndex) {
-                    ref
-                        .read(navigationIndexProvider.notifier)
-                        .setIndex(pageIndex);
-                  }
-                },
-                children: pageOrder.map((button) {
-                  return _buildTab(
-                    tabIndex: button.pageIndex,
-                    currentIndex: currentIndex,
-                    child: _buildScreen(button),
-                  );
-                }).toList(),
-              ),
-
-              // Unified Bottom Bar (Mini Player + Navigation)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: RepaintBoundary(
-                  child: SlideTransition(
-                    position: _navBarSlideAnimation,
-                    child: _buildUnifiedBottomBar(),
+          backgroundColor: AppColors.background,
+          extendBody: true,
+          body: NotificationListener<ScrollNotification>(
+            onNotification: _handleScrollNotification,
+            child: Stack(
+              children: [
+                // Base Gradient
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: AppColors.backgroundGradient,
                   ),
                 ),
-              ),
-            ],
+
+                // Persistent Background - uses Riverpod
+                Positioned.fill(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final ambientBackgroundEnabled = ref.watch(
+                        ambientBackgroundEnabledProvider,
+                      );
+                      final currentSong = ref.watch(currentSongProvider);
+                      return ambientBackgroundEnabled
+                          ? AmbientBackground(song: currentSong)
+                          : const SizedBox.shrink();
+                    },
+                  ),
+                ),
+
+                // Main content area with swipeable page navigation.
+                PageView(
+                  controller: _pageController,
+                  physics: const ClampingScrollPhysics(),
+                  onPageChanged: (position) {
+                    final currentConfig = ref.read(navBarConfigProvider);
+                    final currentOrder = _getPageOrder(currentConfig);
+                    if (position < 0 || position >= currentOrder.length) return;
+                    final enabledCount = currentConfig.orderedButtons.length;
+                    if (position >= enabledCount) {
+                      _pageController.jumpToPage(enabledCount - 1);
+                      return;
+                    }
+                    final pageIndex = currentOrder[position].pageIndex;
+                    if (ref.read(navigationIndexProvider) != pageIndex) {
+                      ref
+                          .read(navigationIndexProvider.notifier)
+                          .setIndex(pageIndex);
+                    }
+                  },
+                  children: pageOrder.map((button) {
+                    return _buildTab(
+                      tabIndex: button.pageIndex,
+                      currentIndex: currentIndex,
+                      child: _buildScreen(button),
+                    );
+                  }).toList(),
+                ),
+
+                // Unified Bottom Bar (Mini Player + Navigation)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: RepaintBoundary(
+                    child: SlideTransition(
+                      position: _navBarSlideAnimation,
+                      child: _buildUnifiedBottomBar(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   List<NavBarButton> _getPageOrder(NavBarConfig config) {
@@ -493,37 +496,33 @@ class _MainShellState extends ConsumerState<MainShell>
       NavBarButton.songs,
       NavBarButton.settings,
     ].where((b) => !config.orderedButtons.contains(b));
-    return [
-      ...config.orderedButtons,
-      ...disabledEssentials,
-    ];
+    return [...config.orderedButtons, ...disabledEssentials];
   }
 
   Widget _buildScreen(NavBarButton button) {
     return switch (button) {
       NavBarButton.menu => MenuScreen(
-          key: const ValueKey('menu'),
-          onNavigateToTab: (index) {
-            ref.read(navigationIndexProvider.notifier).setIndex(index);
-          },
-        ),
+        key: const ValueKey('menu'),
+        onNavigateToTab: (index) {
+          ref.read(navigationIndexProvider.notifier).setIndex(index);
+        },
+      ),
       NavBarButton.songs => SongsScreen(
-          key: const ValueKey('songs'),
-          onNavigationRequested: (index) {
-            ref.read(navigationIndexProvider.notifier).setIndex(index);
-          },
-        ),
-      NavBarButton.settings =>
-        const SettingsScreen(key: ValueKey('settings')),
+        key: const ValueKey('songs'),
+        onNavigationRequested: (index) {
+          ref.read(navigationIndexProvider.notifier).setIndex(index);
+        },
+      ),
+      NavBarButton.settings => const SettingsScreen(key: ValueKey('settings')),
       NavBarButton.albums => const AlbumsScreen(key: ValueKey('albums')),
-      NavBarButton.artists =>
-        const ArtistsScreen(key: ValueKey('artists')),
-      NavBarButton.folders =>
-        const FoldersScreen(key: ValueKey('folders')),
-      NavBarButton.playlists =>
-        const PlaylistsScreen(key: ValueKey('playlists')),
-      NavBarButton.favorites =>
-        const FavoritesScreen(key: ValueKey('favorites')),
+      NavBarButton.artists => const ArtistsScreen(key: ValueKey('artists')),
+      NavBarButton.folders => const FoldersScreen(key: ValueKey('folders')),
+      NavBarButton.playlists => const PlaylistsScreen(
+        key: ValueKey('playlists'),
+      ),
+      NavBarButton.favorites => const FavoritesScreen(
+        key: ValueKey('favorites'),
+      ),
       NavBarButton.search => const SearchScreen(key: ValueKey('search')),
     };
   }
@@ -740,12 +739,14 @@ class _RootRouter extends ConsumerWidget {
     AppConstants.setAnimationsEnabled(appPreferences.animationsEnabled);
     AppHaptics.setEnabled(appPreferences.hapticsEnabled);
 
-    final child = onboardingComplete ? const MainShell() : const OnboardingScreen();
+    final child = onboardingComplete
+        ? const MainShell()
+        : const OnboardingScreen();
 
     return MediaQuery(
-      data: MediaQuery.of(context).copyWith(
-        disableAnimations: !appPreferences.animationsEnabled,
-      ),
+      data: MediaQuery.of(
+        context,
+      ).copyWith(disableAnimations: !appPreferences.animationsEnabled),
       child: child,
     );
   }
