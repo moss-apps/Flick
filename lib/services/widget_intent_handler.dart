@@ -1,44 +1,43 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
 
+import '../models/nav_bar_config.dart';
 import '../providers/player_provider.dart';
 import '../providers/navigation_provider.dart';
 
-/// Handles deep-link intents coming from the home-screen widgets.
-///
-/// Widgets fire `home_widget://<action>?...` URIs through the `home_widget`
-/// plugin. This class translates those URIs into Riverpod actions.
-///
-/// Recognised actions:
-///   * `home_widget://player/play_pause`
-///   * `home_widget://player/next`
-///   * `home_widget://player/previous`
-///   * `home_widget://player/jump?index=<int>`
-///   * `home_widget://library/open?section=<songs|albums|artists|playlists|favorites|menu|settings>`
 class WidgetIntentHandler {
   WidgetIntentHandler(this._ref);
 
   final WidgetRef _ref;
-  StreamSubscription<Uri?>? _sub;
+  MethodChannel? _channel;
 
-  /// Wires up listeners. Safe to call multiple times.
   Future<void> attach() async {
     await detach();
-    // Handle the URI used to launch the app (cold start).
+
+    _channel = const MethodChannel('com.mossapps.flick/widget');
+    _channel!.setMethodCallHandler((call) async {
+      if (call.method == 'dispatch') {
+        final uriStr = call.arguments as String?;
+        if (uriStr != null) {
+          final uri = Uri.tryParse(uriStr);
+          if (uri != null) _dispatch(uri);
+        }
+      }
+    });
+
     final launchUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
     if (launchUri != null) {
       _dispatch(launchUri);
     }
-    // Handle URIs while the app is already running.
-    _sub = HomeWidget.widgetClicked.listen(_dispatch);
   }
 
   Future<void> detach() async {
-    await _sub?.cancel();
-    _sub = null;
+    _channel?.setMethodCallHandler(null);
+    _channel = null;
   }
 
   void _dispatch(Uri? uri) {
@@ -86,25 +85,18 @@ class WidgetIntentHandler {
   void _handleLibrary(String action, Uri uri) {
     if (action != 'open') return;
     final section = uri.queryParameters['section'] ?? 'songs';
-    // The navigation index map mirrors `_MainShell`'s PageView pages:
-    //   0 = menu, 1 = songs, 2 = settings.
-    // Library sections beyond those three are exposed through the menu.
     final navNotifier = _ref.read(navigationIndexProvider.notifier);
-    switch (section) {
-      case 'menu':
-      case 'albums':
-      case 'artists':
-      case 'playlists':
-      case 'favorites':
-      case 'folders':
-        navNotifier.setIndex(0);
-        break;
-      case 'settings':
-        navNotifier.setIndex(2);
-        break;
-      case 'songs':
-      default:
-        navNotifier.setIndex(1);
-    }
+    final targetIndex = switch (section) {
+      'songs' => NavBarButton.songs.pageIndex,
+      'albums' => NavBarButton.albums.pageIndex,
+      'artists' => NavBarButton.artists.pageIndex,
+      'playlists' => NavBarButton.playlists.pageIndex,
+      'favorites' => NavBarButton.favorites.pageIndex,
+      'folders' => NavBarButton.folders.pageIndex,
+      'settings' => NavBarButton.settings.pageIndex,
+      'menu' => NavBarButton.menu.pageIndex,
+      _ => NavBarButton.songs.pageIndex,
+    };
+    navNotifier.setIndex(targetIndex);
   }
 }

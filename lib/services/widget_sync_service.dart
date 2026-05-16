@@ -27,10 +27,9 @@ class WidgetSyncService {
   /// it to keep parity if iOS support is added later).
   static const String _appGroup = 'group.com.mossapps.flick.widgets';
 
-  // Names of the three AppWidgetProvider classes on the Android side.
-  static const String miniPlayerProvider = 'MiniPlayerWidgetProvider';
-  static const String nowPlayingProvider = 'NowPlayingWidgetProvider';
-  static const String libraryProvider = 'LibraryWidgetProvider';
+  static const String miniPlayerProvider = 'widgets.MiniPlayerWidgetProvider';
+  static const String nowPlayingProvider = 'widgets.NowPlayingWidgetProvider';
+  static const String libraryProvider = 'widgets.LibraryWidgetProvider';
 
   // Keys written to SharedPreferences (read by the Kotlin side).
   static const String keySongId = 'flick_widget_song_id';
