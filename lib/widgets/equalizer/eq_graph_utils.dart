@@ -32,7 +32,6 @@ double tToHz(double t) {
 }
 
 List<({double x, double db})> buildParametricCurvePoints({
-  required bool enabled,
   required List<ParametricBand> bands,
   required int sampleCount,
 }) {
@@ -40,21 +39,18 @@ List<({double x, double db})> buildParametricCurvePoints({
   for (var i = 0; i <= sampleCount; i++) {
     final t = i / sampleCount;
     final hz = tToHz(t);
-    final db = enabled
-        ? parametricResponseDbAtHz(
-            hz: hz,
-            bands: bands,
-            minDb: eqMinDb,
-            maxDb: eqMaxDb,
-          )
-        : 0.0;
+    final db = parametricResponseDbAtHz(
+      hz: hz,
+      bands: bands,
+      minDb: eqMinDb,
+      maxDb: eqMaxDb,
+    );
     points.add((x: hzToX(hz), db: db));
   }
   return points;
 }
 
 List<({double x, double db})> buildGraphicCurvePoints({
-  required bool enabled,
   required List<double> freqs,
   required List<double> gains,
   required int sampleCount,
@@ -63,7 +59,7 @@ List<({double x, double db})> buildGraphicCurvePoints({
   for (var i = 0; i <= sampleCount; i++) {
     final t = i / sampleCount;
     final hz = tToHz(t);
-    final db = enabled ? interpDbAtHz(hz, freqs, gains) : 0.0;
+    final db = interpDbAtHz(hz, freqs, gains);
     points.add((x: hzToX(hz), db: db));
   }
   return points;
