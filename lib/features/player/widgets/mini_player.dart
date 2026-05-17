@@ -54,7 +54,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
           children: [
             Icon(
               LucideIcons.listMusic,
-              size: 17,
+              size: 16,
               color: hasQueue ? AppColors.accentLight : AppColors.textSecondary,
             ),
             if (hasQueue) ...[
@@ -77,9 +77,6 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    // Use ValueListenableBuilder on currentSongNotifier so that the mini-player
-    // appears immediately after restoreLastPlayed() runs on cold start — even
-    // before the audio engine has been initialised and emitted a stream event.
     return ValueListenableBuilder<Song?>(
       valueListenable: _playerService.currentSongNotifier,
       builder: (context, song, _) {
@@ -94,27 +91,29 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
             );
           },
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            height: 64,
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            height: 72,
             decoration: BoxDecoration(
-              color: AppColors.glassBackgroundStrong,
-              borderRadius: BorderRadius.circular(16),
+              color: AppColors.surface.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: AppColors.glassBorder.withValues(alpha: 0.1),
+                color: AppColors.glassBorder.withValues(alpha: 0.3),
+                width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  spreadRadius: -2,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(24),
               child: Stack(
                 children: [
-                  // Progress bar — driven by positionNotifier + durationNotifier
+                  // Progress bar at the bottom
                   ValueListenableBuilder<Duration>(
                     valueListenable: _playerService.positionNotifier,
                     builder: (context, position, _) {
@@ -126,13 +125,29 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                           }
                           return Align(
                             alignment: Alignment.bottomLeft,
-                            child: FractionallySizedBox(
-                              widthFactor: (position.inMilliseconds /
-                                      duration.inMilliseconds)
-                                  .clamp(0.0, 1.0),
-                              child: Container(
-                                height: 2,
-                                color: AppColors.accent,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: FractionallySizedBox(
+                                widthFactor: (position.inMilliseconds /
+                                        duration.inMilliseconds)
+                                    .clamp(0.0, 1.0),
+                                child: Container(
+                                  height: 3,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accent,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(3),
+                                      topRight: Radius.circular(3),
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.accent.withValues(alpha: 0.5),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, -1),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           );
@@ -143,24 +158,26 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
 
                   Row(
                     children: [
-                      // Album Art
+                      // Floating Album Art
                       Hero(
                         tag: 'mini_player_art',
                         child: Container(
-                          width: 64,
-                          height: 64,
+                          margin: const EdgeInsets.only(left: 8, top: 8, bottom: 8, right: 14),
+                          width: 56,
+                          height: 56,
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(16),
-                              bottomLeft: Radius.circular(16),
-                            ),
+                            color: AppColors.surfaceDark,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: ClipRRect(
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(16),
-                              bottomLeft: Radius.circular(16),
-                            ),
+                            borderRadius: BorderRadius.circular(16),
                             child: CachedImageWidget(
                               imagePath: song.albumArt,
                               audioSourcePath: song.filePath,
@@ -183,8 +200,6 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                         ),
                       ),
 
-                      const SizedBox(width: 12),
-
                       // Song Info
                       Expanded(
                         child: Column(
@@ -197,12 +212,13 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontFamily: 'ProductSans',
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15.5,
                                 color: AppColors.textPrimary,
+                                letterSpacing: 0.2,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 3),
                             Row(
                               children: [
                                 Flexible(
@@ -210,10 +226,11 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                     song.artist,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontFamily: 'ProductSans',
-                                      fontSize: 13,
-                                      color: AppColors.textTertiary,
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary.withValues(alpha: 0.9),
                                     ),
                                   ),
                                 ),
@@ -224,6 +241,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 2), // Spacing for progress bar
                           ],
                         ),
                       ),
@@ -234,31 +252,50 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                           valueListenable: _playerService.upNextNotifier,
                           builder: (context, upNext, _) {
                             return Padding(
-                              padding: const EdgeInsets.only(right: 4),
+                              padding: const EdgeInsets.only(right: 6),
                               child: _buildQueueButton(context, upNext.length),
                             );
                           },
                         ),
 
-                      // Play/Pause — driven by isPlayingNotifier for instant feedback
+                      // Play/Pause button with circular background
                       ValueListenableBuilder<bool>(
                         valueListenable: _playerService.isPlayingNotifier,
                         builder: (context, isPlaying, _) {
-                          return IconButton(
-                            onPressed: () {
-                              AppHaptics.tap();
-                              _playerService.togglePlayPause();
-                            },
-                            icon: Icon(
-                              isPlaying
-                                  ? LucideIcons.pause
-                                  : LucideIcons.play,
-                              color: AppColors.textPrimary,
+                          return Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isPlaying 
+                                ? AppColors.accent.withValues(alpha: 0.15)
+                                : AppColors.glassBackgroundStrong,
+                              border: Border.all(
+                                color: isPlaying 
+                                  ? AppColors.accent.withValues(alpha: 0.3)
+                                  : AppColors.glassBorder.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(24),
+                                onTap: () {
+                                  AppHaptics.tap();
+                                  _playerService.togglePlayPause();
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(10.0),
+                                  child: Icon(
+                                    isPlaying ? LucideIcons.pause : LucideIcons.play,
+                                    color: isPlaying ? AppColors.accentLight : AppColors.textPrimary,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
                             ),
                           );
                         },
                       ),
-                      const SizedBox(width: 8),
                     ],
                   ),
                 ],

@@ -47,7 +47,6 @@ class GraphicEqGraph extends ConsumerWidget {
                     ).withValues(alpha: 0.70);
 
               final curvePoints = equtils.buildGraphicCurvePoints(
-                enabled: enabled,
                 freqs: freqs,
                 gains: gains,
                 sampleCount: sampleCount,
@@ -56,17 +55,11 @@ class GraphicEqGraph extends ConsumerWidget {
                   .map((p) => FlSpot(p.x, p.db))
                   .toList(growable: false);
 
-              final dotSpots = enabled
-                  ? List<FlSpot>.generate(
-                      freqs.length,
-                      (i) => FlSpot(equtils.hzToX(freqs[i]), gains[i]),
-                      growable: false,
-                    )
-                  : List<FlSpot>.generate(
-                      freqs.length,
-                      (i) => FlSpot(equtils.hzToX(freqs[i]), 0.0),
-                      growable: false,
-                    );
+              final dotSpots = List<FlSpot>.generate(
+                freqs.length,
+                (i) => FlSpot(equtils.hzToX(freqs[i]), gains[i]),
+                growable: false,
+              );
 
               final contentWidth = math.max(width * 2, 640.0);
 

@@ -16,7 +16,15 @@ import 'package:flick/services/album_art_service.dart';
 // This eliminates the per-frame GPU cost of BackdropFilter (sigma=25).
 // dart:ui APIs MUST run on the main isolate — they cannot be passed to
 // compute() because they require Flutter engine bindings.
+//
+// A module-level cache avoids re-computation when multiple widgets share
+// the same album art (e.g. MainShell + Settings sub-pages). The old image
+// is kept visible while the new one decodes so the background never flashes
+// black during navigation.
 // ---------------------------------------------------------------------------
+
+/// Shared cache so parallel [AmbientBackground] instances don't recompute.
+final Map<String, ui.Image> _blurCache = {};
 
 class AmbientBackground extends StatefulWidget {
   final Song? song;
@@ -36,12 +44,14 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
   static const int _targetDimension = 300;
 
   ui.Image? _blurredImage;
-  String? _currentPath; // path we're building / have built
+  String? _currentPath; // resolved path of the image currently shown
+  String? _loadingPath; // path we're currently computing for
   bool _computing = false;
 
   @override
   void initState() {
     super.initState();
+    _syncInitFromCache();
     _updateBlur(widget.song?.albumArt, widget.song?.filePath);
   }
 
@@ -51,13 +61,25 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
     final newPath = widget.song?.albumArt;
     final newSourcePath = widget.song?.filePath;
     if (newPath != old.song?.albumArt || newSourcePath != old.song?.filePath) {
+      _syncInitFromCache();
       _updateBlur(newPath, newSourcePath);
+    }
+  }
+
+  /// Seeded synchronously so [build] never starts with a null image
+  /// when the artwork is already cached.
+  void _syncInitFromCache() {
+    final albumArt = widget.song?.albumArt;
+    if (albumArt != null && albumArt.isNotEmpty && _blurCache.containsKey(albumArt)) {
+      _blurredImage = _blurCache[albumArt];
+      _currentPath = albumArt;
     }
   }
 
   @override
   void dispose() {
-    _blurredImage?.dispose();
+    // Don't dispose cached images — they're shared across instances.
+    _blurredImage = null;
     super.dispose();
   }
 
@@ -65,20 +87,30 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
     final resolvedPath = await _resolveArtworkPath(path, audioSourcePath);
     if (resolvedPath == null) {
       if (mounted) {
-        final old = _blurredImage;
         setState(() {
           _blurredImage = null;
           _currentPath = null;
+          _loadingPath = null;
         });
-        old?.dispose();
+      }
+      return;
+    }
+
+    // If another widget already blurred this path, reuse it instantly.
+    if (_blurCache.containsKey(resolvedPath)) {
+      if (mounted) {
+        setState(() {
+          _blurredImage = _blurCache[resolvedPath];
+          _currentPath = resolvedPath;
+        });
       }
       return;
     }
 
     // Debounce: already computing for this exact path
-    if (_computing && _currentPath == resolvedPath) return;
+    if (_computing && _loadingPath == resolvedPath) return;
 
-    _currentPath = resolvedPath;
+    _loadingPath = resolvedPath;
     _computing = true;
 
     try {
@@ -91,7 +123,7 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
       final bytes = await file.readAsBytes();
 
       // Bail if widget disposed or song changed while we were reading
-      if (!mounted || resolvedPath != _currentPath) {
+      if (!mounted || resolvedPath != _loadingPath) {
         _computing = false;
         return;
       }
@@ -105,7 +137,7 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
       final frame = await codec.getNextFrame();
       final srcImage = frame.image;
 
-      if (!mounted || resolvedPath != _currentPath) {
+      if (!mounted || resolvedPath != _loadingPath) {
         srcImage.dispose();
         _computing = false;
         return;
@@ -135,15 +167,17 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
       final blurred = await picture.toImage(imgW, imgH);
       picture.dispose();
 
-      if (!mounted || resolvedPath != _currentPath) {
+      if (!mounted || resolvedPath != _loadingPath) {
         blurred.dispose();
         _computing = false;
         return;
       }
 
-      final old = _blurredImage;
-      setState(() => _blurredImage = blurred);
-      old?.dispose();
+      _blurCache[resolvedPath] = blurred;
+      setState(() {
+        _blurredImage = blurred;
+        _currentPath = resolvedPath;
+      });
     } catch (e) {
       debugPrint('[AmbientBackground] blur failed: $e');
     } finally {

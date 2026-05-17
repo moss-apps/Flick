@@ -20,6 +20,23 @@ class AppPreferences {
   final String visualizerAnimationStyle;
   final String visualizerFrequencyMode;
   final String visualizerMovementMode;
+  final double artworkCardArtworkScale;
+  final double artworkCardTextScale;
+  final double artworkCardVerticalOffset;
+  final bool artworkCardShowTitle;
+  final bool artworkCardShowArtist;
+  final bool artworkCardShowAlbum;
+  final bool artworkCardShowFileInfo;
+  final double immersiveTextScale;
+  final double immersiveVerticalOffset;
+  final double immersiveFullViewScale;
+  final bool immersiveShowTitle;
+  final bool immersiveShowArtist;
+  final bool immersiveShowFileInfo;
+  final int widgetBgOpacity;
+  final bool widgetShowAlbumArt;
+  final bool widgetShowArtist;
+  final String widgetAccentColor;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -41,6 +58,23 @@ class AppPreferences {
     this.visualizerAnimationStyle = 'bars',
     this.visualizerFrequencyMode = 'full',
     this.visualizerMovementMode = 'bouncy',
+    this.artworkCardArtworkScale = 1.0,
+    this.artworkCardTextScale = 1.0,
+    this.artworkCardVerticalOffset = 0.0,
+    this.artworkCardShowTitle = true,
+    this.artworkCardShowArtist = true,
+    this.artworkCardShowAlbum = true,
+    this.artworkCardShowFileInfo = true,
+    this.immersiveTextScale = 1.0,
+    this.immersiveVerticalOffset = 0.0,
+    this.immersiveFullViewScale = 1.0,
+    this.immersiveShowTitle = true,
+    this.immersiveShowArtist = true,
+    this.immersiveShowFileInfo = true,
+    this.widgetBgOpacity = 3,
+    this.widgetShowAlbumArt = true,
+    this.widgetShowArtist = true,
+    this.widgetAccentColor = 'white',
   });
 
   AppPreferences copyWith({
@@ -63,6 +97,23 @@ class AppPreferences {
     String? visualizerAnimationStyle,
     String? visualizerFrequencyMode,
     String? visualizerMovementMode,
+    double? artworkCardArtworkScale,
+    double? artworkCardTextScale,
+    double? artworkCardVerticalOffset,
+    bool? artworkCardShowTitle,
+    bool? artworkCardShowArtist,
+    bool? artworkCardShowAlbum,
+    bool? artworkCardShowFileInfo,
+    double? immersiveTextScale,
+    double? immersiveVerticalOffset,
+    double? immersiveFullViewScale,
+    bool? immersiveShowTitle,
+    bool? immersiveShowArtist,
+    bool? immersiveShowFileInfo,
+    int? widgetBgOpacity,
+    bool? widgetShowAlbumArt,
+    bool? widgetShowArtist,
+    String? widgetAccentColor,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -90,6 +141,29 @@ class AppPreferences {
           visualizerFrequencyMode ?? this.visualizerFrequencyMode,
       visualizerMovementMode:
           visualizerMovementMode ?? this.visualizerMovementMode,
+      artworkCardArtworkScale:
+          artworkCardArtworkScale ?? this.artworkCardArtworkScale,
+      artworkCardTextScale: artworkCardTextScale ?? this.artworkCardTextScale,
+      artworkCardVerticalOffset:
+          artworkCardVerticalOffset ?? this.artworkCardVerticalOffset,
+      artworkCardShowTitle: artworkCardShowTitle ?? this.artworkCardShowTitle,
+      artworkCardShowArtist: artworkCardShowArtist ?? this.artworkCardShowArtist,
+      artworkCardShowAlbum: artworkCardShowAlbum ?? this.artworkCardShowAlbum,
+      artworkCardShowFileInfo:
+          artworkCardShowFileInfo ?? this.artworkCardShowFileInfo,
+      immersiveTextScale: immersiveTextScale ?? this.immersiveTextScale,
+      immersiveVerticalOffset:
+          immersiveVerticalOffset ?? this.immersiveVerticalOffset,
+      immersiveFullViewScale:
+          immersiveFullViewScale ?? this.immersiveFullViewScale,
+      immersiveShowTitle: immersiveShowTitle ?? this.immersiveShowTitle,
+      immersiveShowArtist: immersiveShowArtist ?? this.immersiveShowArtist,
+      immersiveShowFileInfo:
+          immersiveShowFileInfo ?? this.immersiveShowFileInfo,
+      widgetBgOpacity: widgetBgOpacity ?? this.widgetBgOpacity,
+      widgetShowAlbumArt: widgetShowAlbumArt ?? this.widgetShowAlbumArt,
+      widgetShowArtist: widgetShowArtist ?? this.widgetShowArtist,
+      widgetAccentColor: widgetAccentColor ?? this.widgetAccentColor,
     );
   }
 }
@@ -114,6 +188,23 @@ class AppPreferencesService {
   static const _visualizerAnimationStyleKey = 'visualizer_animation_style';
   static const _visualizerFrequencyModeKey = 'visualizer_frequency_mode';
   static const _visualizerMovementModeKey = 'visualizer_movement_mode';
+  static const _artworkCardArtworkScaleKey = 'artwork_card_artwork_scale';
+  static const _artworkCardTextScaleKey = 'artwork_card_text_scale';
+  static const _artworkCardVerticalOffsetKey = 'artwork_card_vertical_offset';
+  static const _artworkCardShowTitleKey = 'artwork_card_show_title';
+  static const _artworkCardShowArtistKey = 'artwork_card_show_artist';
+  static const _artworkCardShowAlbumKey = 'artwork_card_show_album';
+  static const _artworkCardShowFileInfoKey = 'artwork_card_show_file_info';
+  static const _immersiveTextScaleKey = 'immersive_text_scale';
+  static const _immersiveVerticalOffsetKey = 'immersive_vertical_offset';
+  static const _immersiveFullViewScaleKey = 'immersive_full_view_scale';
+  static const _immersiveShowTitleKey = 'immersive_show_title';
+  static const _immersiveShowArtistKey = 'immersive_show_artist';
+  static const _immersiveShowFileInfoKey = 'immersive_show_file_info';
+  static const _widgetBgOpacityKey = 'widget_bg_opacity';
+  static const _widgetShowAlbumArtKey = 'widget_show_album_art';
+  static const _widgetShowArtistKey = 'widget_show_artist';
+  static const _widgetAccentColorKey = 'widget_accent_color';
 
   Future<AppPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -130,7 +221,8 @@ class AppPreferencesService {
       crossfadeDurationSecs: prefs.getDouble(_crossfadeDurationKey) ?? 3.0,
       crossfadeCurveIndex: prefs.getInt(_crossfadeCurveKey) ?? 0,
       swipeActionsEnabled: prefs.getBool(_swipeActionsEnabledKey) ?? false,
-      favoriteRemovalMode: prefs.getString(_favoriteRemovalModeKey) ?? 'longpress',
+      favoriteRemovalMode:
+          prefs.getString(_favoriteRemovalModeKey) ?? 'longpress',
       fastIndexEnabled: prefs.getBool(_fastIndexEnabledKey) ?? true,
       fastIndexTimeoutSeconds: prefs.getInt(_fastIndexTimeoutKey) ?? 3,
       immersiveAutoFullViewSeconds:
@@ -141,6 +233,30 @@ class AppPreferencesService {
           prefs.getString(_visualizerFrequencyModeKey) ?? 'full',
       visualizerMovementMode:
           prefs.getString(_visualizerMovementModeKey) ?? 'bouncy',
+      artworkCardArtworkScale:
+          prefs.getDouble(_artworkCardArtworkScaleKey) ?? 1.0,
+      artworkCardTextScale: prefs.getDouble(_artworkCardTextScaleKey) ?? 1.0,
+      artworkCardVerticalOffset:
+          prefs.getDouble(_artworkCardVerticalOffsetKey) ?? 0.0,
+      artworkCardShowTitle: prefs.getBool(_artworkCardShowTitleKey) ?? true,
+      artworkCardShowArtist: prefs.getBool(_artworkCardShowArtistKey) ?? true,
+      artworkCardShowAlbum: prefs.getBool(_artworkCardShowAlbumKey) ?? true,
+      artworkCardShowFileInfo:
+          prefs.getBool(_artworkCardShowFileInfoKey) ?? true,
+      immersiveTextScale: prefs.getDouble(_immersiveTextScaleKey) ?? 1.0,
+      immersiveVerticalOffset:
+          prefs.getDouble(_immersiveVerticalOffsetKey) ?? 0.0,
+      immersiveFullViewScale:
+          prefs.getDouble(_immersiveFullViewScaleKey) ?? 1.0,
+      immersiveShowTitle: prefs.getBool(_immersiveShowTitleKey) ?? true,
+      immersiveShowArtist: prefs.getBool(_immersiveShowArtistKey) ?? true,
+      immersiveShowFileInfo:
+          prefs.getBool(_immersiveShowFileInfoKey) ?? true,
+      widgetBgOpacity: prefs.getInt(_widgetBgOpacityKey) ?? 3,
+      widgetShowAlbumArt: prefs.getBool(_widgetShowAlbumArtKey) ?? true,
+      widgetShowArtist: prefs.getBool(_widgetShowArtistKey) ?? true,
+      widgetAccentColor:
+          prefs.getString(_widgetAccentColorKey) ?? 'white',
     );
   }
 
@@ -332,5 +448,125 @@ class AppPreferencesService {
   Future<void> setVisualizerMovementMode(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_visualizerMovementModeKey, value);
+  }
+
+  Future<void> setArtworkCardArtworkScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_artworkCardArtworkScaleKey, value);
+  }
+
+  Future<void> setArtworkCardTextScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_artworkCardTextScaleKey, value);
+  }
+
+  Future<void> setArtworkCardVerticalOffset(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_artworkCardVerticalOffsetKey, value);
+  }
+
+  Future<bool> getArtworkCardShowTitle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_artworkCardShowTitleKey) ?? true;
+  }
+
+  Future<void> setArtworkCardShowTitle(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_artworkCardShowTitleKey, value);
+  }
+
+  Future<bool> getArtworkCardShowArtist() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_artworkCardShowArtistKey) ?? true;
+  }
+
+  Future<void> setArtworkCardShowArtist(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_artworkCardShowArtistKey, value);
+  }
+
+  Future<bool> getArtworkCardShowAlbum() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_artworkCardShowAlbumKey) ?? true;
+  }
+
+  Future<void> setArtworkCardShowAlbum(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_artworkCardShowAlbumKey, value);
+  }
+
+  Future<bool> getArtworkCardShowFileInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_artworkCardShowFileInfoKey) ?? true;
+  }
+
+  Future<void> setArtworkCardShowFileInfo(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_artworkCardShowFileInfoKey, value);
+  }
+
+  Future<void> setImmersiveTextScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_immersiveTextScaleKey, value);
+  }
+
+  Future<void> setImmersiveVerticalOffset(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_immersiveVerticalOffsetKey, value);
+  }
+
+  Future<void> setImmersiveFullViewScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_immersiveFullViewScaleKey, value);
+  }
+
+  Future<bool> getImmersiveShowTitle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_immersiveShowTitleKey) ?? true;
+  }
+
+  Future<void> setImmersiveShowTitle(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_immersiveShowTitleKey, value);
+  }
+
+  Future<bool> getImmersiveShowArtist() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_immersiveShowArtistKey) ?? true;
+  }
+
+  Future<void> setImmersiveShowArtist(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_immersiveShowArtistKey, value);
+  }
+
+  Future<bool> getImmersiveShowFileInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_immersiveShowFileInfoKey) ?? true;
+  }
+
+  Future<void> setImmersiveShowFileInfo(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_immersiveShowFileInfoKey, value);
+  }
+
+  Future<void> setWidgetBgOpacity(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_widgetBgOpacityKey, value);
+  }
+
+  Future<void> setWidgetShowAlbumArt(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_widgetShowAlbumArtKey, value);
+  }
+
+  Future<void> setWidgetShowArtist(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_widgetShowArtistKey, value);
+  }
+
+  Future<void> setWidgetAccentColor(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_widgetAccentColorKey, value);
   }
 }

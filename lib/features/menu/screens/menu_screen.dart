@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -108,7 +109,41 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
     ref.invalidate(songsProvider);
     ref.invalidate(favoritesProvider);
     ref.invalidate(playlistsProvider);
+    await ref.read(updateCheckProvider.notifier).refreshIfOnline(force: true);
     await _loadHistoryData(showLoadingState: false);
+  }
+
+  Future<void> _openPlayStoreListing() async {
+    final marketUri = Uri.parse(UpdateCheckNotifier.flickPlayStoreMarketUrl);
+    final webUri = Uri.parse(UpdateCheckNotifier.flickPlayStoreUrl);
+
+    try {
+      var launched = await launchUrl(
+        marketUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        launched = await launchUrl(
+          webUri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+      if (!launched) {
+        launched = await launchUrl(webUri, mode: LaunchMode.platformDefault);
+      }
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the Play Store.')),
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open the Play Store: $error')),
+      );
+    }
   }
 
   void _navigateTo(BuildContext context, Widget screen) {
@@ -181,6 +216,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
     final playlistsAsync = ref.watch(playlistsProvider);
     final currentSong = ref.watch(currentSongProvider);
     final appPreferences = ref.watch(appPreferencesProvider);
+    final updateState = ref.watch(updateCheckProvider);
 
     final allSongs = songsAsync.value?.songs ?? const <Song>[];
     final favoriteSongs = favoritesAsync.value?.favoriteSongs ?? const <Song>[];
@@ -228,6 +264,18 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                         playlistCount: playlists.length,
                       ),
                     ),
+                    if (updateState.updateAvailable)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppConstants.spacingLg,
+                            0,
+                            AppConstants.spacingLg,
+                            AppConstants.spacingLg,
+                          ),
+                          child: _buildUpdateNotice(context),
+                        ),
+                      ),
                     if (isInitialLoading)
                       const SliverFillRemaining(
                         hasScrollBody: false,
@@ -396,128 +444,133 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                           child: _buildSection(
                             context,
                             title: 'Your Playlists',
-                          subtitle: playlists.isEmpty
-                              ? 'Create your first playlist or jump into your saved collections.'
-                              : 'Saved playlists and quick jumps into your library organization.',
-                          trailing: TextButton(
-                            onPressed: () =>
-                                _navigateTo(context, const PlaylistsScreen()),
-                            child: Text(
-                              playlists.isEmpty ? 'Create' : 'See all',
+                            subtitle: playlists.isEmpty
+                                ? 'Create your first playlist or jump into your saved collections.'
+                                : 'Saved playlists and quick jumps into your library organization.',
+                            trailing: TextButton(
+                              onPressed: () =>
+                                  _navigateTo(context, const PlaylistsScreen()),
+                              child: Text(
+                                playlists.isEmpty ? 'Create' : 'See all',
+                              ),
                             ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppConstants.spacingLg,
-                            ),
-                            child: playlists.isEmpty
-                                ? _EmptyShelfCard(
-                                    title: 'No playlists yet',
-                                    subtitle:
-                                        'Create a playlist, import an M3U, or let the mixes above carry the session.',
-                                    icon: LucideIcons.listMusic,
-                                    onTap: () => _navigateTo(
-                                      context,
-                                      const PlaylistsScreen(),
-                                    ),
-                                  )
-                                : SizedBox(
-                                    height: 280,
-                                    child: ListView.separated(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount:
-                                          homeData.playlistPreviews.length,
-                                      separatorBuilder: (_, _) =>
-                                          const SizedBox(
-                                            width: AppConstants.spacingMd,
-                                          ),
-                                      itemBuilder: (context, index) {
-                                        final preview =
-                                            homeData.playlistPreviews[index];
-                                        return _PlaylistPreviewCard(
-                                          preview: preview,
-                                          onTap: () => _navigateTo(
-                                            context,
-                                            PlaylistDetailScreen(
-                                              playlist: preview.playlist,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppConstants.spacingLg,
+                              ),
+                              child: playlists.isEmpty
+                                  ? _EmptyShelfCard(
+                                      title: 'No playlists yet',
+                                      subtitle:
+                                          'Create a playlist, import an M3U, or let the mixes above carry the session.',
+                                      icon: LucideIcons.listMusic,
+                                      onTap: () => _navigateTo(
+                                        context,
+                                        const PlaylistsScreen(),
+                                      ),
+                                    )
+                                  : SizedBox(
+                                      height: 280,
+                                      child: ListView.separated(
+                                        scrollDirection: Axis.horizontal,
+                                        itemCount:
+                                            homeData.playlistPreviews.length,
+                                        separatorBuilder: (_, _) =>
+                                            const SizedBox(
+                                              width: AppConstants.spacingMd,
                                             ),
-                                          ),
-                                        );
-                                      },
+                                        itemBuilder: (context, index) {
+                                          final preview =
+                                              homeData.playlistPreviews[index];
+                                          return _PlaylistPreviewCard(
+                                            preview: preview,
+                                            onTap: () => _navigateTo(
+                                              context,
+                                              PlaylistDetailScreen(
+                                                playlist: preview.playlist,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
                                     ),
-                                  ),
+                            ),
                           ),
                         ),
-                      ),
                       if (appPreferences.showBrowseMore)
                         SliverToBoxAdapter(
                           child: _buildSection(
                             context,
                             title: 'Browse More',
-                          subtitle:
-                              'Library views and utilities that still belong close to the music.',
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppConstants.spacingLg,
-                            ),
-                            child: Wrap(
-                              spacing: AppConstants.spacingSm,
-                              runSpacing: AppConstants.spacingSm,
-                              children: [
-                                _BrowseChip(
-                                  icon: LucideIcons.library,
-                                  label: 'Library',
-                                  onTap: () {
-                                    if (widget.onNavigateToTab != null) {
-                                      widget.onNavigateToTab!(1);
-                                    } else {
-                                      _navigateTo(context, const SongsScreen());
-                                    }
-                                  },
-                                ),
-                                _BrowseChip(
-                                  icon: LucideIcons.disc,
-                                  label: 'Albums',
-                                  onTap: () => _navigateTo(
-                                    context,
-                                    const AlbumsScreen(),
+                            subtitle:
+                                'Library views and utilities that still belong close to the music.',
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppConstants.spacingLg,
+                              ),
+                              child: Wrap(
+                                spacing: AppConstants.spacingSm,
+                                runSpacing: AppConstants.spacingSm,
+                                children: [
+                                  _BrowseChip(
+                                    icon: LucideIcons.library,
+                                    label: 'Library',
+                                    onTap: () {
+                                      if (widget.onNavigateToTab != null) {
+                                        widget.onNavigateToTab!(1);
+                                      } else {
+                                        _navigateTo(
+                                          context,
+                                          const SongsScreen(),
+                                        );
+                                      }
+                                    },
                                   ),
-                                ),
-                                _BrowseChip(
-                                  icon: LucideIcons.folder,
-                                  label: 'Folders',
-                                  onTap: () => _navigateTo(
-                                    context,
-                                    const FoldersScreen(),
+                                  _BrowseChip(
+                                    icon: LucideIcons.disc,
+                                    label: 'Albums',
+                                    onTap: () => _navigateTo(
+                                      context,
+                                      const AlbumsScreen(),
+                                    ),
                                   ),
-                                ),
-                                _BrowseChip(
-                                  icon: LucideIcons.list,
-                                  label: 'Queue',
-                                  onTap: () =>
-                                      _navigateTo(context, const QueueScreen()),
-                                ),
-                                _BrowseChip(
-                                  icon: Icons.auto_graph_rounded,
-                                  label: 'Flick Replay',
-                                  onTap: () => _navigateTo(
-                                    context,
-                                    const ListeningRecapScreen(),
+                                  _BrowseChip(
+                                    icon: LucideIcons.folder,
+                                    label: 'Folders',
+                                    onTap: () => _navigateTo(
+                                      context,
+                                      const FoldersScreen(),
+                                    ),
                                   ),
-                                ),
-                                _BrowseChip(
-                                  icon: LucideIcons.users,
-                                  label: 'Artists',
-                                  onTap: () => _navigateTo(
-                                    context,
-                                    const ArtistsScreen(),
+                                  _BrowseChip(
+                                    icon: LucideIcons.list,
+                                    label: 'Queue',
+                                    onTap: () => _navigateTo(
+                                      context,
+                                      const QueueScreen(),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  _BrowseChip(
+                                    icon: Icons.auto_graph_rounded,
+                                    label: 'Flick Replay',
+                                    onTap: () => _navigateTo(
+                                      context,
+                                      const ListeningRecapScreen(),
+                                    ),
+                                  ),
+                                  _BrowseChip(
+                                    icon: LucideIcons.users,
+                                    label: 'Artists',
+                                    onTap: () => _navigateTo(
+                                      context,
+                                      const ArtistsScreen(),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
                       const SliverToBoxAdapter(
                         child: SizedBox(
                           height: AppConstants.navBarHeight + 136,
@@ -584,6 +637,84 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                 LucideIcons.refreshCcw,
                 color: context.adaptiveTextPrimary,
                 size: context.responsiveIcon(AppConstants.iconSizeMd),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpdateNotice(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingLg),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 22,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  LucideIcons.badgeAlert,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Update Available',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppConstants.spacingXxs),
+                    Text(
+                      'A newer Flick build is live on the Play Store.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.82),
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          FilledButton.icon(
+            onPressed: _openPlayStoreListing,
+            icon: const Icon(LucideIcons.externalLink, size: 18),
+            label: const Text('Update'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF0F1720),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingLg,
+                vertical: AppConstants.spacingMd,
               ),
             ),
           ),
@@ -753,6 +884,10 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final isCompactHero = constraints.maxWidth < 520;
+                    final compactButtons = <Widget>[primaryButton];
+                    if (secondaryButton != null) {
+                      compactButtons.add(secondaryButton);
+                    }
 
                     if (isCompactHero) {
                       return Column(
@@ -763,10 +898,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                           Wrap(
                             spacing: AppConstants.spacingSm,
                             runSpacing: AppConstants.spacingSm,
-                            children: [
-                              primaryButton,
-                              if (secondaryButton != null) secondaryButton,
-                            ],
+                            children: compactButtons,
                           ),
                         ],
                       );
@@ -2264,9 +2396,10 @@ class _SmartMixDetailScreen extends StatelessWidget {
         body: CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: 280,
+              expandedHeight: 320,
               pinned: true,
-              backgroundColor: AppColors.surface,
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
               leading: IconButton(
                 icon: Icon(
                   LucideIcons.arrowLeft,

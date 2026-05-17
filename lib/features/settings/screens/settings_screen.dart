@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/features/settings/screens/app_info_settings_screen.dart';
 import 'package:flick/features/settings/screens/audio_settings_screen.dart';
 import 'package:flick/features/settings/screens/interface_settings_screen.dart';
@@ -12,161 +9,156 @@ import 'package:flick/features/settings/screens/library_settings_screen.dart';
 import 'package:flick/features/settings/screens/playback_display_settings_screen.dart';
 import 'package:flick/features/settings/screens/ui_customization_settings_screen.dart';
 import 'package:flick/features/settings/screens/integrations_settings_screen.dart';
+import 'package:flick/features/settings/screens/widget_settings_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
-import 'package:flick/providers/providers.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ambientBackgroundEnabled = ref.watch(
-      ambientBackgroundEnabledProvider,
-    );
-    final currentSong = ref.watch(currentSongProvider);
-
+  Widget build(BuildContext context) {
+    // Background is handled by _PersistentBackground in MaterialApp.builder.
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          // Base gradient
-          Container(
-            decoration: const BoxDecoration(
-              gradient: AppColors.backgroundGradient,
-            ),
-          ),
-          // Ambient album-art background
-          if (ambientBackgroundEnabled)
-            Positioned.fill(child: AmbientBackground(song: currentSong)),
-          SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context),
-                const SizedBox(height: AppConstants.spacingMd),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppConstants.spacingMd,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(context),
+            const SizedBox(height: AppConstants.spacingMd),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.spacingMd,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader(context, 'Media'),
+                    SettingsCard(
                       children: [
-                        _buildSectionHeader(context, 'Media'),
-                        SettingsCard(
-                          children: [
-                            _CategoryTile(
-                              icon: LucideIcons.library,
-                              iconBg: const Color(0xFF2D4A6F),
-                              iconFg: const Color(0xFF8BB8FF),
-                              title: 'Library',
-                              subtitle: 'Folders, scanning, and duplicates',
-                              onTap: () => _navigate(
-                                context,
-                                const LibrarySettingsScreen(),
-                              ),
-                            ),
-                            const SettingsDivider(),
-                            _CategoryTile(
-                              icon: LucideIcons.play,
-                              iconBg: const Color(0xFF4A2D6F),
-                              iconFg: const Color(0xFFD19FFF),
-                              title: 'Playback & Display',
-                              subtitle: 'Gapless, view mode, and appearance',
-                              onTap: () => _navigate(
-                                context,
-                                const PlaybackDisplaySettingsScreen(),
-                              ),
-                            ),
-                            const SettingsDivider(),
-                            _CategoryTile(
-                              icon: LucideIcons.headphones,
-                              iconBg: const Color(0xFF6F4A2D),
-                              iconFg: const Color(0xFFFFC48B),
-                              title: 'Audio',
-                              subtitle: 'UAC2 and equalizer',
-                              onTap: () => _navigate(
-                                context,
-                                const AudioSettingsScreen(),
-                              ),
-                            ),
-                          ],
+                        _CategoryTile(
+                          icon: LucideIcons.library,
+                          iconBg: const Color(0xFF2D4A6F),
+                          iconFg: const Color(0xFF8BB8FF),
+                          title: 'Library',
+                          subtitle: 'Folders, scanning, and duplicates',
+                          onTap: () => _navigate(
+                            context,
+                            const LibrarySettingsScreen(),
+                          ),
                         ),
-                        const SizedBox(height: AppConstants.spacingLg),
-                        _buildSectionHeader(context, 'System'),
-                        SettingsCard(
-                          children: [
-                            _CategoryTile(
-                              icon: LucideIcons.layoutDashboard,
-                              iconBg: const Color(0xFF2D6F4A),
-                              iconFg: const Color(0xFF8BFFC4),
-                              title: 'Interface',
-                              subtitle: 'Animations and haptic feedback',
-                              onTap: () => _navigate(
-                                context,
-                                const InterfaceSettingsScreen(),
-                              ),
-                            ),
-                            const SettingsDivider(),
-                            _CategoryTile(
-                              icon: LucideIcons.palette,
-                              iconBg: const Color(0xFF2D4A6F),
-                              iconFg: const Color(0xFF8BB8FF),
-                              title: 'UI Customization',
-                              subtitle: 'Show or hide home screen sections',
-                              onTap: () => _navigate(
-                                context,
-                                const UiCustomizationSettingsScreen(),
-                              ),
-                            ),
-                            const SettingsDivider(),
-                            _CategoryTile(
-                              icon: LucideIcons.plug,
-                              iconBg: const Color(0xFF6F2D4A),
-                              iconFg: const Color(0xFFFF8BB8),
-                              title: 'Integrations',
-                              subtitle: 'Last.fm scrobbling',
-                              onTap: () => _navigate(
-                                context,
-                                const IntegrationsSettingsScreen(),
-                              ),
-                            ),
-                          ],
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.play,
+                          iconBg: const Color(0xFF4A2D6F),
+                          iconFg: const Color(0xFFD19FFF),
+                          title: 'Playback & Display',
+                          subtitle: 'Gapless, view mode, and appearance',
+                          onTap: () => _navigate(
+                            context,
+                            const PlaybackDisplaySettingsScreen(),
+                          ),
                         ),
-                        const SizedBox(height: AppConstants.spacingLg),
-                        _buildSectionHeader(context, 'About'),
-                        SettingsCard(
-                          children: [
-                            _CategoryTile(
-                              icon: LucideIcons.info,
-                              iconBg: const Color(0xFF3A3A3A),
-                              iconFg: const Color(0xFFB0B0B0),
-                              title: 'App Info',
-                              subtitle: 'Updates, about, and support',
-                              onTap: () => _navigate(
-                                context,
-                                const AppInfoSettingsScreen(),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppConstants.spacingLg),
-                        SizedBox(
-                          height:
-                              AppConstants.navBarHeight +
-                              MediaQuery.of(context).padding.bottom +
-                              AppConstants.spacingLg * 4,
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.headphones,
+                          iconBg: const Color(0xFF6F4A2D),
+                          iconFg: const Color(0xFFFFC48B),
+                          title: 'Audio',
+                          subtitle: 'UAC2 and equalizer',
+                          onTap: () => _navigate(
+                            context,
+                            const AudioSettingsScreen(),
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: AppConstants.spacingLg),
+                    _buildSectionHeader(context, 'System'),
+                    SettingsCard(
+                      children: [
+                        _CategoryTile(
+                          icon: LucideIcons.layoutDashboard,
+                          iconBg: const Color(0xFF2D6F4A),
+                          iconFg: const Color(0xFF8BFFC4),
+                          title: 'Interface',
+                          subtitle: 'Animations and haptic feedback',
+                          onTap: () => _navigate(
+                            context,
+                            const InterfaceSettingsScreen(),
+                          ),
+                        ),
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.palette,
+                          iconBg: const Color(0xFF2D4A6F),
+                          iconFg: const Color(0xFF8BB8FF),
+                          title: 'UI Customization',
+                          subtitle: 'Show or hide home screen sections',
+                          onTap: () => _navigate(
+                            context,
+                            const UiCustomizationSettingsScreen(),
+                          ),
+                        ),
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.plug,
+                          iconBg: const Color(0xFF6F2D4A),
+                          iconFg: const Color(0xFFFF8BB8),
+                          title: 'Integrations',
+                          subtitle: 'Last.fm scrobbling',
+                          onTap: () => _navigate(
+                            context,
+                            const IntegrationsSettingsScreen(),
+                          ),
+                        ),
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.layoutGrid,
+                          iconBg: const Color(0xFF2D4A6F),
+                          iconFg: const Color(0xFF8BB8FF),
+                          title: 'Widgets',
+                          subtitle: 'Customize home screen widgets',
+                          onTap: () => _navigate(
+                            context,
+                            const WidgetSettingsScreen(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppConstants.spacingLg),
+                    _buildSectionHeader(context, 'About'),
+                    SettingsCard(
+                      children: [
+                        _CategoryTile(
+                          icon: LucideIcons.info,
+                          iconBg: const Color(0xFF3A3A3A),
+                          iconFg: const Color(0xFFB0B0B0),
+                          title: 'App Info',
+                          subtitle: 'Updates, about, and support',
+                          onTap: () => _navigate(
+                            context,
+                            const AppInfoSettingsScreen(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppConstants.spacingLg),
+                    SizedBox(
+                      height:
+                          AppConstants.navBarHeight +
+                          MediaQuery.of(context).padding.bottom +
+                          AppConstants.spacingLg * 4,
+                    ),
+                  ],
                 ),
-              ],
+              ),
+            ),
+          ],
             ),
           ),
-        ],
-      ),
     );
   }
 

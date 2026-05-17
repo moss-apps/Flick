@@ -17,6 +17,7 @@
 - **EQ Preset Management**: Import/export functionality for EQ presets in JSON and TXT formats with parametric band support
 - **Gapless Playback**: Seamless transitions between tracks without silence
 - **Crossfade Support**: Configurable crossfade between tracks
+- **Bluetooth Codec Info**: Reference display of supported Bluetooth audio codecs and current route
 
 ### USB Audio Class 2.0 (UAC 2.0)
 - Custom Rust implementation for USB DAC/AMP detection and enumeration
@@ -32,6 +33,7 @@
 - Preset management with import/export functionality (JSON/TXT formats)
 - Spatial and time effects including balance, tempo, damp, filter, delay, size, mix, feedback, and width
 - Android-optimized audio processing via JustAudioProcessingController
+- **Visualizer Customization**: Five animation styles (Bars, Wave, Curved Wave, Mirrored, Dots), five frequency modes, three movement styles
 
 ### Library Management
 - MediaStore-based scanning with differential database sync (~34x faster than filesystem walk)
@@ -45,13 +47,25 @@
 - **Rip Log Metadata**: EAC-style rip log metadata (ripper, read mode, AccurateRip, CRCs) stored per track
 - **CUE Sheet Support**: Track offset support for CUE sheet-based files
 - **Duplicate Cleaner**: Built-in duplicate detection and cleanup
+- **Folder Grid View**: Paginated grid of folder cards with infinite scroll when browsing by folder
+- **Swipe Actions**: Swipe left to queue, right to favorite on song cards (toggleable)
+- **Multi-Select**: Long-press to enter batch selection with queue/favorite bulk actions
 
 ### Playback Features
 - Shuffle and repeat modes (off, one, all)
 - Playback speed control (0.5x - 2.0x)
 - Sleep timer
 - Waveform seek bar for precise navigation
-- **Audio Visualizer**: Real-time FFT-based visualizer with 48 bars, spring-physics smoothing, and glow effects (real mode via Android Visualizer API + simulated fallback)
+- **Audio Visualizer**: Real-time FFT-based visualizer with customizable animation styles, frequency focus, and movement modes (real mode via Android Visualizer API + simulated fallback)
+- **Queue Management**: Now Playing / Up Next / Manual queue with multi-select, batch remove, drag to reorder, and swipe to dismiss
+- **Online Lyrics**: Search for synced (LRC) or plain-text lyrics from LRCLib.net
+- **Lyrics Sync Studio**: Built-in timestamp editor with Simple and Advanced modes, time-shift tools, and file import
+- **Immersive Full View**: Auto-hiding controls for full-bleed album art with customizable layout
+
+### Home Screen Widget
+- **Mini Player Widget**: Native Android widget with album art, progress bar, and transport controls
+- Works even when the app is killed
+- Customizable background opacity, accent color, and visible content via Settings > Widgets
 
 ### Flick Replay (Listening Recap)
 - Daily, weekly, monthly, and yearly listening recaps
@@ -73,12 +87,20 @@
 - Audio visualizer toggle in full player (replaces album art)
 - Support for high refresh rate displays (90Hz/120Hz)
 - Responsive layout for various screen sizes
+- **Immersive Full View**: Auto-hide controls with full-bleed album art
+- **Player Layout Customization**: Artwork card scale, text size, text placement, metadata visibility
+- **Dynamic Nav Bar**: Reorderable bottom navigation with show/hide per button
+- **Fast Index**: Collapsible alphabetical scroll overlay for long lists
+- **Swipe Actions**: Swipe to queue or favorite on song cards
 
 ### In-App Updates
 - **Play Store Integration**: In-app updates via Google Play InAppUpdate API
+- **Automatic Checks**: Scans for Play Store updates when online
 - **Manual Updates**: Settings UI allows scanning for and installing updates
 - **Flexible Updates**: Download updates in the background while using the app
 - **Patch Notes**: Release notes fetched from GitHub Releases API
+
+> **Deprecation Notice**: GitHub Releases will be deprecated once Flick's open beta test begins. Install Flick from the Google Play Store to continue receiving updates.
 
 ## Moss Ecosystem
 
@@ -115,6 +137,11 @@ When a song is playing in Locker and you want to switch to Flick's advanced audi
 - Internal Hi-Res audio settings
 - USB audio tweaks
 - Further performance optimizations
+- ~~Home screen widget~~
+- ~~Online lyrics search~~
+- ~~Lyrics editor~~
+- ~~Queue management overhaul~~
+- ~~Immersive full view~~
 
 ## Technology Stack
 
@@ -130,6 +157,7 @@ When a song is playing in Locker and you want to switch to Flick's advanced audi
 | `flutter_cache_manager` | Image caching |
 | `freezed` | Immutable data classes |
 | `in_app_update` | Google Play In-App Updates |
+| `home_widget` | Android home screen widget |
 | `image_picker` | Camera/photo selection |
 | `permission_handler` | Runtime permissions |
 
@@ -185,7 +213,11 @@ flick_player/
 │   │   ├── android_audio_processing_service.dart # Android audio processing
 │   │   ├── player_service.dart               # Playback control
 │   │   ├── uac2_service.dart                 # USB audio device management
-│   │   └── visualizer_service.dart           # Android Visualizer FFT bridge
+│   │   ├── visualizer_service.dart           # Android Visualizer FFT bridge
+│   │   ├── lyrics_service.dart               # Lyrics loading, parsing, editing
+│   │   ├── online_lyrics_service.dart        # LRCLib.net lyrics search
+│   │   ├── widget_sync_service.dart          # Home screen widget state sync
+│   │   └── widget_intent_handler.dart        # Widget action dispatch
 │   └── widgets/                 # Reusable widgets (including deprecated UAC2 widgets)
 ├── rust/                         # Rust backend
 │   └── src/
@@ -294,6 +326,8 @@ The Rust backend communicates with Flutter via `flutter_rust_bridge`, providing:
 
 Documentation is available in the `docs/` directory:
 - `DOCUMENTATION.md`: Detailed architecture and design documentation
+- `RELEASE_0.15.0-beta.1.md`: Release notes for 0.15.0-beta.1
+- `RELEASE_0.14.0-beta.1.md`: Release notes for 0.14.0-beta.1
 - `UAC2_IMPLEMENTATION_CHECKLIST.md`: Implementation checklist for the UAC 2.0 subsystem
 - `DAP_BIT_PERFECT_OFF_ISSUES.md`: Bit-perfect DAP Internal OFF issues and fixes
 - `hardware_volume_control.md`: Three-tier hardware volume control implementation

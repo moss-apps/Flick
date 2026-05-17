@@ -27,6 +27,7 @@ import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/lyrics_editor_bottom_sheet.dart';
+import 'package:flick/features/player/widgets/online_lyrics_search_sheet.dart';
 import 'package:flick/features/player/widgets/line_seek_bar.dart';
 import 'package:flick/features/player/widgets/waveform_seek_bar.dart';
 import 'package:flick/models/progress_bar_style.dart';
@@ -548,135 +549,294 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   void _showPlayerLayoutBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => Consumer(
-        builder: (context, ref, _) {
-          final colorMode = ref.watch(albumColorModeProvider);
-          return Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Consumer(
+          builder: (context, ref, _) {
+            final colorMode = ref.watch(albumColorModeProvider);
+            final appPrefs = ref.watch(appPreferencesProvider);
+            final prefsNotifier = ref.read(appPreferencesProvider.notifier);
+            return SafeArea(
+              top: false,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(sheetContext).size.height * 0.9,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                  border: Border.all(color: AppColors.glassBorder),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.dashboard_customize_rounded,
+                            size: 20,
+                            color: sheetContext.adaptiveTextSecondary,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Player Layout',
+                            style: TextStyle(
+                              fontFamily: 'ProductSans',
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: sheetContext.adaptiveTextPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _PlayerLayoutPreview(
+                        song: _playerService.currentSongNotifier.value,
+                        mode: _playerScreenMode,
+                        artworkCardArtworkScale:
+                            appPrefs.artworkCardArtworkScale,
+                        artworkCardTextScale: appPrefs.artworkCardTextScale,
+                        artworkCardVerticalOffset:
+                            appPrefs.artworkCardVerticalOffset,
+                        artworkCardShowTitle: appPrefs.artworkCardShowTitle,
+                        artworkCardShowArtist: appPrefs.artworkCardShowArtist,
+                        artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
+                        immersiveTextScale: appPrefs.immersiveTextScale,
+                        immersiveVerticalOffset:
+                            appPrefs.immersiveVerticalOffset,
+                        immersiveFullViewScale: appPrefs.immersiveFullViewScale,
+                        immersiveShowTitle: appPrefs.immersiveShowTitle,
+                        immersiveShowArtist: appPrefs.immersiveShowArtist,
+                      ),
+                      const SizedBox(height: 16),
+                      _PlayerLayoutOptionTile(
+                        title: PlayerScreenMode.immersive.label,
+                        subtitle: PlayerScreenMode.immersive.description,
+                        icon: Icons.fit_screen_rounded,
+                        isSelected:
+                            _playerScreenMode == PlayerScreenMode.immersive,
+                        onTap: () {
+                          unawaited(
+                            _setPlayerScreenMode(PlayerScreenMode.immersive),
+                          );
+                          setSheetState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _PlayerLayoutOptionTile(
+                        title: PlayerScreenMode.artworkCard.label,
+                        subtitle: PlayerScreenMode.artworkCard.description,
+                        icon: Icons.rounded_corner_rounded,
+                        isSelected:
+                            _playerScreenMode == PlayerScreenMode.artworkCard,
+                        onTap: () {
+                          unawaited(
+                            _setPlayerScreenMode(PlayerScreenMode.artworkCard),
+                          );
+                          setSheetState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      _PlayerCustomizationGroup(
+                        title: 'Artwork Card',
+                        icon: Icons.rounded_corner_rounded,
+                        children: [
+                          _PlayerCustomizationSlider(
+                            title: 'Artwork size',
+                            value: appPrefs.artworkCardArtworkScale,
+                            min: 0.8,
+                            max: 1.18,
+                            divisions: 19,
+                            valueLabel:
+                                '${(appPrefs.artworkCardArtworkScale * 100).round()}%',
+                            onChanged: prefsNotifier.setArtworkCardArtworkScale,
+                          ),
+                          _PlayerCustomizationSlider(
+                            title: 'Text size',
+                            value: appPrefs.artworkCardTextScale,
+                            min: 0.82,
+                            max: 1.2,
+                            divisions: 19,
+                            valueLabel:
+                                '${(appPrefs.artworkCardTextScale * 100).round()}%',
+                            onChanged: prefsNotifier.setArtworkCardTextScale,
+                          ),
+                          _PlayerCustomizationSlider(
+                            title: 'Content placement',
+                            value: appPrefs.artworkCardVerticalOffset,
+                            min: -36,
+                            max: 36,
+                            divisions: 12,
+                            valueLabel: _placementLabel(
+                              appPrefs.artworkCardVerticalOffset,
+                            ),
+                            onChanged:
+                                prefsNotifier.setArtworkCardVerticalOffset,
+                          ),
+                          const SizedBox(height: 6),
+                          _PlayerCustomizationToggle(
+                            title: 'Show title',
+                            value: appPrefs.artworkCardShowTitle,
+                            onChanged: prefsNotifier.setArtworkCardShowTitle,
+                          ),
+                          _PlayerCustomizationToggle(
+                            title: 'Show artist',
+                            value: appPrefs.artworkCardShowArtist,
+                            onChanged: prefsNotifier.setArtworkCardShowArtist,
+                          ),
+                          _PlayerCustomizationToggle(
+                            title: 'Show album',
+                            value: appPrefs.artworkCardShowAlbum,
+                            onChanged: prefsNotifier.setArtworkCardShowAlbum,
+                          ),
+                          _PlayerCustomizationToggle(
+                            title: 'Show file info',
+                            value: appPrefs.artworkCardShowFileInfo,
+                            onChanged: prefsNotifier.setArtworkCardShowFileInfo,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _PlayerCustomizationGroup(
+                        title: 'Immersive',
+                        icon: Icons.fit_screen_rounded,
+                        children: [
+                          _PlayerCustomizationSlider(
+                            title: 'Text size',
+                            value: appPrefs.immersiveTextScale,
+                            min: 0.82,
+                            max: 1.2,
+                            divisions: 19,
+                            valueLabel:
+                                '${(appPrefs.immersiveTextScale * 100).round()}%',
+                            onChanged: prefsNotifier.setImmersiveTextScale,
+                          ),
+                          _PlayerCustomizationSlider(
+                            title: 'Text placement',
+                            value: appPrefs.immersiveVerticalOffset,
+                            min: -36,
+                            max: 36,
+                            divisions: 12,
+                            valueLabel: _placementLabel(
+                              appPrefs.immersiveVerticalOffset,
+                            ),
+                            onChanged: prefsNotifier.setImmersiveVerticalOffset,
+                          ),
+                          _PlayerCustomizationSlider(
+                            title: 'Full-view card size',
+                            value: appPrefs.immersiveFullViewScale,
+                            min: 0.82,
+                            max: 1.18,
+                            divisions: 18,
+                            valueLabel:
+                                '${(appPrefs.immersiveFullViewScale * 100).round()}%',
+                            onChanged: prefsNotifier.setImmersiveFullViewScale,
+                          ),
+                          const SizedBox(height: 6),
+                          _PlayerCustomizationToggle(
+                            title: 'Show title',
+                            value: appPrefs.immersiveShowTitle,
+                            onChanged: prefsNotifier.setImmersiveShowTitle,
+                          ),
+                          _PlayerCustomizationToggle(
+                            title: 'Show artist',
+                            value: appPrefs.immersiveShowArtist,
+                            onChanged: prefsNotifier.setImmersiveShowArtist,
+                          ),
+                          _PlayerCustomizationToggle(
+                            title: 'Show file info',
+                            value: appPrefs.immersiveShowFileInfo,
+                            onChanged: prefsNotifier.setImmersiveShowFileInfo,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.palette_outlined,
+                            size: 20,
+                            color: sheetContext.adaptiveTextSecondary,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Album Colors',
+                            style: TextStyle(
+                              fontFamily: 'ProductSans',
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: sheetContext.adaptiveTextPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: AlbumColorMode.values.map((mode) {
+                          final isSelected = colorMode == mode;
+                          return GestureDetector(
+                            onTap: () {
+                              ref
+                                  .read(albumColorModeProvider.notifier)
+                                  .setMode(mode);
+                            },
+                            child: AnimatedContainer(
+                              duration: AppConstants.animationFast,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.accent.withValues(alpha: 0.14)
+                                    : AppColors.glassBackground,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.accent.withValues(alpha: 0.6)
+                                      : AppColors.glassBorder,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                mode.label,
+                                style: TextStyle(
+                                  fontFamily: 'ProductSans',
+                                  fontSize: 14,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: isSelected
+                                      ? AppColors.textPrimary
+                                      : sheetContext.adaptiveTextSecondary,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.dashboard_customize_rounded,
-                      size: 20,
-                      color: sheetContext.adaptiveTextSecondary,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Player Layout',
-                      style: TextStyle(
-                        fontFamily: 'ProductSans',
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: sheetContext.adaptiveTextPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _PlayerLayoutOptionTile(
-                  title: PlayerScreenMode.immersive.label,
-                  subtitle: PlayerScreenMode.immersive.description,
-                  icon: Icons.fit_screen_rounded,
-                  isSelected: _playerScreenMode == PlayerScreenMode.immersive,
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    await _setPlayerScreenMode(PlayerScreenMode.immersive);
-                  },
-                ),
-                const SizedBox(height: 12),
-                _PlayerLayoutOptionTile(
-                  title: PlayerScreenMode.artworkCard.label,
-                  subtitle: PlayerScreenMode.artworkCard.description,
-                  icon: Icons.rounded_corner_rounded,
-                  isSelected: _playerScreenMode == PlayerScreenMode.artworkCard,
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    await _setPlayerScreenMode(PlayerScreenMode.artworkCard);
-                  },
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.palette_outlined,
-                      size: 20,
-                      color: sheetContext.adaptiveTextSecondary,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Album Colors',
-                      style: TextStyle(
-                        fontFamily: 'ProductSans',
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: sheetContext.adaptiveTextPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: AlbumColorMode.values.map((mode) {
-                    final isSelected = colorMode == mode;
-                    return GestureDetector(
-                      onTap: () {
-                        ref.read(albumColorModeProvider.notifier).setMode(mode);
-                      },
-                      child: AnimatedContainer(
-                        duration: AppConstants.animationFast,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.accent.withValues(alpha: 0.14)
-                              : AppColors.glassBackground,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.accent.withValues(alpha: 0.6)
-                                : AppColors.glassBorder,
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          mode.label,
-                          style: TextStyle(
-                            fontFamily: 'ProductSans',
-                            fontSize: 14,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: isSelected
-                                ? AppColors.textPrimary
-                                : sheetContext.adaptiveTextSecondary,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
+  }
+
+  String _placementLabel(double value) {
+    if (value == 0) return 'Center';
+    return value < 0 ? '${value.abs().round()} up' : '${value.round()} down';
   }
 
   void _showAddToPlaylistDialog(BuildContext context, Song song) {
@@ -1761,6 +1921,19 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   visualizerAnimationStyle: visStyle,
                   visualizerFrequencyMode: visFreq,
                   visualizerMovementMode: visMove,
+                  artworkCardArtworkScale: appPrefs.artworkCardArtworkScale,
+                  artworkCardTextScale: appPrefs.artworkCardTextScale,
+                  artworkCardVerticalOffset: appPrefs.artworkCardVerticalOffset,
+                  artworkCardShowTitle: appPrefs.artworkCardShowTitle,
+                  artworkCardShowArtist: appPrefs.artworkCardShowArtist,
+                  artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
+                  artworkCardShowFileInfo: appPrefs.artworkCardShowFileInfo,
+                  immersiveTextScale: appPrefs.immersiveTextScale,
+                  immersiveVerticalOffset: appPrefs.immersiveVerticalOffset,
+                  immersiveFullViewScale: appPrefs.immersiveFullViewScale,
+                  immersiveShowTitle: appPrefs.immersiveShowTitle,
+                  immersiveShowArtist: appPrefs.immersiveShowArtist,
+                  immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
                 ),
               ),
             );
@@ -1818,6 +1991,19 @@ class _AnimatedSongScene extends StatelessWidget {
   final String visualizerAnimationStyle;
   final String visualizerFrequencyMode;
   final String visualizerMovementMode;
+  final double artworkCardArtworkScale;
+  final double artworkCardTextScale;
+  final double artworkCardVerticalOffset;
+  final bool artworkCardShowTitle;
+  final bool artworkCardShowArtist;
+  final bool artworkCardShowAlbum;
+  final bool artworkCardShowFileInfo;
+  final double immersiveTextScale;
+  final double immersiveVerticalOffset;
+  final double immersiveFullViewScale;
+  final bool immersiveShowTitle;
+  final bool immersiveShowArtist;
+  final bool immersiveShowFileInfo;
 
   const _AnimatedSongScene({
     required this.song,
@@ -1848,6 +2034,19 @@ class _AnimatedSongScene extends StatelessWidget {
     this.visualizerAnimationStyle = 'bars',
     this.visualizerFrequencyMode = 'full',
     this.visualizerMovementMode = 'bouncy',
+    this.artworkCardArtworkScale = 1.0,
+    this.artworkCardTextScale = 1.0,
+    this.artworkCardVerticalOffset = 0.0,
+    this.artworkCardShowTitle = true,
+    this.artworkCardShowArtist = true,
+    this.artworkCardShowAlbum = true,
+    this.artworkCardShowFileInfo = true,
+    this.immersiveTextScale = 1.0,
+    this.immersiveVerticalOffset = 0.0,
+    this.immersiveFullViewScale = 1.0,
+    this.immersiveShowTitle = true,
+    this.immersiveShowArtist = true,
+    this.immersiveShowFileInfo = true,
   });
 
   @override
@@ -1984,7 +2183,15 @@ class _AnimatedSongScene extends StatelessWidget {
           : const Color(0xFF0A0A0A);
       return Stack(
         children: [
-          Positioned.fill(child: AudioVisualizer(playerService: playerService, animationStyle: visualizerAnimationStyle, frequencyMode: visualizerFrequencyMode, movementMode: visualizerMovementMode, albumColor: albumColor)),
+          Positioned.fill(
+            child: AudioVisualizer(
+              playerService: playerService,
+              animationStyle: visualizerAnimationStyle,
+              frequencyMode: visualizerFrequencyMode,
+              movementMode: visualizerMovementMode,
+              albumColor: albumColor,
+            ),
+          ),
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -2393,18 +2600,32 @@ class _AnimatedSongScene extends StatelessWidget {
             child: Column(
               children: [
                 const Spacer(flex: 2),
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.responsive(12.0, 16.0, 20.0),
+                Transform.translate(
+                  offset: Offset(0, immersiveVerticalOffset),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.responsive(12.0, 16.0, 20.0),
+                        ),
+                        child: _buildImmersiveSongHeader(context),
+                      ),
+                      if (immersiveShowFileInfo) ...[
+                        SizedBox(height: context.responsive(10.0, 12.0, 14.0)),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: context.responsive(12.0, 16.0, 20.0),
+                          ),
+                          child: buildFileInfoRow(
+                            song,
+                            lyricsMode,
+                            playerScreenMode,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  child: _buildImmersiveSongHeader(context),
-                ),
-                SizedBox(height: context.responsive(10.0, 12.0, 14.0)),
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.responsive(12.0, 16.0, 20.0),
-                  ),
-                  child: buildFileInfoRow(song, lyricsMode, playerScreenMode),
                 ),
                 SizedBox(height: context.responsive(12.0, 14.0, 16.0)),
                 _buildPlaybackStack(context),
@@ -2448,7 +2669,8 @@ class _AnimatedSongScene extends StatelessWidget {
   }
 
   Widget _buildImmersiveFullViewLayout(BuildContext context) {
-    final artworkSize = context.responsive(56.0, 60.0, 64.0);
+    final artworkSize =
+        context.responsive(56.0, 60.0, 64.0) * immersiveFullViewScale;
     return Align(
       alignment: Alignment.bottomCenter,
       child: Padding(
@@ -2459,7 +2681,9 @@ class _AnimatedSongScene extends StatelessWidget {
           context.responsive(20.0, 24.0, 28.0),
         ),
         child: Container(
-          padding: EdgeInsets.all(context.responsive(10.0, 12.0, 14.0)),
+          padding: EdgeInsets.all(
+            context.responsive(10.0, 12.0, 14.0) * immersiveFullViewScale,
+          ),
           decoration: BoxDecoration(
             color: const Color(0xFF121212).withValues(alpha: 0.72),
             borderRadius: BorderRadius.circular(24),
@@ -2468,7 +2692,9 @@ class _AnimatedSongScene extends StatelessWidget {
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(
+                  18 * immersiveFullViewScale,
+                ),
                 child: SizedBox(
                   width: artworkSize,
                   height: artworkSize,
@@ -2501,34 +2727,39 @@ class _AnimatedSongScene extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      song.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'ProductSans',
-                        fontSize: context.responsiveText(
-                          context.responsive(18.0, 19.0, 21.0),
+                    if (immersiveShowTitle)
+                      Text(
+                        song.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'ProductSans',
+                          fontSize: context.responsiveText(
+                            context.responsive(18.0, 19.0, 21.0) *
+                                immersiveTextScale,
+                          ),
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          height: 1.12,
                         ),
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        height: 1.12,
                       ),
-                    ),
-                    SizedBox(height: context.responsive(6.0, 7.0, 8.0)),
-                    Text(
-                      song.artist,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'ProductSans',
-                        fontSize: context.responsiveText(
-                          context.responsive(13.0, 14.0, 15.0),
+                    if (immersiveShowTitle && immersiveShowArtist)
+                      SizedBox(height: context.responsive(6.0, 7.0, 8.0)),
+                    if (immersiveShowArtist)
+                      Text(
+                        song.artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'ProductSans',
+                          fontSize: context.responsiveText(
+                            context.responsive(13.0, 14.0, 15.0) *
+                                immersiveTextScale,
+                          ),
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withValues(alpha: 0.78),
                         ),
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white.withValues(alpha: 0.78),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -2548,35 +2779,40 @@ class _AnimatedSongScene extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                song.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontSize: context.responsiveText(
-                    context.responsive(22.0, 24.0, 28.0),
+              if (immersiveShowTitle)
+                Text(
+                  song.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'ProductSans',
+                    fontSize: context.responsiveText(
+                      context.responsive(22.0, 24.0, 28.0) * immersiveTextScale,
+                    ),
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    height: 1.08,
                   ),
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  height: 1.08,
                 ),
-              ),
-              SizedBox(height: context.responsive(10.0, 12.0, 14.0)),
-              Text(
-                song.artist,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontSize: context.responsiveText(
-                    context.responsive(13.0, 14.0, 16.0),
+              if (immersiveShowTitle && immersiveShowArtist)
+                SizedBox(height: context.responsive(10.0, 12.0, 14.0)),
+              if (immersiveShowArtist)
+                Text(
+                  song.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'ProductSans',
+                    fontSize: context.responsiveText(
+                      context.responsive(13.0, 14.0, 16.0) *
+                          immersiveTextScale,
+                    ),
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.82),
                   ),
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white.withValues(alpha: 0.82),
                 ),
-              ),
-              SizedBox(height: context.responsive(10.0, 12.0, 14.0)),
+              if (immersiveShowTitle || immersiveShowArtist)
+                SizedBox(height: context.responsive(10.0, 12.0, 14.0)),
             ],
           ),
         ),
@@ -2596,7 +2832,7 @@ class _AnimatedSongScene extends StatelessWidget {
             ? 6.0
             : context.responsive(10.0, 12.0, 16.0);
         final maxArtworkSize = context.responsive(320.0, 360.0, 400.0);
-        final artworkSize = math
+        final baseArtworkSize = math
             .min(
               constraints.maxWidth - (horizontalPadding * 2),
               isVeryShortHeight
@@ -2606,6 +2842,12 @@ class _AnimatedSongScene extends StatelessWidget {
                   : constraints.maxHeight * 0.42,
             )
             .clamp(isVeryShortHeight ? 160.0 : 180.0, maxArtworkSize)
+            .toDouble();
+        final artworkSize = (baseArtworkSize * artworkCardArtworkScale)
+            .clamp(
+              isVeryShortHeight ? 140.0 : 160.0,
+              constraints.maxWidth - (horizontalPadding * 2),
+            )
             .toDouble();
         final artworkSpacing = isVeryShortHeight
             ? 12.0
@@ -2649,43 +2891,48 @@ class _AnimatedSongScene extends StatelessWidget {
                 SizedBox(height: lyricsSpacing),
               ] else
                 Expanded(
-                  child: Column(
-                    mainAxisAlignment: isVeryShortHeight
-                        ? MainAxisAlignment.start
-                        : MainAxisAlignment.center,
-                    children: [
-                      Flexible(
-                        flex: isVeryShortHeight ? 5 : 7,
-                        child: Center(
-                          child: visualizationMode
-                              ? _VisualizerArtBox(
-                                  playerService: playerService,
-                                  size: artworkSize,
-                                  animationStyle: visualizerAnimationStyle,
-                                  frequencyMode: visualizerFrequencyMode,
-                                  movementMode: visualizerMovementMode,
-                                  albumColor: albumColor,
-                                )
-                              : _AlbumArtBox(song: song, size: artworkSize),
+                  child: Transform.translate(
+                    offset: Offset(0, artworkCardVerticalOffset),
+                    child: Column(
+                      mainAxisAlignment: isVeryShortHeight
+                          ? MainAxisAlignment.start
+                          : MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          flex: isVeryShortHeight ? 5 : 7,
+                          child: Center(
+                            child: visualizationMode
+                                ? _VisualizerArtBox(
+                                    playerService: playerService,
+                                    size: artworkSize,
+                                    animationStyle: visualizerAnimationStyle,
+                                    frequencyMode: visualizerFrequencyMode,
+                                    movementMode: visualizerMovementMode,
+                                    albumColor: albumColor,
+                                  )
+                                : _AlbumArtBox(song: song, size: artworkSize),
+                          ),
                         ),
-                      ),
-                      SizedBox(height: artworkSpacing),
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isVeryShortHeight ? 8.0 : 0.0,
+                        SizedBox(height: artworkSpacing),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isVeryShortHeight ? 8.0 : 0.0,
+                          ),
+                          child: _buildSongIdentity(
+                            context,
+                            compact: isShortHeight,
+                            veryCompact: isVeryShortHeight,
+                          ),
                         ),
-                        child: _buildSongIdentity(
-                          context,
-                          compact: isShortHeight,
-                          veryCompact: isVeryShortHeight,
-                        ),
-                      ),
-                      SizedBox(height: identitySpacing),
-                    ],
+                        SizedBox(height: identitySpacing),
+                      ],
+                    ),
                   ),
                 ),
-              buildFileInfoRow(song, lyricsMode, playerScreenMode),
-              SizedBox(height: playbackSpacing),
+              if (artworkCardShowFileInfo)
+                buildFileInfoRow(song, lyricsMode, playerScreenMode),
+              if (artworkCardShowFileInfo)
+                SizedBox(height: playbackSpacing),
               _buildPlaybackStack(context),
               SizedBox(height: directorySpacing),
             ],
@@ -2700,16 +2947,20 @@ class _AnimatedSongScene extends StatelessWidget {
     bool compact = false,
     bool veryCompact = false,
   }) {
-    final titleSize = veryCompact
-        ? context.responsive(20.0, 22.0, 25.0)
-        : compact
-        ? context.responsive(22.0, 25.0, 28.0)
-        : context.responsive(25.0, 27.0, 30.0);
-    final artistSize = veryCompact
-        ? context.responsive(13.0, 14.0, 15.0)
-        : compact
-        ? context.responsive(14.0, 15.0, 16.0)
-        : context.responsive(15.0, 16.0, 17.0);
+    final titleSize =
+        (veryCompact
+            ? context.responsive(20.0, 22.0, 25.0)
+            : compact
+            ? context.responsive(22.0, 25.0, 28.0)
+            : context.responsive(25.0, 27.0, 30.0)) *
+        artworkCardTextScale;
+    final artistSize =
+        (veryCompact
+            ? context.responsive(13.0, 14.0, 15.0)
+            : compact
+            ? context.responsive(14.0, 15.0, 16.0)
+            : context.responsive(15.0, 16.0, 17.0)) *
+        artworkCardTextScale;
     final titleToArtistSpacing = veryCompact
         ? 6.0
         : context.responsive(8.0, 10.0, 12.0);
@@ -2724,39 +2975,47 @@ class _AnimatedSongScene extends StatelessWidget {
     final albumVerticalPadding = veryCompact
         ? 5.0
         : context.responsive(6.0, 7.0, 8.0);
-    final albumFontSize = veryCompact
-        ? context.responsive(10.0, 11.0, 12.0)
-        : context.responsive(11.0, 12.0, 13.0);
+    final albumFontSize =
+        (veryCompact
+            ? context.responsive(10.0, 11.0, 12.0)
+            : context.responsive(11.0, 12.0, 13.0)) *
+        artworkCardTextScale;
 
     return Column(
       children: [
-        Text(
-          song.title,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontFamily: 'ProductSans',
-            fontSize: context.responsiveText(titleSize),
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-            height: 1.08,
+        if (artworkCardShowTitle)
+          Text(
+            song.title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: 'ProductSans',
+              fontSize: context.responsiveText(titleSize),
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              height: 1.08,
+            ),
           ),
-        ),
-        SizedBox(height: titleToArtistSpacing),
-        Text(
-          song.artist,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontFamily: 'ProductSans',
-            fontSize: context.responsiveText(artistSize),
-            fontWeight: FontWeight.w500,
-            color: Colors.white.withValues(alpha: 0.78),
+        if (artworkCardShowTitle && artworkCardShowArtist)
+          SizedBox(height: titleToArtistSpacing),
+        if (artworkCardShowArtist)
+          Text(
+            song.artist,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: 'ProductSans',
+              fontSize: context.responsiveText(artistSize),
+              fontWeight: FontWeight.w500,
+              color: Colors.white.withValues(alpha: 0.78),
+            ),
           ),
-        ),
-        if (song.album != null && song.album!.trim().isNotEmpty) ...[
+        if (artworkCardShowAlbum &&
+            (artworkCardShowTitle || artworkCardShowArtist) &&
+            song.album != null &&
+            song.album!.trim().isNotEmpty) ...[
           SizedBox(height: artistToAlbumSpacing),
           Container(
             padding: EdgeInsets.symmetric(
@@ -2955,7 +3214,13 @@ class _VisualizerArtBox extends StatelessWidget {
           borderRadius: BorderRadius.circular(innerRadius),
           child: Container(
             color: const Color(0xFF0A0A0A),
-            child: AudioVisualizer(playerService: playerService, animationStyle: animationStyle, frequencyMode: frequencyMode, movementMode: movementMode, albumColor: albumColor),
+            child: AudioVisualizer(
+              playerService: playerService,
+              animationStyle: animationStyle,
+              frequencyMode: frequencyMode,
+              movementMode: movementMode,
+              albumColor: albumColor,
+            ),
           ),
         ),
       ),
@@ -3057,6 +3322,407 @@ class _PlayerLayoutOptionTile extends StatelessWidget {
   }
 }
 
+class _PlayerCustomizationGroup extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+
+  const _PlayerCustomizationGroup({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: context.adaptiveTextSecondary),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: context.adaptiveTextPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayerCustomizationToggle extends StatelessWidget {
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _PlayerCustomizationToggle({
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontFamily: 'ProductSans',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: context.adaptiveTextPrimary,
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: AppColors.accent,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayerCustomizationSlider extends StatelessWidget {
+  final String title;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String valueLabel;
+  final ValueChanged<double> onChanged;
+
+  const _PlayerCustomizationSlider({
+    required this.title,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.valueLabel,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: context.adaptiveTextPrimary,
+                ),
+              ),
+              Text(
+                valueLabel,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 12,
+                  color: context.adaptiveTextSecondary,
+                ),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: AppColors.accent,
+              inactiveTrackColor: AppColors.glassBorder,
+              thumbColor: AppColors.accent,
+              overlayColor: AppColors.accent.withValues(alpha: 0.18),
+            ),
+            child: Slider(
+              value: value.clamp(min, max).toDouble(),
+              min: min,
+              max: max,
+              divisions: divisions,
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayerLayoutPreview extends StatelessWidget {
+  final Song? song;
+  final PlayerScreenMode mode;
+  final double artworkCardArtworkScale;
+  final double artworkCardTextScale;
+  final double artworkCardVerticalOffset;
+  final bool artworkCardShowTitle;
+  final bool artworkCardShowArtist;
+  final bool artworkCardShowAlbum;
+  final double immersiveTextScale;
+  final double immersiveVerticalOffset;
+  final double immersiveFullViewScale;
+  final bool immersiveShowTitle;
+  final bool immersiveShowArtist;
+
+  const _PlayerLayoutPreview({
+    required this.song,
+    required this.mode,
+    required this.artworkCardArtworkScale,
+    required this.artworkCardTextScale,
+    required this.artworkCardVerticalOffset,
+    this.artworkCardShowTitle = true,
+    this.artworkCardShowArtist = true,
+    this.artworkCardShowAlbum = true,
+    required this.immersiveTextScale,
+    required this.immersiveVerticalOffset,
+    required this.immersiveFullViewScale,
+    this.immersiveShowTitle = true,
+    this.immersiveShowArtist = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        height: 180,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF232323),
+              AppColors.background,
+              AppColors.accent.withValues(alpha: 0.28),
+            ],
+          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 12,
+              left: 14,
+              child: Text(
+                'Sample preview',
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.68),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              top: 28,
+              child: mode == PlayerScreenMode.artworkCard
+                  ? _buildArtworkCardPreview(context)
+                  : _buildImmersivePreview(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArtworkCardPreview(BuildContext context) {
+    final artSize = 70.0 * artworkCardArtworkScale;
+    return Transform.translate(
+      offset: Offset(0, artworkCardVerticalOffset * 0.45),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _PreviewAlbumArt(song: song, size: artSize, radius: 18),
+          const SizedBox(height: 12),
+          if (artworkCardShowTitle)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Text(
+                song?.title ?? 'Midnight Signal',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 17 * artworkCardTextScale,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          if (artworkCardShowTitle && artworkCardShowArtist)
+            const SizedBox(height: 4),
+          if (artworkCardShowArtist)
+            Text(
+              song?.artist ?? 'Flick Preview',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'ProductSans',
+                fontSize: 12 * artworkCardTextScale,
+                color: Colors.white.withValues(alpha: 0.72),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImmersivePreview(BuildContext context) {
+    final artSize = 38.0 * immersiveFullViewScale;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Opacity(
+            opacity: 0.28,
+            child: _PreviewAlbumArt(
+              song: song,
+              size: double.infinity,
+              radius: 0,
+            ),
+          ),
+        ),
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 16,
+          child: Transform.translate(
+            offset: Offset(0, immersiveVerticalOffset * 0.45),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (immersiveShowTitle)
+                        Text(
+                          song?.title ?? 'Midnight Signal',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'ProductSans',
+                            fontSize: 18 * immersiveTextScale,
+                            fontWeight: FontWeight.w700,
+                            height: 1.05,
+                            color: Colors.white,
+                          ),
+                        ),
+                      if (immersiveShowTitle && immersiveShowArtist)
+                        const SizedBox(height: 5),
+                      if (immersiveShowArtist)
+                        Text(
+                          song?.artist ?? 'Flick Preview',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'ProductSans',
+                            fontSize: 12 * immersiveTextScale,
+                            color: Colors.white.withValues(alpha: 0.76),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: EdgeInsets.all(7 * immersiveFullViewScale),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.34),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: _PreviewAlbumArt(
+                    song: song,
+                    size: artSize,
+                    radius: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PreviewAlbumArt extends StatelessWidget {
+  final Song? song;
+  final double size;
+  final double radius;
+
+  const _PreviewAlbumArt({
+    required this.song,
+    required this.size,
+    required this.radius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: CachedImageWidget(
+          imagePath: song?.albumArt,
+          audioSourcePath: song?.filePath,
+          fit: BoxFit.cover,
+          placeholder: _buildFallback(),
+          errorWidget: _buildFallback(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFallback() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF4B3D7A), Color(0xFF111111)],
+        ),
+      ),
+      child: Icon(
+        LucideIcons.music,
+        color: Colors.white.withValues(alpha: 0.62),
+        size: size.isFinite ? math.max(18, size * 0.38) : 64,
+      ),
+    );
+  }
+}
+
 class _InlineLyricsPanel extends StatefulWidget {
   final PlayerService playerService;
   final LyricsService lyricsService;
@@ -3083,7 +3749,7 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
   bool _isLoading = true;
   bool _hasManualLyricsSelection = false;
   int _activeLineIndex = -1;
-  int _lastScrolledIndex = -1;
+  bool _isMetaCollapsed = false;
 
   @override
   void initState() {
@@ -3126,7 +3792,6 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
       _isLoading = true;
       _lyricsData = null;
       _activeLineIndex = -1;
-      _lastScrolledIndex = -1;
     });
 
     final loaded = await widget.lyricsService.loadLyricsForSong(
@@ -3150,39 +3815,20 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
   }
 
   void _scrollToActiveLine(int index) {
-    if (!_scrollController.hasClients ||
-        index < 0 ||
-        index == _lastScrolledIndex) {
-      return;
-    }
+    if (!_scrollController.hasClients || index < 0) return;
 
-    final viewportHeight = _scrollController.position.viewportDimension;
     final maxScroll = _scrollController.position.maxScrollExtent;
-    final target =
-        (index * _lineHeight) +
-        (_lineHeight / 2) -
-        (viewportHeight * (0.5 - _centerFactor));
+    final target = (index * _lineHeight) + (_lineHeight / 2);
     final clampedTarget = target.clamp(0.0, maxScroll);
 
-    _lastScrolledIndex = index;
-
     final delta = (_scrollController.offset - clampedTarget).abs();
-    if (delta < 8) return;
+    if (delta < _lineHeight * 0.08) return;
 
-    if (delta < _lineHeight * 0.75) {
-      _scrollController.jumpTo(clampedTarget);
-      return;
-    }
-
-    if (AppConstants.animationNormal == Duration.zero) {
-      _scrollController.jumpTo(clampedTarget);
-    } else {
-      _scrollController.animateTo(
-        clampedTarget,
-        duration: AppConstants.animationNormal,
-        curve: Curves.easeOutCubic,
-      );
-    }
+    _scrollController.animateTo(
+      clampedTarget,
+      duration: AppConstants.animationNormal,
+      curve: Curves.easeOutCubic,
+    );
   }
 
   Future<void> _seekToLyricLine(int index) async {
@@ -3266,6 +3912,18 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
     _showMessage('Switched back to the automatic lyrics source.');
   }
 
+  Future<void> _searchOnlineLyrics() async {
+    final result = await OnlineLyricsSearchSheet.show(
+      context: context,
+      song: widget.song,
+      lyricsService: widget.lyricsService,
+    );
+    if (result == true && mounted) {
+      await _loadLyricsForSong(widget.song);
+      _showMessage('Lyrics saved from LRCLib.');
+    }
+  }
+
   Widget _buildActionButtons() {
     Widget action({
       required IconData icon,
@@ -3317,6 +3975,11 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
             label: 'Use Existing File',
             onPressed: () => unawaited(_importLyricsFile()),
           ),
+          action(
+            icon: LucideIcons.globe,
+            label: 'Search Online',
+            onPressed: () => unawaited(_searchOnlineLyrics()),
+          ),
           if (_hasManualLyricsSelection)
             action(
               icon: LucideIcons.refreshCcw,
@@ -3360,30 +4023,68 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
     }
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
+        GestureDetector(
+          onTap: () => setState(() => _isMetaCollapsed = !_isMetaCollapsed),
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                chip(LucideIcons.fileText, 'Lyrics'),
+                const SizedBox(width: 8),
+                AnimatedRotation(
+                  turns: _isMetaCollapsed ? 0.0 : 0.5,
+                  duration: AppConstants.animationFast,
+                  child: Icon(
+                    LucideIcons.chevronDown,
+                    size: 14,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        AnimatedCrossFade(
+          duration: AppConstants.animationFast,
+          crossFadeState: _isMetaCollapsed
+              ? CrossFadeState.showFirst
+              : CrossFadeState.showSecond,
+          firstChild: const SizedBox(width: double.infinity),
+          secondChild: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              chip(LucideIcons.fileText, 'Lyrics'),
-              chip(
-                lyrics.isSynchronized
-                    ? LucideIcons.clock3
-                    : Icons.notes_rounded,
-                lyrics.isSynchronized ? 'Tap a line to seek' : 'Static lyrics',
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    chip(
+                      lyrics.isSynchronized
+                          ? LucideIcons.clock3
+                          : Icons.notes_rounded,
+                      lyrics.isSynchronized
+                          ? 'Tap a line to seek'
+                          : 'Static lyrics',
+                    ),
+                    chip(
+                      LucideIcons.slidersHorizontal,
+                      'Simple + advanced sync tools',
+                    ),
+                    if (sourceLabel != null)
+                      chip(LucideIcons.badgeInfo, sourceLabel),
+                  ],
+                ),
               ),
-              chip(
-                LucideIcons.slidersHorizontal,
-                'Simple + advanced sync tools',
-              ),
-              if (sourceLabel != null) chip(LucideIcons.badgeInfo, sourceLabel),
+              _buildActionButtons(),
             ],
           ),
         ),
-        _buildActionButtons(),
       ],
     );
   }

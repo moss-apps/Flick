@@ -154,6 +154,132 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .read(appPreferencesServiceProvider)
         .setVisualizerMovementMode(value);
   }
+
+  Future<void> setArtworkCardArtworkScale(double value) async {
+    if (state.artworkCardArtworkScale == value) return;
+    state = state.copyWith(artworkCardArtworkScale: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardArtworkScale(value);
+  }
+
+  Future<void> setArtworkCardTextScale(double value) async {
+    if (state.artworkCardTextScale == value) return;
+    state = state.copyWith(artworkCardTextScale: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardTextScale(value);
+  }
+
+  Future<void> setArtworkCardVerticalOffset(double value) async {
+    if (state.artworkCardVerticalOffset == value) return;
+    state = state.copyWith(artworkCardVerticalOffset: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardVerticalOffset(value);
+  }
+
+  Future<void> setArtworkCardShowTitle(bool value) async {
+    if (state.artworkCardShowTitle == value) return;
+    state = state.copyWith(artworkCardShowTitle: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardShowTitle(value);
+  }
+
+  Future<void> setArtworkCardShowArtist(bool value) async {
+    if (state.artworkCardShowArtist == value) return;
+    state = state.copyWith(artworkCardShowArtist: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardShowArtist(value);
+  }
+
+  Future<void> setArtworkCardShowAlbum(bool value) async {
+    if (state.artworkCardShowAlbum == value) return;
+    state = state.copyWith(artworkCardShowAlbum: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardShowAlbum(value);
+  }
+
+  Future<void> setArtworkCardShowFileInfo(bool value) async {
+    if (state.artworkCardShowFileInfo == value) return;
+    state = state.copyWith(artworkCardShowFileInfo: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardShowFileInfo(value);
+  }
+
+  Future<void> setImmersiveTextScale(double value) async {
+    if (state.immersiveTextScale == value) return;
+    state = state.copyWith(immersiveTextScale: value);
+    await ref.read(appPreferencesServiceProvider).setImmersiveTextScale(value);
+  }
+
+  Future<void> setImmersiveVerticalOffset(double value) async {
+    if (state.immersiveVerticalOffset == value) return;
+    state = state.copyWith(immersiveVerticalOffset: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setImmersiveVerticalOffset(value);
+  }
+
+  Future<void> setImmersiveFullViewScale(double value) async {
+    if (state.immersiveFullViewScale == value) return;
+    state = state.copyWith(immersiveFullViewScale: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setImmersiveFullViewScale(value);
+  }
+
+  Future<void> setImmersiveShowTitle(bool value) async {
+    if (state.immersiveShowTitle == value) return;
+    state = state.copyWith(immersiveShowTitle: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setImmersiveShowTitle(value);
+  }
+
+  Future<void> setImmersiveShowArtist(bool value) async {
+    if (state.immersiveShowArtist == value) return;
+    state = state.copyWith(immersiveShowArtist: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setImmersiveShowArtist(value);
+  }
+
+  Future<void> setImmersiveShowFileInfo(bool value) async {
+    if (state.immersiveShowFileInfo == value) return;
+    state = state.copyWith(immersiveShowFileInfo: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setImmersiveShowFileInfo(value);
+  }
+
+  Future<void> setWidgetBgOpacity(int value) async {
+    if (state.widgetBgOpacity == value) return;
+    state = state.copyWith(widgetBgOpacity: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetBgOpacity(value);
+  }
+
+  Future<void> setWidgetShowAlbumArt(bool value) async {
+    if (state.widgetShowAlbumArt == value) return;
+    state = state.copyWith(widgetShowAlbumArt: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetShowAlbumArt(value);
+  }
+
+  Future<void> setWidgetShowArtist(bool value) async {
+    if (state.widgetShowArtist == value) return;
+    state = state.copyWith(widgetShowArtist: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetShowArtist(value);
+  }
+
+  Future<void> setWidgetAccentColor(String value) async {
+    if (state.widgetAccentColor == value) return;
+    state = state.copyWith(widgetAccentColor: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetAccentColor(value);
+  }
 }
 
 final appPreferencesProvider =

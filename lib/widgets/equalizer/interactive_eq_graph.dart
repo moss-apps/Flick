@@ -770,7 +770,6 @@ class _EqCurvePainter extends CustomPainter {
     final freqs = EqualizerState.defaultGraphicFrequenciesHz;
     final gains = state.graphicGainsDb;
     final points = equtils.buildGraphicCurvePoints(
-      enabled: enabled,
       freqs: freqs,
       gains: gains,
       sampleCount: math.max(96, plotRect.width.floor()),
@@ -780,7 +779,6 @@ class _EqCurvePainter extends CustomPainter {
 
   void _drawParametricCurve(Canvas canvas, Rect plotRect, Color lineColor) {
     final points = equtils.buildParametricCurvePoints(
-      enabled: enabled,
       bands: state.parametricBands,
       sampleCount: math.max(96, plotRect.width.floor()),
     );

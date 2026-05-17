@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- List lines on left -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M3,6h8" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M3,12h8" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M3,18h8" />
+    <!-- Music note on right -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M16,7v6.5a2.5,2.5 0,0,1 -2.5,2.5H13a2.5,2.5 0,0,1 0,-5h0.5V8a1,1 0,0,1 1,-1h2V7z" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:pathData="M19,11a2,2 0,1,1 -4,0" />
+</vector>

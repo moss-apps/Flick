@@ -69,6 +69,7 @@ class MainActivity: FlutterActivity() {
     private val EQUALIZER_CHANNEL = "com.mossapps.flick/equalizer"
     private val VISUALIZER_METHOD_CHANNEL = "com.mossapps.flick/visualizer"
     private val VISUALIZER_EVENT_CHANNEL = "com.mossapps.flick/visualizer_events"
+    private val WIDGET_CHANNEL = "com.mossapps.flick/widget"
     private val LOCKER_PACKAGE = "com.mossapps.locker"
     private val LOCKER_RETURN_URI = "locker://return?source=flick"
     // private val CONVERTER_CHANNEL = "com.mossapps.flick/converter"
@@ -122,6 +123,8 @@ class MainActivity: FlutterActivity() {
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private var visualizer: Visualizer? = null
     private var visualizerEventSink: EventChannel.EventSink? = null
+    private var widgetChannel: MethodChannel? = null
+    private val HOME_WIDGET_LAUNCH_ACTION = "com.mossapps.flick.WIDGET_LAUNCH"
 
     // Load the Rust shared library before calling into native startup hooks.
     init {
@@ -146,6 +149,7 @@ class MainActivity: FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        dispatchWidgetIntent(intent)
         handleExternalPlaybackIntent(intent)
         handleUsbAttachIntent(intent)
         maybeRequestPermissionForConnectedUsbAudioDevices(reason = "new intent")
@@ -860,6 +864,9 @@ class MainActivity: FlutterActivity() {
         maybeRequestPermissionForConnectedUsbAudioDevices(reason = "flutter engine configured")
         // Register volume change observer
         registerVolumeContentObserver()
+
+        widgetChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL)
+        dispatchWidgetIntent(intent)
     }
 
     // private fun handleConversionResult(conversionResult: ConversionResult?, result: MethodChannel.Result) {
@@ -1012,6 +1019,12 @@ class MainActivity: FlutterActivity() {
             resolver.delete(itemUri, null, null)
             throw e
         }
+    }
+
+    private fun dispatchWidgetIntent(intent: Intent?) {
+        if (intent?.action != HOME_WIDGET_LAUNCH_ACTION) return
+        val uri = intent.data?.toString() ?: return
+        widgetChannel?.invokeMethod("dispatch", uri)
     }
 
     private fun handleExternalPlaybackIntent(intent: Intent?) {

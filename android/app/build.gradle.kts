@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
@@ -26,6 +27,10 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    buildFeatures {
+        compose = true
     }
 
     signingConfigs {
@@ -204,4 +209,9 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.1.0")
     implementation("androidx.media:media:1.7.0")
     implementation("androidx.lifecycle:lifecycle-service:2.7.0")
+    
+    // Jetpack Glance for Widgets
+    val glanceVersion = "1.2.0-rc01"
+    implementation("androidx.glance:glance-appwidget:$glanceVersion")
+    implementation("androidx.glance:glance-material3:$glanceVersion")
 }

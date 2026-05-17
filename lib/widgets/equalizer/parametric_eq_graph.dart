@@ -46,7 +46,6 @@ class ParametricEqGraph extends ConsumerWidget {
                     ).withValues(alpha: 0.70);
 
               final curvePoints = equtils.buildParametricCurvePoints(
-                enabled: enabled,
                 bands: bands,
                 sampleCount: sampleCount,
               );
@@ -59,12 +58,10 @@ class ParametricEqGraph extends ConsumerWidget {
                   if (b.enabled)
                     FlSpot(
                       equtils.hzToX(b.frequencyHz),
-                      enabled
-                          ? parametricResponseDbAtHz(
-                              hz: b.frequencyHz,
-                              bands: bands,
-                            )
-                          : 0.0,
+                      parametricResponseDbAtHz(
+                        hz: b.frequencyHz,
+                        bands: bands,
+                      ),
                     ),
               ];
 

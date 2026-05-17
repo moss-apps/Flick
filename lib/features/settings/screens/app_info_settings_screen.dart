@@ -1,12 +1,9 @@
 import 'dart:convert';
-import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
-import 'package:in_app_update/in_app_update.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
@@ -35,13 +32,6 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
   static const String _releaseNotesUrl =
       'https://github.com/ultraelectronica/flick_player/releases/latest';
 
-  bool _isCheckingForUpdates = false;
-  bool _isInstallingUpdate = false;
-  bool _hasScannedForUpdates = false;
-  bool _updateAvailable = false;
-  bool _updateDownloaded = false;
-  String? _updateCheckErrorMessage;
-
   late final AnimationController _donationPulseController;
   late final Animation<double> _donationPulseAnimation;
 
@@ -67,10 +57,6 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     super.dispose();
   }
 
-  bool get _restartRequiredForUpdate => _updateDownloaded;
-
-  bool get _hasAvailableUpdate => _updateAvailable;
-
   void _showToast(String message) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.removeCurrentSnackBar();
@@ -79,168 +65,104 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     );
   }
 
-  Future<void> _scanForUpdates() async {
-    if (_isCheckingForUpdates || _isInstallingUpdate) return;
+  Future<void> _checkForUpdatesManually() async {
+    await ref.read(updateCheckProvider.notifier).refreshIfOnline(force: true);
 
-    setState(() {
-      _isCheckingForUpdates = true;
-      _updateCheckErrorMessage = null;
-    });
-
-    try {
-      final info = await InAppUpdate.checkForUpdate();
-      if (!mounted) return;
-
-      final hasUpdate =
-          info.updateAvailability == UpdateAvailability.updateAvailable;
-      final inProgress =
-          info.updateAvailability ==
-          UpdateAvailability.developerTriggeredUpdateInProgress;
-
-      setState(() {
-        _hasScannedForUpdates = true;
-        _updateAvailable = hasUpdate;
-        _updateDownloaded = inProgress;
-        _updateCheckErrorMessage = null;
-      });
-
-      if (hasUpdate) {
-        _showToast('Update available.');
-        return;
-      }
-      if (inProgress) {
-        _showToast('Update already in progress.');
-        return;
-      }
-      _showToast('No new update found.');
-    } on PlatformException {
-      if (!mounted) return;
-      setState(() {
-        _hasScannedForUpdates = true;
-        _updateAvailable = false;
-        _updateDownloaded = false;
-        _updateCheckErrorMessage =
-            'In-app updates only work when installed from the Play Store.';
-      });
-      _showToast('In-app updates require the Play Store version of the app.');
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _hasScannedForUpdates = true;
-        _updateAvailable = false;
-        _updateDownloaded = false;
-        _updateCheckErrorMessage = 'Unable to reach the update service.';
-      });
-      _showToast('Failed to check for updates: $error');
-    } finally {
-      if (mounted) {
-        setState(() => _isCheckingForUpdates = false);
-      }
-    }
-  }
-
-  Future<void> _installUpdate() async {
-    if (_isInstallingUpdate) return;
-
-    if (_restartRequiredForUpdate) {
-      _showToast('Update finished. Restart the app to use it.');
+    if (!mounted) {
       return;
     }
 
-    if (!_hasAvailableUpdate) {
-      _showToast(
-        _hasScannedForUpdates
-            ? 'No available update to install.'
-            : 'Scan for updates first.',
+    final updateState = ref.read(updateCheckProvider);
+    if (!updateState.isOnline) {
+      _showToast('Connect to the internet to check for updates.');
+      return;
+    }
+    if (updateState.updateAvailable) {
+      _showToast('Update available on the Play Store.');
+      return;
+    }
+    if (updateState.errorMessage != null) {
+      _showToast(updateState.errorMessage!);
+      return;
+    }
+    _showToast('No new update found.');
+  }
+
+  Future<void> _openPlayStoreListing() async {
+    final marketUri = Uri.parse(UpdateCheckNotifier.flickPlayStoreMarketUrl);
+    final webUri = Uri.parse(UpdateCheckNotifier.flickPlayStoreUrl);
+
+    try {
+      var launched = await launchUrl(
+        marketUri,
+        mode: LaunchMode.externalApplication,
       );
-      return;
-    }
-
-    setState(() => _isInstallingUpdate = true);
-
-    try {
-      _showToast('Downloading update in the background. Keep using the app.');
-      final result = await InAppUpdate.startFlexibleUpdate();
-      if (!mounted) return;
-
-      if (result == AppUpdateResult.success) {
-        setState(() {
-          _hasScannedForUpdates = true;
-          _updateDownloaded = true;
-          _updateAvailable = false;
-          _updateCheckErrorMessage = null;
-        });
-        _showToast('Update downloaded. Restart the app to install.');
-      } else if (result == AppUpdateResult.userDeniedUpdate) {
-        _showToast('Update cancelled.');
-      } else {
-        _showToast('Update failed. Try again later.');
+      if (!launched) {
+        launched = await launchUrl(
+          webUri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+      if (!launched) {
+        launched = await launchUrl(webUri, mode: LaunchMode.platformDefault);
+      }
+      if (!launched && mounted) {
+        _showToast('Could not open the Play Store');
       }
     } catch (error) {
-      if (!mounted) return;
-      _showToast('Failed to install update: $error');
-    } finally {
       if (mounted) {
-        setState(() => _isInstallingUpdate = false);
+        _showToast('Could not open the Play Store: $error');
       }
     }
   }
 
-  ({IconData icon, String title, String subtitle}) _getUpdateStatusDetails() {
-    if (_isCheckingForUpdates) {
+  ({IconData icon, String title, String subtitle}) _getUpdateStatusDetails(
+    UpdateCheckState updateState,
+  ) {
+    if (updateState.isChecking) {
       return (
         icon: LucideIcons.refreshCw,
         title: 'Checking for Updates',
-        subtitle: 'Looking for a new update right now',
+        subtitle: 'Looking for the latest Play Store update right now',
       );
     }
-    if (_isInstallingUpdate) {
+    if (updateState.updateAvailable) {
       return (
-        icon: LucideIcons.download,
-        title: 'Installing Update',
-        subtitle: 'The download is running in the background',
-      );
-    }
-    if (_restartRequiredForUpdate) {
-      return (
-        icon: LucideIcons.badgeCheck,
-        title: 'Update Ready',
-        subtitle: 'Restart the app to finish updating',
-      );
-    }
-    if (_hasAvailableUpdate) {
-      return (
-        icon: LucideIcons.download,
+        icon: LucideIcons.badgeAlert,
         title: 'Update Available',
-        subtitle: 'A new update is ready to download',
+        subtitle: 'Open the Play Store to install the latest Flick build',
       );
     }
-    if (_updateCheckErrorMessage != null) {
+    if (updateState.errorMessage != null) {
       return (
         icon: LucideIcons.info,
         title: 'Could Not Check for Updates',
-        subtitle: _updateCheckErrorMessage!,
+        subtitle: updateState.errorMessage!,
       );
     }
-    if (_hasScannedForUpdates &&
-        !_updateAvailable &&
-        !_updateDownloaded &&
-        _updateCheckErrorMessage == null) {
+    if (!updateState.isOnline) {
+      return (
+        icon: LucideIcons.wifiOff,
+        title: 'Offline',
+        subtitle: 'Reconnect to Wi-Fi or mobile data so Flick can scan again',
+      );
+    }
+    if (updateState.hasChecked) {
       return (
         icon: LucideIcons.badgeCheck,
         title: 'No Update Available',
-        subtitle: 'You already have the latest update',
+        subtitle: 'You already have the latest Play Store release',
       );
     }
     return (
       icon: LucideIcons.info,
-      title: 'No Update Scan Yet',
-      subtitle: 'Run a manual scan to see whether an update is available',
+      title: 'Automatic Update Checks',
+      subtitle: 'Flick scans for Play Store updates whenever you are online',
     );
   }
 
-  Widget _buildUpdateStatusTile() {
-    final details = _getUpdateStatusDetails();
+  Widget _buildUpdateStatusTile(UpdateCheckState updateState) {
+    final details = _getUpdateStatusDetails(updateState);
     return Padding(
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       child: Row(
@@ -468,7 +390,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
           ),
           const SizedBox(height: 4),
           const Text(
-            'Version 0.14.0-beta.1',
+            'Version 0.15.0-beta.1',
             style: TextStyle(
               fontFamily: 'ProductSans',
               fontSize: 14,
@@ -600,6 +522,8 @@ SOFTWARE.
 
   @override
   Widget build(BuildContext context) {
+    final updateState = ref.watch(updateCheckProvider);
+
     return SettingsScaffold(
       title: 'App Info',
       body: Column(
@@ -609,20 +533,18 @@ SOFTWARE.
           SettingsCard(
             children: [
               ActionButton(
-                icon: LucideIcons.scanSearch,
-                title: _isCheckingForUpdates
-                    ? 'Scanning for Updates...'
-                    : 'Scan for Updates',
-                subtitle: _isCheckingForUpdates
-                    ? 'Checking for the latest update now'
-                    : 'Check manually whenever you want',
-                onTap: _isCheckingForUpdates || _isInstallingUpdate
-                    ? null
-                    : _scanForUpdates,
+                icon: LucideIcons.refreshCw,
+                title: updateState.isChecking
+                    ? 'Checking for Updates...'
+                    : 'Check Again',
+                subtitle: updateState.isOnline
+                    ? 'Run another Play Store update scan right now'
+                    : 'Reconnect to the internet to scan for updates',
+                onTap: updateState.isChecking ? null : _checkForUpdatesManually,
               ),
               const SettingsDivider(),
-              _buildUpdateStatusTile(),
-              if (_hasAvailableUpdate || _restartRequiredForUpdate) ...[
+              _buildUpdateStatusTile(updateState),
+              if (updateState.updateAvailable) ...[
                 const SettingsDivider(),
                 NavigationSetting(
                   icon: LucideIcons.fileText,
@@ -630,18 +552,12 @@ SOFTWARE.
                   subtitle: 'See what is new in this update',
                   onTap: _showPatchNotesBottomSheet,
                 ),
-              ],
-              if (_hasAvailableUpdate || _isInstallingUpdate) ...[
                 const SettingsDivider(),
                 ActionButton(
-                  icon: LucideIcons.download,
-                  title: _isInstallingUpdate
-                      ? 'Installing Update...'
-                      : 'Install Update',
-                  subtitle: _isInstallingUpdate
-                      ? 'Downloading in the background. Keep using the app'
-                      : 'Download now and restart the app when it finishes',
-                  onTap: _isInstallingUpdate ? null : _installUpdate,
+                  icon: LucideIcons.externalLink,
+                  title: 'Open in Play Store',
+                  subtitle: 'Jump to the Flick listing and update from there',
+                  onTap: _openPlayStoreListing,
                 ),
               ],
             ],
@@ -653,7 +569,7 @@ SOFTWARE.
               NavigationSetting(
                 icon: LucideIcons.info,
                 title: 'About Flick Player',
-                subtitle: 'Version 0.14.0-beta.1',
+                subtitle: 'Version 0.15.0-beta.1',
                 onTap: _showAboutBottomSheet,
               ),
               const SettingsDivider(),

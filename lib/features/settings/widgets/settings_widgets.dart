@@ -551,8 +551,8 @@ class ColoredSettingsIcon extends StatelessWidget {
 }
 
 /// Standard settings sub-screen scaffold with a scrollable body.
-/// Automatically includes the blurred album-art ambient background
-/// when the user has it enabled.
+/// Each instance gets its own [AmbientBackground], but the global cache
+/// and synchronous init prevent any black flash on navigation.
 class SettingsScaffold extends ConsumerWidget {
   const SettingsScaffold({
     super.key,
