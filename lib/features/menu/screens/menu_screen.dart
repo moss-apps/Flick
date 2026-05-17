@@ -2390,13 +2390,14 @@ class _SmartMixDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: 280,
+              expandedHeight: 280 + topPadding,
               pinned: true,
               backgroundColor: AppColors.surface,
               leading: IconButton(
@@ -2445,9 +2446,9 @@ class _SmartMixDetailScreen extends StatelessWidget {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(
+                        padding: EdgeInsets.fromLTRB(
                           AppConstants.spacingLg,
-                          92,
+                          topPadding + 92,
                           AppConstants.spacingLg,
                           AppConstants.spacingLg,
                         ),
