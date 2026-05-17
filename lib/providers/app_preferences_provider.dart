@@ -179,6 +179,38 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setArtworkCardVerticalOffset(value);
   }
 
+  Future<void> setArtworkCardShowTitle(bool value) async {
+    if (state.artworkCardShowTitle == value) return;
+    state = state.copyWith(artworkCardShowTitle: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardShowTitle(value);
+  }
+
+  Future<void> setArtworkCardShowArtist(bool value) async {
+    if (state.artworkCardShowArtist == value) return;
+    state = state.copyWith(artworkCardShowArtist: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardShowArtist(value);
+  }
+
+  Future<void> setArtworkCardShowAlbum(bool value) async {
+    if (state.artworkCardShowAlbum == value) return;
+    state = state.copyWith(artworkCardShowAlbum: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardShowAlbum(value);
+  }
+
+  Future<void> setArtworkCardShowFileInfo(bool value) async {
+    if (state.artworkCardShowFileInfo == value) return;
+    state = state.copyWith(artworkCardShowFileInfo: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardShowFileInfo(value);
+  }
+
   Future<void> setImmersiveTextScale(double value) async {
     if (state.immersiveTextScale == value) return;
     state = state.copyWith(immersiveTextScale: value);
@@ -199,6 +231,30 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref
         .read(appPreferencesServiceProvider)
         .setImmersiveFullViewScale(value);
+  }
+
+  Future<void> setImmersiveShowTitle(bool value) async {
+    if (state.immersiveShowTitle == value) return;
+    state = state.copyWith(immersiveShowTitle: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setImmersiveShowTitle(value);
+  }
+
+  Future<void> setImmersiveShowArtist(bool value) async {
+    if (state.immersiveShowArtist == value) return;
+    state = state.copyWith(immersiveShowArtist: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setImmersiveShowArtist(value);
+  }
+
+  Future<void> setImmersiveShowFileInfo(bool value) async {
+    if (state.immersiveShowFileInfo == value) return;
+    state = state.copyWith(immersiveShowFileInfo: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setImmersiveShowFileInfo(value);
   }
 
   Future<void> setWidgetBgOpacity(int value) async {

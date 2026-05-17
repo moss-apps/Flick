@@ -23,9 +23,16 @@ class AppPreferences {
   final double artworkCardArtworkScale;
   final double artworkCardTextScale;
   final double artworkCardVerticalOffset;
+  final bool artworkCardShowTitle;
+  final bool artworkCardShowArtist;
+  final bool artworkCardShowAlbum;
+  final bool artworkCardShowFileInfo;
   final double immersiveTextScale;
   final double immersiveVerticalOffset;
   final double immersiveFullViewScale;
+  final bool immersiveShowTitle;
+  final bool immersiveShowArtist;
+  final bool immersiveShowFileInfo;
   final int widgetBgOpacity;
   final bool widgetShowAlbumArt;
   final bool widgetShowArtist;
@@ -54,9 +61,16 @@ class AppPreferences {
     this.artworkCardArtworkScale = 1.0,
     this.artworkCardTextScale = 1.0,
     this.artworkCardVerticalOffset = 0.0,
+    this.artworkCardShowTitle = true,
+    this.artworkCardShowArtist = true,
+    this.artworkCardShowAlbum = true,
+    this.artworkCardShowFileInfo = true,
     this.immersiveTextScale = 1.0,
     this.immersiveVerticalOffset = 0.0,
     this.immersiveFullViewScale = 1.0,
+    this.immersiveShowTitle = true,
+    this.immersiveShowArtist = true,
+    this.immersiveShowFileInfo = true,
     this.widgetBgOpacity = 3,
     this.widgetShowAlbumArt = true,
     this.widgetShowArtist = true,
@@ -86,9 +100,16 @@ class AppPreferences {
     double? artworkCardArtworkScale,
     double? artworkCardTextScale,
     double? artworkCardVerticalOffset,
+    bool? artworkCardShowTitle,
+    bool? artworkCardShowArtist,
+    bool? artworkCardShowAlbum,
+    bool? artworkCardShowFileInfo,
     double? immersiveTextScale,
     double? immersiveVerticalOffset,
     double? immersiveFullViewScale,
+    bool? immersiveShowTitle,
+    bool? immersiveShowArtist,
+    bool? immersiveShowFileInfo,
     int? widgetBgOpacity,
     bool? widgetShowAlbumArt,
     bool? widgetShowArtist,
@@ -125,11 +146,20 @@ class AppPreferences {
       artworkCardTextScale: artworkCardTextScale ?? this.artworkCardTextScale,
       artworkCardVerticalOffset:
           artworkCardVerticalOffset ?? this.artworkCardVerticalOffset,
+      artworkCardShowTitle: artworkCardShowTitle ?? this.artworkCardShowTitle,
+      artworkCardShowArtist: artworkCardShowArtist ?? this.artworkCardShowArtist,
+      artworkCardShowAlbum: artworkCardShowAlbum ?? this.artworkCardShowAlbum,
+      artworkCardShowFileInfo:
+          artworkCardShowFileInfo ?? this.artworkCardShowFileInfo,
       immersiveTextScale: immersiveTextScale ?? this.immersiveTextScale,
       immersiveVerticalOffset:
           immersiveVerticalOffset ?? this.immersiveVerticalOffset,
       immersiveFullViewScale:
           immersiveFullViewScale ?? this.immersiveFullViewScale,
+      immersiveShowTitle: immersiveShowTitle ?? this.immersiveShowTitle,
+      immersiveShowArtist: immersiveShowArtist ?? this.immersiveShowArtist,
+      immersiveShowFileInfo:
+          immersiveShowFileInfo ?? this.immersiveShowFileInfo,
       widgetBgOpacity: widgetBgOpacity ?? this.widgetBgOpacity,
       widgetShowAlbumArt: widgetShowAlbumArt ?? this.widgetShowAlbumArt,
       widgetShowArtist: widgetShowArtist ?? this.widgetShowArtist,
@@ -161,9 +191,16 @@ class AppPreferencesService {
   static const _artworkCardArtworkScaleKey = 'artwork_card_artwork_scale';
   static const _artworkCardTextScaleKey = 'artwork_card_text_scale';
   static const _artworkCardVerticalOffsetKey = 'artwork_card_vertical_offset';
+  static const _artworkCardShowTitleKey = 'artwork_card_show_title';
+  static const _artworkCardShowArtistKey = 'artwork_card_show_artist';
+  static const _artworkCardShowAlbumKey = 'artwork_card_show_album';
+  static const _artworkCardShowFileInfoKey = 'artwork_card_show_file_info';
   static const _immersiveTextScaleKey = 'immersive_text_scale';
   static const _immersiveVerticalOffsetKey = 'immersive_vertical_offset';
   static const _immersiveFullViewScaleKey = 'immersive_full_view_scale';
+  static const _immersiveShowTitleKey = 'immersive_show_title';
+  static const _immersiveShowArtistKey = 'immersive_show_artist';
+  static const _immersiveShowFileInfoKey = 'immersive_show_file_info';
   static const _widgetBgOpacityKey = 'widget_bg_opacity';
   static const _widgetShowAlbumArtKey = 'widget_show_album_art';
   static const _widgetShowArtistKey = 'widget_show_artist';
@@ -201,11 +238,20 @@ class AppPreferencesService {
       artworkCardTextScale: prefs.getDouble(_artworkCardTextScaleKey) ?? 1.0,
       artworkCardVerticalOffset:
           prefs.getDouble(_artworkCardVerticalOffsetKey) ?? 0.0,
+      artworkCardShowTitle: prefs.getBool(_artworkCardShowTitleKey) ?? true,
+      artworkCardShowArtist: prefs.getBool(_artworkCardShowArtistKey) ?? true,
+      artworkCardShowAlbum: prefs.getBool(_artworkCardShowAlbumKey) ?? true,
+      artworkCardShowFileInfo:
+          prefs.getBool(_artworkCardShowFileInfoKey) ?? true,
       immersiveTextScale: prefs.getDouble(_immersiveTextScaleKey) ?? 1.0,
       immersiveVerticalOffset:
           prefs.getDouble(_immersiveVerticalOffsetKey) ?? 0.0,
       immersiveFullViewScale:
           prefs.getDouble(_immersiveFullViewScaleKey) ?? 1.0,
+      immersiveShowTitle: prefs.getBool(_immersiveShowTitleKey) ?? true,
+      immersiveShowArtist: prefs.getBool(_immersiveShowArtistKey) ?? true,
+      immersiveShowFileInfo:
+          prefs.getBool(_immersiveShowFileInfoKey) ?? true,
       widgetBgOpacity: prefs.getInt(_widgetBgOpacityKey) ?? 3,
       widgetShowAlbumArt: prefs.getBool(_widgetShowAlbumArtKey) ?? true,
       widgetShowArtist: prefs.getBool(_widgetShowArtistKey) ?? true,
@@ -419,6 +465,46 @@ class AppPreferencesService {
     await prefs.setDouble(_artworkCardVerticalOffsetKey, value);
   }
 
+  Future<bool> getArtworkCardShowTitle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_artworkCardShowTitleKey) ?? true;
+  }
+
+  Future<void> setArtworkCardShowTitle(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_artworkCardShowTitleKey, value);
+  }
+
+  Future<bool> getArtworkCardShowArtist() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_artworkCardShowArtistKey) ?? true;
+  }
+
+  Future<void> setArtworkCardShowArtist(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_artworkCardShowArtistKey, value);
+  }
+
+  Future<bool> getArtworkCardShowAlbum() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_artworkCardShowAlbumKey) ?? true;
+  }
+
+  Future<void> setArtworkCardShowAlbum(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_artworkCardShowAlbumKey, value);
+  }
+
+  Future<bool> getArtworkCardShowFileInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_artworkCardShowFileInfoKey) ?? true;
+  }
+
+  Future<void> setArtworkCardShowFileInfo(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_artworkCardShowFileInfoKey, value);
+  }
+
   Future<void> setImmersiveTextScale(double value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_immersiveTextScaleKey, value);
@@ -432,6 +518,36 @@ class AppPreferencesService {
   Future<void> setImmersiveFullViewScale(double value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_immersiveFullViewScaleKey, value);
+  }
+
+  Future<bool> getImmersiveShowTitle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_immersiveShowTitleKey) ?? true;
+  }
+
+  Future<void> setImmersiveShowTitle(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_immersiveShowTitleKey, value);
+  }
+
+  Future<bool> getImmersiveShowArtist() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_immersiveShowArtistKey) ?? true;
+  }
+
+  Future<void> setImmersiveShowArtist(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_immersiveShowArtistKey, value);
+  }
+
+  Future<bool> getImmersiveShowFileInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_immersiveShowFileInfoKey) ?? true;
+  }
+
+  Future<void> setImmersiveShowFileInfo(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_immersiveShowFileInfoKey, value);
   }
 
   Future<void> setWidgetBgOpacity(int value) async {
