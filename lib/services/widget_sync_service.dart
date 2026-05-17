@@ -117,6 +117,27 @@ class WidgetSyncService {
     }
   }
 
+  Future<void> pushKilled() async {
+    try {
+      await _ensureInit();
+      await HomeWidget.saveWidgetData<bool>(keyHasSong, false);
+      await HomeWidget.saveWidgetData<bool>(keyIsPlaying, false);
+      await HomeWidget.saveWidgetData<String>(keyTitle, '');
+      await HomeWidget.saveWidgetData<String>(keyArtist, '');
+      await HomeWidget.saveWidgetData<String>(keyAlbumArt, '');
+      await HomeWidget.saveWidgetData<String>(keySongId, '');
+      await HomeWidget.saveWidgetData<int>(keyPositionMs, 0);
+      await HomeWidget.saveWidgetData<int>(keyDurationMs, 0);
+      await Future.wait<void>([
+        HomeWidget.updateWidget(
+          qualifiedAndroidName: miniPlayerProvider,
+        ),
+      ]);
+    } catch (e, st) {
+      debugPrint('WidgetSyncService pushKilled failed: $e\n$st');
+    }
+  }
+
   Future<void> pushCustomization(AppPreferences prefs) async {
     try {
       await _ensureInit();
