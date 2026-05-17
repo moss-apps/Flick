@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_mini_player_name">Flick Mini Player</string>
+    <string name="widget_mini_player_name">Flick Player</string>
 
     <string name="widget_mini_player_desc">Compact player with transport controls</string>
 
@@ -9,4 +9,7 @@
     <string name="widget_play_pause">Play / pause</string>
     <string name="widget_next">Next track</string>
     <string name="widget_previous">Previous track</string>
+    <string name="widget_shuffle">Toggle shuffle</string>
+    <string name="widget_repeat">Toggle repeat</string>
+    <string name="widget_queue">Queue</string>
 </resources>
