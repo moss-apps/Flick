@@ -35,7 +35,8 @@ class EqualizerScreen extends ConsumerStatefulWidget {
 
 class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   final _scrollController = ScrollController();
-  final _graphKey = GlobalKey();
+  final _graphicGraphKey = GlobalKey();
+  final _parametricGraphKey = GlobalKey();
   bool _showMiniGraph = false;
 
   @override
@@ -55,7 +56,10 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
 
   void _checkVisibility() {
     if (!mounted) return;
-    final ctx = _graphKey.currentContext;
+    final mode = ref.read(eqModeProvider);
+    final key =
+        mode == EqMode.graphic ? _graphicGraphKey : _parametricGraphKey;
+    final ctx = key.currentContext;
     if (ctx == null) return;
 
     final renderBox = ctx.findRenderObject() as RenderBox?;
@@ -76,7 +80,10 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   }
 
   void _scrollToGraph() {
-    final ctx = _graphKey.currentContext;
+    final mode = ref.read(eqModeProvider);
+    final key =
+        mode == EqMode.graphic ? _graphicGraphKey : _parametricGraphKey;
+    final ctx = key.currentContext;
     if (ctx == null) return;
     Scrollable.ensureVisible(
       ctx,
@@ -172,11 +179,11 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                         child: mode == EqMode.graphic
                             ? _GraphicEqView(
                                 key: const ValueKey('graphic'),
-                                graphKey: _graphKey,
+                                graphKey: _graphicGraphKey,
                               )
                             : _ParametricEqView(
                                 key: const ValueKey('param'),
-                                graphKey: _graphKey,
+                                graphKey: _parametricGraphKey,
                               ),
                       ),
                       const SizedBox(height: AppConstants.spacingLg),
@@ -3373,7 +3380,6 @@ class _MiniEqGraphPreview extends ConsumerWidget {
         growable: false,
       );
       points = equtils.buildGraphicCurvePoints(
-        enabled: enabled,
         freqs: freqs,
         gains: gains,
         sampleCount: 96,
@@ -3386,7 +3392,6 @@ class _MiniEqGraphPreview extends ConsumerWidget {
         growable: false,
       );
       points = equtils.buildParametricCurvePoints(
-        enabled: enabled,
         bands: bands,
         sampleCount: 96,
       );

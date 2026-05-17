@@ -630,6 +630,7 @@ class EqualizerNotifier extends Notifier<EqualizerState> {
   void setMode(EqMode mode) {
     if (state.mode == mode) return;
     state = state.copyWith(mode: mode);
+    ref.read(eqGraphRepaintControllerProvider).bump();
     _syncToAudio();
   }
 
