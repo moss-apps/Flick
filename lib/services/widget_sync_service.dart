@@ -28,9 +28,16 @@ class WidgetSyncService {
   static const String keyShowAlbumArt = 'flick_widget_show_album_art';
   static const String keyShowArtist = 'flick_widget_show_artist';
   static const String keyAccentColor = 'flick_widget_accent_color';
+  static const String keyPositionMs = 'flick_widget_position_ms';
+  static const String keyDurationMs = 'flick_widget_duration_ms';
+  static const String keyIsShuffle = 'flick_widget_is_shuffle';
+  static const String keyLoopMode = 'flick_widget_loop_mode';
+  static const String keyQueueCount = 'flick_widget_queue_count';
 
   bool _initialized = false;
   Timer? _debounce;
+  String? _lastPushedSongId;
+  bool? _lastPushedIsPlaying;
 
   Future<void> _ensureInit() async {
     if (_initialized) return;
@@ -39,10 +46,17 @@ class WidgetSyncService {
   }
 
   void schedulePush(PlayerState state) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 250), () {
+    final songChanged = state.currentSong?.id != _lastPushedSongId;
+    final playingChanged = state.isPlaying != _lastPushedIsPlaying;
+
+    if (songChanged || playingChanged) {
+      _debounce?.cancel();
       unawaited(_push(state));
-    });
+    } else if (_debounce?.isActive != true) {
+      _debounce = Timer(const Duration(seconds: 2), () {
+        unawaited(_push(state));
+      });
+    }
   }
 
   Future<void> _push(PlayerState state) async {
@@ -58,12 +72,32 @@ class WidgetSyncService {
         keyAlbumArt,
         _resolveLocalArt(song?.albumArt),
       );
+      await HomeWidget.saveWidgetData<int>(
+        keyPositionMs,
+        state.position.inMilliseconds,
+      );
+      await HomeWidget.saveWidgetData<int>(
+        keyDurationMs,
+        state.duration.inMilliseconds,
+      );
+      await HomeWidget.saveWidgetData<bool>(keyIsShuffle, state.isShuffle);
+      await HomeWidget.saveWidgetData<int>(
+        keyLoopMode,
+        _loopModeToInt(state.loopMode),
+      );
+      await HomeWidget.saveWidgetData<int>(
+        keyQueueCount,
+        state.upNext.length,
+      );
 
       await Future.wait<void>([
         HomeWidget.updateWidget(
           qualifiedAndroidName: miniPlayerProvider,
         ),
       ]);
+
+      _lastPushedSongId = song?.id;
+      _lastPushedIsPlaying = state.isPlaying;
     } catch (e, st) {
       debugPrint('WidgetSyncService push failed: $e\n$st');
     }
@@ -124,6 +158,17 @@ class WidgetSyncService {
       return await prefsService.getPreferences();
     } catch (_) {
       return const AppPreferences();
+    }
+  }
+
+  int _loopModeToInt(LoopMode mode) {
+    switch (mode) {
+      case LoopMode.one:
+        return 1;
+      case LoopMode.all:
+        return 2;
+      case LoopMode.off:
+        return 0;
     }
   }
 

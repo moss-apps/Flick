@@ -5,12 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
 
+import '../models/song.dart';
 import '../providers/player_provider.dart';
 
 class WidgetIntentHandler {
-  WidgetIntentHandler(this._ref);
+  WidgetIntentHandler(this._ref, {VoidCallback? onOpenQueue})
+      : _onOpenQueue = onOpenQueue;
 
   final WidgetRef _ref;
+  final VoidCallback? _onOpenQueue;
   MethodChannel? _channel;
 
   Future<void> attach() async {
@@ -44,6 +47,8 @@ class WidgetIntentHandler {
       final segments = uri.pathSegments;
       if (uri.host == 'player') {
         _handlePlayer(segments.isEmpty ? '' : segments.first);
+      } else if (uri.host == 'queue') {
+        _onOpenQueue?.call();
       } else {
         debugPrint('WidgetIntentHandler: unknown host ${uri.host}');
       }
@@ -56,16 +61,43 @@ class WidgetIntentHandler {
     final notifier = _ref.read(playerProvider.notifier);
     switch (action) {
       case 'play_pause':
-        unawaited(notifier.togglePlayPause());
+        unawaited(notifier.togglePlayPause().then((_) => _pushWidgetState()));
         break;
       case 'next':
-        unawaited(notifier.next());
+        unawaited(notifier.next().then((_) => _pushWidgetState()));
         break;
       case 'previous':
-        unawaited(notifier.previous());
+        unawaited(notifier.previous().then((_) => _pushWidgetState()));
+        break;
+      case 'shuffle':
+        unawaited(notifier.toggleShuffle().then((_) => _pushWidgetState()));
+        break;
+      case 'repeat':
+        notifier.toggleLoopMode();
+        unawaited(_pushWidgetState());
         break;
       default:
         debugPrint('WidgetIntentHandler: unknown player action $action');
+    }
+  }
+
+  static const _provider = 'com.mossapps.flick.widgets.MiniPlayerWidgetProvider';
+
+  Future<void> _pushWidgetState() async {
+    try {
+      await Future.delayed(const Duration(milliseconds: 100));
+      final state = _ref.read(playerProvider);
+      final Song? song = state.currentSong;
+      await HomeWidget.saveWidgetData('flick_widget_is_playing', state.isPlaying);
+      await HomeWidget.saveWidgetData('flick_widget_has_song', song != null);
+      if (song != null) {
+        await HomeWidget.saveWidgetData('flick_widget_title', song.title);
+        await HomeWidget.saveWidgetData('flick_widget_artist', song.artist);
+        await HomeWidget.saveWidgetData('flick_widget_album_art', song.albumArt ?? '');
+      }
+      await HomeWidget.updateWidget(qualifiedAndroidName: _provider);
+    } catch (e) {
+      debugPrint('WidgetIntentHandler: failed to push widget state: $e');
     }
   }
 }
