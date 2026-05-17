@@ -6,7 +6,7 @@ import java.io.File
 
 object WidgetArtLoader {
 
-    private const val MAX_PX = 512
+    private const val MAX_PX = 256
 
     fun load(path: String?): Bitmap? {
         if (path.isNullOrEmpty() || !File(path).exists()) return null
