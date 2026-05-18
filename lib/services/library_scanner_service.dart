@@ -82,47 +82,65 @@ class LibraryScannerService {
         final resolvedScanRoot = await _musicFolderService
             .resolveFilesystemPath(folderUri);
 
-        if (resolvedScanRoot != null && resolvedScanRoot.isNotEmpty) {
-          try {
-            yield* _scanFolderMediaStore(
-              resolvedScanRoot,
-              folderUri,
-              displayName,
-              scanPreferences,
-            );
-            _logScanTiming(
-              displayName,
-              'scan folder (MediaStore)',
-              scanStopwatch.elapsed,
-            );
-            return;
-          } catch (e) {
+        final folderEntity = await _folderRepository.getFolderByUri(folderUri);
+        final useDeepScan = folderEntity?.useDeepScan ?? scanPreferences.useDeepScan;
+
+        if (useDeepScan) {
+          if (resolvedScanRoot != null && resolvedScanRoot.isNotEmpty) {
+            try {
+              yield* _scanFolderRust(
+                resolvedScanRoot,
+                folderUri,
+                displayName,
+                scanPreferences,
+              );
+              _logScanTiming(
+                displayName,
+                'scan folder (Rust deep scan)',
+                scanStopwatch.elapsed,
+              );
+              return;
+            } catch (e) {
+              debugPrint(
+                'Rust deep scan failed for $displayName at $resolvedScanRoot: $e, '
+                'falling back to SAF',
+              );
+            }
+          } else {
             debugPrint(
-              'MediaStore scan failed for $displayName at $resolvedScanRoot: $e, '
-              'falling back',
+              'Deep scan requested for $displayName but no filesystem path '
+              'resolvable, falling back to SAF',
             );
           }
-        }
 
-        try {
-          yield* _scanFolderRust(
-            resolvedScanRoot ?? folderUri,
-            folderUri,
-            displayName,
-            scanPreferences,
-          );
-          _logScanTiming(
-            displayName,
-            'scan folder (Rust)',
-            scanStopwatch.elapsed,
-          );
-          return;
-        } catch (e) {
-          debugPrint('Rust scan fallback for $displayName failed: $e');
-        }
+          yield* _scanFolderAndroid(folderUri, displayName, scanPreferences);
+          _logScanTiming(displayName, 'scan folder (SAF)', scanStopwatch.elapsed);
+        } else {
+          if (resolvedScanRoot != null && resolvedScanRoot.isNotEmpty) {
+            try {
+              yield* _scanFolderMediaStore(
+                resolvedScanRoot,
+                folderUri,
+                displayName,
+                scanPreferences,
+              );
+              _logScanTiming(
+                displayName,
+                'scan folder (MediaStore)',
+                scanStopwatch.elapsed,
+              );
+              return;
+            } catch (e) {
+              debugPrint(
+                'MediaStore scan failed for $displayName at $resolvedScanRoot: $e, '
+                'falling back to SAF',
+              );
+            }
+          }
 
-        yield* _scanFolderAndroid(folderUri, displayName, scanPreferences);
-        _logScanTiming(displayName, 'scan folder (SAF)', scanStopwatch.elapsed);
+          yield* _scanFolderAndroid(folderUri, displayName, scanPreferences);
+          _logScanTiming(displayName, 'scan folder (SAF)', scanStopwatch.elapsed);
+        }
       } else {
         yield* _scanFolderRust(
           folderUri,
