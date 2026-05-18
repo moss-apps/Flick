@@ -38,6 +38,11 @@ const FolderEntitySchema = CollectionSchema(
       type: IsarType.long,
     ),
     r'uri': PropertySchema(id: 4, name: r'uri', type: IsarType.string),
+    r'useDeepScan': PropertySchema(
+      id: 5,
+      name: r'useDeepScan',
+      type: IsarType.bool,
+    ),
   },
 
   estimateSize: _folderEntityEstimateSize,
@@ -91,6 +96,7 @@ void _folderEntitySerialize(
   writer.writeDateTime(offsets[2], object.lastScanned);
   writer.writeLong(offsets[3], object.songCount);
   writer.writeString(offsets[4], object.uri);
+  writer.writeBool(offsets[5], object.useDeepScan);
 }
 
 FolderEntity _folderEntityDeserialize(
@@ -106,6 +112,7 @@ FolderEntity _folderEntityDeserialize(
   object.lastScanned = reader.readDateTimeOrNull(offsets[2]);
   object.songCount = reader.readLong(offsets[3]);
   object.uri = reader.readString(offsets[4]);
+  object.useDeepScan = reader.readBoolOrNull(offsets[5]);
   return object;
 }
 
@@ -126,6 +133,8 @@ P _folderEntityDeserializeProp<P>(
       return (reader.readLong(offset)) as P;
     case 4:
       return (reader.readString(offset)) as P;
+    case 5:
+      return (reader.readBoolOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -872,6 +881,33 @@ extension FolderEntityQueryFilter
       );
     });
   }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  useDeepScanIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'useDeepScan'),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  useDeepScanIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'useDeepScan'),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  useDeepScanEqualTo(bool? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'useDeepScan', value: value),
+      );
+    });
+  }
 }
 
 extension FolderEntityQueryObject
@@ -941,6 +977,19 @@ extension FolderEntityQuerySortBy
   QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy> sortByUriDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'uri', Sort.desc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy> sortByUseDeepScan() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'useDeepScan', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy>
+  sortByUseDeepScanDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'useDeepScan', Sort.desc);
     });
   }
 }
@@ -1020,6 +1069,19 @@ extension FolderEntityQuerySortThenBy
       return query.addSortBy(r'uri', Sort.desc);
     });
   }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy> thenByUseDeepScan() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'useDeepScan', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy>
+  thenByUseDeepScanDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'useDeepScan', Sort.desc);
+    });
+  }
 }
 
 extension FolderEntityQueryWhereDistinct
@@ -1055,6 +1117,12 @@ extension FolderEntityQueryWhereDistinct
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'uri', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QDistinct> distinctByUseDeepScan() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'useDeepScan');
     });
   }
 }
@@ -1095,6 +1163,12 @@ extension FolderEntityQueryProperty
   QueryBuilder<FolderEntity, String, QQueryOperations> uriProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'uri');
+    });
+  }
+
+  QueryBuilder<FolderEntity, bool?, QQueryOperations> useDeepScanProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'useDeepScan');
     });
   }
 }

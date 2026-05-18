@@ -22,4 +22,8 @@ class FolderEntity {
 
   /// Number of songs found in this folder
   int songCount = 0;
+
+  /// Per-folder deep scan override.
+  /// null = use global default, true = always deep scan, false = never deep scan.
+  bool? useDeepScan;
 }
