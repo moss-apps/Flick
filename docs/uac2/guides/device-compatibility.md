@@ -28,6 +28,7 @@ These devices have been tested and work perfectly:
 
 | Manufacturer | Model | Max Sample Rate | Max Bit Depth | Notes |
 |--------------|-------|-----------------|---------------|-------|
+| MOONDROP | Dawn Pro | 384 kHz | 32-bit | Dual CS43131, balanced output |
 | FiiO | K5 Pro | 384 kHz | 32-bit | Excellent compatibility |
 | Topping | D10s | 384 kHz | 32-bit | All features work |
 | Schiit | Modi 3+ | 192 kHz | 24-bit | Stable operation |
