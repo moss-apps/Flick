@@ -223,9 +223,17 @@ class LyricsService {
     return '[${totalMinutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}.${centiseconds.toString().padLeft(2, '0')}]';
   }
 
+  String formatLengthTag(Duration duration) {
+    final totalMinutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    final centiseconds = (duration.inMilliseconds.remainder(1000) ~/ 10);
+    return '[length:${totalMinutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}.${centiseconds.toString().padLeft(2, '0')}]';
+  }
+
   String buildLrcContent({
     required List<LyricsLine> lines,
     Song? song,
+    Duration? length,
   }) {
     final buffer = StringBuffer();
     if (song?.title case final title? when title.trim().isNotEmpty) {
@@ -236,6 +244,9 @@ class LyricsService {
     }
     if (song?.album case final album? when album.trim().isNotEmpty) {
       buffer.writeln('[al:${album.trim()}]');
+    }
+    if (length != null) {
+      buffer.writeln(formatLengthTag(length));
     }
     if (buffer.isNotEmpty) {
       buffer.writeln();
