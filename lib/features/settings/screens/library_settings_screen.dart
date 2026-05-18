@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -75,11 +77,13 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     final repository = FolderRepository();
 
     for (final folder in folders) {
+      final existing = await repository.getFolderByUri(folder.uri);
       final entity = FolderEntity()
         ..uri = folder.uri
         ..displayName = folder.displayName
         ..dateAdded = folder.dateAdded
-        ..songCount = 0;
+        ..songCount = existing?.songCount ?? 0
+        ..useDeepScan = existing?.useDeepScan;
       await repository.upsertFolder(entity);
     }
   }
@@ -558,12 +562,63 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             ),
             const SizedBox(width: AppConstants.spacingMd),
             Expanded(
-              child: Text(
-                folder.displayName,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.adaptiveTextPrimary,
-                ),
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    folder.displayName,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: context.adaptiveTextPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (Platform.isAndroid)
+                    FutureBuilder<FolderEntity?>(
+                      future: FolderRepository().getFolderByUri(folder.uri),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) return const SizedBox.shrink();
+                        final entity = snapshot.data;
+                        final globalDeepScan = ref.watch(libraryScanPreferencesProvider).useDeepScan;
+                        final folderDeepScan = entity?.useDeepScan;
+                        final effectiveDeepScan = folderDeepScan ?? globalDeepScan;
+                        return Row(
+                          children: [
+                            Text(
+                              'Deep scan',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: context.adaptiveTextTertiary,
+                              ),
+                            ),
+                            const SizedBox(width: AppConstants.spacingXs),
+                            SizedBox(
+                              height: 20,
+                              child: Switch(
+                                value: effectiveDeepScan,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                onChanged: (value) async {
+                                  final repo = FolderRepository();
+                                  final existing = await repo.getFolderByUri(folder.uri);
+                                  if (existing != null) {
+                                    existing.useDeepScan = value;
+                                    await repo.upsertFolder(existing);
+                                  } else {
+                                    final newEntity = FolderEntity()
+                                      ..uri = folder.uri
+                                      ..displayName = folder.displayName
+                                      ..dateAdded = folder.dateAdded
+                                      ..songCount = 0
+                                      ..useDeepScan = value;
+                                    await repo.upsertFolder(newEntity);
+                                  }
+                                  setState(() {});
+                                },
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                ],
               ),
             ),
             IconButton(
@@ -699,6 +754,21 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       .setCreatePlaylistsFromM3uFiles(value);
                 },
               ),
+              if (Platform.isAndroid) ...[
+                const SettingsDivider(),
+                ToggleSetting(
+                  icon: LucideIcons.hardDrive,
+                  title: 'Deep Scan',
+                  subtitle:
+                      'Use filesystem-level scanning instead of MediaStore for full tag accuracy',
+                  value: prefs.useDeepScan,
+                  onChanged: (value) {
+                    ref
+                        .read(libraryScanPreferencesProvider.notifier)
+                        .setUseDeepScan(value);
+                  },
+                ),
+              ],
             ],
           ),
         ),
