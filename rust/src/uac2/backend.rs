@@ -1,3 +1,4 @@
+use crate::audio::backend::{AudioBackend, BackendDescriptor, BackendType};
 use crate::audio::source::SourceProvider;
 use crate::uac2::connection_manager::ConnectionManager;
 use crate::uac2::fallback_handler::FallbackHandler;
@@ -6,13 +7,6 @@ use parking_lot::Mutex;
 use rusb::UsbContext;
 use std::sync::Arc;
 use tracing::{error, info};
-
-pub trait AudioBackend: Send + Sync {
-    fn start(&mut self, source_provider: Arc<Mutex<SourceProvider>>) -> Result<(), String>;
-    fn stop(&mut self) -> Result<(), String>;
-    fn is_active(&self) -> bool;
-    fn name(&self) -> &str;
-}
 
 pub struct Uac2Backend<T: UsbContext + Send + 'static> {
     sink: Option<Uac2AudioSink<T>>,
@@ -107,5 +101,14 @@ impl<T: UsbContext + Send + 'static> AudioBackend for Uac2Backend<T> {
 
     fn name(&self) -> &str {
         "UAC2"
+    }
+
+    fn descriptor(&self) -> BackendDescriptor {
+        BackendDescriptor {
+            backend_type: BackendType::UsbDirect,
+            supports_passthrough: true,
+            max_sample_rate: self.format.sample_rates.first().map(|sr| sr.hz()).unwrap_or(48000),
+            priority: 10,
+        }
     }
 }

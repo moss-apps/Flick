@@ -85,7 +85,7 @@ pub use audio_pipeline::{
 #[cfg(feature = "uac2")]
 pub use audio_sink::Uac2AudioSink;
 #[cfg(feature = "uac2")]
-pub use backend::{AudioBackend, Uac2Backend};
+pub use backend::Uac2Backend;
 #[cfg(feature = "uac2")]
 pub use capabilities::{
     CapabilityDetector, ControlCapabilities, DeviceCapabilities, DeviceType, FormatMatcher,
