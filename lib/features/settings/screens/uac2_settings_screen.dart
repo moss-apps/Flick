@@ -717,6 +717,10 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
             _buildDivider(),
             _buildWarningMessage(context, status.warningMessage!),
           ],
+          if (status.compatibilityNotice != null) ...[
+            _buildDivider(),
+            _buildCompatibilityNotice(context, status.compatibilityNotice!),
+          ],
           if (status.errorMessage != null) ...[
             _buildDivider(),
             _buildErrorMessage(context, status.errorMessage!),
@@ -766,6 +770,34 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCompatibilityNotice(BuildContext context, String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingSm),
+      child: Container(
+        padding: const EdgeInsets.all(AppConstants.spacingMd),
+        decoration: BoxDecoration(
+          color: Colors.lightBlue.shade900.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+          border: Border.all(color: Colors.lightBlue.shade400.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.help_outline, color: Colors.lightBlue.shade300, size: 20),
+            const SizedBox(width: AppConstants.spacingMd),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.lightBlue.shade200),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
