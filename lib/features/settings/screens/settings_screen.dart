@@ -9,6 +9,7 @@ import 'package:flick/features/settings/screens/library_settings_screen.dart';
 import 'package:flick/features/settings/screens/playback_display_settings_screen.dart';
 import 'package:flick/features/settings/screens/ui_customization_settings_screen.dart';
 import 'package:flick/features/settings/screens/integrations_settings_screen.dart';
+import 'package:flick/features/settings/screens/lyrics_settings_screen.dart';
 import 'package:flick/features/settings/screens/widget_settings_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 
@@ -71,6 +72,18 @@ class SettingsScreen extends StatelessWidget {
                           onTap: () => _navigate(
                             context,
                             const AudioSettingsScreen(),
+                          ),
+                        ),
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.fileText,
+                          iconBg: const Color(0xFF4A6F2D),
+                          iconFg: const Color(0xFFC4FF8B),
+                          title: 'Lyrics',
+                          subtitle: 'Lyrics saving behavior',
+                          onTap: () => _navigate(
+                            context,
+                            const LyricsSettingsScreen(),
                           ),
                         ),
                       ],
