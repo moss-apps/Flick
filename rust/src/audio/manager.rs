@@ -379,7 +379,7 @@ fn merge_android_device_profile(mut snapshot: AudioCapabilitySnapshot) -> AudioC
 
     if snapshot.route_label.is_none() && internal_route {
         if let crate::audio::device::DeviceKind::Dap(brand) = profile.kind {
-            snapshot.route_label = Some(format!("{} internal DAC", brand.as_str()));
+            snapshot.route_label = Some(format!("{} internal DAC", brand));
         }
     }
 

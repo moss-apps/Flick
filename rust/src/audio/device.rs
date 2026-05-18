@@ -40,36 +40,131 @@ impl DeviceProfile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum DeviceKind {
-    Dap(DapBrand),
+    Dap(String),
     Phone,
     Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum DapBrand {
-    FiiO,
-    IBasso,
-    HiBy,
-    Shanling,
-    AstellKern,
-    Cayin,
-    Sony,
-    Other,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DapSignature {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub keywords: &'static [&'static str],
+    pub model_prefixes: &'static [&'static str],
+    pub manufacturer_sufficient: bool,
 }
 
-impl DapBrand {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::FiiO => "FiiO",
-            Self::IBasso => "iBasso",
-            Self::HiBy => "HiBy",
-            Self::Shanling => "Shanling",
-            Self::AstellKern => "Astell&Kern",
-            Self::Cayin => "Cayin",
-            Self::Sony => "Sony",
-            Self::Other => "Other",
+static DAP_REGISTRY: &[DapSignature] = &[
+    DapSignature {
+        id: "fiio",
+        label: "FiiO",
+        keywords: &["fiio"],
+        model_prefixes: &[
+            "M11", "M15", "M17", "M21", "M23", "M27", "JM21",
+            "M0", "M1", "M3", "M5", "M6", "M7", "M8",
+        ],
+        manufacturer_sufficient: true,
+    },
+    DapSignature {
+        id: "ibasso",
+        label: "iBasso",
+        keywords: &["ibasso"],
+        model_prefixes: &[
+            "DX160", "DX170", "DX180", "DX220", "DX240",
+            "DX260", "DX300", "DX320", "DX340",
+        ],
+        manufacturer_sufficient: true,
+    },
+    DapSignature {
+        id: "hiby",
+        label: "HiBy",
+        keywords: &["hiby"],
+        model_prefixes: &["R3", "R4", "R5", "R6", "R8"],
+        manufacturer_sufficient: true,
+    },
+    DapSignature {
+        id: "shanling",
+        label: "Shanling",
+        keywords: &["shanling"],
+        model_prefixes: &["M300"],
+        manufacturer_sufficient: true,
+    },
+    DapSignature {
+        id: "astellkern",
+        label: "Astell&Kern",
+        keywords: &["astell", "iriver"],
+        model_prefixes: &["SA", "SP", "SE", "A&"],
+        manufacturer_sufficient: true,
+    },
+    DapSignature {
+        id: "cayin",
+        label: "Cayin",
+        keywords: &["cayin"],
+        model_prefixes: &["N3", "N5", "N6", "N7"],
+        manufacturer_sufficient: true,
+    },
+    DapSignature {
+        id: "sony",
+        label: "Sony",
+        keywords: &["sony"],
+        model_prefixes: &["NW-A", "NW-WM", "NW-ZX"],
+        manufacturer_sufficient: false,
+    },
+    DapSignature {
+        id: "tempotec",
+        label: "TempoTec",
+        keywords: &["tempotec"],
+        model_prefixes: &["V6", "S3", "Mobi", "Sonata", "iDSD"],
+        manufacturer_sufficient: true,
+    },
+    DapSignature {
+        id: "luxury_precision",
+        label: "Luxury & Precision",
+        keywords: &["luxury", "luxuryprecision"],
+        model_prefixes: &["P6"],
+        manufacturer_sufficient: true,
+    },
+];
+
+pub fn detect_dap(manufacturer: &str, brand: &str, model: &str) -> Option<&'static DapSignature> {
+    let manufacturer_lower = manufacturer.to_ascii_lowercase();
+    let brand_lower = brand.to_ascii_lowercase();
+    let model_upper = model.trim().to_ascii_uppercase();
+
+    for signature in DAP_REGISTRY {
+        let keyword_match = signature
+            .keywords
+            .iter()
+            .any(|kw| manufacturer_lower.contains(kw) || brand_lower.contains(kw));
+
+        if keyword_match && signature.manufacturer_sufficient {
+            return Some(signature);
+        }
+
+        if keyword_match
+            && signature
+                .model_prefixes
+                .iter()
+                .any(|p| model_upper.starts_with(p))
+        {
+            return Some(signature);
         }
     }
+
+    None
+}
+
+pub fn is_known_dap_model(model: &str) -> bool {
+    let model_upper = model.trim().to_ascii_uppercase();
+    DAP_REGISTRY.iter().any(|sig| {
+        sig.model_prefixes
+            .iter()
+            .any(|p| model_upper.starts_with(p))
+    })
+}
+
+pub fn dap_signatures() -> &'static [DapSignature] {
+    DAP_REGISTRY
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -85,71 +180,21 @@ pub struct DeviceSignals {
     pub manufacturer: String,
     pub model: String,
     pub brand: String,
-    pub manufacturer_match: Option<DapBrand>,
+    pub manufacturer_match: Option<String>,
     pub model_match: bool,
     pub no_telephony: bool,
     pub audio_caps: AudioCapabilities,
     pub mango_mode: bool,
 }
 
-pub fn check_manufacturer(manufacturer: &str, brand: &str, model: &str) -> Option<DapBrand> {
-    let manufacturer = manufacturer.to_ascii_lowercase();
-    let brand = brand.to_ascii_lowercase();
-    let model = model.trim().to_ascii_uppercase();
 
-    if manufacturer.contains("fiio") || brand.contains("fiio") {
-        return Some(DapBrand::FiiO);
-    }
-
-    if manufacturer.contains("ibasso") || brand.contains("ibasso") {
-        return Some(DapBrand::IBasso);
-    }
-
-    if manufacturer.contains("hiby") || brand.contains("hiby") {
-        return Some(DapBrand::HiBy);
-    }
-
-    if manufacturer.contains("shanling") || brand.contains("shanling") {
-        return Some(DapBrand::Shanling);
-    }
-
-    if manufacturer.contains("astell")
-        || manufacturer.contains("iriver")
-        || brand.contains("astell")
-        || brand.contains("iriver")
-    {
-        return Some(DapBrand::AstellKern);
-    }
-
-    if manufacturer.contains("cayin") || brand.contains("cayin") {
-        return Some(DapBrand::Cayin);
-    }
-
-    if manufacturer == "sony" || brand == "sony" {
-        return model.starts_with("NW-").then_some(DapBrand::Sony);
-    }
-
-    None
-}
-
-pub fn check_model_prefix(model: &str) -> bool {
-    let model = model.trim().to_ascii_uppercase();
-    let prefixes = [
-        "M11", "M15", "M17", "M21", "M23", "M27", "JM21", "DX160", "DX170", "DX180", "DX220",
-        "DX240", "DX260", "DX300", "DX320", "DX340", "R3", "R4", "R5", "R6", "R8", "M300", "M0",
-        "M1", "M3", "M5", "M6", "M7", "M8", "SA", "SP", "SE", "A&", "N3", "N5", "N6", "N7", "NW-A",
-        "NW-WM", "NW-ZX",
-    ];
-
-    prefixes.iter().any(|prefix| model.starts_with(prefix))
-}
 
 pub fn classify_device(signals: DeviceSignals) -> DeviceProfile {
     let manufacturer = signals.manufacturer.to_ascii_lowercase();
     let brand = signals.brand.to_ascii_lowercase();
     let manufacturer_match = signals.manufacturer_match.or_else(|| {
         if signals.mango_mode {
-            Some(DapBrand::IBasso)
+            Some("iBasso".to_string())
         } else {
             None
         }
@@ -157,9 +202,9 @@ pub fn classify_device(signals: DeviceSignals) -> DeviceProfile {
     let high_res_internal = signals.audio_caps.max_sample_rate >= 88_200;
 
     let kind = match manufacturer_match {
-        Some(brand) => DeviceKind::Dap(brand),
+        Some(brand_label) => DeviceKind::Dap(brand_label),
         None if signals.no_telephony && high_res_internal && signals.model_match => {
-            DeviceKind::Dap(DapBrand::Other)
+            DeviceKind::Dap("Other".to_string())
         }
         None if manufacturer.contains("sony") || brand.contains("sony") => DeviceKind::Phone,
         None if !manufacturer.is_empty() || !brand.is_empty() => DeviceKind::Phone,
@@ -202,7 +247,8 @@ pub fn detect_android_device_profile<'local>(
     let manufacturer = get_build_field(env, "MANUFACTURER")?;
     let model = get_build_field(env, "MODEL")?;
     let brand = get_build_field(env, "BRAND")?;
-    let manufacturer_match = check_manufacturer(&manufacturer, &brand, &model);
+    let manufacturer_match = detect_dap(&manufacturer, &brand, &model)
+        .map(|sig| sig.label.to_string());
     let audio_caps = match probe_audio_capabilities(env, context) {
         Ok(caps) => caps,
         Err(error) => {
@@ -223,7 +269,7 @@ pub fn detect_android_device_profile<'local>(
     } else {
         false
     };
-    let mango_mode = if matches!(manufacturer_match, Some(DapBrand::IBasso)) {
+    let mango_mode = if manufacturer_match.as_deref() == Some("iBasso") {
         detect_ibasso_mango_mode(env)
     } else {
         false
@@ -234,7 +280,7 @@ pub fn detect_android_device_profile<'local>(
         model: model.clone(),
         brand,
         manufacturer_match,
-        model_match: check_model_prefix(&model),
+        model_match: is_known_dap_model(&model),
         no_telephony,
         audio_caps,
         mango_mode,
@@ -678,30 +724,42 @@ fn clear_pending_exception(env: &mut JNIEnv<'_>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        check_manufacturer, check_model_prefix, classify_device, AudioCapabilities, DapBrand,
-        DeviceKind, DeviceSignals,
-    };
+    use super::{classify_device, detect_dap, is_known_dap_model, AudioCapabilities, DeviceKind, DeviceSignals};
 
     #[test]
     fn detects_fiio_from_manufacturer() {
-        assert_eq!(check_manufacturer("FiiO", "", "M23"), Some(DapBrand::FiiO));
+        assert_eq!(detect_dap("FiiO", "", "M23").map(|s| s.label), Some("FiiO"));
+    }
+
+    #[test]
+    fn detects_ibasso_from_manufacturer() {
+        assert_eq!(detect_dap("iBasso", "", "DX320").map(|s| s.label), Some("iBasso"));
+    }
+
+    #[test]
+    fn detects_hiby_from_brand() {
+        assert_eq!(detect_dap("", "HiBy", "R6").map(|s| s.label), Some("HiBy"));
+    }
+
+    #[test]
+    fn detects_astellkern_from_manufacturer_iriver() {
+        assert_eq!(detect_dap("iriver", "", "SP2000").map(|s| s.label), Some("Astell&Kern"));
     }
 
     #[test]
     fn detects_sony_dap_only_for_walkman_models() {
         assert_eq!(
-            check_manufacturer("Sony", "Sony", "NW-WM1AM2"),
-            Some(DapBrand::Sony)
+            detect_dap("Sony", "Sony", "NW-WM1AM2").map(|s| s.label),
+            Some("Sony")
         );
-        assert_eq!(check_manufacturer("Sony", "Sony", "XQ-BC72"), None);
+        assert_eq!(detect_dap("Sony", "Sony", "XQ-BC72"), None);
     }
 
     #[test]
     fn model_prefix_matches_known_dap_prefixes() {
-        assert!(check_model_prefix("DX320"));
-        assert!(check_model_prefix("NW-ZX707"));
-        assert!(!check_model_prefix("Pixel 8"));
+        assert!(is_known_dap_model("DX320"));
+        assert!(is_known_dap_model("NW-ZX707"));
+        assert!(!is_known_dap_model("Pixel 8"));
     }
 
     #[test]
@@ -710,14 +768,14 @@ mod tests {
             manufacturer: "HiBy".to_string(),
             model: "R6 III".to_string(),
             brand: "HiBy".to_string(),
-            manufacturer_match: Some(DapBrand::HiBy),
+            manufacturer_match: Some("HiBy".to_string()),
             model_match: true,
             no_telephony: false,
             audio_caps: AudioCapabilities::default(),
             mango_mode: false,
         });
 
-        assert_eq!(profile.kind, DeviceKind::Dap(DapBrand::HiBy));
+        assert_eq!(profile.kind, DeviceKind::Dap("HiBy".to_string()));
         assert!(profile.confirmed_bit_perfect);
     }
 
@@ -737,7 +795,7 @@ mod tests {
             mango_mode: false,
         });
 
-        assert_eq!(profile.kind, DeviceKind::Dap(DapBrand::Other));
+        assert_eq!(profile.kind, DeviceKind::Dap("Other".to_string()));
         assert!(profile.confirmed_bit_perfect);
     }
 }
