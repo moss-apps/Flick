@@ -59,6 +59,14 @@ class LibraryScanPreferencesNotifier extends Notifier<LibraryScanPreferences> {
         .read(libraryScanPreferencesServiceProvider)
         .setCreatePlaylistsFromM3uFiles(value);
   }
+
+  Future<void> setUseDeepScan(bool value) async {
+    if (state.useDeepScan == value) return;
+    state = state.copyWith(useDeepScan: value);
+    await ref
+        .read(libraryScanPreferencesServiceProvider)
+        .setUseDeepScan(value);
+  }
 }
 
 final libraryScanPreferencesProvider =
