@@ -35,16 +35,16 @@ class AndroidPlaybackDeviceInfo {
   bool get isLikelyDap {
     final haystack = '${manufacturer.toLowerCase()} ${model.toLowerCase()}';
     const dapKeywords = <String>[
-      'hiby',
-      'shanling',
       'fiio',
       'ibasso',
+      'hiby',
+      'shanling',
       'astell',
-      'kann',
+      'iriver',
       'cayin',
-      'walkman',
+      'sony',
       'tempotec',
-      'luxury precision',
+      'luxury',
       'luxuryprecision',
     ];
     return dapKeywords.any(haystack.contains);

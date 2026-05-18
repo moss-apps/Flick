@@ -64,6 +64,7 @@ class Uac2DeviceStatus {
   final Uac2State state;
   final String? errorMessage;
   final String? warningMessage;
+  final String? compatibilityNotice;
   final Uac2AudioFormat? currentFormat;
   final Uac2RouteType routeType;
   final String? routeLabel;
@@ -79,6 +80,7 @@ class Uac2DeviceStatus {
     required this.state,
     this.errorMessage,
     this.warningMessage,
+    this.compatibilityNotice,
     this.currentFormat,
     this.routeType = Uac2RouteType.unknown,
     this.routeLabel,
@@ -95,6 +97,7 @@ class Uac2DeviceStatus {
     Uac2State? state,
     Object? errorMessage = _unset,
     Object? warningMessage = _unset,
+    Object? compatibilityNotice = _unset,
     Object? currentFormat = _unset,
     Uac2RouteType? routeType,
     Object? routeLabel = _unset,
@@ -114,6 +117,9 @@ class Uac2DeviceStatus {
       warningMessage: identical(warningMessage, _unset)
           ? this.warningMessage
           : warningMessage as String?,
+      compatibilityNotice: identical(compatibilityNotice, _unset)
+          ? this.compatibilityNotice
+          : compatibilityNotice as String?,
       currentFormat: identical(currentFormat, _unset)
           ? this.currentFormat
           : currentFormat as Uac2AudioFormat?,
@@ -1387,6 +1393,13 @@ Future<void> stopPriorityAnchor() async {
           preferredUsbDetected: preferredUsbDetected,
           directUsbRegistered: directUsbRegistered,
         ),
+        compatibilityNotice: _deviceCompatibilityNotice(
+          routeDevice: routeDevice,
+          routeType: routeType,
+          volumeMode: volumeMode,
+          hasVolumeControl: hasVolumeControl,
+          directUsbRegistered: directUsbRegistered,
+        ),
         currentFormat: effectiveFormat,
         routeType: routeType,
         routeLabel: routeLabel,
@@ -2110,6 +2123,51 @@ String? _androidRouteWarningMessage(
     case Uac2RouteType.unknown:
       return null;
   }
+}
+
+String? _deviceCompatibilityNotice({
+  required Uac2DeviceInfo routeDevice,
+  required Uac2RouteType routeType,
+  required Uac2VolumeMode volumeMode,
+  required bool hasVolumeControl,
+  required bool directUsbRegistered,
+}) {
+  final notices = <String>[];
+  final name = routeDevice.productName.toLowerCase();
+  final mfg = routeDevice.manufacturer.toLowerCase();
+  final isUsb = routeType == Uac2RouteType.externalUsb || directUsbRegistered;
+
+  if (!hasVolumeControl && isUsb) {
+    notices.add(
+      'This device does not report hardware volume control. '
+      'Volume changes or track switches may cause audio muting in bit-perfect mode. '
+      'Use the device\'s physical controls if available.',
+    );
+  }
+
+  if (volumeMode == Uac2VolumeMode.software && isUsb) {
+    notices.add(
+      'Software volume control is active. Adjusting volume during bit-perfect '
+      'playback may interrupt the audio stream. Use hardware volume on the DAC '
+      'if available.',
+    );
+  }
+
+  final mayHaveInput = name.contains('mic') ||
+      name.contains('microphone') ||
+      name.contains('input') ||
+      mfg.contains('venture') ||
+      mfg.contains('odo');
+  if (mayHaveInput && isUsb) {
+    notices.add(
+      'This device may have audio input capabilities. Android may show a '
+      'recording permission prompt when connecting — this is expected and does '
+      'not affect playback.',
+    );
+  }
+
+  if (notices.isEmpty) return null;
+  return notices.join(' ');
 }
 
 bool _isAndroidStreamingRoute(
