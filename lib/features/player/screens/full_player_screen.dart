@@ -3995,18 +3995,28 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
     final sourceLabel = _lyricsSourceLabel(lyrics.source);
     final textColor = Colors.white.withValues(alpha: 0.82);
 
-    Widget chip(IconData icon, String label) {
+    Widget chip(IconData icon, String label, {bool accent = false}) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: accent
+              ? AppColors.accent.withValues(alpha: 0.14)
+              : Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          border: Border.all(
+            color: accent
+                ? AppColors.accent.withValues(alpha: 0.3)
+                : Colors.white.withValues(alpha: 0.08),
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: textColor),
+            Icon(
+              icon,
+              size: 14,
+              color: accent ? AppColors.accent : textColor,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
@@ -4014,7 +4024,7 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
                 fontFamily: 'ProductSans',
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: textColor,
+                color: accent ? AppColors.accent : textColor,
               ),
             ),
           ],
@@ -4033,8 +4043,16 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                chip(LucideIcons.fileText, 'Lyrics'),
+                chip(
+                  lyrics.isSynchronized ? LucideIcons.clock3 : LucideIcons.fileText,
+                  lyrics.isSynchronized ? 'Synced' : 'Plain',
+                  accent: lyrics.isSynchronized,
+                ),
                 const SizedBox(width: 8),
+                if (sourceLabel != null) ...[
+                  chip(LucideIcons.badgeInfo, sourceLabel),
+                  const SizedBox(width: 8),
+                ],
                 AnimatedRotation(
                   turns: _isMetaCollapsed ? 0.0 : 0.5,
                   duration: AppConstants.animationFast,
@@ -4066,18 +4084,21 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
                   children: [
                     chip(
                       lyrics.isSynchronized
-                          ? LucideIcons.clock3
+                          ? LucideIcons.touchpad
                           : Icons.notes_rounded,
                       lyrics.isSynchronized
-                          ? 'Tap a line to seek'
-                          : 'Static lyrics',
+                          ? 'Tap any line to seek'
+                          : 'Static lyrics — no timestamps',
                     ),
                     chip(
-                      LucideIcons.slidersHorizontal,
-                      'Simple + advanced sync tools',
+                      LucideIcons.pencilLine,
+                      'Edit & Sync Studio',
                     ),
-                    if (sourceLabel != null)
-                      chip(LucideIcons.badgeInfo, sourceLabel),
+                    if (lyrics.lines.isNotEmpty)
+                      chip(
+                        Icons.format_align_left,
+                        '${lyrics.lines.length} lines',
+                      ),
                   ],
                 ),
               ),
@@ -4248,21 +4269,49 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
     if (lyrics == null || lyrics.lines.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
+                child: Icon(
+                  LucideIcons.fileText,
+                  size: 24,
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
+              ),
+              const SizedBox(height: 18),
               Text(
-                'No lyrics file found yet.\nCreate a new `.lrc`, sync it while the song plays, or choose an existing lyric file.',
+                'No lyrics yet',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'ProductSans',
-                  fontSize: 14,
-                  height: 1.5,
-                  color: Colors.white.withValues(alpha: 0.72),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white.withValues(alpha: 0.9),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              Text(
+                'Search online, create your own synced lyrics, or import an existing file.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: Colors.white.withValues(alpha: 0.56),
+                ),
+              ),
+              const SizedBox(height: 20),
               _buildActionButtons(),
             ],
           ),
