@@ -13,14 +13,18 @@ import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/screens/albums_screen.dart';
 import 'package:flick/features/artists/screens/artists_screen.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
+import 'package:flick/features/player/widgets/share/share_bottom_sheet.dart';
 import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/player_screen_mode.dart';
+import 'package:flick/models/player_action_button.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/external_playback_service.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
+import 'package:flick/providers/rating_provider.dart';
+import 'package:flick/features/player/widgets/rating_button.dart';
 import 'package:flick/services/player_screen_mode_preference_service.dart';
 import 'package:flick/providers/album_color_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
@@ -754,16 +758,46 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                             value: appPrefs.immersiveShowFileInfo,
                             onChanged: prefsNotifier.setImmersiveShowFileInfo,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.palette_outlined,
-                            size: 20,
-                            color: sheetContext.adaptiveTextSecondary,
-                          ),
+],
+                       ),
+                       const SizedBox(height: 16),
+                       _PlayerCustomizationGroup(
+                         title: 'Quick Actions',
+                         icon: Icons.swap_horiz_rounded,
+                         children: [
+                           _PlayerActionButtonSelector(
+                             label: 'Left button',
+                             currentValue: PlayerActionButtonX.fromStorageValue(
+                               appPrefs.leftActionButton,
+                             ),
+                             onChanged: (action) {
+                               prefsNotifier.setLeftActionButton(
+                                 action.storageValue,
+                               );
+                             },
+                           ),
+                           const SizedBox(height: 8),
+                           _PlayerActionButtonSelector(
+                             label: 'Right button',
+                             currentValue: PlayerActionButtonX.fromStorageValue(
+                               appPrefs.rightActionButton,
+                             ),
+                             onChanged: (action) {
+                               prefsNotifier.setRightActionButton(
+                                 action.storageValue,
+                               );
+                             },
+                           ),
+                         ],
+                       ),
+                       const SizedBox(height: 20),
+                       Row(
+                         children: [
+                           Icon(
+                             Icons.palette_outlined,
+                             size: 20,
+                             color: sheetContext.adaptiveTextSecondary,
+                           ),
                           const SizedBox(width: 10),
                           Text(
                             'Album Colors',
@@ -1547,6 +1581,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     required PlayerScreenMode playerScreenMode,
     Color? albumColor,
     AlbumColorMode albumColorMode = AlbumColorMode.off,
+    PlayerActionButton leftAction = PlayerActionButton.lyrics,
+    PlayerActionButton rightAction = PlayerActionButton.favorites,
   }) {
     final immersiveActions = playerScreenMode == PlayerScreenMode.immersive;
     final actionPadding = immersiveActions
@@ -1554,26 +1590,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         : EdgeInsets.all(context.responsive(6.0, 7.0, 8.0));
     final actionRadius = immersiveActions ? 12.0 : 10.0;
     final actionIconSize = context.responsive(18.0, 20.0, 22.0);
-    final favoriteIconSize = immersiveActions
-        ? context.responsive(18.0, 20.0, 22.0)
-        : context.responsive(16.0, 17.0, 18.0);
 
     final accentBlend = albumColorMode.accentBlend;
     final surfaceBlend = albumColorMode.surfaceBlend;
     final hasAlbumTint = albumColor != null && accentBlend > 0;
 
-    final lyricsActiveBg = hasAlbumTint
-        ? _AnimatedSongScene.albumAccent(
-            albumColor,
-            accentBlend,
-          ).withValues(alpha: 0.28)
-        : AppColors.accent.withValues(alpha: 0.28);
-    final lyricsActiveBorder = hasAlbumTint
-        ? _AnimatedSongScene.albumAccent(
-            albumColor,
-            accentBlend,
-          ).withValues(alpha: 0.45)
-        : AppColors.accent.withValues(alpha: 0.45);
     final inactiveBg = hasAlbumTint
         ? _AnimatedSongScene.albumSurface(
             albumColor,
@@ -1590,32 +1611,20 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Tooltip(
-          message: lyricsMode ? 'Hide lyrics' : 'Show lyrics',
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _isLyricsMode = !lyricsMode;
-              });
-            },
-            child: Container(
-              padding: actionPadding,
-              decoration: BoxDecoration(
-                color: lyricsMode ? lyricsActiveBg : inactiveBg,
-                borderRadius: BorderRadius.circular(actionRadius),
-                border: Border.all(
-                  color: lyricsMode ? lyricsActiveBorder : inactiveBorder,
-                ),
-              ),
-              child: Icon(
-                lyricsMode
-                    ? Icons.keyboard_arrow_down_rounded
-                    : LucideIcons.fileText,
-                color: Colors.white.withValues(alpha: 0.96),
-                size: actionIconSize,
-              ),
-            ),
-          ),
+        _buildActionButton(
+          context: context,
+          song: song,
+          action: leftAction,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+          albumColor: albumColor,
+          accentBlend: accentBlend,
+          hasAlbumTint: hasAlbumTint,
+          immersiveActions: immersiveActions,
+          lyricsMode: lyricsMode,
         ),
         Flexible(
           child: Row(
@@ -1642,66 +1651,427 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             ],
           ),
         ),
-        if (song.isExternal)
-          SizedBox(
-            width: favoriteIconSize + actionPadding.horizontal,
-            height: favoriteIconSize + actionPadding.vertical,
-          )
-        else
-          FutureBuilder<bool>(
-            future: _favoritesService.isFavorite(song.id),
-            builder: (context, snapshot) {
-              final isFavorite = snapshot.data ?? false;
-              return GestureDetector(
-                onTap: () async {
-                  final newState = await _favoritesService.toggleFavorite(
-                    song.id,
-                  );
-                  setState(() {});
-                  _playerService.refreshNotificationState();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          newState
-                              ? 'Added to favorites'
-                              : 'Removed from favorites',
-                        ),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  }
-                },
-                child: Container(
-                  padding: actionPadding,
-                  decoration: BoxDecoration(
-                    color: isFavorite
-                        ? (hasAlbumTint
-                              ? _AnimatedSongScene.albumAccent(
-                                  albumColor,
-                                  accentBlend,
-                                ).withValues(alpha: 0.25)
-                              : Colors.red.withValues(alpha: 0.25))
-                        : inactiveBg,
-                    borderRadius: BorderRadius.circular(actionRadius),
+        _buildActionButton(
+          context: context,
+          song: song,
+          action: rightAction,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+          albumColor: albumColor,
+          accentBlend: accentBlend,
+          hasAlbumTint: hasAlbumTint,
+          immersiveActions: immersiveActions,
+          lyricsMode: lyricsMode,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton({
+    required BuildContext context,
+    required Song song,
+    required PlayerActionButton action,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+    required Color? albumColor,
+    required double accentBlend,
+    required bool hasAlbumTint,
+    required bool immersiveActions,
+    required bool lyricsMode,
+  }) {
+    switch (action) {
+      case PlayerActionButton.lyrics:
+        return _buildLyricsButton(
+          context: context,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+          albumColor: albumColor,
+          accentBlend: accentBlend,
+          hasAlbumTint: hasAlbumTint,
+          lyricsMode: lyricsMode,
+        );
+      case PlayerActionButton.favorites:
+        if (song.isExternal) {
+          return SizedBox(
+            width: actionIconSize + actionPadding.horizontal,
+            height: actionIconSize + actionPadding.vertical,
+          );
+        }
+        return _buildFavoritesButton(
+          song: song,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          albumColor: albumColor,
+          accentBlend: accentBlend,
+          hasAlbumTint: hasAlbumTint,
+        );
+      case PlayerActionButton.visualizer:
+        return _buildVisualizerButton(
+          context: context,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+          albumColor: albumColor,
+          accentBlend: accentBlend,
+          hasAlbumTint: hasAlbumTint,
+        );
+      case PlayerActionButton.ratings:
+        if (song.isExternal) {
+          return SizedBox(
+            width: actionIconSize + actionPadding.horizontal,
+            height: actionIconSize + actionPadding.vertical,
+          );
+        }
+        return _buildRatingsButton(
+          song: song,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+          albumColor: albumColor,
+          accentBlend: accentBlend,
+        );
+      case PlayerActionButton.queue:
+        return _buildQueueButton(
+          context: context,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+          albumColor: albumColor,
+          accentBlend: accentBlend,
+          hasAlbumTint: hasAlbumTint,
+        );
+      case PlayerActionButton.sleepTimer:
+        return _buildSleepTimerButton(
+          context: context,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+        );
+      case PlayerActionButton.share:
+        return _buildShareButton(
+          song: song,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+        );
+    }
+  }
+
+  Widget _buildLyricsButton({
+    required BuildContext context,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+    required Color? albumColor,
+    required double accentBlend,
+    required bool hasAlbumTint,
+    required bool lyricsMode,
+  }) {
+    final lyricsActiveBg = hasAlbumTint
+        ? _AnimatedSongScene.albumAccent(
+            albumColor!,
+            accentBlend,
+          ).withValues(alpha: 0.28)
+        : AppColors.accent.withValues(alpha: 0.28);
+    final lyricsActiveBorder = hasAlbumTint
+        ? _AnimatedSongScene.albumAccent(
+            albumColor!,
+            accentBlend,
+          ).withValues(alpha: 0.45)
+        : AppColors.accent.withValues(alpha: 0.45);
+
+    return Tooltip(
+      message: lyricsMode ? 'Hide lyrics' : 'Show lyrics',
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _isLyricsMode = !lyricsMode;
+          });
+        },
+        child: Container(
+          padding: actionPadding,
+          decoration: BoxDecoration(
+            color: lyricsMode ? lyricsActiveBg : inactiveBg,
+            borderRadius: BorderRadius.circular(actionRadius),
+            border: Border.all(
+              color: lyricsMode ? lyricsActiveBorder : inactiveBorder,
+            ),
+          ),
+          child: Icon(
+            lyricsMode
+                ? Icons.keyboard_arrow_down_rounded
+                : LucideIcons.fileText,
+            color: Colors.white.withValues(alpha: 0.96),
+            size: actionIconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFavoritesButton({
+    required Song song,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color? albumColor,
+    required double accentBlend,
+    required bool hasAlbumTint,
+  }) {
+    return FutureBuilder<bool>(
+      future: _favoritesService.isFavorite(song.id),
+      builder: (context, snapshot) {
+        final isFavorite = snapshot.data ?? false;
+        return GestureDetector(
+          onTap: () async {
+            final newState = await _favoritesService.toggleFavorite(
+              song.id,
+            );
+            setState(() {});
+            _playerService.refreshNotificationState();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    newState
+                        ? 'Added to favorites'
+                        : 'Removed from favorites',
                   ),
-                  child: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: isFavorite
-                        ? (hasAlbumTint
-                              ? _AnimatedSongScene.albumAccent(
-                                  albumColor,
-                                  accentBlend,
-                                )
-                              : Colors.red)
-                        : Colors.white.withValues(alpha: 0.9),
-                    size: favoriteIconSize,
-                  ),
+                  duration: const Duration(seconds: 1),
                 ),
               );
-            },
+            }
+          },
+          child: Container(
+            padding: actionPadding,
+            decoration: BoxDecoration(
+              color: isFavorite
+                  ? (hasAlbumTint
+                        ? _AnimatedSongScene.albumAccent(
+                            albumColor!,
+                            accentBlend,
+                          ).withValues(alpha: 0.25)
+                        : Colors.red.withValues(alpha: 0.25))
+                  : inactiveBg,
+              borderRadius: BorderRadius.circular(actionRadius),
+            ),
+            child: Icon(
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite
+                  ? (hasAlbumTint
+                        ? _AnimatedSongScene.albumAccent(
+                            albumColor!,
+                            accentBlend,
+                          )
+                        : Colors.red)
+                  : Colors.white.withValues(alpha: 0.9),
+              size: actionIconSize,
+            ),
           ),
-      ],
+        );
+      },
+    );
+  }
+
+  Widget _buildVisualizerButton({
+    required BuildContext context,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+    required Color? albumColor,
+    required double accentBlend,
+    required bool hasAlbumTint,
+  }) {
+    final isVisMode = _isVisualizationMode;
+    final visActiveBg = hasAlbumTint
+        ? _AnimatedSongScene.albumAccent(
+            albumColor!,
+            accentBlend,
+          ).withValues(alpha: 0.28)
+        : AppColors.accent.withValues(alpha: 0.28);
+    final visActiveBorder = hasAlbumTint
+        ? _AnimatedSongScene.albumAccent(
+            albumColor!,
+            accentBlend,
+          ).withValues(alpha: 0.45)
+        : AppColors.accent.withValues(alpha: 0.45);
+
+    return Tooltip(
+      message: isVisMode ? 'Hide visualizer' : 'Show visualizer',
+      child: GestureDetector(
+        onTap: () => _setVisualizationMode(!isVisMode),
+        child: Container(
+          padding: actionPadding,
+          decoration: BoxDecoration(
+            color: isVisMode ? visActiveBg : inactiveBg,
+            borderRadius: BorderRadius.circular(actionRadius),
+            border: Border.all(
+              color: isVisMode ? visActiveBorder : inactiveBorder,
+            ),
+          ),
+          child: Icon(
+            Icons.graphic_eq_rounded,
+            color: Colors.white.withValues(alpha: 0.96),
+            size: actionIconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRatingsButton({
+    required Song song,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+    required Color? albumColor,
+    required double accentBlend,
+  }) {
+    final ratings = ref.watch(ratingProvider);
+    final currentRating = ratings[song.id] ?? 0;
+
+    return RatingButton(
+      currentRating: currentRating,
+      onRatingChanged: (rating) {
+        if (rating == 0) {
+          ref.read(ratingProvider.notifier).removeRating(song.id);
+        } else {
+          ref.read(ratingProvider.notifier).setRating(song.id, rating);
+        }
+        setState(() {});
+      },
+      iconSize: actionIconSize,
+      padding: actionPadding,
+      borderRadius: actionRadius,
+      albumColor: albumColor,
+      accentBlend: accentBlend,
+      inactiveBg: inactiveBg,
+      inactiveBorder: inactiveBorder,
+    );
+  }
+
+  Widget _buildQueueButton({
+    required BuildContext context,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+    required Color? albumColor,
+    required double accentBlend,
+    required bool hasAlbumTint,
+  }) {
+    return Tooltip(
+      message: 'Queue',
+      child: GestureDetector(
+        onTap: () => _openQueue(context),
+        child: Container(
+          padding: actionPadding,
+          decoration: BoxDecoration(
+            color: inactiveBg,
+            borderRadius: BorderRadius.circular(actionRadius),
+            border: Border.all(color: inactiveBorder),
+          ),
+          child: Icon(
+            LucideIcons.listMusic,
+            color: Colors.white.withValues(alpha: 0.96),
+            size: actionIconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSleepTimerButton({
+    required BuildContext context,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+  }) {
+    return Tooltip(
+      message: 'Sleep timer',
+      child: GestureDetector(
+        onTap: () => _showSleepTimerBottomSheet(context),
+        child: Container(
+          padding: actionPadding,
+          decoration: BoxDecoration(
+            color: inactiveBg,
+            borderRadius: BorderRadius.circular(actionRadius),
+            border: Border.all(color: inactiveBorder),
+          ),
+          child: Icon(
+            LucideIcons.moonStar,
+            color: Colors.white.withValues(alpha: 0.96),
+            size: actionIconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShareButton({
+    required Song song,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+  }) {
+    return Tooltip(
+      message: 'Share',
+      child: GestureDetector(
+        onTap: () {
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.transparent,
+            isScrollControlled: true,
+            builder: (_) => ShareBottomSheet(song: song),
+          );
+        },
+        child: Container(
+          padding: actionPadding,
+          decoration: BoxDecoration(
+            color: inactiveBg,
+            borderRadius: BorderRadius.circular(actionRadius),
+            border: Border.all(color: inactiveBorder),
+          ),
+          child: Icon(
+            LucideIcons.share2,
+            color: Colors.white.withValues(alpha: 0.96),
+            size: actionIconSize,
+          ),
+        ),
+      ),
     );
   }
 
@@ -1915,6 +2285,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                         playerScreenMode: mode,
                         albumColor: albumColor,
                         albumColorMode: colorMode,
+                        leftAction: PlayerActionButtonX.fromStorageValue(appPrefs.leftActionButton),
+                        rightAction: PlayerActionButtonX.fromStorageValue(appPrefs.rightActionButton),
                       ),
                   buildDirectoryInfo: (song) =>
                       _buildDirectoryInfo(context, song, compact: false),
@@ -1933,8 +2305,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   immersiveFullViewScale: appPrefs.immersiveFullViewScale,
                   immersiveShowTitle: appPrefs.immersiveShowTitle,
                   immersiveShowArtist: appPrefs.immersiveShowArtist,
-                  immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
-                ),
+immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
+                  hideQueueBadge: PlayerActionButtonX.fromStorageValue(appPrefs.leftActionButton) == PlayerActionButton.queue ||
+                      PlayerActionButtonX.fromStorageValue(appPrefs.rightActionButton) == PlayerActionButton.queue,
+                 ),
               ),
             );
           },
@@ -2004,6 +2378,7 @@ class _AnimatedSongScene extends StatelessWidget {
   final bool immersiveShowTitle;
   final bool immersiveShowArtist;
   final bool immersiveShowFileInfo;
+  final bool hideQueueBadge;
 
   const _AnimatedSongScene({
     required this.song,
@@ -2047,6 +2422,7 @@ class _AnimatedSongScene extends StatelessWidget {
     this.immersiveShowTitle = true,
     this.immersiveShowArtist = true,
     this.immersiveShowFileInfo = true,
+    this.hideQueueBadge = false,
   });
 
   @override
@@ -2406,7 +2782,7 @@ class _AnimatedSongScene extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         nowPlayingContent,
-                        if (!fromLocker) ...[
+                        if (!fromLocker && !hideQueueBadge) ...[
                           SizedBox(width: context.responsive(8.0, 10.0, 12.0)),
                           _buildQueueSummaryBadge(
                             context,
@@ -2879,56 +3255,100 @@ class _AnimatedSongScene extends StatelessWidget {
           ),
           child: Column(
             children: [
-              if (lyricsMode) ...[
-                Expanded(
-                  child: _InlineLyricsPanel(
-                    song: song,
-                    playerService: playerService,
-                    lyricsService: lyricsService,
-                    albumColor: albumColor,
-                  ),
-                ),
-                SizedBox(height: lyricsSpacing),
-              ] else
-                Expanded(
-                  child: Transform.translate(
-                    offset: Offset(0, artworkCardVerticalOffset),
-                    child: Column(
-                      mainAxisAlignment: isVeryShortHeight
-                          ? MainAxisAlignment.start
-                          : MainAxisAlignment.center,
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: AppConstants.animationNormal,
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInOutCubic,
+                  layoutBuilder: (currentChild, previousChildren) {
+                    return Stack(
+                      fit: StackFit.expand,
                       children: [
-                        Flexible(
-                          flex: isVeryShortHeight ? 5 : 7,
-                          child: Center(
-                            child: visualizationMode
-                                ? _VisualizerArtBox(
-                                    playerService: playerService,
-                                    size: artworkSize,
-                                    animationStyle: visualizerAnimationStyle,
-                                    frequencyMode: visualizerFrequencyMode,
-                                    movementMode: visualizerMovementMode,
-                                    albumColor: albumColor,
-                                  )
-                                : _AlbumArtBox(song: song, size: artworkSize),
-                          ),
-                        ),
-                        SizedBox(height: artworkSpacing),
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isVeryShortHeight ? 8.0 : 0.0,
-                          ),
-                          child: _buildSongIdentity(
-                            context,
-                            compact: isShortHeight,
-                            veryCompact: isVeryShortHeight,
-                          ),
-                        ),
-                        SizedBox(height: identitySpacing),
+                        ...previousChildren,
+                        ...?currentChild == null
+                            ? null
+                            : [currentChild],
                       ],
-                    ),
-                  ),
+                    );
+                  },
+                  transitionBuilder: (child, animation) {
+                    final isLyrics =
+                        child.key == const ValueKey('artwork-lyrics');
+                    final slide = Tween<Offset>(
+                      begin: isLyrics
+                          ? const Offset(0, -0.06)
+                          : const Offset(0, 0.06),
+                      end: Offset.zero,
+                    ).animate(CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ));
+                    return FadeTransition(
+                      opacity: CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      ),
+                      child: SlideTransition(position: slide, child: child),
+                    );
+                  },
+                  child: lyricsMode
+                      ? Padding(
+                          key: const ValueKey('artwork-lyrics'),
+                          padding: EdgeInsets.only(bottom: lyricsSpacing),
+                          child: _InlineLyricsPanel(
+                            song: song,
+                            playerService: playerService,
+                            lyricsService: lyricsService,
+                            albumColor: albumColor,
+                          ),
+                        )
+                      : KeyedSubtree(
+                          key: const ValueKey('artwork-default'),
+                          child: Transform.translate(
+                            offset: Offset(0, artworkCardVerticalOffset),
+                            child: Column(
+                              mainAxisAlignment: isVeryShortHeight
+                                  ? MainAxisAlignment.start
+                                  : MainAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  flex: isVeryShortHeight ? 5 : 7,
+                                  child: Center(
+                                    child: visualizationMode
+                                        ? _VisualizerArtBox(
+                                            playerService: playerService,
+                                            size: artworkSize,
+                                            animationStyle:
+                                                visualizerAnimationStyle,
+                                            frequencyMode:
+                                                visualizerFrequencyMode,
+                                            movementMode:
+                                                visualizerMovementMode,
+                                            albumColor: albumColor,
+                                          )
+                                        : _AlbumArtBox(
+                                            song: song, size: artworkSize),
+                                  ),
+                                ),
+                                SizedBox(height: artworkSpacing),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal:
+                                        isVeryShortHeight ? 8.0 : 0.0,
+                                  ),
+                                  child: _buildSongIdentity(
+                                    context,
+                                    compact: isShortHeight,
+                                    veryCompact: isVeryShortHeight,
+                                  ),
+                                ),
+                                SizedBox(height: identitySpacing),
+                              ],
+                            ),
+                          ),
+                        ),
                 ),
+              ),
               if (artworkCardShowFileInfo)
                 buildFileInfoRow(song, lyricsMode, playerScreenMode),
               if (artworkCardShowFileInfo)
@@ -4299,20 +4719,19 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
                   fontWeight: FontWeight.w700,
                   color: Colors.white.withValues(alpha: 0.9),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Search online, create your own synced lyrics, or import an existing file.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontSize: 13,
-                  height: 1.5,
-                  color: Colors.white.withValues(alpha: 0.56),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildActionButtons(),
+),
+               const SizedBox(height: 8),
+               Text(
+                 'Search online, create your own synced lyrics, or import an existing file.',
+                 textAlign: TextAlign.center,
+                 style: TextStyle(
+                   fontFamily: 'ProductSans',
+                   fontSize: 13,
+                   height: 1.5,
+                   color: Colors.white.withValues(alpha: 0.56),
+                 ),
+               ),
+               _buildActionButtons(),
             ],
           ),
         ),
@@ -4870,6 +5289,86 @@ class _PlayPauseButton extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _PlayerActionButtonSelector extends StatelessWidget {
+  final String label;
+  final PlayerActionButton currentValue;
+  final ValueChanged<PlayerActionButton> onChanged;
+
+  const _PlayerActionButtonSelector({
+    required this.label,
+    required this.currentValue,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'ProductSans',
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: context.adaptiveTextPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: PlayerActionButton.values.map((action) {
+            final isSelected = action == currentValue;
+            return GestureDetector(
+              onTap: () => onChanged(action),
+              child: AnimatedContainer(
+                duration: AppConstants.animationFast,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.accent.withValues(alpha: 0.18)
+                      : AppColors.glassBackground,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.accent.withValues(alpha: 0.6)
+                        : AppColors.glassBorder,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      action.icon,
+                      size: 14,
+                      color: isSelected
+                          ? AppColors.accent
+                          : context.adaptiveTextSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      action.label,
+                      style: TextStyle(
+                        fontFamily: 'ProductSans',
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? AppColors.textPrimary
+                            : context.adaptiveTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }
