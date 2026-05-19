@@ -40,6 +40,46 @@ class OnlineLyricsResult {
       syncedLyrics != null && syncedLyrics!.trim().isNotEmpty;
   bool get hasPlainLyrics =>
       plainLyrics != null && plainLyrics!.trim().isNotEmpty;
+
+  String get bestLyrics => syncedLyrics ?? plainLyrics ?? '';
+
+  int get lineCount {
+    final text = bestLyrics;
+    if (text.isEmpty) return 0;
+    return text.split('\n').where((l) => l.trim().isNotEmpty).length;
+  }
+
+  String? get snippet {
+    final text = bestLyrics;
+    if (text.isEmpty) return null;
+    final lines = text.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    if (lines.isEmpty) return null;
+    // Strip LRC tags for snippet
+    final clean = lines
+        .map((l) => l.replaceAll(RegExp(r'\[\d{2}:\d{2}\.\d{2,3}\]'), '').trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+    if (clean.isEmpty) return null;
+    if (clean.length <= 2) return clean.join('\n');
+    return clean.take(3).join('\n');
+  }
+
+  bool get isSyncedOnly => hasSyncedLyrics && !hasPlainLyrics;
+  bool get isPlainOnly => hasPlainLyrics && !hasSyncedLyrics;
+
+  String get formatLabel {
+    if (instrumental) return 'Instrumental';
+    if (hasSyncedLyrics) return 'Synced LRC';
+    if (hasPlainLyrics) return 'Plain Text';
+    return 'Unknown';
+  }
+
+  String get shortFormatLabel {
+    if (instrumental) return 'Inst';
+    if (hasSyncedLyrics) return 'LRC';
+    if (hasPlainLyrics) return 'TXT';
+    return '?';
+  }
 }
 
 class OnlineLyricsService {
