@@ -559,7 +559,14 @@ class MainActivity: FlutterActivity() {
                     }
                     val isShuffle = call.argument<Boolean>("isShuffle") ?: false
                     val isFavorite = call.argument<Boolean>("isFavorite") ?: false
-                    
+                    val color = call.argument<Any>("color")?.let { c ->
+                        when (c) {
+                            is Int -> c
+                            is Long -> c.toInt()
+                            else -> null
+                        }
+                    }
+
                     val intent = Intent(this, MusicNotificationService::class.java).apply {
                         putExtra("title", title)
                         putExtra("artist", artist)
@@ -569,6 +576,7 @@ class MainActivity: FlutterActivity() {
                         putExtra("position", position)
                         putExtra("isShuffle", isShuffle)
                         putExtra("isFavorite", isFavorite)
+                        color?.let { putExtra("color", it) }
                     }
                     
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -600,7 +608,14 @@ class MainActivity: FlutterActivity() {
                     }
                     val isShuffle = call.argument<Boolean>("isShuffle")
                     val isFavorite = call.argument<Boolean>("isFavorite")
-                    
+                    val color = call.argument<Any>("color")?.let { c ->
+                        when (c) {
+                            is Int -> c
+                            is Long -> c.toInt()
+                            else -> null
+                        }
+                    }
+
                     val intent = Intent(this, MusicNotificationService::class.java).apply {
                         title?.let { putExtra("title", it) }
                         artist?.let { putExtra("artist", it) }
@@ -610,6 +625,7 @@ class MainActivity: FlutterActivity() {
                         position?.let { putExtra("position", it) }
                         isShuffle?.let { putExtra("isShuffle", it) }
                         isFavorite?.let { putExtra("isFavorite", it) }
+                        color?.let { putExtra("color", it) }
                     }
                     startService(intent)
                     result.success(null)

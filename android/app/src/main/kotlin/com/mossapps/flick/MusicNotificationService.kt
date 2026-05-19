@@ -52,6 +52,7 @@ class MusicNotificationService : Service() {
     private var currentPosition: Long = 0
     private var isShuffleMode: Boolean = false
     private var isFavorite: Boolean = false
+    private var currentColor: Int? = null
 
     private val actionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -157,6 +158,7 @@ class MusicNotificationService : Service() {
             }
             if (it.hasExtra("isShuffle")) isShuffleMode = it.getBooleanExtra("isShuffle", false)
             if (it.hasExtra("isFavorite")) isFavorite = it.getBooleanExtra("isFavorite", false)
+            if (it.hasExtra("color")) currentColor = it.getIntExtra("color", 0)
         }
 
         syncAudioFocusState()
@@ -389,6 +391,11 @@ class MusicNotificationService : Service() {
             .setShowWhen(false)
             .setOngoing(true)
 
+        currentColor?.let { color ->
+            builder.setColor(color)
+            builder.setColorized(true)
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val playPauseIntent = pendingBroadcast(100, ACTION_PLAY_PAUSE)
             val prevIntent = pendingBroadcast(101, ACTION_PREVIOUS)
@@ -459,7 +466,7 @@ class MusicNotificationService : Service() {
     fun updateNotification(
         title: String?, artist: String?, albumArtPath: String?,
         playing: Boolean?, duration: Long?, position: Long?,
-        shuffle: Boolean?, favorite: Boolean?
+        shuffle: Boolean?, favorite: Boolean?, color: Int? = null
     ) {
         title?.let { currentTitle = it }
         artist?.let { currentArtist = it }
@@ -469,6 +476,7 @@ class MusicNotificationService : Service() {
         position?.let { currentPosition = it }
         shuffle?.let { isShuffleMode = it }
         favorite?.let { isFavorite = it }
+        color?.let { currentColor = it }
 
         val notification = buildNotification()
         notificationManager.notify(NOTIFICATION_ID, notification)
