@@ -30,7 +30,7 @@ class FolderGroup {
 }
 
 /// Filter options for file types.
-enum SongFileTypeFilter { all, flac, mp3, wav, aac, ogg, alac }
+enum SongFileTypeFilter { all, flac, mp3, wav, aac, ogg, alac, dsd }
 
 extension SongFileTypeFilterExtension on SongFileTypeFilter {
   String get displayName {
@@ -49,20 +49,19 @@ extension SongFileTypeFilterExtension on SongFileTypeFilter {
         return 'OGG';
       case SongFileTypeFilter.alac:
         return 'ALAC';
+      case SongFileTypeFilter.dsd:
+        return 'DSD';
     }
   }
 
   bool matches(String fileType) {
     if (this == SongFileTypeFilter.all) return true;
 
-    // Normalize file type for comparison (remove dots, convert to uppercase)
     final normalized = fileType.replaceAll('.', '').toUpperCase().trim();
     final filterName = displayName.toUpperCase();
 
-    // Direct match
     if (normalized == filterName) return true;
 
-    // Handle common variations
     switch (this) {
       case SongFileTypeFilter.mp3:
         return normalized == 'MP3' || normalized == 'MPEG';
@@ -82,6 +81,11 @@ extension SongFileTypeFilterExtension on SongFileTypeFilter {
         return normalized == 'WAV' || normalized == 'WAVE';
       case SongFileTypeFilter.flac:
         return normalized == 'FLAC';
+      case SongFileTypeFilter.dsd:
+        return normalized == 'DSF' ||
+            normalized == 'DFF' ||
+            normalized == 'WV-DSD' ||
+            normalized == 'DSD';
       case SongFileTypeFilter.all:
         return true;
     }
