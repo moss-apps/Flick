@@ -13,4 +13,7 @@
     <string name="widget_shuffle">Toggle shuffle</string>
     <string name="widget_repeat">Toggle repeat</string>
     <string name="widget_queue">Queue</string>
+
+    <string name="widget_flagship_name">Flick Player 2×2</string>
+    <string name="widget_flagship_desc">Full player with album art and controls</string>
 </resources>
