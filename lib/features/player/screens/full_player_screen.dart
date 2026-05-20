@@ -1550,7 +1550,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   String _getSongQuality(Song song) {
     final fileType = song.fileType.toUpperCase();
-    const lossless = {'FLAC', 'WAV', 'ALAC', 'AIFF', 'DSD', 'APE', 'WV'};
+    const lossless = {'FLAC', 'WAV', 'ALAC', 'AIFF', 'DSD', 'APE', 'WV', 'WV-DSD', 'DSF', 'DFF'};
     if (lossless.contains(fileType)) return 'HQ';
     if ((song.bitDepth ?? 0) >= 24) return 'HQ';
     if ((song.sampleRate ?? 0) >= 88200) return 'HQ';

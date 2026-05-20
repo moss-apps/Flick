@@ -1426,7 +1426,7 @@ class MainActivity: FlutterActivity() {
         val documentFile = DocumentFile.fromTreeUri(this, uri) ?: return emptyList()
 
         val audioExtensions =
-            setOf("mp3", "flac", "wav", "aac", "m4a", "ogg", "oga", "ogx", "opus", "wma", "alac", "aif", "aiff", "cue")
+            setOf("mp3", "flac", "wav", "aac", "m4a", "ogg", "oga", "ogx", "opus", "wma", "alac", "aif", "aiff", "cue", "wv", "dsf", "dff")
         val result = mutableListOf<Map<String, Any?>>()
 
         fun scanDirectory(dir: DocumentFile) {
