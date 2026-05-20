@@ -1,4 +1,7 @@
 use crate::frb_generated::StreamSink;
+use dff_meta::DffFile;
+use dsf_meta::DsfFile;
+use id3::TagLike;
 use jwalk::WalkDir;
 use lofty::config::ParseOptions;
 use lofty::picture::PictureType;
@@ -63,7 +66,7 @@ fn is_supported_audio_path(path: &Path) -> bool {
 
     matches!(
         ext.as_str(),
-        "mp3" | "flac" | "ogg" | "oga" | "ogx" | "opus" | "m4a" | "wav" | "aif" | "aiff" | "alac"
+        "mp3" | "flac" | "ogg" | "oga" | "ogx" | "opus" | "m4a" | "wav" | "aif" | "aiff" | "alac" | "dsf" | "dff" | "wv"
     )
 }
 
@@ -154,6 +157,21 @@ pub fn check_deleted_paths(
 }
 
 pub fn extract_embedded_artwork(path: String) -> Option<Vec<u8>> {
+    let p = PathBuf::from(&path);
+    let ext = p
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    match ext.as_str() {
+        "dsf" => extract_dsf_artwork(&p),
+        "dff" => extract_dff_artwork(&p),
+        _ => extract_lofty_artwork(&p),
+    }
+}
+
+fn extract_lofty_artwork(path: &Path) -> Option<Vec<u8>> {
     let parse_options = ParseOptions::new().read_properties(false);
     let tagged_file = Probe::open(path)
         .ok()?
@@ -170,6 +188,26 @@ pub fn extract_embedded_artwork(path: String) -> Option<Vec<u8>> {
         .or_else(|| tag.pictures().first())?;
 
     Some(picture.data().to_vec())
+}
+
+fn extract_dsf_artwork(path: &Path) -> Option<Vec<u8>> {
+    let dsf = DsfFile::open(path).ok()?;
+    let tag = dsf.id3_tag().as_ref()?;
+    let cover = tag
+        .pictures()
+        .find(|p| p.picture_type == id3::frame::PictureType::CoverFront)
+        .or_else(|| tag.pictures().next())?;
+    Some(cover.data.clone())
+}
+
+fn extract_dff_artwork(path: &Path) -> Option<Vec<u8>> {
+    let dff = DffFile::open(path).ok()?;
+    let tag = dff.id3_tag().as_ref()?;
+    let cover = tag
+        .pictures()
+        .find(|p| p.picture_type == id3::frame::PictureType::CoverFront)
+        .or_else(|| tag.pictures().next())?;
+    Some(cover.data.clone())
 }
 
 fn collect_scan_file_entries(root_path: &str, scan_options: &ScanOptions) -> Vec<FileScanEntry> {
@@ -305,6 +343,8 @@ fn classify_scan_work(
     (to_process, deleted_paths, found_paths)
 }
 
+const DSD_SAMPLE_RATE_THRESHOLD: u32 = 2_822_400;
+
 fn extract_text_metadata_only(entry: &FileScanEntry) -> Option<AudioFileMetadata> {
     let path = PathBuf::from(&entry.path);
     let format = path
@@ -312,8 +352,22 @@ fn extract_text_metadata_only(entry: &FileScanEntry) -> Option<AudioFileMetadata
         .and_then(|s| s.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
+
+    match format.as_str() {
+        "dsf" => extract_dsf_metadata(entry, &path, format),
+        "dff" => extract_dff_metadata(entry, &path, format),
+        "wv" => extract_wavpack_metadata(entry, &path, format),
+        _ => extract_lofty_metadata(entry, &path, format),
+    }
+}
+
+fn extract_lofty_metadata(
+    entry: &FileScanEntry,
+    path: &Path,
+    format: String,
+) -> Option<AudioFileMetadata> {
     let parse_options = ParseOptions::new().read_cover_art(false);
-    let tagged_file = Probe::open(&path)
+    let tagged_file = Probe::open(path)
         .ok()?
         .options(parse_options)
         .guess_file_type()
@@ -339,6 +393,108 @@ fn extract_text_metadata_only(entry: &FileScanEntry) -> Option<AudioFileMetadata
         bitrate: properties.audio_bitrate(),
         track_number: tag.and_then(|t| t.track()),
         disc_number: tag.and_then(|t| t.disk()),
+        file_size: entry.file_size,
+    })
+}
+
+fn extract_wavpack_metadata(
+    entry: &FileScanEntry,
+    path: &Path,
+    format: String,
+) -> Option<AudioFileMetadata> {
+    let result = extract_lofty_metadata(entry, path, format);
+    result.map(|mut meta| {
+        let is_dsd = meta.sample_rate.map_or(false, |sr| sr >= DSD_SAMPLE_RATE_THRESHOLD)
+            || meta.bit_depth == Some(1);
+        if is_dsd {
+            meta.format = "wv-dsd".to_string();
+        }
+        meta
+    })
+}
+
+fn extract_dsf_metadata(
+    entry: &FileScanEntry,
+    path: &Path,
+    format: String,
+) -> Option<AudioFileMetadata> {
+    let dsf = DsfFile::open(path).ok()?;
+    let fmt = dsf.fmt_chunk();
+    let sample_rate = fmt.sampling_frequency();
+    let sample_count = fmt.sample_count();
+    let duration_ms = if sample_rate > 0 {
+        Some((sample_count * 1000 / sample_rate as u64) as u64)
+    } else {
+        None
+    };
+    let bit_depth = if fmt.bits_per_sample() == 1 {
+        Some(1u8)
+    } else {
+        Some(fmt.bits_per_sample() as u8)
+    };
+    let bitrate = duration_ms.and_then(|ms| {
+        if ms > 0 {
+            Some((entry.file_size * 8 / 1000 / ms) as u32)
+        } else {
+            None
+        }
+    });
+
+    let tag = dsf.id3_tag().as_ref();
+    Some(AudioFileMetadata {
+        path: entry.path.clone(),
+        title: tag.and_then(|t| t.title().map(|s| s.to_string())),
+        artist: tag.and_then(|t| t.artist().map(|s| s.to_string())),
+        album: tag.and_then(|t| t.album().map(|s| s.to_string())),
+        duration_ms,
+        format,
+        last_modified: entry.last_modified,
+        bit_depth,
+        sample_rate: Some(sample_rate),
+        bitrate,
+        track_number: tag.and_then(|t| t.track()),
+        disc_number: tag.and_then(|t| t.disc()),
+        file_size: entry.file_size,
+    })
+}
+
+fn extract_dff_metadata(
+    entry: &FileScanEntry,
+    path: &Path,
+    format: String,
+) -> Option<AudioFileMetadata> {
+    let dff = DffFile::open(path).ok()?;
+    let sample_rate = dff.get_sample_rate().ok()?;
+    let num_channels = dff.get_num_channels().ok()?;
+    let audio_length = dff.get_audio_length();
+    let duration_ms = if sample_rate > 0 && num_channels > 0 {
+        let total_samples = audio_length * 8 / num_channels as u64;
+        Some((total_samples * 1000 / sample_rate as u64) as u64)
+    } else {
+        None
+    };
+    let bitrate = duration_ms.and_then(|ms| {
+        if ms > 0 {
+            Some((entry.file_size * 8 / 1000 / ms) as u32)
+        } else {
+            None
+        }
+    });
+
+    let tag = dff.id3_tag().as_ref();
+    Some(AudioFileMetadata {
+        path: entry.path.clone(),
+        title: tag.and_then(|t| t.title().map(|s| s.to_string())),
+        artist: tag.and_then(|t| t.artist().map(|s| s.to_string())),
+        album: tag.and_then(|t| t.album().map(|s| s.to_string())),
+        duration_ms,
+        format,
+        last_modified: entry.last_modified,
+        bit_depth: Some(1),
+        sample_rate: Some(sample_rate),
+        bitrate,
+        track_number: tag.and_then(|t| t.track()),
+        disc_number: tag.and_then(|t| t.disc()),
         file_size: entry.file_size,
     })
 }
