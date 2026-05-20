@@ -12,7 +12,7 @@ final songRepositoryProvider = Provider<SongRepository>((ref) {
 });
 
 /// Sort options for the song list.
-enum SongSortOption { albumArtist, title, artist, dateAdded, fileType, folder }
+enum SongSortOption { albumArtist, title, artist, dateAdded, fileType, folder, year, genre }
 
 /// A group of songs within the same folder.
 class FolderGroup {
@@ -197,6 +197,22 @@ class SongsState {
           final folderB = extractRelativeSubfolder(b.folderUri, b.filePath);
           final folderCompare = folderA.compareTo(folderB);
           if (folderCompare != 0) return folderCompare;
+          return a.title.compareTo(b.title);
+        });
+      case SongSortOption.year:
+        result.sort((a, b) {
+          final yearA = a.year ?? 0;
+          final yearB = b.year ?? 0;
+          final yearCompare = yearB.compareTo(yearA);
+          if (yearCompare != 0) return yearCompare;
+          return a.title.compareTo(b.title);
+        });
+      case SongSortOption.genre:
+        result.sort((a, b) {
+          final genreA = a.genre?.trim().isNotEmpty == true ? a.genre!.trim() : '\u{10FFFF}';
+          final genreB = b.genre?.trim().isNotEmpty == true ? b.genre!.trim() : '\u{10FFFF}';
+          final genreCompare = genreA.compareTo(genreB);
+          if (genreCompare != 0) return genreCompare;
           return a.title.compareTo(b.title);
         });
     }
