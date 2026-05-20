@@ -8,6 +8,7 @@
 
 import 'api/alac_converter_api.dart';
 import 'api/audio_api.dart';
+import 'api/metadata_editor.dart';
 import 'api/scanner.dart';
 import 'api/simple.dart';
 import 'api/uac2_api.dart';
@@ -85,6 +86,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScanOptions dco_decode_box_autoadd_scan_options(dynamic raw);
+
+  @protected
+  TagEditFields dco_decode_box_autoadd_tag_edit_fields(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
@@ -196,6 +200,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScanResult dco_decode_scan_result(dynamic raw);
+
+  @protected
+  TagEditFields dco_decode_tag_edit_fields(dynamic raw);
+
+  @protected
+  TagReadResult dco_decode_tag_read_result(dynamic raw);
+
+  @protected
+  TagWriteResult dco_decode_tag_write_result(dynamic raw);
 
   @protected
   int dco_decode_u_16(dynamic raw);
@@ -314,6 +327,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScanOptions sse_decode_box_autoadd_scan_options(SseDeserializer deserializer);
+
+  @protected
+  TagEditFields sse_decode_box_autoadd_tag_edit_fields(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
@@ -445,6 +463,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScanResult sse_decode_scan_result(SseDeserializer deserializer);
+
+  @protected
+  TagEditFields sse_decode_tag_edit_fields(SseDeserializer deserializer);
+
+  @protected
+  TagReadResult sse_decode_tag_read_result(SseDeserializer deserializer);
+
+  @protected
+  TagWriteResult sse_decode_tag_write_result(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_16(SseDeserializer deserializer);
@@ -585,6 +612,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_scan_options(
     ScanOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_tag_edit_fields(
+    TagEditFields self,
     SseSerializer serializer,
   );
 
@@ -746,6 +779,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_scan_result(ScanResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_tag_edit_fields(TagEditFields self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_tag_read_result(TagReadResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_tag_write_result(
+    TagWriteResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);
