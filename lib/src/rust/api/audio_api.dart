@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'audio_api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `ensure_audio_engine`, `prepare_decoder_source`, `read_audio_engine`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `with_audio_engine`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Check if native audio is available on this platform.
 bool audioIsNativeAvailable() =>
@@ -160,6 +160,7 @@ Future<void> audioSetFx({
 );
 
 /// Configure crossfade settings.
+/// Only available when not in bit-perfect (passthrough) mode.
 Future<void> audioSetCrossfade({
   required bool enabled,
   required double durationSecs,
@@ -192,6 +193,7 @@ AudioEventType? audioPollEvent() =>
     RustLib.instance.api.crateApiAudioApiAudioPollEvent();
 
 /// Set the crossfade curve type.
+/// Only available when not in bit-perfect (passthrough) mode.
 Future<void> audioSetCrossfadeCurve({required CrossfadeCurveType curve}) =>
     RustLib.instance.api.crateApiAudioApiAudioSetCrossfadeCurve(curve: curve);
 
