@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/features/songs/screens/metadata_editor_screen.dart';
 import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
@@ -125,6 +126,26 @@ class SongActionsBottomSheet extends ConsumerWidget {
               );
             },
           ),
+          if (song.filePath != null &&
+              song.startOffsetMs == null &&
+              !song.isExternal)
+            _buildActionTile(
+              context: context,
+              icon: LucideIcons.pencil,
+              label: 'Edit Metadata',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => MetadataEditorScreen(song: song),
+                  ),
+                ).then((saved) {
+                  if (saved == true && rootContext.mounted) {
+                    ref.invalidate(songsProvider);
+                  }
+                });
+              },
+            ),
           _buildActionTile(
             context: context,
             icon: LucideIcons.info,
@@ -595,6 +616,30 @@ class SongActionsBottomSheet extends ConsumerWidget {
                           sheetContext,
                           'Album Artist',
                           song.albumArtist!,
+                        ),
+                      if (song.genre != null)
+                        _buildMetadataRow(
+                          sheetContext,
+                          'Genre',
+                          song.genre!,
+                        ),
+                      if (song.year != null)
+                        _buildMetadataRow(
+                          sheetContext,
+                          'Year',
+                          song.year!.toString(),
+                        ),
+                      if (song.trackNumber != null)
+                        _buildMetadataRow(
+                          sheetContext,
+                          'Track',
+                          song.trackNumber!.toString(),
+                        ),
+                      if (song.discNumber != null)
+                        _buildMetadataRow(
+                          sheetContext,
+                          'Disc',
+                          song.discNumber!.toString(),
                         ),
                       _buildMetadataRow(
                         sheetContext,

@@ -206,6 +206,17 @@ class RustAudioEngine implements AudioEngine {
   }
 
   @override
+  void updateTrack(Song track) {
+    _loadedTrack = track;
+    _emit(
+      _state.copyWith(
+        currentTrack: track,
+        duration: track.duration,
+      ),
+    );
+  }
+
+  @override
   Future<void> dispose() async {
     for (final remove in _notifierUnsubscribers) {
       remove();

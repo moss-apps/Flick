@@ -101,4 +101,10 @@ class SongEntity {
   /// extracted. false means background extraction is still pending.
   @Index()
   bool metadataComplete = false;
+
+  /// Whether the user has edited metadata locally (title, artist, album, etc.).
+  /// When true, text metadata fields are preserved during library rescans instead
+  /// of being overwritten by file tags.
+  @Index()
+  bool hasLocalEdits = false;
 }

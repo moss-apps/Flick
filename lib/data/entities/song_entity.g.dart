@@ -75,45 +75,50 @@ const SongEntitySchema = CollectionSchema(
       type: IsarType.string,
     ),
     r'genre': PropertySchema(id: 17, name: r'genre', type: IsarType.string),
-    r'lastModified': PropertySchema(
+    r'hasLocalEdits': PropertySchema(
       id: 18,
+      name: r'hasLocalEdits',
+      type: IsarType.bool,
+    ),
+    r'lastModified': PropertySchema(
+      id: 19,
       name: r'lastModified',
       type: IsarType.dateTime,
     ),
     r'mediaStoreUri': PropertySchema(
-      id: 19,
+      id: 20,
       name: r'mediaStoreUri',
       type: IsarType.string,
     ),
     r'metadataComplete': PropertySchema(
-      id: 20,
+      id: 21,
       name: r'metadataComplete',
       type: IsarType.bool,
     ),
     r'readMode': PropertySchema(
-      id: 21,
+      id: 22,
       name: r'readMode',
       type: IsarType.string,
     ),
-    r'ripper': PropertySchema(id: 22, name: r'ripper', type: IsarType.string),
+    r'ripper': PropertySchema(id: 23, name: r'ripper', type: IsarType.string),
     r'sampleRate': PropertySchema(
-      id: 23,
+      id: 24,
       name: r'sampleRate',
       type: IsarType.long,
     ),
     r'startOffsetMs': PropertySchema(
-      id: 24,
+      id: 25,
       name: r'startOffsetMs',
       type: IsarType.long,
     ),
-    r'testCrc': PropertySchema(id: 25, name: r'testCrc', type: IsarType.string),
-    r'title': PropertySchema(id: 26, name: r'title', type: IsarType.string),
+    r'testCrc': PropertySchema(id: 26, name: r'testCrc', type: IsarType.string),
+    r'title': PropertySchema(id: 27, name: r'title', type: IsarType.string),
     r'trackNumber': PropertySchema(
-      id: 27,
+      id: 28,
       name: r'trackNumber',
       type: IsarType.long,
     ),
-    r'year': PropertySchema(id: 28, name: r'year', type: IsarType.long),
+    r'year': PropertySchema(id: 29, name: r'year', type: IsarType.long),
   },
 
   estimateSize: _songEntityEstimateSize,
@@ -213,6 +218,19 @@ const SongEntitySchema = CollectionSchema(
       properties: [
         IndexPropertySchema(
           name: r'metadataComplete',
+          type: IndexType.value,
+          caseSensitive: false,
+        ),
+      ],
+    ),
+    r'hasLocalEdits': IndexSchema(
+      id: -7363271847272433542,
+      name: r'hasLocalEdits',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'hasLocalEdits',
           type: IndexType.value,
           caseSensitive: false,
         ),
@@ -330,17 +348,18 @@ void _songEntitySerialize(
   writer.writeString(offsets[15], object.fileType);
   writer.writeString(offsets[16], object.folderUri);
   writer.writeString(offsets[17], object.genre);
-  writer.writeDateTime(offsets[18], object.lastModified);
-  writer.writeString(offsets[19], object.mediaStoreUri);
-  writer.writeBool(offsets[20], object.metadataComplete);
-  writer.writeString(offsets[21], object.readMode);
-  writer.writeString(offsets[22], object.ripper);
-  writer.writeLong(offsets[23], object.sampleRate);
-  writer.writeLong(offsets[24], object.startOffsetMs);
-  writer.writeString(offsets[25], object.testCrc);
-  writer.writeString(offsets[26], object.title);
-  writer.writeLong(offsets[27], object.trackNumber);
-  writer.writeLong(offsets[28], object.year);
+  writer.writeBool(offsets[18], object.hasLocalEdits);
+  writer.writeDateTime(offsets[19], object.lastModified);
+  writer.writeString(offsets[20], object.mediaStoreUri);
+  writer.writeBool(offsets[21], object.metadataComplete);
+  writer.writeString(offsets[22], object.readMode);
+  writer.writeString(offsets[23], object.ripper);
+  writer.writeLong(offsets[24], object.sampleRate);
+  writer.writeLong(offsets[25], object.startOffsetMs);
+  writer.writeString(offsets[26], object.testCrc);
+  writer.writeString(offsets[27], object.title);
+  writer.writeLong(offsets[28], object.trackNumber);
+  writer.writeLong(offsets[29], object.year);
 }
 
 SongEntity _songEntityDeserialize(
@@ -368,18 +387,19 @@ SongEntity _songEntityDeserialize(
   object.fileType = reader.readStringOrNull(offsets[15]);
   object.folderUri = reader.readStringOrNull(offsets[16]);
   object.genre = reader.readStringOrNull(offsets[17]);
+  object.hasLocalEdits = reader.readBool(offsets[18]);
   object.id = id;
-  object.lastModified = reader.readDateTimeOrNull(offsets[18]);
-  object.mediaStoreUri = reader.readStringOrNull(offsets[19]);
-  object.metadataComplete = reader.readBool(offsets[20]);
-  object.readMode = reader.readStringOrNull(offsets[21]);
-  object.ripper = reader.readStringOrNull(offsets[22]);
-  object.sampleRate = reader.readLongOrNull(offsets[23]);
-  object.startOffsetMs = reader.readLongOrNull(offsets[24]);
-  object.testCrc = reader.readStringOrNull(offsets[25]);
-  object.title = reader.readString(offsets[26]);
-  object.trackNumber = reader.readLongOrNull(offsets[27]);
-  object.year = reader.readLongOrNull(offsets[28]);
+  object.lastModified = reader.readDateTimeOrNull(offsets[19]);
+  object.mediaStoreUri = reader.readStringOrNull(offsets[20]);
+  object.metadataComplete = reader.readBool(offsets[21]);
+  object.readMode = reader.readStringOrNull(offsets[22]);
+  object.ripper = reader.readStringOrNull(offsets[23]);
+  object.sampleRate = reader.readLongOrNull(offsets[24]);
+  object.startOffsetMs = reader.readLongOrNull(offsets[25]);
+  object.testCrc = reader.readStringOrNull(offsets[26]);
+  object.title = reader.readString(offsets[27]);
+  object.trackNumber = reader.readLongOrNull(offsets[28]);
+  object.year = reader.readLongOrNull(offsets[29]);
   return object;
 }
 
@@ -427,26 +447,28 @@ P _songEntityDeserializeProp<P>(
     case 17:
       return (reader.readStringOrNull(offset)) as P;
     case 18:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 19:
-      return (reader.readStringOrNull(offset)) as P;
-    case 20:
       return (reader.readBool(offset)) as P;
-    case 21:
+    case 19:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 20:
       return (reader.readStringOrNull(offset)) as P;
+    case 21:
+      return (reader.readBool(offset)) as P;
     case 22:
       return (reader.readStringOrNull(offset)) as P;
     case 23:
-      return (reader.readLongOrNull(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 24:
       return (reader.readLongOrNull(offset)) as P;
     case 25:
-      return (reader.readStringOrNull(offset)) as P;
-    case 26:
-      return (reader.readString(offset)) as P;
-    case 27:
       return (reader.readLongOrNull(offset)) as P;
+    case 26:
+      return (reader.readStringOrNull(offset)) as P;
+    case 27:
+      return (reader.readString(offset)) as P;
     case 28:
+      return (reader.readLongOrNull(offset)) as P;
+    case 29:
       return (reader.readLongOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -621,6 +643,14 @@ extension SongEntityQueryWhereSort
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         const IndexWhereClause.any(indexName: r'metadataComplete'),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterWhere> anyHasLocalEdits() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'hasLocalEdits'),
       );
     });
   }
@@ -1377,6 +1407,62 @@ extension SongEntityQueryWhere
                 indexName: r'metadataComplete',
                 lower: [],
                 upper: [metadataComplete],
+                includeUpper: false,
+              ),
+            );
+      }
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterWhereClause> hasLocalEditsEqualTo(
+    bool hasLocalEdits,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(
+          indexName: r'hasLocalEdits',
+          value: [hasLocalEdits],
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterWhereClause>
+  hasLocalEditsNotEqualTo(bool hasLocalEdits) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'hasLocalEdits',
+                lower: [],
+                upper: [hasLocalEdits],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'hasLocalEdits',
+                lower: [hasLocalEdits],
+                includeLower: false,
+                upper: [],
+              ),
+            );
+      } else {
+        return query
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'hasLocalEdits',
+                lower: [hasLocalEdits],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'hasLocalEdits',
+                lower: [],
+                upper: [hasLocalEdits],
                 includeUpper: false,
               ),
             );
@@ -3418,6 +3504,15 @@ extension SongEntityQueryFilter
     });
   }
 
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  hasLocalEditsEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'hasLocalEdits', value: value),
+      );
+    });
+  }
+
   QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition> idEqualTo(
     Id value,
   ) {
@@ -4877,6 +4972,18 @@ extension SongEntityQuerySortBy
     });
   }
 
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy> sortByHasLocalEdits() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasLocalEdits', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy> sortByHasLocalEditsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasLocalEdits', Sort.desc);
+    });
+  }
+
   QueryBuilder<SongEntity, SongEntity, QAfterSortBy> sortByLastModified() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastModified', Sort.asc);
@@ -5229,6 +5336,18 @@ extension SongEntityQuerySortThenBy
     });
   }
 
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy> thenByHasLocalEdits() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasLocalEdits', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy> thenByHasLocalEditsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasLocalEdits', Sort.desc);
+    });
+  }
+
   QueryBuilder<SongEntity, SongEntity, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -5503,6 +5622,12 @@ extension SongEntityQueryWhereDistinct
     });
   }
 
+  QueryBuilder<SongEntity, SongEntity, QDistinct> distinctByHasLocalEdits() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'hasLocalEdits');
+    });
+  }
+
   QueryBuilder<SongEntity, SongEntity, QDistinct> distinctByLastModified() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'lastModified');
@@ -5696,6 +5821,12 @@ extension SongEntityQueryProperty
   QueryBuilder<SongEntity, String?, QQueryOperations> genreProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'genre');
+    });
+  }
+
+  QueryBuilder<SongEntity, bool, QQueryOperations> hasLocalEditsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'hasLocalEdits');
     });
   }
 

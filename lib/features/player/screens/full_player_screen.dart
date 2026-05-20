@@ -14,6 +14,7 @@ import 'package:flick/features/albums/screens/albums_screen.dart';
 import 'package:flick/features/artists/screens/artists_screen.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/features/player/widgets/share/share_bottom_sheet.dart';
+import 'package:flick/features/songs/screens/metadata_editor_screen.dart';
 import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/player_screen_mode.dart';
@@ -24,6 +25,7 @@ import 'package:flick/services/external_playback_service.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/providers/rating_provider.dart';
+import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/features/player/widgets/rating_button.dart';
 import 'package:flick/services/player_screen_mode_preference_service.dart';
 import 'package:flick/providers/album_color_provider.dart';
@@ -40,6 +42,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/uac2/uac2_error_notification.dart';
+import 'package:flick/widgets/uac2/iso_volume_popup.dart';
+import 'package:flick/services/uac2_preferences_service.dart';
+import 'package:flick/providers/providers.dart';
 
 class FullPlayerScreen extends ConsumerStatefulWidget {
   final Object heroTag;
@@ -84,6 +89,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   PlayerScreenMode _playerScreenMode = PlayerScreenMode.immersive;
   int _immersiveAutoFullViewDelaySeconds = 0;
   Timer? _immersiveFullViewTimer;
+  final GlobalKey _usbVolumeButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -1184,6 +1190,26 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   );
                 },
               ),
+              if (song.filePath != null &&
+                  song.startOffsetMs == null &&
+                  !song.isExternal)
+                _buildSongActionTile(
+                  context: sheetContext,
+                  icon: LucideIcons.pencil,
+                  label: 'Edit Metadata',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => MetadataEditorScreen(song: song),
+                      ),
+                    ).then((saved) {
+                      if (saved == true) {
+                        ref.invalidate(songsProvider);
+                      }
+                    });
+                  },
+                ),
               _buildSongActionTile(
                 context: sheetContext,
                 icon: LucideIcons.info,
@@ -1392,6 +1418,16 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             ),
             if (song.resolution != null)
               _buildMetadataRow(sheetContext, 'Resolution', song.resolution!),
+            if (song.albumArtist != null)
+              _buildMetadataRow(sheetContext, 'Album Artist', song.albumArtist!),
+            if (song.genre != null)
+              _buildMetadataRow(sheetContext, 'Genre', song.genre!),
+            if (song.year != null)
+              _buildMetadataRow(sheetContext, 'Year', song.year!.toString()),
+            if (song.trackNumber != null)
+              _buildMetadataRow(sheetContext, 'Track', song.trackNumber!.toString()),
+            if (song.discNumber != null)
+              _buildMetadataRow(sheetContext, 'Disc', song.discNumber!.toString()),
             if (song.filePath != null)
               _buildMetadataRow(sheetContext, 'File Path', song.filePath!),
           ],
@@ -1775,6 +1811,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           inactiveBg: inactiveBg,
           inactiveBorder: inactiveBorder,
         );
+      case PlayerActionButton.usbVolume:
+        return _buildUsbVolumeButton(
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+        );
     }
   }
 
@@ -2067,6 +2111,49 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           ),
           child: Icon(
             LucideIcons.share2,
+            color: Colors.white.withValues(alpha: 0.96),
+            size: actionIconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUsbVolumeButton({
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+  }) {
+    final enginePref = ref.watch(audioEnginePreferenceProvider);
+    final isIsochronous = enginePref.when(
+      data: (e) => e == AudioEnginePreference.isochronousUsb,
+      loading: () => false,
+      error: (_, _) => false,
+    );
+
+    if (!isIsochronous) {
+      return SizedBox(
+        width: actionIconSize + actionPadding.horizontal,
+        height: actionIconSize + actionPadding.vertical,
+      );
+    }
+
+    return Tooltip(
+      message: 'USB Volume',
+      child: GestureDetector(
+        key: _usbVolumeButtonKey,
+        onTap: () => showIsoVolumePopup(context, _usbVolumeButtonKey),
+        child: Container(
+          padding: actionPadding,
+          decoration: BoxDecoration(
+            color: inactiveBg,
+            borderRadius: BorderRadius.circular(actionRadius),
+            border: Border.all(color: inactiveBorder),
+          ),
+          child: Icon(
+            LucideIcons.volume2,
             color: Colors.white.withValues(alpha: 0.96),
             size: actionIconSize,
           ),

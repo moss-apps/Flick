@@ -378,7 +378,7 @@ class EqualizerState {
   final List<double> graphicGainsDb; // length = 10
 
   /// Parametric bands (UI only).
-  /// Starts with 5 bands but can grow up to a configurable maximum.
+  /// Starts with 31 bands (1/3-octave ISO centers) up to a configurable maximum.
   final List<ParametricBand> parametricBands;
 
   /// Active preset name (optional display).
@@ -441,21 +441,21 @@ class EqualizerState {
   ];
 
   static const List<double> defaultParametricFrequenciesHz = <double>[
-    80,
-    250,
-    1000,
-    4000,
-    12000,
+    20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160,
+    200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600,
+    2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000,
+    20000,
   ];
 
   static EqualizerState initial() {
+    const defaultBands = 10;
     return EqualizerState(
       enabled: true,
       mode: EqMode.graphic,
       preampDb: 0.0,
       graphicGainsDb: List<double>.filled(10, 0.0, growable: false),
       parametricBands: List<ParametricBand>.generate(
-        5,
+        defaultBands,
         (i) => ParametricBand(frequencyHz: defaultParametricFrequenciesHz[i]),
         growable: false,
       ),
@@ -507,7 +507,7 @@ class EqualizerState {
           : gains,
       parametricBands: bands.isEmpty
           ? List<ParametricBand>.generate(
-              5,
+              10,
               (i) => ParametricBand(
                 frequencyHz: defaultParametricFrequenciesHz[i],
               ),
@@ -576,7 +576,7 @@ class EqualizerNotifier extends Notifier<EqualizerState> {
   static const double fxFeedbackMax = 0.95;
   static const double fxWidthMin = 0.0;
   static const double fxWidthMax = 2.0;
-  static const int maxParametricBands = 10;
+  static const int maxParametricBands = 31;
 
   static const String _eqStateKey = 'eq_state_v1';
 
@@ -712,7 +712,7 @@ class EqualizerNotifier extends Notifier<EqualizerState> {
     state = state.copyWith(
       preampDb: 0.0,
       parametricBands: List<ParametricBand>.generate(
-        5,
+        10,
         (i) => ParametricBand(
           frequencyHz: EqualizerState.defaultParametricFrequenciesHz[i],
         ),
@@ -944,8 +944,17 @@ class EqualizerNotifier extends Notifier<EqualizerState> {
     }
 
     final current = state.parametricBands;
-    final lastFreq = current.isNotEmpty ? current.last.frequencyHz : 1000.0;
-    final suggested = (lastFreq * 2).clamp(20.0, 20000.0).toDouble();
+    final existingFreqs =
+        current.map((b) => b.frequencyHz.round()).toSet();
+
+    // Try to pick the next unused frequency from the default ISO list
+    double suggested = 1000.0;
+    for (final f in EqualizerState.defaultParametricFrequenciesHz) {
+      if (!existingFreqs.contains(f.round())) {
+        suggested = f;
+        break;
+      }
+    }
 
     final next = List<ParametricBand>.of(current)
       ..add(ParametricBand(frequencyHz: suggested));

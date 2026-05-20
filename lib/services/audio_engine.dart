@@ -10,4 +10,6 @@ abstract class AudioEngine {
   Future<void> stop();
   Future<void> seek(Duration position);
   Future<void> dispose();
+
+  void updateTrack(Song track);
 }

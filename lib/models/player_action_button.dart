@@ -9,6 +9,7 @@ enum PlayerActionButton {
   queue,
   sleepTimer,
   share,
+  usbVolume,
 }
 
 extension PlayerActionButtonX on PlayerActionButton {
@@ -28,6 +29,8 @@ extension PlayerActionButtonX on PlayerActionButton {
         return 'sleep_timer';
       case PlayerActionButton.share:
         return 'share';
+      case PlayerActionButton.usbVolume:
+        return 'usb_volume';
     }
   }
 
@@ -47,6 +50,8 @@ extension PlayerActionButtonX on PlayerActionButton {
         return 'Sleep Timer';
       case PlayerActionButton.share:
         return 'Share';
+      case PlayerActionButton.usbVolume:
+        return 'USB Volume';
     }
   }
 
@@ -66,6 +71,8 @@ extension PlayerActionButtonX on PlayerActionButton {
         return LucideIcons.moonStar;
       case PlayerActionButton.share:
         return LucideIcons.share2;
+      case PlayerActionButton.usbVolume:
+        return LucideIcons.volume2;
     }
   }
 
@@ -83,6 +90,8 @@ extension PlayerActionButtonX on PlayerActionButton {
         return PlayerActionButton.sleepTimer;
       case 'share':
         return PlayerActionButton.share;
+      case 'usb_volume':
+        return PlayerActionButton.usbVolume;
       case 'lyrics':
       default:
         return PlayerActionButton.lyrics;

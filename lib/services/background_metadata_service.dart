@@ -93,10 +93,13 @@ class BackgroundMetadataService {
             if (meta != null) {
               song.sampleRate = meta.sampleRate ?? song.sampleRate;
               song.bitDepth = meta.bitDepth ?? song.bitDepth;
-              song.discNumber = meta.discNumber ?? song.discNumber;
-              song.albumArtist = (meta.albumArtist?.trim().isNotEmpty ?? false)
-                  ? meta.albumArtist!.trim()
-                  : song.albumArtist;
+              if (!song.hasLocalEdits) {
+                song.discNumber = meta.discNumber ?? song.discNumber;
+                song.albumArtist =
+                    (meta.albumArtist?.trim().isNotEmpty ?? false)
+                        ? meta.albumArtist!.trim()
+                        : song.albumArtist;
+              }
             }
             song.metadataComplete = true;
             updateBatch.add(song);

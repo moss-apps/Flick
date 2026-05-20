@@ -60,6 +60,12 @@ class Song {
   /// Disc number within a multi-disc release
   final int? discNumber;
 
+  /// Year of release
+  final int? year;
+
+  /// Genre
+  final String? genre;
+
   /// File path on device
   final String? filePath;
 
@@ -96,6 +102,8 @@ class Song {
     this.albumArtist,
     this.trackNumber,
     this.discNumber,
+    this.year,
+    this.genre,
     this.filePath,
     this.folderUri,
     this.dateAdded,
@@ -139,6 +147,8 @@ class Song {
     String? albumArtist,
     int? trackNumber,
     int? discNumber,
+    int? year,
+    String? genre,
     String? filePath,
     String? folderUri,
     DateTime? dateAdded,
@@ -166,6 +176,8 @@ class Song {
       albumArtist: albumArtist ?? this.albumArtist,
       trackNumber: trackNumber ?? this.trackNumber,
       discNumber: discNumber ?? this.discNumber,
+      year: year ?? this.year,
+      genre: genre ?? this.genre,
       filePath: filePath ?? this.filePath,
       folderUri: folderUri ?? this.folderUri,
       dateAdded: dateAdded ?? this.dateAdded,

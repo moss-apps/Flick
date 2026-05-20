@@ -212,6 +212,10 @@ class SortFilterBottomSheet extends StatelessWidget {
         return LucideIcons.file;
       case SongSortOption.folder:
         return LucideIcons.folder;
+      case SongSortOption.year:
+        return LucideIcons.calendarDays;
+      case SongSortOption.genre:
+        return LucideIcons.music;
     }
   }
 
@@ -229,6 +233,10 @@ class SortFilterBottomSheet extends StatelessWidget {
         return 'Format';
       case SongSortOption.folder:
         return 'Folder';
+      case SongSortOption.year:
+        return 'Year';
+      case SongSortOption.genre:
+        return 'Genre';
     }
   }
 }

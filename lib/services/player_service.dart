@@ -1948,9 +1948,19 @@ class PlayerService {
     final currentSong = _songAtCurrentIndex();
     if (currentSong != null) {
       currentSongNotifier.value = currentSong;
+      _playbackManager.updateTrack(currentSong);
     }
     _consumeQueueEntryAt(_currentIndex);
     _updatePriorityAnchor();
+
+    if (_usingRustBackend && currentSong != null) {
+      final expectedPath = await _resolveRustPath(currentSong);
+      final enginePath = _rustAudioService.currentPath;
+      if (expectedPath != null && enginePath != expectedPath) {
+        await _playSongAtCurrentIndex();
+        return;
+      }
+    }
 
     unawaited(_queueNextTrackForGapless());
 

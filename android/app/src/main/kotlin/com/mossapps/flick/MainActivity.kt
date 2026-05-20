@@ -479,6 +479,26 @@ class MainActivity: FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "folderTreeUri and filePath are required", null)
                     }
                 }
+                "writeFileBytesViaSaf" -> {
+                    val folderTreeUri = call.argument<String>("folderTreeUri")
+                    val filePath = call.argument<String>("filePath")
+                    val tempFilePath = call.argument<String>("tempFilePath")
+                    if (folderTreeUri != null && filePath != null && tempFilePath != null) {
+                        mainScope.launch {
+                            try {
+                                val success = withContext(Dispatchers.IO) {
+                                    writeFileBytesViaSaf(folderTreeUri, filePath, tempFilePath)
+                                }
+                                result.success(success)
+                            } catch (e: Exception) {
+                                Log.w("MainActivity", "[MethodChannel] writeFileBytesViaSaf error: ${e.message}", e)
+                                result.success(false)
+                            }
+                        }
+                    } else {
+                        result.error("INVALID_ARGUMENT", "folderTreeUri, filePath, and tempFilePath are required", null)
+                    }
+                }
                 "queryMediaStoreAudio" -> {
                     val folderPaths = call.argument<List<String>>("folderPaths")
                     mainScope.launch {
@@ -1270,6 +1290,69 @@ class MainActivity: FlutterActivity() {
             }
         } catch (e: Exception) {
             Log.w("MainActivity", "deleteDocumentViaSaf failed: ${e.message}", e)
+            false
+        }
+    }
+
+    private fun writeFileBytesViaSaf(folderTreeUri: String, filePath: String, tempFilePath: String): Boolean {
+        return try {
+            val treeUri = Uri.parse(folderTreeUri)
+            val treeDocId = DocumentsContract.getTreeDocumentId(treeUri)
+            val decodedId = Uri.decode(treeDocId)
+            val parts = decodedId.split(":", limit = 2)
+            if (parts.isEmpty()) return false
+
+            val volumeId = parts[0]
+            val relativeFolderPath = parts.getOrNull(1)?.trim('/') ?: ""
+            val basePath = when (volumeId.lowercase()) {
+                "primary" -> Environment.getExternalStorageDirectory().absolutePath
+                "home" -> Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOCUMENTS
+                ).absolutePath
+                else -> "/storage/$volumeId"
+            }
+
+            val folderBase = if (relativeFolderPath.isEmpty()) {
+                File(basePath)
+            } else {
+                File("$basePath/$relativeFolderPath")
+            }
+            val canonicalBase = folderBase.canonicalPath.trimEnd('/')
+            val canonicalFile = File(filePath).canonicalPath.trimEnd('/')
+
+            if (!canonicalFile.startsWith("$canonicalBase/") && canonicalFile != canonicalBase) {
+                Log.w("MainActivity", "writeFileBytesViaSaf: file $filePath is not under tree $folderTreeUri")
+                return false
+            }
+
+            val relativePath = if (canonicalFile == canonicalBase) {
+                ""
+            } else {
+                canonicalFile.removePrefix("$canonicalBase/")
+            }
+
+            val childDocId = if (relativePath.isEmpty()) treeDocId else "$treeDocId/$relativePath"
+            val childUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, childDocId)
+
+            val tempFile = File(tempFilePath)
+            if (!tempFile.exists()) {
+                Log.w("MainActivity", "writeFileBytesViaSaf: temp file not found: $tempFilePath")
+                return false
+            }
+
+            val bytes = tempFile.readBytes()
+            contentResolver.openOutputStream(childUri, "wt")?.use { output ->
+                output.write(bytes)
+                output.flush()
+            } ?: run {
+                Log.w("MainActivity", "writeFileBytesViaSaf: failed to open output stream for $childUri")
+                return false
+            }
+
+            tempFile.delete()
+            true
+        } catch (e: Exception) {
+            Log.w("MainActivity", "writeFileBytesViaSaf failed: ${e.message}", e)
             false
         }
     }

@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -13,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/services/eq_preset_file_service.dart';
@@ -38,6 +40,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   final _graphicGraphKey = GlobalKey();
   final _parametricGraphKey = GlobalKey();
   bool _showMiniGraph = false;
+  bool _graphReached = false;
 
   @override
   void initState() {
@@ -72,11 +75,18 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     final screenHeight = MediaQuery.sizeOf(context).height;
 
     final isVisible = graphBottom > 0 && graphTop < screenHeight;
-    final shouldShow = !isVisible;
+    final shouldShowMini = _graphReached && !isVisible;
 
-    if (_showMiniGraph != shouldShow) {
-      setState(() => _showMiniGraph = shouldShow);
+    bool changed = false;
+    if (_showMiniGraph != shouldShowMini) {
+      _showMiniGraph = shouldShowMini;
+      changed = true;
     }
+    if (isVisible && !_graphReached) {
+      _graphReached = true;
+      changed = true;
+    }
+    if (changed) setState(() {});
   }
 
   void _scrollToGraph() {
@@ -123,33 +133,46 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
               onBack: () => Navigator.of(context).pop(),
               onPresets: _showPresetsBottomSheet,
             ),
-            AnimatedSwitcher(
+            AnimatedSize(
               duration: AppConstants.animationNormal,
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              child: _showMiniGraph
-                  ? Padding(
-                      key: const ValueKey('miniGraph'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppConstants.spacingMd,
-                      ),
-                      child: GestureDetector(
-                        onTap: _scrollToGraph,
-                        child: _GlassCard(
-                          child: Container(
-                            height: 56,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppConstants.spacingMd,
-                              vertical: AppConstants.spacingSm,
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: _graphReached
+                  ? IgnorePointer(
+                      ignoring: !_showMiniGraph,
+                      child: AnimatedOpacity(
+                        opacity: _showMiniGraph ? 1.0 : 0.0,
+                        duration: AppConstants.animationNormal,
+                        curve: Curves.easeOutCubic,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppConstants.spacingMd,
+                          ),
+                          child: GestureDetector(
+                            onTap: _scrollToGraph,
+                            child: _GlassCard(
+                              child: Container(
+                                height: 56,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppConstants.spacingMd,
+                                  vertical: AppConstants.spacingSm,
+                                ),
+                                child: const _MiniEqGraphPreview(),
+                              ),
                             ),
-                            child: const _MiniEqGraphPreview(),
                           ),
                         ),
                       ),
                     )
-                  : const SizedBox.shrink(key: ValueKey('noMiniGraph')),
+                  : const SizedBox.shrink(),
             ),
-            const SizedBox(height: AppConstants.spacingMd),
+            AnimatedSize(
+              duration: AppConstants.animationNormal,
+              curve: Curves.easeOutCubic,
+              child: SizedBox(
+                height: _graphReached ? AppConstants.spacingMd : 0,
+              ),
+            ),
             Expanded(
               child: RepaintBoundary(
                 child: SingleChildScrollView(
@@ -1757,12 +1780,32 @@ class _GraphicBandSlider extends ConsumerWidget {
   }
 }
 
-class _ParametricEqView extends ConsumerWidget {
+class _ParametricEqView extends ConsumerStatefulWidget {
   final GlobalKey? graphKey;
   const _ParametricEqView({super.key, this.graphKey});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ParametricEqView> createState() => _ParametricEqViewState();
+}
+
+class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
+  int? _selectedIndex;
+  final _bandScrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _bandScrollController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _bandScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final enabled = ref.watch(eqEnabledProvider);
     final bands = ref.watch(
       equalizerProvider.select(
@@ -1791,14 +1834,14 @@ class _ParametricEqView extends ConsumerWidget {
               label: 'Multi-filter bands',
             ),
             _StatPill(
-              icon: LucideIcons.plus,
-              label: 'Add up to ${EqualizerNotifier.maxParametricBands} bands',
+              icon: LucideIcons.slidersHorizontal,
+              label: '${bands.length}/31 bands',
             ),
           ],
         ),
         const SizedBox(height: AppConstants.spacingMd),
         _GlassCard(
-          key: graphKey,
+          key: widget.graphKey,
           child: InkWell(
             onTap: () {
               Navigator.of(context).push(
@@ -1819,7 +1862,7 @@ class _ParametricEqView extends ConsumerWidget {
                     icon: LucideIcons.gitBranchPlus,
                     title: 'Curve Preview',
                     subtitle:
-                        'Per-band filter types with independent frequency, gain, and Q shaping. Tap to interact.',
+                        '${bands.length} parametric bands with independent frequency, gain, and Q shaping. Tap to interact.',
                     trailing: Icon(
                       LucideIcons.maximize2,
                       size: 16,
@@ -1856,46 +1899,46 @@ class _ParametricEqView extends ConsumerWidget {
                     icon: LucideIcons.slidersHorizontal,
                     title: 'Band Editors',
                     subtitle:
-                        'Choose a filter type for each band, then fine-tune the curve.',
+                        'Tap a band to expand. Drag a knob to adjust. Tap a value to type directly.',
                   ),
                   const SizedBox(height: AppConstants.spacingMd),
-                  ListView.separated(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: bands.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppConstants.spacingMd),
-                    itemBuilder: (context, i) {
-                      return _ParametricBandEditor(index: i, enabled: enabled);
-                    },
-                  ),
-                  const SizedBox(height: AppConstants.spacingMd),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed:
-                          enabled &&
-                              bands.length <
-                                  EqualizerNotifier.maxParametricBands
-                          ? () => ref
-                                .read(equalizerProvider.notifier)
-                                .addParametricBand()
-                          : null,
-                      icon: const Icon(LucideIcons.plus, size: 18),
-                      label: Text(
-                        bands.length >= EqualizerNotifier.maxParametricBands
-                            ? 'Band limit reached'
-                            : 'Add band',
-                        style: const TextStyle(
-                          fontFamily: 'ProductSans',
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: context.adaptiveTextPrimary,
-                      ),
+                  SizedBox(
+                    height: 300,
+                    child: ListView.separated(
+                      controller: _bandScrollController,
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: bands.length + 1,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(width: AppConstants.spacingMd),
+                      itemBuilder: (context, i) {
+                        if (i == bands.length) {
+                          return _AddBandCard(enabled: enabled);
+                        }
+                        return _ParametricBandEditor(
+                          index: i,
+                          enabled: enabled,
+                          isSelected: _selectedIndex == i,
+                          onTap: () => setState(() {
+                            _selectedIndex =
+                                _selectedIndex == i ? null : i;
+                          }),
+                        );
+                      },
                     ),
                   ),
+                  const SizedBox(height: AppConstants.spacingSm),
+                  _ScrollProgressBar(
+                    controller: _bandScrollController,
+                  ),
+                  if (_selectedIndex != null &&
+                      _selectedIndex! < bands.length) ...[
+                    const SizedBox(height: AppConstants.spacingMd),
+                    _BandDetailPanel(
+                      index: _selectedIndex!,
+                      enabled: enabled,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1922,70 +1965,120 @@ class _ParametricBandSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppConstants.spacingSm,
-      runSpacing: AppConstants.spacingSm,
-      children: List<Widget>.generate(bands.length, (index) {
-        final band = bands[index];
-        final active = enabled && band.enabled;
-        final gainLabel = band.type == ParametricBandType.notch
-            ? '${band.gainDb.abs().toStringAsFixed(1)} dB cut'
-            : '${band.gainDb >= 0 ? '+' : ''}${band.gainDb.toStringAsFixed(1)} dB';
-        final valueLabel = band.type.supportsGain
-            ? '${band.type.displayName}  •  $gainLabel'
-            : band.type.displayName;
-        return AnimatedContainer(
-          duration: AppConstants.animationFast,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppConstants.spacingSm,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: active
-                ? AppColors.glassBackgroundStrong.withValues(alpha: 0.55)
-                : AppColors.glassBackground,
-            borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-            border: Border.all(
-              color: active
-                  ? AppColors.glassBorderStrong
-                  : AppColors.glassBorder.withValues(alpha: 0.6),
+    return SizedBox(
+      height: 34,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: bands.length,
+        itemBuilder: (context, index) {
+          final band = bands[index];
+          final active = enabled && band.enabled;
+          final gainLabel = band.type == ParametricBandType.notch
+              ? '${band.gainDb.abs().toStringAsFixed(1)} dB cut'
+              : '${band.gainDb >= 0 ? '+' : ''}${band.gainDb.toStringAsFixed(1)} dB';
+          final valueLabel = band.type.supportsGain
+              ? '${band.type.displayName}  \u2022  $gainLabel'
+              : band.type.displayName;
+          return Padding(
+            padding: const EdgeInsets.only(right: AppConstants.spacingSm),
+            child: AnimatedContainer(
+              duration: AppConstants.animationFast,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingSm,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: active
+                    ? AppColors.glassBackgroundStrong.withValues(alpha: 0.55)
+                    : AppColors.glassBackground,
+                borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+                border: Border.all(
+                  color: active
+                      ? AppColors.glassBorderStrong
+                      : AppColors.glassBorder.withValues(alpha: 0.6),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'B${index + 1}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: active
+                          ? context.adaptiveTextPrimary
+                          : context.adaptiveTextTertiary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_hzLabel(band.frequencyHz)}  \u2022  $valueLabel',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: active
+                          ? context.adaptiveTextSecondary
+                          : context.adaptiveTextTertiary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'B${index + 1}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: active
-                      ? context.adaptiveTextPrimary
-                      : context.adaptiveTextTertiary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${_hzLabel(band.frequencyHz)}  •  $valueLabel',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: active
-                      ? context.adaptiveTextSecondary
-                      : context.adaptiveTextTertiary,
-                ),
-              ),
-            ],
-          ),
-        );
-      }),
+          );
+        },
+      ),
     );
   }
 }
 
-class _ParametricBandEditor extends ConsumerWidget {
+class _ScrollProgressBar extends StatelessWidget {
+  final ScrollController controller;
+
+  const _ScrollProgressBar({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        double progress = 0.0;
+        try {
+          if (controller.hasClients && controller.positions.isNotEmpty) {
+            final max = controller.position.maxScrollExtent;
+            if (max > 0) {
+              progress = controller.offset / max;
+            }
+          }
+        } catch (_) {}
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 3,
+              backgroundColor: AppColors.glassBorder,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.glassBorderStrong,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BandDetailPanel extends ConsumerStatefulWidget {
   final int index;
   final bool enabled;
 
-  const _ParametricBandEditor({required this.index, required this.enabled});
+  const _BandDetailPanel({required this.index, required this.enabled});
 
+  @override
+  ConsumerState<_BandDetailPanel> createState() => _BandDetailPanelState();
+}
+
+class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
   static const double _minHz = 20.0;
   static const double _maxHz = 20000.0;
 
@@ -2011,249 +2104,880 @@ class _ParametricBandEditor extends ConsumerWidget {
     return '${hz.toStringAsFixed(0)} Hz';
   }
 
+  void _showEditor({
+    required BuildContext context,
+    required double value,
+    required String unit,
+    required String label,
+    required double min,
+    required double max,
+    required ValueChanged<double> onSubmitted,
+  }) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black.withValues(alpha: 0.3),
+      pageBuilder: (_, __, ___) => _InlineValueEditor(
+        initialValue: value,
+        unit: unit,
+        label: label,
+        min: min,
+        max: max,
+        onSubmitted: onSubmitted,
+      ),
+      transitionBuilder: (context, anim, __, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
+          child: ScaleTransition(
+            scale: CurvedAnimation(
+              parent: anim,
+              curve: Curves.easeOutBack,
+            ),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final band = ref.watch(eqParamBandProvider(widget.index));
+    final editable = widget.enabled && band.enabled;
+    final toneColor = band.gainDb > 0.1
+        ? const Color(0xFFE0B66B)
+        : (band.gainDb < -0.1
+            ? const Color(0xFF7AB6D9)
+            : context.adaptiveTextTertiary);
+
+    return AnimatedContainer(
+      duration: AppConstants.animationNormal,
+      curve: Curves.easeOutCubic,
+      padding: const EdgeInsets.all(AppConstants.spacingMd),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+        border: Border.all(
+          color: toneColor.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: AppColors.glassBackground,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${widget.index + 1}',
+                  style: const TextStyle(
+                    fontFamily: 'ProductSans',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingSm),
+              Expanded(
+                child: Text(
+                  'Band ${widget.index + 1}  \u2022  ${band.type.displayName}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.adaptiveTextPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              _BandTypeDropdown(
+                value: band.type,
+                compact: false,
+                onChanged: editable
+                    ? (type) => ref
+                        .read(equalizerProvider.notifier)
+                        .setParamBandType(widget.index, type)
+                    : null,
+              ),
+              const SizedBox(width: AppConstants.spacingSm),
+              _PillSwitch(
+                value: band.enabled,
+                onChanged: widget.enabled
+                    ? (v) => ref
+                        .read(equalizerProvider.notifier)
+                        .setParamBandEnabled(widget.index, v)
+                    : (_) {},
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _DetailKnob(
+                label: 'Frequency',
+                value: _hzLabel(band.frequencyHz),
+                knob: _RotaryKnob(
+                  value: _hzToT(band.frequencyHz),
+                  min: 0.0,
+                  max: 1.0,
+                  size: 100,
+                  onChanged: editable
+                      ? (t) => ref
+                          .read(equalizerProvider.notifier)
+                          .setParamBandFreqHz(widget.index, _tToHz(t))
+                      : null,
+                  label: 'Freq',
+                ),
+                onTapValue: editable
+                    ? () => _showEditor(
+                          context: context,
+                          value: band.frequencyHz,
+                          unit: 'Hz',
+                          label: 'Frequency',
+                          min: 20.0,
+                          max: 20000.0,
+                          onSubmitted: (v) => ref
+                              .read(equalizerProvider.notifier)
+                              .setParamBandFreqHz(widget.index, v),
+                        )
+                    : null,
+              ),
+              if (band.type.supportsGain)
+                _DetailKnob(
+                  label: band.type == ParametricBandType.notch
+                      ? 'Notch Depth'
+                      : 'Gain',
+                  value: band.type == ParametricBandType.notch
+                      ? '${band.gainDb.abs().toStringAsFixed(1)} dB'
+                      : '${band.gainDb >= 0 ? '+' : ''}${band.gainDb.toStringAsFixed(1)} dB',
+                  knob: _RotaryKnob(
+                    value: band.type == ParametricBandType.notch
+                        ? band.gainDb.abs()
+                        : band.gainDb,
+                    min: band.type == ParametricBandType.notch
+                        ? 0.0
+                        : EqualizerNotifier.gainMinDb,
+                    max: EqualizerNotifier.gainMaxDb,
+                    size: 100,
+                    onChanged: editable
+                        ? (v) => ref
+                            .read(equalizerProvider.notifier)
+                            .setParamBandGainDb(
+                              widget.index,
+                              band.type == ParametricBandType.notch
+                                  ? -v.abs()
+                                  : v,
+                            )
+                        : null,
+                    label: 'Gain',
+                    accentColor: toneColor,
+                  ),
+                  onTapValue: editable
+                      ? () => _showEditor(
+                            context: context,
+                            value: band.type == ParametricBandType.notch
+                                ? band.gainDb.abs()
+                                : band.gainDb,
+                            unit: 'dB',
+                            label: band.type == ParametricBandType.notch
+                                ? 'Notch Depth'
+                                : 'Gain',
+                            min: band.type == ParametricBandType.notch
+                                ? 0.0
+                                : EqualizerNotifier.gainMinDb,
+                            max: EqualizerNotifier.gainMaxDb,
+                            onSubmitted: (v) => ref
+                                .read(equalizerProvider.notifier)
+                                .setParamBandGainDb(
+                                  widget.index,
+                                  band.type == ParametricBandType.notch
+                                      ? -v.abs()
+                                      : v,
+                                ),
+                          )
+                      : null,
+                  accentColor: toneColor,
+                ),
+              _DetailKnob(
+                label: band.type.qLabel,
+                value: band.q.toStringAsFixed(2),
+                knob: _RotaryKnob(
+                  value: band.q,
+                  min: 0.2,
+                  max: 10.0,
+                  size: 100,
+                  onChanged: editable
+                      ? (v) => ref
+                          .read(equalizerProvider.notifier)
+                          .setParamBandQ(widget.index, v)
+                      : null,
+                  label: band.type.qLabel,
+                ),
+                onTapValue: editable
+                    ? () => _showEditor(
+                          context: context,
+                          value: band.q,
+                          unit: 'Q',
+                          label: band.type.qLabel,
+                          min: 0.2,
+                          max: 10.0,
+                          onSubmitted: (v) => ref
+                              .read(equalizerProvider.notifier)
+                              .setParamBandQ(widget.index, v),
+                        )
+                    : null,
+              ),
+            ],
+          ),
+          if (editable) ...[
+            const SizedBox(height: AppConstants.spacingSm),
+            Center(
+              child: GestureDetector(
+                onTap: () => ref
+                    .read(equalizerProvider.notifier)
+                    .setParamBandGainDb(widget.index, 0.0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.spacingMd,
+                    vertical: AppConstants.spacingXs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.glassBackground,
+                    borderRadius: BorderRadius.circular(
+                      AppConstants.radiusRound,
+                    ),
+                    border: Border.all(color: AppColors.glassBorder),
+                  ),
+                  child: Text(
+                    'Reset to 0 dB',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: context.adaptiveTextSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailKnob extends StatelessWidget {
+  final String label;
+  final String value;
+  final Widget knob;
+  final VoidCallback? onTapValue;
+  final Color? accentColor;
+
+  const _DetailKnob({
+    required this.label,
+    required this.value,
+    required this.knob,
+    this.onTapValue,
+    this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: context.adaptiveTextTertiary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppConstants.spacingXs),
+        knob,
+        const SizedBox(height: AppConstants.spacingXs),
+        GestureDetector(
+          onTap: onTapValue,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConstants.spacingSm,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.glassBackground.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+            ),
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: accentColor ?? context.adaptiveTextPrimary,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'ProductSans',
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InlineValueEditor extends StatefulWidget {
+  final double initialValue;
+  final String unit;
+  final String label;
+  final ValueChanged<double> onSubmitted;
+  final double min;
+  final double max;
+
+  const _InlineValueEditor({
+    required this.initialValue,
+    required this.unit,
+    required this.label,
+    required this.onSubmitted,
+    this.min = 0.0,
+    this.max = double.infinity,
+  });
+
+  @override
+  State<_InlineValueEditor> createState() => _InlineValueEditorState();
+}
+
+class _InlineValueEditorState extends State<_InlineValueEditor> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.initialValue.toStringAsFixed(
+        widget.unit == 'dB' || widget.unit == 'Q' ? 2 : 0,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final parsed = double.tryParse(_controller.text.trim());
+    if (parsed != null) {
+      widget.onSubmitted(parsed.clamp(widget.min, widget.max).toDouble());
+    }
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      behavior: HitTestBehavior.translucent,
+      child: Container(
+        color: Colors.transparent,
+        alignment: Alignment.center,
+        child: GestureDetector(
+          onTap: () {},
+          child: Container(
+            width: 240,
+            padding: const EdgeInsets.all(AppConstants.spacingMd),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+              border: Border.all(color: AppColors.glassBorderStrong),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.adaptiveTextSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingSm),
+                TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  textInputAction: TextInputAction.done,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: context.adaptiveTextPrimary,
+                    fontFamily: 'ProductSans',
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    suffixText: widget.unit,
+                    suffixStyle: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: context.adaptiveTextTertiary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.radiusSm,
+                      ),
+                      borderSide: BorderSide(color: AppColors.glassBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.radiusSm,
+                      ),
+                      borderSide: BorderSide(color: AppColors.glassBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.radiusSm,
+                      ),
+                      borderSide: BorderSide(
+                        color: context.adaptiveTextPrimary,
+                      ),
+                    ),
+                  ),
+                  onSubmitted: (_) => _submit(),
+                ),
+                const SizedBox(height: AppConstants.spacingMd),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _submit,
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        fontFamily: 'ProductSans',
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RotaryKnob extends StatefulWidget {
+  final double value;
+  final double min;
+  final double max;
+  final double size;
+  final ValueChanged<double>? onChanged;
+  final String label;
+  final Color? accentColor;
+
+  const _RotaryKnob({
+    required this.value,
+    required this.min,
+    required this.max,
+    this.size = 110,
+    required this.onChanged,
+    required this.label,
+    this.accentColor,
+  });
+
+  @override
+  State<_RotaryKnob> createState() => _RotaryKnobState();
+}
+
+class _RotaryKnobState extends State<_RotaryKnob> {
+  double _currentValue = 0.0;
+  double _lastHapticValue = 0.0;
+  bool _isDragging = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentValue = widget.value.clamp(widget.min, widget.max).toDouble();
+    _lastHapticValue = _currentValue;
+  }
+
+  @override
+  void didUpdateWidget(covariant _RotaryKnob oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((widget.value - _currentValue).abs() > 0.001) {
+      _currentValue = widget.value.clamp(widget.min, widget.max).toDouble();
+      _lastHapticValue = _currentValue;
+    }
+  }
+
+  double _valueToAngle() {
+    final t = (_currentValue - widget.min) / (widget.max - widget.min);
+    final clampedT = t.clamp(0.0, 1.0);
+    return math.pi * 0.75 + clampedT * (1.5 * math.pi);
+  }
+
+  void _handlePanStart(DragStartDetails details) {
+    if (widget.onChanged == null) return;
+    _isDragging = true;
+    _updateValueFromPosition(details.globalPosition);
+  }
+
+  void _handlePanUpdate(DragUpdateDetails details) {
+    if (widget.onChanged == null || !_isDragging) return;
+    _updateValueFromPosition(details.globalPosition);
+  }
+
+  void _handlePanEnd(DragEndDetails details) {
+    _isDragging = false;
+  }
+
+  void _updateValueFromPosition(Offset globalPosition) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final localPos = box.globalToLocal(globalPosition);
+    final center = Offset(widget.size / 2, widget.size / 2);
+    final angle = math.atan2(localPos.dy - center.dy, localPos.dx - center.dx);
+
+    double normalized = (angle - math.pi * 0.75) / (1.5 * math.pi);
+    while (normalized < 0) {
+      normalized += 1.0;
+    }
+    while (normalized > 1) {
+      normalized -= 1.0;
+    }
+
+    final range = widget.max - widget.min;
+    final newValue = widget.min + normalized * range;
+    final snapped = (newValue * 10).round() / 10.0;
+    final clamped = snapped.clamp(widget.min, widget.max);
+
+    final diff = (clamped - _lastHapticValue).abs();
+    if (diff >= 0.5) {
+      AppHaptics.selection();
+      _lastHapticValue = clamped;
+    }
+
+    setState(() => _currentValue = clamped);
+    widget.onChanged!(_currentValue);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onChanged != null;
+    final angle = _valueToAngle();
+    final accent = widget.accentColor ??
+        (enabled ? context.adaptiveTextPrimary : context.adaptiveTextTertiary);
+
+    return GestureDetector(
+      onPanStart: enabled ? _handlePanStart : null,
+      onPanUpdate: enabled ? _handlePanUpdate : null,
+      onPanEnd: enabled ? _handlePanEnd : null,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF141414),
+                border: Border.all(
+                  color: AppColors.glassBorder.withValues(alpha: 0.5),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: _isDragging ? 0.15 : 0.06),
+                    blurRadius: _isDragging ? 20 : 12,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+            CustomPaint(
+              size: Size(widget.size, widget.size),
+              painter: _KnobArcPainter(
+                angle: angle,
+                color: accent,
+                trackColor: AppColors.glassBorderStrong,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _KnobArcPainter extends CustomPainter {
+  final double angle;
+  final Color color;
+  final Color trackColor;
+
+  _KnobArcPainter({
+    required this.angle,
+    required this.color,
+    required this.trackColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 6;
+    const startAngle = math.pi * 0.75;
+    final sweepAngle = angle - startAngle;
+
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      1.5 * math.pi,
+      false,
+      trackPaint,
+    );
+
+    final activePaint = Paint()
+      ..color = color
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle.clamp(0.0, 1.5 * math.pi),
+      false,
+      activePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _KnobArcPainter oldPainter) {
+    return oldPainter.angle != angle || oldPainter.color != color;
+  }
+}
+
+class _AddBandCard extends ConsumerWidget {
+  final bool enabled;
+
+  const _AddBandCard({required this.enabled});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bands = ref.watch(
+      equalizerProvider.select((s) => s.parametricBands),
+    );
+    final atLimit =
+        bands.length >= EqualizerNotifier.maxParametricBands;
+
+    return SizedBox(
+      width: 140,
+      child: GestureDetector(
+        onTap: atLimit || !enabled
+            ? null
+            : () => ref.read(equalizerProvider.notifier).addParametricBand(),
+        child: AnimatedContainer(
+          duration: AppConstants.animationFast,
+          decoration: BoxDecoration(
+            color: const Color(0xFF121212).withValues(
+              alpha: enabled && !atLimit ? 0.85 : 0.5,
+            ),
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+            border: Border.all(
+              color: enabled && !atLimit
+                  ? AppColors.glassBorderStrong
+                  : AppColors.glassBorder.withValues(alpha: 0.5),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                LucideIcons.plus,
+                size: 32,
+                color: enabled && !atLimit
+                    ? context.adaptiveTextSecondary
+                    : context.adaptiveTextTertiary,
+              ),
+              const SizedBox(height: AppConstants.spacingSm),
+              Text(
+                atLimit ? 'Limit' : 'Add',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: enabled && !atLimit
+                      ? context.adaptiveTextSecondary
+                      : context.adaptiveTextTertiary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ParametricBandEditor extends ConsumerWidget {
+  final int index;
+  final bool enabled;
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  const _ParametricBandEditor({
+    required this.index,
+    required this.enabled,
+    this.isSelected = false,
+    this.onTap,
+  });
+
+  String _hzLabel(double hz) {
+    if (hz >= 1000) {
+      final k = hz / 1000.0;
+      return '${k.toStringAsFixed(k >= 10 ? 0 : 1)}k';
+    }
+    return hz.toStringAsFixed(0);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final band = ref.watch(eqParamBandProvider(index));
     final editable = enabled && band.enabled;
+    final toneColor = band.gainDb > 0.1
+        ? const Color(0xFFE0B66B)
+        : (band.gainDb < -0.1
+            ? const Color(0xFF7AB6D9)
+            : context.adaptiveTextTertiary);
 
-    return RepaintBoundary(
-      child: AnimatedOpacity(
-        duration: AppConstants.animationFast,
-        opacity: enabled ? 1.0 : 0.55,
+    return SizedBox(
+      width: 160,
+      child: GestureDetector(
+        onTap: onTap,
+        onDoubleTap: editable
+            ? () => ref
+                .read(equalizerProvider.notifier)
+                .setParamBandGainDb(index, 0.0)
+            : null,
         child: AnimatedContainer(
           duration: AppConstants.animationFast,
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
           decoration: BoxDecoration(
-            color: const Color(
-              0xFF121212,
-            ).withValues(alpha: editable ? 1.0 : 0.82),
+            color: const Color(0xFF121212).withValues(
+              alpha: editable ? 1.0 : 0.82,
+            ),
             borderRadius: BorderRadius.circular(AppConstants.radiusMd),
             border: Border.all(
-              color: editable
-                  ? AppColors.glassBorderStrong
-                  : AppColors.glassBorder,
+              color: isSelected
+                  ? toneColor.withValues(alpha: 0.6)
+                  : band.gainDb.abs() >= 0.1 && editable
+                      ? toneColor.withValues(alpha: 0.35)
+                      : AppColors.glassBorder,
+              width: isSelected ? 2.0 : 1.0,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: toneColor.withValues(alpha: 0.12),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: context.scaleSize(AppConstants.containerSizeSm),
-                    height: context.scaleSize(AppConstants.containerSizeSm),
-                    decoration: BoxDecoration(
-                      color: AppColors.glassBackground,
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusSm,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConstants.spacingMd,
+              vertical: AppConstants.spacingSm,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: AppColors.glassBackground,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          fontFamily: 'ProductSans',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${index + 1}',
-                      style: const TextStyle(
-                        fontFamily: 'ProductSans',
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppConstants.spacingMd),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Band ${index + 1}',
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(color: context.adaptiveTextPrimary),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          editable
-                              ? '${band.type.displayName} filter active'
-                              : 'Band bypassed',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: context.adaptiveTextTertiary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _ValueBadge(value: _hzLabel(band.frequencyHz)),
-                  const SizedBox(width: AppConstants.spacingSm),
-                  _PillSwitch(
-                    value: band.enabled,
-                    onChanged: enabled
-                        ? (v) => ref
-                              .read(equalizerProvider.notifier)
-                              .setParamBandEnabled(index, v)
-                        : (_) {},
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppConstants.spacingMd),
-              Wrap(
-                spacing: AppConstants.spacingSm,
-                runSpacing: AppConstants.spacingSm,
-                children: [
-                  _ValueBadge(value: band.type.displayName),
-                  if (band.type.supportsGain)
-                    _ValueBadge(
-                      value: band.type == ParametricBandType.notch
-                          ? '${band.gainDb.abs().toStringAsFixed(1)} dB cut'
-                          : '${band.gainDb >= 0 ? '+' : ''}${band.gainDb.toStringAsFixed(1)} dB',
-                    ),
-                  _ValueBadge(
-                    value: '${band.type.qLabel} ${band.q.toStringAsFixed(2)}',
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppConstants.spacingMd),
-              Row(
-                children: [
-                  Icon(
-                    LucideIcons.funnel,
-                    size: context.responsiveIcon(AppConstants.iconSizeSm),
-                    color: editable
-                        ? context.adaptiveTextSecondary
-                        : context.adaptiveTextTertiary,
-                  ),
-                  const SizedBox(width: AppConstants.spacingSm),
-                  Expanded(
-                    child: Text(
-                      'Filter Type',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
                         color: editable
-                            ? context.adaptiveTextSecondary
-                            : context.adaptiveTextTertiary,
+                            ? toneColor
+                            : AppColors.glassBorder,
                       ),
                     ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
                   ),
-                  _BandTypeDropdown(
-                    value: band.type,
+                  decoration: BoxDecoration(
+                    color: AppColors.glassBackground,
+                    borderRadius: BorderRadius.circular(
+                      AppConstants.radiusRound,
+                    ),
+                  ),
+                  child: Text(
+                    _hzLabel(band.frequencyHz),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: editable
+                          ? context.adaptiveTextPrimary
+                          : context.adaptiveTextTertiary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                if (band.type.supportsGain) ...[
+                  _RotaryKnob(
+                    value: band.type == ParametricBandType.notch
+                        ? band.gainDb.abs()
+                        : band.gainDb,
+                    min: band.type == ParametricBandType.notch
+                        ? 0.0
+                        : EqualizerNotifier.gainMinDb,
+                    max: EqualizerNotifier.gainMaxDb,
+                    size: 110,
                     onChanged: editable
-                        ? (type) => ref
-                              .read(equalizerProvider.notifier)
-                              .setParamBandType(index, type)
-                        : null,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              Row(
-                children: [
-                  Icon(
-                    LucideIcons.waves,
-                    size: context.responsiveIcon(AppConstants.iconSizeSm),
-                    color: editable
-                        ? context.adaptiveTextSecondary
-                        : context.adaptiveTextTertiary,
-                  ),
-                  const SizedBox(width: AppConstants.spacingSm),
-                  Expanded(
-                    child: Text(
-                      'Frequency',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: editable
-                            ? context.adaptiveTextSecondary
-                            : context.adaptiveTextTertiary,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 88,
-                    child: TextFormField(
-                      key: ValueKey('param_freq_${index}_${band.frequencyHz}'),
-                      initialValue: band.frequencyHz.toStringAsFixed(0),
-                      enabled: editable,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: false,
-                        signed: false,
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 6,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusSm,
-                          ),
-                          borderSide: BorderSide(color: AppColors.glassBorder),
-                        ),
-                        disabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusSm,
-                          ),
-                          borderSide: BorderSide(color: AppColors.glassBorder),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusSm,
-                          ),
-                          borderSide: BorderSide(
-                            color: context.adaptiveTextPrimary,
-                          ),
-                        ),
-                        suffixText: 'Hz',
-                        suffixStyle: Theme.of(context).textTheme.labelSmall
-                            ?.copyWith(color: context.adaptiveTextTertiary),
-                      ),
-                      onFieldSubmitted: (value) {
-                        final parsed = double.tryParse(value.trim());
-                        if (parsed == null) return;
-                        ref
-                            .read(equalizerProvider.notifier)
-                            .setParamBandFreqHz(index, parsed);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 4,
-                  activeTrackColor: context.adaptiveTextPrimary,
-                  inactiveTrackColor: AppColors.glassBorderStrong,
-                  thumbColor: context.adaptiveTextPrimary,
-                  overlayColor: context.adaptiveTextPrimary.withValues(
-                    alpha: 0.08,
-                  ),
-                ),
-                child: Slider(
-                  value: _hzToT(band.frequencyHz),
-                  min: 0.0,
-                  max: 1.0,
-                  onChanged: editable
-                      ? (t) => ref
-                            .read(equalizerProvider.notifier)
-                            .setParamBandFreqHz(index, _tToHz(t))
-                      : null,
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              if (band.type.supportsGain) ...[
-                _LabeledSlider(
-                  icon: LucideIcons.slidersHorizontal,
-                  label: band.type == ParametricBandType.notch
-                      ? 'Depth'
-                      : 'Gain',
-                  valueLabel: band.type == ParametricBandType.notch
-                      ? '${band.gainDb.abs().toStringAsFixed(1)} dB cut'
-                      : '${band.gainDb >= 0 ? '+' : ''}${band.gainDb.toStringAsFixed(1)} dB',
-                  value: band.type == ParametricBandType.notch
-                      ? band.gainDb.abs()
-                      : band.gainDb,
-                  min: band.type == ParametricBandType.notch
-                      ? 0.0
-                      : EqualizerNotifier.gainMinDb,
-                  max: EqualizerNotifier.gainMaxDb,
-                  onChanged: editable
-                      ? (v) => ref
+                        ? (v) => ref
                             .read(equalizerProvider.notifier)
                             .setParamBandGainDb(
                               index,
@@ -2261,24 +2985,56 @@ class _ParametricBandEditor extends ConsumerWidget {
                                   ? -v.abs()
                                   : v,
                             )
-                      : null,
+                        : null,
+                    label: 'Gain',
+                    accentColor: toneColor,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.glassBackground.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.radiusRound,
+                      ),
+                    ),
+                    child: Text(
+                      band.type == ParametricBandType.notch
+                          ? '${band.gainDb.abs().toStringAsFixed(1)} dB'
+                          : '${band.gainDb >= 0 ? '+' : ''}${band.gainDb.toStringAsFixed(1)} dB',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: editable
+                            ? toneColor
+                            : context.adaptiveTextTertiary,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'ProductSans',
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 110, width: 110),
+                  Text(
+                    band.type.displayName,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: context.adaptiveTextTertiary,
+                      fontSize: 11,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                Icon(
+                  isSelected
+                      ? LucideIcons.chevronUp
+                      : LucideIcons.chevronDown,
+                  size: 14,
+                  color: context.adaptiveTextTertiary,
                 ),
-                const SizedBox(height: AppConstants.spacingSm),
               ],
-              _LabeledSlider(
-                icon: LucideIcons.target,
-                label: band.type.qLabel,
-                valueLabel: band.q.toStringAsFixed(2),
-                value: band.q,
-                min: 0.2,
-                max: 10.0,
-                onChanged: editable
-                    ? (v) => ref
-                          .read(equalizerProvider.notifier)
-                          .setParamBandQ(index, v)
-                    : null,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -3016,14 +3772,22 @@ class _ValueBadge extends StatelessWidget {
 class _BandTypeDropdown extends StatelessWidget {
   final ParametricBandType value;
   final ValueChanged<ParametricBandType>? onChanged;
+  final bool compact;
 
-  const _BandTypeDropdown({required this.value, required this.onChanged});
+  const _BandTypeDropdown({
+    required this.value,
+    required this.onChanged,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final enabled = onChanged != null;
     return Container(
-      constraints: const BoxConstraints(minWidth: 152),
+      constraints: BoxConstraints(
+        minWidth: compact ? 0 : 152,
+        maxWidth: compact ? 80 : double.infinity,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: AppColors.glassBackground,
@@ -3034,22 +3798,30 @@ class _BandTypeDropdown extends StatelessWidget {
         child: DropdownButton<ParametricBandType>(
           value: value,
           isDense: true,
+          isExpanded: compact,
           dropdownColor: const Color(0xFF171717),
           borderRadius: BorderRadius.circular(AppConstants.radiusSm),
           iconEnabledColor: context.adaptiveTextSecondary,
           iconDisabledColor: context.adaptiveTextTertiary,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: enabled
                 ? context.adaptiveTextPrimary
                 : context.adaptiveTextTertiary,
             fontFamily: 'ProductSans',
             fontWeight: FontWeight.w600,
+            fontSize: compact ? 10 : null,
           ),
           items: [
             for (final type in ParametricBandType.values)
               DropdownMenuItem<ParametricBandType>(
                 value: type,
-                child: Text(type.displayName),
+                child: Text(
+                  type.displayName,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 10 : null,
+                  ),
+                ),
               ),
           ],
           onChanged: onChanged == null

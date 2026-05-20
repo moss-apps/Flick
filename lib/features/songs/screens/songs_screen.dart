@@ -658,6 +658,12 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
         return song.fileType.toUpperCase();
       case SongSortOption.folder:
         text = SongsState.folderDisplayName(song.folderUri, song.filePath);
+      case SongSortOption.year:
+        final year = song.year;
+        if (year == null || year == 0) return '#';
+        return year.toString();
+      case SongSortOption.genre:
+        text = song.genre ?? '';
     }
 
     return _extractToken(text);
@@ -690,13 +696,14 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
   List<String> _getFastIndexTokens(SongSortOption sortOption) {
     switch (sortOption) {
       case SongSortOption.dateAdded:
-        // For date sorting, show years (dynamically generated from songs)
-        return []; // Will be populated from actual data
+        return [];
+      case SongSortOption.year:
+        return [];
+      case SongSortOption.genre:
+        return [];
       case SongSortOption.fileType:
-        // For file type sorting, show common formats
         return ['FLAC', 'MP3', 'WAV', 'AAC', 'OGG', 'OGX', 'OPUS', 'ALAC', '#'];
       default:
-        // For text-based sorting (title, artist, albumArtist)
         return SongFastIndexOverlay.defaultTokens;
     }
   }

@@ -12,6 +12,7 @@ import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
+import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 
 class Uac2PreferencesScreen extends ConsumerStatefulWidget {
   const Uac2PreferencesScreen({super.key});
@@ -73,6 +74,15 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                         killIsochronousUsbOnQuitAsync,
                         diagnostics,
                       ),
+                      if (audioEngineAsync.when(
+                        data: (e) => e == AudioEnginePreference.isochronousUsb,
+                        loading: () => false,
+                        error: (_, _) => false,
+                      )) ...[
+                        const SizedBox(height: AppConstants.spacingLg),
+                        _buildSectionHeader(context, 'Volume'),
+                        const Uac2VolumeControl(),
+                      ],
                       const SizedBox(height: AppConstants.navBarHeight + 120),
                     ],
                   ),

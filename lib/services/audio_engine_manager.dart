@@ -181,6 +181,13 @@ class AudioEngineManager {
     await engine.seek(position);
   }
 
+  void updateTrack(Song track) {
+    final engine = _currentEngine;
+    if (engine != null) {
+      engine.updateTrack(track);
+    }
+  }
+
   Future<void> dispose() async {
     await _engineSubscription?.cancel();
     _engineSubscription = null;

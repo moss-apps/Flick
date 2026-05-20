@@ -328,7 +328,10 @@ class LibraryScannerService {
         ..accurateRip = existing?.accurateRip
         ..metadataComplete = !needsSparseMetadata;
 
-      if (existing != null) song.id = existing.id;
+      if (existing != null) {
+        song.id = existing.id;
+        _preserveLocalEdits(song, existing);
+      }
 
       batch.add(song);
 
@@ -446,10 +449,13 @@ class LibraryScannerService {
 
         existing.sampleRate = meta.sampleRate ?? existing.sampleRate;
         existing.bitDepth = meta.bitDepth ?? existing.bitDepth;
-        existing.discNumber = meta.discNumber ?? existing.discNumber;
-        existing.albumArtist = (meta.albumArtist?.trim().isNotEmpty ?? false)
-            ? meta.albumArtist!.trim()
-            : existing.albumArtist;
+        if (!existing.hasLocalEdits) {
+          existing.discNumber = meta.discNumber ?? existing.discNumber;
+          existing.albumArtist =
+              (meta.albumArtist?.trim().isNotEmpty ?? false)
+                  ? meta.albumArtist!.trim()
+                  : existing.albumArtist;
+        }
         existing.metadataComplete = true;
         updateBatch.add(existing);
       }
@@ -899,6 +905,7 @@ class LibraryScannerService {
 
         if (existing != null) {
           song.id = existing.id;
+          _preserveLocalEdits(song, existing);
         }
 
         if (_shouldIgnoreDiscoveredTrack(
@@ -1089,6 +1096,7 @@ class LibraryScannerService {
 
           if (existing != null) {
             song.id = existing.id;
+            _preserveLocalEdits(song, existing);
           }
 
           if (_shouldIgnoreDiscoveredTrack(
@@ -1939,6 +1947,21 @@ class LibraryScannerService {
     final lastDot = fileName.lastIndexOf('.');
     if (lastDot <= 0) return fileName;
     return fileName.substring(0, lastDot);
+  }
+
+  /// When an existing song has `hasLocalEdits == true`, preserve its text
+  /// metadata fields instead of overwriting them with scanned file tags.
+  void _preserveLocalEdits(SongEntity song, SongEntity? existing) {
+    if (existing == null || !existing.hasLocalEdits) return;
+    song.title = existing.title;
+    song.artist = existing.artist;
+    song.album = existing.album;
+    song.albumArtist = existing.albumArtist;
+    song.genre = existing.genre;
+    song.year = existing.year;
+    song.trackNumber = existing.trackNumber;
+    song.discNumber = existing.discNumber;
+    song.hasLocalEdits = true;
   }
 
   List<SongEntity> _buildCueTrackEntities({

@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -706509902;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2007588818;
 
 // Section: executor
 
@@ -1106,12 +1106,12 @@ fn wire__crate__api__audio_api__audio_set_crossfade_curve_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api__curve =
+            let api_curve =
                 <crate::api::audio_api::CrossfadeCurveType>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::audio_api::audio_set_crossfade_curve(api__curve)?;
+                    let output_ok = crate::api::audio_api::audio_set_crossfade_curve(api_curve)?;
                     Ok(output_ok)
                 })())
             }
@@ -1646,6 +1646,39 @@ fn wire__crate__api__simple__init_app_impl(
                     let output_ok = Result::<_, ()>::Ok({
                         crate::api::simple::init_app();
                     })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__metadata_editor__read_tags_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "read_tags",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::metadata_editor::read_tags(api_path)?;
                     Ok(output_ok)
                 })())
             }
@@ -2431,6 +2464,81 @@ fn wire__crate__api__uac2_api__uac2_stop_streaming_impl(
         },
     )
 }
+fn wire__crate__api__metadata_editor__write_tags_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "write_tags",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            let api_fields =
+                <crate::api::metadata_editor::TagEditFields>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::metadata_editor::write_tags(api_path, api_fields)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__metadata_editor__write_tags_to_temp_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "write_tags_to_temp",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            let api_fields =
+                <crate::api::metadata_editor::TagEditFields>::sse_decode(&mut deserializer);
+            let api_temp_dir = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::metadata_editor::write_tags_to_temp(
+                        api_path,
+                        api_fields,
+                        api_temp_dir,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 
 // Section: dart2rust
 
@@ -3003,6 +3111,68 @@ impl SseDecode for crate::api::scanner::ScanResult {
     }
 }
 
+impl SseDecode for crate::api::metadata_editor::TagEditFields {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_title = <Option<String>>::sse_decode(deserializer);
+        let mut var_artist = <Option<String>>::sse_decode(deserializer);
+        let mut var_album = <Option<String>>::sse_decode(deserializer);
+        let mut var_albumArtist = <Option<String>>::sse_decode(deserializer);
+        let mut var_genre = <Option<String>>::sse_decode(deserializer);
+        let mut var_year = <Option<u32>>::sse_decode(deserializer);
+        let mut var_trackNumber = <Option<u32>>::sse_decode(deserializer);
+        let mut var_discNumber = <Option<u32>>::sse_decode(deserializer);
+        return crate::api::metadata_editor::TagEditFields {
+            title: var_title,
+            artist: var_artist,
+            album: var_album,
+            album_artist: var_albumArtist,
+            genre: var_genre,
+            year: var_year,
+            track_number: var_trackNumber,
+            disc_number: var_discNumber,
+        };
+    }
+}
+
+impl SseDecode for crate::api::metadata_editor::TagReadResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_title = <Option<String>>::sse_decode(deserializer);
+        let mut var_artist = <Option<String>>::sse_decode(deserializer);
+        let mut var_album = <Option<String>>::sse_decode(deserializer);
+        let mut var_albumArtist = <Option<String>>::sse_decode(deserializer);
+        let mut var_genre = <Option<String>>::sse_decode(deserializer);
+        let mut var_year = <Option<u32>>::sse_decode(deserializer);
+        let mut var_trackNumber = <Option<u32>>::sse_decode(deserializer);
+        let mut var_discNumber = <Option<u32>>::sse_decode(deserializer);
+        return crate::api::metadata_editor::TagReadResult {
+            title: var_title,
+            artist: var_artist,
+            album: var_album,
+            album_artist: var_albumArtist,
+            genre: var_genre,
+            year: var_year,
+            track_number: var_trackNumber,
+            disc_number: var_discNumber,
+        };
+    }
+}
+
+impl SseDecode for crate::api::metadata_editor::TagWriteResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_success = <bool>::sse_decode(deserializer);
+        let mut var_error = <Option<String>>::sse_decode(deserializer);
+        let mut var_tempPath = <Option<String>>::sse_decode(deserializer);
+        return crate::api::metadata_editor::TagWriteResult {
+            success: var_success,
+            error: var_error,
+            temp_path: var_tempPath,
+        };
+    }
+}
+
 impl SseDecode for u16 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3227,62 +3397,70 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         48 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__scanner__scan_music_library_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__scanner__scan_root_dir_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__uac2_api__uac2_activate_fallback_impl(
+        49 => wire__crate__api__metadata_editor__read_tags_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__scanner__scan_music_library_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__scanner__scan_root_dir_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__uac2_api__uac2_activate_fallback_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => wire__crate__api__uac2_api__uac2_attempt_reconnect_impl(
+        53 => wire__crate__api__uac2_api__uac2_attempt_reconnect_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        53 => wire__crate__api__uac2_api__uac2_deactivate_fallback_impl(
+        54 => wire__crate__api__uac2_api__uac2_deactivate_fallback_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__uac2_api__uac2_disconnect_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__uac2_api__uac2_get_device_capabilities_impl(
+        55 => wire__crate__api__uac2_api__uac2_disconnect_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__uac2_api__uac2_get_device_capabilities_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__uac2_api__uac2_get_volume_range_impl(
+        63 => wire__crate__api__uac2_api__uac2_get_volume_range_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        66 => {
+        67 => {
             wire__crate__api__uac2_api__uac2_select_device_impl(port, ptr, rust_vec_len, data_len)
         }
-        67 => wire__crate__api__uac2_api__uac2_set_auto_reconnect_impl(
+        68 => wire__crate__api__uac2_api__uac2_set_auto_reconnect_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => wire__crate__api__uac2_api__uac2_set_mute_impl(port, ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__uac2_api__uac2_set_sampling_frequency_impl(
+        69 => wire__crate__api__uac2_api__uac2_set_mute_impl(port, ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__uac2_api__uac2_set_sampling_frequency_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__uac2_api__uac2_set_volume_impl(port, ptr, rust_vec_len, data_len),
-        71 => {
+        71 => wire__crate__api__uac2_api__uac2_set_volume_impl(port, ptr, rust_vec_len, data_len),
+        72 => {
             wire__crate__api__uac2_api__uac2_start_streaming_impl(port, ptr, rust_vec_len, data_len)
         }
-        72 => {
+        73 => {
             wire__crate__api__uac2_api__uac2_stop_streaming_impl(port, ptr, rust_vec_len, data_len)
         }
+        74 => wire__crate__api__metadata_editor__write_tags_impl(port, ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__metadata_editor__write_tags_to_temp_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         _ => unreachable!(),
     }
 }
@@ -3358,27 +3536,27 @@ fn pde_ffi_dispatcher_sync_impl(
             wire__crate__api__audio_api__audio_set_high_res_mode_impl(ptr, rust_vec_len, data_len)
         }
         47 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__uac2_api__uac2_force_release_usb_session_impl(
+        56 => wire__crate__api__uac2_api__uac2_force_release_usb_session_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => {
+        57 => {
             wire__crate__api__uac2_api__uac2_get_connection_state_impl(ptr, rust_vec_len, data_len)
         }
-        58 => wire__crate__api__uac2_api__uac2_get_fallback_info_impl(ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__uac2_api__uac2_get_mute_impl(ptr, rust_vec_len, data_len),
-        60 => wire__crate__api__uac2_api__uac2_get_sampling_frequency_impl(
+        59 => wire__crate__api__uac2_api__uac2_get_fallback_info_impl(ptr, rust_vec_len, data_len),
+        60 => wire__crate__api__uac2_api__uac2_get_mute_impl(ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__uac2_api__uac2_get_sampling_frequency_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        61 => wire__crate__api__uac2_api__uac2_get_volume_impl(ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__uac2_api__uac2_is_available_impl(ptr, rust_vec_len, data_len),
-        64 => {
+        62 => wire__crate__api__uac2_api__uac2_get_volume_impl(ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__uac2_api__uac2_is_available_impl(ptr, rust_vec_len, data_len),
+        65 => {
             wire__crate__api__uac2_api__uac2_is_usb_session_active_impl(ptr, rust_vec_len, data_len)
         }
-        65 => wire__crate__api__uac2_api__uac2_list_devices_impl(ptr, rust_vec_len, data_len),
+        66 => wire__crate__api__uac2_api__uac2_list_devices_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -3700,6 +3878,82 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::scanner::ScanResult>
     for crate::api::scanner::ScanResult
 {
     fn into_into_dart(self) -> crate::api::scanner::ScanResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::metadata_editor::TagEditFields {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.title.into_into_dart().into_dart(),
+            self.artist.into_into_dart().into_dart(),
+            self.album.into_into_dart().into_dart(),
+            self.album_artist.into_into_dart().into_dart(),
+            self.genre.into_into_dart().into_dart(),
+            self.year.into_into_dart().into_dart(),
+            self.track_number.into_into_dart().into_dart(),
+            self.disc_number.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::metadata_editor::TagEditFields
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::metadata_editor::TagEditFields>
+    for crate::api::metadata_editor::TagEditFields
+{
+    fn into_into_dart(self) -> crate::api::metadata_editor::TagEditFields {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::metadata_editor::TagReadResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.title.into_into_dart().into_dart(),
+            self.artist.into_into_dart().into_dart(),
+            self.album.into_into_dart().into_dart(),
+            self.album_artist.into_into_dart().into_dart(),
+            self.genre.into_into_dart().into_dart(),
+            self.year.into_into_dart().into_dart(),
+            self.track_number.into_into_dart().into_dart(),
+            self.disc_number.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::metadata_editor::TagReadResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::metadata_editor::TagReadResult>
+    for crate::api::metadata_editor::TagReadResult
+{
+    fn into_into_dart(self) -> crate::api::metadata_editor::TagReadResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::metadata_editor::TagWriteResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.success.into_into_dart().into_dart(),
+            self.error.into_into_dart().into_dart(),
+            self.temp_path.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::metadata_editor::TagWriteResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::metadata_editor::TagWriteResult>
+    for crate::api::metadata_editor::TagWriteResult
+{
+    fn into_into_dart(self) -> crate::api::metadata_editor::TagWriteResult {
         self
     }
 }
@@ -4294,6 +4548,43 @@ impl SseEncode for crate::api::scanner::ScanResult {
         <Vec<crate::api::scanner::AudioFileMetadata>>::sse_encode(self.new_or_modified, serializer);
         <Vec<String>>::sse_encode(self.deleted_paths, serializer);
         <u32>::sse_encode(self.total_files, serializer);
+    }
+}
+
+impl SseEncode for crate::api::metadata_editor::TagEditFields {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.title, serializer);
+        <Option<String>>::sse_encode(self.artist, serializer);
+        <Option<String>>::sse_encode(self.album, serializer);
+        <Option<String>>::sse_encode(self.album_artist, serializer);
+        <Option<String>>::sse_encode(self.genre, serializer);
+        <Option<u32>>::sse_encode(self.year, serializer);
+        <Option<u32>>::sse_encode(self.track_number, serializer);
+        <Option<u32>>::sse_encode(self.disc_number, serializer);
+    }
+}
+
+impl SseEncode for crate::api::metadata_editor::TagReadResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.title, serializer);
+        <Option<String>>::sse_encode(self.artist, serializer);
+        <Option<String>>::sse_encode(self.album, serializer);
+        <Option<String>>::sse_encode(self.album_artist, serializer);
+        <Option<String>>::sse_encode(self.genre, serializer);
+        <Option<u32>>::sse_encode(self.year, serializer);
+        <Option<u32>>::sse_encode(self.track_number, serializer);
+        <Option<u32>>::sse_encode(self.disc_number, serializer);
+    }
+}
+
+impl SseEncode for crate::api::metadata_editor::TagWriteResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.success, serializer);
+        <Option<String>>::sse_encode(self.error, serializer);
+        <Option<String>>::sse_encode(self.temp_path, serializer);
     }
 }
 

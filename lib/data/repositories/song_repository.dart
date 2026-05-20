@@ -209,6 +209,37 @@ class SongRepository {
     });
   }
 
+  Future<void> updateSongMetadata(String filePath, {
+    String? title,
+    String? artist,
+    String? album,
+    String? albumArtist,
+    int? trackNumber,
+    int? discNumber,
+    int? year,
+    String? genre,
+  }) async {
+    await _isar.writeTxn(() async {
+      final existing = await _isar.songEntitys
+          .filter()
+          .filePathEqualTo(filePath)
+          .findFirst();
+      if (existing == null) return;
+
+      if (title != null) existing.title = title;
+      if (artist != null) existing.artist = artist;
+      if (album != null) existing.album = album;
+      if (albumArtist != null) existing.albumArtist = albumArtist;
+      if (trackNumber != null) existing.trackNumber = trackNumber;
+      if (discNumber != null) existing.discNumber = discNumber;
+      if (year != null) existing.year = year;
+      if (genre != null) existing.genre = genre;
+      existing.hasLocalEdits = true;
+
+      await _isar.songEntitys.put(existing);
+    });
+  }
+
   /// Count songs in a folder.
   Future<int> countSongsInFolder(String folderUri) async {
     return await _isar.songEntitys.where().folderUriEqualTo(folderUri).count();
@@ -336,6 +367,8 @@ class SongRepository {
       albumArtist: entity.albumArtist,
       trackNumber: entity.trackNumber,
       discNumber: entity.discNumber,
+      year: entity.year,
+      genre: entity.genre,
       filePath: entity.filePath,
       folderUri: entity.folderUri,
       dateAdded: entity.dateAdded,

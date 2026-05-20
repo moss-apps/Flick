@@ -1713,6 +1713,16 @@ fn command_processing_loop(
             if state.load(Ordering::Relaxed) == PlaybackState::Crossfading as u8 {
                 state.store(PlaybackState::Playing as u8, Ordering::Relaxed);
                 let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Playing));
+            } else {
+                // If no next source was queued for gapless transition,
+                // the engine is outputting silence. Mark as stopped so
+                // the Dart layer can detect the failure and fall back.
+                let sources = callback_data.sources.lock();
+                if sources.current().is_none() {
+                    drop(sources);
+                    state.store(PlaybackState::Stopped as u8, Ordering::Relaxed);
+                    let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Stopped));
+                }
             }
         }
 

@@ -333,6 +333,9 @@ class AndroidAudioEngine implements AudioEngine {
   }
 
   @override
+  void updateTrack(Song track) {}
+
+  @override
   Future<void> dispose() async {
     for (final subscription in _subscriptions) {
       await subscription.cancel();
