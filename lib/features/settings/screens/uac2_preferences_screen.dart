@@ -35,6 +35,8 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                     final developerModeAsync = ref.watch(developerModeEnabledProvider);
                     final diagnostics = ref.watch(audioOutputDiagnosticsProvider);
                     final killIsochronousUsbOnQuitAsync = ref.watch(killIsochronousUsbOnQuitProvider);
+                    final dsdFilterQualityAsync = ref.watch(dsdFilterQualityProvider);
+                    final dsdOutputModeAsync = ref.watch(dsdOutputModeProvider);
 
     return DisplayModeWrapper(
       child: Scaffold(
@@ -61,6 +63,14 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                         formatPrefAsync,
                         preferredFormatAsync,
                         audioFormatAsync,
+                      ),
+                      const SizedBox(height: AppConstants.spacingLg),
+                      _buildSectionHeader(context, 'DSD Playback'),
+                      _buildDsdOptions(
+                        context,
+                        preferencesService,
+                        dsdFilterQualityAsync,
+                        dsdOutputModeAsync,
                       ),
                       const SizedBox(height: AppConstants.spacingLg),
                       _buildSectionHeader(context, 'Advanced'),
@@ -1340,6 +1350,260 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             child: const Text('OK', style: TextStyle(color: AppColors.accent)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDsdOptions(
+    BuildContext context,
+    Uac2PreferencesService service,
+    AsyncValue<DsdFilterQuality> filterQualityAsync,
+    AsyncValue<DsdOutputMode> outputModeAsync,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: Column(
+        children: [
+          filterQualityAsync.when(
+            data: (quality) => _buildNavigationTile(
+              context,
+              icon: LucideIcons.slidersHorizontal,
+              title: 'DSD Filter Quality',
+              subtitle: _dsdFilterQualitySubtitle(quality),
+              onTap: () => _showDsdFilterQualityDialog(context, service, quality),
+            ),
+            loading: () => _buildLoadingTile(context),
+            error: (_, _) => _buildErrorTile(context),
+          ),
+          _buildDivider(),
+          outputModeAsync.when(
+            data: (mode) => _buildNavigationTile(
+              context,
+              icon: LucideIcons.radio,
+              title: 'DSD Output Mode',
+              subtitle: _dsdOutputModeSubtitle(mode),
+              onTap: () => _showDsdOutputModeDialog(context, service, mode),
+            ),
+            loading: () => _buildLoadingTile(context),
+            error: (_, _) => _buildErrorTile(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _dsdFilterQualitySubtitle(DsdFilterQuality quality) {
+    switch (quality) {
+      case DsdFilterQuality.fast:
+        return 'Fast — Lower CPU usage, good quality';
+      case DsdFilterQuality.normal:
+        return 'Normal — Balanced quality and performance';
+      case DsdFilterQuality.high:
+        return 'High — Best quality, higher CPU usage';
+    }
+  }
+
+  String _dsdOutputModeSubtitle(DsdOutputMode mode) {
+    switch (mode) {
+      case DsdOutputMode.auto:
+        return 'Auto — Choose best path based on device';
+      case DsdOutputMode.forcePcm:
+        return 'Force PCM — Always convert DSD to PCM';
+      case DsdOutputMode.forceDop:
+        return 'Force DoP — Always use DSD over PCM (USB DAC)';
+    }
+  }
+
+  void _showDsdFilterQualityDialog(
+    BuildContext context,
+    Uac2PreferencesService service,
+    DsdFilterQuality current,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        ),
+        title: Text(
+          'DSD Filter Quality',
+          style: TextStyle(color: context.adaptiveTextPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Controls the decimation filter quality when converting DSD to PCM. Higher quality uses more CPU.',
+              style: TextStyle(color: context.adaptiveTextSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: AppConstants.spacingMd),
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'Fast',
+              subtitle: 'Shorter filter, lower CPU. Good for DSD64/DSD128.',
+              selected: current == DsdFilterQuality.fast,
+              onTap: () async {
+                await service.setDsdFilterQuality(DsdFilterQuality.fast);
+                ref.invalidate(dsdFilterQualityProvider);
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'Normal',
+              subtitle: 'Balanced filter. Recommended for most use cases.',
+              selected: current == DsdFilterQuality.normal,
+              onTap: () async {
+                await service.setDsdFilterQuality(DsdFilterQuality.normal);
+                ref.invalidate(dsdFilterQualityProvider);
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'High',
+              subtitle: 'Longer filter, best quality. May use more battery on DSD256+.',
+              selected: current == DsdFilterQuality.high,
+              onTap: () async {
+                await service.setDsdFilterQuality(DsdFilterQuality.high);
+                ref.invalidate(dsdFilterQualityProvider);
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.accent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDsdOutputModeDialog(
+    BuildContext context,
+    Uac2PreferencesService service,
+    DsdOutputMode current,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        ),
+        title: Text(
+          'DSD Output Mode',
+          style: TextStyle(color: context.adaptiveTextPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'Auto',
+              subtitle: 'Automatically select DoP for USB DACs and PCM for speakers.',
+              selected: current == DsdOutputMode.auto,
+              onTap: () async {
+                await service.setDsdOutputMode(DsdOutputMode.auto);
+                ref.invalidate(dsdOutputModeProvider);
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'Force PCM',
+              subtitle: 'Always convert DSD to PCM. Works on all devices.',
+              selected: current == DsdOutputMode.forcePcm,
+              onTap: () async {
+                await service.setDsdOutputMode(DsdOutputMode.forcePcm);
+                ref.invalidate(dsdOutputModeProvider);
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'Force DoP',
+              subtitle: 'Always use DSD over PCM. Requires a USB DAC that supports DoP.',
+              selected: current == DsdOutputMode.forceDop,
+              onTap: () async {
+                await service.setDsdOutputMode(DsdOutputMode.forceDop);
+                ref.invalidate(dsdOutputModeProvider);
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.accent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDsdOptionTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+      child: Container(
+        padding: const EdgeInsets.all(AppConstants.spacingMd),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.accent.withValues(alpha: 0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+          border: selected
+              ? Border.all(color: AppColors.accent.withValues(alpha: 0.4))
+              : Border.all(color: AppColors.glassBorder),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: selected ? AppColors.accent : context.adaptiveTextPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: context.adaptiveTextSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_circle, color: AppColors.accent, size: 20),
+          ],
+        ),
       ),
     );
   }
