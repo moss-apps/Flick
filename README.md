@@ -7,6 +7,8 @@
 ---
 ### Flick Player is a high-performance music player application built with Flutter and Rust, designed primarily for audiophiles who demand bit-perfect audio playback through external DACs and amplifiers.
 
+> **Deprecation Notice**: GitHub Releases will be deprecated once Flick's open beta test begins. Install Flick from the [Google Play Store](https://play.google.com/store) to continue receiving updates.
+
 ## Key Features
 
 ### Audio Engine
@@ -21,14 +23,14 @@
 
 ### USB Audio Class 2.0 (UAC 2.0)
 - Custom Rust implementation for USB DAC/AMP detection and enumeration
-- Improved Android-side detection with expanded keyword matching and AudioManager fallback
+- Android-side detection with expanded keyword matching and AudioManager fallback
 - Descriptor parsing for Audio Control and Audio Streaming interfaces
-- Isochronous transfer management for real-time audio streaming
-- Hot-plug support with toast notifications on device connect/stream
-- Bit-perfect audio transmission to external USB audio devices
+- Core isochronous transfer engine retained for direct USB access; standard playback routes through Android's native USB DAC handling
+- Hot-plug detection with toast notifications on device connect/stream
+- Bit-perfect audio to external USB DACs via Android native routing
 
 ### Advanced Equalizer & Audio Effects
-- 10-band graphic equalizer with preamp and parametric controls
+- 31-band parametric equalizer with preamp and controls
 - Real-time audio processing with EQ, dynamics, and spatial effects
 - Preset management with import/export functionality (JSON/TXT formats)
 - Spatial and time effects including balance, tempo, damp, filter, delay, size, mix, feedback, and width
@@ -100,8 +102,6 @@
 - **Flexible Updates**: Download updates in the background while using the app
 - **Patch Notes**: Release notes fetched from GitHub Releases API
 
-> **Deprecation Notice**: GitHub Releases will be deprecated once Flick's open beta test begins. Install Flick from the Google Play Store to continue receiving updates.
-
 ## Moss Ecosystem
 
 Flick Player is part of the **Moss ecosystem** by Ultra Electronica, a suite of interconnected apps that share infrastructure and capabilities.
@@ -125,8 +125,10 @@ When a song is playing in Locker and you want to switch to Flick's advanced audi
 ## Future Features
 
 - **DSD scanning**: DSF, DFF, and WavPack DSD (.wv) metadata scanning and artwork extraction (complete)
-- **DSD/DSF playback**: engine-level native DSD decoding and playback (in progress)
+- **DSD/DSF/DFF/WavPack playback**: engine-level native DSD decoding and playback (coming soon)
 - MQA support
+- Poweramp-style EQ filters, including low-pass
+- Android audio settings
 - Themes and broader UI customization options
 - ~~Album art improvements~~
 - ~~Lyric clickability and sync~~
@@ -166,13 +168,18 @@ When a song is playing in Locker and you want to switch to Flick's advanced audi
 | Crate | Purpose |
 |-------|---------|
 | `symphonia` | Audio decoding (MP3, FLAC, WAV, OGG, M4A/ALAC, AIFF) |
-| `rusb` | USB device access |
+| `rusb` | USB device access (UAC 2.0) |
 | `lofty` | Audio metadata parsing (MP3, FLAC, WAV, OGG, M4A/ALAC, AIFF, WavPack) |
 | `dsf-meta` | DSF file metadata reading |
 | `dff-meta` | DFF/DSDIFF file metadata reading |
 | `id3` | ID3 tag access for DSD formats |
+| `wavpack-sys` | WavPack DSD decoding (FFI to libwavpack) |
+| `cpal` | Cross-platform audio I/O (Oboe/AAudio on Android) |
+| `oboe` | Low-latency Android audio (CPAL backend) |
+| `rubato` | High-quality sample rate conversion |
 | `rayon` | Parallel processing |
 | `ringbuf` | Lock-free ring buffer |
+| `crossbeam-channel` | Multi-threaded message passing |
 | `tracing` | Logging and diagnostics |
 
 ## Project Structure
@@ -228,13 +235,24 @@ flick_player/
 │       ├── api/                  # FFI API bindings
 │       ├── audio/                # Audio engine
 │       │   ├── engine.rs         # Core audio engine
-│       │   ├── decoder.rs        # Symphonia decoder
+│       │   ├── decoder.rs        # PCM decoder (Symphonia)
+│       │   ├── decoder_handle.rs # Decoder dispatch
+│       │   ├── dsd_engine/       # DSD decoding (coming soon)
+│       │   │   ├── dsd_thread.rs
+│       │   │   └── format/       # DSF, DFF, WavPack decoders
 │       │   ├── resampler.rs      # Sample rate conversion
-│       │   ├── equalizer.rs      # 10-band graphic EQ
+│       │   ├── equalizer.rs      # 31-band parametric EQ
 │       │   ├── fx.rs             # Spatial and time effects
-│       │   └── crossfader.rs     # Crossfade support
+│       │   ├── dynamics.rs       # Compressor/limiter
+│       │   ├── crossfader.rs     # Crossfade support
+│       │   ├── source.rs         # Gapless playback queue
+│       │   └── strategy.rs       # Output strategy selection
 │       └── uac2/                 # USB Audio Class 2.0
 │           ├── device.rs         # Device representation
+│           ├── backend.rs        # USB backend
+│           ├── connection_manager.rs
+│           ├── capabilities.rs   # Device capability detection
+│           ├── format_negotiation.rs
 │           ├── descriptors/      # USB descriptor parsing
 │           ├── transfer.rs       # Isochronous transfers
 │           └── audio_pipeline.rs # Format conversion

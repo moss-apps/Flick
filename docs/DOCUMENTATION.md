@@ -4,7 +4,7 @@
 
 **Flick Player** is a modern, high-performance music player application designed for audiophiles and casual listeners alike. Primarily running on Android, it bridges the gap between a beautiful, fluid user interface and a robust, low-level audio processing engine with advanced equalizer and effects capabilities.
 
-The application leverages the power of **Flutter** for a responsive, animated frontend and **Rust** for a stable, efficient backend. Key features include a custom "Function Code" (Audio Engine) that handles playback independent of the OS media controls in some aspects, ensuring high-fidelity audio output, along with advanced EQ and FX processing capabilities. The engine supports multiple output paths including USB DAC bit-perfect playback, Android's internal high-resolution audio path (DAP), and standard Android audio output. Recent additions include a home screen mini player widget, online lyrics search with a built-in timestamp editor (Lyrics Sync Studio), visualizer customization (animation styles, frequency modes, movement modes), a queue management overhaul, folder grid browsing, immersive full view, swipe actions on songs, Bluetooth codec reference display, and Play Store in-app updates.
+The application leverages the power of **Flutter** for a responsive, animated frontend and **Rust** for a stable, efficient backend. Key features include a custom "Function Code" (Audio Engine) that handles playback independent of the OS media controls in some aspects, ensuring high-fidelity audio output, along with advanced EQ and FX processing capabilities. The engine supports multiple output paths including USB DAC bit-perfect playback, Android's internal high-resolution audio path (DAP), and standard Android audio output. Features include a home screen mini player widget, online lyrics search with a built-in timestamp editor (Lyrics Sync Studio), visualizer customization (animation styles, frequency modes, movement modes), a queue management overhaul, folder grid browsing, immersive full view, swipe actions on songs, Bluetooth codec reference display, and Play Store in-app updates.
 
 ### Digital Audio Player (DAP) Support
 
@@ -62,7 +62,7 @@ Each strategy is selected based on device capabilities and current playback requ
 
 The current roadmap includes:
 
-- **DSD/DSF/DFF/WavPack DSD scanning**: Metadata extraction and artwork reading for DSF, DFF, and WavPack DSD files (complete). Engine-level native DSD decoding and playback (in progress).
+- **DSD/DSF/DFF/WavPack playback**: Engine-level native DSD decoding and playback (coming soon)
 - MQA support
 - Poweramp-style EQ filters, including low-pass
 - Themes and broader UI customization options
@@ -103,6 +103,7 @@ The current roadmap includes:
 - **Device Connect Toast**: Snackbar notification when UAC2 device connects or starts streaming, showing device name and format
 - **Crossfade Curve in Bit-Perfect Mode**: Crossfade curve is no longer set when bit-perfect mode is active (avoids unnecessary configuration)
 - **Android 7 Dropped**: minSdk raised from 21 to 26; Android 7 crash (Impeller + missing desugaring) resolved by dropping API 21–25
+- **DSD/DSF/DFF/WavPack DSD scanning**: Metadata extraction and artwork reading for DSF, DFF, and WavPack DSD files
 
 ## Code "Functions" (Core Architecture)
 
@@ -117,11 +118,11 @@ Located in `rust/src/audio`, this is the heart of the application. It bypasses s
   - **Android Managed**: Standard audio playback through Oboe/AAudio or the Android mixer
   - **DAP Internal High-Res**: High-resolution audio through the device's internal DAC using Oboe/AAudio in exclusive mode
 
-- **Decoder (`decoder.rs`)**: Uses `symphonia` to read various audio formats (MP3, FLAC, WAV, OGG, M4A, ALAC, AIFF) and decode them into raw sound waves (PCM). DSD decoding planned.
+- **Decoder (`decoder.rs`)**: Uses `symphonia` to read various audio formats (MP3, FLAC, WAV, OGG, M4A, ALAC, AIFF) and decode them into raw sound waves (PCM). DSD decoding coming soon.
 - **ALAC Converter (`alac_converter.rs`)**: Lossless real-time conversion of ALAC/M4A/AIFF files to WAV/PCM, preserving original bit depth (16/24/32-bit). Session-based streaming conversion for memory efficiency.
 - **Resampler (`resampler.rs`)**: Uses `rubato` to change the audio quality on-the-fly. If a song is 44.1kHz but your speakers are 48kHz, this module smooths out the difference without losing quality.
 - **Crossfader (`crossfader.rs`)**: Handles the smooth blending between songs, so there is no silence when one track ends and the next begins.
-- **Equalizer (`equalizer.rs`)**: Implements a 10-band graphic equalizer with preamp control and parametric band support for precise tonal control.
+- **Equalizer (`equalizer.rs`)**: Implements a 31-band parametric equalizer with preamp control and graphic band support for precise tonal control.
 - **FX Processing (`fx.rs`)**: Implements spatial and time effects including balance, tempo, damp, filter, delay, size, mix, feedback, and width for creative audio processing.
 - **Android Audio Processing (`android_audio_processing_service.dart`)**: On Android, uses JustAudioProcessingController for enhanced EQ and effects management with real-time processing capabilities.
 - **Source Provider (`source.rs`)**: Manages the queue for **Gapless Playback**, ensuring there are no awkward pauses between tracks by pre-loading the next song before the current one finishes.
