@@ -9,6 +9,7 @@ class AppPreferences {
   final bool showPlaylistPreviews;
   final bool showBrowseMore;
   final bool showQuickAccess;
+  final bool showEngineSelector;
   final bool crossfadeEnabled;
   final double crossfadeDurationSecs;
   final int crossfadeCurveIndex;
@@ -53,6 +54,7 @@ class AppPreferences {
     this.showPlaylistPreviews = true,
     this.showBrowseMore = true,
     this.showQuickAccess = true,
+    this.showEngineSelector = true,
     this.crossfadeEnabled = false,
     this.crossfadeDurationSecs = 3.0,
     this.crossfadeCurveIndex = 0,
@@ -98,6 +100,7 @@ class AppPreferences {
     bool? showPlaylistPreviews,
     bool? showBrowseMore,
     bool? showQuickAccess,
+    bool? showEngineSelector,
     bool? crossfadeEnabled,
     double? crossfadeDurationSecs,
     int? crossfadeCurveIndex,
@@ -142,6 +145,7 @@ class AppPreferences {
       showPlaylistPreviews: showPlaylistPreviews ?? this.showPlaylistPreviews,
       showBrowseMore: showBrowseMore ?? this.showBrowseMore,
       showQuickAccess: showQuickAccess ?? this.showQuickAccess,
+      showEngineSelector: showEngineSelector ?? this.showEngineSelector,
       crossfadeEnabled: crossfadeEnabled ?? this.crossfadeEnabled,
       crossfadeDurationSecs:
           crossfadeDurationSecs ?? this.crossfadeDurationSecs,
@@ -203,6 +207,7 @@ class AppPreferencesService {
   static const _showPlaylistPreviewsKey = 'menu_show_playlist_previews';
   static const _showBrowseMoreKey = 'menu_show_browse_more';
   static const _showQuickAccessKey = 'menu_show_quick_access';
+  static const _showEngineSelectorKey = 'menu_show_engine_selector';
   static const _crossfadeEnabledKey = 'audio_crossfade_enabled';
   static const _crossfadeDurationKey = 'audio_crossfade_duration_secs';
   static const _crossfadeCurveKey = 'audio_crossfade_curve_index';
@@ -249,6 +254,7 @@ class AppPreferencesService {
       showPlaylistPreviews: prefs.getBool(_showPlaylistPreviewsKey) ?? true,
       showBrowseMore: prefs.getBool(_showBrowseMoreKey) ?? true,
       showQuickAccess: prefs.getBool(_showQuickAccessKey) ?? true,
+      showEngineSelector: prefs.getBool(_showEngineSelectorKey) ?? true,
       crossfadeEnabled: prefs.getBool(_crossfadeEnabledKey) ?? false,
       crossfadeDurationSecs: prefs.getDouble(_crossfadeDurationKey) ?? 3.0,
       crossfadeCurveIndex: prefs.getInt(_crossfadeCurveKey) ?? 0,
@@ -382,6 +388,16 @@ class AppPreferencesService {
   Future<void> setShowQuickAccess(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_showQuickAccessKey, value);
+  }
+
+  Future<bool> getShowEngineSelector() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showEngineSelectorKey) ?? true;
+  }
+
+  Future<void> setShowEngineSelector(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showEngineSelectorKey, value);
   }
 
   Future<bool> getCrossfadeEnabled() async {
