@@ -4272,6 +4272,8 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
   bool _hasManualLyricsSelection = false;
   int _activeLineIndex = -1;
   bool _isMetaCollapsed = false;
+  bool _isScrollAnimating = false;
+  double? _pendingScrollTarget;
 
   @override
   void initState() {
@@ -4343,14 +4345,39 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
     final target = (index * _lineHeight) + (_lineHeight / 2);
     final clampedTarget = target.clamp(0.0, maxScroll);
 
-    final delta = (_scrollController.offset - clampedTarget).abs();
-    if (delta < _lineHeight * 0.08) return;
+    _pendingScrollTarget = clampedTarget;
 
-    _scrollController.animateTo(
-      clampedTarget,
-      duration: AppConstants.animationNormal,
-      curve: Curves.easeOutCubic,
-    );
+    if (!_isScrollAnimating) {
+      _performScroll();
+    }
+  }
+
+  void _performScroll() {
+    if (!_scrollController.hasClients || _pendingScrollTarget == null) {
+      _isScrollAnimating = false;
+      return;
+    }
+
+    final target = _pendingScrollTarget!;
+    _pendingScrollTarget = null;
+
+    final delta = (_scrollController.offset - target).abs();
+    if (delta < _lineHeight * 0.08) {
+      _performScroll();
+      return;
+    }
+
+    _isScrollAnimating = true;
+    _scrollController
+        .animateTo(
+          target,
+          duration: AppConstants.animationNormal,
+          curve: Curves.easeOutCubic,
+        )
+        .then((_) {
+          _isScrollAnimating = false;
+          _performScroll();
+        });
   }
 
   Future<void> _seekToLyricLine(int index) async {
@@ -4366,6 +4393,8 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
       });
     }
 
+    _isScrollAnimating = false;
+    _pendingScrollTarget = null;
     _scrollToActiveLine(index);
     await widget.playerService.seek(target);
   }
