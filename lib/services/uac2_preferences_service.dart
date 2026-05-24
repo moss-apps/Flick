@@ -7,13 +7,12 @@ enum Uac2FormatPreference { highestQuality, compatibility, custom }
 
 enum AudioEnginePreference { exoPlayer, rustOboe, isochronousUsb }
 
-enum DsdFilterQuality { fast, normal, high }
-
-enum DsdOutputMode { auto, forcePcm, forceDop }
+enum DsdOutputMode { auto, forcePcm, forceDop, native }
 
 class Uac2PreferencesService {
   static final ValueNotifier<bool> developerModeNotifier = ValueNotifier(false);
   static final ValueNotifier<bool> killIsochronousUsbOnQuitNotifier = ValueNotifier(true);
+  static final ValueNotifier<DsdOutputMode> dsdOutputModeNotifier = ValueNotifier(DsdOutputMode.auto);
   static const _keySelectedDevice = 'uac2_selected_device';
   static const _keyPreferredFormat = 'uac2_preferred_format';
   static const _keyFormatPreference = 'uac2_format_preference';
@@ -27,11 +26,14 @@ class Uac2PreferencesService {
   static const _keyUsbSoftwareVolume = 'uac2_usb_software_volume';
   static const _keyKillIsochronousUsbOnQuit = 'uac2_kill_isochronous_usb_on_quit';
   static const _keyGaplessPlaybackEnabled = 'gapless_playback_enabled';
-  static const _keyDsdFilterQuality = 'dsd_filter_quality';
   static const _keyDsdOutputMode = 'dsd_output_mode';
+  static const _keyAutoSwitchDsdForVolume = 'auto_switch_dsd_for_volume';
 
   static bool get isDeveloperModeEnabledSync => developerModeNotifier.value;
   static bool get isKillIsochronousUsbOnQuitSync => killIsochronousUsbOnQuitNotifier.value;
+  static DsdOutputMode get dsdOutputModeSync => dsdOutputModeNotifier.value;
+  static final ValueNotifier<bool> autoSwitchDsdForVolumeNotifier = ValueNotifier(false);
+  static bool get autoSwitchDsdForVolumeSync => autoSwitchDsdForVolumeNotifier.value;
 
   Future<void> saveSelectedDevice(Uac2DeviceInfo device) async {
     try {
@@ -341,34 +343,11 @@ class Uac2PreferencesService {
     }
   }
 
-  Future<void> setDsdFilterQuality(DsdFilterQuality quality) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyDsdFilterQuality, quality.name);
-    } catch (e) {
-      debugPrint('Failed to save DSD filter quality: $e');
-    }
-  }
-
-  Future<DsdFilterQuality> getDsdFilterQuality() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final value = prefs.getString(_keyDsdFilterQuality);
-      if (value == null) return DsdFilterQuality.normal;
-      return DsdFilterQuality.values.firstWhere(
-        (e) => e.name == value,
-        orElse: () => DsdFilterQuality.normal,
-      );
-    } catch (e) {
-      debugPrint('Failed to load DSD filter quality: $e');
-      return DsdFilterQuality.normal;
-    }
-  }
-
   Future<void> setDsdOutputMode(DsdOutputMode mode) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyDsdOutputMode, mode.name);
+      dsdOutputModeNotifier.value = mode;
     } catch (e) {
       debugPrint('Failed to save DSD output mode: $e');
     }
@@ -378,14 +357,39 @@ class Uac2PreferencesService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final value = prefs.getString(_keyDsdOutputMode);
-      if (value == null) return DsdOutputMode.auto;
-      return DsdOutputMode.values.firstWhere(
-        (e) => e.name == value,
-        orElse: () => DsdOutputMode.auto,
-      );
+      final mode = value == null
+          ? DsdOutputMode.auto
+          : DsdOutputMode.values.firstWhere(
+              (e) => e.name == value,
+              orElse: () => DsdOutputMode.auto,
+            );
+      dsdOutputModeNotifier.value = mode;
+      return mode;
     } catch (e) {
       debugPrint('Failed to load DSD output mode: $e');
       return DsdOutputMode.auto;
+    }
+  }
+
+  Future<void> setAutoSwitchDsdForVolume(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyAutoSwitchDsdForVolume, value);
+      autoSwitchDsdForVolumeNotifier.value = value;
+    } catch (e) {
+      debugPrint('Failed to save auto-switch DSD for volume: $e');
+    }
+  }
+
+  Future<bool> getAutoSwitchDsdForVolume() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final value = prefs.getBool(_keyAutoSwitchDsdForVolume) ?? false;
+      autoSwitchDsdForVolumeNotifier.value = value;
+      return value;
+    } catch (e) {
+      debugPrint('Failed to load auto-switch DSD for volume: $e');
+      return false;
     }
   }
 
@@ -405,8 +409,9 @@ class Uac2PreferencesService {
       await prefs.remove(_keyUsbSoftwareVolume);
     await prefs.remove(_keyKillIsochronousUsbOnQuit);
     await prefs.remove(_keyGaplessPlaybackEnabled);
-    await prefs.remove(_keyDsdFilterQuality);
     await prefs.remove(_keyDsdOutputMode);
+    await prefs.remove(_keyAutoSwitchDsdForVolume);
+    dsdOutputModeNotifier.value = DsdOutputMode.auto;
     developerModeNotifier.value = false;
       killIsochronousUsbOnQuitNotifier.value = true;
     } catch (e) {
