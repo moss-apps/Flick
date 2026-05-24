@@ -797,16 +797,22 @@ pub fn create_audio_engine(
     let will_attempt_usb = false;
 
     // When a DAP device has bit-perfect disabled, force the output to
-    // 44.1 kHz so that all DSP runs at a fixed rate. USB DACs are excluded
-    // because they use their own direct path.
+    // 48 kHz so that all DSP runs at a fixed rate. USB DACs are excluded
+    // because they use their own direct path. DSD playback needs its
+    // native PCM target rate (e.g., 176.4 kHz); honour explicit requests
+    // above 48 kHz to avoid a rate mismatch with the DSD decoder.
     let dap_force_dsp = !dap_bit_perfect_enabled
         && device_profile.as_ref().is_some_and(|p| p.is_dap())
         && !will_attempt_usb;
-                let requested_sample_rate = if dap_force_dsp {
-                    48_000
-                } else {
-                    preferred_sample_rate.unwrap_or(48_000)
-                };
+    let requested_sample_rate = if dap_force_dsp {
+        if let Some(rate) = preferred_sample_rate {
+            if rate > 48_000 { rate } else { 48_000 }
+        } else {
+            48_000
+        }
+    } else {
+        preferred_sample_rate.unwrap_or(48_000)
+    };
 
     #[cfg(feature = "uac2")]
     if will_attempt_usb {
