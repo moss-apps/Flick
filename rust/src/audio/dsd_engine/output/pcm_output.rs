@@ -1,18 +1,13 @@
-use super::super::dsd::{DsdDecimationPipeline, DsdRate, FilterQuality};
+use super::super::dsd::{DsdDecimationPipeline, DsdRate};
 
 pub struct PcmOutput {
     pipeline: DsdDecimationPipeline,
 }
 
 impl PcmOutput {
-    pub fn new(
-        dsd_rate: DsdRate,
-        target_rate: u32,
-        quality: FilterQuality,
-        channels: usize,
-    ) -> Self {
+    pub fn new(dsd_rate: DsdRate, target_rate: u32, channels: usize) -> Self {
         Self {
-            pipeline: DsdDecimationPipeline::new(dsd_rate, target_rate, quality, channels),
+            pipeline: DsdDecimationPipeline::new(dsd_rate, target_rate, channels),
         }
     }
 
