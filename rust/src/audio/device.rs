@@ -15,6 +15,7 @@ pub struct DeviceProfile {
     pub confirmed_bit_perfect: bool,
     pub max_sample_rate: u32,
     pub has_balanced_output: bool,
+    pub supports_native_dsd: bool,
 }
 
 impl Default for DeviceProfile {
@@ -30,6 +31,7 @@ impl DeviceProfile {
             confirmed_bit_perfect: false,
             max_sample_rate: 0,
             has_balanced_output: false,
+            supports_native_dsd: false,
         }
     }
 
@@ -216,6 +218,7 @@ pub fn classify_device(signals: DeviceSignals) -> DeviceProfile {
         kind,
         max_sample_rate: signals.audio_caps.max_sample_rate,
         has_balanced_output: signals.audio_caps.has_balanced_output,
+        supports_native_dsd: signals.audio_caps.supports_native_dsd,
     }
 }
 
