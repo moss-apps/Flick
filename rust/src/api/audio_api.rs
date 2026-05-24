@@ -8,15 +8,46 @@ use crate::audio::decoder::{probe_file, DecoderThread};
 use crate::audio::decoder_handle::{DecoderHandle, detect_file_type};
 #[cfg(target_os = "android")]
 use crate::audio::device::current_device_profile;
-use crate::audio::dsd_engine::{DsdDecoderThread, DsdOutputMode, FilterQuality};
+use crate::audio::dsd_engine::dsd::{resolve_dsd_pcm_sample_rate, DsdOutputMode, DsdRate};
+use crate::audio::dsd_engine::format::open_dsd_decoder;
+use crate::audio::dsd_engine::DsdDecoderThread;
 use crate::audio::manager::{AudioCapability, AudioCapabilitySnapshot, AudioEngine, EngineManager};
 use crate::audio::wavpack_thread::WavpackDecoderThread;
 use log::{info as log_info, warn as log_warn};
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 static ENGINE_MANAGER: Lazy<EngineManager> = Lazy::new(EngineManager::new);
+
+static DSD_OUTPUT_MODE: AtomicU8 = AtomicU8::new(0);
+
+pub fn current_dsd_output_mode() -> DsdOutputMode {
+    match DSD_OUTPUT_MODE.load(Ordering::Relaxed) {
+        1 => DsdOutputMode::Dop,
+        2 => DsdOutputMode::Native,
+        _ => DsdOutputMode::PcmDecimation,
+    }
+}
+
+fn effective_dsd_output_mode(requested: DsdOutputMode) -> DsdOutputMode {
+    match requested {
+        DsdOutputMode::PcmDecimation => return DsdOutputMode::PcmDecimation,
+        _ => {}
+    }
+    #[cfg(all(feature = "uac2", target_os = "android"))]
+    {
+        if crate::uac2::is_usb_session_active() {
+            return requested;
+        }
+    }
+    log_info!(
+        "[AUDIO] {:?} DSD requested but Oboe/AAudio only supports PCM; falling back to PCM decimation",
+        requested
+    );
+    DsdOutputMode::PcmDecimation
+}
 
 fn with_audio_engine<T>(
     f: impl FnOnce(&crate::audio::engine::AudioEngineHandle) -> Result<T, String>,
@@ -65,6 +96,36 @@ fn resolve_track_playback_output_sample_rate(
     resolve_requested_output_sample_rate(preferred_sample_rate)
 }
 
+fn resolve_dsd_engine_sample_rate(path: &PathBuf, output_mode: DsdOutputMode) -> Result<Option<u32>, String> {
+    let effective_mode = effective_dsd_output_mode(output_mode);
+    if effective_mode == DsdOutputMode::Dop {
+        let decoder = open_dsd_decoder(path)
+            .map_err(|e| format!("Failed to probe DSD rate for {}: {}", path.display(), e))?;
+        let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
+            .ok_or_else(|| format!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
+        let carrier = dsd_rate.dop_carrier_rate();
+        log_info!(
+            "[AUDIO] DSD DoP: dsd_rate={} Hz -> carrier={} Hz",
+            dsd_rate.sample_rate(), carrier
+        );
+        return resolve_requested_output_sample_rate(Some(carrier));
+    }
+    let decoder = open_dsd_decoder(path)
+        .map_err(|e| format!("Failed to probe DSD rate for {}: {}", path.display(), e))?;
+    let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
+        .ok_or_else(|| format!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
+    if effective_mode == DsdOutputMode::Native {
+        return resolve_requested_output_sample_rate(Some(dsd_rate.sample_rate()));
+    }
+    let existing_rate = read_audio_engine(|handle| handle.sample_rate()).unwrap_or(0);
+    let target = resolve_dsd_pcm_sample_rate(dsd_rate, existing_rate);
+    log_info!(
+        "[AUDIO] DSD PCM decimation: dsd_rate={} Hz, existing_engine={} Hz -> target={} Hz",
+        dsd_rate.sample_rate(), existing_rate, target
+    );
+    resolve_requested_output_sample_rate(Some(target))
+}
+
 fn prepare_decoder_source(
     path: &PathBuf,
     output_sample_rate: u32,
@@ -74,9 +135,8 @@ fn prepare_decoder_source(
         crate::audio::decoder_handle::FileType::Dsd => {
             let (source, thread) = DsdDecoderThread::spawn(
                 path.clone(),
-                DsdOutputMode::PcmDecimation,
+                current_dsd_output_mode(),
                 output_sample_rate,
-                FilterQuality::Normal,
                 output_channels,
             )
             .map_err(|e| format!("Failed to decode DSD {}: {}", path.display(), e))?;
@@ -316,6 +376,12 @@ pub fn audio_set_dap_bit_perfect_enabled(enabled: bool) {
     let _ = enabled;
 }
 
+/// Set the DSD output mode from Dart. 0 = PCM decimation, 1 = DoP, 2 = Native.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_set_dsd_output_mode(mode: u8) {
+    DSD_OUTPUT_MODE.store(mode.min(2), Ordering::Relaxed);
+}
+
 /// Update the current platform capability snapshot used for engine selection.
 #[flutter_rust_bridge::frb(sync)]
 pub fn audio_set_capability_info(info: AudioCapabilityInfo) {
@@ -411,18 +477,23 @@ pub fn audio_play(path: String) -> Result<(), String> {
     let path = PathBuf::from(&path);
     match detect_file_type(&path) {
         crate::audio::decoder_handle::FileType::Dsd => {
-            ensure_audio_engine(resolve_requested_output_sample_rate(None)?)?;
+            let requested_mode = current_dsd_output_mode();
+            let effective_mode = effective_dsd_output_mode(requested_mode);
+            ensure_audio_engine(resolve_dsd_engine_sample_rate(&path, effective_mode)?)?;
             let (output_sample_rate, output_channels) =
                 with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
             let (source, thread) = DsdDecoderThread::spawn(
                 path,
-                DsdOutputMode::PcmDecimation,
+                effective_mode,
                 output_sample_rate,
-                FilterQuality::Normal,
                 output_channels,
             )
             .map_err(|e| format!("Failed to decode DSD: {}", e))?;
-            with_audio_engine(|handle| handle.play_prepared(source, DecoderHandle::Dsd(thread)))
+            let is_raw = matches!(effective_mode, DsdOutputMode::Dop | DsdOutputMode::Native);
+            with_audio_engine(|handle| {
+                handle.set_dop_override(is_raw)?;
+                handle.play_prepared(source, DecoderHandle::Dsd(thread))
+            })
         }
         crate::audio::decoder_handle::FileType::WavPack => {
             ensure_audio_engine(resolve_requested_output_sample_rate(None)?)?;
@@ -434,7 +505,10 @@ pub fn audio_play(path: String) -> Result<(), String> {
                 output_channels,
             )
             .map_err(|e| format!("Failed to decode WavPack: {}", e))?;
-            with_audio_engine(|engine| engine.play_prepared(source, handle))
+            with_audio_engine(|engine| {
+                engine.set_dop_override(false)?;
+                engine.play_prepared(source, handle)
+            })
         }
         crate::audio::decoder_handle::FileType::Standard => {
             let probe_result = probe_file(path.as_path())
@@ -465,6 +539,7 @@ pub fn audio_play(path: String) -> Result<(), String> {
             )
             .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
             with_audio_engine(|handle| {
+                handle.set_dop_override(false)?;
                 handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
             })
         }
@@ -477,18 +552,21 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
     if !audio_is_initialized() {
         match detect_file_type(&path) {
             crate::audio::decoder_handle::FileType::Dsd => {
-                ensure_audio_engine(resolve_requested_output_sample_rate(None)?)?;
+                let requested_mode = current_dsd_output_mode();
+                let effective_mode = effective_dsd_output_mode(requested_mode);
+                ensure_audio_engine(resolve_dsd_engine_sample_rate(&path, effective_mode)?)?;
                 let (output_sample_rate, output_channels) =
                     with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
                 let (source, thread) = DsdDecoderThread::spawn(
                     path,
-                    DsdOutputMode::PcmDecimation,
+                    effective_mode,
                     output_sample_rate,
-                    FilterQuality::Normal,
                     output_channels,
                 )
                 .map_err(|e| format!("Failed to decode DSD: {}", e))?;
+                let is_raw = matches!(effective_mode, DsdOutputMode::Dop | DsdOutputMode::Native);
                 return with_audio_engine(|handle| {
+                    handle.set_dop_override(is_raw)?;
                     handle.queue_next_prepared(source, DecoderHandle::Dsd(thread))
                 });
             }
@@ -502,7 +580,10 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
                     output_channels,
                 )
                 .map_err(|e| format!("Failed to decode WavPack: {}", e))?;
-                return with_audio_engine(|engine| engine.queue_next_prepared(source, wh));
+                return with_audio_engine(|engine| {
+                    engine.set_dop_override(false)?;
+                    engine.queue_next_prepared(source, wh)
+                });
             }
             crate::audio::decoder_handle::FileType::Standard => {
                 let probe_result = probe_file(path.as_path())
@@ -533,6 +614,7 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
                 )
                 .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
                 return with_audio_engine(|handle| {
+                    handle.set_dop_override(false)?;
                     handle.queue_next_prepared(source, DecoderHandle::Symphonia(decoder_thread))
                 });
             }
@@ -542,7 +624,10 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
     let (output_sample_rate, output_channels) =
         with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
     let (source, handle) = prepare_decoder_source(&path, output_sample_rate, output_channels)?;
-    with_audio_engine(|engine| engine.queue_next_prepared(source, handle))
+    with_audio_engine(|engine| {
+        engine.set_dop_override(false)?;
+        engine.queue_next_prepared(source, handle)
+    })
 }
 
 /// Pause playback.
