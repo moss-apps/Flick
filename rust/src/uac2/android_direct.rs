@@ -72,6 +72,7 @@ const UAC2_FEATURE_UNIT: u8 = 0x06;
 const FORMAT_TAG_PCM: u16 = 0x0001;
 const FORMAT_TAG_PCM8: u16 = 0x0002;
 const FORMAT_TAG_IEEE_FLOAT: u16 = 0x0003;
+const FORMAT_TAG_DSD: u16 = 0x0008;
 const UAC2_REQUEST_GET_MIN: u8 = 0x82;
 const UAC2_REQUEST_GET_MAX: u8 = 0x83;
 const UAC2_REQUEST_GET_RES: u8 = 0x84;
@@ -219,11 +220,19 @@ impl AndroidDirectUsbDevice {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DsdTransportMode {
+    None,
+    DoP,
+    Native,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AndroidDirectUsbPlaybackFormat {
     pub sample_rate: u32,
     pub bit_depth: u8,
     pub channels: u16,
     pub is_dop: bool,
+    pub dsd_transport: DsdTransportMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1048,13 +1057,20 @@ pub fn set_android_usb_dop_mode(
         bit_depth,
         channels: 2,
         is_dop: false,
+        dsd_transport: DsdTransportMode::None,
     });
 
+    let transport = if is_dop {
+        DsdTransportMode::DoP
+    } else {
+        DsdTransportMode::None
+    };
     let dop_format = AndroidDirectUsbPlaybackFormat {
         sample_rate: carrier_rate,
         bit_depth: if is_dop { bit_depth } else { current.bit_depth },
         channels: current.channels,
         is_dop,
+        dsd_transport: transport,
     };
     let sanitized = sanitize_android_usb_playback_format(dop_format);
 
@@ -1743,6 +1759,8 @@ fn sanitize_android_usb_playback_format(
             24 | 32 => playback_format.bit_depth,
             _ => 24,
         }
+    } else if playback_format.dsd_transport == DsdTransportMode::Native {
+        playback_format.bit_depth
     } else {
         match playback_format.bit_depth {
             16 | 24 | 32 => playback_format.bit_depth,
@@ -1754,6 +1772,7 @@ fn sanitize_android_usb_playback_format(
         bit_depth,
         channels: playback_format.channels.max(1),
         is_dop: playback_format.is_dop,
+        dsd_transport: playback_format.dsd_transport,
     }
 }
 
@@ -3817,7 +3836,7 @@ fn run_usb_render_loop(
             continue;
         }
 
-        if playback_format.is_dop {
+        if playback_format.is_dop || playback_format.dsd_transport == DsdTransportMode::Native {
             for (dst, src) in pcm_samples.iter_mut().zip(render_buffer.iter()) {
                 *dst = src.to_bits() as i32;
             }
@@ -3964,6 +3983,7 @@ fn prepare_iso_transfer_payload(
     slot_bytes: usize,
     channels: usize,
     bytes_per_frame: usize,
+    dsd_transport: DsdTransportMode,
 ) -> Result<Option<IsoTransferPayload>, String> {
     let packet_sizes = scheduler.next_transfer_packet_bytes();
     let total_bytes: usize = packet_sizes.iter().sum();
@@ -4008,6 +4028,7 @@ fn prepare_iso_transfer_payload(
         &mut transfer_buffer,
         candidate.subslot_size,
         candidate.bit_resolution,
+        dsd_transport,
     )?;
 
     Ok(Some(IsoTransferPayload {
@@ -4317,6 +4338,7 @@ fn run_usb_output_loop(
                 slot_bytes,
                 channels,
                 bytes_per_frame,
+                playback_format.dsd_transport,
             ) {
                 Ok(Some(payload)) => payload,
                 Ok(None) => continue,
@@ -4436,6 +4458,7 @@ fn run_usb_output_loop(
                     slot_bytes,
                     channels,
                     bytes_per_frame,
+                    playback_format.dsd_transport,
                 ) {
                     Ok(Some(payload)) => {
                         record_prepared_iso_transfer(
@@ -4707,6 +4730,7 @@ fn select_stream_candidate(
             let sample_rates = representative_sample_rates_from_ranges(&sample_rate_ranges);
 
             if !sample_rate_ranges.is_empty()
+                && stream_format.format_tag != FORMAT_TAG_DSD
                 && !sampling_frequency_ranges_support_rate(
                     &sample_rate_ranges,
                     playback_format.sample_rate,
@@ -5633,8 +5657,19 @@ fn parse_android_streaming_interface_format(
     }
 
     let format_tag = format_tag?;
-    let subslot_size = subslot_size?;
-    let bit_resolution = bit_resolution?;
+
+    let is_dsd_format = format_tag == FORMAT_TAG_DSD;
+
+    let subslot_size = if is_dsd_format {
+        subslot_size.unwrap_or(4)
+    } else {
+        subslot_size?
+    };
+    let bit_resolution = if is_dsd_format {
+        bit_resolution.unwrap_or(1)
+    } else {
+        bit_resolution?
+    };
 
     Some(AndroidStreamingInterfaceFormat {
         format_tag,
@@ -5649,7 +5684,10 @@ fn transport_compatibility_penalty(
     stream_format: &AndroidStreamingInterfaceFormat,
     playback_format: AndroidDirectUsbPlaybackFormat,
 ) -> u32 {
-    if stream_format.format_tag != FORMAT_TAG_PCM {
+    let is_native_dsd = playback_format.dsd_transport == DsdTransportMode::Native;
+    let fmt_ok = stream_format.format_tag == FORMAT_TAG_PCM
+        || (is_native_dsd && stream_format.format_tag == FORMAT_TAG_DSD);
+    if !fmt_ok {
         return u32::MAX;
     }
     if stream_format.subslot_size == 0 || stream_format.channels == 0 {
@@ -5658,14 +5696,16 @@ fn transport_compatibility_penalty(
     if stream_format.channels != playback_format.channels {
         return u32::MAX;
     }
-    if stream_format.bit_resolution != playback_format.bit_depth {
-        return u32::MAX;
-    }
     let Some(min_subslot_size) = bytes_per_sample(playback_format.bit_depth) else {
         return u32::MAX;
     };
-    if stream_format.subslot_size < min_subslot_size as u8 {
-        return u32::MAX;
+    if !is_native_dsd {
+        if stream_format.bit_resolution != playback_format.bit_depth {
+            return u32::MAX;
+        }
+        if stream_format.subslot_size < min_subslot_size as u8 {
+            return u32::MAX;
+        }
     }
 
     let container_bits = u32::from(stream_format.subslot_size) * 8;
@@ -5673,7 +5713,11 @@ fn transport_compatibility_penalty(
         return u32::MAX;
     }
 
-    u32::from(stream_format.subslot_size) - min_subslot_size as u32
+    if !is_native_dsd {
+        u32::from(stream_format.subslot_size) - min_subslot_size as u32
+    } else {
+        0
+    }
 }
 
 fn transport_compatibility_penalty_for_candidate(
@@ -5697,6 +5741,7 @@ fn format_tag_label(format_tag: u16) -> &'static str {
         FORMAT_TAG_PCM => "PCM",
         FORMAT_TAG_PCM8 => "PCM8",
         FORMAT_TAG_IEEE_FLOAT => "IEEE_FLOAT",
+        FORMAT_TAG_DSD => "DSD",
         _ => "OTHER",
     }
 }
@@ -5732,7 +5777,10 @@ fn validate_transport_against_playback_format(
     candidate: &AndroidIsoStreamCandidate,
     playback_format: AndroidDirectUsbPlaybackFormat,
 ) -> Result<(), String> {
-    if candidate.format_tag != FORMAT_TAG_PCM {
+    let is_native_dsd = playback_format.dsd_transport == DsdTransportMode::Native;
+    if candidate.format_tag != FORMAT_TAG_PCM
+        && !(is_native_dsd && candidate.format_tag == FORMAT_TAG_DSD)
+    {
         return Err(format!(
             "Android USB direct requires PCM transport, got {}",
             format_tag_label(candidate.format_tag)
@@ -5744,23 +5792,25 @@ fn validate_transport_against_playback_format(
             playback_format.channels, candidate.channels
         ));
     }
-    if candidate.bit_resolution != playback_format.bit_depth {
-        return Err(format!(
-            "Android USB direct requires {}-bit transport, got {}",
-            playback_format.bit_depth, candidate.bit_resolution
-        ));
-    }
-    let Some(min_subslot_size) = bytes_per_sample(playback_format.bit_depth) else {
-        return Err(format!(
-            "Android USB direct does not support {}-bit sample packing",
-            playback_format.bit_depth
-        ));
-    };
-    if candidate.subslot_size < min_subslot_size as u8 {
-        return Err(format!(
+    if !is_native_dsd {
+        if candidate.bit_resolution != playback_format.bit_depth {
+            return Err(format!(
+                "Android USB direct requires {}-bit transport, got {}",
+                playback_format.bit_depth, candidate.bit_resolution
+            ));
+        }
+        let Some(min_subslot_size) = bytes_per_sample(playback_format.bit_depth) else {
+            return Err(format!(
+                "Android USB direct does not support {}-bit sample packing",
+                playback_format.bit_depth
+            ));
+        };
+        if candidate.subslot_size < min_subslot_size as u8 {
+            return Err(format!(
             "Android USB direct requires at least {} bytes per subslot for {}-bit transport, got {}",
             min_subslot_size, playback_format.bit_depth, candidate.subslot_size
         ));
+    }
     }
     Ok(())
 }
@@ -5828,6 +5878,7 @@ fn encode_usb_pcm_slots(
     output: &mut [u8],
     subslot_size: u8,
     bit_resolution: u8,
+    dsd_transport: DsdTransportMode,
 ) -> Result<(), String> {
     let ss = subslot_size as usize;
     if ss == 0 {
@@ -5850,6 +5901,20 @@ fn encode_usb_pcm_slots(
         ));
     }
 
+    match dsd_transport {
+        DsdTransportMode::DoP => {
+            encode_dop_slots(input, output, subslot_size, bit_resolution);
+            return Ok(());
+        }
+        DsdTransportMode::Native => {
+            for (i, &sample) in input.iter().enumerate() {
+                output[i] = (sample & 0xFF) as u8;
+            }
+            return Ok(());
+        }
+        DsdTransportMode::None => {}
+    }
+
     match subslot_size {
         2 => {
             if bit_resolution == 16 {
@@ -5868,15 +5933,65 @@ fn encode_usb_pcm_slots(
             Ok(())
         }
         4 => {
-            for (index, &sample) in input.iter().enumerate() {
-                let offset = index * 4;
-                output[offset..offset + 4].copy_from_slice(&encode_i32_le(sample));
+            if bit_resolution >= 32 {
+                for (index, &sample) in input.iter().enumerate() {
+                    let offset = index * 4;
+                    output[offset..offset + 4].copy_from_slice(&encode_i32_le(sample));
+                }
+            } else {
+                let unused: u32 = 32u32.saturating_sub(bit_resolution as u32);
+                let mask = !((1u32.wrapping_shl(unused)).wrapping_sub(1) as i32);
+                for (index, &sample) in input.iter().enumerate() {
+                    let offset = index * 4;
+                    let packed = (sample & mask).to_le_bytes();
+                    output[offset..offset + 4].copy_from_slice(&packed);
+                }
             }
             Ok(())
         }
         _ => {
             encode_pcm_bytes(input, output, subslot_size, bit_resolution);
             Ok(())
+        }
+    }
+}
+
+fn encode_dop_slots(
+    input: &[i32],
+    output: &mut [u8],
+    subslot_size: u8,
+    bit_resolution: u8,
+) {
+    match (subslot_size, bit_resolution) {
+        (3, 24) => {
+            for (index, &sample) in input.iter().enumerate() {
+                let offset = index * 3;
+                output[offset] = sample as u8;
+                output[offset + 1] = (sample >> 8) as u8;
+                output[offset + 2] = (sample >> 16) as u8;
+            }
+        }
+        (4, 24) => {
+            for (index, &sample) in input.iter().enumerate() {
+                let left_justified = (sample as u32) << 8;
+                let offset = index * 4;
+                output[offset..offset + 4].copy_from_slice(&left_justified.to_le_bytes());
+            }
+        }
+        (4, 32) => {
+            for (index, &sample) in input.iter().enumerate() {
+                let offset = index * 4;
+                output[offset..offset + 4].copy_from_slice(&(sample as u32).to_le_bytes());
+            }
+        }
+        _ => {
+            for (index, &sample) in input.iter().enumerate() {
+                let val = sample as u32;
+                let offset = index * subslot_size as usize;
+                for byte_idx in 0..subslot_size.min(4) {
+                    output[offset + byte_idx as usize] = (val >> (byte_idx * 8)) as u8;
+                }
+            }
         }
     }
 }
@@ -5903,16 +6018,23 @@ fn encode_pcm_bytes(input: &[i32], output: &mut [u8], subslot_size: u8, bit_reso
     let subslot_bytes = usize::from(subslot_size);
     debug_assert_eq!(output.len(), input.len() * subslot_bytes);
 
-    let right_shift = 32u32.saturating_sub((subslot_size as u32) * 8);
+    let container_bits = (subslot_size as u32) * 8;
+    let right_shift = 32u32.saturating_sub(bit_resolution as u32);
+    let left_shift = container_bits.saturating_sub(bit_resolution as u32);
 
     for (index, &sample) in input.iter().enumerate() {
         let offset = index * subslot_bytes;
-        let shifted = if right_shift == 0 {
+        let kept = if right_shift == 0 {
             sample
         } else {
             sample >> right_shift
         };
-        let bytes = shifted.to_le_bytes();
+        let padded = if left_shift == 0 {
+            kept
+        } else {
+            kept << left_shift
+        };
+        let bytes = padded.to_le_bytes();
         for byte_index in 0..subslot_bytes {
             output[offset + byte_index] = bytes[byte_index];
         }
