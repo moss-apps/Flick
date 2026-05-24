@@ -1,4 +1,4 @@
-use crate::audio::dsd_engine::dsd::{DsdOutputMode, DsdRate, FilterQuality};
+use crate::audio::dsd_engine::dsd::{DsdOutputMode, DsdRate};
 use crate::audio::dsd_engine::format::{open_dsd_decoder, DsdChannelLayout, DsdFormatDecoder};
 use crate::audio::dsd_engine::output::DsdOutputRouter;
 use crate::audio::source::{AudioSource, SourceInfo, SourceProducer};
@@ -20,17 +20,15 @@ impl DsdDecoderThread {
         path: PathBuf,
         output_mode: DsdOutputMode,
         target_rate: u32,
-        quality: FilterQuality,
         output_channels: usize,
     ) -> Result<(AudioSource, Self)> {
-        Self::spawn_with_seek(path, output_mode, target_rate, quality, output_channels, None)
+        Self::spawn_with_seek(path, output_mode, target_rate, output_channels, None)
     }
 
     pub fn spawn_with_seek(
         path: PathBuf,
         output_mode: DsdOutputMode,
         target_rate: u32,
-        quality: FilterQuality,
         output_channels: usize,
         start_position_secs: Option<f64>,
     ) -> Result<(AudioSource, Self)> {
@@ -45,8 +43,9 @@ impl DsdDecoderThread {
         let channel_layout = decoder.channel_layout();
 
         let output_sample_rate = match output_mode {
-            DsdOutputMode::PcmDecimation => target_rate,
+            DsdOutputMode::PcmDecimation => dsd_rate.best_pcm_target(target_rate),
             DsdOutputMode::Dop => dsd_rate.dop_carrier_rate(),
+            DsdOutputMode::Native => dsd_rate.sample_rate(),
         };
 
         let total_output_samples = if duration_secs > 0.0 {
@@ -72,7 +71,7 @@ impl DsdDecoderThread {
         }
 
         let output_router =
-            DsdOutputRouter::new(output_mode, dsd_rate, target_rate, quality, source_channels);
+            DsdOutputRouter::new(output_mode, dsd_rate, output_sample_rate, source_channels);
 
         let stop_signal = Arc::new(AtomicBool::new(false));
         let stop_clone = Arc::clone(&stop_signal);
