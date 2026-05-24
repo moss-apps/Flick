@@ -10,6 +10,31 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use wavpack_sys::*;
 
+pub fn is_wavpack_dsd(path: &std::path::Path) -> bool {
+    let c_path_str = match path.to_str() {
+        Some(s) => s,
+        None => return false,
+    };
+    let c_path = match CString::new(c_path_str) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+
+    let mut error_buf = [0u8; 256];
+    let context = unsafe {
+        WavpackOpenFileInput(c_path.as_ptr(), error_buf.as_mut_ptr() as *mut c_char, 0, 0)
+    };
+
+    if context.is_null() {
+        return false;
+    }
+
+    let mode = unsafe { WavpackGetMode(context) };
+    let is_dsd = (mode as u32 & 0x80000000) != 0;
+    unsafe { WavpackCloseFile(context) };
+    is_dsd
+}
+
 struct SendContext(*mut WavpackContext);
 unsafe impl Send for SendContext {}
 
