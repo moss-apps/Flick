@@ -35,7 +35,6 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                     final developerModeAsync = ref.watch(developerModeEnabledProvider);
                     final diagnostics = ref.watch(audioOutputDiagnosticsProvider);
                     final killIsochronousUsbOnQuitAsync = ref.watch(killIsochronousUsbOnQuitProvider);
-                    final dsdFilterQualityAsync = ref.watch(dsdFilterQualityProvider);
                     final dsdOutputModeAsync = ref.watch(dsdOutputModeProvider);
 
     return DisplayModeWrapper(
@@ -69,7 +68,6 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                       _buildDsdOptions(
                         context,
                         preferencesService,
-                        dsdFilterQualityAsync,
                         dsdOutputModeAsync,
                       ),
                       const SizedBox(height: AppConstants.spacingLg),
@@ -1357,7 +1355,6 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
   Widget _buildDsdOptions(
     BuildContext context,
     Uac2PreferencesService service,
-    AsyncValue<DsdFilterQuality> filterQualityAsync,
     AsyncValue<DsdOutputMode> outputModeAsync,
   ) {
     return Container(
@@ -1368,18 +1365,6 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       ),
       child: Column(
         children: [
-          filterQualityAsync.when(
-            data: (quality) => _buildNavigationTile(
-              context,
-              icon: LucideIcons.slidersHorizontal,
-              title: 'DSD Filter Quality',
-              subtitle: _dsdFilterQualitySubtitle(quality),
-              onTap: () => _showDsdFilterQualityDialog(context, service, quality),
-            ),
-            loading: () => _buildLoadingTile(context),
-            error: (_, _) => _buildErrorTile(context),
-          ),
-          _buildDivider(),
           outputModeAsync.when(
             data: (mode) => _buildNavigationTile(
               context,
@@ -1396,17 +1381,6 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     );
   }
 
-  String _dsdFilterQualitySubtitle(DsdFilterQuality quality) {
-    switch (quality) {
-      case DsdFilterQuality.fast:
-        return 'Fast — Lower CPU usage, good quality';
-      case DsdFilterQuality.normal:
-        return 'Normal — Balanced quality and performance';
-      case DsdFilterQuality.high:
-        return 'High — Best quality, higher CPU usage';
-    }
-  }
-
   String _dsdOutputModeSubtitle(DsdOutputMode mode) {
     switch (mode) {
       case DsdOutputMode.auto:
@@ -1415,79 +1389,11 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
         return 'Force PCM — Always convert DSD to PCM';
       case DsdOutputMode.forceDop:
         return 'Force DoP — Always use DSD over PCM (USB DAC)';
+      case DsdOutputMode.native:
+        return 'Native DSD — Raw DSD stream (requires DAC support)';
     }
   }
 
-  void _showDsdFilterQualityDialog(
-    BuildContext context,
-    Uac2PreferencesService service,
-    DsdFilterQuality current,
-  ) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        title: Text(
-          'DSD Filter Quality',
-          style: TextStyle(color: context.adaptiveTextPrimary),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Controls the decimation filter quality when converting DSD to PCM. Higher quality uses more CPU.',
-              style: TextStyle(color: context.adaptiveTextSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: AppConstants.spacingMd),
-            _buildDsdOptionTile(
-              dialogContext,
-              title: 'Fast',
-              subtitle: 'Shorter filter, lower CPU. Good for DSD64/DSD128.',
-              selected: current == DsdFilterQuality.fast,
-              onTap: () async {
-                await service.setDsdFilterQuality(DsdFilterQuality.fast);
-                ref.invalidate(dsdFilterQualityProvider);
-                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-              },
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _buildDsdOptionTile(
-              dialogContext,
-              title: 'Normal',
-              subtitle: 'Balanced filter. Recommended for most use cases.',
-              selected: current == DsdFilterQuality.normal,
-              onTap: () async {
-                await service.setDsdFilterQuality(DsdFilterQuality.normal);
-                ref.invalidate(dsdFilterQualityProvider);
-                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-              },
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _buildDsdOptionTile(
-              dialogContext,
-              title: 'High',
-              subtitle: 'Longer filter, best quality. May use more battery on DSD256+.',
-              selected: current == DsdFilterQuality.high,
-              onTap: () async {
-                await service.setDsdFilterQuality(DsdFilterQuality.high);
-                ref.invalidate(dsdFilterQualityProvider);
-                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.accent)),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showDsdOutputModeDialog(
     BuildContext context,
@@ -1539,6 +1445,18 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               selected: current == DsdOutputMode.forceDop,
               onTap: () async {
                 await service.setDsdOutputMode(DsdOutputMode.forceDop);
+                ref.invalidate(dsdOutputModeProvider);
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'Native DSD',
+              subtitle: 'Raw DSD stream to DAC (requires native DSD DAC support).',
+              selected: current == DsdOutputMode.native,
+              onTap: () async {
+                await service.setDsdOutputMode(DsdOutputMode.native);
                 ref.invalidate(dsdOutputModeProvider);
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               },
