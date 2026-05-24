@@ -4,16 +4,10 @@ pub mod dop;
 use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FilterQuality {
-    Fast,
-    Normal,
-    High,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DsdOutputMode {
     PcmDecimation,
     Dop,
+    Native,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,51 +57,82 @@ impl DsdRate {
     pub fn dsd_bytes_per_channel_per_dop_frame(&self) -> usize {
         ((self.dop_bits_per_frame() - 8) / 8) as usize
     }
+
+    pub fn pcm_decimation_targets(&self) -> &'static [u32] {
+        static DSD64: &[u32] = &[176_400, 88_200, 44_100];
+        static DSD128: &[u32] = &[352_800, 176_400, 88_200, 44_100];
+        static DSD256: &[u32] = &[705_600, 352_800, 176_400, 88_200];
+        static DSD512: &[u32] = &[705_600, 352_800, 176_400, 88_200];
+        match self {
+            Self::Dsd64 => DSD64,
+            Self::Dsd128 => DSD128,
+            Self::Dsd256 => DSD256,
+            Self::Dsd512 => DSD512,
+        }
+    }
+
+    pub fn best_pcm_target(&self, engine_rate: u32) -> u32 {
+        let targets = self.pcm_decimation_targets();
+        if engine_rate == 0 || engine_rate == targets[0] {
+            return targets[0];
+        }
+        targets[0]
+    }
+}
+
+pub fn resolve_dsd_pcm_sample_rate(dsd_rate: DsdRate, engine_rate: u32) -> u32 {
+    dsd_rate.best_pcm_target(engine_rate)
 }
 
 pub struct DsdDecimationPipeline {
     dsd_rate: DsdRate,
     target_pcm_rate: u32,
-    quality: FilterQuality,
     channels: usize,
+    cic_decimation: usize,
     cic_integrators: Vec<f64>,
-    cic_previous: Vec<f64>,
+    cic_combs: Vec<f64>,
     fir_state: Vec<Vec<f64>>,
     stage2_coeffs: OnceLock<Vec<f64>>,
 }
 
 impl DsdDecimationPipeline {
-    const CIC_DECIMATION: usize = 8;
     const CIC_ORDER: usize = 3;
+    const FIXED_FIR_TAPS: usize = 256;
+    const MAX_CIC_DECIMATION: usize = 4;
+    const AUDIO_BAND_HZ: u32 = 20_000;
 
-    pub fn new(
-        dsd_rate: DsdRate,
-        target_pcm_rate: u32,
-        quality: FilterQuality,
-        channels: usize,
-    ) -> Self {
-        let total_decimation = dsd_rate.sample_rate() / target_pcm_rate;
-        assert!(
-            total_decimation % Self::CIC_DECIMATION as u32 == 0,
-            "Target PCM rate must be a power-of-8 fraction of DSD rate"
-        );
-
-        let fir_taps = match quality {
-            FilterQuality::Fast => 32,
-            FilterQuality::Normal => 64,
-            FilterQuality::High => 128,
-        };
+    pub fn new(dsd_rate: DsdRate, target_pcm_rate: u32, channels: usize) -> Self {
+        let total_decimation = dsd_rate.sample_rate() / target_pcm_rate.max(1);
+        let cic_decimation = Self::compute_cic_decimation(total_decimation);
 
         Self {
             dsd_rate,
             target_pcm_rate,
-            quality,
             channels,
+            cic_decimation,
             cic_integrators: vec![0.0; channels * Self::CIC_ORDER],
-            cic_previous: vec![0.0; channels],
-            fir_state: vec![vec![0.0; fir_taps]; channels],
+            cic_combs: vec![0.0; channels * Self::CIC_ORDER],
+            fir_state: vec![vec![0.0; Self::FIXED_FIR_TAPS]; channels],
             stage2_coeffs: OnceLock::new(),
         }
+    }
+
+    fn compute_cic_decimation(total_decimation: u32) -> usize {
+        if total_decimation == 0 {
+            return 1;
+        }
+        let mut best = 1usize;
+        for factor in (1..=Self::MAX_CIC_DECIMATION).rev() {
+            if total_decimation as usize % factor == 0 {
+                best = factor;
+                break;
+            }
+        }
+        if best < 2 {
+            // fallback: accept any factor, round FIR decimation
+            best = 1;
+        }
+        best
     }
 
     pub fn target_pcm_rate(&self) -> u32 {
@@ -119,14 +144,24 @@ impl DsdDecimationPipeline {
     }
 
     pub fn stage2_decimation(&self) -> usize {
-        (self.dsd_rate.sample_rate() / self.target_pcm_rate) as usize / Self::CIC_DECIMATION
+        let total = self.dsd_rate.sample_rate() / self.target_pcm_rate.max(1);
+        total as usize / self.cic_decimation.max(1)
+    }
+
+    fn cic_normalization(&self) -> f64 {
+        1.0 / (self.cic_decimation as f64).powi(Self::CIC_ORDER as i32)
     }
 
     fn get_stage2_coeffs(&self) -> &Vec<f64> {
         self.stage2_coeffs.get_or_init(|| {
-            let intermediate_rate = self.dsd_rate.sample_rate() / Self::CIC_DECIMATION as u32;
+            let intermediate_rate = self.dsd_rate.sample_rate() / self.cic_decimation as u32;
             let fir_taps = self.fir_state[0].len();
-            coefficients::generate_lowpass_fir(fir_taps, intermediate_rate, self.target_pcm_rate)
+            let cutoff = Self::AUDIO_BAND_HZ.min(intermediate_rate / 2);
+            coefficients::generate_sinc_filter(
+                fir_taps,
+                cutoff as f64 / intermediate_rate as f64,
+                coefficients::WindowFunction::Kaiser { beta: 8.0 },
+            )
         })
     }
 
@@ -139,10 +174,15 @@ impl DsdDecimationPipeline {
         let stage2_decimation = self.stage2_decimation();
         let bytes_per_channel_block = dsd_bytes.len() / self.channels.max(1);
 
-        let mut cic_buffer = vec![0.0f64; bytes_per_channel_block / Self::CIC_DECIMATION];
+        let bits_per_channel = bytes_per_channel_block * 8;
+        let cic_out_count = bits_per_channel / self.cic_decimation;
+        let mut cic_buffer = vec![0.0f64; cic_out_count];
         output.clear();
 
         let coeffs = self.get_stage2_coeffs().clone();
+        let norm = self.cic_normalization();
+
+        let mut per_channel: Vec<Vec<f32>> = Vec::with_capacity(self.channels);
 
         for ch in 0..self.channels {
             let ch_offset = channel_data_offsets
@@ -156,6 +196,7 @@ impl DsdDecimationPipeline {
             let stage2_count = cic_buffer.len() / stage2_decimation;
             let fir_state = &mut self.fir_state[ch];
 
+            let mut ch_output = Vec::with_capacity(stage2_count);
             for i in 0..stage2_count {
                 let base = i * stage2_decimation;
                 for j in 0..stage2_decimation {
@@ -169,31 +210,65 @@ impl DsdDecimationPipeline {
                     .map(|(s, c)| s * c)
                     .sum();
 
-                output.push(sample as f32);
+                ch_output.push((sample * norm) as f32);
             }
+            per_channel.push(ch_output);
+        }
+
+        let frames = per_channel.first().map_or(0, |c| c.len());
+        for i in 0..frames {
+            for ch in 0..self.channels {
+                output.push(per_channel[ch][i]);
+            }
+        }
+
+        if log::log_enabled!(log::Level::Debug) && !output.is_empty() {
+            let peak = output.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
+            log::debug!(
+                "[DSD-PCM] dsd={:?} target={} cic_dec={} s2_dec={} norm={:.6} peak={:.4} frames={}",
+                self.dsd_rate,
+                self.target_pcm_rate,
+                self.cic_decimation,
+                stage2_decimation,
+                norm,
+                peak,
+                frames,
+            );
         }
     }
 
     fn run_cic_stage(&mut self, channel: usize, bytes: &[u8], output: &mut [f64]) {
         let order = Self::CIC_ORDER;
-        let integrator_base = channel * order;
+        let integ_base = channel * order;
+        let comb_base = channel * order;
+        let mut bit_idx = 0usize;
 
-        for (byte_idx, &byte) in bytes.iter().enumerate() {
-            let bit_sum = (byte.count_ones() as f64 * 2.0) - 8.0;
+        for &byte in bytes.iter() {
+            for shift in (0..8).rev() {
+                let bit_val = if (byte >> shift) & 1 == 1 {
+                    1.0f64
+                } else {
+                    -1.0f64
+                };
 
-            self.cic_integrators[integrator_base] += bit_sum;
-            for stage in 1..order {
-                self.cic_integrators[integrator_base + stage] +=
-                    self.cic_integrators[integrator_base + stage - 1];
-            }
+                self.cic_integrators[integ_base] += bit_val;
+                for stage in 1..order {
+                    self.cic_integrators[integ_base + stage] +=
+                        self.cic_integrators[integ_base + stage - 1];
+                }
 
-            if (byte_idx + 1) % Self::CIC_DECIMATION == 0 {
-                let out_idx = (byte_idx + 1) / Self::CIC_DECIMATION - 1;
-                if out_idx < output.len() {
-                    let raw = self.cic_integrators[integrator_base + order - 1];
-                    let diff = raw - self.cic_previous[channel];
-                    self.cic_previous[channel] = raw;
-                    output[out_idx] = diff;
+                bit_idx += 1;
+                if bit_idx % self.cic_decimation == 0 {
+                    let out_idx = bit_idx / self.cic_decimation - 1;
+                    if out_idx < output.len() {
+                        let mut val = self.cic_integrators[integ_base + order - 1];
+                        for stage in 0..order {
+                            let prev = self.cic_combs[comb_base + stage];
+                            self.cic_combs[comb_base + stage] = val;
+                            val -= prev;
+                        }
+                        output[out_idx] = val;
+                    }
                 }
             }
         }
@@ -201,7 +276,7 @@ impl DsdDecimationPipeline {
 
     pub fn reset(&mut self) {
         self.cic_integrators.fill(0.0);
-        self.cic_previous.fill(0.0);
+        self.cic_combs.fill(0.0);
         for state in &mut self.fir_state {
             state.fill(0.0);
         }
