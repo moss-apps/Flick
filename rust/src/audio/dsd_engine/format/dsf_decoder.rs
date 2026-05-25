@@ -95,7 +95,7 @@ impl DsdFormatDecoder for DsfDecoder {
 
     fn seek(&mut self, sample: u64) -> Result<()> {
         let bytes_per_sample_block = self.block_size as u64 * self.channels as u64;
-        let sample_block = sample / self.block_size as u64;
+        let sample_block = sample / (self.block_size as u64 * 8);
         let target_byte = sample_block * bytes_per_sample_block;
 
         self.file
@@ -115,7 +115,9 @@ impl DsdFormatDecoder for DsfDecoder {
             self.finished = true;
         }
 
-        let samples_consumed = (bytes_read as u64 / self.channels as u64) * 8;
+        let macro_block = self.block_size as u64 * self.channels as u64;
+        let num_macro_blocks = bytes_read as u64 / macro_block;
+        let samples_consumed = num_macro_blocks * self.block_size as u64 * 8;
         self.current_position += samples_consumed;
 
         if self.current_position >= self.total_samples {
