@@ -863,9 +863,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                           );
                         }).toList(),
                       ),
-            ],
-            ),
-          ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -1284,6 +1287,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 },
               ),
             ],
+            ),
           ),
         ),
       ),
