@@ -165,8 +165,18 @@ fn score_resampled_fallback(_device: &DeviceCaps, _track: &TrackInfo) -> Option<
 
 fn score_dsd_native(device: &DeviceCaps, track: &TrackInfo) -> Option<u8> {
     if track.is_dsd && device.supports_native_dsd {
+        log::debug!(
+            "[STRATEGY] score_dsd_native = 110 (dsd_rate={}, native_dsd={})",
+            track.dsd_rate.unwrap_or(0),
+            device.supports_native_dsd,
+        );
         Some(110)
     } else {
+        log::debug!(
+            "[STRATEGY] score_dsd_native = None (is_dsd={}, native_dsd={})",
+            track.is_dsd,
+            device.supports_native_dsd,
+        );
         None
     }
 }
@@ -202,7 +212,15 @@ pub static DEFAULT_CANDIDATES: &[BackendCandidate] = &[
 ];
 
 pub fn select_strategy(track: TrackInfo, device: &DeviceCaps) -> OutputStrategy {
-    select_strategy_with_candidates(&track, device, DEFAULT_CANDIDATES)
+    select_strategy_excluded(&track, device, &[])
+}
+
+pub fn select_strategy_excluded(
+    track: &TrackInfo,
+    device: &DeviceCaps,
+    excluded: &[OutputStrategy],
+) -> OutputStrategy {
+    select_strategy_with_candidates_filtered(&track, device, DEFAULT_CANDIDATES, excluded)
 }
 
 pub fn select_strategy_with_candidates(
@@ -210,8 +228,21 @@ pub fn select_strategy_with_candidates(
     device: &DeviceCaps,
     candidates: &[BackendCandidate],
 ) -> OutputStrategy {
+    select_strategy_with_candidates_filtered(track, device, candidates, &[])
+}
+
+pub fn select_strategy_with_candidates_filtered(
+    track: &TrackInfo,
+    device: &DeviceCaps,
+    candidates: &[BackendCandidate],
+    excluded: &[OutputStrategy],
+) -> OutputStrategy {
     candidates
         .iter()
+        .filter(|candidate| {
+            let strategy: OutputStrategy = candidate.backend_type.into();
+            !excluded.contains(&strategy)
+        })
         .filter_map(|candidate| {
             (candidate.scorer)(device, track).map(|score| (candidate.backend_type, score))
         })
@@ -420,5 +451,55 @@ mod tests {
         );
 
         assert_eq!(strategy, OutputStrategy::ResampledFallback);
+    }
+
+    #[test]
+    fn excluded_strategies_skips_dsd_native() {
+        let strategy = select_strategy_excluded(
+            &TrackInfo::dsd(2_822_400, 2),
+            &DeviceCaps {
+                confirmed_dap_native: false,
+                supports_native_dsd: false,
+                supports_dop: true,
+                max_dsd_carrier_rate: 176_400,
+                direct_usb_available: true,
+                direct_usb_verified: true,
+                ..test_caps()
+            },
+            &[OutputStrategy::DsdNative],
+        );
+        assert_eq!(strategy, OutputStrategy::DsdDoP);
+    }
+
+    #[test]
+    fn excluded_strategies_skips_all_dsd_falls_to_dap_native() {
+        let strategy = select_strategy_excluded(
+            &TrackInfo::dsd(2_822_400, 2),
+            &DeviceCaps {
+                confirmed_dap_native: true,
+                supports_native_dsd: true,
+                supports_dop: true,
+                max_dsd_carrier_rate: 176_400,
+                ..test_caps()
+            },
+            &[OutputStrategy::DsdNative, OutputStrategy::DsdDoP],
+        );
+        assert_eq!(strategy, OutputStrategy::DapNative);
+    }
+
+    #[test]
+    fn excluded_strategies_with_empty_list_behaves_as_default() {
+        let strategy = select_strategy_excluded(
+            &TrackInfo::dsd(2_822_400, 2),
+            &DeviceCaps {
+                confirmed_dap_native: true,
+                supports_native_dsd: true,
+                supports_dop: true,
+                max_dsd_carrier_rate: 176_400,
+                ..test_caps()
+            },
+            &[],
+        );
+        assert_eq!(strategy, OutputStrategy::DsdNative);
     }
 }
