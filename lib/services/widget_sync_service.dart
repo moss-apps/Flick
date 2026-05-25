@@ -16,6 +16,11 @@ class WidgetSyncService {
   static const String _appGroup = 'group.com.mossapps.flick.widgets';
 
   static const String miniPlayerProvider = 'com.mossapps.flick.widgets.MiniPlayerWidgetProvider';
+  static const String flagshipProvider = 'com.mossapps.flick.widgets.FlagshipWidgetProvider';
+
+  static const String keyFlagshipTheme = 'flick_widget_flagship_theme';
+  static const String keyFlagshipAccent = 'flick_widget_flagship_accent';
+  static const String keyFlagshipShowArtist = 'flick_widget_flagship_show_artist';
 
   static const String keySongId = 'flick_widget_song_id';
   static const String keyTitle = 'flick_widget_title';
@@ -90,11 +95,9 @@ class WidgetSyncService {
         state.upNext.length,
       );
 
-      await Future.wait<void>([
-        HomeWidget.updateWidget(
-          qualifiedAndroidName: miniPlayerProvider,
-        ),
-      ]);
+      await HomeWidget.updateWidget(
+        qualifiedAndroidName: miniPlayerProvider,
+      );
 
       _lastPushedSongId = song?.id;
       _lastPushedIsPlaying = state.isPlaying;
@@ -107,11 +110,9 @@ class WidgetSyncService {
     try {
       await _ensureInit();
       await HomeWidget.saveWidgetData<bool>(keyIsPlaying, false);
-      await Future.wait<void>([
-        HomeWidget.updateWidget(
-          qualifiedAndroidName: miniPlayerProvider,
-        ),
-      ]);
+      await HomeWidget.updateWidget(
+        qualifiedAndroidName: miniPlayerProvider,
+      );
     } catch (e, st) {
       debugPrint('WidgetSyncService pushPaused failed: $e\n$st');
     }
@@ -128,11 +129,9 @@ class WidgetSyncService {
       await HomeWidget.saveWidgetData<String>(keySongId, '');
       await HomeWidget.saveWidgetData<int>(keyPositionMs, 0);
       await HomeWidget.saveWidgetData<int>(keyDurationMs, 0);
-      await Future.wait<void>([
-        HomeWidget.updateWidget(
-          qualifiedAndroidName: miniPlayerProvider,
-        ),
-      ]);
+      await HomeWidget.updateWidget(
+        qualifiedAndroidName: miniPlayerProvider,
+      );
     } catch (e, st) {
       debugPrint('WidgetSyncService pushKilled failed: $e\n$st');
     }
@@ -155,11 +154,23 @@ class WidgetSyncService {
         prefs.widgetAccentColor,
       );
 
-      await Future.wait<void>([
-        HomeWidget.updateWidget(
-          qualifiedAndroidName: miniPlayerProvider,
-        ),
-      ]);
+      // Flagship widget customization
+      await HomeWidget.saveWidgetData<String>(
+        keyFlagshipTheme,
+        prefs.widgetFlagshipTheme,
+      );
+      await HomeWidget.saveWidgetData<String>(
+        keyFlagshipAccent,
+        prefs.widgetFlagshipAccent,
+      );
+      await HomeWidget.saveWidgetData<bool>(
+        keyFlagshipShowArtist,
+        prefs.widgetFlagshipShowArtist,
+      );
+
+      await HomeWidget.updateWidget(
+        qualifiedAndroidName: miniPlayerProvider,
+      );
     } catch (e, st) {
       debugPrint('WidgetSyncService pushCustomization failed: $e\n$st');
     }

@@ -93,6 +93,18 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                       .setShowBrowseMore(value);
                 },
               ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.audioLines,
+                title: 'Engine Selector',
+                subtitle: 'Show the audio engine picker card on the home screen',
+                value: appPreferences.showEngineSelector,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setShowEngineSelector(value);
+                },
+              ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),

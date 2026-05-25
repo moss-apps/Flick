@@ -91,6 +91,15 @@ class _OrbitScrollState extends State<OrbitScroll>
   final Map<int, _Position> _positionCache = {};
   final Map<int, _ItemTransform> _transformCache = {};
 
+  static final List<int> _orderedIndices = (() {
+    final visibleRange = AppConstants.orbitVisibleItems ~/ 2;
+    return List.generate(
+          visibleRange * 2 + 1,
+          (i) => i - visibleRange,
+        )
+      ..sort((a, b) => b.abs().compareTo(a.abs()));
+  })();
+
   @override
   void initState() {
     super.initState();
@@ -367,28 +376,17 @@ class _OrbitScrollState extends State<OrbitScroll>
   List<Widget> _buildSongItems(double centerX, double centerY, double radius) {
     final List<Widget> items = [];
 
-    final visibleRange = AppConstants.orbitVisibleItems ~/ 2;
-
-    final orderedIndices = List.generate(
-      visibleRange * 2 + 1,
-      (i) => i - visibleRange,
-    )..sort((a, b) => b.abs().compareTo(a.abs()));
-
     final centerIndex = _scrollOffset.round();
-    final useCache = !_isScrolling;
 
-    for (final relativeIndex in orderedIndices) {
+    for (final relativeIndex in _orderedIndices) {
       final actualIndex = centerIndex + relativeIndex;
 
       if (actualIndex < 0 || actualIndex >= widget.songs.length) continue;
 
       final diff = actualIndex.toDouble() - _scrollOffset;
 
-      _ItemTransform? transform;
-      if (useCache) {
-        final cacheKey = (diff * 100).toInt();
-        transform = _transformCache[cacheKey];
-      }
+      final cacheKey = (diff * 100).toInt();
+      _ItemTransform? transform = _transformCache[cacheKey];
 
       if (transform == null) {
         final position = _calculateItemPosition(diff, centerX, centerY, radius);
@@ -396,20 +394,15 @@ class _OrbitScrollState extends State<OrbitScroll>
 
         double scale;
         if (distanceFromCenter < 1.0) {
-          scale =
-              AppConstants.orbitSelectedScale -
-              (AppConstants.orbitSelectedScale -
-                      AppConstants.orbitAdjacentScale) *
+          scale = AppConstants.orbitSelectedScale -
+              (AppConstants.orbitSelectedScale - AppConstants.orbitAdjacentScale) *
                   distanceFromCenter;
         } else if (distanceFromCenter < 2.0) {
-          scale =
-              AppConstants.orbitAdjacentScale -
-              (AppConstants.orbitAdjacentScale -
-                      AppConstants.orbitDistantScale) *
+          scale = AppConstants.orbitAdjacentScale -
+              (AppConstants.orbitAdjacentScale - AppConstants.orbitDistantScale) *
                   (distanceFromCenter - 1.0);
         } else {
-          scale =
-              AppConstants.orbitDistantScale -
+          scale = AppConstants.orbitDistantScale -
               (distanceFromCenter - 2.0) * 0.12;
         }
         scale = scale.clamp(0.0, 1.25);
@@ -426,10 +419,7 @@ class _OrbitScrollState extends State<OrbitScroll>
           isSelected: isSelected,
         );
 
-        if (useCache) {
-          final cacheKey = (diff * 100).toInt();
-          _transformCache[cacheKey] = transform;
-        }
+        _transformCache[cacheKey] = transform;
       }
 
       items.add(
@@ -490,10 +480,7 @@ class _OrbitScrollState extends State<OrbitScroll>
 
     final position = _Position(x, y);
 
-    if (!_isScrolling) {
-      _positionCache[cacheKey] = position;
-    }
-
+    _positionCache[cacheKey] = position;
     return position;
   }
 }

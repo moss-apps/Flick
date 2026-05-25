@@ -80,6 +80,11 @@ class _MainShellState extends ConsumerState<MainShell>
 
   // Track previous song to detect changes
   Song? _previousSong;
+  // Track the PageView position being animated to programmatically.
+  // When non-null, onPageChanged will allow navigation to this position
+  // even if it's beyond enabledCount (disabled essential pages).
+  // Cleared once the target position is reached.
+  int? _programmaticPageTarget;
   late final PlayerService _playerService;
 
   DateTime? _lastBackPressTime;
@@ -218,6 +223,7 @@ class _MainShellState extends ConsumerState<MainShell>
             return;
           }
 
+          _programmaticPageTarget = position;
           if (AppConstants.animationNormal == Duration.zero) {
             _pageController.jumpToPage(position);
           } else {
@@ -469,8 +475,33 @@ class _MainShellState extends ConsumerState<MainShell>
                     if (position < 0 || position >= currentOrder.length) return;
                     final enabledCount = currentConfig.orderedButtons.length;
                     if (position >= enabledCount) {
-                      _pageController.jumpToPage(enabledCount - 1);
+                      if (_programmaticPageTarget == position) {
+                        _programmaticPageTarget = null;
+                        final pageIndex = currentOrder[position].pageIndex;
+                        if (ref.read(navigationIndexProvider) != pageIndex) {
+                          ref
+                              .read(navigationIndexProvider.notifier)
+                              .setIndex(pageIndex);
+                        }
+                        return;
+                      }
+                      // Let disabled-essential pages be reachable by swipe.
+                      // Still pass through silently if a programmatic
+                      // animation is in-flight targeting elsewhere.
+                      if (_programmaticPageTarget != null) {
+                        return;
+                      }
+                      final pageIndex = currentOrder[position].pageIndex;
+                      if (ref.read(navigationIndexProvider) != pageIndex) {
+                        ref
+                            .read(navigationIndexProvider.notifier)
+                            .setIndex(pageIndex);
+                      }
                       return;
+                    }
+                    // Consume the target only when we land on it.
+                    if (_programmaticPageTarget == position) {
+                      _programmaticPageTarget = null;
                     }
                     final pageIndex = currentOrder[position].pageIndex;
                     if (ref.read(navigationIndexProvider) != pageIndex) {

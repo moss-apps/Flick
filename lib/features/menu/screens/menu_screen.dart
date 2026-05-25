@@ -25,6 +25,7 @@ import 'package:flick/models/playlist.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 
@@ -48,6 +49,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
   List<RecentlyPlayedEntry> _recentEntries = const [];
   Map<ListeningRecapPeriod, ListeningRecap> _recaps = const {};
   bool _isHistoryLoading = true;
+  bool _showEngineCard = true;
 
   @override
   void initState() {
@@ -210,6 +212,320 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
     return 'Good evening';
   }
 
+  Widget _buildEngineSelector(
+    BuildContext context,
+    AudioEnginePreference engine,
+  ) {
+    final (title, subtitle, icon) = switch (engine) {
+      AudioEnginePreference.exoPlayer => (
+        'Standard Engine',
+        'Default Android player. Plays everything reliably — the safest pick for everyday listening.',
+        LucideIcons.smartphone,
+      ),
+      AudioEnginePreference.rustOboe => (
+        'High Quality Engine',
+        'Cleaner audio with smoother playback. Our recommended choice for daily listening.',
+        LucideIcons.audioLines,
+      ),
+      AudioEnginePreference.isochronousUsb => (
+        'Bit-perfect (USB DAC)',
+        'Studio-grade output for external DACs and headphone amps. Bypasses all processing for pure, untouched sound.',
+        LucideIcons.usb,
+      ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingLg),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.glassBackgroundStrong,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: context.adaptiveTextPrimary, size: 18),
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: context.adaptiveTextPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppConstants.spacingXxs),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.adaptiveTextTertiary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() => _showEngineCard = false);
+                  ScaffoldMessenger.of(context)
+                    ..removeCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          'Engine selector hidden. Re-enable in Settings > UI Customization > Engine Selector.',
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 4),
+                        action: SnackBarAction(
+                          label: 'Undo',
+                          onPressed: () => setState(() => _showEngineCard = true),
+                        ),
+                      ),
+                    );
+                },
+                icon: Icon(
+                  LucideIcons.x,
+                  size: 18,
+                  color: context.adaptiveTextTertiary,
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => _showEnginePickerDialog(context, engine),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: AppColors.glassBorder),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.spacingMd,
+                  vertical: AppConstants.spacingSm,
+                ),
+                backgroundColor: AppColors.glassBackgroundStrong,
+              ),
+              child: Text(
+                'Change engine',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: context.adaptiveTextPrimary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showEnginePickerDialog(
+    BuildContext context,
+    AudioEnginePreference current,
+  ) async {
+    final service = ref.read(uac2PreferencesServiceProvider);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          ),
+          title: Text(
+            'Choose Audio Engine',
+            style: TextStyle(color: context.adaptiveTextPrimary),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'The audio engine determines how your music is played back. Each option balances reliability, quality, and compatibility differently.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.adaptiveTextTertiary,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: AppConstants.spacingMd),
+              _buildEngineOption(
+                dialogContext,
+                title: 'Standard',
+                subtitle:
+                    'Default Android player — plays everything reliably. The safest choice for most listeners.',
+                icon: LucideIcons.smartphone,
+                selected: current == AudioEnginePreference.exoPlayer,
+                onTap: () => _selectEngine(
+                  dialogContext,
+                  service,
+                  AudioEnginePreference.exoPlayer,
+                  current,
+                ),
+              ),
+              const SizedBox(height: AppConstants.spacingSm),
+              _buildEngineOption(
+                dialogContext,
+                title: 'High Quality',
+                subtitle:
+                    'Our Rust-powered engine. Cleaner sound and smoother playback — recommended for daily listening.',
+                icon: LucideIcons.audioLines,
+                selected: current == AudioEnginePreference.rustOboe,
+                onTap: () => _selectEngine(
+                  dialogContext,
+                  service,
+                  AudioEnginePreference.rustOboe,
+                  current,
+                ),
+              ),
+              const SizedBox(height: AppConstants.spacingSm),
+              _buildEngineOption(
+                dialogContext,
+                title: 'Bit-perfect (USB DAC)',
+                subtitle:
+                    'Studio-grade output for external DACs and headphone amps. Bypasses Android\'s audio processing for pure sound.',
+                icon: LucideIcons.usb,
+                selected: current == AudioEnginePreference.isochronousUsb,
+                onTap: () => _selectEngine(
+                  dialogContext,
+                  service,
+                  AudioEnginePreference.isochronousUsb,
+                  current,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEngineOption(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: selected
+          ? AppColors.accent.withValues(alpha: 0.10)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+        child: Padding(
+          padding: const EdgeInsets.all(AppConstants.spacingMd),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? AppColors.accent.withValues(alpha: 0.18)
+                      : AppColors.glassBackgroundStrong,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  size: 17,
+                  color: selected
+                      ? AppColors.accent
+                      : context.adaptiveTextSecondary,
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: context.adaptiveTextPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppConstants.spacingXxs),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.adaptiveTextTertiary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingSm),
+              Icon(
+                selected ? LucideIcons.check : LucideIcons.circle,
+                size: 20,
+                color: selected
+                    ? AppColors.accent
+                    : context.adaptiveTextTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectEngine(
+    BuildContext dialogContext,
+    Uac2PreferencesService service,
+    AudioEnginePreference target,
+    AudioEnginePreference current,
+  ) async {
+    if (target == current) {
+      if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+      return;
+    }
+
+    final wasBitPerfectEnabled = await service.getBitPerfectEnabled();
+    await service.setAudioEnginePreference(target);
+    if (wasBitPerfectEnabled && target != AudioEnginePreference.isochronousUsb) {
+      await ref.read(uac2ServiceProvider).setBitPerfectEnabled(false);
+      ref.invalidate(uac2BitPerfectEnabledProvider);
+      ref.invalidate(uac2ExclusiveDacModeProvider);
+      ref.invalidate(killIsochronousUsbOnQuitProvider);
+    }
+    ref.invalidate(audioEnginePreferenceProvider);
+
+    if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+
+    if (context.mounted) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.removeCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Restart the app to apply playback changes.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final songsAsync = ref.watch(songsProvider);
@@ -218,6 +534,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
     final currentSong = ref.watch(currentSongProvider);
     final appPreferences = ref.watch(appPreferencesProvider);
     final updateState = ref.watch(updateCheckProvider);
+    final enginePreferenceAsync = ref.watch(audioEnginePreferenceProvider);
 
     final allSongs = songsAsync.value?.songs ?? const <Song>[];
     final favoriteSongs = favoritesAsync.value?.favoriteSongs ?? const <Song>[];
@@ -265,6 +582,30 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                         playlistCount: playlists.length,
                       ),
                     ),
+                    SliverToBoxAdapter(
+                        child: AnimatedSize(
+                          duration: AppConstants.animationNormal,
+                          curve: Curves.easeInOut,
+                          alignment: Alignment.topCenter,
+                          child:
+                              _showEngineCard &&
+                                      appPreferences.showEngineSelector &&
+                                      enginePreferenceAsync.hasValue
+                                  ? Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        AppConstants.spacingLg,
+                                        0,
+                                        AppConstants.spacingLg,
+                                        AppConstants.spacingMd,
+                                      ),
+                                      child: _buildEngineSelector(
+                                        context,
+                                        enginePreferenceAsync.value!,
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                        ),
+                      ),
                     if (updateState.updateAvailable)
                       SliverToBoxAdapter(
                         child: Padding(

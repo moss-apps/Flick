@@ -10,6 +10,8 @@ pub enum BackendType {
     MixerBitPerfect,
     MixerMatched,
     ResampledFallback,
+    DsdNative,
+    DsdDoP,
 }
 
 impl BackendType {
@@ -20,6 +22,8 @@ impl BackendType {
             Self::MixerBitPerfect => "mixer_bit_perfect",
             Self::MixerMatched => "mixer_matched",
             Self::ResampledFallback => "resampled_fallback",
+            Self::DsdNative => "dsd_native",
+            Self::DsdDoP => "dsd_dop",
         }
     }
 }

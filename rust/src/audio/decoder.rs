@@ -46,6 +46,8 @@ impl std::fmt::Display for DecoderError {
     }
 }
 
+impl std::error::Error for DecoderError {}
+
 impl From<std::io::Error> for DecoderError {
     fn from(e: std::io::Error) -> Self {
         Self::IoError(e)

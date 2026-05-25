@@ -56,3 +56,17 @@ target/rust-analyzer/flycheck0/stderr
 target/rust-analyzer/flycheck0/stdout
 android/app/google-services.json
 android/app/src/main/assets/adi-registration.properties
+
+# Flutter tool logs
+flutter_*.log
+
+# Rust subcrate build artifacts (wavpack-sys)
+rust/vendor/*/target/
+rust/vendor/*/Cargo.lock
+
+# Gradle
+.gradle/
+android/local.properties
+
+# Node
+node_modules/

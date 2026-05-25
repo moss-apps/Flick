@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
+import 'package:flick/services/uac2_preferences_service.dart';
 
 /// Playback state enum matching the Rust engine states.
 enum RustPlaybackState {
@@ -211,6 +212,7 @@ class RustAudioService {
       throw StateError('Rust audio engine not initialized');
     }
 
+    _syncDsdOutputMode();
     await rust_audio.audioPlay(path: path);
     _currentPath = path;
     // Also sync from Rust engine to ensure accuracy
@@ -226,7 +228,19 @@ class RustAudioService {
     }
 
     _nextPath = path;
+    _syncDsdOutputMode();
     await rust_audio.audioQueueNext(path: path);
+  }
+
+  void _syncDsdOutputMode() {
+    final mode = Uac2PreferencesService.dsdOutputModeSync;
+    final rustMode = switch (mode) {
+      DsdOutputMode.auto => 3,
+      DsdOutputMode.forcePcm => 0,
+      DsdOutputMode.forceDop => 1,
+      DsdOutputMode.native => 2,
+    };
+    rust_audio.audioSetDsdOutputMode(mode: rustMode);
   }
 
   /// Pause playback.

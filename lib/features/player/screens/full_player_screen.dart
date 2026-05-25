@@ -1050,6 +1050,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       builder: (sheetContext) => SafeArea(
         top: false,
         child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.5,
+          ),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -1061,9 +1064,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             context.responsive(16.0, 18.0, 20.0),
             context.responsive(20.0, 22.0, 24.0),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               Container(
                 width: 40,
                 height: 4,
@@ -1283,6 +1287,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 },
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -1414,9 +1419,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             _buildMetadataRow(
               sheetContext,
               'Format',
-              song.fileType.toUpperCase(),
+              song.isDsd ? '${song.fileType.toUpperCase()} (${song.dsdRateLabel})' : song.fileType.toUpperCase(),
             ),
-            if (song.resolution != null)
+            if (song.resolution != null && !song.isDsd)
               _buildMetadataRow(sheetContext, 'Resolution', song.resolution!),
             if (song.albumArtist != null)
               _buildMetadataRow(sheetContext, 'Album Artist', song.albumArtist!),
@@ -1549,8 +1554,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   }
 
   String _getSongQuality(Song song) {
+    if (song.isDsd) return 'HQ';
     final fileType = song.fileType.toUpperCase();
-    const lossless = {'FLAC', 'WAV', 'ALAC', 'AIFF', 'DSD', 'APE', 'WV'};
+    const lossless = {'FLAC', 'WAV', 'ALAC', 'AIFF', 'APE', 'WV'};
     if (lossless.contains(fileType)) return 'HQ';
     if ((song.bitDepth ?? 0) >= 24) return 'HQ';
     if ((song.sampleRate ?? 0) >= 88200) return 'HQ';
@@ -1667,7 +1673,21 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildPlayerBadge(context, song.fileType.toUpperCase()),
-              if (song.resolution != null) ...[
+              if (song.isDsd && song.dsdRateLabel.isNotEmpty) ...[
+                SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
+                Flexible(
+                  child: Text(
+                    song.dsdRateLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: context.responsive(9.0, 10.0, 11.0),
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ),
+              ] else if (song.resolution != null) ...[
                 SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
                 Flexible(
                   child: Text(
@@ -4257,6 +4277,8 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
   bool _hasManualLyricsSelection = false;
   int _activeLineIndex = -1;
   bool _isMetaCollapsed = false;
+  bool _isScrollAnimating = false;
+  double? _pendingScrollTarget;
 
   @override
   void initState() {
@@ -4328,14 +4350,39 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
     final target = (index * _lineHeight) + (_lineHeight / 2);
     final clampedTarget = target.clamp(0.0, maxScroll);
 
-    final delta = (_scrollController.offset - clampedTarget).abs();
-    if (delta < _lineHeight * 0.08) return;
+    _pendingScrollTarget = clampedTarget;
 
-    _scrollController.animateTo(
-      clampedTarget,
-      duration: AppConstants.animationNormal,
-      curve: Curves.easeOutCubic,
-    );
+    if (!_isScrollAnimating) {
+      _performScroll();
+    }
+  }
+
+  void _performScroll() {
+    if (!_scrollController.hasClients || _pendingScrollTarget == null) {
+      _isScrollAnimating = false;
+      return;
+    }
+
+    final target = _pendingScrollTarget!;
+    _pendingScrollTarget = null;
+
+    final delta = (_scrollController.offset - target).abs();
+    if (delta < _lineHeight * 0.08) {
+      _performScroll();
+      return;
+    }
+
+    _isScrollAnimating = true;
+    _scrollController
+        .animateTo(
+          target,
+          duration: AppConstants.animationNormal,
+          curve: Curves.easeOutCubic,
+        )
+        .then((_) {
+          _isScrollAnimating = false;
+          _performScroll();
+        });
   }
 
   Future<void> _seekToLyricLine(int index) async {
@@ -4351,6 +4398,8 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
       });
     }
 
+    _isScrollAnimating = false;
+    _pendingScrollTarget = null;
     _scrollToActiveLine(index);
     await widget.playerService.seek(target);
   }

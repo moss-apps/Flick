@@ -780,12 +780,16 @@ class MainActivity: FlutterActivity() {
                     val sampleRate = call.argument<Int>("sampleRate")
                     val bitDepth = call.argument<Int>("bitDepth")
                     val channels = call.argument<Int>("channels")
+                    val isDop = call.argument<Boolean>("isDop") ?: false
+                    val isNativeDsd = call.argument<Boolean>("isNativeDsd") ?: false
                     if (sampleRate != null && bitDepth != null && channels != null) {
                         result.success(
                             nativeSetRustDirectUsbPlaybackFormat(
                                 sampleRate,
                                 bitDepth,
                                 channels,
+                                isDop,
+                                isNativeDsd,
                             )
                         )
                     } else {
@@ -797,7 +801,7 @@ class MainActivity: FlutterActivity() {
                     }
                 }
                 "clearDirectUsbPlaybackFormat" -> {
-                    result.success(nativeSetRustDirectUsbPlaybackFormat(0, 0, 0))
+                    result.success(nativeSetRustDirectUsbPlaybackFormat(0, 0, 0, false, false))
                 }
                 "deactivateDirectUsb" -> {
                     result.success(deactivateDirectUsb())
@@ -1426,7 +1430,7 @@ class MainActivity: FlutterActivity() {
         val documentFile = DocumentFile.fromTreeUri(this, uri) ?: return emptyList()
 
         val audioExtensions =
-            setOf("mp3", "flac", "wav", "aac", "m4a", "ogg", "oga", "ogx", "opus", "wma", "alac", "aif", "aiff", "cue")
+            setOf("mp3", "flac", "wav", "aac", "m4a", "ogg", "oga", "ogx", "opus", "wma", "alac", "aif", "aiff", "cue", "wv", "dsf", "dff")
         val result = mutableListOf<Map<String, Any?>>()
 
         fun scanDirectory(dir: DocumentFile) {
@@ -3878,6 +3882,8 @@ class MainActivity: FlutterActivity() {
         sampleRate: Int,
         bitDepth: Int,
         channels: Int,
+        isDop: Boolean,
+        isNativeDsd: Boolean,
     ): Boolean
     private external fun nativeSetRustDirectUsbLockEnabled(enabled: Boolean): Boolean
     private external fun nativeHasRustDirectUsbHardwareVolume(): Boolean

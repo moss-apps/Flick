@@ -120,3 +120,35 @@ The fingerprint intentionally excludes expensive tag parsing. Metadata extractio
   - Scales with actual change volume.
   - Near-real-time updates.
   - Needs overflow/recovery handling, which is why the hybrid design keeps a manual rescan path.
+
+## Supported Audio Formats
+
+| Format | Extensions | Metadata Source | Scanner Paths |
+|--------|-----------|-----------------|---------------|
+| MP3 | `.mp3` | lofty (ID3v1/v2) | MediaStore, SAF, Rust |
+| FLAC | `.flac` | lofty (Vorbis Comments) | MediaStore, SAF, Rust |
+| OGG Vorbis | `.ogg`, `.oga` | lofty (Vorbis Comments) | MediaStore, SAF, Rust |
+| Opus | `.opus`, `.ogx` | lofty (Vorbis Comments) | MediaStore, SAF, Rust |
+| M4A/AAC | `.m4a` | lofty (MP4 atoms) | MediaStore, SAF, Rust |
+| WAV | `.wav` | lofty (RIFF INFO) | MediaStore, SAF, Rust |
+| AIFF | `.aif`, `.aiff` | lofty (ID3v2) | MediaStore, SAF, Rust |
+| ALAC | `.alac` | lofty (MP4) | MediaStore, SAF, Rust |
+| WavPack | `.wv` | lofty (APE/ID3v1) | SAF, Rust |
+| WavPack DSD | `.wv` | lofty (APE/ID3v1); detected via sample rate ≥ 2.8224 MHz or 1-bit depth | SAF, Rust |
+| DSF | `.dsf` | dsf-meta (ID3v2 via `id3` crate) | SAF, Rust |
+| DSDIFF | `.dff` | dff-meta (ID3v2 via `id3` crate) | SAF, Rust |
+
+Note: Android's MediaStore does not index WavPack or DSD files — these formats are only available through the SAF or Rust scanner paths.
+
+## Extension Filter Locations
+
+When adding a new format, these **four** extension allowlists must be updated:
+
+| # | File | Function | Line |
+|---|------|----------|------|
+| 1 | `rust/src/api/scanner.rs` | `is_supported_audio_path()` | ~69 |
+| 2 | `rust/src/library_scan/two_phase.rs` | `is_supported_audio_path()` | ~185 |
+| 3 | `lib/services/library_scanner_service.dart` | `_looksLikeSupportedAudioExtension()` | ~1715 |
+| 4 | `android/.../MainActivity.kt` | `fastScanAudioFiles()` — `audioExtensions` set | ~1429 |
+
+The Rust scanner (`#1`) feeds metadata extraction. The two-phase scanner (`#2`) and watcher filter by extension. The Dart filter (`#3`) gates all paths reaching the scanner. The Kotlin filter (`#4`) gates the SAF filesystem walk on Android.

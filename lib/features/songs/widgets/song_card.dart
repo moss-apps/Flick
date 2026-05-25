@@ -70,9 +70,11 @@ class _SongCardState extends State<SongCard> {
         : AppConstants.songCardArtSize;
 
     final cardWidth = MediaQuery.of(context).size.width * 0.68;
-    final cardHeight = 130.0;
-    final queueRevealProgress = (-_dragDx / 110).clamp(0.0, 1.0);
-    final favoriteRevealProgress = (_dragDx / 110).clamp(0.0, 1.0);
+    const cardHeight = 130.0;
+
+    final isSwiping = _dragDx.abs() > 0.001;
+    final isFlashing = _queuedFlash || _favoriteFlash;
+    final showSwipeOverlay = isSwiping || isFlashing;
 
     GestureDragUpdateCallback? dragUpdate;
     GestureDragEndCallback? dragEnd;
@@ -147,176 +149,136 @@ class _SongCardState extends State<SongCard> {
         onHorizontalDragUpdate: dragUpdate,
         onHorizontalDragEnd: dragEnd,
         onHorizontalDragCancel: dragCancel,
-        child: AnimatedOpacity(
-          duration: AppConstants.animationNormal,
-          opacity: widget.opacity,
-          child: Transform.scale(
-            scale: widget.scale,
+        child: Transform.scale(
+          scale: widget.scale,
+          child: Opacity(
+            opacity: widget.opacity,
             child: SizedBox(
               width: cardWidth,
               height: cardHeight,
-              child: Stack(
+              child: showSwipeOverlay
+                  ? _buildSwipeStack(cardWidth, artSize)
+                  : _buildCardFace(artSize),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardFace(double artSize) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.all(Radius.circular(AppConstants.radiusLg)),
+      child: Stack(
+        children: [
+          Positioned.fill(child: _buildAlbumWithGradient(artSize)),
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusLg)),
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.transparent,
+                    Color(0xD9000000),
+                  ],
+                  stops: [0.25, 0.70],
+                ),
+              ),
+              padding: const EdgeInsets.all(AppConstants.spacingMd),
+              child: Row(
                 children: [
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          AppConstants.radiusLg,
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            Colors.redAccent.withValues(
-                              alpha: 0.14 + (favoriteRevealProgress * 0.14),
-                            ),
-                            AppColors.surface,
-                            AppColors.accent.withValues(
-                              alpha: 0.14 + (queueRevealProgress * 0.14),
-                            ),
-                          ],
-                        ),
-                        border: Border.all(
-                          color: Color.lerp(
-                            AppColors.accent.withValues(
-                              alpha: 0.18 + (queueRevealProgress * 0.26),
-                            ),
-                            Colors.redAccent.withValues(
-                              alpha: 0.18 + (favoriteRevealProgress * 0.26),
-                            ),
-                            favoriteRevealProgress,
-                          )!,
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppConstants.spacingLg,
-                        ),
-                        child: Row(
-                          children: [
-                            Opacity(
-                              opacity: favoriteRevealProgress,
-                              child: const Icon(
-                                Icons.favorite_rounded,
-                                color: Colors.redAccent,
-                                size: 22,
-                              ),
-                            ),
-                            const Spacer(),
-                            Opacity(
-                              opacity: queueRevealProgress,
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.queue_music_rounded,
-                                    color: AppColors.accent,
-                                    size: 20,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Add to queue',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  SizedBox(width: artSize + AppConstants.spacingMd),
+                  Expanded(
+                    child: _buildSongInfo(
+                      context,
+                      isSelected: widget.isSelected,
                     ),
                   ),
-                  AnimatedSlide(
-                    duration: AppConstants.animationFast,
-                    curve: Curves.easeOutCubic,
-                    offset: Offset(_dragDx / cardWidth, 0),
-                    child: AnimatedScale(
-                      duration: AppConstants.animationFast,
-                      scale: (_queuedFlash || _favoriteFlash) ? 0.98 : 1,
-                      child: AnimatedContainer(
-                        duration: AppConstants.animationFast,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusLg,
-                          ),
-                          boxShadow: (_queuedFlash || _favoriteFlash)
-                              ? [
-                                  BoxShadow(
-                                    color:
-                                        (_favoriteFlash
-                                                ? Colors.redAccent
-                                                : AppColors.accent)
-                                            .withValues(alpha: 0.25),
-                                    blurRadius: 18,
-                                    spreadRadius: 1,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusLg,
-                          ),
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: _buildAlbumWithGradient(artSize),
-                              ),
-                              Positioned.fill(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(
-                                      AppConstants.radiusLg,
-                                    ),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                      colors: [
-                                        Colors.transparent,
-                                        Colors.black.withValues(alpha: 0.85),
-                                      ],
-                                      stops: const [0.25, 0.70],
-                                    ),
-                                  ),
-                                  padding: const EdgeInsets.all(
-                                    AppConstants.spacingMd,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        width: artSize + AppConstants.spacingMd,
-                                      ),
-                                      Expanded(
-                                        child: _buildSongInfo(
-                                          context,
-                                          isSelected: widget.isSelected,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              if (widget.isSelectionMode)
-                                Positioned(
-                                  top: AppConstants.spacingSm,
-                                  right: AppConstants.spacingSm,
-                                  child: Icon(
-                                    widget.isMultiSelected
-                                        ? Icons.check_circle_rounded
-                                        : Icons.radio_button_unchecked_rounded,
-                                    color: widget.isMultiSelected
-                                        ? AppColors.accent
-                                        : Colors.white54,
-                                    size: 22,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
+                ],
+              ),
+            ),
+          ),
+          if (widget.isSelectionMode)
+            Positioned(
+              top: AppConstants.spacingSm,
+              right: AppConstants.spacingSm,
+              child: Icon(
+                widget.isMultiSelected
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: widget.isMultiSelected
+                    ? AppColors.accent
+                    : Colors.white54,
+                size: 22,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwipeStack(double cardWidth, double artSize) {
+    final queueProgress = (-_dragDx / 110).clamp(0.0, 1.0);
+    final favoriteProgress = (_dragDx / 110).clamp(0.0, 1.0);
+    final isFlashing = _queuedFlash || _favoriteFlash;
+
+    final glowColor = (_favoriteFlash ? Colors.redAccent : AppColors.accent)
+        .withValues(alpha: 0.25);
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius:
+                  const BorderRadius.all(Radius.circular(AppConstants.radiusLg)),
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  Colors.redAccent
+                      .withValues(alpha: 0.14 + (favoriteProgress * 0.14)),
+                  AppColors.surface,
+                  AppColors.accent
+                      .withValues(alpha: 0.14 + (queueProgress * 0.14)),
+                ],
+              ),
+              border: Border.all(
+                color: Color.lerp(
+                  AppColors.accent
+                      .withValues(alpha: 0.18 + (queueProgress * 0.26)),
+                  Colors.redAccent
+                      .withValues(alpha: 0.18 + (favoriteProgress * 0.26)),
+                  favoriteProgress,
+                )!,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.spacingLg),
+              child: Row(
+                children: [
+                  Opacity(
+                    opacity: favoriteProgress,
+                    child: const Icon(Icons.favorite_rounded,
+                        color: Colors.redAccent, size: 22),
+                  ),
+                  const Spacer(),
+                  Opacity(
+                    opacity: queueProgress,
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.queue_music_rounded,
+                            color: AppColors.accent, size: 20),
+                        SizedBox(width: 8),
+                        Text('Add to queue',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700)),
+                      ],
                     ),
                   ),
                 ],
@@ -324,7 +286,33 @@ class _SongCardState extends State<SongCard> {
             ),
           ),
         ),
-      ),
+        AnimatedSlide(
+          duration: AppConstants.animationFast,
+          curve: Curves.easeOutCubic,
+          offset: Offset(_dragDx / cardWidth, 0),
+          child: AnimatedScale(
+            duration: AppConstants.animationFast,
+            scale: isFlashing ? 0.98 : 1,
+            child: AnimatedContainer(
+              duration: AppConstants.animationFast,
+              decoration: BoxDecoration(
+                borderRadius:
+                    const BorderRadius.all(Radius.circular(AppConstants.radiusLg)),
+                boxShadow: isFlashing
+                    ? [
+                        BoxShadow(
+                          color: glowColor,
+                          blurRadius: 18,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: _buildCardFace(artSize),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

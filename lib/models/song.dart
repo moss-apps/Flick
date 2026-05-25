@@ -113,6 +113,48 @@ class Song {
 
   bool get isFromLocker => sourcePackage == 'com.mossapps.locker';
 
+  static const _dsdExtensions = {'dsf', 'dff'};
+  static const _wavpackExtension = 'wv';
+
+  bool get isDsd {
+    if (sampleRate != null && sampleRate! >= 2822400) return true;
+    final ext = filePath?.split('.').last.toLowerCase() ?? '';
+    if (_dsdExtensions.contains(ext)) return true;
+    if (ext == _wavpackExtension && (fileType.toUpperCase() == 'WV-DSD' || (sampleRate != null && sampleRate! >= 2822400))) return true;
+    final ft = fileType.toUpperCase();
+    return ft == 'DSF' || ft == 'DFF' || ft == 'DSD' || ft == 'WV-DSD';
+  }
+
+  String get dsdRateLabel {
+    if (!isDsd) return '';
+    final rate = sampleRate ?? 0;
+    if (rate >= 22579200) return 'DSD512';
+    if (rate >= 11289600) return 'DSD256';
+    if (rate >= 5644800) return 'DSD128';
+    if (rate >= 2822400) return 'DSD64';
+    final ft = fileType.toUpperCase();
+    if (ft == 'DSF' || ft == 'DFF' || ft == 'DSD') return 'DSD';
+    return 'DSD';
+  }
+
+  static int? dsdToPcmRate(int? dsdRate) {
+    if (dsdRate == null) return null;
+    if (dsdRate >= 22579200) return 705600;
+    if (dsdRate >= 11289600) return 352800;
+    if (dsdRate >= 5644800) return 176400;
+    if (dsdRate >= 2822400) return 88200;
+    return null;
+  }
+
+  static int? dsdToDopRate(int? dsdRate) {
+    if (dsdRate == null) return null;
+    if (dsdRate >= 22579200) return 705600;
+    if (dsdRate >= 11289600) return 705600;
+    if (dsdRate >= 5644800) return 352800;
+    if (dsdRate >= 2822400) return 176400;
+    return null;
+  }
+
   /// Format duration as mm:ss or hh:mm:ss
   String get formattedDuration {
     final hours = duration.inHours;

@@ -1726,6 +1726,9 @@ class LibraryScannerService {
       'alac',
       'aac',
       'wma',
+      'dsf',
+      'dff',
+      'wv',
     };
 
     return supportedExtensions.contains(extension.trim().toLowerCase());

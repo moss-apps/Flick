@@ -9,6 +9,7 @@ import 'api/metadata_editor.dart';
 import 'api/scanner.dart';
 import 'api/simple.dart';
 import 'api/uac2_api.dart';
+import 'audio/dsd_engine/dsd.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -108,6 +109,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CrossfadeCurveType dco_decode_crossfade_curve_type(dynamic raw);
+
+  @protected
+  DsdOutputMode dco_decode_dsd_output_mode(dynamic raw);
 
   @protected
   double dco_decode_f_32(dynamic raw);
@@ -357,6 +361,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CrossfadeCurveType sse_decode_crossfade_curve_type(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DsdOutputMode sse_decode_dsd_output_mode(SseDeserializer deserializer);
 
   @protected
   double sse_decode_f_32(SseDeserializer deserializer);
@@ -648,6 +655,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     CrossfadeCurveType self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_dsd_output_mode(DsdOutputMode self, SseSerializer serializer);
 
   @protected
   void sse_encode_f_32(double self, SseSerializer serializer);

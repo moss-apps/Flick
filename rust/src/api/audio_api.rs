@@ -5,15 +5,168 @@
 
 use crate::audio::commands::{AudioEvent, PlaybackState};
 use crate::audio::decoder::{probe_file, DecoderThread};
+use crate::audio::decoder_handle::{DecoderHandle, detect_file_type};
 #[cfg(target_os = "android")]
 use crate::audio::device::current_device_profile;
+use crate::audio::dsd_engine::dsd::{resolve_dsd_pcm_sample_rate, DsdOutputMode, DsdRate};
+use crate::audio::dsd_engine::format::open_dsd_decoder;
+use crate::audio::dsd_engine::DsdDecoderThread;
 use crate::audio::manager::{AudioCapability, AudioCapabilitySnapshot, AudioEngine, EngineManager};
+use crate::audio::strategy::OutputStrategy;
+use crate::audio::wavpack_thread::WavpackDecoderThread;
 use log::{info as log_info, warn as log_warn};
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
 
 static ENGINE_MANAGER: Lazy<EngineManager> = Lazy::new(EngineManager::new);
+
+static DSD_OUTPUT_MODE: AtomicU8 = AtomicU8::new(0);
+static CURRENT_DSD_TRACK_RATE: AtomicU32 = AtomicU32::new(0);
+static PENDING_VOLUME: AtomicU32 = AtomicU32::new(0);
+
+const PENDING_VOLUME_NONE: u32 = 0xFFFF_FFFF;
+
+pub fn current_dsd_output_mode() -> DsdOutputMode {
+    match DSD_OUTPUT_MODE.load(Ordering::Relaxed) {
+        1 => DsdOutputMode::Dop,
+        2 => DsdOutputMode::Native,
+        3 => DsdOutputMode::Auto,
+        _ => DsdOutputMode::PcmDecimation,
+    }
+}
+
+pub fn effective_dsd_output_mode(requested: DsdOutputMode) -> DsdOutputMode {
+    let dsd_rate = current_dsd_track_rate()
+        .and_then(DsdRate::from_sample_rate);
+    effective_dsd_output_mode_for_rate(requested, dsd_rate)
+}
+
+pub fn effective_dsd_output_mode_for_rate(
+    requested: DsdOutputMode,
+    dsd_rate: Option<DsdRate>,
+) -> DsdOutputMode {
+    let is_dsd256_plus = dsd_rate.is_some_and(|r| {
+        matches!(r, DsdRate::Dsd256 | DsdRate::Dsd512)
+    });
+
+    match requested {
+        DsdOutputMode::PcmDecimation => return DsdOutputMode::PcmDecimation,
+        DsdOutputMode::Dop => {
+            if is_dsd256_plus {
+                #[cfg(all(feature = "uac2", target_os = "android"))]
+                {
+                    if crate::uac2::is_usb_session_active() {
+                        return DsdOutputMode::Dop;
+                    }
+                }
+                log_info!(
+                    "[AUDIO] DoP requested for DSD256+ but carrier rate too high; \
+                     falling back to PCM decimation"
+                );
+                return DsdOutputMode::PcmDecimation;
+            }
+            return DsdOutputMode::Dop;
+        }
+        DsdOutputMode::Native | DsdOutputMode::Auto => {}
+    }
+
+    // Native/Auto DSD can be delivered in three ways:
+    // 1. UAC2 direct USB (raw DSD bitstream via isochronous transfers)
+    // 2. Android AudioTrack with ENCODING_DSD (direct to internal DAC)
+    // 3. Fallback to DoP if neither is available
+
+    #[cfg(all(feature = "uac2", target_os = "android"))]
+    {
+        if crate::uac2::is_usb_session_active() {
+            return DsdOutputMode::Native;
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        if crate::audio::device::current_device_profile()
+            .as_ref()
+            .is_some_and(|p| p.supports_native_dsd)
+        {
+            log_info!(
+                "[AUDIO] {:?} DSD requested; device supports ENCODING_DSD, \
+                 using Android DSD AudioTrack",
+                requested
+            );
+            return DsdOutputMode::Native;
+        }
+    }
+
+    // DSD256+ without UAC2: skip DoP, go straight to PCM
+    if is_dsd256_plus {
+        log_info!(
+            "[AUDIO] DSD256+ without UAC2 native path; falling back to PCM decimation \
+             (DoP carrier rate too high for internal DAC)"
+        );
+        return DsdOutputMode::PcmDecimation;
+    }
+
+    // For Auto on non-DSD-capable devices, try DoP before falling back to PCM
+    if requested == DsdOutputMode::Auto {
+        #[cfg(target_os = "android")]
+        {
+            let profile = crate::audio::device::current_device_profile();
+            let is_dap = profile.as_ref().is_some_and(|p| p.is_dap());
+            if is_dap {
+                log_info!(
+                    "[AUDIO] Auto DSD: device is DAP but native DSD unavailable; \
+                     falling back to DoP"
+                );
+                return DsdOutputMode::Dop;
+            }
+        }
+
+        #[cfg(all(feature = "uac2", target_os = "android"))]
+        {
+            if crate::uac2::is_usb_session_active() {
+                return DsdOutputMode::Dop;
+            }
+        }
+
+        log_info!(
+            "[AUDIO] Auto DSD: no native DSD or DoP path available; \
+             falling back to PCM decimation"
+        );
+        return DsdOutputMode::PcmDecimation;
+    }
+
+    log_info!(
+        "[AUDIO] Native DSD requested but no direct DSD path available; \
+         falling back to DoP (bit-perfect DSD over PCM carrier)"
+    );
+    DsdOutputMode::Dop
+}
+
+pub fn set_dsd_track_rate(rate: u32) {
+    CURRENT_DSD_TRACK_RATE.store(rate, Ordering::Relaxed);
+}
+
+pub fn clear_dsd_track_rate() {
+    CURRENT_DSD_TRACK_RATE.store(0, Ordering::Relaxed);
+}
+
+pub fn current_dsd_track_rate() -> Option<u32> {
+    let rate = CURRENT_DSD_TRACK_RATE.load(Ordering::Relaxed);
+    if rate > 0 { Some(rate) } else { None }
+}
+
+pub fn set_pending_volume(volume: f32) {
+    PENDING_VOLUME.store(volume.to_bits(), Ordering::Relaxed);
+}
+
+pub fn take_pending_volume() -> Option<f32> {
+    let bits = PENDING_VOLUME.load(Ordering::Relaxed);
+    if bits == PENDING_VOLUME_NONE { return None; }
+    PENDING_VOLUME.store(PENDING_VOLUME_NONE, Ordering::Relaxed);
+    Some(f32::from_bits(bits))
+}
 
 fn with_audio_engine<T>(
     f: impl FnOnce(&crate::audio::engine::AudioEngineHandle) -> Result<T, String>,
@@ -28,7 +181,14 @@ fn read_audio_engine<T>(
 }
 
 fn ensure_audio_engine(preferred_sample_rate: Option<u32>) -> Result<(), String> {
-    ENGINE_MANAGER.ensure_rust_engine(preferred_sample_rate)
+    ENGINE_MANAGER.ensure_rust_engine(preferred_sample_rate, vec![])
+}
+
+fn ensure_audio_engine_excluded(
+    preferred_sample_rate: Option<u32>,
+    excluded: Vec<OutputStrategy>,
+) -> Result<(), String> {
+    ENGINE_MANAGER.ensure_rust_engine(preferred_sample_rate, excluded)
 }
 
 fn resolve_requested_output_sample_rate(
@@ -50,6 +210,7 @@ fn resolve_track_playback_output_sample_rate(
     {
         let route_type = ENGINE_MANAGER.capability_route_type();
         let should_preserve_existing_rate = !ENGINE_MANAGER.is_high_res_mode_enabled()
+            && !ENGINE_MANAGER.get_dap_bit_perfect_enabled()
             && matches!(route_type.as_str(), "unknown" | "internal" | "wired")
             && current_device_profile().is_some_and(|profile| profile.is_dap());
         if should_preserve_existing_rate {
@@ -62,29 +223,202 @@ fn resolve_track_playback_output_sample_rate(
     resolve_requested_output_sample_rate(preferred_sample_rate)
 }
 
+fn resolve_dsd_engine_sample_rate(path: &PathBuf, output_mode: DsdOutputMode) -> Result<Option<u32>, String> {
+    let effective_mode = effective_dsd_output_mode(output_mode);
+    if effective_mode == DsdOutputMode::Dop {
+        let decoder = open_dsd_decoder(path)
+            .map_err(|e| format!("Failed to probe DSD rate for {}: {}", path.display(), e))?;
+        let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
+            .ok_or_else(|| format!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
+        let carrier = dsd_rate.dop_carrier_rate();
+        log_info!(
+            "[AUDIO] DSD DoP: dsd_rate={} Hz -> carrier={} Hz",
+            dsd_rate.sample_rate(), carrier
+        );
+        return resolve_requested_output_sample_rate(Some(carrier));
+    }
+    let decoder = open_dsd_decoder(path)
+        .map_err(|e| format!("Failed to probe DSD rate for {}: {}", path.display(), e))?;
+    let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
+        .ok_or_else(|| format!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
+    if effective_mode == DsdOutputMode::Native {
+        let decoder = open_dsd_decoder(path)
+            .map_err(|e| format!("Failed to probe DSD rate for {}: {}", path.display(), e))?;
+        let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
+            .ok_or_else(|| format!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
+
+        #[cfg(target_os = "android")]
+        {
+            let use_audio_track = current_device_profile()
+                .as_ref()
+                .is_some_and(|p| p.supports_native_dsd)
+                && !{
+                    #[cfg(feature = "uac2")]
+                    { crate::uac2::is_usb_session_active() }
+                    #[cfg(not(feature = "uac2"))]
+                    { false }
+                };
+            if use_audio_track {
+                let byte_rate = dsd_rate.byte_rate();
+                log_info!(
+                    "[AUDIO] DSD Native AudioTrack: dsd_rate={} Hz -> byte_rate={} Hz",
+                    dsd_rate.sample_rate(), byte_rate
+                );
+                return resolve_requested_output_sample_rate(Some(byte_rate));
+            }
+        }
+
+        return resolve_requested_output_sample_rate(Some(dsd_rate.sample_rate()));
+    }
+    let existing_rate = read_audio_engine(|handle| handle.sample_rate()).unwrap_or(0);
+    let target = resolve_dsd_pcm_sample_rate(dsd_rate, existing_rate);
+    log_info!(
+        "[AUDIO] DSD PCM decimation: dsd_rate={} Hz, existing_engine={} Hz -> target={} Hz",
+        dsd_rate.sample_rate(), existing_rate, target
+    );
+    resolve_requested_output_sample_rate(Some(target))
+}
+
+fn verify_dsd_engine_rate(
+    path: &PathBuf,
+    mode: DsdOutputMode,
+    engine_rate: u32,
+) -> Result<(), String> {
+    if !matches!(mode, DsdOutputMode::Native | DsdOutputMode::Dop) {
+        return Ok(());
+    }
+    let decoder = open_dsd_decoder(path)
+        .map_err(|e| format!("Failed to probe DSD rate for {}: {}", path.display(), e))?;
+    let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
+        .ok_or_else(|| format!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
+    let required_rate = match mode {
+        DsdOutputMode::Native => {
+            #[cfg(target_os = "android")]
+            {
+                let use_audio_track = current_device_profile()
+                    .as_ref()
+                    .is_some_and(|p| p.supports_native_dsd)
+                    && !{
+                        #[cfg(feature = "uac2")]
+                        { crate::uac2::is_usb_session_active() }
+                        #[cfg(not(feature = "uac2"))]
+                        { false }
+                    };
+                if use_audio_track {
+                    dsd_rate.byte_rate()
+                } else {
+                    dsd_rate.sample_rate()
+                }
+            }
+            #[cfg(not(target_os = "android"))]
+            { dsd_rate.sample_rate() }
+        }
+        DsdOutputMode::Dop => dsd_rate.dop_carrier_rate(),
+        _ => return Ok(()),
+    };
+    if engine_rate != required_rate {
+        return Err(format!(
+            "DSD {:?} playback requires the output to run at exactly {} Hz, \
+             but the engine is running at {} Hz. The current audio backend \
+             does not support this DSD mode. Switch to PCM Decimation or \
+             connect a DSD-capable DAC and enable direct USB mode.",
+            mode, required_rate, engine_rate
+        ));
+    }
+    Ok(())
+}
+
+fn verify_dop_passthrough(engine_rate: u32) -> Result<(), String> {
+    let signature = read_audio_engine(|handle| handle.output_signature().to_string());
+    let passthrough = read_audio_engine(|handle| {
+        let rt = handle.output_runtime();
+        rt.passthrough_allowed
+    });
+
+    let sig = signature.as_deref().unwrap_or("");
+    let sig_matches_dop = sig.contains("dsd-dop:") || sig.contains("dsd-native:");
+    let rate_matches = if let Some(rate_str) = sig.rsplit(':').next() {
+        rate_str.parse::<u32>().ok() == Some(engine_rate)
+    } else {
+        false
+    };
+
+    if sig_matches_dop && rate_matches && passthrough.unwrap_or(false) {
+        log::info!(
+            "[AUDIO] DoP pre-flight OK: wire_rate={} signature={}",
+            engine_rate, sig
+        );
+        return Ok(());
+    }
+
+    log::warn!(
+        "[AUDIO] DoP pre-flight FAILED: Android may have resampled the carrier. \
+         engine_rate={} signature={} passthrough={:?}. Degrading to PCM decimation.",
+        engine_rate, sig, passthrough
+    );
+
+    Err(format!(
+        "DoP passthrough verification failed: the output path did not confirm \
+         bit-perfect DoP delivery at {} Hz (signature={}, passthrough={:?}). \
+         Android likely resampled the carrier. Degrading to PCM decimation.",
+        engine_rate, sig, passthrough
+    ))
+}
+
 fn prepare_decoder_source(
     path: &PathBuf,
     output_sample_rate: u32,
     output_channels: usize,
-) -> Result<(crate::audio::source::AudioSource, DecoderThread), String> {
-    let probe_result = probe_file(path.as_path())
-        .map_err(|error| format!("Failed to probe {}: {}", path.display(), error))?;
-    let file_rate = probe_result.source_info.original_sample_rate;
-    if output_sample_rate != file_rate {
-        log_warn!(
-            "[AUDIO] engine_sample_rate_hz={} decoded_file_sample_rate_hz={} — decoder resampling active",
-            output_sample_rate,
-            file_rate
-        );
-    } else {
-        log_info!(
-            "[AUDIO] engine_sample_rate_hz matches decoded_file_sample_rate_hz ({} Hz); decoder resampling off",
-            file_rate
-        );
-    }
+) -> Result<(crate::audio::source::AudioSource, DecoderHandle), String> {
+    match detect_file_type(path) {
+        crate::audio::decoder_handle::FileType::Dsd => {
+            let effective_mode = effective_dsd_output_mode(current_dsd_output_mode());
+            verify_dsd_engine_rate(path, effective_mode, output_sample_rate)?;
+            let (source, thread) = DsdDecoderThread::spawn(
+                path.clone(),
+                effective_mode,
+                output_sample_rate,
+                output_channels,
+            )
+            .map_err(|e| format!("Failed to decode DSD {}: {}", path.display(), e))?;
+            Ok((source, DecoderHandle::Dsd(thread)))
+        }
+        crate::audio::decoder_handle::FileType::WavPack => {
+            let (source, handle) = WavpackDecoderThread::spawn(
+                path.clone(),
+                output_sample_rate,
+                output_channels,
+            )
+            .map_err(|e| format!("Failed to decode WavPack {}: {}", path.display(), e))?;
+            Ok((source, handle))
+        }
+        crate::audio::decoder_handle::FileType::Standard => {
+            let probe_result = probe_file(path.as_path())
+                .map_err(|error| format!("Failed to probe {}: {}", path.display(), error))?;
+            let file_rate = probe_result.source_info.original_sample_rate;
+            if output_sample_rate != file_rate {
+                log_warn!(
+                    "[AUDIO] engine_sample_rate_hz={} decoded_file_sample_rate_hz={} — decoder resampling active",
+                    output_sample_rate,
+                    file_rate
+                );
+            } else {
+                log_info!(
+                    "[AUDIO] engine_sample_rate_hz matches decoded_file_sample_rate_hz ({} Hz); decoder resampling off",
+                    file_rate
+                );
+            }
 
-    DecoderThread::spawn_from_probe_result(probe_result, output_sample_rate, output_channels, None)
-        .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))
+            let (source, thread) = DecoderThread::spawn_from_probe_result(
+                probe_result,
+                output_sample_rate,
+                output_channels,
+                None,
+            )
+            .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
+            Ok((source, DecoderHandle::Symphonia(thread)))
+        }
+    }
 }
 
 // ============================================================================
@@ -197,6 +531,10 @@ pub struct AudioRuntimeDebugJsonState {
     pub verification_reason: Option<String>,
     pub direct_usb_active: Option<bool>,
     pub direct_usb_verified: Option<bool>,
+    pub dsd_source_rate: Option<u32>,
+    pub dsd_effective_mode: Option<String>,
+    pub dsd_wire_rate: Option<u32>,
+    pub dsd_transport: Option<String>,
 }
 
 impl From<AudioCapabilitySnapshot> for AudioCapabilityInfo {
@@ -283,6 +621,12 @@ pub fn audio_set_dap_bit_perfect_enabled(enabled: bool) {
     let _ = enabled;
 }
 
+/// Set the DSD output mode from Dart. 0 = PCM decimation, 1 = DoP, 2 = Native, 3 = Auto.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_set_dsd_output_mode(mode: u8) {
+    DSD_OUTPUT_MODE.store(mode.min(3), Ordering::Relaxed);
+}
+
 /// Update the current platform capability snapshot used for engine selection.
 #[flutter_rust_bridge::frb(sync)]
 pub fn audio_set_capability_info(info: AudioCapabilityInfo) {
@@ -360,6 +704,10 @@ pub fn audio_get_runtime_debug_json_state() -> AudioRuntimeDebugJsonState {
         direct_usb_verified: output_runtime
             .as_ref()
             .map(|state| state.direct_usb_verified),
+        dsd_source_rate: output_runtime.as_ref().and_then(|state| state.dsd_source_rate),
+        dsd_effective_mode: output_runtime.as_ref().and_then(|state| state.dsd_effective_mode.clone()),
+        dsd_wire_rate: output_runtime.as_ref().and_then(|state| state.dsd_wire_rate),
+        dsd_transport: output_runtime.as_ref().and_then(|state| state.dsd_transport.clone()),
     }
 }
 
@@ -375,76 +723,252 @@ pub fn audio_prepare_engine(preferred_sample_rate: Option<u32>) -> Result<(), St
 
 /// Play an audio file.
 pub fn audio_play(path: String) -> Result<(), String> {
-    let path = PathBuf::from(path);
-    let probe_result = probe_file(path.as_path())
-        .map_err(|error| format!("Failed to probe {}: {}", path.display(), error))?;
-    ensure_audio_engine(resolve_track_playback_output_sample_rate(Some(
-        probe_result.source_info.original_sample_rate,
-    ))?)?;
-    let (output_sample_rate, output_channels) =
-        with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
-    let file_rate = probe_result.source_info.original_sample_rate;
-    if output_sample_rate != file_rate {
-        log_warn!(
-            "[AUDIO] engine_sample_rate_hz={} decoded_file_sample_rate_hz={} — decoder resampling active",
-            output_sample_rate,
-            file_rate
-        );
-    } else {
-        log_info!(
-            "[AUDIO] engine_sample_rate_hz matches decoded_file_sample_rate_hz ({} Hz); decoder resampling off",
-            file_rate
-        );
+    let path = PathBuf::from(&path);
+    match detect_file_type(&path) {
+        crate::audio::decoder_handle::FileType::Dsd => {
+            let requested_mode = current_dsd_output_mode();
+            let dsd_sample_rate = {
+                let decoder = open_dsd_decoder(&path)
+                    .map_err(|e| format!("Failed to probe DSD rate: {}", e))?;
+                decoder.sample_rate()
+            };
+            let dsd_rate_enum = DsdRate::from_sample_rate(dsd_sample_rate);
+            set_dsd_track_rate(dsd_sample_rate);
+            let mut effective_mode = effective_dsd_output_mode_for_rate(requested_mode, dsd_rate_enum);
+            if matches!(effective_mode, DsdOutputMode::Native | DsdOutputMode::Auto) {
+                crate::audio::dsd_native_jni::dsd_track_preload_class();
+            }
+            if let Err(e) = ensure_audio_engine(resolve_dsd_engine_sample_rate(&path, effective_mode)?) {
+                if e.starts_with("DSD_NATIVE_FALLBACK:") {
+                    log::info!("[AUDIO] DSD Native unavailable ({}), falling back to DoP", e);
+                    effective_mode = DsdOutputMode::Dop;
+                    ensure_audio_engine_excluded(
+                        resolve_dsd_engine_sample_rate(&path, effective_mode)?,
+                        vec![OutputStrategy::DsdNative],
+                    )?;
+                } else {
+                    return Err(e);
+                }
+            }
+            let (mut output_sample_rate, mut output_channels) =
+                with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
+            verify_dsd_engine_rate(&path, effective_mode, output_sample_rate)?;
+            if effective_mode == DsdOutputMode::Dop {
+                if let Err(dop_err) = verify_dop_passthrough(output_sample_rate) {
+                    log::info!(
+                        "[AUDIO] DoP pre-flight failed ({}), degrading to PCM decimation",
+                        dop_err
+                    );
+                    effective_mode = DsdOutputMode::PcmDecimation;
+                    let pcm_rate = {
+                        let decoder = open_dsd_decoder(&path)
+                            .map_err(|e| format!("Failed to probe DSD rate: {}", e))?;
+                        let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
+                            .ok_or_else(|| format!("Unsupported DSD rate"))?;
+                        resolve_dsd_pcm_sample_rate(dsd_rate, 0)
+                    };
+                    ensure_audio_engine_excluded(
+                        resolve_requested_output_sample_rate(Some(pcm_rate))?,
+                        vec![OutputStrategy::DsdNative],
+                    )?;
+                    output_sample_rate = with_audio_engine(|handle| Ok(handle.sample_rate()))?;
+                    output_channels = with_audio_engine(|handle| Ok(handle.channels()))?;
+                }
+            }
+            let (source, thread) = DsdDecoderThread::spawn(
+                path,
+                effective_mode,
+                output_sample_rate,
+                output_channels,
+            )
+            .map_err(|e| format!("Failed to decode DSD: {}", e))?;
+            let is_raw = matches!(effective_mode, DsdOutputMode::Dop | DsdOutputMode::Native);
+            with_audio_engine(|handle| {
+                handle.set_dop_override(is_raw)?;
+                handle.play_prepared(source, DecoderHandle::Dsd(thread))
+            })
+        }
+        crate::audio::decoder_handle::FileType::WavPack => {
+            clear_dsd_track_rate();
+            ensure_audio_engine(resolve_requested_output_sample_rate(None)?)?;
+            let (output_sample_rate, output_channels) =
+                with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
+            let (source, handle) = WavpackDecoderThread::spawn(
+                path,
+                output_sample_rate,
+                output_channels,
+            )
+            .map_err(|e| format!("Failed to decode WavPack: {}", e))?;
+            with_audio_engine(|engine| {
+                engine.set_dop_override(false)?;
+                engine.play_prepared(source, handle)
+            })
+        }
+        crate::audio::decoder_handle::FileType::Standard => {
+            let probe_result = probe_file(path.as_path())
+                .map_err(|error| format!("Failed to probe {}: {}", path.display(), error))?;
+            ensure_audio_engine(resolve_track_playback_output_sample_rate(Some(
+                probe_result.source_info.original_sample_rate,
+            ))?)?;
+            let (output_sample_rate, output_channels) =
+                with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
+            let file_rate = probe_result.source_info.original_sample_rate;
+            if output_sample_rate != file_rate {
+                log_warn!(
+                    "[AUDIO] engine_sample_rate_hz={} decoded_file_sample_rate_hz={} — decoder resampling active",
+                    output_sample_rate,
+                    file_rate
+                );
+            } else {
+                log_info!(
+                    "[AUDIO] engine_sample_rate_hz matches decoded_file_sample_rate_hz ({} Hz); decoder resampling off",
+                    file_rate
+                );
+            }
+            let (source, decoder_thread) = DecoderThread::spawn_from_probe_result(
+                probe_result,
+                output_sample_rate,
+                output_channels,
+                None,
+            )
+            .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
+            with_audio_engine(|handle| {
+                handle.set_dop_override(false)?;
+                handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
+            })
+        }
     }
-    let (source, decoder_thread) = DecoderThread::spawn_from_probe_result(
-        probe_result,
-        output_sample_rate,
-        output_channels,
-        None,
-    )
-    .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
-    with_audio_engine(|handle| handle.play_prepared(source, decoder_thread))
 }
 
 /// Queue the next track for gapless playback.
 pub fn audio_queue_next(path: String) -> Result<(), String> {
     let path = PathBuf::from(path);
     if !audio_is_initialized() {
-        let probe_result = probe_file(path.as_path())
-            .map_err(|error| format!("Failed to probe {}: {}", path.display(), error))?;
-        ensure_audio_engine(resolve_track_playback_output_sample_rate(Some(
-            probe_result.source_info.original_sample_rate,
-        ))?)?;
-        let (output_sample_rate, output_channels) =
-            with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
-        let file_rate = probe_result.source_info.original_sample_rate;
-        if output_sample_rate != file_rate {
-            log_warn!(
-                "[AUDIO] engine_sample_rate_hz={} decoded_file_sample_rate_hz={} — decoder resampling active",
-                output_sample_rate,
-                file_rate
-            );
-        } else {
-            log_info!(
-                "[AUDIO] engine_sample_rate_hz matches decoded_file_sample_rate_hz ({} Hz); decoder resampling off",
-                file_rate
-            );
+        match detect_file_type(&path) {
+            crate::audio::decoder_handle::FileType::Dsd => {
+                let requested_mode = current_dsd_output_mode();
+                let dsd_sample_rate = {
+                    let decoder = open_dsd_decoder(&path)
+                        .map_err(|e| format!("Failed to probe DSD rate: {}", e))?;
+                    decoder.sample_rate()
+                };
+                let dsd_rate_enum = DsdRate::from_sample_rate(dsd_sample_rate);
+                set_dsd_track_rate(dsd_sample_rate);
+                let mut effective_mode = effective_dsd_output_mode_for_rate(requested_mode, dsd_rate_enum);
+                if matches!(effective_mode, DsdOutputMode::Native | DsdOutputMode::Auto) {
+                    crate::audio::dsd_native_jni::dsd_track_preload_class();
+                }
+                if let Err(e) = ensure_audio_engine(resolve_dsd_engine_sample_rate(&path, effective_mode)?) {
+                    if e.starts_with("DSD_NATIVE_FALLBACK:") {
+                        log::info!("[AUDIO] DSD Native unavailable ({}), falling back to DoP", e);
+                        effective_mode = DsdOutputMode::Dop;
+                        ensure_audio_engine_excluded(
+                            resolve_dsd_engine_sample_rate(&path, effective_mode)?,
+                            vec![OutputStrategy::DsdNative],
+                        )?;
+                    } else {
+                        return Err(e);
+                    }
+                }
+                let (mut output_sample_rate, mut output_channels) =
+                    with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
+                verify_dsd_engine_rate(&path, effective_mode, output_sample_rate)?;
+                if effective_mode == DsdOutputMode::Dop {
+                    if let Err(dop_err) = verify_dop_passthrough(output_sample_rate) {
+                        log::info!(
+                            "[AUDIO] DoP pre-flight failed ({}), degrading to PCM decimation",
+                            dop_err
+                        );
+                        effective_mode = DsdOutputMode::PcmDecimation;
+                        let pcm_rate = {
+                            let decoder = open_dsd_decoder(&path)
+                                .map_err(|e| format!("Failed to probe DSD rate: {}", e))?;
+                            let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
+                                .ok_or_else(|| format!("Unsupported DSD rate"))?;
+                            resolve_dsd_pcm_sample_rate(dsd_rate, 0)
+                        };
+                        ensure_audio_engine_excluded(
+                            resolve_requested_output_sample_rate(Some(pcm_rate))?,
+                            vec![OutputStrategy::DsdNative],
+                        )?;
+                        output_sample_rate = with_audio_engine(|handle| Ok(handle.sample_rate()))?;
+                        output_channels = with_audio_engine(|handle| Ok(handle.channels()))?;
+                    }
+                }
+                let (source, thread) = DsdDecoderThread::spawn(
+                    path,
+                    effective_mode,
+                    output_sample_rate,
+                    output_channels,
+                )
+                .map_err(|e| format!("Failed to decode DSD: {}", e))?;
+                let is_raw = matches!(effective_mode, DsdOutputMode::Dop | DsdOutputMode::Native);
+                return with_audio_engine(|handle| {
+                    handle.set_dop_override(is_raw)?;
+                    handle.queue_next_prepared(source, DecoderHandle::Dsd(thread))
+                });
+            }
+            crate::audio::decoder_handle::FileType::WavPack => {
+                ensure_audio_engine(resolve_requested_output_sample_rate(None)?)?;
+                let (output_sample_rate, output_channels) =
+                    with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
+                let (source, wh) = WavpackDecoderThread::spawn(
+                    path,
+                    output_sample_rate,
+                    output_channels,
+                )
+                .map_err(|e| format!("Failed to decode WavPack: {}", e))?;
+                return with_audio_engine(|engine| {
+                    engine.set_dop_override(false)?;
+                    engine.queue_next_prepared(source, wh)
+                });
+            }
+        crate::audio::decoder_handle::FileType::Standard => {
+            clear_dsd_track_rate();
+            let probe_result = probe_file(path.as_path())
+                    .map_err(|error| format!("Failed to probe {}: {}", path.display(), error))?;
+                ensure_audio_engine(resolve_track_playback_output_sample_rate(Some(
+                    probe_result.source_info.original_sample_rate,
+                ))?)?;
+                let (output_sample_rate, output_channels) =
+                    with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
+                let file_rate = probe_result.source_info.original_sample_rate;
+                if output_sample_rate != file_rate {
+                    log_warn!(
+                        "[AUDIO] engine_sample_rate_hz={} decoded_file_sample_rate_hz={} — decoder resampling active",
+                        output_sample_rate,
+                        file_rate
+                    );
+                } else {
+                    log_info!(
+                        "[AUDIO] engine_sample_rate_hz matches decoded_file_sample_rate_hz ({} Hz); decoder resampling off",
+                        file_rate
+                    );
+                }
+                let (source, decoder_thread) = DecoderThread::spawn_from_probe_result(
+                    probe_result,
+                    output_sample_rate,
+                    output_channels,
+                    None,
+                )
+                .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
+                return with_audio_engine(|handle| {
+                    handle.set_dop_override(false)?;
+                    handle.queue_next_prepared(source, DecoderHandle::Symphonia(decoder_thread))
+                });
+            }
         }
-        let (source, decoder_thread) = DecoderThread::spawn_from_probe_result(
-            probe_result,
-            output_sample_rate,
-            output_channels,
-            None,
-        )
-        .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
-        return with_audio_engine(|handle| handle.queue_next_prepared(source, decoder_thread));
     }
 
     let (output_sample_rate, output_channels) =
         with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
-    let (source, decoder_thread) =
-        prepare_decoder_source(&path, output_sample_rate, output_channels)?;
-    with_audio_engine(|handle| handle.queue_next_prepared(source, decoder_thread))
+    let (source, handle) = prepare_decoder_source(&path, output_sample_rate, output_channels)?;
+    let effective_mode = effective_dsd_output_mode(current_dsd_output_mode());
+    let is_raw = matches!(effective_mode, DsdOutputMode::Dop | DsdOutputMode::Native);
+    with_audio_engine(|engine| {
+        engine.set_dop_override(is_raw)?;
+        engine.queue_next_prepared(source, handle)
+    })
 }
 
 /// Pause playback.
@@ -459,6 +983,7 @@ pub fn audio_resume() -> Result<(), String> {
 
 /// Stop playback completely.
 pub fn audio_stop() -> Result<(), String> {
+    clear_dsd_track_rate();
     with_audio_engine(|handle| handle.stop())
 }
 
@@ -469,7 +994,10 @@ pub fn audio_seek(position_secs: f64) -> Result<(), String> {
 
 /// Set the playback volume.
 pub fn audio_set_volume(volume: f32) -> Result<(), String> {
-    with_audio_engine(|handle| handle.set_volume(volume))
+    let clamped = volume.clamp(0.0, 1.0);
+    set_pending_volume(clamped);
+    let _ = with_audio_engine(|handle| handle.set_volume(clamped));
+    Ok(())
 }
 
 /// Set graphic EQ: enabled and 10 band gains in dB (order = 32,64,125,250,500,1k,2k,4k,8k,16k Hz).

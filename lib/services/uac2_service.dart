@@ -23,17 +23,23 @@ class Uac2AudioFormat {
   final int sampleRate;
   final int bitDepth;
   final int channels;
+  final bool isDop;
+  final bool isNativeDsd;
 
   const Uac2AudioFormat({
     required this.sampleRate,
     required this.bitDepth,
     required this.channels,
+    this.isDop = false,
+    this.isNativeDsd = false,
   });
 
   Map<String, dynamic> toJson() => {
     'sampleRate': sampleRate,
     'bitDepth': bitDepth,
     'channels': channels,
+    'isDop': isDop,
+    'isNativeDsd': isNativeDsd,
   };
 
   factory Uac2AudioFormat.fromJson(Map<String, dynamic> json) {
@@ -41,6 +47,8 @@ class Uac2AudioFormat {
       sampleRate: json['sampleRate'] as int,
       bitDepth: json['bitDepth'] as int,
       channels: json['channels'] as int,
+      isDop: (json['isDop'] as bool?) ?? false,
+      isNativeDsd: (json['isNativeDsd'] as bool?) ?? false,
     );
   }
 }
@@ -619,6 +627,8 @@ class Uac2Service {
             'sampleRate': selectedFormat.sampleRate,
             'bitDepth': selectedFormat.bitDepth,
             'channels': selectedFormat.channels,
+            'isDop': selectedFormat.isDop,
+            'isNativeDsd': selectedFormat.isNativeDsd,
           });
       if (applied != true) {
         debugPrint(
@@ -720,6 +730,8 @@ class Uac2Service {
       sampleRate: sampleRate,
       bitDepth: bitDepth,
       channels: channels,
+      isDop: requested.isDop,
+      isNativeDsd: requested.isNativeDsd,
     );
   }
 
@@ -766,6 +778,8 @@ class Uac2Service {
               'sampleRate': format.sampleRate,
               'bitDepth': format.bitDepth,
               'channels': format.channels,
+              'isDop': format.isDop,
+              'isNativeDsd': format.isNativeDsd,
             });
         if (applied != true) {
           debugPrint(

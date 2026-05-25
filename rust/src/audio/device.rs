@@ -15,6 +15,7 @@ pub struct DeviceProfile {
     pub confirmed_bit_perfect: bool,
     pub max_sample_rate: u32,
     pub has_balanced_output: bool,
+    pub supports_native_dsd: bool,
 }
 
 impl Default for DeviceProfile {
@@ -30,6 +31,7 @@ impl DeviceProfile {
             confirmed_bit_perfect: false,
             max_sample_rate: 0,
             has_balanced_output: false,
+            supports_native_dsd: false,
         }
     }
 
@@ -211,11 +213,19 @@ pub fn classify_device(signals: DeviceSignals) -> DeviceProfile {
         None => DeviceKind::Unknown,
     };
 
+    let is_dap = matches!(kind, DeviceKind::Dap(_));
+    let native_dsd_from_caps = signals.audio_caps.supports_native_dsd;
+    let native_dsd_from_runtime = if is_dap && !native_dsd_from_caps {
+        crate::audio::dsd_native_jni::is_dsd_encoding_cached_available()
+    } else {
+        false
+    };
     DeviceProfile {
-        confirmed_bit_perfect: matches!(kind, DeviceKind::Dap(_)),
+        confirmed_bit_perfect: is_dap,
         kind,
         max_sample_rate: signals.audio_caps.max_sample_rate,
         has_balanced_output: signals.audio_caps.has_balanced_output,
+        supports_native_dsd: native_dsd_from_caps || native_dsd_from_runtime,
     }
 }
 
@@ -797,5 +807,59 @@ mod tests {
 
         assert_eq!(profile.kind, DeviceKind::Dap("Other".to_string()));
         assert!(profile.confirmed_bit_perfect);
+    }
+
+    #[test]
+    fn dap_without_audio_caps_native_dsd_gets_false_without_runtime_probe() {
+        crate::audio::dsd_native_jni::set_dsd_encoding_available(false);
+        let profile = classify_device(DeviceSignals {
+            manufacturer: "HiBy".to_string(),
+            model: "R6 III".to_string(),
+            brand: "HiBy".to_string(),
+            manufacturer_match: Some("HiBy".to_string()),
+            model_match: true,
+            no_telephony: false,
+            audio_caps: AudioCapabilities::default(),
+            mango_mode: false,
+        });
+        assert!(profile.is_dap());
+        assert!(!profile.supports_native_dsd);
+    }
+
+    #[test]
+    fn dap_with_audio_caps_native_dsd_gets_true() {
+        let profile = classify_device(DeviceSignals {
+            manufacturer: "HiBy".to_string(),
+            model: "R6 III".to_string(),
+            brand: "HiBy".to_string(),
+            manufacturer_match: Some("HiBy".to_string()),
+            model_match: true,
+            no_telephony: false,
+            audio_caps: AudioCapabilities {
+                supports_native_dsd: true,
+                ..AudioCapabilities::default()
+            },
+            mango_mode: false,
+        });
+        assert!(profile.is_dap());
+        assert!(profile.supports_native_dsd);
+    }
+
+    #[test]
+    fn dap_with_runtime_probe_cached_gets_native_dsd() {
+        crate::audio::dsd_native_jni::set_dsd_encoding_available(true);
+        let profile = classify_device(DeviceSignals {
+            manufacturer: "HiBy".to_string(),
+            model: "R6 III".to_string(),
+            brand: "HiBy".to_string(),
+            manufacturer_match: Some("HiBy".to_string()),
+            model_match: true,
+            no_telephony: false,
+            audio_caps: AudioCapabilities::default(),
+            mango_mode: false,
+        });
+        assert!(profile.is_dap());
+        assert!(profile.supports_native_dsd);
+        crate::audio::dsd_native_jni::set_dsd_encoding_available(false);
     }
 }

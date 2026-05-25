@@ -1,4 +1,5 @@
 use crate::audio::engine::{create_audio_engine, desired_output_signature, AudioEngineHandle};
+use crate::audio::strategy::OutputStrategy;
 use parking_lot::Mutex;
 use std::sync::OnceLock;
 use tokio::runtime::{Builder, Runtime};
@@ -193,9 +194,9 @@ impl EngineManager {
             .map(|snapshot| snapshot.has_capability(AudioCapability::UsbDac))
     }
 
-    pub fn ensure_rust_engine(&self, preferred_sample_rate: Option<u32>) -> Result<(), String> {
+    pub fn ensure_rust_engine(&self, preferred_sample_rate: Option<u32>, excluded_strategies: Vec<OutputStrategy>) -> Result<(), String> {
         self.runtime()
-            .block_on(self.ensure_rust_engine_async(preferred_sample_rate))
+            .block_on(self.ensure_rust_engine_async(preferred_sample_rate, excluded_strategies))
     }
 
     pub fn with_rust_handle<T>(
@@ -245,6 +246,7 @@ impl EngineManager {
     async fn ensure_rust_engine_async(
         &self,
         preferred_sample_rate: Option<u32>,
+        excluded_strategies: Vec<OutputStrategy>,
     ) -> Result<(), String> {
         let _gate = self.init_gate.lock().await;
         let selection = self.selection_async(preferred_sample_rate).await?;
@@ -303,7 +305,7 @@ impl EngineManager {
         crate::uac2::force_release_usb_session();
 
         let new_handle = tokio::task::spawn_blocking(move || {
-            create_audio_engine(preferred_sample_rate, allow_dap_native, dap_bit_perfect_enabled)
+            create_audio_engine(preferred_sample_rate, allow_dap_native, dap_bit_perfect_enabled, excluded_strategies)
         })
         .await
         .map_err(|error| format!("Rust engine initialization task failed: {}", error))??;
@@ -311,6 +313,11 @@ impl EngineManager {
         let mut state = self.state.lock();
         state.current = Some(AudioEngine::Rust);
         state.rust_handle = Some(new_handle);
+        if let Some(volume) = crate::api::audio_api::take_pending_volume() {
+            if let Some(handle) = state.rust_handle.as_ref() {
+                let _ = handle.set_volume(volume);
+            }
+        }
         Ok(())
     }
 

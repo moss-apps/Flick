@@ -77,6 +77,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setShowQuickAccess(value);
   }
 
+  Future<void> setShowEngineSelector(bool value) async {
+    if (state.showEngineSelector == value) return;
+    state = state.copyWith(showEngineSelector: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setShowEngineSelector(value);
+  }
+
   Future<void> setCrossfadeEnabled(bool value) async {
     if (state.crossfadeEnabled == value) return;
     state = state.copyWith(crossfadeEnabled: value);
@@ -279,6 +287,24 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     if (state.widgetAccentColor == value) return;
     state = state.copyWith(widgetAccentColor: value);
     await ref.read(appPreferencesServiceProvider).setWidgetAccentColor(value);
+  }
+
+  Future<void> setWidgetFlagshipTheme(String value) async {
+    if (state.widgetFlagshipTheme == value) return;
+    state = state.copyWith(widgetFlagshipTheme: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetFlagshipTheme(value);
+  }
+
+  Future<void> setWidgetFlagshipAccent(String value) async {
+    if (state.widgetFlagshipAccent == value) return;
+    state = state.copyWith(widgetFlagshipAccent: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetFlagshipAccent(value);
+  }
+
+  Future<void> setWidgetFlagshipShowArtist(bool value) async {
+    if (state.widgetFlagshipShowArtist == value) return;
+    state = state.copyWith(widgetFlagshipShowArtist: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetFlagshipShowArtist(value);
   }
 
   Future<void> setLyricsMatchAudioFilename(bool value) async {

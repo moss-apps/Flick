@@ -182,6 +182,6 @@ pub(crate) fn is_supported_audio_path(path: &Path) -> bool {
 
     matches!(
         extension.as_str(),
-        "mp3" | "flac" | "ogg" | "oga" | "ogx" | "opus" | "m4a" | "wav" | "aif" | "aiff" | "alac"
+        "mp3" | "flac" | "ogg" | "oga" | "ogx" | "opus" | "m4a" | "wav" | "aif" | "aiff" | "alac" | "dsf" | "dff" | "wv"
     )
 }

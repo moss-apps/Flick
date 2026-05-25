@@ -1,0 +1,15 @@
+[package]
+name = "wavpack-sys"
+version = "5.7.0"
+edition = "2021"
+description = "FFI bindings to libwavpack (WavPack 5.7.0)"
+links = "wavpack"
+build = "build.rs"
+
+[build-dependencies]
+cc = "1"
+bindgen = "0.70"
+
+[features]
+default = []
+static = []

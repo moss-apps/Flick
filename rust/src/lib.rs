@@ -181,7 +181,16 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
     sample_rate: jint,
     bit_depth: jint,
     channels: jint,
+    is_dop: jboolean,
+    is_native_dsd: jboolean,
 ) -> jboolean {
+    let dsd_transport = if is_dop != 0 {
+        crate::uac2::DsdTransportMode::DoP
+    } else if is_native_dsd != 0 {
+        crate::uac2::DsdTransportMode::Native
+    } else {
+        crate::uac2::DsdTransportMode::None
+    };
     let playback_format = if sample_rate <= 0 || bit_depth <= 0 || channels <= 0 {
         None
     } else {
@@ -189,6 +198,8 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
             sample_rate: sample_rate as u32,
             bit_depth: bit_depth as u8,
             channels: channels as u16,
+            is_dop: is_dop != 0,
+            dsd_transport,
         })
     };
 
@@ -212,6 +223,8 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
     _sample_rate: jint,
     _bit_depth: jint,
     _channels: jint,
+    _is_dop: jboolean,
+    _is_native_dsd: jboolean,
 ) -> jboolean {
     0
 }

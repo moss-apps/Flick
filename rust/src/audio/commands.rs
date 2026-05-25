@@ -3,7 +3,8 @@
 //! Commands are sent from Dart through lock-free channels to avoid
 //! blocking the audio thread.
 
-use crate::audio::{decoder::DecoderThread, source::AudioSource};
+use crate::audio::decoder_handle::DecoderHandle;
+use crate::audio::source::AudioSource;
 use std::path::PathBuf;
 
 /// Commands that can be sent to the audio engine.
@@ -13,14 +14,14 @@ pub enum AudioCommand {
     /// Load and play a track using a pre-probed decoder/source pair.
     PlayPrepared {
         source: AudioSource,
-        decoder_thread: DecoderThread,
+        decoder_handle: DecoderHandle,
     },
     /// Queue a track for gapless playback (starts when current ends)
     QueueNext { path: PathBuf },
     /// Queue a track using a pre-probed decoder/source pair.
     QueueNextPrepared {
         source: AudioSource,
-        decoder_thread: DecoderThread,
+        decoder_handle: DecoderHandle,
     },
     /// Pause playback (maintains position)
     Pause,
@@ -71,6 +72,8 @@ pub enum AudioCommand {
     },
     /// Switch pipeline mode at runtime (e.g. when Bit-perfect (DAP Internal) is toggled).
     SetPipelineMode { passthrough: bool },
+    /// Override pipeline to Dop for DoP DSD playback, or restore base mode.
+    SetDopOverride { is_dop: bool },
     /// Trigger crossfade to next track immediately
     CrossfadeToNext,
     /// Skip to the next track (with crossfade if enabled)

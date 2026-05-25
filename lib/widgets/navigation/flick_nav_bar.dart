@@ -173,14 +173,21 @@ class _OverflowNavItem extends StatelessWidget {
             ),
             SizedBox(height: spacing),
             if (config.showLabels)
-              Text(
-                'More',
-                style: TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontSize: fontSize,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: color,
-                  letterSpacing: 0.4,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'More',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: fontSize,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: color,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -191,7 +198,6 @@ class _OverflowNavItem extends StatelessWidget {
 
   void _showOverflowMenu(BuildContext context) {
     final overlay = Overlay.of(context);
-    late OverlayEntry entry;
     final renderBox = context.findRenderObject() as RenderBox;
     final offset = renderBox.localToGlobal(Offset.zero);
     final size = renderBox.size;
@@ -203,19 +209,113 @@ class _OverflowNavItem extends StatelessWidget {
     final left = (offset.dx + size.width / 2 - menuWidth / 2).clamp(8.0, MediaQuery.of(context).size.width - menuWidth - 8.0);
     final top = offset.dy - totalHeight - 8.0;
 
+    late OverlayEntry entry;
+
+    void removeEntry() {
+      entry.remove();
+    }
+
     entry = OverlayEntry(
-      builder: (ctx) => GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => entry.remove(),
-        child: Stack(
-          children: [
-            Positioned(
-              left: left,
-              top: top,
+      builder: (ctx) => _OverflowMenuPopup(
+        left: left,
+        top: top,
+        menuWidth: menuWidth,
+        missingButtons: missingButtons,
+        onSelect: (button) {
+          onSelect(button);
+        },
+        onDismiss: removeEntry,
+      ),
+    );
+
+    overlay.insert(entry);
+  }
+}
+
+class _OverflowMenuPopup extends StatefulWidget {
+  final double left;
+  final double top;
+  final double menuWidth;
+  final List<NavBarButton> missingButtons;
+  final ValueChanged<NavBarButton> onSelect;
+  final VoidCallback onDismiss;
+
+  const _OverflowMenuPopup({
+    required this.left,
+    required this.top,
+    required this.menuWidth,
+    required this.missingButtons,
+    required this.onSelect,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_OverflowMenuPopup> createState() => _OverflowMenuPopupState();
+}
+
+class _OverflowMenuPopupState extends State<_OverflowMenuPopup>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
+  late final Animation<double> _fadeAnimation;
+  bool _isDismissing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: AppConstants.animationFast,
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _controller.forward();
+  }
+
+  void _animateOutThen(VoidCallback callback) {
+    if (_isDismissing) return;
+    _isDismissing = true;
+    _controller.reverse().then((_) {
+      if (mounted) callback();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _animateOutThen(widget.onDismiss),
+      child: Stack(
+        children: [
+          Positioned(
+            left: widget.left,
+            top: widget.top,
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return Opacity(
+                  opacity: _fadeAnimation.value,
+                  child: Transform.scale(
+                    scale: _scaleAnimation.value,
+                    alignment: Alignment.bottomCenter,
+                    child: child,
+                  ),
+                );
+              },
               child: Material(
                 color: Colors.transparent,
                 child: Container(
-                  width: menuWidth,
+                  width: widget.menuWidth,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -235,28 +335,32 @@ class _OverflowNavItem extends StatelessWidget {
                       ),
                     ],
                   ),
-                  clipBehavior: Clip.antiAlias,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: missingButtons.map((button) {
-                      return InkWell(
-                        onTap: () {
-                          entry.remove();
-                          onSelect(button);
-                        },
+                    children: widget.missingButtons.map((button) {
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _animateOutThen(() {
+                          widget.onSelect(button);
+                          widget.onDismiss();
+                        }),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           child: Row(
                             children: [
                               Icon(button.icon, size: 20, color: AppColors.textSecondary),
                               const SizedBox(width: 12),
-                              Text(
-                                button.label,
-                                style: const TextStyle(
-                                  fontFamily: 'ProductSans',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textPrimary,
+                              Flexible(
+                                child: Text(
+                                  button.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'ProductSans',
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textPrimary,
+                                  ),
                                 ),
                               ),
                             ],
@@ -268,12 +372,10 @@ class _OverflowNavItem extends StatelessWidget {
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
-
-    overlay.insert(entry);
   }
 }
 
@@ -411,16 +513,23 @@ class _FlickNavItemState extends State<_FlickNavItem>
                   ),
                   SizedBox(height: spacing),
                   if (widget.config.showLabels)
-                    Text(
-                      widget.button.label,
-                      style: TextStyle(
-                        fontFamily: 'ProductSans',
-                        fontSize: fontSize,
-                        fontWeight: widget.isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: lerpColor,
-                        letterSpacing: 0.4,
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          widget.button.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'ProductSans',
+                            fontSize: fontSize,
+                            fontWeight: widget.isSelected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: lerpColor,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
                       ),
                     ),
                 ],

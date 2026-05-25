@@ -6,6 +6,9 @@
 use crate::audio::commands::{AudioCommand, AudioEvent, PlaybackProgress, PlaybackState};
 use crate::audio::crossfader::Crossfader;
 use crate::audio::decoder::DecoderThread;
+use crate::audio::decoder_handle::{DecoderHandle, FileType, detect_file_type};
+use crate::audio::dsd_engine::DsdDecoderThread;
+use crate::audio::wavpack_thread::WavpackDecoderThread;
 #[cfg(target_os = "android")]
 use crate::audio::device::current_device_profile;
 use crate::audio::dynamics::DynamicsChain;
@@ -14,7 +17,7 @@ use crate::audio::fx::SpatialFx;
 use crate::audio::source::{AudioSource, SourceProvider};
 use crate::audio::strategy::OutputStrategy;
 #[cfg(target_os = "android")]
-use crate::audio::strategy::{select_strategy, DeviceCaps, TrackInfo};
+use crate::audio::strategy::{select_strategy_excluded, DeviceCaps, TrackInfo};
 #[cfg(target_os = "android")]
 use crate::audio::verifier::OutputVerification;
 #[cfg(all(feature = "uac2", target_os = "android"))]
@@ -54,6 +57,10 @@ pub struct AudioOutputRuntimeState {
     pub verification_reason: Option<String>,
     pub direct_usb_active: bool,
     pub direct_usb_verified: bool,
+    pub dsd_source_rate: Option<u32>,
+    pub dsd_effective_mode: Option<String>,
+    pub dsd_wire_rate: Option<u32>,
+    pub dsd_transport: Option<String>,
 }
 
 /// Pipeline mode: set once at engine creation time, never toggled at runtime.
@@ -67,6 +74,7 @@ pub struct AudioOutputRuntimeState {
 pub(crate) enum PipelineMode {
     Passthrough = 0,
     Dsp = 1,
+    Dop = 2,
 }
 
 /// Audio callback data shared between engine and audio thread.
@@ -83,6 +91,8 @@ pub struct AudioCallbackData {
     /// Pipeline mode (Passthrough or Dsp) — immutable after creation.
     /// Stored as AtomicU8 for lock-free reads from the audio callback.
     pipeline_mode: AtomicU8,
+    /// Base pipeline mode saved before Dop override. Restored when DoP track ends.
+    base_pipeline_mode: AtomicU8,
     /// Output channel count
     channels: usize,
     /// Crossfader state
@@ -125,6 +135,7 @@ impl AudioCallbackData {
             playback_speed: std::sync::atomic::AtomicU32::new(1.0f32.to_bits()),
             paused: AtomicBool::new(false),
             pipeline_mode: AtomicU8::new(pipeline_mode as u8),
+            base_pipeline_mode: AtomicU8::new(pipeline_mode as u8),
             channels,
             crossfader: Mutex::new(Crossfader::disabled(sample_rate)),
             sources: Mutex::new(SourceProvider::new(sample_rate, channels)),
@@ -192,6 +203,11 @@ impl AudioCallbackData {
     }
 
     #[inline]
+    pub fn is_dop(&self) -> bool {
+        self.pipeline_mode.load(Ordering::Relaxed) == PipelineMode::Dop as u8
+    }
+
+    #[inline]
     pub(crate) fn set_pipeline_mode(&self, mode: PipelineMode) {
         self.pipeline_mode.store(mode as u8, Ordering::Relaxed);
     }
@@ -233,7 +249,7 @@ pub struct AudioEngineHandle {
     output_runtime: AudioOutputRuntimeState,
     /// Active decoder threads (kept alive for the duration of playback)
     #[allow(dead_code)]
-    decoders: Arc<Mutex<Vec<DecoderThread>>>,
+    decoders: Arc<Mutex<Vec<DecoderHandle>>>,
     /// Shutdown flag
     shutdown: Arc<AtomicBool>,
     /// Audio thread handle, joined on shutdown to ensure the
@@ -262,11 +278,11 @@ impl AudioEngineHandle {
     pub fn play_prepared(
         &self,
         source: AudioSource,
-        decoder_thread: DecoderThread,
+        decoder_handle: DecoderHandle,
     ) -> Result<(), String> {
         self.send_command(AudioCommand::PlayPrepared {
             source,
-            decoder_thread,
+            decoder_handle,
         })
     }
 
@@ -275,15 +291,15 @@ impl AudioEngineHandle {
         self.send_command(AudioCommand::QueueNext { path })
     }
 
-    /// Queue the next track using a pre-created source and decoder thread.
+    /// Queue the next track using a pre-created source and decoder handle.
     pub fn queue_next_prepared(
         &self,
         source: AudioSource,
-        decoder_thread: DecoderThread,
+        decoder_handle: DecoderHandle,
     ) -> Result<(), String> {
         self.send_command(AudioCommand::QueueNextPrepared {
             source,
-            decoder_thread,
+            decoder_handle,
         })
     }
 
@@ -333,6 +349,11 @@ impl AudioEngineHandle {
         self.callback_data.is_passthrough()
     }
 
+    /// Check if the engine is currently in DoP (DSD over PCM) mode.
+    pub fn is_dop(&self) -> bool {
+        self.callback_data.is_dop()
+    }
+
     /// Skip to next track with crossfade.
     pub fn skip_to_next(&self) -> Result<(), String> {
         self.send_command(AudioCommand::SkipToNext)
@@ -346,6 +367,10 @@ impl AudioEngineHandle {
     /// Switch pipeline mode at runtime (used when Bit-perfect (DAP Internal) is toggled).
     pub fn set_pipeline_mode_passthrough(&self, passthrough: bool) -> Result<(), String> {
         self.send_command(AudioCommand::SetPipelineMode { passthrough })
+    }
+
+    pub fn set_dop_override(&self, is_dop: bool) -> Result<(), String> {
+        self.send_command(AudioCommand::SetDopOverride { is_dop })
     }
 
     /// Set graphic EQ: enabled and 10 band gains in dB (order matches EqualizerState.defaultGraphicFrequenciesHz).
@@ -520,6 +545,7 @@ pub fn create_audio_engine(
     preferred_sample_rate: Option<u32>,
     _allow_dap_native: bool,
     _dap_bit_perfect_enabled: bool,
+    _excluded_strategies: Vec<OutputStrategy>,
 ) -> Result<AudioEngineHandle, String> {
     // Get the default audio device
     let host = cpal::default_host();
@@ -575,7 +601,7 @@ pub fn create_audio_engine(
     let state_clone = Arc::clone(&state);
 
     // Decoders
-    let decoders = Arc::new(Mutex::new(Vec::<DecoderThread>::new()));
+    let decoders = Arc::new(Mutex::new(Vec::<DecoderHandle>::new()));
     let decoders_clone = Arc::clone(&decoders);
 
     // Shutdown flag
@@ -648,6 +674,10 @@ pub fn create_audio_engine(
             verification_reason: None,
             direct_usb_active: false,
             direct_usb_verified: false,
+            dsd_source_rate: None,
+            dsd_effective_mode: None,
+            dsd_wire_rate: None,
+            dsd_transport: None,
         },
         decoders,
         shutdown,
@@ -667,9 +697,30 @@ pub fn desired_output_signature(preferred_sample_rate: Option<u32>) -> String {
         return signature;
     }
 
+    let dsd_suffix = match crate::api::audio_api::current_dsd_track_rate()
+        .and_then(crate::audio::dsd_engine::dsd::DsdRate::from_sample_rate)
+    {
+        Some(rate) => {
+            let mode = crate::api::audio_api::effective_dsd_output_mode(
+                crate::api::audio_api::current_dsd_output_mode(),
+            );
+            match mode {
+                crate::audio::dsd_engine::dsd::DsdOutputMode::Native => {
+                    format!(":dsd-native:{}", rate.byte_rate())
+                }
+                crate::audio::dsd_engine::dsd::DsdOutputMode::Dop => {
+                    format!(":dsd-dop:{}", rate.dop_carrier_rate())
+                }
+                _ => String::new(),
+            }
+        }
+        None => String::new(),
+    };
+
     format!(
-        "android-shared:requested:{}",
-        preferred_sample_rate.unwrap_or(48_000)
+        "android-shared:requested:{}{}",
+        preferred_sample_rate.unwrap_or(48_000),
+        dsd_suffix,
     )
 }
 
@@ -723,6 +774,12 @@ fn android_output_signature_for_strategy(
                 requested_sample_rate
             )
         }
+        OutputStrategy::DsdNative => {
+            format!("android-shared:dsd-native:{}", requested_sample_rate)
+        }
+        OutputStrategy::DsdDoP => {
+            format!("android-shared:dsd-dop:{}", requested_sample_rate)
+        }
     }
 }
 
@@ -733,6 +790,34 @@ fn build_output_runtime_state(
     direct_usb_active: bool,
     direct_usb_verified: bool,
 ) -> AudioOutputRuntimeState {
+    let dsd_source_rate = crate::api::audio_api::current_dsd_track_rate();
+    let dsd_effective_mode = dsd_source_rate.map(|_| {
+        let mode = crate::api::audio_api::effective_dsd_output_mode(
+            crate::api::audio_api::current_dsd_output_mode(),
+        );
+        match mode {
+            crate::audio::dsd_engine::dsd::DsdOutputMode::PcmDecimation => "pcm".to_string(),
+            crate::audio::dsd_engine::dsd::DsdOutputMode::Dop => "dop".to_string(),
+            crate::audio::dsd_engine::dsd::DsdOutputMode::Native => "native".to_string(),
+            crate::audio::dsd_engine::dsd::DsdOutputMode::Auto => "auto".to_string(),
+        }
+    });
+    let (dsd_wire_rate, dsd_transport) = if dsd_source_rate.is_some() {
+        let wire_rate = verification.actual_rate;
+        let transport = match strategy {
+            OutputStrategy::DsdNative => {
+                if direct_usb_active { "uac2-type3" } else { "dap-native-encoding" }
+            }
+            OutputStrategy::DsdDoP => {
+                if direct_usb_active { "uac2-dop" } else { "dap-native" }
+            }
+            OutputStrategy::UsbDirect => "uac2-pcm",
+            _ => "dap-native",
+        };
+        (Some(wire_rate), Some(transport.to_string()))
+    } else {
+        (None, None)
+    };
     AudioOutputRuntimeState {
         strategy: verification
             .resolved_strategy(strategy)
@@ -745,6 +830,10 @@ fn build_output_runtime_state(
         verification_reason: verification.reason,
         direct_usb_active,
         direct_usb_verified,
+        dsd_source_rate,
+        dsd_effective_mode,
+        dsd_wire_rate,
+        dsd_transport,
     }
 }
 
@@ -759,6 +848,7 @@ pub fn create_audio_engine(
     preferred_sample_rate: Option<u32>,
     allow_dap_native: bool,
     dap_bit_perfect_enabled: bool,
+    excluded_strategies: Vec<OutputStrategy>,
 ) -> Result<AudioEngineHandle, String> {
     let device_profile = current_device_profile();
 
@@ -770,23 +860,36 @@ pub fn create_audio_engine(
     let will_attempt_usb = false;
 
     // When a DAP device has bit-perfect disabled, force the output to
-    // 44.1 kHz so that all DSP runs at a fixed rate. USB DACs are excluded
-    // because they use their own direct path.
+    // 48 kHz so that all DSP runs at a fixed rate. USB DACs are excluded
+    // because they use their own direct path. DSD playback needs its
+    // native PCM target rate (e.g., 176.4 kHz); honour explicit requests
+    // above 48 kHz to avoid a rate mismatch with the DSD decoder.
     let dap_force_dsp = !dap_bit_perfect_enabled
         && device_profile.as_ref().is_some_and(|p| p.is_dap())
         && !will_attempt_usb;
-                let requested_sample_rate = if dap_force_dsp {
-                    48_000
-                } else {
-                    preferred_sample_rate.unwrap_or(48_000)
-                };
+    let mut requested_sample_rate = if dap_force_dsp {
+        if let Some(rate) = preferred_sample_rate {
+            if rate > 48_000 { rate } else { 48_000 }
+        } else {
+            48_000
+        }
+    } else {
+        preferred_sample_rate.unwrap_or(48_000)
+    };
 
     #[cfg(feature = "uac2")]
     if will_attempt_usb {
         validate_android_direct_request(Some(requested_sample_rate))?;
     }
 
-    let selected_output_device = select_android_output_device(requested_sample_rate).ok();
+    let selected_output_device = select_android_output_device(requested_sample_rate)
+        .or_else(|_| {
+            // DSD Native and DoP bypass the Oboe stream entirely, so if
+            // the byte/carrier rate isn't supported by any PCM device,
+            // try a standard rate just to confirm a wired output exists.
+            select_android_output_device(48_000)
+        })
+        .ok();
     let shared_supports_requested_rate = selected_output_device
         .as_ref()
         .map(|device| android_device_supports_sample_rate(device, requested_sample_rate))
@@ -800,24 +903,66 @@ pub fn create_audio_engine(
             })
         });
 
+    let dsd_rate = crate::api::audio_api::current_dsd_track_rate()
+        .and_then(crate::audio::dsd_engine::dsd::DsdRate::from_sample_rate)
+        .or_else(|| crate::audio::dsd_engine::dsd::DsdRate::from_sample_rate(requested_sample_rate));
+    let supports_native_dsd = device_profile
+        .as_ref()
+        .is_some_and(|p| p.supports_native_dsd);
+
     let desired_strategy = if will_attempt_usb {
         OutputStrategy::UsbDirect
     } else {
-        select_strategy(
-            TrackInfo {
-                sample_rate: requested_sample_rate,
-                channels: ANDROID_DIRECT_CHANNELS,
-            },
+        let track_info = if let Some(rate) = dsd_rate {
+            TrackInfo::dsd(rate.sample_rate(), ANDROID_DIRECT_CHANNELS)
+        } else {
+            TrackInfo::pcm(requested_sample_rate, ANDROID_DIRECT_CHANNELS)
+        };
+        select_strategy_excluded(
+            &track_info,
             &DeviceCaps {
                 api_level: None,
                 confirmed_dap_native,
-                supports_mixer_bit_perfect: false,
                 supports_requested_rate: shared_supports_requested_rate,
-                direct_usb_available: false,
-                direct_usb_verified: false,
+                supports_native_dsd,
+                supports_dop: supports_native_dsd,
+                max_dsd_carrier_rate: if supports_native_dsd { 705_600 } else { 0 },
+                ..DeviceCaps::default()
             },
+            &excluded_strategies,
         )
     };
+
+    // Override the sample rate for DSD strategies: the DSD Native
+    // backend needs the byte rate (e.g. 705 600 Hz for DSD128) and
+    // DSD DoP needs the carrier rate (e.g. 352 800 Hz for DSD128).
+    if !will_attempt_usb {
+        match desired_strategy {
+            OutputStrategy::DsdNative => {
+                if let Some(rate) = dsd_rate {
+                    let byte_rate = rate.byte_rate();
+                    log::info!(
+                        "[ENGINE] DSD Native: overriding rate {} -> {} Hz (byte_rate)",
+                        requested_sample_rate,
+                        byte_rate,
+                    );
+                    requested_sample_rate = byte_rate;
+                }
+            }
+            OutputStrategy::DsdDoP => {
+                if let Some(rate) = dsd_rate {
+                    let carrier = rate.dop_carrier_rate();
+                    log::info!(
+                        "[ENGINE] DSD DoP: overriding rate {} -> {} Hz (carrier_rate)",
+                        requested_sample_rate,
+                        carrier,
+                    );
+                    requested_sample_rate = carrier;
+                }
+            }
+            _ => {}
+        }
+    }
 
     #[cfg(feature = "uac2")]
     let channels = {
@@ -876,7 +1021,9 @@ pub fn create_audio_engine(
     // - UsbDirect / DapNative → Passthrough (verified below; downgraded on failure)
     // - All other strategies   → Dsp (full processing chain)
     let initial_pipeline_mode = match desired_strategy {
-        OutputStrategy::UsbDirect | OutputStrategy::DapNative => PipelineMode::Passthrough,
+        OutputStrategy::UsbDirect | OutputStrategy::DapNative | OutputStrategy::DsdNative => {
+            PipelineMode::Passthrough
+        }
         _ => PipelineMode::Dsp,
     };
     let callback_data = Arc::new(AudioCallbackData::new(
@@ -899,7 +1046,7 @@ pub fn create_audio_engine(
     let state_clone = Arc::clone(&state);
 
     // Decoders
-    let decoders = Arc::new(Mutex::new(Vec::<DecoderThread>::new()));
+    let decoders = Arc::new(Mutex::new(Vec::<DecoderHandle>::new()));
     let decoders_clone = Arc::clone(&decoders);
 
     // Shutdown flag
@@ -911,6 +1058,8 @@ pub fn create_audio_engine(
 
     #[cfg(feature = "uac2")]
     let mut direct_usb_backend = None;
+
+    let mut dsd_native_backend = None;
 
     let mut final_sample_rate = requested_sample_rate;
     let mut output_runtime = build_output_runtime_state(
@@ -1011,11 +1160,58 @@ pub fn create_audio_engine(
         }
     }
 
+    // DSD Native AudioTrack: for DAPs with ENCODING_DSD support, bypass Oboe
+    // entirely and use a dedicated AudioTrack with ENCODING_DSD encoding.
+    #[cfg(target_os = "android")]
+    if desired_strategy == OutputStrategy::DsdNative && direct_usb_backend.is_none() {
+        if supports_native_dsd {
+            match crate::audio::dsd_native_backend::DsdNativeBackend::start(
+                Arc::clone(&callback_data_clone),
+                event_tx_clone.clone(),
+                requested_sample_rate,
+                channels,
+            ) {
+                Ok(backend) => {
+                    log::info!(
+                        "[ENGINE] DSD Native AudioTrack backend created at {} Hz",
+                        requested_sample_rate
+                    );
+                    final_sample_rate = requested_sample_rate;
+                    callback_data.reconfigure_sample_rate(final_sample_rate);
+                    callback_data.set_pipeline_mode(PipelineMode::Dop);
+                    output_runtime = build_output_runtime_state(
+                        OutputStrategy::DsdNative,
+                        OutputVerification::verify(requested_sample_rate, requested_sample_rate, true, true),
+                        false,
+                        false,
+                    );
+                    output_signature = android_output_signature_for_strategy(
+                        OutputStrategy::DsdNative,
+                        requested_sample_rate,
+                    );
+                    dsd_native_backend = Some(backend);
+                }
+                Err(error) => {
+                    log::warn!(
+                        "[ENGINE] DSD Native AudioTrack init failed: {}. Will fall back to DoP/PCM.",
+                        error
+                    );
+                    return Err(format!("DSD_NATIVE_FALLBACK:{}", error));
+                }
+            }
+        } else {
+            log::warn!(
+                "[ENGINE] DSD Native strategy selected but device does not support ENCODING_DSD"
+            );
+            return Err("DSD_NATIVE_FALLBACK:Device does not support ENCODING_DSD".to_string());
+        }
+    }
+
     let mut managed_stream = None;
     #[cfg(feature = "uac2")]
-    let use_managed_fallback = direct_usb_backend.is_none();
+    let use_managed_fallback = direct_usb_backend.is_none() && dsd_native_backend.is_none();
     #[cfg(not(feature = "uac2"))]
-    let use_managed_fallback = true;
+    let use_managed_fallback = dsd_native_backend.is_none();
 
     if use_managed_fallback {
         let desired_shared_strategy = if desired_strategy == OutputStrategy::UsbDirect {
@@ -1046,6 +1242,13 @@ pub fn create_audio_engine(
         } else {
             callback_data.set_pipeline_mode(PipelineMode::Dsp);
         }
+        let is_dsd_dop = dsd_rate.is_some() && matches!(
+            desired_shared_strategy,
+            OutputStrategy::DsdDoP
+        );
+        if is_dsd_dop {
+            callback_data.set_pipeline_mode(PipelineMode::Dop);
+        }
         output_runtime =
             build_output_runtime_state(desired_shared_strategy, verification, false, false);
         output_signature =
@@ -1070,6 +1273,7 @@ pub fn create_audio_engine(
         .spawn(move || {
             #[cfg(feature = "uac2")]
             let mut direct_usb_backend = direct_usb_backend;
+            let mut dsd_native_backend = dsd_native_backend;
             let mut managed_stream = managed_stream;
 
             #[cfg(feature = "uac2")]
@@ -1090,6 +1294,27 @@ pub fn create_audio_engine(
                 }
                 return;
             }
+
+            #[cfg(target_os = "android")]
+            if dsd_native_backend.is_some() {
+                command_processing_loop(
+                    command_rx,
+                    finished_rx,
+                    event_tx,
+                    callback_data_for_thread,
+                    state_clone,
+                    decoders_clone,
+                    final_sample_rate,
+                    shutdown_clone,
+                );
+
+                if let Some(mut backend) = dsd_native_backend.take() {
+                    backend.stop();
+                }
+                return;
+            }
+            #[cfg(not(target_os = "android"))]
+            let _ = dsd_native_backend;
 
             let mut stream = match managed_stream.take() {
                 Some(stream) => stream.stream,
@@ -1474,6 +1699,25 @@ pub(crate) fn audio_callback(
     }
 
     // Passthrough path: raw samples from decoder straight to output.
+    if data.pipeline_mode.load(Ordering::Relaxed) == PipelineMode::Dop as u8 {
+        let mut sources = match data.sources.try_lock() {
+            Some(s) => s,
+            None => {
+                output.fill(0.0);
+                return;
+            }
+        };
+        let (read, old_source) = sources.read(output);
+        if let Some(source) = old_source {
+            eprintln!("[dop] gapless transition (old={})", source.info.path.display());
+            let _ = data.finished_tracks.try_send(source);
+        }
+        if read < output.len() {
+            output[read..].fill(0.0);
+        }
+        return;
+    }
+
     // No EQ, no dynamics, no speed, no crossfade. Gain is applied for
     // volume control (a no-op when DAC hardware volume is available).
     if data.is_passthrough() {
@@ -1692,7 +1936,7 @@ fn command_processing_loop(
     event_tx: Sender<AudioEvent>,
     callback_data: Arc<AudioCallbackData>,
     state: Arc<AtomicU8>,
-    decoders: Arc<Mutex<Vec<DecoderThread>>>,
+    decoders: Arc<Mutex<Vec<DecoderHandle>>>,
     sample_rate: u32,
     shutdown: Arc<AtomicBool>,
 ) {
@@ -1741,11 +1985,11 @@ fn command_processing_loop(
                     }
                     AudioCommand::PlayPrepared {
                         source,
-                        decoder_thread,
+                        decoder_handle,
                     } => {
                         handle_play_prepared(
                             source,
-                            decoder_thread,
+                            decoder_handle,
                             &callback_data,
                             &state,
                             &decoders,
@@ -1757,11 +2001,11 @@ fn command_processing_loop(
                     }
                     AudioCommand::QueueNextPrepared {
                         source,
-                        decoder_thread,
+                        decoder_handle,
                     } => {
                         handle_queue_next_prepared(
                             source,
-                            decoder_thread,
+                            decoder_handle,
                             &callback_data,
                             &decoders,
                             &event_tx,
@@ -1847,11 +2091,25 @@ fn command_processing_loop(
                         );
                     }
                     AudioCommand::SetPipelineMode { passthrough } => {
-                        callback_data.set_pipeline_mode(if passthrough {
+                        let mode = if passthrough {
                             PipelineMode::Passthrough
                         } else {
                             PipelineMode::Dsp
-                        });
+                        };
+                        callback_data.set_pipeline_mode(mode);
+                        callback_data
+                            .base_pipeline_mode
+                            .store(mode as u8, Ordering::Relaxed);
+                    }
+                    AudioCommand::SetDopOverride { is_dop } => {
+                        if is_dop {
+                            callback_data
+                                .pipeline_mode
+                                .store(PipelineMode::Dop as u8, Ordering::Relaxed);
+                        } else {
+                            let base = callback_data.base_pipeline_mode.load(Ordering::Relaxed);
+                            callback_data.pipeline_mode.store(base, Ordering::Relaxed);
+                        }
                     }
                     AudioCommand::SetFx {
                         enabled,
@@ -1966,32 +2224,65 @@ fn command_processing_loop(
     }
 }
 
+fn spawn_decoder(
+    path: PathBuf,
+    sample_rate: u32,
+    channels: usize,
+    seek_secs: Option<f64>,
+) -> anyhow::Result<(AudioSource, DecoderHandle)> {
+    let file_type = detect_file_type(&path);
+    match file_type {
+        FileType::Dsd => {
+            let requested = crate::api::audio_api::current_dsd_output_mode();
+            let output_mode = crate::api::audio_api::effective_dsd_output_mode(requested);
+            let (source, thread) = if let Some(seek) = seek_secs {
+                DsdDecoderThread::spawn_with_seek(
+                    path, output_mode, sample_rate, channels, Some(seek),
+                )
+            } else {
+                DsdDecoderThread::spawn(path, output_mode, sample_rate, channels)
+            }?;
+            Ok((source, DecoderHandle::Dsd(thread)))
+        }
+        FileType::WavPack => {
+            let (source, handle) = if let Some(seek) = seek_secs {
+                WavpackDecoderThread::spawn_with_seek(
+                    path, sample_rate, channels, Some(seek),
+                )
+            } else {
+                WavpackDecoderThread::spawn(path, sample_rate, channels)
+            }?;
+            Ok((source, handle))
+        }
+        FileType::Standard => {
+            let (source, thread) = if let Some(seek) = seek_secs {
+                DecoderThread::spawn_with_seek(path, sample_rate, channels, Some(seek))
+            } else {
+                DecoderThread::spawn(path, sample_rate, channels)
+            }?;
+            Ok((source, DecoderHandle::Symphonia(thread)))
+        }
+    }
+}
+
 fn handle_play(
     path: PathBuf,
     callback_data: &AudioCallbackData,
     state: &Arc<AtomicU8>,
-    decoders: &Arc<Mutex<Vec<DecoderThread>>>,
+    decoders: &Arc<Mutex<Vec<DecoderHandle>>>,
     event_tx: &Sender<AudioEvent>,
     sample_rate: u32,
 ) {
-    // Set buffering state
     state.store(PlaybackState::Buffering as u8, Ordering::Relaxed);
     let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Buffering));
 
-    // Stop current playback
     callback_data.sources.lock().stop();
     callback_data.crossfader.lock().reset();
 
-    // Spawn decoder
-    match DecoderThread::spawn(path.clone(), sample_rate, callback_data.channels()) {
-        Ok((source, decoder_thread)) => {
+    match spawn_decoder(path.clone(), sample_rate, callback_data.channels(), None) {
+        Ok((source, handle)) => {
             start_playback_source(
-                source,
-                decoder_thread,
-                callback_data,
-                state,
-                decoders,
-                event_tx,
+                source, handle, callback_data, state, decoders, event_tx,
             );
         }
         Err(e) => {
@@ -2005,10 +2296,10 @@ fn handle_play(
 
 fn handle_play_prepared(
     source: AudioSource,
-    decoder_thread: DecoderThread,
+    decoder_handle: DecoderHandle,
     callback_data: &AudioCallbackData,
     state: &Arc<AtomicU8>,
-    decoders: &Arc<Mutex<Vec<DecoderThread>>>,
+    decoders: &Arc<Mutex<Vec<DecoderHandle>>>,
     event_tx: &Sender<AudioEvent>,
 ) {
     state.store(PlaybackState::Buffering as u8, Ordering::Relaxed);
@@ -2018,26 +2309,20 @@ fn handle_play_prepared(
     callback_data.crossfader.lock().reset();
 
     start_playback_source(
-        source,
-        decoder_thread,
-        callback_data,
-        state,
-        decoders,
-        event_tx,
+        source, decoder_handle, callback_data, state, decoders, event_tx,
     );
 }
 
 fn handle_queue_next(
     path: PathBuf,
     callback_data: &AudioCallbackData,
-    decoders: &Arc<Mutex<Vec<DecoderThread>>>,
+    decoders: &Arc<Mutex<Vec<DecoderHandle>>>,
     event_tx: &Sender<AudioEvent>,
     sample_rate: u32,
 ) {
-    // Spawn decoder for next track
-    match DecoderThread::spawn(path.clone(), sample_rate, callback_data.channels()) {
-        Ok((source, decoder_thread)) => {
-            queue_playback_source(source, decoder_thread, callback_data, decoders, event_tx);
+    match spawn_decoder(path.clone(), sample_rate, callback_data.channels(), None) {
+        Ok((source, handle)) => {
+            queue_playback_source(source, handle, callback_data, decoders, event_tx);
         }
         Err(e) => {
             let _ = event_tx.try_send(AudioEvent::Error {
@@ -2049,20 +2334,20 @@ fn handle_queue_next(
 
 fn handle_queue_next_prepared(
     source: AudioSource,
-    decoder_thread: DecoderThread,
+    decoder_handle: DecoderHandle,
     callback_data: &AudioCallbackData,
-    decoders: &Arc<Mutex<Vec<DecoderThread>>>,
+    decoders: &Arc<Mutex<Vec<DecoderHandle>>>,
     event_tx: &Sender<AudioEvent>,
 ) {
-    queue_playback_source(source, decoder_thread, callback_data, decoders, event_tx);
+    queue_playback_source(source, decoder_handle, callback_data, decoders, event_tx);
 }
 
 fn start_playback_source(
     mut source: AudioSource,
-    decoder_thread: DecoderThread,
+    decoder_handle: DecoderHandle,
     callback_data: &AudioCallbackData,
     state: &Arc<AtomicU8>,
-    decoders: &Arc<Mutex<Vec<DecoderThread>>>,
+    decoders: &Arc<Mutex<Vec<DecoderHandle>>>,
     event_tx: &Sender<AudioEvent>,
 ) {
     source.set_ready();
@@ -2070,7 +2355,7 @@ fn start_playback_source(
 
     callback_data.sources.lock().set_current(source);
     callback_data.set_paused(false);
-    decoders.lock().push(decoder_thread);
+    decoders.lock().push(decoder_handle);
 
     state.store(PlaybackState::Playing as u8, Ordering::Relaxed);
     let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Playing));
@@ -2078,16 +2363,16 @@ fn start_playback_source(
 
 fn queue_playback_source(
     mut source: AudioSource,
-    decoder_thread: DecoderThread,
+    decoder_handle: DecoderHandle,
     callback_data: &AudioCallbackData,
-    decoders: &Arc<Mutex<Vec<DecoderThread>>>,
+    decoders: &Arc<Mutex<Vec<DecoderHandle>>>,
     event_tx: &Sender<AudioEvent>,
 ) {
     let queued_path = source.info.path.to_string_lossy().to_string();
     source.set_ready();
 
     callback_data.sources.lock().queue_next(source);
-    decoders.lock().push(decoder_thread);
+    decoders.lock().push(decoder_handle);
 
     let _ = event_tx.try_send(AudioEvent::NextTrackReady { path: queued_path });
 }
@@ -2130,7 +2415,7 @@ fn handle_seek(
     position_secs: f64,
     callback_data: &AudioCallbackData,
     state: &Arc<AtomicU8>,
-    decoders: &Arc<Mutex<Vec<DecoderThread>>>,
+    decoders: &Arc<Mutex<Vec<DecoderHandle>>>,
     event_tx: &Sender<AudioEvent>,
     sample_rate: u32,
 ) {
@@ -2164,13 +2449,8 @@ fn handle_seek(
         }
     }
 
-    match DecoderThread::spawn_with_seek(
-        path.clone(),
-        sample_rate,
-        callback_data.channels(),
-        Some(target_secs),
-    ) {
-        Ok((mut source, decoder_thread)) => {
+    match spawn_decoder(path.clone(), sample_rate, callback_data.channels(), Some(target_secs)) {
+        Ok((mut source, handle)) => {
             source.set_ready();
             if !was_paused {
                 source.set_playing();
@@ -2178,7 +2458,7 @@ fn handle_seek(
 
             callback_data.sources.lock().set_current(source);
             callback_data.set_paused(was_paused);
-            decoders.lock().push(decoder_thread);
+            decoders.lock().push(handle);
 
             let next_state = if was_paused {
                 PlaybackState::Paused

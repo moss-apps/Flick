@@ -35,6 +35,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                     final developerModeAsync = ref.watch(developerModeEnabledProvider);
                     final diagnostics = ref.watch(audioOutputDiagnosticsProvider);
                     final killIsochronousUsbOnQuitAsync = ref.watch(killIsochronousUsbOnQuitProvider);
+                    final dsdOutputModeAsync = ref.watch(dsdOutputModeProvider);
 
     return DisplayModeWrapper(
       child: Scaffold(
@@ -61,6 +62,14 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                         formatPrefAsync,
                         preferredFormatAsync,
                         audioFormatAsync,
+                      ),
+                      const SizedBox(height: AppConstants.spacingLg),
+                      _buildSectionHeader(context, 'Experimental'),
+                      _buildExperimentalWarning(context),
+                      _buildDsdOptions(
+                        context,
+                        preferencesService,
+                        dsdOutputModeAsync,
                       ),
                       const SizedBox(height: AppConstants.spacingLg),
                       _buildSectionHeader(context, 'Advanced'),
@@ -1340,6 +1349,218 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             child: const Text('OK', style: TextStyle(color: AppColors.accent)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDsdOptions(
+    BuildContext context,
+    Uac2PreferencesService service,
+    AsyncValue<DsdOutputMode> outputModeAsync,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: Column(
+        children: [
+          outputModeAsync.when(
+            data: (mode) => _buildNavigationTile(
+              context,
+              icon: LucideIcons.radio,
+              title: 'DSD Output Mode',
+              subtitle: _dsdOutputModeSubtitle(mode),
+              onTap: () => _showDsdOutputModeDialog(context, service, mode),
+            ),
+            loading: () => _buildLoadingTile(context),
+            error: (_, _) => _buildErrorTile(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExperimentalWarning(BuildContext context) {
+    const warnColor = Colors.amber;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppConstants.spacingSm),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppConstants.spacingMd,
+          vertical: AppConstants.spacingSm,
+        ),
+        decoration: BoxDecoration(
+          color: warnColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+          border: Border.all(
+            color: warnColor.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, size: 16, color: warnColor),
+            const SizedBox(width: AppConstants.spacingSm),
+            Expanded(
+              child: Text(
+                'Not recommended for normal usage. DSD playback is unstable and may cause audio glitches.',
+                style: TextStyle(
+                  color: warnColor.withValues(alpha: 0.9),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _dsdOutputModeSubtitle(DsdOutputMode mode) {
+    switch (mode) {
+      case DsdOutputMode.auto:
+        return 'Auto — Native DSD on DAPs, DoP for USB DACs, PCM otherwise';
+      case DsdOutputMode.forcePcm:
+        return 'Force PCM — Always convert DSD to PCM';
+      case DsdOutputMode.forceDop:
+        return 'Force DoP — Always use DSD over PCM (USB DAC)';
+      case DsdOutputMode.native:
+        return 'Native DSD — Experimental (may be buggy)';
+    }
+  }
+
+
+  void _showDsdOutputModeDialog(
+    BuildContext context,
+    Uac2PreferencesService service,
+    DsdOutputMode current,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        ),
+        title: Text(
+          'DSD Output Mode',
+          style: TextStyle(color: context.adaptiveTextPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'Auto',
+              subtitle: 'Coming Soon',
+              enabled: false,
+              selected: false,
+              onTap: () {},
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'Force PCM',
+              subtitle: 'Coming Soon',
+              enabled: false,
+              selected: false,
+              onTap: () {},
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'Force DoP',
+              subtitle: 'Coming Soon',
+              enabled: false,
+              selected: false,
+              onTap: () {},
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildDsdOptionTile(
+              dialogContext,
+              title: 'Native DSD (Experimental)',
+              subtitle: 'Raw DSD stream to DAC. May be buggy — not recommended for normal use.',
+              selected: current == DsdOutputMode.native,
+              onTap: () async {
+                await service.setDsdOutputMode(DsdOutputMode.native);
+                ref.invalidate(dsdOutputModeProvider);
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.accent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDsdOptionTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+    bool enabled = true,
+  }) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+      child: Container(
+        padding: const EdgeInsets.all(AppConstants.spacingMd),
+        decoration: BoxDecoration(
+          color: enabled
+              ? (selected
+                  ? AppColors.accent.withValues(alpha: 0.15)
+                  : Colors.transparent)
+              : AppColors.surface.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+          border: Border.all(
+            color: enabled
+                ? (selected
+                    ? AppColors.accent.withValues(alpha: 0.4)
+                    : AppColors.glassBorder)
+                : AppColors.glassBorder.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: enabled
+                          ? (selected ? AppColors.accent : context.adaptiveTextPrimary)
+                          : context.adaptiveTextSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: enabled
+                          ? context.adaptiveTextSecondary
+                          : context.adaptiveTextSecondary.withValues(alpha: 0.5),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_circle, color: AppColors.accent, size: 20),
+          ],
+        ),
       ),
     );
   }

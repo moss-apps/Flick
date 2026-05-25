@@ -3,6 +3,7 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import '../audio/dsd_engine/dsd.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
@@ -10,6 +11,9 @@ part 'audio_api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `ensure_audio_engine`, `prepare_decoder_source`, `read_audio_engine`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `with_audio_engine`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+
+Future<DsdOutputMode> currentDsdOutputMode() =>
+    RustLib.instance.api.crateApiAudioApiCurrentDsdOutputMode();
 
 /// Check if native audio is available on this platform.
 bool audioIsNativeAvailable() =>
@@ -35,6 +39,10 @@ void audioSetDapBitPerfectEnabled({required bool enabled}) => RustLib
     .instance
     .api
     .crateApiAudioApiAudioSetDapBitPerfectEnabled(enabled: enabled);
+
+/// Set the DSD output mode from Dart. 0 = PCM decimation, 1 = DoP, 2 = Native, 3 = Auto.
+void audioSetDsdOutputMode({required int mode}) =>
+    RustLib.instance.api.crateApiAudioApiAudioSetDsdOutputMode(mode: mode);
 
 /// Update the current platform capability snapshot used for engine selection.
 void audioSetCapabilityInfo({required AudioCapabilityInfo info}) =>
@@ -315,6 +323,8 @@ class AudioRuntimeDebugJsonState {
   final String? verificationReason;
   final bool? directUsbActive;
   final bool? directUsbVerified;
+  final int? dsdSourceRate;
+  final String? dsdEffectiveMode;
 
   const AudioRuntimeDebugJsonState({
     required this.managerEngine,
@@ -330,6 +340,8 @@ class AudioRuntimeDebugJsonState {
     this.verificationReason,
     this.directUsbActive,
     this.directUsbVerified,
+    this.dsdSourceRate,
+    this.dsdEffectiveMode,
   });
 
   @override
@@ -346,7 +358,9 @@ class AudioRuntimeDebugJsonState {
       passthroughAllowed.hashCode ^
       verificationReason.hashCode ^
       directUsbActive.hashCode ^
-      directUsbVerified.hashCode;
+      directUsbVerified.hashCode ^
+      dsdSourceRate.hashCode ^
+      dsdEffectiveMode.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -365,7 +379,9 @@ class AudioRuntimeDebugJsonState {
           passthroughAllowed == other.passthroughAllowed &&
           verificationReason == other.verificationReason &&
           directUsbActive == other.directUsbActive &&
-          directUsbVerified == other.directUsbVerified;
+          directUsbVerified == other.directUsbVerified &&
+          dsdSourceRate == other.dsdSourceRate &&
+          dsdEffectiveMode == other.dsdEffectiveMode;
 }
 
 class AudioRuntimeDebugState {

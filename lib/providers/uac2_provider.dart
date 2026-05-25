@@ -209,3 +209,8 @@ final killIsochronousUsbOnQuitProvider = FutureProvider<bool>((ref) async {
   final service = ref.watch(uac2PreferencesServiceProvider);
   return service.getKillIsochronousUsbOnQuit();
 });
+
+final dsdOutputModeProvider = FutureProvider<DsdOutputMode>((ref) async {
+  final service = ref.watch(uac2PreferencesServiceProvider);
+  return service.getDsdOutputMode();
+});

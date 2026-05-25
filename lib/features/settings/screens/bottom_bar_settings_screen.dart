@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/providers/providers.dart';
@@ -117,6 +118,38 @@ class BottomBarSettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ],
+            ),
+          ],
+          if (enabledCount > 4) ...[
+            const SizedBox(height: AppConstants.spacingLg),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppConstants.spacingMd),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.28)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.amber.shade400,
+                    size: 18,
+                  ),
+                  const SizedBox(width: AppConstants.spacingSm),
+                  Expanded(
+                    child: Text(
+                      'Having more than 4 buttons may cause text labels to compress. Consider reducing the button spacing below.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.adaptiveTextSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
           const SizedBox(height: AppConstants.spacingLg),

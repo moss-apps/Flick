@@ -9,6 +9,7 @@ class AppPreferences {
   final bool showPlaylistPreviews;
   final bool showBrowseMore;
   final bool showQuickAccess;
+  final bool showEngineSelector;
   final bool crossfadeEnabled;
   final double crossfadeDurationSecs;
   final int crossfadeCurveIndex;
@@ -37,6 +38,9 @@ class AppPreferences {
   final bool widgetShowAlbumArt;
   final bool widgetShowArtist;
   final String widgetAccentColor;
+  final String widgetFlagshipTheme;
+  final String widgetFlagshipAccent;
+  final bool widgetFlagshipShowArtist;
   final bool lyricsMatchAudioFilename;
   final String leftActionButton;
   final String rightActionButton;
@@ -50,6 +54,7 @@ class AppPreferences {
     this.showPlaylistPreviews = true,
     this.showBrowseMore = true,
     this.showQuickAccess = true,
+    this.showEngineSelector = true,
     this.crossfadeEnabled = false,
     this.crossfadeDurationSecs = 3.0,
     this.crossfadeCurveIndex = 0,
@@ -78,6 +83,9 @@ class AppPreferences {
     this.widgetShowAlbumArt = true,
     this.widgetShowArtist = true,
     this.widgetAccentColor = 'white',
+    this.widgetFlagshipTheme = 'art_dominant',
+    this.widgetFlagshipAccent = 'white',
+    this.widgetFlagshipShowArtist = true,
     this.lyricsMatchAudioFilename = false,
     this.leftActionButton = 'lyrics',
     this.rightActionButton = 'favorites',
@@ -92,6 +100,7 @@ class AppPreferences {
     bool? showPlaylistPreviews,
     bool? showBrowseMore,
     bool? showQuickAccess,
+    bool? showEngineSelector,
     bool? crossfadeEnabled,
     double? crossfadeDurationSecs,
     int? crossfadeCurveIndex,
@@ -120,6 +129,9 @@ class AppPreferences {
     bool? widgetShowAlbumArt,
     bool? widgetShowArtist,
     String? widgetAccentColor,
+    String? widgetFlagshipTheme,
+    String? widgetFlagshipAccent,
+    bool? widgetFlagshipShowArtist,
     bool? lyricsMatchAudioFilename,
     String? leftActionButton,
     String? rightActionButton,
@@ -133,6 +145,7 @@ class AppPreferences {
       showPlaylistPreviews: showPlaylistPreviews ?? this.showPlaylistPreviews,
       showBrowseMore: showBrowseMore ?? this.showBrowseMore,
       showQuickAccess: showQuickAccess ?? this.showQuickAccess,
+      showEngineSelector: showEngineSelector ?? this.showEngineSelector,
       crossfadeEnabled: crossfadeEnabled ?? this.crossfadeEnabled,
       crossfadeDurationSecs:
           crossfadeDurationSecs ?? this.crossfadeDurationSecs,
@@ -173,6 +186,10 @@ class AppPreferences {
       widgetShowAlbumArt: widgetShowAlbumArt ?? this.widgetShowAlbumArt,
       widgetShowArtist: widgetShowArtist ?? this.widgetShowArtist,
       widgetAccentColor: widgetAccentColor ?? this.widgetAccentColor,
+      widgetFlagshipTheme: widgetFlagshipTheme ?? this.widgetFlagshipTheme,
+      widgetFlagshipAccent: widgetFlagshipAccent ?? this.widgetFlagshipAccent,
+      widgetFlagshipShowArtist:
+          widgetFlagshipShowArtist ?? this.widgetFlagshipShowArtist,
       lyricsMatchAudioFilename:
           lyricsMatchAudioFilename ?? this.lyricsMatchAudioFilename,
       leftActionButton: leftActionButton ?? this.leftActionButton,
@@ -190,6 +207,7 @@ class AppPreferencesService {
   static const _showPlaylistPreviewsKey = 'menu_show_playlist_previews';
   static const _showBrowseMoreKey = 'menu_show_browse_more';
   static const _showQuickAccessKey = 'menu_show_quick_access';
+  static const _showEngineSelectorKey = 'menu_show_engine_selector';
   static const _crossfadeEnabledKey = 'audio_crossfade_enabled';
   static const _crossfadeDurationKey = 'audio_crossfade_duration_secs';
   static const _crossfadeCurveKey = 'audio_crossfade_curve_index';
@@ -218,6 +236,9 @@ class AppPreferencesService {
   static const _widgetShowAlbumArtKey = 'widget_show_album_art';
   static const _widgetShowArtistKey = 'widget_show_artist';
   static const _widgetAccentColorKey = 'widget_accent_color';
+  static const _widgetFlagshipThemeKey = 'widget_flagship_theme';
+  static const _widgetFlagshipAccentKey = 'widget_flagship_accent';
+  static const _widgetFlagshipShowArtistKey = 'widget_flagship_show_artist';
   static const _lyricsMatchAudioFilenameKey = 'lyrics_match_audio_filename';
   static const _leftActionButtonKey = 'left_action_button';
   static const _rightActionButtonKey = 'right_action_button';
@@ -233,6 +254,7 @@ class AppPreferencesService {
       showPlaylistPreviews: prefs.getBool(_showPlaylistPreviewsKey) ?? true,
       showBrowseMore: prefs.getBool(_showBrowseMoreKey) ?? true,
       showQuickAccess: prefs.getBool(_showQuickAccessKey) ?? true,
+      showEngineSelector: prefs.getBool(_showEngineSelectorKey) ?? true,
       crossfadeEnabled: prefs.getBool(_crossfadeEnabledKey) ?? false,
       crossfadeDurationSecs: prefs.getDouble(_crossfadeDurationKey) ?? 3.0,
       crossfadeCurveIndex: prefs.getInt(_crossfadeCurveKey) ?? 0,
@@ -273,6 +295,12 @@ class AppPreferencesService {
       widgetShowArtist: prefs.getBool(_widgetShowArtistKey) ?? true,
       widgetAccentColor:
           prefs.getString(_widgetAccentColorKey) ?? 'white',
+      widgetFlagshipTheme:
+          prefs.getString(_widgetFlagshipThemeKey) ?? 'art_dominant',
+      widgetFlagshipAccent:
+          prefs.getString(_widgetFlagshipAccentKey) ?? 'white',
+      widgetFlagshipShowArtist:
+          prefs.getBool(_widgetFlagshipShowArtistKey) ?? true,
       lyricsMatchAudioFilename:
           prefs.getBool(_lyricsMatchAudioFilenameKey) ?? false,
       leftActionButton:
@@ -360,6 +388,16 @@ class AppPreferencesService {
   Future<void> setShowQuickAccess(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_showQuickAccessKey, value);
+  }
+
+  Future<bool> getShowEngineSelector() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showEngineSelectorKey) ?? true;
+  }
+
+  Future<void> setShowEngineSelector(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showEngineSelectorKey, value);
   }
 
   Future<bool> getCrossfadeEnabled() async {
@@ -590,6 +628,36 @@ class AppPreferencesService {
   Future<void> setWidgetAccentColor(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_widgetAccentColorKey, value);
+  }
+
+  Future<String> getWidgetFlagshipTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_widgetFlagshipThemeKey) ?? 'art_dominant';
+  }
+
+  Future<void> setWidgetFlagshipTheme(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_widgetFlagshipThemeKey, value);
+  }
+
+  Future<String> getWidgetFlagshipAccent() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_widgetFlagshipAccentKey) ?? 'white';
+  }
+
+  Future<void> setWidgetFlagshipAccent(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_widgetFlagshipAccentKey, value);
+  }
+
+  Future<bool> getWidgetFlagshipShowArtist() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_widgetFlagshipShowArtistKey) ?? true;
+  }
+
+  Future<void> setWidgetFlagshipShowArtist(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_widgetFlagshipShowArtistKey, value);
   }
 
   Future<bool> getLyricsMatchAudioFilename() async {
