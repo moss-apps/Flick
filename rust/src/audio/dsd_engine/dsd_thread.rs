@@ -43,10 +43,19 @@ impl DsdDecoderThread {
         let channel_layout = decoder.channel_layout();
 
         let output_sample_rate = match output_mode {
-            DsdOutputMode::PcmDecimation => dsd_rate.best_pcm_target(target_rate),
+            DsdOutputMode::PcmDecimation | DsdOutputMode::Auto => dsd_rate.best_pcm_target(target_rate),
             DsdOutputMode::Dop => dsd_rate.dop_carrier_rate(),
-            DsdOutputMode::Native => dsd_rate.sample_rate(),
+            DsdOutputMode::Native => dsd_rate.byte_rate(),
         };
+
+        log::info!(
+            "[DSD-DECODER] spawn: file_rate={} Hz, dsd_rate={:?}, output_mode={:?}, target_rate={} Hz, output_rate={} Hz",
+            decoder.sample_rate(),
+            dsd_rate,
+            output_mode,
+            target_rate,
+            output_sample_rate,
+        );
 
         let total_output_samples = if duration_secs > 0.0 {
             (duration_secs * output_sample_rate as f64 * output_channels as f64) as u64
