@@ -21,6 +21,8 @@ pub mod decoder;
 pub mod decoder_handle;
 pub mod device;
 pub mod dsd_engine;
+pub mod dsd_native_backend;
+pub mod dsd_native_jni;
 pub mod dynamics;
 pub mod engine;
 pub mod equalizer;
