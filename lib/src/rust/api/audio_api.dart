@@ -40,7 +40,7 @@ void audioSetDapBitPerfectEnabled({required bool enabled}) => RustLib
     .api
     .crateApiAudioApiAudioSetDapBitPerfectEnabled(enabled: enabled);
 
-/// Set the DSD output mode from Dart. 0 = PCM decimation, 1 = DoP.
+/// Set the DSD output mode from Dart. 0 = PCM decimation, 1 = DoP, 2 = Native, 3 = Auto.
 void audioSetDsdOutputMode({required int mode}) =>
     RustLib.instance.api.crateApiAudioApiAudioSetDsdOutputMode(mode: mode);
 
@@ -323,6 +323,8 @@ class AudioRuntimeDebugJsonState {
   final String? verificationReason;
   final bool? directUsbActive;
   final bool? directUsbVerified;
+  final int? dsdSourceRate;
+  final String? dsdEffectiveMode;
 
   const AudioRuntimeDebugJsonState({
     required this.managerEngine,
@@ -338,6 +340,8 @@ class AudioRuntimeDebugJsonState {
     this.verificationReason,
     this.directUsbActive,
     this.directUsbVerified,
+    this.dsdSourceRate,
+    this.dsdEffectiveMode,
   });
 
   @override
@@ -354,7 +358,9 @@ class AudioRuntimeDebugJsonState {
       passthroughAllowed.hashCode ^
       verificationReason.hashCode ^
       directUsbActive.hashCode ^
-      directUsbVerified.hashCode;
+      directUsbVerified.hashCode ^
+      dsdSourceRate.hashCode ^
+      dsdEffectiveMode.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -373,7 +379,9 @@ class AudioRuntimeDebugJsonState {
           passthroughAllowed == other.passthroughAllowed &&
           verificationReason == other.verificationReason &&
           directUsbActive == other.directUsbActive &&
-          directUsbVerified == other.directUsbVerified;
+          directUsbVerified == other.directUsbVerified &&
+          dsdSourceRate == other.dsdSourceRate &&
+          dsdEffectiveMode == other.dsdEffectiveMode;
 }
 
 class AudioRuntimeDebugState {
