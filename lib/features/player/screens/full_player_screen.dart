@@ -863,12 +863,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                           );
                         }).toList(),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
+            ],
+            ),
+          ),
         ),
       ),
     );
@@ -1050,6 +1047,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       builder: (sheetContext) => SafeArea(
         top: false,
         child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.5,
+          ),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -1061,9 +1061,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             context.responsive(16.0, 18.0, 20.0),
             context.responsive(20.0, 22.0, 24.0),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               Container(
                 width: 40,
                 height: 4,
