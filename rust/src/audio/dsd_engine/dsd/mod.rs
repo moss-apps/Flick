@@ -8,6 +8,7 @@ pub enum DsdOutputMode {
     PcmDecimation,
     Dop,
     Native,
+    Auto,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,6 +37,10 @@ impl DsdRate {
             22_579_200 => Some(Self::Dsd512),
             _ => None,
         }
+    }
+
+    pub fn byte_rate(&self) -> u32 {
+        self.sample_rate() / 8
     }
 
     pub fn dop_carrier_rate(&self) -> u32 {
@@ -73,9 +78,36 @@ impl DsdRate {
 
     pub fn best_pcm_target(&self, engine_rate: u32) -> u32 {
         let targets = self.pcm_decimation_targets();
-        if engine_rate == 0 || engine_rate == targets[0] {
-            return targets[0];
+
+        // If an engine already exists, prefer a target that matches its rate
+        // to avoid expensive engine recreation.
+        if engine_rate != 0 {
+            for &target in targets.iter() {
+                if target == engine_rate {
+                    return target;
+                }
+            }
         }
+
+        // Prefer the DoP carrier rate if it appears in the target list.
+        // Many DAPs support the DoP carrier rate via their wired output
+        // even though they don't expose it as a standard PCM rate.
+        let carrier = self.dop_carrier_rate();
+        for &target in targets.iter() {
+            if target == carrier {
+                return target;
+            }
+        }
+
+        // For new engines, cap at 176.4 kHz — the highest rate that works
+        // reliably across all Android DAP/internal paths. Higher rates
+        // (352.8 kHz / 705.6 kHz) often trigger driver bugs or CPU overload.
+        for &target in targets.iter() {
+            if target <= 176_400 {
+                return target;
+            }
+        }
+
         targets[0]
     }
 }
@@ -99,9 +131,9 @@ pub struct DsdDecimationPipeline {
 
 impl DsdDecimationPipeline {
     const CIC_ORDER: usize = 3;
-    const FIXED_FIR_TAPS: usize = 256;
+    const FIXED_FIR_TAPS: usize = 512;
     const MAX_CIC_DECIMATION: usize = 4;
-    const AUDIO_BAND_HZ: u32 = 20_000;
+    const AUDIO_BAND_HZ: u32 = 18_000;
 
     pub fn new(dsd_rate: DsdRate, target_pcm_rate: u32, channels: usize) -> Self {
         let total_decimation = dsd_rate.sample_rate() / target_pcm_rate.max(1);
@@ -164,7 +196,7 @@ impl DsdDecimationPipeline {
             coefficients::generate_sinc_filter(
                 fir_taps,
                 cutoff as f64 / intermediate_rate as f64,
-                coefficients::WindowFunction::Kaiser { beta: 8.0 },
+                coefficients::WindowFunction::Kaiser { beta: 10.0 },
             )
         })
     }
