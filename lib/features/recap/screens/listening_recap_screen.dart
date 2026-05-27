@@ -17,6 +17,7 @@ import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Wrapped-style listening recap with daily, weekly, monthly, and yearly views.
 class ListeningRecapScreen extends StatefulWidget {
@@ -966,6 +967,20 @@ class _PosterBackgroundSelector extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: AppConstants.spacingSm),
+        _RecapActionButton(
+          icon: LucideIcons.heart,
+          label: 'Enjoying Flick Replay?  Buy me a Ko-fi',
+          isPrimary: false,
+          onTap: () async {
+            try {
+              await launchUrl(
+                Uri.parse('https://ko-fi.com/ultraelectronica'),
+                mode: LaunchMode.externalApplication,
+              );
+            } catch (_) {}
+          },
+        ),
       ],
     );
   }
@@ -1208,7 +1223,7 @@ class _ListeningRecapHeroCard extends StatelessWidget {
           Positioned(
             left: 26,
             right: 26,
-            bottom: 28,
+            bottom: 34,
             child: Text(
               _heroClosingLine(recap),
               maxLines: 2,
@@ -1217,6 +1232,21 @@ class _ListeningRecapHeroCard extends StatelessWidget {
                 height: 1.25,
                 color: Colors.white.withValues(alpha: 0.78),
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 26,
+            right: 26,
+            bottom: 10,
+            child: Text(
+              'Made with Flick Player  |  Support Development',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                height: 1.1,
+                color: Colors.white.withValues(alpha: 0.28),
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.4,
               ),
             ),
           ),
