@@ -62,6 +62,7 @@ class _SongCardState extends State<SongCard> {
   double _dragDx = 0;
   bool _queuedFlash = false;
   bool _favoriteFlash = false;
+  double? _cachedCardWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +70,8 @@ class _SongCardState extends State<SongCard> {
         ? AppConstants.songCardArtSizeLarge
         : AppConstants.songCardArtSize;
 
-    final cardWidth = MediaQuery.of(context).size.width * 0.68;
+    _cachedCardWidth ??= MediaQuery.of(context).size.width * 0.68;
+    final cardWidth = _cachedCardWidth!;
     const cardHeight = 130.0;
 
     final isSwiping = _dragDx.abs() > 0.001;
@@ -140,15 +142,15 @@ class _SongCardState extends State<SongCard> {
       };
     }
 
-    return RepaintBoundary(
-      child: GestureDetector(
-        onTap: () {
-          AppHaptics.tap();
-          widget.onTap?.call();
-        },
-        onHorizontalDragUpdate: dragUpdate,
-        onHorizontalDragEnd: dragEnd,
-        onHorizontalDragCancel: dragCancel,
+    return GestureDetector(
+      onTap: () {
+        AppHaptics.tap();
+        widget.onTap?.call();
+      },
+      onHorizontalDragUpdate: dragUpdate,
+      onHorizontalDragEnd: dragEnd,
+      onHorizontalDragCancel: dragCancel,
+      child: RepaintBoundary(
         child: Transform.scale(
           scale: widget.scale,
           child: Opacity(
