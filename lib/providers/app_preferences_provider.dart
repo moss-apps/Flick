@@ -326,6 +326,12 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     state = state.copyWith(rightActionButton: value);
     await ref.read(appPreferencesServiceProvider).setRightActionButton(value);
   }
+
+  Future<void> setWelcomeCardDismissed(bool value) async {
+    if (state.welcomeCardDismissed == value) return;
+    state = state.copyWith(welcomeCardDismissed: value);
+    await ref.read(appPreferencesServiceProvider).setWelcomeCardDismissed(value);
+  }
 }
 
 final appPreferencesProvider =
