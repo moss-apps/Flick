@@ -21,3 +21,4 @@ export 'progress_bar_style_provider.dart';
 export 'album_color_provider.dart';
 export 'nav_bar_config_provider.dart';
 export 'update_check_provider.dart';
+export 'milestone_provider.dart';
