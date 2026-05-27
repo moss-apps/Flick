@@ -11,6 +11,7 @@ import 'package:flick/features/settings/screens/ui_customization_settings_screen
 import 'package:flick/features/settings/screens/integrations_settings_screen.dart';
 import 'package:flick/features/settings/screens/lyrics_settings_screen.dart';
 import 'package:flick/features/settings/screens/widget_settings_screen.dart';
+import 'package:flick/features/settings/screens/support_flick_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -181,22 +182,40 @@ class SettingsScreen extends StatelessWidget {
         horizontal: AppConstants.spacingLg,
         vertical: AppConstants.spacingMd,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Settings',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: context.adaptiveTextPrimary,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Settings',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: context.adaptiveTextPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Configure your music experience',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.adaptiveTextTertiary,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Configure your music experience',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: context.adaptiveTextTertiary,
-            ),
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SupportFlickScreen(),
+                ),
+              );
+            },
+            icon: _PulsingHeartIcon(),
+            visualDensity: VisualDensity.compact,
           ),
         ],
       ),
@@ -287,6 +306,51 @@ class _CategoryTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PulsingHeartIcon extends StatefulWidget {
+  const _PulsingHeartIcon();
+
+  @override
+  State<_PulsingHeartIcon> createState() => _PulsingHeartIconState();
+}
+
+class _PulsingHeartIconState extends State<_PulsingHeartIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.15), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 1.15, end: 1.0), weight: 70),
+    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _controller.repeat(reverse: false);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scale,
+      child: Icon(
+        LucideIcons.heart,
+        color: context.adaptiveTextTertiary,
+        size: 22,
       ),
     );
   }
