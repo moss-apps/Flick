@@ -24,7 +24,6 @@ import 'package:flick/widgets/common/rotary_knob.dart';
 import 'package:flick/widgets/equalizer/parametric_eq_graph.dart';
 import 'package:flick/widgets/equalizer/graphic_eq_graph.dart';
 import 'package:flick/widgets/equalizer/interactive_eq_graph.dart';
-import 'package:flick/widgets/equalizer/eq_graph_utils.dart' as equtils;
 
 enum _PresetFileFormat { json, txt }
 
@@ -40,16 +39,12 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   final _graphicGraphKey = GlobalKey();
   final _parametricGraphKey = GlobalKey();
   final _pageController = PageController();
-  bool _showMiniGraph = false;
-  bool _graphReached = false;
   int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     _pageController.addListener(_onPageChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkVisibility());
   }
 
   @override
@@ -59,63 +54,12 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     super.dispose();
   }
 
-  void _onScroll() => _checkVisibility();
-
   void _onPageChanged() {
     if (!mounted) return;
     final page = _pageController.page?.round() ?? 0;
     if (page != _currentPage) {
       setState(() => _currentPage = page);
     }
-    if (page == 0) {
-      _checkVisibility();
-    }
-  }
-
-  void _checkVisibility() {
-    if (!mounted || _currentPage != 0) return;
-    final mode = ref.read(eqModeProvider);
-    final key =
-        mode == EqMode.graphic ? _graphicGraphKey : _parametricGraphKey;
-    final ctx = key.currentContext;
-    if (ctx == null) return;
-
-    final renderBox = ctx.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize) return;
-
-    final position = renderBox.localToGlobal(Offset.zero);
-    final graphTop = position.dy;
-    final graphBottom = graphTop + renderBox.size.height;
-
-    final screenHeight = MediaQuery.sizeOf(context).height;
-
-    final isVisible = graphBottom > 0 && graphTop < screenHeight;
-    final shouldShowMini = _graphReached && !isVisible;
-
-    bool changed = false;
-    if (_showMiniGraph != shouldShowMini) {
-      _showMiniGraph = shouldShowMini;
-      changed = true;
-    }
-    if (isVisible && !_graphReached) {
-      _graphReached = true;
-      changed = true;
-    }
-    if (changed) setState(() {});
-  }
-
-  void _scrollToGraph() {
-    final mode = ref.read(eqModeProvider);
-    final key =
-        mode == EqMode.graphic ? _graphicGraphKey : _parametricGraphKey;
-    final ctx = key.currentContext;
-    if (ctx == null) return;
-    Scrollable.ensureVisible(
-      ctx,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOutCubic,
-      alignment: 0.25,
-    );
   }
 
   void _showPresetsBottomSheet() {
@@ -146,72 +90,36 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
               onBack: () => Navigator.of(context).pop(),
               onPresets: _showPresetsBottomSheet,
             ),
-            AnimatedSize(
-              duration: AppConstants.animationNormal,
-              curve: Curves.easeOutCubic,
-              alignment: Alignment.topCenter,
-              child: _graphReached && _currentPage == 0
-                  ? IgnorePointer(
-                      ignoring: !_showMiniGraph,
-                      child: AnimatedOpacity(
-                        opacity: _showMiniGraph ? 1.0 : 0.0,
-                        duration: AppConstants.animationNormal,
-                        curve: Curves.easeOutCubic,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppConstants.spacingMd,
-                          ),
-                          child: GestureDetector(
-                            onTap: _scrollToGraph,
-                            child: _GlassCard(
-                              child: Container(
-                                height: 80,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppConstants.spacingMd,
-                                  vertical: AppConstants.spacingSm,
-                                ),
-                                child: _MiniEqGraphPreview(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            AnimatedSize(
-              duration: AppConstants.animationNormal,
-              curve: Curves.easeOutCubic,
-              child: SizedBox(
-                height: _graphReached && _currentPage == 0
-                    ? AppConstants.spacingMd
-                    : 0,
-              ),
-            ),
-            _EffectsTabBar(
-              selectedIndex: _currentPage,
-              onSelected: (index) {
-                setState(() => _currentPage = index);
-                _pageController.animateToPage(
-                  index,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                );
-              },
-            ),
-            const SizedBox(height: AppConstants.spacingMd),
             Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const BouncingScrollPhysics(),
+              child: Column(
                 children: [
-                  _EqPage(
-                    scrollController: _scrollController,
-                    graphicGraphKey: _graphicGraphKey,
-                    parametricGraphKey: _parametricGraphKey,
+                  _EffectsTabBar(
+                    selectedIndex: _currentPage,
+                    onSelected: (index) {
+                      setState(() => _currentPage = index);
+                      _pageController.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                      );
+                    },
                   ),
-                  const _DynamicsPage(),
-                  const _FxPage(),
+                  const SizedBox(height: AppConstants.spacingMd),
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const BouncingScrollPhysics(),
+                      children: [
+                        _EqPage(
+                          scrollController: _scrollController,
+                          graphicGraphKey: _graphicGraphKey,
+                          parametricGraphKey: _parametricGraphKey,
+                        ),
+                        const _DynamicsPage(),
+                        const _FxPage(),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -3559,7 +3467,8 @@ class _DynamicsCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppConstants.spacingMd),
-            ...children,
+            const SizedBox(height: AppConstants.spacingMd),
+            for (final child in children) Center(child: child),
           ],
         ),
       ),
@@ -4093,376 +4002,4 @@ class _Divider extends StatelessWidget {
   }
 }
 
-class _MiniEqGraphPreview extends ConsumerStatefulWidget {
-  const _MiniEqGraphPreview();
 
-  @override
-  ConsumerState<_MiniEqGraphPreview> createState() => _MiniEqGraphPreviewState();
-}
-
-class _MiniEqGraphPreviewState extends ConsumerState<_MiniEqGraphPreview> {
-  Offset? _touchPosition;
-  double? _touchDb;
-  double? _touchHz;
-
-  void _updateTouch(Offset localPosition, Size size, List<({double x, double db})> points) {
-    if (points.isEmpty) return;
-    final width = size.width;
-    final logX = (localPosition.dx / width) * (equtils.eqLogMax - equtils.eqLogMin) + equtils.eqLogMin;
-
-    var closest = points.first;
-    var minDist = double.infinity;
-    for (final p in points) {
-      final dist = (p.x - logX).abs();
-      if (dist < minDist) {
-        minDist = dist;
-        closest = p;
-      }
-    }
-
-    setState(() {
-      _touchPosition = localPosition;
-      _touchDb = closest.db;
-      _touchHz = math.pow(10, closest.x).toDouble();
-    });
-  }
-
-  void _clearTouch() {
-    setState(() {
-      _touchPosition = null;
-      _touchDb = null;
-      _touchHz = null;
-    });
-  }
-
-  String _hzLabel(double hz) {
-    if (hz >= 1000) {
-      final k = hz / 1000.0;
-      return '${k.toStringAsFixed(k >= 10 ? 0 : 1)}k';
-    }
-    return hz.toStringAsFixed(0);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = ref.watch(eqEnabledProvider);
-    final mode = ref.watch(eqModeProvider);
-
-    final lineColor = enabled ? AppColors.textPrimary : AppColors.textTertiary;
-    const goldColor = Color(0xFFE0B66B);
-
-    final List<({double x, double db})> points;
-    final List<({double x, double db})> dots;
-    if (mode == EqMode.graphic) {
-      final freqs = EqualizerState.defaultGraphicFrequenciesHz;
-      final gains = List<double>.generate(
-        freqs.length,
-        (i) => ref.watch(eqGraphicGainDbProvider(i)),
-        growable: false,
-      );
-      points = equtils.buildGraphicCurvePoints(
-        freqs: freqs,
-        gains: gains,
-        sampleCount: 120,
-      );
-      dots = List.generate(
-        freqs.length,
-        (i) => (
-          x: equtils.hzToX(freqs[i]),
-          db: gains[i].clamp(equtils.eqMinDb, equtils.eqMaxDb),
-        ),
-      );
-    } else {
-      final bandCount = ref.watch(equalizerProvider).parametricBands.length;
-      final bands = List<ParametricBand>.generate(
-        bandCount,
-        (i) => ref.watch(eqParamBandProvider(i)),
-        growable: false,
-      );
-      points = equtils.buildParametricCurvePoints(
-        bands: bands,
-        sampleCount: 120,
-      );
-      dots = [
-        for (final b in bands)
-          if (b.enabled)
-            (
-              x: equtils.hzToX(b.frequencyHz),
-              db: parametricResponseDbAtHz(
-                hz: b.frequencyHz,
-                bands: bands,
-              ).clamp(equtils.eqMinDb, equtils.eqMaxDb),
-            ),
-      ];
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final size = Size(constraints.maxWidth, constraints.maxHeight);
-        return GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTapDown: (details) => _updateTouch(details.localPosition, size, points),
-          onPanStart: (details) => _updateTouch(details.localPosition, size, points),
-          onPanUpdate: (details) => _updateTouch(details.localPosition, size, points),
-          onPanEnd: (_) => _clearTouch(),
-          onPanCancel: _clearTouch,
-          onTapUp: (_) => _clearTouch(),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CustomPaint(
-                size: size,
-                painter: _MiniEqGraphPainter(
-                  points: points,
-                  dots: dots,
-                  lineColor: lineColor,
-                  fillColor: lineColor.withValues(alpha: 0.12),
-                  glowColor: lineColor.withValues(alpha: 0.25),
-                  zeroLineColor: AppColors.glassBorderStrong.withValues(alpha: 0.6),
-                  gridColor: AppColors.glassBorder.withValues(alpha: 0.25),
-                  dotColor: lineColor.withValues(alpha: 0.7),
-                  touchX: _touchPosition?.dx,
-                  touchColor: enabled ? goldColor : AppColors.textTertiary,
-                ),
-              ),
-              if (_touchPosition != null && _touchDb != null && _touchHz != null)
-                Positioned(
-                  left: (_touchPosition!.dx - 50).clamp(0.0, constraints.maxWidth - 100),
-                  top: (_touchPosition!.dy - 38).clamp(0.0, constraints.maxHeight - 36),
-                  child: IgnorePointer(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.glassBackgroundStrong,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.glassBorderStrong),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        '${_hzLabel(_touchHz!)}  ${_touchDb! >= 0 ? '+' : ''}${_touchDb!.toStringAsFixed(1)} dB',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: context.adaptiveTextPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _MiniEqGraphPainter extends CustomPainter {
-  final List<({double x, double db})> points;
-  final List<({double x, double db})> dots;
-  final Color lineColor;
-  final Color fillColor;
-  final Color glowColor;
-  final Color zeroLineColor;
-  final Color gridColor;
-  final Color dotColor;
-  final double? touchX;
-  final Color touchColor;
-
-  _MiniEqGraphPainter({
-    required this.points,
-    required this.dots,
-    required this.lineColor,
-    required this.fillColor,
-    required this.glowColor,
-    required this.zeroLineColor,
-    required this.gridColor,
-    required this.dotColor,
-    this.touchX,
-    required this.touchColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.isEmpty) return;
-
-    final width = size.width;
-    final height = size.height;
-    const labelHeight = 14.0;
-    final graphHeight = height - labelHeight;
-
-    double mapX(double x) {
-      return ((x - equtils.eqLogMin) / (equtils.eqLogMax - equtils.eqLogMin)) * width;
-    }
-
-    double mapY(double db) {
-      final t = ((db - equtils.eqMinDb) / (equtils.eqMaxDb - equtils.eqMinDb)).clamp(0.0, 1.0);
-      return graphHeight - t * graphHeight;
-    }
-
-    // Subtle vertical grid at key frequencies
-    const keyFreqs = <double>[20, 100, 1000, 10000, 20000];
-    final gridPaint = Paint()
-      ..color = gridColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-    for (final hz in keyFreqs) {
-      final x = mapX(equtils.hzToX(hz));
-      canvas.drawLine(Offset(x, 0), Offset(x, graphHeight), gridPaint);
-    }
-
-    // Zero line
-    final zeroY = mapY(0.0);
-    canvas.drawLine(
-      Offset(0, zeroY),
-      Offset(width, zeroY),
-      Paint()
-        ..color = zeroLineColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
-    );
-
-    // Smooth curve path
-    final path = Path();
-    path.moveTo(mapX(points.first.x), mapY(points.first.db));
-    for (var i = 1; i < points.length; i++) {
-      final prev = points[i - 1];
-      final curr = points[i];
-      final prevX = mapX(prev.x);
-      final prevY = mapY(prev.db);
-      final currX = mapX(curr.x);
-      final currY = mapY(curr.db);
-      final cp1x = prevX + (currX - prevX) * 0.5;
-      final cp1y = prevY;
-      final cp2x = prevX + (currX - prevX) * 0.5;
-      final cp2y = currY;
-      path.cubicTo(cp1x, cp1y, cp2x, cp2y, currX, currY);
-    }
-
-    final fillPath = Path.from(path);
-    fillPath.lineTo(width, graphHeight);
-    fillPath.lineTo(0, graphHeight);
-    fillPath.close();
-
-    // Gradient fill
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          lineColor.withValues(alpha: 0.15),
-          lineColor.withValues(alpha: 0.02),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, width, graphHeight))
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(fillPath, fillPaint);
-
-    // Glow
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = glowColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4.0
-        ..isAntiAlias = true
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0),
-    );
-
-    // Main stroke
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = lineColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0
-        ..isAntiAlias = true,
-    );
-
-    // Band dots
-    final dotPaint = Paint()
-      ..color = dotColor
-      ..style = PaintingStyle.fill;
-    for (final d in dots) {
-      canvas.drawCircle(Offset(mapX(d.x), mapY(d.db)), 2.5, dotPaint);
-    }
-
-    // Frequency labels
-    const textStyle = TextStyle(
-      color: AppColors.textTertiary,
-      fontSize: 9,
-      fontFamily: 'ProductSans',
-    );
-    for (final hz in keyFreqs) {
-      final x = mapX(equtils.hzToX(hz));
-      final label = hz >= 1000
-          ? '${(hz / 1000).toStringAsFixed(hz >= 10000 ? 0 : 1)}k'
-          : hz.toStringAsFixed(0);
-      final textPainter = TextPainter(
-        text: TextSpan(text: label, style: textStyle),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(x - textPainter.width / 2, graphHeight + 2));
-    }
-
-    // Touch indicator
-    if (touchX != null) {
-      final clampedTouchX = touchX!.clamp(0.0, width);
-      final logX = (clampedTouchX / width) * (equtils.eqLogMax - equtils.eqLogMin) + equtils.eqLogMin;
-      var closest = points.first;
-      var minDist = double.infinity;
-      for (final p in points) {
-        final dist = (p.x - logX).abs();
-        if (dist < minDist) {
-          minDist = dist;
-          closest = p;
-        }
-      }
-      final touchY = mapY(closest.db);
-
-      canvas.drawLine(
-        Offset(clampedTouchX, 0),
-        Offset(clampedTouchX, graphHeight),
-        Paint()
-          ..color = touchColor.withValues(alpha: 0.4)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.0,
-      );
-
-      canvas.drawCircle(
-        Offset(clampedTouchX, touchY),
-        4.0,
-        Paint()..color = touchColor..style = PaintingStyle.fill,
-      );
-
-      canvas.drawCircle(
-        Offset(clampedTouchX, touchY),
-        4.0,
-        Paint()
-          ..color = lineColor.withValues(alpha: 0.5)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniEqGraphPainter old) {
-    return old.points != points ||
-        old.dots != dots ||
-        old.lineColor != lineColor ||
-        old.fillColor != fillColor ||
-        old.glowColor != glowColor ||
-        old.zeroLineColor != zeroLineColor ||
-        old.gridColor != gridColor ||
-        old.dotColor != dotColor ||
-        old.touchX != touchX ||
-        old.touchColor != touchColor;
-  }
-}
