@@ -50,10 +50,7 @@ class BitPerfectIndicator extends ConsumerWidget {
           color: state.bgColor,
           borderRadius: BorderRadius.circular(3),
           border: state.borderColor != null
-              ? Border.all(
-                  color: state.borderColor!,
-                  width: 1,
-                )
+              ? Border.all(color: state.borderColor!, width: 1)
               : null,
           boxShadow: state.glowColor != null
               ? [
@@ -104,13 +101,16 @@ class BitPerfectIndicator extends ConsumerWidget {
     return 'SD';
   }
 
-  static _IndicatorState _resolveState(AudioOutputDiagnostics? diagnostics,
-      {bool suppressVerified = false}) {
+  static _IndicatorState _resolveState(
+    AudioOutputDiagnostics? diagnostics, {
+    bool suppressVerified = false,
+  }) {
     final isVerified =
         diagnostics?.capabilityFlags.supportsVerifiedBitPerfect == true &&
-            diagnostics?.resamplerActive != true;
+        diagnostics?.resamplerActive != true;
 
-    final isLocked = diagnostics != null &&
+    final isLocked =
+        diagnostics != null &&
         diagnostics.capabilityFlags.supportsVerifiedBitPerfect == true &&
         diagnostics.resamplerActive == true;
 
@@ -136,9 +136,10 @@ class BitPerfectIndicator extends ConsumerWidget {
   }) {
     final isVerified =
         diagnostics?.capabilityFlags.supportsVerifiedBitPerfect == true &&
-            diagnostics?.resamplerActive != true;
+        diagnostics?.resamplerActive != true;
     final isDirectUsb =
-        diagnostics?.pathManagement == AudioPathManagement.directUsbExperimental;
+        diagnostics?.pathManagement ==
+        AudioPathManagement.directUsbExperimental;
 
     showModalBottomSheet(
       context: context,
@@ -172,28 +173,28 @@ class _IndicatorState {
   });
 
   factory _IndicatorState.verified() => _IndicatorState(
-        bgColor: Colors.green.withValues(alpha: 0.22),
-        textColor: Colors.green.shade400,
-        borderColor: Colors.green.withValues(alpha: 0.5),
-        glowColor: Colors.green.withValues(alpha: 0.12),
-        icon: Icons.verified_rounded,
-      );
+    bgColor: Colors.green.withValues(alpha: 0.22),
+    textColor: Colors.green.shade400,
+    borderColor: Colors.green.withValues(alpha: 0.5),
+    glowColor: Colors.green.withValues(alpha: 0.12),
+    icon: Icons.verified_rounded,
+  );
 
   factory _IndicatorState.locked() => _IndicatorState(
-        bgColor: Colors.amber.withValues(alpha: 0.18),
-        textColor: Colors.amber.shade400,
-        borderColor: Colors.amber.withValues(alpha: 0.4),
-        glowColor: Colors.amber.withValues(alpha: 0.08),
-        icon: Icons.lock_rounded,
-      );
+    bgColor: Colors.amber.withValues(alpha: 0.18),
+    textColor: Colors.amber.shade400,
+    borderColor: Colors.amber.withValues(alpha: 0.4),
+    glowColor: Colors.amber.withValues(alpha: 0.08),
+    icon: Icons.lock_rounded,
+  );
 
   factory _IndicatorState.standard() => _IndicatorState(
-        bgColor: Colors.white.withValues(alpha: 0.2),
-        textColor: Colors.white,
-      );
+    bgColor: Colors.white.withValues(alpha: 0.2),
+    textColor: Colors.white,
+  );
 }
 
-class _AudioInfoBottomSheet extends StatelessWidget {
+class _AudioInfoBottomSheet extends ConsumerWidget {
   final Song song;
   final AudioOutputDiagnostics? diagnostics;
   final Uac2DeviceStatus? deviceStatus;
@@ -211,7 +212,7 @@ class _AudioInfoBottomSheet extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.surface,
@@ -232,7 +233,7 @@ class _AudioInfoBottomSheet extends StatelessWidget {
             const SizedBox(height: 20),
             _buildInfoRows(context),
             const SizedBox(height: 16),
-            _buildVisualizerPreview(context),
+            _buildVisualizerPreview(context, ref),
           ],
         ),
       ),
@@ -248,8 +249,8 @@ class _AudioInfoBottomSheet extends StatelessWidget {
             color: isVerified
                 ? Colors.green.withValues(alpha: 0.15)
                 : isDirectUsb
-                    ? Colors.blue.withValues(alpha: 0.15)
-                    : AppColors.glassBackgroundStrong,
+                ? Colors.blue.withValues(alpha: 0.15)
+                : AppColors.glassBackgroundStrong,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
@@ -258,8 +259,8 @@ class _AudioInfoBottomSheet extends StatelessWidget {
             color: isVerified
                 ? Colors.green.shade400
                 : isDirectUsb
-                    ? Colors.blue.shade400
-                    : context.adaptiveTextPrimary,
+                ? Colors.blue.shade400
+                : context.adaptiveTextPrimary,
           ),
         ),
         const SizedBox(width: 12),
@@ -305,9 +306,7 @@ class _AudioInfoBottomSheet extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.green.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: Colors.green.withValues(alpha: 0.3),
-              ),
+              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -351,7 +350,9 @@ class _AudioInfoBottomSheet extends StatelessWidget {
 
     // Resolution / bit depth
     if (song.resolution != null && !song.isDsd) {
-      rows.add(_buildRow(context, label: 'Resolution', value: song.resolution!));
+      rows.add(
+        _buildRow(context, label: 'Resolution', value: song.resolution!),
+      );
     }
 
     // Source sample rate
@@ -366,7 +367,8 @@ class _AudioInfoBottomSheet extends StatelessWidget {
     }
 
     // Output sample rate
-    final outRate = d?.reportedOutputSampleRate ??
+    final outRate =
+        d?.reportedOutputSampleRate ??
         d?.requestedOutputSampleRate ??
         deviceStatus?.currentFormat?.sampleRate;
     if (outRate != null) {
@@ -395,9 +397,7 @@ class _AudioInfoBottomSheet extends StatelessWidget {
     // Bit depth
     final bitDepth = deviceStatus?.currentFormat?.bitDepth ?? song.bitDepth;
     if (bitDepth != null) {
-      rows.add(
-        _buildRow(context, label: 'Bit depth', value: '$bitDepth-bit'),
-      );
+      rows.add(_buildRow(context, label: 'Bit depth', value: '$bitDepth-bit'));
     }
 
     // Channels
@@ -410,8 +410,8 @@ class _AudioInfoBottomSheet extends StatelessWidget {
           value: channels == 1
               ? 'Mono'
               : channels == 2
-                  ? 'Stereo'
-                  : '$channels ch',
+              ? 'Stereo'
+              : '$channels ch',
         ),
       );
     }
@@ -419,38 +419,29 @@ class _AudioInfoBottomSheet extends StatelessWidget {
     // Decoder / Engine
     final backendDesc = d?.backendDescription;
     if (backendDesc != null && backendDesc.isNotEmpty) {
-      rows.add(
-        _buildRow(context, label: 'Engine', value: backendDesc),
-      );
+      rows.add(_buildRow(context, label: 'Engine', value: backendDesc));
     }
 
     // Output strategy
     final strategy = d?.outputStrategyLabel;
     if (strategy != null && strategy.isNotEmpty) {
-      rows.add(
-        _buildRow(context, label: 'Strategy', value: strategy),
-      );
+      rows.add(_buildRow(context, label: 'Strategy', value: strategy));
     }
 
     // Device / DAC
-    final deviceLabel = deviceStatus?.device.productName ??
+    final deviceLabel =
+        deviceStatus?.device.productName ??
         d?.outputDeviceLabel ??
         d?.detectedDapBrand;
     if (deviceLabel != null && deviceLabel.isNotEmpty) {
-      rows.add(
-        _buildRow(context, label: 'Device', value: deviceLabel),
-      );
+      rows.add(_buildRow(context, label: 'Device', value: deviceLabel));
     }
 
     // Volume control
     final volMode = deviceStatus?.volumeMode;
     if (volMode != null && volMode != Uac2VolumeMode.unavailable) {
       rows.add(
-        _buildRow(
-          context,
-          label: 'Volume',
-          value: _formatVolumeMode(volMode),
-        ),
+        _buildRow(context, label: 'Volume', value: _formatVolumeMode(volMode)),
       );
     }
 
@@ -465,8 +456,8 @@ class _AudioInfoBottomSheet extends StatelessWidget {
           trailing: isDirectUsb
               ? _buildTinyBadge('Direct', Colors.blue)
               : (d?.isMixerManaged ?? false)
-                  ? _buildTinyBadge('Mixer', Colors.grey)
-                  : null,
+              ? _buildTinyBadge('Mixer', Colors.grey)
+              : null,
         ),
       );
     }
@@ -506,11 +497,7 @@ class _AudioInfoBottomSheet extends StatelessWidget {
                   size: 14,
                   color: Colors.green.shade400,
                 )
-              : Icon(
-                  Icons.block_rounded,
-                  size: 14,
-                  color: Colors.red.shade400,
-                ),
+              : Icon(Icons.block_rounded, size: 14, color: Colors.red.shade400),
         ),
       );
     }
@@ -522,9 +509,7 @@ class _AudioInfoBottomSheet extends StatelessWidget {
         if (d.usbStreamStable) 'Stream stable',
       ];
       if (usbParts.isNotEmpty) {
-        rows.add(
-          _buildRow(context, label: 'USB', value: usbParts.join(' · ')),
-        );
+        rows.add(_buildRow(context, label: 'USB', value: usbParts.join(' · ')));
       }
     }
 
@@ -532,13 +517,9 @@ class _AudioInfoBottomSheet extends StatelessWidget {
     final verification = d?.verificationReason;
     final fallback = d?.fallbackReason;
     if (verification != null && verification.isNotEmpty) {
-      rows.add(
-        _buildRow(context, label: 'Verified', value: verification),
-      );
+      rows.add(_buildRow(context, label: 'Verified', value: verification));
     } else if (fallback != null && fallback.isNotEmpty) {
-      rows.add(
-        _buildRow(context, label: 'Fallback', value: fallback),
-      );
+      rows.add(_buildRow(context, label: 'Fallback', value: fallback));
     }
 
     // DSD / DoP mode
@@ -548,11 +529,9 @@ class _AudioInfoBottomSheet extends StatelessWidget {
       final dsdLabel = isNativeDsd
           ? 'Native DSD'
           : isDop
-              ? 'DoP'
-              : 'DSD';
-      rows.add(
-        _buildRow(context, label: 'DSD mode', value: dsdLabel),
-      );
+          ? 'DoP'
+          : 'DSD';
+      rows.add(_buildRow(context, label: 'DSD mode', value: dsdLabel));
     }
 
     // Source path (truncated)
@@ -607,10 +586,7 @@ class _AudioInfoBottomSheet extends StatelessWidget {
               ),
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 4),
-            trailing,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 4), trailing],
         ],
       ),
     );
@@ -635,7 +611,9 @@ class _AudioInfoBottomSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildVisualizerPreview(BuildContext context) {
+  Widget _buildVisualizerPreview(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(appPreferencesProvider);
+
     return Container(
       height: 100,
       decoration: BoxDecoration(
@@ -649,9 +627,9 @@ class _AudioInfoBottomSheet extends StatelessWidget {
           Positioned.fill(
             child: AudioVisualizer(
               playerService: playerService,
-              animationStyle: 'bars',
-              frequencyMode: 'full',
-              movementMode: 'bouncy',
+              animationStyle: prefs.visualizerAnimationStyle,
+              frequencyMode: prefs.visualizerFrequencyMode,
+              movementMode: prefs.visualizerMovementMode,
             ),
           ),
           Positioned(
