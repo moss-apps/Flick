@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/audio_output_diagnostics.dart';
 
+enum _CapsulePhase { entering, visible, exiting, hidden }
+
 /// Animated bit-perfect capsule that replaces the album name pill
 /// when streaming bit-perfect audio.
 ///
-/// Animates in with a deterministic micro-pixel build.
+/// Animates in/out with a deterministic micro-pixel build.
 class BitPerfectCapsule extends StatefulWidget {
   final AudioOutputDiagnostics diagnostics;
   final double horizontalPadding;
   final double verticalPadding;
   final double fontSize;
   final VoidCallback? onTap;
+  final VoidCallback? onDismissed;
 
   const BitPerfectCapsule({
     super.key,
@@ -20,6 +23,7 @@ class BitPerfectCapsule extends StatefulWidget {
     required this.verticalPadding,
     required this.fontSize,
     this.onTap,
+    this.onDismissed,
   });
 
   @override
@@ -28,37 +32,77 @@ class BitPerfectCapsule extends StatefulWidget {
 
 class _BitPerfectCapsuleState extends State<BitPerfectCapsule>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _entranceController;
+  late final AnimationController _controller;
 
   late final Animation<double> _pixelBuildAnimation;
+
+  _CapsulePhase _phase = _CapsulePhase.hidden;
+
+  bool get _isVerified =>
+      widget.diagnostics.capabilityFlags.supportsVerifiedBitPerfect == true;
 
   @override
   void initState() {
     super.initState();
 
-    _entranceController = AnimationController(
+    _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     );
 
     _pixelBuildAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _entranceController, curve: Curves.easeOutCubic),
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
 
-    _entranceController.forward();
+    _controller.addStatusListener(_onAnimationStatus);
+
+    if (_isVerified) {
+      _phase = _CapsulePhase.entering;
+      _controller.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant BitPerfectCapsule oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final wasVerified = oldWidget.diagnostics.capabilityFlags
+        .supportsVerifiedBitPerfect ==
+        true;
+
+    if (wasVerified && !_isVerified) {
+      _phase = _CapsulePhase.exiting;
+      _controller.reverse();
+    } else if (!wasVerified && _isVerified) {
+      _phase = _CapsulePhase.entering;
+      _controller.forward();
+    }
+  }
+
+  void _onAnimationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed &&
+        _phase == _CapsulePhase.entering) {
+      setState(() => _phase = _CapsulePhase.visible);
+    } else if (status == AnimationStatus.dismissed &&
+        _phase == _CapsulePhase.exiting) {
+      setState(() => _phase = _CapsulePhase.hidden);
+      widget.onDismissed?.call();
+    }
   }
 
   @override
   void dispose() {
-    _entranceController.dispose();
+    _controller.removeStatusListener(_onAnimationStatus);
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLocked = widget.diagnostics.resamplerActive == true;
-    final verified = !isLocked;
+    if (_phase == _CapsulePhase.hidden) {
+      return const SizedBox.shrink();
+    }
 
+    final verified = _isVerified;
     final baseColor = verified
         ? Colors.green.withValues(alpha: 0.22)
         : Colors.amber.withValues(alpha: 0.18);
@@ -72,7 +116,7 @@ class _BitPerfectCapsuleState extends State<BitPerfectCapsule>
       onTap: widget.onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedBuilder(
-        animation: _entranceController,
+        animation: _controller,
         builder: (context, child) {
           return ClipPath(
             clipper: _MicroPixelBuildClipper(
@@ -125,6 +169,9 @@ class _MicroPixelBuildClipper extends CustomClipper<Path> {
     final clampedProgress = progress.clamp(0.0, 1.0);
     if (clampedProgress >= 1.0) {
       return Path()..addRect(Offset.zero & size);
+    }
+    if (clampedProgress <= 0.0) {
+      return Path();
     }
 
     final path = Path();
