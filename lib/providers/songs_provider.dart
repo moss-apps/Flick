@@ -118,7 +118,7 @@ class SongsState {
       songs: songs,
       sortOption: sortOption,
       fileTypeFilter: fileTypeFilter,
-      sortedSongs: _computeSortedSongs(songs, sortOption, fileTypeFilter),
+      sortedSongs: computeSortedSongs(songs, sortOption, fileTypeFilter),
       folderGroups: _computeFolderGroups(songs, sortOption, fileTypeFilter),
     );
   }
@@ -135,7 +135,7 @@ class SongsState {
     );
   }
 
-  static List<Song> _computeSortedSongs(
+  static List<Song> computeSortedSongs(
     List<Song> songs,
     SongSortOption sortOption,
     SongFileTypeFilter fileTypeFilter,
