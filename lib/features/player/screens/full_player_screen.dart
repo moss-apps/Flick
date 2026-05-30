@@ -92,6 +92,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   int _immersiveAutoFullViewDelaySeconds = 0;
   Timer? _immersiveFullViewTimer;
   final GlobalKey _usbVolumeButtonKey = GlobalKey();
+  VoidCallback? _dismissVolumePopup;
 
   @override
   void initState() {
@@ -150,6 +151,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     );
     _positionThrottleTimer?.cancel();
     _immersiveFullViewTimer?.cancel();
+    _dismissVolumePopup?.call();
+    _dismissVolumePopup = null;
     _throttledPositionNotifier.dispose();
     _dragController.dispose();
     super.dispose();
@@ -269,11 +272,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   }
 
   Future<void> _animateToNextSong() async {
+    _dismissVolumePopup?.call();
+    _dismissVolumePopup = null;
     _songTransitionDirection = 1;
     await _playerService.next();
   }
 
   Future<void> _animateToPreviousSong() async {
+    _dismissVolumePopup?.call();
+    _dismissVolumePopup = null;
     _songTransitionDirection = -1;
     await _playerService.previous();
   }
@@ -2365,7 +2372,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       message: 'USB Volume',
       child: GestureDetector(
         key: _usbVolumeButtonKey,
-        onTap: () => showIsoVolumePopup(context, _usbVolumeButtonKey),
+        onTap: () {
+          _dismissVolumePopup?.call();
+          _dismissVolumePopup = showIsoVolumePopup(context, _usbVolumeButtonKey);
+        },
         child: Container(
           padding: actionPadding,
           decoration: BoxDecoration(
@@ -2526,6 +2536,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               onVerticalDragEnd: (details) {
                 // If dragged down enough or with enough velocity, dismiss
                 if (_dragOffset > 100 || details.primaryVelocity! > 500) {
+                  _dismissVolumePopup?.call();
+                  _dismissVolumePopup = null;
                   Navigator.of(context).pop();
                   return;
                 }
@@ -2570,7 +2582,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   lyricsService: _lyricsService,
                   throttledPositionNotifier: _throttledPositionNotifier,
                   formatDuration: _formatDuration,
-                  onClose: () => Navigator.of(context).pop(),
+                  onClose: () {
+                    _dismissVolumePopup?.call();
+                    _dismissVolumePopup = null;
+                    Navigator.of(context).pop();
+                  },
                   onOpenQueue: () => _openQueue(context),
                   onToggleLyrics: () => _setLyricsMode(!_isLyricsMode),
                   onQueueSwipe: () => _queueSong(context, song),
