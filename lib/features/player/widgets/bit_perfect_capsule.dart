@@ -38,7 +38,7 @@ class _BitPerfectCapsuleState extends State<BitPerfectCapsule>
 
     _entranceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1300),
+      duration: const Duration(milliseconds: 2000),
     );
 
     _pixelBuildAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(

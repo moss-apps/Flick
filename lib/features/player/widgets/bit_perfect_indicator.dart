@@ -229,12 +229,27 @@ class _AudioInfoBottomSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildDragHandle(),
+            const SizedBox(height: 12),
             _buildHeader(context),
             const SizedBox(height: 20),
             _buildInfoRows(context),
             const SizedBox(height: 16),
             _buildVisualizerPreview(context, ref),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDragHandle() {
+    return Center(
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: AppColors.textTertiary,
+          borderRadius: BorderRadius.circular(2),
         ),
       ),
     );
