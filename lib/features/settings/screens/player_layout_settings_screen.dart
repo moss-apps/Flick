@@ -327,6 +327,20 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                       .setArtworkCardShowFileInfo(value);
                 },
               ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.shieldCheck,
+                title: 'Bit-Perfect Capsule',
+                subtitle:
+                    'Replace album name with a verified bit-perfect capsule '
+                    'when streaming bit-perfect',
+                value: appPrefs.replaceAlbumWithBitPerfectCapsule,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setReplaceAlbumWithBitPerfectCapsule(value);
+                },
+              ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
