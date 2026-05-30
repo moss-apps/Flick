@@ -1670,13 +1670,13 @@ fn sharing_label(sharing: SharingMode) -> &'static str {
 }
 
 /// Convert a linear volume slider value (0.0–1.0) to an exponential gain.
-/// 1.0 → 0 dB, 0.0 → -20 dB. The slider position maps linearly to dB.
+/// 1.0 → 0 dB, 0.0 → -60 dB. The slider position maps linearly to dB.
 #[inline]
 fn volume_to_gain(volume: f32) -> f32 {
     if volume <= 0.0 {
         0.0
     } else {
-        10.0_f32.powf(volume - 1.0)
+        10.0_f32.powf(3.0 * (volume - 1.0))
     }
 }
 
