@@ -1498,6 +1498,20 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   _showSleepTimerBottomSheet(context);
                 },
               ),
+              _buildSongActionTile(
+                context: sheetContext,
+                icon: LucideIcons.share2,
+                label: 'Share',
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (_) => ShareBottomSheet(song: song),
+                  );
+                },
+              ),
             ],
             ),
           ),
