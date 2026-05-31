@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.17.0-beta.1 (2026-05-31)
+
+### BitPerfect Capsule/Indicator
+- BitPerfect status capsule displayed in the player UI showing active bit-perfect mode
+- Visual indicator for bit-perfect audio path engagement
+
+### Player Layout Settings
+- Configurable player layout options
+- Settings screen for customizing the player layout
+
+### Equalizer Paged Layout
+- Equalizer redesigned with a paged layout for better navigation across 31 bands
+- Improved band browsing and adjustment workflow
+
+### Folder Filter/Sort Controls
+- Folder filtering controls for narrowing down folder listings
+- Enhanced folder sort options with dedicated controls
+
 ## 0.16.0-beta.1 (2026-05-26)
 
 ### Audio Engine & DSD Playback
