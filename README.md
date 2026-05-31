@@ -368,6 +368,7 @@ The Rust backend communicates with Flutter via `flutter_rust_bridge`, providing:
 Documentation is available in the `docs/` directory:
 - `DOCUMENTATION.md`: Detailed architecture and design documentation
 - `CHANGELOG.md`: Consolidated changelog across all versions
+- `RELEASE_0.17.0-beta.1.md`: Release notes for 0.17.0-beta.1
 - `RELEASE_0.16.0-beta.1.md`: Release notes for 0.16.0-beta.1
 - `RELEASE_0.15.0-beta.1.md`: Release notes for 0.15.0-beta.1
 - `RELEASE_0.14.0-beta.1.md`: Release notes for 0.14.0-beta.1
