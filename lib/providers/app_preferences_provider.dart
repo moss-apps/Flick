@@ -332,6 +332,22 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     state = state.copyWith(welcomeCardDismissed: value);
     await ref.read(appPreferencesServiceProvider).setWelcomeCardDismissed(value);
   }
+
+  Future<void> setReplaceAlbumWithBitPerfectCapsule(bool value) async {
+    if (state.replaceAlbumWithBitPerfectCapsule == value) return;
+    state = state.copyWith(replaceAlbumWithBitPerfectCapsule: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setReplaceAlbumWithBitPerfectCapsule(value);
+  }
+
+  Future<void> setFolderGridPageSize(int value) async {
+    if (state.folderGridPageSize == value) return;
+    state = state.copyWith(folderGridPageSize: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setFolderGridPageSize(value);
+  }
 }
 
 final appPreferencesProvider =

@@ -8,6 +8,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/providers/onboarding_provider.dart';
+import 'package:flick/providers/tutorial_provider.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -90,6 +91,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   void _complete() {
+    ref.read(tutorialProvider.notifier).flagAutoStart();
     ref.read(onboardingCompletedProvider.notifier).complete();
     if (context.mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();

@@ -14,17 +14,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/services/eq_preset_file_service.dart';
 import 'package:flick/services/eq_preset_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
+import 'package:flick/widgets/common/rotary_knob.dart';
 
 import 'package:flick/widgets/equalizer/parametric_eq_graph.dart';
 import 'package:flick/widgets/equalizer/graphic_eq_graph.dart';
 import 'package:flick/widgets/equalizer/interactive_eq_graph.dart';
-import 'package:flick/widgets/equalizer/eq_graph_utils.dart' as equtils;
 
 enum _PresetFileFormat { json, txt }
 
@@ -39,68 +38,28 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   final _scrollController = ScrollController();
   final _graphicGraphKey = GlobalKey();
   final _parametricGraphKey = GlobalKey();
-  bool _showMiniGraph = false;
-  bool _graphReached = false;
+  final _pageController = PageController();
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkVisibility());
+    _pageController.addListener(_onPageChanged);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
-  void _onScroll() => _checkVisibility();
-
-  void _checkVisibility() {
+  void _onPageChanged() {
     if (!mounted) return;
-    final mode = ref.read(eqModeProvider);
-    final key =
-        mode == EqMode.graphic ? _graphicGraphKey : _parametricGraphKey;
-    final ctx = key.currentContext;
-    if (ctx == null) return;
-
-    final renderBox = ctx.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize) return;
-
-    final position = renderBox.localToGlobal(Offset.zero);
-    final graphTop = position.dy;
-    final graphBottom = graphTop + renderBox.size.height;
-
-    final screenHeight = MediaQuery.sizeOf(context).height;
-
-    final isVisible = graphBottom > 0 && graphTop < screenHeight;
-    final shouldShowMini = _graphReached && !isVisible;
-
-    bool changed = false;
-    if (_showMiniGraph != shouldShowMini) {
-      _showMiniGraph = shouldShowMini;
-      changed = true;
+    final page = _pageController.page?.round() ?? 0;
+    if (page != _currentPage) {
+      setState(() => _currentPage = page);
     }
-    if (isVisible && !_graphReached) {
-      _graphReached = true;
-      changed = true;
-    }
-    if (changed) setState(() {});
-  }
-
-  void _scrollToGraph() {
-    final mode = ref.read(eqModeProvider);
-    final key =
-        mode == EqMode.graphic ? _graphicGraphKey : _parametricGraphKey;
-    final ctx = key.currentContext;
-    if (ctx == null) return;
-    Scrollable.ensureVisible(
-      ctx,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOutCubic,
-      alignment: 0.25,
-    );
   }
 
   void _showPresetsBottomSheet() {
@@ -114,8 +73,6 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = ref.watch(eqEnabledProvider);
-    final mode = ref.watch(eqModeProvider);
     final activePresetName = ref.watch(eqActivePresetNameProvider);
 
     return Scaffold(
@@ -133,94 +90,257 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
               onBack: () => Navigator.of(context).pop(),
               onPresets: _showPresetsBottomSheet,
             ),
-            AnimatedSize(
-              duration: AppConstants.animationNormal,
-              curve: Curves.easeOutCubic,
-              alignment: Alignment.topCenter,
-              child: _graphReached
-                  ? IgnorePointer(
-                      ignoring: !_showMiniGraph,
-                      child: AnimatedOpacity(
-                        opacity: _showMiniGraph ? 1.0 : 0.0,
-                        duration: AppConstants.animationNormal,
-                        curve: Curves.easeOutCubic,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppConstants.spacingMd,
-                          ),
-                          child: GestureDetector(
-                            onTap: _scrollToGraph,
-                            child: _GlassCard(
-                              child: Container(
-                                height: 56,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppConstants.spacingMd,
-                                  vertical: AppConstants.spacingSm,
-                                ),
-                                child: const _MiniEqGraphPreview(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            AnimatedSize(
-              duration: AppConstants.animationNormal,
-              curve: Curves.easeOutCubic,
-              child: SizedBox(
-                height: _graphReached ? AppConstants.spacingMd : 0,
-              ),
-            ),
             Expanded(
-              child: RepaintBoundary(
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppConstants.spacingMd,
+              child: Column(
+                children: [
+                  _EffectsTabBar(
+                    selectedIndex: _currentPage,
+                    onSelected: (index) {
+                      setState(() => _currentPage = index);
+                      _pageController.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                      );
+                    },
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _GlassCard(
-                        child: Column(
-                          children: [
-                            _TopControlsRow(enabled: enabled),
-                            _Divider(),
-                            _PreampRow(enabled: enabled),
-                            _Divider(),
-                            _ModeAndActionsRow(mode: mode),
-                          ],
+                  const SizedBox(height: AppConstants.spacingMd),
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const BouncingScrollPhysics(),
+                      children: [
+                        _EqPage(
+                          scrollController: _scrollController,
+                          graphicGraphKey: _graphicGraphKey,
+                          parametricGraphKey: _parametricGraphKey,
                         ),
-                      ),
-                      const SizedBox(height: AppConstants.spacingLg),
-                      AnimatedSwitcher(
-                        duration: AppConstants.animationNormal,
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        child: mode == EqMode.graphic
-                            ? _GraphicEqView(
-                                key: const ValueKey('graphic'),
-                                graphKey: _graphicGraphKey,
-                              )
-                            : _ParametricEqView(
-                                key: const ValueKey('param'),
-                                graphKey: _parametricGraphKey,
-                              ),
-                      ),
-                      const SizedBox(height: AppConstants.spacingLg),
-                      const _DynamicsSection(),
-                      const SizedBox(height: AppConstants.spacingLg),
-                      const _CreativeFxSection(),
-                      const SizedBox(height: AppConstants.navBarHeight + 120),
-                    ],
+                        const _DynamicsPage(),
+                        const _FxPage(),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _EffectsTabBar extends StatelessWidget {
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  const _EffectsTabBar({
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const tabs = ['EQ', 'Dynamics', 'FX'];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
+      child: Row(
+        children: List.generate(tabs.length * 2 - 1, (i) {
+          if (i.isOdd) {
+            return const SizedBox(width: AppConstants.spacingXs);
+          }
+          final index = i ~/ 2;
+          final selected = index == selectedIndex;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onSelected(index),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppConstants.spacingSm,
+                ),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? AppColors.surface.withValues(alpha: 0.8)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                  border: selected
+                      ? Border.all(color: AppColors.glassBorder)
+                      : null,
+                ),
+                child: Text(
+                  tabs[index],
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: selected
+                        ? context.adaptiveTextPrimary
+                        : context.adaptiveTextTertiary,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _EqPage extends ConsumerWidget {
+  final ScrollController scrollController;
+  final GlobalKey graphicGraphKey;
+  final GlobalKey parametricGraphKey;
+
+  const _EqPage({
+    required this.scrollController,
+    required this.graphicGraphKey,
+    required this.parametricGraphKey,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(eqEnabledProvider);
+    final mode = ref.watch(eqModeProvider);
+
+    return SingleChildScrollView(
+      controller: scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _GlassCard(
+            child: Column(
+              children: [
+                _TopControlsRow(enabled: enabled),
+                _Divider(),
+                _PreampRow(enabled: enabled),
+                _Divider(),
+                _ModeAndActionsRow(mode: mode),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
+          AnimatedSwitcher(
+            duration: AppConstants.animationNormal,
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: mode == EqMode.graphic
+                ? _GraphicEqView(
+                    key: const ValueKey('graphic'),
+                    graphKey: graphicGraphKey,
+                  )
+                : _ParametricEqView(
+                    key: const ValueKey('param'),
+                    graphKey: parametricGraphKey,
+                  ),
+          ),
+          SizedBox(height: AppConstants.navBarHeight + 120),
+        ],
+      ),
+    );
+  }
+}
+
+class _DynamicsPage extends ConsumerWidget {
+  const _DynamicsPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _DynamicsSection(),
+          SizedBox(height: AppConstants.navBarHeight + 120),
+        ],
+      ),
+    );
+  }
+}
+
+class _FxPage extends ConsumerWidget {
+  const _FxPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _CreativeFxSection(),
+          SizedBox(height: AppConstants.navBarHeight + 120),
+        ],
+      ),
+    );
+  }
+}
+
+class _LabeledKnob extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String valueLabel;
+  final double value;
+  final double min;
+  final double max;
+  final ValueChanged<double>? onChanged;
+
+  const _LabeledKnob({
+    required this.icon,
+    required this.label,
+    required this.valueLabel,
+    required this.value,
+    this.min = 0.0,
+    this.max = 1.0,
+    required this.onChanged,
+  });
+
+  static const double _knobSize = 80;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onChanged != null;
+    return SizedBox(
+      width: _knobSize + 28,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: context.responsiveIcon(AppConstants.iconSizeSm),
+                color: enabled
+                    ? context.adaptiveTextSecondary
+                    : context.adaptiveTextTertiary,
+              ),
+              const SizedBox(width: AppConstants.spacingXs),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: enabled
+                      ? context.adaptiveTextSecondary
+                      : context.adaptiveTextTertiary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingSm),
+          RotaryKnob(
+            value: value,
+            min: min,
+            max: max,
+            size: _knobSize,
+            onChanged: onChanged,
+            label: label,
+            accentColor:
+                enabled ? context.adaptiveTextPrimary : context.adaptiveTextTertiary,
+          ),
+          const SizedBox(height: AppConstants.spacingXs),
+          _ValueBadge(value: valueLabel),
+        ],
       ),
     );
   }
@@ -1512,7 +1632,7 @@ class _GraphicEqView extends ConsumerWidget {
           children: [
             const _StatPill(
               icon: LucideIcons.slidersVertical,
-              label: '10 fixed bands',
+              label: '31 fixed bands',
             ),
             _StatPill(
               icon: adjustedBands == 0
@@ -2223,7 +2343,7 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
               _DetailKnob(
                 label: 'Frequency',
                 value: _hzLabel(band.frequencyHz),
-                knob: _RotaryKnob(
+                knob: RotaryKnob(
                   value: _hzToT(band.frequencyHz),
                   min: 0.0,
                   max: 1.0,
@@ -2257,7 +2377,7 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                   value: band.type == ParametricBandType.notch
                       ? '${band.gainDb.abs().toStringAsFixed(1)} dB'
                       : '${band.gainDb >= 0 ? '+' : ''}${band.gainDb.toStringAsFixed(1)} dB',
-                  knob: _RotaryKnob(
+                  knob: RotaryKnob(
                     value: band.type == ParametricBandType.notch
                         ? band.gainDb.abs()
                         : band.gainDb,
@@ -2308,7 +2428,7 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
               _DetailKnob(
                 label: band.type.qLabel,
                 value: band.q.toStringAsFixed(2),
-                knob: _RotaryKnob(
+                knob: RotaryKnob(
                   value: band.q,
                   min: 0.2,
                   max: 10.0,
@@ -2579,204 +2699,6 @@ class _InlineValueEditorState extends State<_InlineValueEditor> {
   }
 }
 
-class _RotaryKnob extends StatefulWidget {
-  final double value;
-  final double min;
-  final double max;
-  final double size;
-  final ValueChanged<double>? onChanged;
-  final String label;
-  final Color? accentColor;
-
-  const _RotaryKnob({
-    required this.value,
-    required this.min,
-    required this.max,
-    this.size = 110,
-    required this.onChanged,
-    required this.label,
-    this.accentColor,
-  });
-
-  @override
-  State<_RotaryKnob> createState() => _RotaryKnobState();
-}
-
-class _RotaryKnobState extends State<_RotaryKnob> {
-  double _currentValue = 0.0;
-  double _lastHapticValue = 0.0;
-  bool _isDragging = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentValue = widget.value.clamp(widget.min, widget.max).toDouble();
-    _lastHapticValue = _currentValue;
-  }
-
-  @override
-  void didUpdateWidget(covariant _RotaryKnob oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if ((widget.value - _currentValue).abs() > 0.001) {
-      _currentValue = widget.value.clamp(widget.min, widget.max).toDouble();
-      _lastHapticValue = _currentValue;
-    }
-  }
-
-  double _valueToAngle() {
-    final t = (_currentValue - widget.min) / (widget.max - widget.min);
-    final clampedT = t.clamp(0.0, 1.0);
-    return math.pi * 0.75 + clampedT * (1.5 * math.pi);
-  }
-
-  void _handlePanStart(DragStartDetails details) {
-    if (widget.onChanged == null) return;
-    _isDragging = true;
-    _updateValueFromPosition(details.globalPosition);
-  }
-
-  void _handlePanUpdate(DragUpdateDetails details) {
-    if (widget.onChanged == null || !_isDragging) return;
-    _updateValueFromPosition(details.globalPosition);
-  }
-
-  void _handlePanEnd(DragEndDetails details) {
-    _isDragging = false;
-  }
-
-  void _updateValueFromPosition(Offset globalPosition) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final localPos = box.globalToLocal(globalPosition);
-    final center = Offset(widget.size / 2, widget.size / 2);
-    final angle = math.atan2(localPos.dy - center.dy, localPos.dx - center.dx);
-
-    double normalized = (angle - math.pi * 0.75) / (1.5 * math.pi);
-    while (normalized < 0) {
-      normalized += 1.0;
-    }
-    while (normalized > 1) {
-      normalized -= 1.0;
-    }
-
-    final range = widget.max - widget.min;
-    final newValue = widget.min + normalized * range;
-    final snapped = (newValue * 10).round() / 10.0;
-    final clamped = snapped.clamp(widget.min, widget.max);
-
-    final diff = (clamped - _lastHapticValue).abs();
-    if (diff >= 0.5) {
-      AppHaptics.selection();
-      _lastHapticValue = clamped;
-    }
-
-    setState(() => _currentValue = clamped);
-    widget.onChanged!(_currentValue);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = widget.onChanged != null;
-    final angle = _valueToAngle();
-    final accent = widget.accentColor ??
-        (enabled ? context.adaptiveTextPrimary : context.adaptiveTextTertiary);
-
-    return GestureDetector(
-      onPanStart: enabled ? _handlePanStart : null,
-      onPanUpdate: enabled ? _handlePanUpdate : null,
-      onPanEnd: enabled ? _handlePanEnd : null,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: widget.size,
-        height: widget.size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: widget.size,
-              height: widget.size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF141414),
-                border: Border.all(
-                  color: AppColors.glassBorder.withValues(alpha: 0.5),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: accent.withValues(alpha: _isDragging ? 0.15 : 0.06),
-                    blurRadius: _isDragging ? 20 : 12,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-            ),
-            CustomPaint(
-              size: Size(widget.size, widget.size),
-              painter: _KnobArcPainter(
-                angle: angle,
-                color: accent,
-                trackColor: AppColors.glassBorderStrong,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _KnobArcPainter extends CustomPainter {
-  final double angle;
-  final Color color;
-  final Color trackColor;
-
-  _KnobArcPainter({
-    required this.angle,
-    required this.color,
-    required this.trackColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 6;
-    const startAngle = math.pi * 0.75;
-    final sweepAngle = angle - startAngle;
-
-    final trackPaint = Paint()
-      ..color = trackColor
-      ..strokeWidth = 4
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      1.5 * math.pi,
-      false,
-      trackPaint,
-    );
-
-    final activePaint = Paint()
-      ..color = color
-      ..strokeWidth = 4
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepAngle.clamp(0.0, 1.5 * math.pi),
-      false,
-      activePaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _KnobArcPainter oldPainter) {
-    return oldPainter.angle != angle || oldPainter.color != color;
-  }
-}
 
 class _AddBandCard extends ConsumerWidget {
   final bool enabled;
@@ -2967,7 +2889,7 @@ class _ParametricBandEditor extends ConsumerWidget {
                   ),
                 ),
                 if (band.type.supportsGain) ...[
-                  _RotaryKnob(
+                  RotaryKnob(
                     value: band.type == ParametricBandType.notch
                         ? band.gainDb.abs()
                         : band.gainDb,
@@ -3113,75 +3035,80 @@ class _DynamicsSection extends ConsumerWidget {
           onToggleChanged: (value) =>
               ref.read(equalizerProvider.notifier).setCompressorEnabled(value),
           children: [
-            _LabeledSlider(
-              icon: LucideIcons.arrowDownWideNarrow,
-              label: 'Threshold',
-              valueLabel: '${compressor.thresholdDb.toStringAsFixed(1)} dB',
-              value: compressor.thresholdDb,
-              min: EqualizerNotifier.compressorThresholdMinDb,
-              max: EqualizerNotifier.compressorThresholdMaxDb,
-              onChanged: enabled && compressor.enabled
-                  ? (value) => ref
-                        .read(equalizerProvider.notifier)
-                        .setCompressorThresholdDb(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.ratio,
-              label: 'Ratio',
-              valueLabel: '${compressor.ratio.toStringAsFixed(1)}:1',
-              value: compressor.ratio,
-              min: EqualizerNotifier.compressorRatioMin,
-              max: EqualizerNotifier.compressorRatioMax,
-              onChanged: enabled && compressor.enabled
-                  ? (value) => ref
-                        .read(equalizerProvider.notifier)
-                        .setCompressorRatio(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.timer,
-              label: 'Attack',
-              valueLabel: '${compressor.attackMs.toStringAsFixed(0)} ms',
-              value: compressor.attackMs,
-              min: EqualizerNotifier.compressorAttackMinMs,
-              max: EqualizerNotifier.compressorAttackMaxMs,
-              onChanged: enabled && compressor.enabled
-                  ? (value) => ref
-                        .read(equalizerProvider.notifier)
-                        .setCompressorAttackMs(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.timerReset,
-              label: 'Release',
-              valueLabel: '${compressor.releaseMs.toStringAsFixed(0)} ms',
-              value: compressor.releaseMs,
-              min: EqualizerNotifier.compressorReleaseMinMs,
-              max: EqualizerNotifier.compressorReleaseMaxMs,
-              onChanged: enabled && compressor.enabled
-                  ? (value) => ref
-                        .read(equalizerProvider.notifier)
-                        .setCompressorReleaseMs(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.volume2,
-              label: 'Makeup Gain',
-              valueLabel:
-                  '${compressor.makeupGainDb >= 0 ? '+' : ''}${compressor.makeupGainDb.toStringAsFixed(1)} dB',
-              value: compressor.makeupGainDb,
-              min: EqualizerNotifier.gainMinDb,
-              max: EqualizerNotifier.gainMaxDb,
-              onChanged: enabled && compressor.enabled
-                  ? (value) => ref
-                        .read(equalizerProvider.notifier)
-                        .setCompressorMakeupGainDb(value)
-                  : null,
+            Wrap(
+              spacing: AppConstants.spacingMd,
+              runSpacing: AppConstants.spacingLg,
+              alignment: WrapAlignment.center,
+              children: [
+                _LabeledKnob(
+                  icon: LucideIcons.arrowDownWideNarrow,
+                  label: 'Threshold',
+                  valueLabel:
+                      '${compressor.thresholdDb.toStringAsFixed(1)} dB',
+                  value: compressor.thresholdDb,
+                  min: EqualizerNotifier.compressorThresholdMinDb,
+                  max: EqualizerNotifier.compressorThresholdMaxDb,
+                  onChanged: enabled && compressor.enabled
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setCompressorThresholdDb(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.ratio,
+                  label: 'Ratio',
+                  valueLabel: '${compressor.ratio.toStringAsFixed(1)}:1',
+                  value: compressor.ratio,
+                  min: EqualizerNotifier.compressorRatioMin,
+                  max: EqualizerNotifier.compressorRatioMax,
+                  onChanged: enabled && compressor.enabled
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setCompressorRatio(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.timer,
+                  label: 'Attack',
+                  valueLabel: '${compressor.attackMs.toStringAsFixed(0)} ms',
+                  value: compressor.attackMs,
+                  min: EqualizerNotifier.compressorAttackMinMs,
+                  max: EqualizerNotifier.compressorAttackMaxMs,
+                  onChanged: enabled && compressor.enabled
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setCompressorAttackMs(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.timerReset,
+                  label: 'Release',
+                  valueLabel:
+                      '${compressor.releaseMs.toStringAsFixed(0)} ms',
+                  value: compressor.releaseMs,
+                  min: EqualizerNotifier.compressorReleaseMinMs,
+                  max: EqualizerNotifier.compressorReleaseMaxMs,
+                  onChanged: enabled && compressor.enabled
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setCompressorReleaseMs(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.volume2,
+                  label: 'Makeup',
+                  valueLabel:
+                      '${compressor.makeupGainDb >= 0 ? '+' : ''}${compressor.makeupGainDb.toStringAsFixed(1)} dB',
+                  value: compressor.makeupGainDb,
+                  min: EqualizerNotifier.gainMinDb,
+                  max: EqualizerNotifier.gainMaxDb,
+                  onChanged: enabled && compressor.enabled
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setCompressorMakeupGainDb(value)
+                      : null,
+                ),
+              ],
             ),
           ],
         ),
@@ -3196,47 +3123,52 @@ class _DynamicsSection extends ConsumerWidget {
           onToggleChanged: (value) =>
               ref.read(equalizerProvider.notifier).setLimiterEnabled(value),
           children: [
-            _LabeledSlider(
-              icon: LucideIcons.gauge,
-              label: 'Input Gain',
-              valueLabel:
-                  '${limiter.inputGainDb >= 0 ? '+' : ''}${limiter.inputGainDb.toStringAsFixed(1)} dB',
-              value: limiter.inputGainDb,
-              min: EqualizerNotifier.limiterInputGainMinDb,
-              max: EqualizerNotifier.limiterInputGainMaxDb,
-              onChanged: enabled && limiter.enabled
-                  ? (value) => ref
-                        .read(equalizerProvider.notifier)
-                        .setLimiterInputGainDb(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.alignEndVertical,
-              label: 'Ceiling',
-              valueLabel: '${limiter.ceilingDb.toStringAsFixed(1)} dB',
-              value: limiter.ceilingDb,
-              min: EqualizerNotifier.limiterCeilingMinDb,
-              max: EqualizerNotifier.limiterCeilingMaxDb,
-              onChanged: enabled && limiter.enabled
-                  ? (value) => ref
-                        .read(equalizerProvider.notifier)
-                        .setLimiterCeilingDb(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.timerReset,
-              label: 'Release',
-              valueLabel: '${limiter.releaseMs.toStringAsFixed(0)} ms',
-              value: limiter.releaseMs,
-              min: EqualizerNotifier.limiterReleaseMinMs,
-              max: EqualizerNotifier.limiterReleaseMaxMs,
-              onChanged: enabled && limiter.enabled
-                  ? (value) => ref
-                        .read(equalizerProvider.notifier)
-                        .setLimiterReleaseMs(value)
-                  : null,
+            Wrap(
+              spacing: AppConstants.spacingMd,
+              runSpacing: AppConstants.spacingLg,
+              alignment: WrapAlignment.center,
+              children: [
+                _LabeledKnob(
+                  icon: LucideIcons.gauge,
+                  label: 'Input Gain',
+                  valueLabel:
+                      '${limiter.inputGainDb >= 0 ? '+' : ''}${limiter.inputGainDb.toStringAsFixed(1)} dB',
+                  value: limiter.inputGainDb,
+                  min: EqualizerNotifier.limiterInputGainMinDb,
+                  max: EqualizerNotifier.limiterInputGainMaxDb,
+                  onChanged: enabled && limiter.enabled
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setLimiterInputGainDb(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.alignEndVertical,
+                  label: 'Ceiling',
+                  valueLabel: '${limiter.ceilingDb.toStringAsFixed(1)} dB',
+                  value: limiter.ceilingDb,
+                  min: EqualizerNotifier.limiterCeilingMinDb,
+                  max: EqualizerNotifier.limiterCeilingMaxDb,
+                  onChanged: enabled && limiter.enabled
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setLimiterCeilingDb(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.timerReset,
+                  label: 'Release',
+                  valueLabel: '${limiter.releaseMs.toStringAsFixed(0)} ms',
+                  value: limiter.releaseMs,
+                  min: EqualizerNotifier.limiterReleaseMinMs,
+                  max: EqualizerNotifier.limiterReleaseMaxMs,
+                  onChanged: enabled && limiter.enabled
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setLimiterReleaseMs(value)
+                      : null,
+                ),
+              ],
             ),
           ],
         ),
@@ -3348,123 +3280,129 @@ class _CreativeFxSection extends ConsumerWidget {
           onToggleChanged: (value) =>
               ref.read(equalizerProvider.notifier).setFxEnabled(value),
           children: [
-            _LabeledSlider(
-              icon: LucideIcons.slidersHorizontal,
-              label: 'Balance',
-              valueLabel: _balanceLabel(fx.balance),
-              value: fx.balance,
-              min: EqualizerNotifier.fxBalanceMin,
-              max: EqualizerNotifier.fxBalanceMax,
-              onChanged: editable
-                  ? (value) =>
-                        ref.read(equalizerProvider.notifier).setFxBalance(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.timer,
-              label: 'Tempo',
-              valueLabel: '${fx.tempo.toStringAsFixed(2)}x',
-              value: fx.tempo,
-              min: EqualizerNotifier.fxTempoMin,
-              max: EqualizerNotifier.fxTempoMax,
-              onChanged: editable
-                  ? (value) =>
-                        ref.read(equalizerProvider.notifier).setFxTempo(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.activity,
-              label: 'Damp',
-              valueLabel: _percentLabel(fx.damp),
-              value: fx.damp,
-              min: EqualizerNotifier.fxDampMin,
-              max: EqualizerNotifier.fxDampMax,
-              onChanged: editable
-                  ? (value) =>
-                        ref.read(equalizerProvider.notifier).setFxDamp(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.funnel,
-              label: 'Filter',
-              valueLabel: _hzLabel(fx.filterHz),
-              value: _hzToT(fx.filterHz),
-              min: 0.0,
-              max: 1.0,
-              onChanged: editable
-                  ? (value) => ref
-                        .read(equalizerProvider.notifier)
-                        .setFxFilterHz(_tToHz(value))
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.timerReset,
-              label: 'Delays',
-              valueLabel: '${fx.delayMs.toStringAsFixed(0)} ms',
-              value: fx.delayMs,
-              min: EqualizerNotifier.fxDelayMinMs,
-              max: EqualizerNotifier.fxDelayMaxMs,
-              onChanged: editable
-                  ? (value) =>
-                        ref.read(equalizerProvider.notifier).setFxDelayMs(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.scanSearch,
-              label: 'Size',
-              valueLabel: _percentLabel(fx.size),
-              value: fx.size,
-              min: EqualizerNotifier.fxSizeMin,
-              max: EqualizerNotifier.fxSizeMax,
-              onChanged: editable
-                  ? (value) =>
-                        ref.read(equalizerProvider.notifier).setFxSize(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.audioLines,
-              label: 'Mix',
-              valueLabel: _percentLabel(fx.mix),
-              value: fx.mix,
-              min: EqualizerNotifier.fxMixMin,
-              max: EqualizerNotifier.fxMixMax,
-              onChanged: editable
-                  ? (value) =>
-                        ref.read(equalizerProvider.notifier).setFxMix(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.rotateCcw,
-              label: 'Feedback',
-              valueLabel: _percentLabel(fx.feedback),
-              value: fx.feedback,
-              min: EqualizerNotifier.fxFeedbackMin,
-              max: EqualizerNotifier.fxFeedbackMax,
-              onChanged: editable
-                  ? (value) => ref
-                        .read(equalizerProvider.notifier)
-                        .setFxFeedback(value)
-                  : null,
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _LabeledSlider(
-              icon: LucideIcons.gitBranchPlus,
-              label: 'Width',
-              valueLabel: _widthLabel(fx.width),
-              value: fx.width,
-              min: EqualizerNotifier.fxWidthMin,
-              max: EqualizerNotifier.fxWidthMax,
-              onChanged: editable
-                  ? (value) =>
-                        ref.read(equalizerProvider.notifier).setFxWidth(value)
-                  : null,
+            Wrap(
+              spacing: AppConstants.spacingMd,
+              runSpacing: AppConstants.spacingLg,
+              alignment: WrapAlignment.center,
+              children: [
+                _LabeledKnob(
+                  icon: LucideIcons.slidersHorizontal,
+                  label: 'Balance',
+                  valueLabel: _balanceLabel(fx.balance),
+                  value: fx.balance,
+                  min: EqualizerNotifier.fxBalanceMin,
+                  max: EqualizerNotifier.fxBalanceMax,
+                  onChanged: editable
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setFxBalance(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.timer,
+                  label: 'Tempo',
+                  valueLabel: '${fx.tempo.toStringAsFixed(2)}x',
+                  value: fx.tempo,
+                  min: EqualizerNotifier.fxTempoMin,
+                  max: EqualizerNotifier.fxTempoMax,
+                  onChanged: editable
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setFxTempo(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.activity,
+                  label: 'Damp',
+                  valueLabel: _percentLabel(fx.damp),
+                  value: fx.damp,
+                  min: EqualizerNotifier.fxDampMin,
+                  max: EqualizerNotifier.fxDampMax,
+                  onChanged: editable
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setFxDamp(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.funnel,
+                  label: 'Filter',
+                  valueLabel: _hzLabel(fx.filterHz),
+                  value: _hzToT(fx.filterHz),
+                  min: 0.0,
+                  max: 1.0,
+                  onChanged: editable
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setFxFilterHz(_tToHz(value))
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.timerReset,
+                  label: 'Delays',
+                  valueLabel: '${fx.delayMs.toStringAsFixed(0)} ms',
+                  value: fx.delayMs,
+                  min: EqualizerNotifier.fxDelayMinMs,
+                  max: EqualizerNotifier.fxDelayMaxMs,
+                  onChanged: editable
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setFxDelayMs(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.scanSearch,
+                  label: 'Size',
+                  valueLabel: _percentLabel(fx.size),
+                  value: fx.size,
+                  min: EqualizerNotifier.fxSizeMin,
+                  max: EqualizerNotifier.fxSizeMax,
+                  onChanged: editable
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setFxSize(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.audioLines,
+                  label: 'Mix',
+                  valueLabel: _percentLabel(fx.mix),
+                  value: fx.mix,
+                  min: EqualizerNotifier.fxMixMin,
+                  max: EqualizerNotifier.fxMixMax,
+                  onChanged: editable
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setFxMix(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.rotateCcw,
+                  label: 'Feedback',
+                  valueLabel: _percentLabel(fx.feedback),
+                  value: fx.feedback,
+                  min: EqualizerNotifier.fxFeedbackMin,
+                  max: EqualizerNotifier.fxFeedbackMax,
+                  onChanged: editable
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setFxFeedback(value)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.gitBranchPlus,
+                  label: 'Width',
+                  valueLabel: _widthLabel(fx.width),
+                  value: fx.width,
+                  min: EqualizerNotifier.fxWidthMin,
+                  max: EqualizerNotifier.fxWidthMax,
+                  onChanged: editable
+                      ? (value) => ref
+                          .read(equalizerProvider.notifier)
+                          .setFxWidth(value)
+                      : null,
+                ),
+              ],
             ),
           ],
         ),
@@ -3529,7 +3467,8 @@ class _DynamicsCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppConstants.spacingMd),
-            ...children,
+            const SizedBox(height: AppConstants.spacingMd),
+            for (final child in children) Center(child: child),
           ],
         ),
       ),
@@ -3568,74 +3507,6 @@ class _ProcessingSupportNote extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _LabeledSlider extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String valueLabel;
-  final double value;
-  final double min;
-  final double max;
-  final ValueChanged<double>? onChanged;
-
-  const _LabeledSlider({
-    required this.icon,
-    required this.label,
-    required this.valueLabel,
-    required this.value,
-    this.min = 0.0,
-    this.max = 1.0,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onChanged != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              icon,
-              size: context.responsiveIcon(AppConstants.iconSizeSm),
-              color: enabled
-                  ? context.adaptiveTextSecondary
-                  : context.adaptiveTextTertiary,
-            ),
-            const SizedBox(width: AppConstants.spacingSm),
-            Expanded(
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: enabled
-                      ? context.adaptiveTextSecondary
-                      : context.adaptiveTextTertiary,
-                ),
-              ),
-            ),
-            _ValueBadge(value: valueLabel),
-          ],
-        ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            activeTrackColor: context.adaptiveTextPrimary,
-            inactiveTrackColor: AppColors.glassBorderStrong,
-            thumbColor: context.adaptiveTextPrimary,
-            overlayColor: context.adaptiveTextPrimary.withValues(alpha: 0.08),
-          ),
-          child: Slider(
-            value: value.clamp(min, max).toDouble(),
-            min: min,
-            max: max,
-            onChanged: onChanged,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -4131,134 +4002,4 @@ class _Divider extends StatelessWidget {
   }
 }
 
-class _MiniEqGraphPreview extends ConsumerWidget {
-  const _MiniEqGraphPreview();
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(eqEnabledProvider);
-    final mode = ref.watch(eqModeProvider);
-
-    final lineColor = enabled
-        ? AppColors.textPrimary
-        : AppColors.textTertiary;
-
-    final List<({double x, double db})> points;
-    if (mode == EqMode.graphic) {
-      final freqs = EqualizerState.defaultGraphicFrequenciesHz;
-      final gains = List<double>.generate(
-        freqs.length,
-        (i) => ref.watch(eqGraphicGainDbProvider(i)),
-        growable: false,
-      );
-      points = equtils.buildGraphicCurvePoints(
-        freqs: freqs,
-        gains: gains,
-        sampleCount: 96,
-      );
-    } else {
-      final bandCount = ref.watch(equalizerProvider).parametricBands.length;
-      final bands = List<ParametricBand>.generate(
-        bandCount,
-        (i) => ref.watch(eqParamBandProvider(i)),
-        growable: false,
-      );
-      points = equtils.buildParametricCurvePoints(
-        bands: bands,
-        sampleCount: 96,
-      );
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return CustomPaint(
-          size: Size(constraints.maxWidth, constraints.maxHeight),
-          painter: _MiniEqGraphPainter(
-            points: points,
-            lineColor: lineColor,
-            fillColor: lineColor.withValues(alpha: 0.15),
-            glowColor: lineColor.withValues(alpha: 0.35),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _MiniEqGraphPainter extends CustomPainter {
-  final List<({double x, double db})> points;
-  final Color lineColor;
-  final Color fillColor;
-  final Color glowColor;
-
-  _MiniEqGraphPainter({
-    required this.points,
-    required this.lineColor,
-    required this.fillColor,
-    required this.glowColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.isEmpty) return;
-
-    final width = size.width;
-    final height = size.height;
-
-    double mapX(double x) {
-      return ((x - equtils.eqLogMin) /
-              (equtils.eqLogMax - equtils.eqLogMin)) *
-          width;
-    }
-
-    double mapY(double db) {
-      final t = ((db - equtils.eqMinDb) /
-              (equtils.eqMaxDb - equtils.eqMinDb))
-          .clamp(0.0, 1.0);
-      return height - t * height;
-    }
-
-    final path = Path();
-    path.moveTo(mapX(points.first.x), mapY(points.first.db));
-    for (var i = 1; i < points.length; i++) {
-      path.lineTo(mapX(points[i].x), mapY(points[i].db));
-    }
-
-    final fillPath = Path.from(path);
-    fillPath.lineTo(width, height);
-    fillPath.lineTo(0, height);
-    fillPath.close();
-
-    // Fill
-    canvas.drawPath(fillPath, Paint()..color = fillColor);
-
-    // Glow stroke
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = glowColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4.0
-        ..isAntiAlias = true
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0),
-    );
-
-    // Main stroke
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = lineColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0
-        ..isAntiAlias = true,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniEqGraphPainter old) {
-    return old.points != points ||
-        old.lineColor != lineColor ||
-        old.fillColor != fillColor ||
-        old.glowColor != glowColor;
-  }
-}

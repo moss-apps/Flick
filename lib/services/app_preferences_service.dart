@@ -45,6 +45,8 @@ class AppPreferences {
   final String leftActionButton;
   final String rightActionButton;
   final bool welcomeCardDismissed;
+  final bool replaceAlbumWithBitPerfectCapsule;
+  final int folderGridPageSize;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -91,6 +93,8 @@ class AppPreferences {
     this.leftActionButton = 'lyrics',
     this.rightActionButton = 'favorites',
     this.welcomeCardDismissed = false,
+    this.replaceAlbumWithBitPerfectCapsule = false,
+    this.folderGridPageSize = 8,
   });
 
   AppPreferences copyWith({
@@ -138,6 +142,8 @@ class AppPreferences {
     String? leftActionButton,
     String? rightActionButton,
     bool? welcomeCardDismissed,
+    bool? replaceAlbumWithBitPerfectCapsule,
+    int? folderGridPageSize,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -198,6 +204,9 @@ class AppPreferences {
       leftActionButton: leftActionButton ?? this.leftActionButton,
       rightActionButton: rightActionButton ?? this.rightActionButton,
       welcomeCardDismissed: welcomeCardDismissed ?? this.welcomeCardDismissed,
+      replaceAlbumWithBitPerfectCapsule: replaceAlbumWithBitPerfectCapsule ??
+          this.replaceAlbumWithBitPerfectCapsule,
+      folderGridPageSize: folderGridPageSize ?? this.folderGridPageSize,
     );
   }
 }
@@ -247,6 +256,9 @@ class AppPreferencesService {
   static const _leftActionButtonKey = 'left_action_button';
   static const _rightActionButtonKey = 'right_action_button';
   static const _welcomeCardDismissedKey = 'welcome_card_dismissed';
+  static const _replaceAlbumWithBitPerfectCapsuleKey =
+      'replace_album_with_bit_perfect_capsule';
+  static const _folderGridPageSizeKey = 'folder_grid_page_size';
 
   Future<AppPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -313,6 +325,9 @@ class AppPreferencesService {
       rightActionButton:
           prefs.getString(_rightActionButtonKey) ?? 'favorites',
       welcomeCardDismissed: prefs.getBool(_welcomeCardDismissedKey) ?? false,
+      replaceAlbumWithBitPerfectCapsule:
+          prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false,
+      folderGridPageSize: prefs.getInt(_folderGridPageSizeKey) ?? 8,
     );
   }
 
@@ -704,5 +719,25 @@ class AppPreferencesService {
   Future<void> setWelcomeCardDismissed(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_welcomeCardDismissedKey, value);
+  }
+
+  Future<bool> getReplaceAlbumWithBitPerfectCapsule() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false;
+  }
+
+  Future<void> setReplaceAlbumWithBitPerfectCapsule(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_replaceAlbumWithBitPerfectCapsuleKey, value);
+  }
+
+  Future<int> getFolderGridPageSize() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_folderGridPageSizeKey) ?? 8;
+  }
+
+  Future<void> setFolderGridPageSize(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_folderGridPageSizeKey, value);
   }
 }

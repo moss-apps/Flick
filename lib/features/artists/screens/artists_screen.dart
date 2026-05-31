@@ -74,22 +74,14 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
 
   void _openArtistDetail(String artistName, List<Song> songs) {
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            ArtistDetailScreen(
-              artistName: artistName,
-              songs: songs,
-              artistArt: _getArtistArt(songs),
-              artistArtSourcePath: _getArtworkSourcePath(songs),
-              playerService: _playerService,
-            ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          if (AppConstants.animationNormal == Duration.zero) {
-            return child;
-          }
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: AppConstants.animationNormal,
+      MaterialPageRoute<void>(
+        builder: (_) => ArtistDetailScreen(
+          artistName: artistName,
+          songs: songs,
+          artistArt: _getArtistArt(songs),
+          artistArtSourcePath: _getArtworkSourcePath(songs),
+          playerService: _playerService,
+        ),
       ),
     );
   }

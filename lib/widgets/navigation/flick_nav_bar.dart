@@ -9,6 +9,7 @@ import 'package:flick/models/nav_bar_config.dart';
 class FlickNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final VoidCallback? onBottomBarSettings;
   final bool showMiniPlayer;
   final Widget? miniPlayerWidget;
   final NavBarConfig config;
@@ -17,6 +18,7 @@ class FlickNavBar extends StatelessWidget {
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.onBottomBarSettings,
     required this.config,
     this.showMiniPlayer = false,
     this.miniPlayerWidget,
@@ -82,44 +84,48 @@ class FlickNavBar extends StatelessWidget {
     final missingEssentials = config.missingEssentials;
     final isOnMissingEssential = missingEssentials.any((b) => b.pageIndex == currentIndex);
 
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: itemPadding,
-        vertical: context.scaleSize(AppConstants.spacingXs) * config.barSizeFactor,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          ...List.generate(
-            buttons.length,
-            (index) {
-              final button = buttons[index];
-              return Expanded(
+    return GestureDetector(
+      onLongPress: onBottomBarSettings,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: itemPadding,
+          vertical: context.scaleSize(AppConstants.spacingXs) * config.barSizeFactor,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            ...List.generate(
+              buttons.length,
+              (index) {
+                final button = buttons[index];
+                return Expanded(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: minTapTargetSize),
+                    child: _FlickNavItem(
+                      button: button,
+                      isSelected: currentIndex == button.pageIndex,
+                      config: config,
+                      onTap: () => onTap(button.pageIndex),
+                    ),
+                  ),
+                );
+              },
+            ),
+            if (missingEssentials.isNotEmpty)
+              Expanded(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: minTapTargetSize),
-                  child: _FlickNavItem(
-                    button: button,
-                    isSelected: currentIndex == button.pageIndex,
+                  child: _OverflowNavItem(
+                    isSelected: isOnMissingEssential,
                     config: config,
-                    onTap: () => onTap(button.pageIndex),
+                    missingButtons: missingEssentials,
+                    onSelect: (button) => onTap(button.pageIndex),
+                    onBottomBarSettings: onBottomBarSettings,
                   ),
                 ),
-              );
-            },
-          ),
-          if (missingEssentials.isNotEmpty)
-            Expanded(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: minTapTargetSize),
-                child: _OverflowNavItem(
-                  isSelected: isOnMissingEssential,
-                  config: config,
-                  missingButtons: missingEssentials,
-                  onSelect: (button) => onTap(button.pageIndex),
-                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -130,12 +136,14 @@ class _OverflowNavItem extends StatelessWidget {
   final NavBarConfig config;
   final List<NavBarButton> missingButtons;
   final ValueChanged<NavBarButton> onSelect;
+  final VoidCallback? onBottomBarSettings;
 
   const _OverflowNavItem({
     required this.isSelected,
     required this.config,
     required this.missingButtons,
     required this.onSelect,
+    this.onBottomBarSettings,
   });
 
   @override
@@ -204,7 +212,9 @@ class _OverflowNavItem extends StatelessWidget {
 
     final menuWidth = 180.0;
     final itemHeight = 48.0;
-    final totalHeight = itemHeight * missingButtons.length + 8.0;
+    final totalHeight = itemHeight * missingButtons.length +
+        (onBottomBarSettings != null ? itemHeight + 1 : 0) +
+        8.0;
 
     final left = (offset.dx + size.width / 2 - menuWidth / 2).clamp(8.0, MediaQuery.of(context).size.width - menuWidth - 8.0);
     final top = offset.dy - totalHeight - 8.0;
@@ -225,6 +235,7 @@ class _OverflowNavItem extends StatelessWidget {
           onSelect(button);
         },
         onDismiss: removeEntry,
+        onBottomBarSettings: onBottomBarSettings,
       ),
     );
 
@@ -239,6 +250,7 @@ class _OverflowMenuPopup extends StatefulWidget {
   final List<NavBarButton> missingButtons;
   final ValueChanged<NavBarButton> onSelect;
   final VoidCallback onDismiss;
+  final VoidCallback? onBottomBarSettings;
 
   const _OverflowMenuPopup({
     required this.left,
@@ -247,6 +259,7 @@ class _OverflowMenuPopup extends StatefulWidget {
     required this.missingButtons,
     required this.onSelect,
     required this.onDismiss,
+    this.onBottomBarSettings,
   });
 
   @override
@@ -337,37 +350,80 @@ class _OverflowMenuPopupState extends State<_OverflowMenuPopup>
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: widget.missingButtons.map((button) {
-                      return GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _animateOutThen(() {
-                          widget.onSelect(button);
-                          widget.onDismiss();
-                        }),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          child: Row(
-                            children: [
-                              Icon(button.icon, size: 20, color: AppColors.textSecondary),
-                              const SizedBox(width: 12),
-                              Flexible(
-                                child: Text(
-                                  button.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontFamily: 'ProductSans',
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textPrimary,
+                    children: [
+                      ...widget.missingButtons.map((button) {
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _animateOutThen(() {
+                            widget.onSelect(button);
+                            widget.onDismiss();
+                          }),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            child: Row(
+                              children: [
+                                Icon(button.icon, size: 20, color: AppColors.textSecondary),
+                                const SizedBox(width: 12),
+                                Flexible(
+                                  child: Text(
+                                    button.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontFamily: 'ProductSans',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textPrimary,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                      if (widget.onBottomBarSettings != null) ...[
+                        Divider(
+                          height: 1,
+                          color: AppColors.glassBorder,
+                          indent: 12,
+                          endIndent: 12,
+                        ),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _animateOutThen(() {
+                            widget.onBottomBarSettings!();
+                            widget.onDismiss();
+                          }),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  LucideIcons.settings,
+                                  size: 20,
+                                  color: AppColors.accent.withValues(alpha: 0.85),
+                                ),
+                                const SizedBox(width: 12),
+                                Flexible(
+                                  child: Text(
+                                    'Customize Bottom Bar',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: 'ProductSans',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.accent.withValues(alpha: 0.85),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      );
-                    }).toList(),
+                      ],
+                    ],
                   ),
                 ),
               ),

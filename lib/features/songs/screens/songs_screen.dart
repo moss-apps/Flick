@@ -21,6 +21,7 @@ import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Main songs screen with orbital scrolling.
@@ -36,8 +37,10 @@ class SongsScreen extends ConsumerStatefulWidget {
 
 class _SongsScreenState extends ConsumerState<SongsScreen> {
   static const double _listItemExtent = 80;
-  static const int _folderGridPageSize = 18;
-  static const double _folderGridLoadMoreThreshold = 320;
+
+  static const int _defaultFolderGridPageSize = 8;
+  static const int _minFolderGridPageSize = 1;
+  static const int _maxFolderGridPageSize = 30;
   static const int _listPageSize = 50;
   static const double _listLoadMoreThreshold = 320;
 
@@ -54,9 +57,10 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
   bool _alignedCurrentSongAfterLoad = false;
   Timer? _fastIndexTimer;
   bool _fastIndexVisible = true;
-  int _visibleFolderCount = _folderGridPageSize;
+  int _visibleFolderCount = _defaultFolderGridPageSize;
   int _totalFolderCount = 0;
   String _folderPaginationSignature = '';
+  bool _wasInFolderMode = false;
   int _visibleListCount = _listPageSize;
   String _listPaginationSignature = '';
   bool _selectionMode = false;
@@ -123,10 +127,8 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
                   duration: AppConstants.animationNormal,
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  ),
+                  transitionBuilder: (child, animation) =>
+                      FadeTransition(opacity: animation, child: child),
                   child: _selectionMode
                       ? KeyedSubtree(
                           key: const ValueKey('selection_header'),
@@ -213,7 +215,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
                       _cachedDisplaySongs = songs;
 
                       if (!isFolderMode) {
-                        final sig = '${songs.length}:${songs.isNotEmpty ? songs.first.id : ''}';
+                        _wasInFolderMode = false;
+                        final sig =
+                            '${songs.length}:${songs.isNotEmpty ? songs.first.id : ''}';
                         if (sig != _listPaginationSignature) {
                           _listPaginationSignature = sig;
                           _resetListPagination();
@@ -229,6 +233,11 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
                       }
 
                       if (isFolderMode) {
+                        if (!_wasInFolderMode) {
+                          _wasInFolderMode = true;
+                          _visibleFolderCount = _getFolderPageSize();
+                          _folderPaginationSignature = '';
+                        }
                         final folderGroups = songsState.folderGroups;
                         if (_searchQuery.isNotEmpty) {
                           final filteredGroups = <FolderGroup>[];
@@ -296,7 +305,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
                   duration: AppConstants.animationNormal,
                   curve: Curves.easeOutCubic,
                   height: shouldReserveOrbitBottomSpace
-                      ? AppConstants.navBarHeight + 90
+                      ? AppConstants.navBarHeight + AppConstants.spacingLg
                       : 0,
                 ),
               ],
@@ -443,63 +452,72 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
       duration: AppConstants.animationNormal,
       curve: Curves.easeOutCubic,
       padding: EdgeInsets.only(right: rightPadding),
-      child: ListView.builder(
-        controller: _listScrollController,
-        itemExtent: _listItemExtent,
-        addAutomaticKeepAlives: false,
-        padding: const EdgeInsets.fromLTRB(
-          AppConstants.spacingLg,
-          0,
-          0,
-          AppConstants.navBarHeight + 120,
-        ),
-        itemCount: _visibleListCount,
-        itemBuilder: (context, index) {
-          if (index >= songs.length) return const SizedBox.shrink();
-          final song = songs[index];
-          final isSelected = index == _selectedIndex;
-          final isMultiSelected = _selectedIds.contains(song.id);
-
-          return Padding(
-            key: ValueKey(song.id),
-            padding: const EdgeInsets.only(bottom: AppConstants.spacingSm),
-            child: _QueueSwipeListItem(
-              swipeActionsEnabled: swipeActionsEnabled && !_selectionMode,
-              onQueued: () async {
-                await _queueSong(song);
-              },
-              onFavorited: () async {
-                await _favoriteSong(song);
-              },
-              child: _SongListTile(
-                song: song,
-                isSelected: isSelected,
-                isSelectionMode: _selectionMode,
-                isMultiSelected: isMultiSelected,
-                onTap: () async {
-                  if (_selectionMode) {
-                    _toggleSelection(song.id);
-                    return;
-                  }
-                  setState(() {
-                    _selectedIndex = index;
-                  });
-                  _syncSelectedTokenForIndex(songs, index);
-                  await _playSongAndOpenPlayer(songs: songs, index: index);
-                },
-                onLongPress: () {
-                  if (_selectionMode) {
-                    _toggleSelection(song.id);
-                  } else {
-                    SongActionsBottomSheet.show(
-                      context,
-                      song,
-                      onSelect: () => _enterSelectionMode(song.id),
-                    );
-                  }
-                },
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final totalItemHeight = songs.length * _listItemExtent;
+          final needsScroll = totalItemHeight > constraints.maxHeight;
+          final bottomPadding = needsScroll
+              ? AppConstants.navBarHeight + 120
+              : AppConstants.navBarHeight + AppConstants.spacingLg;
+          return ListView.builder(
+            controller: _listScrollController,
+            itemExtent: _listItemExtent,
+            addAutomaticKeepAlives: false,
+            padding: EdgeInsets.fromLTRB(
+              AppConstants.spacingLg,
+              0,
+              0,
+              bottomPadding,
             ),
+            itemCount: _visibleListCount,
+            itemBuilder: (context, index) {
+              if (index >= songs.length) return const SizedBox.shrink();
+              final song = songs[index];
+              final isSelected = index == _selectedIndex;
+              final isMultiSelected = _selectedIds.contains(song.id);
+
+              return Padding(
+                key: ValueKey(song.id),
+                padding: const EdgeInsets.only(bottom: AppConstants.spacingSm),
+                child: _QueueSwipeListItem(
+                  swipeActionsEnabled: swipeActionsEnabled && !_selectionMode,
+                  onQueued: () async {
+                    await _queueSong(song);
+                  },
+                  onFavorited: () async {
+                    await _favoriteSong(song);
+                  },
+                  child: _SongListTile(
+                    song: song,
+                    isSelected: isSelected,
+                    isSelectionMode: _selectionMode,
+                    isMultiSelected: isMultiSelected,
+                    onTap: () async {
+                      if (_selectionMode) {
+                        _toggleSelection(song.id);
+                        return;
+                      }
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+                      _syncSelectedTokenForIndex(songs, index);
+                      await _playSongAndOpenPlayer(songs: songs, index: index);
+                    },
+                    onLongPress: () {
+                      if (_selectionMode) {
+                        _toggleSelection(song.id);
+                      } else {
+                        SongActionsBottomSheet.show(
+                          context,
+                          song,
+                          onSelect: () => _enterSelectionMode(song.id),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -544,26 +562,24 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
           ),
         ),
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppConstants.spacingLg,
-              0,
-              AppConstants.spacingLg,
-              AppConstants.navBarHeight + 120,
-            ),
-            child: hasMore
-                ? _FolderLoadMoreIndicator(
+          child: hasMore || visibleCount > _getFolderPageSize()
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppConstants.spacingLg,
+                    0,
+                    AppConstants.spacingLg,
+                    AppConstants.navBarHeight + 120,
+                  ),
+                  child: _FolderLoadMoreIndicator(
                     visibleCount: visibleCount,
                     totalCount: folders.length,
-                  )
-                : visibleCount > _folderGridPageSize
-                ? _FolderLoadMoreIndicator(
-                    visibleCount: visibleCount,
-                    totalCount: folders.length,
-                    isComplete: true,
-                  )
-                : const SizedBox.shrink(),
-          ),
+                    isComplete: !hasMore && visibleCount > _getFolderPageSize(),
+                    onLoadMore: hasMore ? _loadMoreFolders : null,
+                  ),
+                )
+              : const SizedBox(
+                  height: AppConstants.navBarHeight + AppConstants.spacingLg,
+                ),
         ),
       ],
     );
@@ -571,29 +587,18 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
 
   void _openFolderDetail(FolderGroup folder) {
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            _FolderDetailScreen(folder: folder),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          if (AppConstants.animationNormal == Duration.zero) {
-            return child;
-          }
-          const begin = Offset(0.0, 0.05);
-          const end = Offset.zero;
-          const curve = Curves.easeOutCubic;
-          final tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-        transitionDuration: AppConstants.animationNormal,
-        opaque: true,
+      MaterialPageRoute<void>(
+        builder: (_) => _FolderDetailScreen(folder: folder),
       ),
     );
+  }
+
+  int _getFolderPageSize() {
+    return ref
+        .read(appPreferencesProvider)
+        .folderGridPageSize
+        .clamp(_minFolderGridPageSize, _maxFolderGridPageSize)
+        .toInt();
   }
 
   void _syncFolderPagination(List<FolderGroup> folders) {
@@ -608,7 +613,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
 
     if (_folderPaginationSignature != signature) {
       _folderPaginationSignature = signature;
-      _visibleFolderCount = min(_folderGridPageSize, folders.length);
+      _visibleFolderCount = min(_getFolderPageSize(), folders.length);
 
       if (_folderGridScrollController.hasClients) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -622,7 +627,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
     if (_visibleFolderCount > folders.length) {
       _visibleFolderCount = folders.length;
     } else if (_visibleFolderCount == 0 && folders.isNotEmpty) {
-      _visibleFolderCount = min(_folderGridPageSize, folders.length);
+      _visibleFolderCount = min(_getFolderPageSize(), folders.length);
     }
   }
 
@@ -884,21 +889,12 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
     _showFastIndexOverlay();
     if (!_listScrollController.hasClients) return;
     final position = _listScrollController.position;
-    if (position.pixels >=
-        position.maxScrollExtent - _listLoadMoreThreshold) {
+    if (position.pixels >= position.maxScrollExtent - _listLoadMoreThreshold) {
       _loadMoreListSongs();
     }
   }
 
-  void _onFolderGridScroll() {
-    if (!_folderGridScrollController.hasClients) return;
-
-    final position = _folderGridScrollController.position;
-    if (position.pixels >=
-        position.maxScrollExtent - _folderGridLoadMoreThreshold) {
-      _loadMoreFolders();
-    }
-  }
+  void _onFolderGridScroll() {}
 
   void _loadMoreFolders() {
     if (!mounted || _visibleFolderCount >= _totalFolderCount) {
@@ -907,7 +903,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
 
     setState(() {
       _visibleFolderCount = min(
-        _visibleFolderCount + _folderGridPageSize,
+        _visibleFolderCount + _getFolderPageSize(),
         _totalFolderCount,
       );
     });
@@ -926,8 +922,12 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
   }
 
   void _resetListPagination() {
-    if (_visibleListCount != _listPageSize) {
-      _visibleListCount = _listPageSize;
+    final target = _listPageSize;
+    if (_visibleListCount != target ||
+        _visibleListCount > _cachedDisplaySongs.length) {
+      _visibleListCount = _cachedDisplaySongs.length < target
+          ? _cachedDisplaySongs.length
+          : target;
     }
   }
 
@@ -1175,6 +1175,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
         songsAsync.value?.sortOption ?? SongSortOption.albumArtist;
     final currentFilter =
         songsAsync.value?.fileTypeFilter ?? SongFileTypeFilter.all;
+    final isFolderMode = currentSort == SongSortOption.folder;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -1206,11 +1207,18 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
 
           Row(
             children: [
-              _buildHeaderIconButton(
-                context: context,
-                icon: LucideIcons.checkCheck,
-                onTap: () => _enterSelectionMode(null),
-              ),
+              if (isFolderMode)
+                _buildHeaderIconButton(
+                  context: context,
+                  icon: LucideIcons.listFilter,
+                  onTap: () => _showFolderFilterPopup(context, currentFilter),
+                )
+              else
+                _buildHeaderIconButton(
+                  context: context,
+                  icon: LucideIcons.checkCheck,
+                  onTap: () => _enterSelectionMode(null),
+                ),
               const SizedBox(width: AppConstants.spacingSm),
               _buildHeaderIconButton(
                 context: context,
@@ -1299,9 +1307,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
             child: Text(
               '$count selected',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: context.adaptiveTextPrimary,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: context.adaptiveTextPrimary,
+              ),
             ),
           ),
           if (!allSelected)
@@ -1367,6 +1375,35 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
           size: context.responsiveIcon(AppConstants.iconSizeMd),
         ),
       ),
+    );
+  }
+
+  void _showFolderFilterPopup(BuildContext context, SongFileTypeFilter currentFilter) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (sheetContext) {
+        return _FolderFilterSheet(
+          currentFilter: currentFilter,
+          folderGridPageSize: _getFolderPageSize(),
+          onFilterChanged: (filter) {
+            ref.read(songsProvider.notifier).setFileTypeFilter(filter);
+            setState(() {
+              _selectedIndex = 0;
+              _lastSyncedSong = null;
+            });
+          },
+          onPageSizeChanged: (value) {
+            ref.read(appPreferencesProvider.notifier).setFolderGridPageSize(value);
+            setState(() {
+              _visibleFolderCount = min(value, _totalFolderCount);
+              _folderPaginationSignature = '';
+            });
+          },
+        );
+      },
     );
   }
 
@@ -1483,9 +1520,7 @@ class _SongListTile extends StatelessWidget {
             children: [
               if (isSelectionMode) ...[
                 Icon(
-                  isMultiSelected
-                      ? LucideIcons.check
-                      : LucideIcons.circle,
+                  isMultiSelected ? LucideIcons.check : LucideIcons.circle,
                   color: isMultiSelected
                       ? AppColors.accent
                       : context.adaptiveTextTertiary,
@@ -2015,6 +2050,181 @@ class _ArtEntry {
   const _ArtEntry(this.art, this.source);
 }
 
+class _FolderFilterSheet extends StatefulWidget {
+  final SongFileTypeFilter currentFilter;
+  final int folderGridPageSize;
+  final ValueChanged<SongFileTypeFilter> onFilterChanged;
+  final ValueChanged<int> onPageSizeChanged;
+
+  const _FolderFilterSheet({
+    required this.currentFilter,
+    required this.folderGridPageSize,
+    required this.onFilterChanged,
+    required this.onPageSizeChanged,
+  });
+
+  @override
+  State<_FolderFilterSheet> createState() => _FolderFilterSheetState();
+}
+
+class _FolderFilterSheetState extends State<_FolderFilterSheet> {
+  late SongFileTypeFilter _selectedFilter;
+  late double _pageSize;
+
+  static const double _minPageSize = 1;
+  static const double _maxPageSize = 30;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedFilter = widget.currentFilter;
+    _pageSize = widget.folderGridPageSize.toDouble();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBottomSheetSurface(
+      maxHeightRatio: 0.55,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppConstants.spacingMd),
+                decoration: BoxDecoration(
+                  color: AppColors.textTertiary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              'FILTER BY FORMAT',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: context.adaptiveTextTertiary,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: SongFileTypeFilter.values.map((filter) {
+                final isSelected = _selectedFilter == filter;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedFilter = filter);
+                    widget.onFilterChanged(filter);
+                  },
+                  child: AnimatedContainer(
+                    duration: AppConstants.animationFast,
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.accent.withValues(alpha: 0.5)
+                            : AppColors.glassBorder,
+                        width: 1,
+                      ),
+                      color: isSelected
+                          ? AppColors.accent.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                    ),
+                    child: Text(
+                      filter.displayName,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        color: isSelected
+                            ? AppColors.accent
+                            : context.adaptiveTextPrimary,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: AppConstants.spacingLg),
+            const Divider(color: AppColors.glassBorder, height: 1),
+            const SizedBox(height: AppConstants.spacingMd),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'FOLDER LIMIT',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: context.adaptiveTextTertiary,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Folders shown per page',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.adaptiveTextTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.glassBackgroundStrong,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${_pageSize.round()}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: context.adaptiveTextSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SliderTheme(
+              data: SliderThemeData(
+                activeTrackColor: AppColors.textPrimary.withValues(alpha: 0.9),
+                inactiveTrackColor: AppColors.glassBackgroundStrong,
+                thumbColor: AppColors.textPrimary,
+                overlayColor: AppColors.textPrimary.withValues(alpha: 0.15),
+                trackHeight: 4,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+              ),
+              child: Slider(
+                value: _pageSize,
+                min: _minPageSize,
+                max: _maxPageSize,
+                divisions: (_maxPageSize - _minPageSize).round(),
+                onChanged: (value) {
+                  setState(() => _pageSize = value);
+                  widget.onPageSizeChanged(value.round());
+                },
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacingMd),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _FolderDetailScreen extends ConsumerStatefulWidget {
   final FolderGroup folder;
 
@@ -2027,6 +2237,25 @@ class _FolderDetailScreen extends ConsumerStatefulWidget {
 
 class _FolderDetailScreenState extends ConsumerState<_FolderDetailScreen> {
   late final List<_ArtEntry> _cachedArtworks;
+  SongSortOption _folderSortOption = SongSortOption.albumArtist;
+
+  List<Song> _sortedFolderSongs() {
+    return SongsState.computeSortedSongs(
+      widget.folder.songs,
+      _folderSortOption,
+      SongFileTypeFilter.all,
+    );
+  }
+
+  static const _folderSortOptions = [
+    SongSortOption.albumArtist,
+    SongSortOption.title,
+    SongSortOption.artist,
+    SongSortOption.dateAdded,
+    SongSortOption.year,
+    SongSortOption.fileType,
+    SongSortOption.genre,
+  ];
 
   @override
   void initState() {
@@ -2038,26 +2267,27 @@ class _FolderDetailScreenState extends ConsumerState<_FolderDetailScreen> {
   Widget build(BuildContext context) {
     final artworks = _cachedArtworks;
     final padded = List<_ArtEntry>.from(artworks);
-       final f = widget.folder;
-        final totalDuration = f.songs.fold<Duration>(
-          Duration.zero,
-          (sum, song) => sum + song.duration,
-        );
-        final uniqueArtists = f.songs
-            .map((song) => song.artist.trim())
-            .where((artist) => artist.isNotEmpty)
-            .toSet()
-            .length;
-        final uniqueFormats = f.songs
-            .map((song) => song.fileType.toUpperCase())
-            .where((format) => format.isNotEmpty)
-            .toSet()
-            .length;
-        final totalAlbums = f.songs
-            .map((song) => (song.album ?? '').trim())
-            .where((album) => album.isNotEmpty)
-            .toSet()
-            .length;
+    final f = widget.folder;
+    final sorted = _sortedFolderSongs();
+    final totalDuration = f.songs.fold<Duration>(
+      Duration.zero,
+      (sum, song) => sum + song.duration,
+    );
+    final uniqueArtists = f.songs
+        .map((song) => song.artist.trim())
+        .where((artist) => artist.isNotEmpty)
+        .toSet()
+        .length;
+    final uniqueFormats = f.songs
+        .map((song) => song.fileType.toUpperCase())
+        .where((format) => format.isNotEmpty)
+        .toSet()
+        .length;
+    final totalAlbums = f.songs
+        .map((song) => (song.album ?? '').trim())
+        .where((album) => album.isNotEmpty)
+        .toSet()
+        .length;
     while (padded.length < 4) {
       padded.add(const _ArtEntry(null, null));
     }
@@ -2134,9 +2364,9 @@ class _FolderDetailScreenState extends ConsumerState<_FolderDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: AppConstants.spacingSm),
-                      Text(
-                        f.name,
-                        style: Theme.of(context).textTheme.headlineMedium
+                        Text(
+                          f.name,
+                          style: Theme.of(context).textTheme.headlineMedium
                               ?.copyWith(
                                 color: context.adaptiveTextPrimary,
                                 fontWeight: FontWeight.bold,
@@ -2157,7 +2387,7 @@ class _FolderDetailScreenState extends ConsumerState<_FolderDetailScreen> {
                           children: [
                             _FolderSummaryPill(
                               icon: LucideIcons.music4,
-                               label: '${f.songs.length} tracks',
+                              label: '${f.songs.length} tracks',
                             ),
                             _FolderSummaryPill(
                               icon: LucideIcons.clock3,
@@ -2233,10 +2463,7 @@ class _FolderDetailScreenState extends ConsumerState<_FolderDetailScreen> {
                               icon: LucideIcons.play,
                               label: 'Play All',
                               emphasized: true,
-                               onTap: () => _playFolder(
-                                 f.songs.first,
-                                 f,
-                               ),
+                              onTap: () => _playFolder(sorted.first, sorted),
                             ),
                           ),
                           const SizedBox(width: AppConstants.spacingSm),
@@ -2244,7 +2471,7 @@ class _FolderDetailScreenState extends ConsumerState<_FolderDetailScreen> {
                             child: _FolderActionButton(
                               icon: LucideIcons.shuffle,
                               label: 'Shuffle',
-                               onTap: () => _shufflePlayFolder(f),
+                              onTap: () => _shufflePlayFolder(sorted),
                             ),
                           ),
                         ],
@@ -2272,9 +2499,54 @@ class _FolderDetailScreenState extends ConsumerState<_FolderDetailScreen> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  const SizedBox(width: AppConstants.spacingSm),
+                  PopupMenuButton<SongSortOption>(
+                    color: AppColors.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                    ),
+                    icon: Icon(
+                      Icons.sort_rounded,
+                      size: 18,
+                      color: context.adaptiveTextSecondary,
+                    ),
+                    onSelected: (option) {
+                      setState(() => _folderSortOption = option);
+                    },
+                    itemBuilder: (context) =>
+                        _folderSortOptions.map((option) {
+                      final isSelected = _folderSortOption == option;
+                      return PopupMenuItem<SongSortOption>(
+                        value: option,
+                        child: Row(
+                          children: [
+                            Icon(
+                              _sortIconForOption(option),
+                              size: 18,
+                              color: isSelected
+                                  ? AppColors.accent
+                                  : context.adaptiveTextSecondary,
+                            ),
+                            const SizedBox(width: AppConstants.spacingSm),
+                            Text(
+                              _sortLabelForOption(option),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight:
+                                    isSelected ? FontWeight.w600 : FontWeight.normal,
+                                color: isSelected
+                                    ? AppColors.accent
+                                    : context.adaptiveTextPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
                   const Spacer(),
-                   Text(
-                     '${f.songs.length} songs',
+                  Text(
+                    '${sorted.length} songs',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.adaptiveTextSecondary,
                     ),
@@ -2284,12 +2556,14 @@ class _FolderDetailScreenState extends ConsumerState<_FolderDetailScreen> {
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.only(
-              bottom: AppConstants.navBarHeight + 120,
+            padding: EdgeInsets.only(
+              bottom: sorted.length <= 6
+                  ? AppConstants.navBarHeight + AppConstants.spacingLg
+                  : AppConstants.navBarHeight + 120,
             ),
             sliver: SliverList(
-               delegate: SliverChildBuilderDelegate((context, index) {
-                 final song = f.songs[index];
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final song = sorted[index];
                 return Padding(
                   key: ValueKey(song.id),
                   padding: const EdgeInsets.fromLTRB(
@@ -2301,12 +2575,12 @@ class _FolderDetailScreenState extends ConsumerState<_FolderDetailScreen> {
                   child: _FolderDetailTrackTile(
                     song: song,
                     index: index,
-                     onTap: () => _playFolder(song, f),
+                    onTap: () => _playFolder(song, sorted),
                     onLongPress: () =>
                         SongActionsBottomSheet.show(context, song),
                   ),
                 );
-               }, childCount: f.songs.length),
+              }, childCount: sorted.length),
             ),
           ),
         ],
@@ -2344,27 +2618,53 @@ class _FolderDetailScreenState extends ConsumerState<_FolderDetailScreen> {
     );
   }
 
-  Future<void> _shufflePlayFolder(FolderGroup folder) async {
-    if (folder.songs.isEmpty) return;
-    final shuffled = List<Song>.from(folder.songs)..shuffle(Random());
+  Future<void> _shufflePlayFolder(List<Song> playlist) async {
+    if (playlist.isEmpty) return;
+    final shuffled = List<Song>.from(playlist)..shuffle(Random());
     await ref
         .read(playerProvider.notifier)
         .play(shuffled.first, playlist: shuffled);
     if (mounted) {
       await NavigationHelper.navigateToFullPlayer(
         context,
-        heroTag: 'folder_shuffle_${folder.key}',
+        heroTag: 'folder_shuffle_${widget.folder.key}',
       );
     }
   }
 
-  Future<void> _playFolder(Song song, FolderGroup folder) async {
-    await ref.read(playerProvider.notifier).play(song, playlist: folder.songs);
+  Future<void> _playFolder(Song song, List<Song> playlist) async {
+    await ref.read(playerProvider.notifier).play(song, playlist: playlist);
     if (mounted) {
       await NavigationHelper.navigateToFullPlayer(
         context,
         heroTag: 'folder_song_${song.id}',
       );
+    }
+  }
+
+  IconData _sortIconForOption(SongSortOption option) {
+    switch (option) {
+      case SongSortOption.albumArtist: return LucideIcons.user;
+      case SongSortOption.title: return LucideIcons.type;
+      case SongSortOption.artist: return LucideIcons.mic;
+      case SongSortOption.dateAdded: return LucideIcons.calendar;
+      case SongSortOption.fileType: return LucideIcons.file;
+      case SongSortOption.year: return LucideIcons.calendarDays;
+      case SongSortOption.genre: return LucideIcons.music;
+      default: return LucideIcons.user;
+    }
+  }
+
+  String _sortLabelForOption(SongSortOption option) {
+    switch (option) {
+      case SongSortOption.albumArtist: return 'Album Artist';
+      case SongSortOption.title: return 'Title';
+      case SongSortOption.artist: return 'Artist';
+      case SongSortOption.dateAdded: return 'Date Added';
+      case SongSortOption.fileType: return 'Format';
+      case SongSortOption.year: return 'Year';
+      case SongSortOption.genre: return 'Genre';
+      default: return option.name;
     }
   }
 
@@ -2384,11 +2684,13 @@ class _FolderLoadMoreIndicator extends StatelessWidget {
   final int visibleCount;
   final int totalCount;
   final bool isComplete;
+  final VoidCallback? onLoadMore;
 
   const _FolderLoadMoreIndicator({
     required this.visibleCount,
     required this.totalCount,
     this.isComplete = false,
+    this.onLoadMore,
   });
 
   @override
@@ -2417,15 +2719,10 @@ class _FolderLoadMoreIndicator extends StatelessWidget {
       child: Row(
         children: [
           if (!isComplete) ...[
-            SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  context.adaptiveTextSecondary,
-                ),
-              ),
+            Icon(
+              LucideIcons.chevronsDown,
+              size: 18,
+              color: context.adaptiveTextSecondary,
             ),
             const SizedBox(width: AppConstants.spacingSm),
           ],
@@ -2438,12 +2735,30 @@ class _FolderLoadMoreIndicator extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            isComplete ? 'Done' : 'Scroll for more',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.adaptiveTextTertiary,
+          if (isComplete || onLoadMore == null)
+            Text(
+              isComplete ? 'Done' : 'Scroll for more',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.adaptiveTextTertiary,
+              ),
+            )
+          else
+            TextButton(
+              onPressed: onLoadMore,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accent,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.spacingSm,
+                ),
+                minimumSize: const Size(0, 36),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Show more',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flick/core/utils/uri_display_utils.dart';
+
 import 'permission_service.dart';
 import '../data/repositories/folder_repository.dart';
 import '../data/entities/folder_entity.dart';
@@ -175,7 +177,7 @@ class MusicFolder {
   factory MusicFolder.fromJson(Map<String, dynamic> json) {
     return MusicFolder(
       uri: json['uri'] as String,
-      displayName: json['displayName'] as String,
+      displayName: decodeUriDisplayComponent(json['displayName'] as String),
       dateAdded: DateTime.fromMillisecondsSinceEpoch(json['dateAdded'] as int),
     );
   }

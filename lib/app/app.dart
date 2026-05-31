@@ -11,6 +11,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/features/songs/screens/songs_screen.dart';
 import 'package:flick/features/menu/screens/menu_screen.dart';
 import 'package:flick/features/settings/screens/settings_screen.dart';
+import 'package:flick/features/settings/screens/bottom_bar_settings_screen.dart';
 import 'package:flick/features/settings/screens/support_flick_screen.dart';
 import 'package:flick/features/albums/screens/albums_screen.dart';
 import 'package:flick/features/artists/screens/artists_screen.dart';
@@ -25,6 +26,7 @@ import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/widgets/navigation/flick_nav_bar.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
+import 'package:flick/features/onboarding/widgets/tutorial_overlay.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/glass_dialog.dart';
 import 'package:flick/models/song.dart';
@@ -88,6 +90,8 @@ class _MainShellState extends ConsumerState<MainShell>
   // even if it's beyond enabledCount (disabled essential pages).
   // Cleared once the target position is reached.
   int? _programmaticPageTarget;
+
+  int _lastHapticPage = -1;
   late final PlayerService _playerService;
 
   DateTime? _lastBackPressTime;
@@ -115,6 +119,8 @@ class _MainShellState extends ConsumerState<MainShell>
     _pageController = PageController(
       initialPage: initialPosition >= 0 ? initialPosition : 0,
     );
+    _lastHapticPage = initialPosition >= 0 ? initialPosition : 0;
+    _pageController.addListener(_onPageScroll);
     _navBarAnimationController = AnimationController(
       vsync: this,
       duration: AppConstants.animationNormal,
@@ -190,6 +196,7 @@ class _MainShellState extends ConsumerState<MainShell>
       if (newPosition < 0) {
         // Current page was removed, jump to first page in new order
         if (_pageController.hasClients && newOrder.isNotEmpty) {
+          _lastHapticPage = 0;
           _pageController.jumpToPage(0);
           ref
               .read(navigationIndexProvider.notifier)
@@ -199,6 +206,7 @@ class _MainShellState extends ConsumerState<MainShell>
       }
 
       if (oldPosition != newPosition && _pageController.hasClients) {
+        _lastHapticPage = newPosition;
         _pageController.jumpToPage(newPosition);
         ref.read(navigationIndexProvider.notifier).setIndex(currentPageIndex);
       }
@@ -229,6 +237,7 @@ class _MainShellState extends ConsumerState<MainShell>
           }
 
           _programmaticPageTarget = position;
+          _lastHapticPage = position;
           if (AppConstants.animationNormal == Duration.zero) {
             _pageController.jumpToPage(position);
           } else {
@@ -259,6 +268,11 @@ class _MainShellState extends ConsumerState<MainShell>
       _maybeOpenExternalPlayer(ref.read(currentSongProvider));
       _refreshLibraryDeletions();
       ref.read(updateCheckProvider.notifier).refreshIfOnline();
+
+      final tutorialState = ref.read(tutorialProvider);
+      if (tutorialState.autoStartPending && !tutorialState.active) {
+        ref.read(tutorialProvider.notifier).start();
+      }
     });
 
     _playerService.playbackDesyncedNotifier.addListener(
@@ -376,9 +390,21 @@ class _MainShellState extends ConsumerState<MainShell>
     _navigationIndexSubscription.close();
     _widgetSyncSubscription.close();
     unawaited(_widgetIntentHandler.detach());
+    _pageController.removeListener(_onPageScroll);
     _pageController.dispose();
     _navBarAnimationController.dispose();
     super.dispose();
+  }
+
+  void _onPageScroll() {
+    if (_programmaticPageTarget != null || !_pageController.hasClients) return;
+    final page = _pageController.page;
+    if (page == null) return;
+    final rounded = page.round();
+    if (rounded != _lastHapticPage && (page - rounded).abs() <= 0.35) {
+      _lastHapticPage = rounded;
+      AppHaptics.selection();
+    }
   }
 
   @override
@@ -536,6 +562,10 @@ class _MainShellState extends ConsumerState<MainShell>
                     final currentConfig = ref.read(navBarConfigProvider);
                     final currentOrder = _getPageOrder(currentConfig);
                     if (position < 0 || position >= currentOrder.length) return;
+                    if (_programmaticPageTarget == null && position != _lastHapticPage) {
+                      AppHaptics.selection();
+                    }
+                    _lastHapticPage = position;
                     final enabledCount = currentConfig.orderedButtons.length;
                     if (position >= enabledCount) {
                       if (_programmaticPageTarget == position) {
@@ -593,6 +623,11 @@ class _MainShellState extends ConsumerState<MainShell>
                       child: _buildUnifiedBottomBar(),
                     ),
                   ),
+                ),
+
+                // Interactive tutorial overlay
+                const Positioned.fill(
+                  child: TutorialOverlay(),
                 ),
               ],
             ),
@@ -660,6 +695,13 @@ class _MainShellState extends ConsumerState<MainShell>
         if (ref.read(navigationIndexProvider) != index) {
           ref.read(navigationIndexProvider.notifier).setIndex(index);
         }
+      },
+      onBottomBarSettings: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const BottomBarSettingsScreen(),
+          ),
+        );
       },
       showMiniPlayer: true,
       miniPlayerWidget: const _EmbeddedMiniPlayer(),

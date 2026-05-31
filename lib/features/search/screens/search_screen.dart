@@ -8,6 +8,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/providers/providers.dart';
 
@@ -212,24 +213,34 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         return ListTile(
           leading: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 48,
-              height: 48,
-              color: AppColors.surface,
-              child: song.albumArt != null
-                  ? CachedImageWidget(
-                      imagePath: song.albumArt!,
-                      fit: BoxFit.cover,
-                      useThumbnail: true,
-                      thumbnailWidth: 96,
-                      thumbnailHeight: 96,
-                    )
-                  : Icon(
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: CachedImageWidget(
+                  imagePath: song.albumArt,
+                  audioSourcePath: song.filePath,
+                  fit: BoxFit.cover,
+                  useThumbnail: true,
+                  thumbnailWidth: 96,
+                  thumbnailHeight: 96,
+                  placeholder: const ColoredBox(
+                    color: AppColors.surface,
+                    child: Icon(
                       LucideIcons.music,
-                      size: 22,
-                      color: context.adaptiveTextTertiary,
+                      color: AppColors.textTertiary,
+                      size: 18,
                     ),
-            ),
+                  ),
+                  errorWidget: const ColoredBox(
+                    color: AppColors.surface,
+                    child: Icon(
+                      LucideIcons.music,
+                      color: AppColors.textTertiary,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
           ),
           title: Text(
             song.title,
@@ -254,6 +265,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           onTap: () {
             ref.read(playerProvider.notifier).play(song, playlist: _results);
+          },
+          onLongPress: () {
+            SongActionsBottomSheet.show(context, song);
           },
         );
       },

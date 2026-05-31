@@ -129,38 +129,15 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
 
   void _openAlbumDetail(AlbumGroup album) {
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            AlbumDetailScreen(
-              albumName: album.albumName,
-              albumArtist: album.albumArtist,
-              songs: album.songs,
-              albumArt: _getAlbumArt(album.songs),
-              albumArtSourcePath: _getArtworkSourcePath(album.songs),
-              playerService: _playerService,
-            ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          if (AppConstants.animationNormal == Duration.zero) {
-            return child;
-          }
-
-          // Use SlideTransition for better performance
-          const begin = Offset(0.0, 0.05);
-          const end = Offset.zero;
-          const curve = Curves.easeOutCubic;
-
-          final tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: curve));
-
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-        transitionDuration: AppConstants.animationNormal,
-        opaque: true,
+      MaterialPageRoute<void>(
+        builder: (_) => AlbumDetailScreen(
+          albumName: album.albumName,
+          albumArtist: album.albumArtist,
+          songs: album.songs,
+          albumArt: _getAlbumArt(album.songs),
+          albumArtSourcePath: _getArtworkSourcePath(album.songs),
+          playerService: _playerService,
+        ),
       ),
     );
   }

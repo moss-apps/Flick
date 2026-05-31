@@ -9,6 +9,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/core/utils/uri_display_utils.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/providers/providers.dart';
@@ -47,7 +48,7 @@ import 'package:flick/widgets/common/display_mode_wrapper.dart';
       subfolderMap.putIfAbsent(
         fullKey,
         () => FolderGroup(
-          name: immediateFolder,
+          name: decodeUriDisplayComponent(immediateFolder),
           key: fullKey,
           folderUri: song.folderUri,
           songs: [],

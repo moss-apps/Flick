@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/utils/uri_display_utils.dart';
 import '../models/song.dart';
 import '../data/repositories/song_repository.dart';
 
@@ -117,7 +118,7 @@ class SongsState {
       songs: songs,
       sortOption: sortOption,
       fileTypeFilter: fileTypeFilter,
-      sortedSongs: _computeSortedSongs(songs, sortOption, fileTypeFilter),
+      sortedSongs: computeSortedSongs(songs, sortOption, fileTypeFilter),
       folderGroups: _computeFolderGroups(songs, sortOption, fileTypeFilter),
     );
   }
@@ -134,7 +135,7 @@ class SongsState {
     );
   }
 
-  static List<Song> _computeSortedSongs(
+  static List<Song> computeSortedSongs(
     List<Song> songs,
     SongSortOption sortOption,
     SongFileTypeFilter fileTypeFilter,
@@ -268,6 +269,10 @@ class SongsState {
   ) {
     if (folderUri == null || folderUri.isEmpty) return '';
     if (filePath == null || filePath.isEmpty) return '';
+
+    final safRelative = _extractSafRelativePath(folderUri, filePath);
+    if (safRelative != null) return safRelative;
+
     final base = folderUri.endsWith('/')
         ? folderUri.substring(0, folderUri.length - 1)
         : folderUri;
@@ -278,22 +283,55 @@ class SongsState {
     final relative = uriBase.path.isNotEmpty
         ? fileUri.path.replaceFirst(uriBase.path, '')
         : fileUri.path;
-    final withoutRoot = relative.startsWith('/') ? relative.substring(1) : relative;
-    final parts = withoutRoot.split('/');
+    final withoutRoot = relative.startsWith('/')
+        ? relative.substring(1)
+        : relative;
+    final parts = withoutRoot
+        .split('/')
+        .map(decodeUriDisplayComponent)
+        .toList();
     if (parts.length >= 2) return parts.sublist(0, parts.length - 1).join('/');
     return '';
   }
 
-  static String folderDisplayName(
-    String? folderUri,
-    String? filePath,
-  ) {
+  static String? _extractSafRelativePath(String folderUri, String filePath) {
+    final folder = Uri.tryParse(folderUri);
+    final file = Uri.tryParse(filePath);
+    if (folder == null || file == null) return null;
+    if (folder.scheme != 'content' || file.scheme != 'content') return null;
+
+    final rootId = _safPathId(folder, 'tree');
+    final documentId = _safPathId(file, 'document');
+    if (rootId == null || documentId == null) return null;
+    if (documentId != rootId && !documentId.startsWith('$rootId/')) {
+      return '';
+    }
+
+    final relativeFile = documentId == rootId
+        ? ''
+        : documentId.substring(rootId.length + 1);
+    final parts = relativeFile
+        .split('/')
+        .where((part) => part.isNotEmpty)
+        .map(decodeUriDisplayComponent)
+        .toList();
+    if (parts.length >= 2) return parts.sublist(0, parts.length - 1).join('/');
+    return '';
+  }
+
+  static String? _safPathId(Uri uri, String marker) {
+    final segments = decodedUriPathSegments(uri);
+    final index = segments.indexOf(marker);
+    if (index < 0 || index + 1 >= segments.length) return null;
+    return segments[index + 1].replaceAll('\\', '/');
+  }
+
+  static String folderDisplayName(String? folderUri, String? filePath) {
     if (folderUri == null || folderUri.isEmpty) {
       if (filePath == null) return '';
       final uri = Uri.tryParse(filePath);
       if (uri == null) return filePath;
-      final segments =
-          uri.pathSegments.where((s) => s.isNotEmpty).toList();
+      final segments = decodedUriPathSegments(uri);
       if (segments.length >= 2) {
         return segments[segments.length - 2];
       }
@@ -301,9 +339,25 @@ class SongsState {
     }
     final uri = Uri.tryParse(folderUri);
     if (uri == null) return folderUri;
-    final segments =
-        uri.pathSegments.where((s) => s.isNotEmpty).toList();
-    return segments.isNotEmpty ? segments.last : folderUri;
+    final segments = decodedUriPathSegments(uri);
+    return segments.isNotEmpty
+        ? _displayNameFromPathId(segments.last)
+        : folderUri;
+  }
+
+  static String _displayNameFromPathId(String pathId) {
+    final normalized = pathId.replaceAll('\\', '/');
+    final slashIndex = normalized.lastIndexOf('/');
+    if (slashIndex >= 0 && slashIndex + 1 < normalized.length) {
+      return normalized.substring(slashIndex + 1);
+    }
+
+    final colonIndex = normalized.lastIndexOf(':');
+    if (colonIndex >= 0 && colonIndex + 1 < normalized.length) {
+      return normalized.substring(colonIndex + 1);
+    }
+
+    return normalized;
   }
 }
 

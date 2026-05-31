@@ -32,6 +32,8 @@ import 'package:flick/providers/album_color_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
+import 'package:flick/features/player/widgets/bit_perfect_capsule.dart';
+import 'package:flick/features/player/widgets/bit_perfect_indicator.dart';
 import 'package:flick/features/player/widgets/lyrics_editor_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/online_lyrics_search_sheet.dart';
 import 'package:flick/features/player/widgets/line_seek_bar.dart';
@@ -90,6 +92,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   int _immersiveAutoFullViewDelaySeconds = 0;
   Timer? _immersiveFullViewTimer;
   final GlobalKey _usbVolumeButtonKey = GlobalKey();
+  VoidCallback? _dismissVolumePopup;
 
   @override
   void initState() {
@@ -148,6 +151,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     );
     _positionThrottleTimer?.cancel();
     _immersiveFullViewTimer?.cancel();
+    _dismissVolumePopup?.call();
+    _dismissVolumePopup = null;
     _throttledPositionNotifier.dispose();
     _dragController.dispose();
     super.dispose();
@@ -267,11 +272,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   }
 
   Future<void> _animateToNextSong() async {
+    _dismissVolumePopup?.call();
+    _dismissVolumePopup = null;
     _songTransitionDirection = 1;
     await _playerService.next();
   }
 
   Future<void> _animateToPreviousSong() async {
+    _dismissVolumePopup?.call();
+    _dismissVolumePopup = null;
     _songTransitionDirection = -1;
     await _playerService.previous();
   }
@@ -1498,6 +1507,20 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   _showSleepTimerBottomSheet(context);
                 },
               ),
+              _buildSongActionTile(
+                context: sheetContext,
+                icon: LucideIcons.share2,
+                label: 'Share',
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (_) => ShareBottomSheet(song: song),
+                  );
+                },
+              ),
             ],
             ),
           ),
@@ -1765,19 +1788,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     return null;
   }
 
-  String _getSongQuality(Song song) {
-    if (song.isDsd) return 'HQ';
-    final fileType = song.fileType.toUpperCase();
-    const lossless = {'FLAC', 'WAV', 'ALAC', 'AIFF', 'APE', 'WV'};
-    if (lossless.contains(fileType)) return 'HQ';
-    if ((song.bitDepth ?? 0) >= 24) return 'HQ';
-    if ((song.sampleRate ?? 0) >= 88200) return 'HQ';
-    final res = song.resolution?.toLowerCase() ?? '';
-    final m = RegExp(r'(\d+)\s*kbps').firstMatch(res);
-    if (m != null && (int.tryParse(m.group(1)!) ?? 0) >= 320) return 'HQ';
-    return 'SD';
-  }
-
   Widget _buildPlayerBadge(BuildContext context, String label) {
     return Container(
       padding: EdgeInsets.symmetric(
@@ -1795,34 +1805,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           fontSize: context.responsive(9.0, 10.0, 11.0),
           fontWeight: FontWeight.w600,
           color: Colors.white,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQualityBadge(BuildContext context, Song song) {
-    final isHQ = _getSongQuality(song) == 'HQ';
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: context.responsive(4.0, 5.0, 6.0),
-        vertical: 2,
-      ),
-      decoration: BoxDecoration(
-        color: isHQ
-            ? Colors.green.withValues(alpha: 0.22)
-            : Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(3),
-        border: isHQ
-            ? Border.all(color: Colors.green.withValues(alpha: 0.4))
-            : null,
-      ),
-      child: Text(
-        isHQ ? 'HQ' : 'SD',
-        style: TextStyle(
-          fontFamily: 'ProductSans',
-          fontSize: context.responsive(9.0, 10.0, 11.0),
-          fontWeight: FontWeight.w600,
-          color: isHQ ? Colors.green.shade400 : Colors.white,
         ),
       ),
     );
@@ -1915,7 +1897,21 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 ),
               ],
               SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
-              _buildQualityBadge(context, song),
+              BitPerfectIndicator(
+                song: song,
+                playerService: _playerService,
+                onTap: () {
+                  final diagnostics = ref.read(audioOutputDiagnosticsProvider);
+                  final deviceStatus = ref.read(uac2DeviceStatusProvider);
+                  BitPerfectIndicator.showInfoSheet(
+                    context,
+                    song: song,
+                    diagnostics: diagnostics,
+                    deviceStatus: deviceStatus,
+                    playerService: _playerService,
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -2376,7 +2372,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       message: 'USB Volume',
       child: GestureDetector(
         key: _usbVolumeButtonKey,
-        onTap: () => showIsoVolumePopup(context, _usbVolumeButtonKey),
+        onTap: () {
+          _dismissVolumePopup?.call();
+          _dismissVolumePopup = showIsoVolumePopup(context, _usbVolumeButtonKey);
+        },
         child: Container(
           padding: actionPadding,
           decoration: BoxDecoration(
@@ -2537,6 +2536,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               onVerticalDragEnd: (details) {
                 // If dragged down enough or with enough velocity, dismiss
                 if (_dragOffset > 100 || details.primaryVelocity! > 500) {
+                  _dismissVolumePopup?.call();
+                  _dismissVolumePopup = null;
                   Navigator.of(context).pop();
                   return;
                 }
@@ -2581,7 +2582,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   lyricsService: _lyricsService,
                   throttledPositionNotifier: _throttledPositionNotifier,
                   formatDuration: _formatDuration,
-                  onClose: () => Navigator.of(context).pop(),
+                  onClose: () {
+                    _dismissVolumePopup?.call();
+                    _dismissVolumePopup = null;
+                    Navigator.of(context).pop();
+                  },
                   onOpenQueue: () => _openQueue(context),
                   onToggleLyrics: () => _setLyricsMode(!_isLyricsMode),
                   onQueueSwipe: () => _queueSong(context, song),
@@ -3307,17 +3312,62 @@ class _AnimatedSongScene extends StatelessWidget {
                         child: _buildImmersiveSongHeader(context),
                       ),
                       if (immersiveShowFileInfo) ...[
-                        SizedBox(height: context.responsive(10.0, 12.0, 14.0)),
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: context.responsive(12.0, 16.0, 20.0),
-                          ),
-                          child: buildFileInfoRow(
-                            song,
-                            lyricsMode,
-                            playerScreenMode,
-                          ),
-                        ),
+                        Builder(builder: (context) {
+                          final diagnostics =
+                              ProviderScope.containerOf(context)
+                                  .read(audioOutputDiagnosticsProvider);
+                          final appPrefs = ProviderScope.containerOf(context)
+                              .read(appPreferencesProvider);
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (diagnostics != null &&
+                                  appPrefs.replaceAlbumWithBitPerfectCapsule) ...[
+                                SizedBox(
+                                    height: context.responsive(6.0, 8.0, 10.0)),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: context.responsive(
+                                          12.0, 16.0, 20.0)),
+                                  child: BitPerfectCapsule(
+                                    diagnostics: diagnostics,
+                                    horizontalPadding:
+                                        context.responsive(12.0, 14.0, 16.0),
+                                    verticalPadding:
+                                        context.responsive(4.0, 5.0, 6.0),
+                                    fontSize:
+                                        context.responsive(11.0, 12.0, 13.0),
+                                    onTap: () {
+                                      final deviceStatus =
+                                          ProviderScope.containerOf(context)
+                                              .read(uac2DeviceStatusProvider);
+                                      BitPerfectIndicator.showInfoSheet(
+                                        context,
+                                        song: song,
+                                        diagnostics: diagnostics,
+                                        deviceStatus: deviceStatus,
+                                        playerService: playerService,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                              SizedBox(
+                                  height: context.responsive(10.0, 12.0, 14.0)),
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal:
+                                      context.responsive(12.0, 16.0, 20.0),
+                                ),
+                                child: buildFileInfoRow(
+                                  song,
+                                  lyricsMode,
+                                  playerScreenMode,
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
                       ],
                     ],
                   ),
@@ -3720,6 +3770,19 @@ class _AnimatedSongScene extends StatelessWidget {
             : context.responsive(11.0, 12.0, 13.0)) *
         artworkCardTextScale;
 
+    final diagnostics =
+        ProviderScope.containerOf(context).read(audioOutputDiagnosticsProvider);
+    final appPrefs =
+        ProviderScope.containerOf(context).read(appPreferencesProvider);
+    final isBitPerfectVerified =
+        diagnostics?.capabilityFlags.supportsVerifiedBitPerfect == true;
+    final showBitPerfectCapsule =
+        appPrefs.replaceAlbumWithBitPerfectCapsule &&
+            diagnostics != null &&
+            isBitPerfectVerified;
+    final hasAlbum =
+        song.album != null && song.album!.trim().isNotEmpty;
+
     return Column(
       children: [
         if (artworkCardShowTitle)
@@ -3753,30 +3816,83 @@ class _AnimatedSongScene extends StatelessWidget {
           ),
         if (artworkCardShowAlbum &&
             (artworkCardShowTitle || artworkCardShowArtist) &&
-            song.album != null &&
-            song.album!.trim().isNotEmpty) ...[
+            (hasAlbum || showBitPerfectCapsule)) ...[
           SizedBox(height: artistToAlbumSpacing),
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: albumHorizontalPadding,
-              vertical: albumVerticalPadding,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-            ),
-            child: Text(
-              song.album!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: 'ProductSans',
-                fontSize: context.responsiveText(albumFontSize),
-                color: Colors.white.withValues(alpha: 0.68),
+          if (diagnostics != null &&
+              appPrefs.replaceAlbumWithBitPerfectCapsule)
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                if (hasAlbum)
+                  AnimatedOpacity(
+                    opacity: isBitPerfectVerified ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 400),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: albumHorizontalPadding,
+                        vertical: albumVerticalPadding,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: Text(
+                        song.album!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'ProductSans',
+                          fontSize: context.responsiveText(albumFontSize),
+                          color: Colors.white.withValues(alpha: 0.68),
+                        ),
+                      ),
+                    ),
+                  ),
+                BitPerfectCapsule(
+                  diagnostics: diagnostics,
+                  horizontalPadding: albumHorizontalPadding,
+                  verticalPadding: albumVerticalPadding,
+                  fontSize: albumFontSize,
+                  onTap: () {
+                    final deviceStatus =
+                        ProviderScope.containerOf(context)
+                            .read(uac2DeviceStatusProvider);
+                    BitPerfectIndicator.showInfoSheet(
+                      context,
+                      song: song,
+                      diagnostics: diagnostics,
+                      deviceStatus: deviceStatus,
+                      playerService: playerService,
+                    );
+                  },
+                ),
+              ],
+            )
+          else if (hasAlbum)
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: albumHorizontalPadding,
+                vertical: albumVerticalPadding,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(999),
+                border:
+                    Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              ),
+              child: Text(
+                song.album!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: context.responsiveText(albumFontSize),
+                  color: Colors.white.withValues(alpha: 0.68),
+                ),
               ),
             ),
-          ),
         ],
       ],
     );

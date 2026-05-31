@@ -1641,8 +1641,8 @@ fn android_output_device_priority(device_type: AudioDeviceType) -> u8 {
         | AudioDeviceType::BleSpeaker
         | AudioDeviceType::HearingAid => 2,
         AudioDeviceType::BuiltinSpeaker
-        | AudioDeviceType::BuiltinSpeakerSafe
-        | AudioDeviceType::BuiltinEarpiece => 3,
+        | AudioDeviceType::BuiltinSpeakerSafe => 3,
+        AudioDeviceType::BuiltinEarpiece => 5,
         _ => 4,
     }
 }
@@ -1670,13 +1670,14 @@ fn sharing_label(sharing: SharingMode) -> &'static str {
 }
 
 /// Convert a linear volume slider value (0.0–1.0) to an exponential gain.
-/// 1.0 → 0 dB, 0.0 → -20 dB. The slider position maps linearly to dB.
+/// 1.0 → 0 dB, 0.0 → -∞ dB (silence). The slider position maps linearly to dB.
+/// Exponent 2.0 gives a −40 dB range so 50 % slider → −20 dB (perceived ~¼ loudness).
 #[inline]
 fn volume_to_gain(volume: f32) -> f32 {
     if volume <= 0.0 {
         0.0
     } else {
-        10.0_f32.powf(volume - 1.0)
+        10.0_f32.powf(2.0 * (volume - 1.0))
     }
 }
 

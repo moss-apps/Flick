@@ -1235,21 +1235,7 @@ class _ListeningRecapHeroCard extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            left: 26,
-            right: 26,
-            bottom: 10,
-            child: Text(
-              'Made with Flick Player  |  Support Development',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                height: 1.1,
-                color: Colors.white.withValues(alpha: 0.28),
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.4,
-              ),
-            ),
-          ),
+
         ],
       ),
     );

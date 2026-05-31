@@ -10,6 +10,7 @@ import 'package:flick/features/settings/screens/playback_display_settings_screen
 import 'package:flick/features/settings/screens/ui_customization_settings_screen.dart';
 import 'package:flick/features/settings/screens/integrations_settings_screen.dart';
 import 'package:flick/features/settings/screens/lyrics_settings_screen.dart';
+import 'package:flick/features/settings/screens/player_layout_settings_screen.dart';
 import 'package:flick/features/settings/screens/widget_settings_screen.dart';
 import 'package:flick/features/settings/screens/support_flick_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
@@ -61,6 +62,18 @@ class SettingsScreen extends StatelessWidget {
                           onTap: () => _navigate(
                             context,
                             const PlaybackDisplaySettingsScreen(),
+                          ),
+                        ),
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.layoutPanelTop,
+                          iconBg: const Color(0xFF4A2D6F),
+                          iconFg: const Color(0xFFC4A3FF),
+                          title: 'Player Layout',
+                          subtitle: 'Layout mode, sizing, and quick actions',
+                          onTap: () => _navigate(
+                            context,
+                            const PlayerLayoutSettingsScreen(),
                           ),
                         ),
                         const SettingsDivider(),

@@ -14,9 +14,9 @@ String _volumeToDb(double volume) {
   return db.toStringAsFixed(1);
 }
 
-void showIsoVolumePopup(BuildContext context, GlobalKey buttonKey) {
+VoidCallback? showIsoVolumePopup(BuildContext context, GlobalKey buttonKey) {
   final buttonContext = buttonKey.currentContext;
-  if (buttonContext == null) return;
+  if (buttonContext == null) return null;
 
   final renderBox = buttonContext.findRenderObject() as RenderBox;
   final buttonSize = renderBox.size;
@@ -36,6 +36,12 @@ void showIsoVolumePopup(BuildContext context, GlobalKey buttonKey) {
   );
 
   overlay.insert(entry);
+
+  return () {
+    if (entry.mounted) {
+      entry.remove();
+    }
+  };
 }
 
 class _IsoVolumePopupOverlay extends ConsumerStatefulWidget {
