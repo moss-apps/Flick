@@ -1428,10 +1428,12 @@ impl AudioOutputCallback for AndroidOutputCallbackState {
         let required_samples = audio_data.len() * ANDROID_DIRECT_CHANNELS;
 
         if required_samples > self.scratch.len() {
-            for frame in audio_data.iter_mut() {
-                *frame = (0.0, 0.0);
-            }
-            return DataCallbackResult::Continue;
+            eprintln!(
+                "[oboe] burst {} frames > scratch {} frames — growing scratch",
+                audio_data.len(),
+                self.scratch.len() / ANDROID_DIRECT_CHANNELS,
+            );
+            self.scratch.resize(required_samples, 0.0);
         }
 
         let scratch = &mut self.scratch[..required_samples];
@@ -1454,33 +1456,65 @@ fn open_android_output_stream(
     prefer_exclusive: bool,
 ) -> Result<AndroidManagedStream, String> {
     let selected_device = select_android_output_device(target_sample_rate)?;
-    let frames_per_callback = android_frames_per_callback(target_sample_rate);
-    let sharing_modes = if prefer_exclusive {
-        [SharingMode::Exclusive, SharingMode::Shared]
+    let is_bluetooth = matches!(
+        selected_device.device_type,
+        AudioDeviceType::BluetoothA2DP
+            | AudioDeviceType::BluetoothSCO
+            | AudioDeviceType::BleBroadcast
+            | AudioDeviceType::BleHeadset
+            | AudioDeviceType::BleSpeaker
+            | AudioDeviceType::HearingAid
+    );
+    let bit_perfect_route = prefer_exclusive && !is_bluetooth;
+    let frames_per_callback = if is_bluetooth {
+        0
     } else {
-        [SharingMode::Shared, SharingMode::Shared]
+        android_frames_per_callback(target_sample_rate)
     };
-    let attempts = [AudioApi::AAudio, AudioApi::Unspecified];
+    let sharing_modes: &[SharingMode] = if prefer_exclusive && !is_bluetooth {
+        &[SharingMode::Exclusive, SharingMode::Shared]
+    } else {
+        &[SharingMode::Shared]
+    };
+    let attempts: &[AudioApi] = if is_bluetooth {
+        &[AudioApi::Unspecified]
+    } else {
+        &[AudioApi::AAudio, AudioApi::Unspecified]
+    };
+    let performance_mode = if is_bluetooth {
+        PerformanceMode::None
+    } else {
+        PerformanceMode::LowLatency
+    };
 
     let mut last_error = None;
     let mut fallback_stream = None;
 
-    for &sharing_mode in &sharing_modes {
-        for &audio_api in &attempts {
-            let builder = oboe::AudioStreamBuilder::default()
+    for &sharing_mode in sharing_modes {
+        for &audio_api in attempts {
+            let mut builder = oboe::AudioStreamBuilder::default()
                 .set_stereo()
                 .set_f32()
                 .set_sample_rate(target_sample_rate as i32)
                 .set_frames_per_callback(frames_per_callback)
-                .set_device_id(selected_device.id)
                 .set_sharing_mode(sharing_mode)
-                .set_performance_mode(PerformanceMode::LowLatency)
+                .set_performance_mode(performance_mode)
                 .set_usage(Usage::Media)
                 .set_content_type(ContentType::Music)
-                .set_channel_conversion_allowed(false)
-                .set_format_conversion_allowed(false)
-                .set_sample_rate_conversion_quality(SampleRateConversionQuality::None)
+                .set_channel_conversion_allowed(!bit_perfect_route)
+                .set_format_conversion_allowed(!bit_perfect_route)
+                .set_sample_rate_conversion_quality(
+                    if bit_perfect_route {
+                        SampleRateConversionQuality::None
+                    } else {
+                        SampleRateConversionQuality::Medium
+                    }
+                )
                 .set_audio_api(audio_api);
+
+            if bit_perfect_route {
+                builder = builder.set_device_id(selected_device.id);
+            }
 
             let stream = match builder
                 .set_callback(AndroidOutputCallbackState::new(
@@ -1523,7 +1557,7 @@ fn open_android_output_stream(
                 actual_channels,
             );
 
-            if actual_rate != target_sample_rate as i32 {
+            if bit_perfect_route && actual_rate != target_sample_rate as i32 {
                 last_error = Some(format!(
                     "{} {} opened '{}' at {} Hz instead of requested {} Hz",
                     audio_api_label(audio_api),
@@ -1640,10 +1674,10 @@ fn android_output_device_priority(device_type: AudioDeviceType) -> u8 {
         | AudioDeviceType::BleHeadset
         | AudioDeviceType::BleSpeaker
         | AudioDeviceType::HearingAid => 2,
-        AudioDeviceType::BuiltinSpeaker
-        | AudioDeviceType::BuiltinSpeakerSafe => 3,
-        AudioDeviceType::BuiltinEarpiece => 5,
+        AudioDeviceType::BuiltinSpeaker => 3,
         _ => 4,
+        AudioDeviceType::BuiltinEarpiece => 5,
+        AudioDeviceType::BuiltinSpeakerSafe => 6,
     }
 }
 
