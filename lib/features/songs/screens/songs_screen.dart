@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -604,28 +605,27 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         const textSectionHeight = 58.0;
         final aspectRatio = itemWidth / (itemWidth + textSectionHeight);
 
-        return Listener(
+        return RawGestureDetector(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: _onFolderGridPointerDown,
-      onPointerMove: _onFolderGridPointerMove,
-      onPointerUp: _onFolderGridPointerEnd,
-      onPointerCancel: _onFolderGridPointerEnd,
+      gestures: {
+        _PinchGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<_PinchGestureRecognizer>(
+          () => _PinchGestureRecognizer(),
+          (instance) {
+            instance.onPointerDown = _onFolderGridPointerDown;
+            instance.onPointerMove = _onFolderGridPointerMove;
+            instance.onPointerUp = _onFolderGridPointerEnd;
+          },
+        ),
+      },
       child: CustomScrollView(
         controller: _folderGridScrollController,
         slivers: [
           SliverToBoxAdapter(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 180),
               transitionBuilder: (child, animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: ScaleTransition(
-                    scale: Tween<double>(begin: 0.92, end: 1.0).animate(
-                      CurvedAnimation(parent: animation, curve: Curves.easeOut),
-                    ),
-                    child: child,
-                  ),
-                );
+                return FadeTransition(opacity: animation, child: child);
               },
               child: KeyedSubtree(
                 key: ValueKey('folder_grid_$columns'),
@@ -647,11 +647,15 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                   itemCount: visibleFolders.length,
                   itemBuilder: (context, index) {
                     final folder = visibleFolders[index];
-                    return Transform.scale(
-                      scale: 0.95 + (_folderGridScale * 0.05),
-                      child: _FolderCard(
-                        folder: folder,
-                        onTap: () => _openFolderDetail(folder),
+                    final pinchDelta =
+                        (1.0 - _folderGridScale).clamp(-1.0, 1.0);
+                    return RepaintBoundary(
+                      child: Transform.scale(
+                        scale: 1.0 + pinchDelta * 0.04,
+                        child: _FolderCard(
+                          folder: folder,
+                          onTap: () => _openFolderDetail(folder),
+                        ),
                       ),
                     );
                   },
@@ -3385,4 +3389,51 @@ class _ContentStateWidget extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PinchGestureRecognizer extends OneSequenceGestureRecognizer {
+  _PinchGestureRecognizer();
+
+  void Function(PointerDownEvent event)? onPointerDown;
+  void Function(PointerMoveEvent event)? onPointerMove;
+  void Function(PointerEvent event)? onPointerUp;
+
+  final Map<int, Offset> _pointers = {};
+  bool _pinchAccepted = false;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    startTrackingPointer(event.pointer);
+    _pointers[event.pointer] = event.position;
+    onPointerDown?.call(event);
+
+    if (_pointers.length >= 2 && !_pinchAccepted) {
+      _pinchAccepted = true;
+      resolve(GestureDisposition.accepted);
+    }
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerMoveEvent) {
+      _pointers[event.pointer] = event.position;
+      onPointerMove?.call(event);
+    }
+    if (event is PointerUpEvent || event is PointerCancelEvent) {
+      _pointers.remove(event.pointer);
+      onPointerUp?.call(event);
+      stopTrackingPointer(event.pointer);
+      if (_pointers.isEmpty) {
+        _pinchAccepted = false;
+      }
+    }
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {
+    _pinchAccepted = false;
+  }
+
+  @override
+  String get debugDescription => '_PinchGestureRecognizer';
 }
