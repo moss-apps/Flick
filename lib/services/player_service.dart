@@ -500,25 +500,13 @@ class PlayerService {
       }
     }
 
-    if (isBitPerfectModeEnabled) {
-      if (_usingRustBackend && _rustAudioService.isInitialized) {
-        await _applyRustPlaybackProcessingPolicy(currentEngineType);
-      } else {
-        final player = _justAudioPlayer;
-        if (player != null) {
-          await player.setVolume(_bitPerfectDefaultVolume);
-          await player.setSpeed(1.0);
-        }
-      }
+    if (_usingRustBackend && _rustAudioService.isInitialized) {
+      await _applyRustPlaybackProcessingPolicy(currentEngineType);
     } else {
-      if (_usingRustBackend && _rustAudioService.isInitialized) {
-        await _applyRustPlaybackProcessingPolicy(currentEngineType);
-      } else {
-        final player = _justAudioPlayer;
-        if (player != null) {
-          await player.setVolume(_currentVolume);
-          await player.setSpeed(playbackSpeedNotifier.value);
-        }
+      final player = _justAudioPlayer;
+      if (player != null) {
+        await player.setVolume(_currentVolume);
+        await player.setSpeed(playbackSpeedNotifier.value);
       }
     }
 
@@ -823,6 +811,7 @@ class PlayerService {
     if (Platform.isAndroid && !_sessionManager.selectedMode.usesRustBackend) {
       await _ensureAndroidPlayer();
     }
+    await reapplyEqualizer();
   }
 
   Future<void> setHiFiModeEnabled(bool enabled) async {
@@ -863,9 +852,13 @@ class PlayerService {
       _uac2Service.dapBitPerfectEnabledNotifier.value = dapBitPerfect;
       rust_audio.audioSetDapBitPerfectEnabled(enabled: dapBitPerfect);
 
-      final savedVolume = await _preferencesService.getUsbSoftwareVolume();
-      if (savedVolume != 1.0) {
-        _currentVolume = savedVolume;
+      final engineType = _sessionManager.selectedMode;
+      if (engineType == AudioEngineType.usbDacExperimental ||
+          engineType == AudioEngineType.dapInternalHighRes) {
+        final savedVolume = await _preferencesService.getUsbSoftwareVolume();
+        if (savedVolume != 1.0) {
+          _currentVolume = savedVolume;
+        }
       }
 
       _playbackManager.publishIdleState(_sessionManager.selectedMode);
@@ -949,10 +942,8 @@ class PlayerService {
     await _configureAndroidAudioSession();
     final player = just_audio.AudioPlayer();
     _justAudioPlayer = player;
-    await player.setVolume(isBitPerfectModeEnabled ? _bitPerfectDefaultVolume : _currentVolume);
-    await player.setSpeed(
-      isBitPerfectModeEnabled ? 1.0 : playbackSpeedNotifier.value,
-    );
+    await player.setVolume(_currentVolume);
+    await player.setSpeed(playbackSpeedNotifier.value);
     await _updateLoopMode();
     return player;
   }
@@ -971,10 +962,8 @@ class PlayerService {
       }
     }
 
-    await player.setVolume(isBitPerfectModeEnabled ? _bitPerfectDefaultVolume : _currentVolume);
-    await player.setSpeed(
-      isBitPerfectModeEnabled ? 1.0 : playbackSpeedNotifier.value,
-    );
+    await player.setVolume(_currentVolume);
+    await player.setSpeed(playbackSpeedNotifier.value);
     await _updateLoopMode();
   }
 
@@ -3678,7 +3667,10 @@ class PlayerService {
   Future<void> setVolume(double volume) async {
     final clampedVolume = volume.clamp(0.0, 1.0).toDouble();
     _currentVolume = clampedVolume;
-    unawaited(_preferencesService.setUsbSoftwareVolume(clampedVolume));
+    if (currentEngineType == AudioEngineType.usbDacExperimental ||
+        currentEngineType == AudioEngineType.dapInternalHighRes) {
+      unawaited(_preferencesService.setUsbSoftwareVolume(clampedVolume));
+    }
 
     // DoP: software gain corrupts DoP markers (0x05/0xFA).
     // Volume must go through DAC hardware exclusively.

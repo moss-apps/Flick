@@ -74,7 +74,7 @@
 - **Star Ratings**: 1–5 star ratings on songs with animated overlay and persistent storage
 - **Song Sharing**: Share songs as album art, lyric, minimal, or solid color cards — save to gallery or share via apps
 - **Custom Player Action Buttons**: Configure left and right action button slots (rating, share, lyrics, shuffle, etc.)
-- **Milestone Tracking**: Achievement milestones for songs played (100/500/1000) and listening time (10/50 hours) with congratulatory dialogs
+- **Milestone Tracking**: Achievement milestones for songs played (100/500/1000) and listening time (10/50 hours) with redesigned celebration cards (per-tier accent color, hero icon, "next milestone" hint) and an in-app collection view (Settings → Milestones) for re-viewing past achievements like a trophy case
 
 ### Home Screen Widget
 - **Mini Player Widget**: Native Android widget with album art, progress bar, and transport controls

@@ -50,4 +50,11 @@ class AppColors {
   static const RadialGradient glowGradient = RadialGradient(
     colors: [Color(0x20FFFFFF), Color(0x00FFFFFF)],
   );
+
+  // Milestone tier accent colors (subtle, glass-friendly tints).
+  static const Color milestoneBronze = Color(0xFFC9956B);
+  static const Color milestoneSilver = Color(0xFFB8C4D0);
+  static const Color milestoneGold = Color(0xFFD4B265);
+  static const Color milestoneSapphire = Color(0xFF8BB8FF);
+  static const Color milestoneAmethyst = Color(0xFFC4A3FF);
 }

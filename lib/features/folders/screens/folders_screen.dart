@@ -124,14 +124,19 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
   }
 
   void _showSortSheet() {
+    final pageSize = ref.read(appPreferencesProvider).folderGridPageSize;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _FolderRootSortSheet(
         currentOption: _sortOption,
+        folderGridPageSize: pageSize,
         onSelected: (option) {
           _setSortOption(option);
           Navigator.of(context).pop();
+        },
+        onPageSizeChanged: (value) {
+          ref.read(appPreferencesProvider.notifier).setFolderGridPageSize(value);
         },
       ),
     );
@@ -630,6 +635,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   List<Song> _allSongs = [];
   bool _isLoading = true;
   FolderBrowserSortOption _sortOption = FolderBrowserSortOption.name;
+  SongFileTypeFilter _filterOption = SongFileTypeFilter.all;
 
   @override
   void initState() {
@@ -638,6 +644,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
       _loadSongs();
     });
     _loadSortOption();
+    _loadFilterOption();
   }
 
   Future<void> _loadSongs() async {
@@ -664,11 +671,32 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     }
   }
 
+  Future<void> _loadFilterOption() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString('folder_browser_filter_option');
+    if (!mounted) return;
+    final option = SongFileTypeFilter.values.firstWhere(
+      (v) => v.name == value,
+      orElse: () => SongFileTypeFilter.all,
+    );
+    if (option != _filterOption) {
+      setState(() => _filterOption = option);
+    }
+  }
+
   Future<void> _setSortOption(FolderBrowserSortOption option) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('folder_browser_sort_option', option.name);
     if (mounted) {
       setState(() => _sortOption = option);
+    }
+  }
+
+  Future<void> _setFilterOption(SongFileTypeFilter option) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('folder_browser_filter_option', option.name);
+    if (mounted) {
+      setState(() => _filterOption = option);
     }
   }
 
@@ -678,8 +706,13 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _FolderBrowserSortSheet(
         currentOption: _sortOption,
+        currentFilter: _filterOption,
         onSelected: (option) {
           _setSortOption(option);
+          Navigator.of(context).pop();
+        },
+        onFilterChanged: (option) {
+          _setFilterOption(option);
           Navigator.of(context).pop();
         },
       ),
@@ -715,6 +748,23 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     );
     var subfolders = grouped.subfolders;
     var songs = grouped.songs;
+
+    if (_filterOption != SongFileTypeFilter.all) {
+      songs = songs
+          .where((s) => _filterOption.matches(s.fileType))
+          .toList();
+      subfolders = subfolders
+          .map((f) => FolderGroup(
+                name: f.name,
+                key: f.key,
+                folderUri: f.folderUri,
+                songs: f.songs
+                    .where((s) => _filterOption.matches(s.fileType))
+                    .toList(),
+              ))
+          .where((f) => f.songs.isNotEmpty)
+          .toList();
+    }
 
     switch (_sortOption) {
       case FolderBrowserSortOption.name:
@@ -1367,14 +1417,34 @@ class _ArtEntry {
   const _ArtEntry(this.art, this.source);
 }
 
-class _FolderRootSortSheet extends StatelessWidget {
+class _FolderRootSortSheet extends StatefulWidget {
   final FolderRootSortOption currentOption;
+  final int folderGridPageSize;
   final ValueChanged<FolderRootSortOption> onSelected;
+  final ValueChanged<int> onPageSizeChanged;
 
   const _FolderRootSortSheet({
     required this.currentOption,
+    required this.folderGridPageSize,
     required this.onSelected,
+    required this.onPageSizeChanged,
   });
+
+  @override
+  State<_FolderRootSortSheet> createState() => _FolderRootSortSheetState();
+}
+
+class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
+  late double _pageSize;
+
+  static const double _minPageSize = 1;
+  static const double _maxPageSize = 30;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageSize = widget.folderGridPageSize.toDouble();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1400,6 +1470,63 @@ class _FolderRootSortSheet extends StatelessWidget {
               const SizedBox(height: 8),
               ...FolderRootSortOption.values.map(
                 (option) => _buildSortTile(context, option),
+              ),
+              const SizedBox(height: 16),
+              const Divider(color: AppColors.glassBorder, height: 1),
+              const SizedBox(height: 12),
+              _buildSectionHeader(context, 'FOLDER LIMIT'),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Folders shown per page',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.adaptiveTextTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.glassBackgroundStrong,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${_pageSize.round()}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: context.adaptiveTextSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SliderTheme(
+                data: SliderThemeData(
+                  activeTrackColor: AppColors.textPrimary.withValues(alpha: 0.9),
+                  inactiveTrackColor: AppColors.glassBackgroundStrong,
+                  thumbColor: AppColors.textPrimary,
+                  overlayColor: AppColors.textPrimary.withValues(alpha: 0.15),
+                  trackHeight: 4,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                ),
+                child: Slider(
+                  value: _pageSize,
+                  min: _minPageSize,
+                  max: _maxPageSize,
+                  divisions: (_maxPageSize - _minPageSize).round(),
+                  onChanged: (value) {
+                    setState(() => _pageSize = value);
+                    widget.onPageSizeChanged(value.round());
+                  },
+                ),
               ),
             ],
           ),
@@ -1438,7 +1565,7 @@ class _FolderRootSortSheet extends StatelessWidget {
   }
 
   Widget _buildSortTile(BuildContext context, FolderRootSortOption option) {
-    final isSelected = currentOption == option;
+    final isSelected = widget.currentOption == option;
     final icon = _iconFor(option);
     final label = _labelFor(option);
 
@@ -1447,7 +1574,7 @@ class _FolderRootSortSheet extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          onSelected(option);
+          widget.onSelected(option);
           Navigator.of(context).pop();
         },
         child: Container(
@@ -1514,11 +1641,15 @@ class _FolderRootSortSheet extends StatelessWidget {
 
 class _FolderBrowserSortSheet extends StatelessWidget {
   final FolderBrowserSortOption currentOption;
+  final SongFileTypeFilter currentFilter;
   final ValueChanged<FolderBrowserSortOption> onSelected;
+  final ValueChanged<SongFileTypeFilter> onFilterChanged;
 
   const _FolderBrowserSortSheet({
     required this.currentOption,
+    required this.currentFilter,
     required this.onSelected,
+    required this.onFilterChanged,
   });
 
   @override
@@ -1546,6 +1677,19 @@ class _FolderBrowserSortSheet extends StatelessWidget {
               ...FolderBrowserSortOption.values.map(
                 (option) => _buildSortTile(context, option),
               ),
+              const SizedBox(height: 16),
+              const Divider(color: AppColors.glassBorder, height: 1),
+              const SizedBox(height: 12),
+              _buildSectionHeader(context, 'FILTER BY FORMAT'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: SongFileTypeFilter.values
+                    .map((filter) => _buildFilterChip(context, filter))
+                    .toList(),
+              ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -1666,5 +1810,39 @@ class _FolderBrowserSortSheet extends StatelessWidget {
       case FolderBrowserSortOption.dateAdded:
         return 'Date Added';
     }
+  }
+
+  Widget _buildFilterChip(BuildContext context, SongFileTypeFilter filter) {
+    final isSelected = currentFilter == filter;
+    return GestureDetector(
+      onTap: () {
+        onFilterChanged(filter);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.accent.withValues(alpha: 0.5)
+                : AppColors.glassBorder,
+            width: 1,
+          ),
+          color: isSelected
+              ? AppColors.accent.withValues(alpha: 0.12)
+              : Colors.transparent,
+        ),
+        child: Text(
+          filter.displayName,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            color: isSelected
+                ? AppColors.accent
+                : context.adaptiveTextPrimary,
+          ),
+        ),
+      ),
+    );
   }
 }

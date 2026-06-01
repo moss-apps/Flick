@@ -365,8 +365,8 @@ fn write_to_ring_buffer(
         let written = producer.write(chunk);
         offset += written;
 
-        if written == 0 && !producer.wait_for_space(chunk.len().min(1024), 100) {
-            break;
+        if written == 0 {
+            producer.wait_for_space(chunk.len().min(1024), 100);
         }
     }
 }

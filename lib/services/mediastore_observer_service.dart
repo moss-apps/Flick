@@ -47,9 +47,10 @@ class MediaStoreObserverService {
     _isProcessing = true;
 
     try {
-      await _scannerService.refreshDeletions();
+      await for (final _ in _scannerService.scanAllFolders()) {}
+      debugPrint('MediaStoreObserver: auto-rescan complete');
     } catch (e) {
-      debugPrint('MediaStoreObserver refresh failed: $e');
+      debugPrint('MediaStoreObserver rescan failed: $e');
     } finally {
       _isProcessing = false;
     }

@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
@@ -15,6 +18,7 @@ import 'package:flick/features/songs/widgets/orbit_scroll.dart';
 import 'package:flick/features/songs/widgets/song_fast_index_overlay.dart';
 import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
 import 'package:flick/features/songs/widgets/sort_filter_bottom_sheet.dart';
+import 'package:flick/features/folders/screens/folders_screen.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/models/nav_bar_config.dart';
@@ -35,7 +39,8 @@ class SongsScreen extends ConsumerStatefulWidget {
   ConsumerState<SongsScreen> createState() => _SongsScreenState();
 }
 
-class _SongsScreenState extends ConsumerState<SongsScreen> {
+class _SongsScreenState extends ConsumerState<SongsScreen>
+    with SingleTickerProviderStateMixin {
   static const double _listItemExtent = 80;
 
   static const int _defaultFolderGridPageSize = 8;
@@ -43,6 +48,10 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
   static const int _maxFolderGridPageSize = 30;
   static const int _listPageSize = 50;
   static const double _listLoadMoreThreshold = 320;
+  static const double _minFolderGridScale = 0.5;
+  static const double _maxFolderGridScale = 3.0;
+  static const int _minFolderGridColumns = 1;
+  static const int _maxFolderGridColumns = 4;
 
   int _selectedIndex = 0;
   final TextEditingController _searchController = TextEditingController();
@@ -65,6 +74,13 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
   String _listPaginationSignature = '';
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
+  FolderBrowserSortOption _folderSortOption = FolderBrowserSortOption.name;
+  double _folderGridScale = 1.0;
+  double _folderGridTargetScale = 1.0;
+  Ticker? _folderGridTicker;
+  final Map<int, Offset> _folderGridPointers = {};
+  double? _folderGridPinchStartDistance;
+  double _folderGridPinchStartScale = 1.0;
 
   @override
   void initState() {
@@ -77,6 +93,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
     });
     _listScrollController.addListener(_onListScroll);
     _folderGridScrollController.addListener(_onFolderGridScroll);
+    _loadFolderSortOption();
   }
 
   @override
@@ -88,6 +105,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
     _folderGridScrollController.dispose();
     _searchController.dispose();
     _fastIndexTimer?.cancel();
+    _folderGridTicker?.dispose();
     super.dispose();
   }
 
@@ -524,68 +542,154 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
     );
   }
 
+  List<FolderGroup> _sortedFolderGroups(List<FolderGroup> folders) {
+    final sorted = List<FolderGroup>.from(folders);
+    switch (_folderSortOption) {
+      case FolderBrowserSortOption.name:
+        sorted.sort((a, b) => a.name.compareTo(b.name));
+      case FolderBrowserSortOption.songCount:
+        sorted.sort((a, b) {
+          final c = b.songs.length.compareTo(a.songs.length);
+          return c != 0 ? c : a.name.compareTo(b.name);
+        });
+      case FolderBrowserSortOption.title:
+        sorted.sort((a, b) {
+          final ta = a.songs.isNotEmpty ? a.songs.first.title : '';
+          final tb = b.songs.isNotEmpty ? b.songs.first.title : '';
+          final c = ta.compareTo(tb);
+          return c != 0 ? c : a.name.compareTo(b.name);
+        });
+      case FolderBrowserSortOption.artist:
+        sorted.sort((a, b) {
+          final aa = a.songs.isNotEmpty ? a.songs.first.artist : '';
+          final ab = b.songs.isNotEmpty ? b.songs.first.artist : '';
+          final c = aa.compareTo(ab);
+          return c != 0 ? c : a.name.compareTo(b.name);
+        });
+      case FolderBrowserSortOption.dateAdded:
+        sorted.sort((a, b) {
+          final da = a.songs.isNotEmpty ? a.songs.first.dateAdded : null;
+          final db = b.songs.isNotEmpty ? b.songs.first.dateAdded : null;
+          if (da == null && db == null) return a.name.compareTo(b.name);
+          if (da == null) return 1;
+          if (db == null) return -1;
+          return db.compareTo(da);
+        });
+    }
+    return sorted;
+  }
+
   Widget _buildFolderGridView(List<FolderGroup> folders) {
-    _syncFolderPagination(folders);
+    final sortedFolders = _sortedFolderGroups(folders);
+    _syncFolderPagination(sortedFolders);
 
-    final visibleCount = min(_visibleFolderCount, folders.length);
-    final visibleFolders = folders.take(visibleCount).toList(growable: false);
-    final hasMore = visibleCount < folders.length;
+    final visibleCount = min(_visibleFolderCount, sortedFolders.length);
+    final visibleFolders = sortedFolders.take(visibleCount).toList(growable: false);
+    final hasMore = visibleCount < sortedFolders.length;
 
-    return CustomScrollView(
-      controller: _folderGridScrollController,
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(
-            AppConstants.spacingLg,
-            0,
-            AppConstants.spacingLg,
-            AppConstants.spacingLg,
-          ),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: context.gridColumns(
-                compact: 2,
-                phone: 2,
-                tablet: 3,
-              ),
-              childAspectRatio: 0.78,
-              crossAxisSpacing: AppConstants.spacingMd,
-              mainAxisSpacing: AppConstants.spacingLg,
-            ),
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final folder = visibleFolders[index];
-              return _FolderCard(
-                folder: folder,
-                onTap: () => _openFolderDetail(folder),
-              );
-            }, childCount: visibleFolders.length),
-          ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final baseColumns = context.gridColumns(
+          compact: 2,
+          phone: 2,
+          tablet: 3,
+        );
+        final columns = (baseColumns * _folderGridScale)
+            .round()
+            .clamp(_minFolderGridColumns, _maxFolderGridColumns);
+
+        final totalSpacing = AppConstants.spacingMd * (columns - 1);
+        final itemWidth = (availableWidth - totalSpacing) / columns;
+
+        const textSectionHeight = 58.0;
+        final aspectRatio = itemWidth / (itemWidth + textSectionHeight);
+
+        return RawGestureDetector(
+      behavior: HitTestBehavior.translucent,
+      gestures: {
+        _PinchGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<_PinchGestureRecognizer>(
+          () => _PinchGestureRecognizer(),
+          (instance) {
+            instance.onPointerDown = _onFolderGridPointerDown;
+            instance.onPointerMove = _onFolderGridPointerMove;
+            instance.onPointerUp = _onFolderGridPointerEnd;
+          },
         ),
-        SliverToBoxAdapter(
-          child: hasMore || visibleCount > _getFolderPageSize()
-              ? Padding(
+      },
+      child: CustomScrollView(
+        controller: _folderGridScrollController,
+        slivers: [
+          SliverToBoxAdapter(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              transitionBuilder: (child, animation) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              child: KeyedSubtree(
+                key: ValueKey('folder_grid_$columns'),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
                     AppConstants.spacingLg,
                     0,
                     AppConstants.spacingLg,
-                    AppConstants.navBarHeight + 120,
+                    AppConstants.spacingLg,
                   ),
-                  child: _FolderLoadMoreIndicator(
-                    visibleCount: visibleCount,
-                    totalCount: folders.length,
-                    isComplete: !hasMore && visibleCount > _getFolderPageSize(),
-                    onLoadMore: hasMore ? _loadMoreFolders : null,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    childAspectRatio: aspectRatio,
+                    crossAxisSpacing: AppConstants.spacingMd,
+                    mainAxisSpacing: AppConstants.spacingLg,
                   ),
-                )
-              : const SizedBox(
-                  height: AppConstants.navBarHeight + AppConstants.spacingLg,
+                  itemCount: visibleFolders.length,
+                  itemBuilder: (context, index) {
+                    final folder = visibleFolders[index];
+                    final pinchDelta =
+                        (1.0 - _folderGridScale).clamp(-1.0, 1.0);
+                    return RepaintBoundary(
+                      child: Transform.scale(
+                        scale: 1.0 + pinchDelta * 0.04,
+                        child: _FolderCard(
+                          folder: folder,
+                          onTap: () => _openFolderDetail(folder),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-        ),
-      ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: hasMore || visibleCount > _getFolderPageSize()
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppConstants.spacingLg,
+                      0,
+                      AppConstants.spacingLg,
+                      AppConstants.navBarHeight + 120,
+                    ),
+                    child: _FolderLoadMoreIndicator(
+                      visibleCount: visibleCount,
+                      totalCount: sortedFolders.length,
+                      isComplete: !hasMore && visibleCount > _getFolderPageSize(),
+                      onLoadMore: hasMore ? _loadMoreFolders : null,
+                    ),
+                  )
+                : const SizedBox(
+                    height: AppConstants.navBarHeight + AppConstants.spacingLg,
+                  ),
+          ),
+        ],
+      ),
     );
-  }
+  });
+}
 
-  void _openFolderDetail(FolderGroup folder) {
+void _openFolderDetail(FolderGroup folder) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => _FolderDetailScreen(folder: folder),
@@ -895,6 +999,86 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
   }
 
   void _onFolderGridScroll() {}
+
+  void _onFolderGridPointerDown(PointerDownEvent event) {
+    _folderGridPointers[event.pointer] = event.position;
+    _syncFolderGridPinch();
+  }
+
+  void _onFolderGridPointerMove(PointerMoveEvent event) {
+    if (!_folderGridPointers.containsKey(event.pointer)) return;
+    _folderGridPointers[event.pointer] = event.position;
+    _syncFolderGridPinch();
+  }
+
+  void _onFolderGridPointerEnd(PointerEvent event) {
+    _folderGridPointers.remove(event.pointer);
+    if (_folderGridPointers.length < 2) {
+      _folderGridPinchStartDistance = null;
+    }
+    _syncFolderGridPinch();
+  }
+
+  void _syncFolderGridPinch() {
+    if (_folderGridPointers.length != 2) return;
+    final positions = _folderGridPointers.values.toList();
+    final distance = (positions[0] - positions[1]).distance;
+    if (distance <= 0) return;
+
+    if (_folderGridPinchStartDistance == null) {
+      _folderGridPinchStartDistance = distance;
+      _folderGridPinchStartScale = _folderGridTargetScale;
+      return;
+    }
+
+    final ratio = distance / _folderGridPinchStartDistance!;
+    final newScale = (_folderGridPinchStartScale / ratio)
+        .clamp(_minFolderGridScale, _maxFolderGridScale);
+    if ((newScale - _folderGridTargetScale).abs() > 0.001) {
+      setState(() {
+        _folderGridTargetScale = newScale;
+      });
+    }
+    _ensureFolderGridTicker();
+  }
+
+  void _ensureFolderGridTicker() {
+    _folderGridTicker ??= createTicker(_onFolderGridTick)..start();
+  }
+
+  void _onFolderGridTick(Duration elapsed) {
+    final diff = _folderGridTargetScale - _folderGridScale;
+    if (diff.abs() < 0.001) {
+      _folderGridTicker?.stop();
+      _folderGridTicker?.dispose();
+      _folderGridTicker = null;
+      return;
+    }
+    setState(() {
+      _folderGridScale += diff * 0.35;
+    });
+  }
+
+  Future<void> _loadFolderSortOption() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString('songs_folder_sort_option');
+    if (!mounted) return;
+    final option = FolderBrowserSortOption.values.firstWhere(
+      (v) => v.name == value,
+      orElse: () => FolderBrowserSortOption.name,
+    );
+    if (option != _folderSortOption) {
+      setState(() => _folderSortOption = option);
+    }
+  }
+
+  Future<void> _setFolderSortOption(FolderBrowserSortOption option) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('songs_folder_sort_option', option.name);
+    if (mounted) {
+      setState(() => _folderSortOption = option);
+    }
+  }
 
   void _loadMoreFolders() {
     if (!mounted || _visibleFolderCount >= _totalFolderCount) {
@@ -1386,8 +1570,16 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
       barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (sheetContext) {
         return _FolderFilterSheet(
+          currentSort: _folderSortOption,
           currentFilter: currentFilter,
           folderGridPageSize: _getFolderPageSize(),
+          onSortChanged: (option) {
+            _setFolderSortOption(option);
+            setState(() {
+              _visibleFolderCount = min(_getFolderPageSize(), _totalFolderCount);
+              _folderPaginationSignature = '';
+            });
+          },
           onFilterChanged: (filter) {
             ref.read(songsProvider.notifier).setFileTypeFilter(filter);
             setState(() {
@@ -1833,8 +2025,6 @@ class _FolderCardState extends State<_FolderCard>
   @override
   Widget build(BuildContext context) {
     final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final cardWidth = context.scaleSize(AppConstants.cardWidthMd);
-    final artworkTargetWidth = (cardWidth * devicePixelRatio).round();
     final artworks = _cachedArtworks;
     final padded = List<_ArtEntry>.from(artworks);
     while (padded.length < 4) {
@@ -1870,124 +2060,127 @@ class _FolderCardState extends State<_FolderCard>
               borderRadius: BorderRadius.circular(AppConstants.radiusLg),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-                child: SizedBox(
-                  width: cardWidth,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AspectRatio(
-                        aspectRatio: 1,
-                        child: Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceLight,
-                            borderRadius: BorderRadius.all(
-                              Radius.circular(AppConstants.radiusLg),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.18),
-                                blurRadius: 18,
-                                offset: const Offset(0, 10),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final artworkTargetWidth = (constraints.maxWidth * devicePixelRatio).round();
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 1,
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceLight,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(AppConstants.radiusLg),
                               ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.all(
-                              Radius.circular(AppConstants.radiusLg),
-                            ),
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                _buildArtGrid(
-                                  padded,
-                                  artworkTargetWidth,
-                                  context,
-                                ),
-                                Positioned.fill(
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.transparent,
-                                          Colors.black.withValues(alpha: 0.1),
-                                          Colors.black.withValues(alpha: 0.45),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  left: AppConstants.spacingSm,
-                                  bottom: AppConstants.spacingSm,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: AppConstants.spacingSm,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.55,
-                                      ),
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.12,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '${widget.folder.songs.length} tracks',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 10),
                                 ),
                               ],
                             ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(AppConstants.radiusLg),
+                              ),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  _buildArtGrid(
+                                    padded,
+                                    artworkTargetWidth,
+                                    context,
+                                  ),
+                                  Positioned.fill(
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.transparent,
+                                            Colors.black.withValues(alpha: 0.1),
+                                            Colors.black.withValues(alpha: 0.45),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: AppConstants.spacingSm,
+                                    bottom: AppConstants.spacingSm,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppConstants.spacingSm,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.55,
+                                        ),
+                                        borderRadius: BorderRadius.circular(999),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '${widget.folder.songs.length} tracks',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppConstants.spacingSm,
-                          AppConstants.spacingMd,
-                          AppConstants.spacingSm,
-                          AppConstants.spacingSm,
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppConstants.spacingSm,
+                            AppConstants.spacingMd,
+                            AppConstants.spacingSm,
+                            AppConstants.spacingSm,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.folder.name,
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      color: context.adaptiveTextPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${widget.folder.songs.length} songs',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: context.adaptiveTextSecondary,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.folder.name,
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    color: context.adaptiveTextPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${widget.folder.songs.length} songs',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: context.adaptiveTextSecondary,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -2051,14 +2244,18 @@ class _ArtEntry {
 }
 
 class _FolderFilterSheet extends StatefulWidget {
+  final FolderBrowserSortOption currentSort;
   final SongFileTypeFilter currentFilter;
   final int folderGridPageSize;
+  final ValueChanged<FolderBrowserSortOption> onSortChanged;
   final ValueChanged<SongFileTypeFilter> onFilterChanged;
   final ValueChanged<int> onPageSizeChanged;
 
   const _FolderFilterSheet({
+    required this.currentSort,
     required this.currentFilter,
     required this.folderGridPageSize,
+    required this.onSortChanged,
     required this.onFilterChanged,
     required this.onPageSizeChanged,
   });
@@ -2084,7 +2281,7 @@ class _FolderFilterSheetState extends State<_FolderFilterSheet> {
   @override
   Widget build(BuildContext context) {
     return AppBottomSheetSurface(
-      maxHeightRatio: 0.55,
+      maxHeightRatio: 0.7,
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Column(
@@ -2102,6 +2299,20 @@ class _FolderFilterSheetState extends State<_FolderFilterSheet> {
                 ),
               ),
             ),
+            Text(
+              'SORT BY',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: context.adaptiveTextTertiary,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            ...FolderBrowserSortOption.values.map((option) => _buildFolderSortTile(context, option)),
+            const SizedBox(height: AppConstants.spacingMd),
+            const Divider(color: AppColors.glassBorder, height: 1),
+            const SizedBox(height: AppConstants.spacingMd),
             Text(
               'FILTER BY FORMAT',
               style: TextStyle(
@@ -2217,11 +2428,95 @@ class _FolderFilterSheetState extends State<_FolderFilterSheet> {
                 },
               ),
             ),
-            const SizedBox(height: AppConstants.spacingMd),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildFolderSortTile(BuildContext context, FolderBrowserSortOption option) {
+    final isSelected = widget.currentSort == option;
+    final icon = _folderSortIcon(option);
+    final label = _folderSortLabel(option);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          widget.onSortChanged(option);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: isSelected
+                ? AppColors.accent.withValues(alpha: 0.12)
+                : Colors.transparent,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: isSelected
+                    ? AppColors.accent
+                    : context.adaptiveTextSecondary,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    color: isSelected
+                        ? AppColors.accent
+                        : context.adaptiveTextPrimary,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                const Icon(
+                  Icons.check_rounded,
+                  size: 20,
+                  color: AppColors.accent,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _folderSortIcon(FolderBrowserSortOption option) {
+    switch (option) {
+      case FolderBrowserSortOption.name:
+        return LucideIcons.folder;
+      case FolderBrowserSortOption.songCount:
+        return LucideIcons.hash;
+      case FolderBrowserSortOption.title:
+        return LucideIcons.type;
+      case FolderBrowserSortOption.artist:
+        return LucideIcons.mic;
+      case FolderBrowserSortOption.dateAdded:
+        return LucideIcons.calendar;
+    }
+  }
+
+  String _folderSortLabel(FolderBrowserSortOption option) {
+    switch (option) {
+      case FolderBrowserSortOption.name:
+        return 'Folder Name';
+      case FolderBrowserSortOption.songCount:
+        return 'Folder Song Count';
+      case FolderBrowserSortOption.title:
+        return 'Song Title';
+      case FolderBrowserSortOption.artist:
+        return 'Song Artist';
+      case FolderBrowserSortOption.dateAdded:
+        return 'Date Added';
+    }
   }
 }
 
@@ -3094,4 +3389,51 @@ class _ContentStateWidget extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PinchGestureRecognizer extends OneSequenceGestureRecognizer {
+  _PinchGestureRecognizer();
+
+  void Function(PointerDownEvent event)? onPointerDown;
+  void Function(PointerMoveEvent event)? onPointerMove;
+  void Function(PointerEvent event)? onPointerUp;
+
+  final Map<int, Offset> _pointers = {};
+  bool _pinchAccepted = false;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    startTrackingPointer(event.pointer);
+    _pointers[event.pointer] = event.position;
+    onPointerDown?.call(event);
+
+    if (_pointers.length >= 2 && !_pinchAccepted) {
+      _pinchAccepted = true;
+      resolve(GestureDisposition.accepted);
+    }
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerMoveEvent) {
+      _pointers[event.pointer] = event.position;
+      onPointerMove?.call(event);
+    }
+    if (event is PointerUpEvent || event is PointerCancelEvent) {
+      _pointers.remove(event.pointer);
+      onPointerUp?.call(event);
+      stopTrackingPointer(event.pointer);
+      if (_pointers.isEmpty) {
+        _pinchAccepted = false;
+      }
+    }
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {
+    _pinchAccepted = false;
+  }
+
+  @override
+  String get debugDescription => '_PinchGestureRecognizer';
 }

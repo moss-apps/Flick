@@ -776,72 +776,6 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     );
   }
 
-  Widget _buildAutoSyncToggle() {
-    return Consumer(
-      builder: (context, ref, child) {
-        final autoSyncEnabled = ref.watch(autoSyncEnabledProvider);
-        final autoSyncService = ref.watch(autoLibrarySyncServiceProvider);
-        final autoSyncInterval = ref.watch(autoSyncIntervalProvider);
-
-        return Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
-          child: Row(
-            children: [
-              Container(
-                width: context.scaleSize(AppConstants.containerSizeSm),
-                height: context.scaleSize(AppConstants.containerSizeSm),
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackgroundStrong,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                ),
-                child: Icon(
-                  LucideIcons.refreshCcw,
-                  color: context.adaptiveTextSecondary,
-                  size: context.responsiveIcon(AppConstants.iconSizeMd),
-                ),
-              ),
-              const SizedBox(width: AppConstants.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Auto-Sync Library',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Check for new songs every $autoSyncInterval minutes',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: autoSyncEnabled,
-                onChanged: (value) {
-                  ref.read(autoSyncEnabledProvider.notifier).set(value);
-                  if (value) {
-                    autoSyncService.syncInterval = Duration(
-                      minutes: autoSyncInterval,
-                    );
-                    autoSyncService.start();
-                  } else {
-                    autoSyncService.stop();
-                  }
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final libraryScanPreferences = ref.watch(libraryScanPreferencesProvider);
@@ -976,8 +910,6 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                   subtitle: 'Find and remove duplicate songs',
                   onTap: _isScanning ? null : _openDuplicateCleaner,
                 ),
-                const SettingsDivider(),
-                _buildAutoSyncToggle(),
               ],
               const SettingsDivider(),
               _buildExpandableScanSettings(libraryScanPreferences),

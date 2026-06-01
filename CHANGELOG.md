@@ -2,6 +2,15 @@
 
 ## 0.17.0-beta.1 (2026-05-31)
 
+### Milestone Card Redesign & Collection
+- Redesigned milestone celebration card with per-tier accent color (bronze / silver / gold / sapphire / amethyst), large hero icon, tinted border + glow, and a subtle "next milestone — N to go" hint line
+- New achievement-style collection view (Settings → Milestones) listing all five tiers in a grid; unlocked tiles re-open the celebration card with the achieved date, locked tiles show a progress bottom sheet
+- Settings → About → Milestones tile shows a live "X / 5 unlocked" counter
+- Five new `AppColors` milestone tint constants and per-tier `tierIcon` / `tierColor` / `shortLabel` / `threshold` / `isTopTier` getters on `MilestoneTypeX`
+- New `MilestoneService.getNextMilestone()` helper for "next unshown tier + remaining units" (used by the popup and the locked-tile sheet)
+- `MilestoneService` constructor now accepts an optional `playCountOverride` for unit testing without Isar
+- New test suite: `test/services/milestone_service_test.dart`
+
 ### BitPerfect Capsule/Indicator
 - BitPerfect status capsule displayed in the player UI showing active bit-perfect mode
 - Visual indicator for bit-perfect audio path engagement

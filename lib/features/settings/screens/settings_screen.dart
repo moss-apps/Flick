@@ -14,9 +14,38 @@ import 'package:flick/features/settings/screens/player_layout_settings_screen.da
 import 'package:flick/features/settings/screens/widget_settings_screen.dart';
 import 'package:flick/features/settings/screens/support_flick_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
+import 'package:flick/features/milestone/screens/milestones_screen.dart';
+import 'package:flick/services/milestone_service.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  int _milestonesUnlocked = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshMilestoneCount();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _refreshMilestoneCount();
+  }
+
+  Future<void> _refreshMilestoneCount() async {
+    final shown = await MilestoneService().getShownMilestones();
+    if (!mounted) return;
+    if (shown.length != _milestonesUnlocked) {
+      setState(() => _milestonesUnlocked = shown.length);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,10 +76,8 @@ class SettingsScreen extends StatelessWidget {
                           iconFg: const Color(0xFF8BB8FF),
                           title: 'Library',
                           subtitle: 'Folders, scanning, and duplicates',
-                          onTap: () => _navigate(
-                            context,
-                            const LibrarySettingsScreen(),
-                          ),
+                          onTap: () =>
+                              _navigate(context, const LibrarySettingsScreen()),
                         ),
                         const SettingsDivider(),
                         _CategoryTile(
@@ -83,10 +110,8 @@ class SettingsScreen extends StatelessWidget {
                           iconFg: const Color(0xFFFFC48B),
                           title: 'Audio',
                           subtitle: 'UAC2 and equalizer',
-                          onTap: () => _navigate(
-                            context,
-                            const AudioSettingsScreen(),
-                          ),
+                          onTap: () =>
+                              _navigate(context, const AudioSettingsScreen()),
                         ),
                         const SettingsDivider(),
                         _CategoryTile(
@@ -95,10 +120,8 @@ class SettingsScreen extends StatelessWidget {
                           iconFg: const Color(0xFFC4FF8B),
                           title: 'Lyrics',
                           subtitle: 'Lyrics saving behavior',
-                          onTap: () => _navigate(
-                            context,
-                            const LyricsSettingsScreen(),
-                          ),
+                          onTap: () =>
+                              _navigate(context, const LyricsSettingsScreen()),
                         ),
                       ],
                     ),
@@ -148,10 +171,8 @@ class SettingsScreen extends StatelessWidget {
                           iconFg: const Color(0xFF8BB8FF),
                           title: 'Widgets',
                           subtitle: 'Customize home screen widgets',
-                          onTap: () => _navigate(
-                            context,
-                            const WidgetSettingsScreen(),
-                          ),
+                          onTap: () =>
+                              _navigate(context, const WidgetSettingsScreen()),
                         ),
                       ],
                     ),
@@ -160,15 +181,27 @@ class SettingsScreen extends StatelessWidget {
                     SettingsCard(
                       children: [
                         _CategoryTile(
+                          icon: LucideIcons.trophy,
+                          iconBg: const Color(0xFF3A3320),
+                          iconFg: const Color(0xFFD4B265),
+                          title: 'Milestones',
+                          subtitle: _milestonesUnlocked == 0
+                              ? 'No achievements yet — keep listening'
+                              : '$_milestonesUnlocked / ${MilestoneType.values.length} unlocked',
+                          onTap: () async {
+                            _navigate(context, const MilestonesScreen());
+                            await _refreshMilestoneCount();
+                          },
+                        ),
+                        const SettingsDivider(),
+                        _CategoryTile(
                           icon: LucideIcons.info,
                           iconBg: const Color(0xFF3A3A3A),
                           iconFg: const Color(0xFFB0B0B0),
                           title: 'App Info',
                           subtitle: 'Updates, about, and support',
-                          onTap: () => _navigate(
-                            context,
-                            const AppInfoSettingsScreen(),
-                          ),
+                          onTap: () =>
+                              _navigate(context, const AppInfoSettingsScreen()),
                         ),
                       ],
                     ),
@@ -184,8 +217,8 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ],
-            ),
-          ),
+        ),
+      ),
     );
   }
 

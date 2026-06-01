@@ -99,12 +99,10 @@ pub fn probe_file(path: &Path) -> Result<ProbeResult, DecoderError> {
 
     // Calculate duration
     let duration_secs = if let Some(n_frames) = codec_params.n_frames {
-        n_frames as f64 / sample_rate as f64
-    } else if let Some(time_base) = codec_params.time_base {
-        if let Some(dur) = codec_params.n_frames {
-            time_base.calc_time(dur).seconds as f64
+        if let Some(time_base) = codec_params.time_base {
+            time_base.calc_time(n_frames).seconds as f64
         } else {
-            0.0
+            n_frames as f64 / sample_rate as f64
         }
     } else {
         0.0
@@ -445,11 +443,7 @@ fn decode_thread(
             offset += written;
 
             if written == 0 {
-                // Buffer full - wait a bit
-                if !producer.wait_for_space(chunk.len().min(1024), 100) {
-                    // Timeout or stop signal
-                    break;
-                }
+                producer.wait_for_space(chunk.len().min(1024), 100);
             }
         }
     }
@@ -481,9 +475,7 @@ fn decode_thread(
                 let w = producer.write(chunk);
                 offset += w;
                 if w == 0 {
-                    if !producer.wait_for_space(chunk.len().min(1024), 100) {
-                        break;
-                    }
+                    producer.wait_for_space(chunk.len().min(1024), 100);
                 }
             }
         }
