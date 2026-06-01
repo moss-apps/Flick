@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -37,7 +38,8 @@ class SongsScreen extends ConsumerStatefulWidget {
   ConsumerState<SongsScreen> createState() => _SongsScreenState();
 }
 
-class _SongsScreenState extends ConsumerState<SongsScreen> {
+class _SongsScreenState extends ConsumerState<SongsScreen>
+    with SingleTickerProviderStateMixin {
   static const double _listItemExtent = 80;
 
   static const int _defaultFolderGridPageSize = 8;
@@ -45,6 +47,10 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
   static const int _maxFolderGridPageSize = 30;
   static const int _listPageSize = 50;
   static const double _listLoadMoreThreshold = 320;
+  static const double _minFolderGridScale = 0.5;
+  static const double _maxFolderGridScale = 3.0;
+  static const int _minFolderGridColumns = 1;
+  static const int _maxFolderGridColumns = 4;
 
   int _selectedIndex = 0;
   final TextEditingController _searchController = TextEditingController();
@@ -68,6 +74,12 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
   FolderBrowserSortOption _folderSortOption = FolderBrowserSortOption.name;
+  double _folderGridScale = 1.0;
+  double _folderGridTargetScale = 1.0;
+  Ticker? _folderGridTicker;
+  final Map<int, Offset> _folderGridPointers = {};
+  double? _folderGridPinchStartDistance;
+  double _folderGridPinchStartScale = 1.0;
 
   @override
   void initState() {
@@ -92,6 +104,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
     _folderGridScrollController.dispose();
     _searchController.dispose();
     _fastIndexTimer?.cancel();
+    _folderGridTicker?.dispose();
     super.dispose();
   }
 
@@ -573,57 +586,70 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
     final visibleFolders = sortedFolders.take(visibleCount).toList(growable: false);
     final hasMore = visibleCount < sortedFolders.length;
 
-    return CustomScrollView(
-      controller: _folderGridScrollController,
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(
-            AppConstants.spacingLg,
-            0,
-            AppConstants.spacingLg,
-            AppConstants.spacingLg,
-          ),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: context.gridColumns(
-                compact: 2,
-                phone: 2,
-                tablet: 3,
-              ),
-              childAspectRatio: 0.78,
-              crossAxisSpacing: AppConstants.spacingMd,
-              mainAxisSpacing: AppConstants.spacingLg,
+    final baseColumns = context.gridColumns(
+      compact: 2,
+      phone: 2,
+      tablet: 3,
+    );
+    final columns = (baseColumns * _folderGridScale)
+        .round()
+        .clamp(_minFolderGridColumns, _maxFolderGridColumns);
+    final aspectRatio = (0.78 * baseColumns / columns).clamp(0.38, 1.60);
+
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: _onFolderGridPointerDown,
+      onPointerMove: _onFolderGridPointerMove,
+      onPointerUp: _onFolderGridPointerEnd,
+      onPointerCancel: _onFolderGridPointerEnd,
+      child: CustomScrollView(
+        controller: _folderGridScrollController,
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.spacingLg,
+              0,
+              AppConstants.spacingLg,
+              AppConstants.spacingLg,
             ),
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final folder = visibleFolders[index];
-              return _FolderCard(
-                folder: folder,
-                onTap: () => _openFolderDetail(folder),
-              );
-            }, childCount: visibleFolders.length),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                childAspectRatio: aspectRatio,
+                crossAxisSpacing: AppConstants.spacingMd,
+                mainAxisSpacing: AppConstants.spacingLg,
+              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final folder = visibleFolders[index];
+                return _FolderCard(
+                  folder: folder,
+                  onTap: () => _openFolderDetail(folder),
+                );
+              }, childCount: visibleFolders.length),
+            ),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: hasMore || visibleCount > _getFolderPageSize()
-              ? Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppConstants.spacingLg,
-                    0,
-                    AppConstants.spacingLg,
-                    AppConstants.navBarHeight + 120,
+          SliverToBoxAdapter(
+            child: hasMore || visibleCount > _getFolderPageSize()
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppConstants.spacingLg,
+                      0,
+                      AppConstants.spacingLg,
+                      AppConstants.navBarHeight + 120,
+                    ),
+                    child: _FolderLoadMoreIndicator(
+                      visibleCount: visibleCount,
+                      totalCount: sortedFolders.length,
+                      isComplete: !hasMore && visibleCount > _getFolderPageSize(),
+                      onLoadMore: hasMore ? _loadMoreFolders : null,
+                    ),
+                  )
+                : const SizedBox(
+                    height: AppConstants.navBarHeight + AppConstants.spacingLg,
                   ),
-                  child: _FolderLoadMoreIndicator(
-                    visibleCount: visibleCount,
-                    totalCount: sortedFolders.length,
-                    isComplete: !hasMore && visibleCount > _getFolderPageSize(),
-                    onLoadMore: hasMore ? _loadMoreFolders : null,
-                  ),
-                )
-              : const SizedBox(
-                  height: AppConstants.navBarHeight + AppConstants.spacingLg,
-                ),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -937,6 +963,65 @@ class _SongsScreenState extends ConsumerState<SongsScreen> {
   }
 
   void _onFolderGridScroll() {}
+
+  void _onFolderGridPointerDown(PointerDownEvent event) {
+    _folderGridPointers[event.pointer] = event.position;
+    _syncFolderGridPinch();
+  }
+
+  void _onFolderGridPointerMove(PointerMoveEvent event) {
+    if (!_folderGridPointers.containsKey(event.pointer)) return;
+    _folderGridPointers[event.pointer] = event.position;
+    _syncFolderGridPinch();
+  }
+
+  void _onFolderGridPointerEnd(PointerEvent event) {
+    _folderGridPointers.remove(event.pointer);
+    if (_folderGridPointers.length < 2) {
+      _folderGridPinchStartDistance = null;
+    }
+    _syncFolderGridPinch();
+  }
+
+  void _syncFolderGridPinch() {
+    if (_folderGridPointers.length != 2) return;
+    final positions = _folderGridPointers.values.toList();
+    final distance = (positions[0] - positions[1]).distance;
+    if (distance <= 0) return;
+
+    if (_folderGridPinchStartDistance == null) {
+      _folderGridPinchStartDistance = distance;
+      _folderGridPinchStartScale = _folderGridTargetScale;
+      return;
+    }
+
+    final ratio = distance / _folderGridPinchStartDistance!;
+    final newScale = (_folderGridPinchStartScale / ratio)
+        .clamp(_minFolderGridScale, _maxFolderGridScale);
+    if ((newScale - _folderGridTargetScale).abs() > 0.001) {
+      setState(() {
+        _folderGridTargetScale = newScale;
+      });
+    }
+    _ensureFolderGridTicker();
+  }
+
+  void _ensureFolderGridTicker() {
+    _folderGridTicker ??= createTicker(_onFolderGridTick)..start();
+  }
+
+  void _onFolderGridTick(Duration elapsed) {
+    final diff = _folderGridTargetScale - _folderGridScale;
+    if (diff.abs() < 0.001) {
+      _folderGridTicker?.stop();
+      _folderGridTicker?.dispose();
+      _folderGridTicker = null;
+      return;
+    }
+    setState(() {
+      _folderGridScale += diff * 0.35;
+    });
+  }
 
   Future<void> _loadFolderSortOption() async {
     final prefs = await SharedPreferences.getInstance();
@@ -2306,7 +2391,6 @@ class _FolderFilterSheetState extends State<_FolderFilterSheet> {
                 },
               ),
             ),
-            const SizedBox(height: AppConstants.spacingMd),
           ],
         ),
       ),
