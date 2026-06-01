@@ -586,17 +586,25 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final visibleFolders = sortedFolders.take(visibleCount).toList(growable: false);
     final hasMore = visibleCount < sortedFolders.length;
 
-    final baseColumns = context.gridColumns(
-      compact: 2,
-      phone: 2,
-      tablet: 3,
-    );
-    final columns = (baseColumns * _folderGridScale)
-        .round()
-        .clamp(_minFolderGridColumns, _maxFolderGridColumns);
-    final aspectRatio = (0.78 * baseColumns / columns).clamp(0.38, 1.60);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final baseColumns = context.gridColumns(
+          compact: 2,
+          phone: 2,
+          tablet: 3,
+        );
+        final columns = (baseColumns * _folderGridScale)
+            .round()
+            .clamp(_minFolderGridColumns, _maxFolderGridColumns);
 
-    return Listener(
+        final totalSpacing = AppConstants.spacingMd * (columns - 1);
+        final itemWidth = (availableWidth - totalSpacing) / columns;
+
+        const textSectionHeight = 58.0;
+        final aspectRatio = itemWidth / (itemWidth + textSectionHeight);
+
+        return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: _onFolderGridPointerDown,
       onPointerMove: _onFolderGridPointerMove,
@@ -651,9 +659,10 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         ],
       ),
     );
-  }
+  });
+}
 
-  void _openFolderDetail(FolderGroup folder) {
+void _openFolderDetail(FolderGroup folder) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => _FolderDetailScreen(folder: folder),
@@ -1989,8 +1998,6 @@ class _FolderCardState extends State<_FolderCard>
   @override
   Widget build(BuildContext context) {
     final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final cardWidth = context.scaleSize(AppConstants.cardWidthMd);
-    final artworkTargetWidth = (cardWidth * devicePixelRatio).round();
     final artworks = _cachedArtworks;
     final padded = List<_ArtEntry>.from(artworks);
     while (padded.length < 4) {
@@ -2026,124 +2033,127 @@ class _FolderCardState extends State<_FolderCard>
               borderRadius: BorderRadius.circular(AppConstants.radiusLg),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-                child: SizedBox(
-                  width: cardWidth,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AspectRatio(
-                        aspectRatio: 1,
-                        child: Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceLight,
-                            borderRadius: BorderRadius.all(
-                              Radius.circular(AppConstants.radiusLg),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.18),
-                                blurRadius: 18,
-                                offset: const Offset(0, 10),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final artworkTargetWidth = (constraints.maxWidth * devicePixelRatio).round();
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 1,
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceLight,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(AppConstants.radiusLg),
                               ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.all(
-                              Radius.circular(AppConstants.radiusLg),
-                            ),
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                _buildArtGrid(
-                                  padded,
-                                  artworkTargetWidth,
-                                  context,
-                                ),
-                                Positioned.fill(
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.transparent,
-                                          Colors.black.withValues(alpha: 0.1),
-                                          Colors.black.withValues(alpha: 0.45),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  left: AppConstants.spacingSm,
-                                  bottom: AppConstants.spacingSm,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: AppConstants.spacingSm,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.55,
-                                      ),
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.12,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '${widget.folder.songs.length} tracks',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 10),
                                 ),
                               ],
                             ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(AppConstants.radiusLg),
+                              ),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  _buildArtGrid(
+                                    padded,
+                                    artworkTargetWidth,
+                                    context,
+                                  ),
+                                  Positioned.fill(
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.transparent,
+                                            Colors.black.withValues(alpha: 0.1),
+                                            Colors.black.withValues(alpha: 0.45),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: AppConstants.spacingSm,
+                                    bottom: AppConstants.spacingSm,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppConstants.spacingSm,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.55,
+                                        ),
+                                        borderRadius: BorderRadius.circular(999),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '${widget.folder.songs.length} tracks',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppConstants.spacingSm,
-                          AppConstants.spacingMd,
-                          AppConstants.spacingSm,
-                          AppConstants.spacingSm,
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppConstants.spacingSm,
+                            AppConstants.spacingMd,
+                            AppConstants.spacingSm,
+                            AppConstants.spacingSm,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.folder.name,
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      color: context.adaptiveTextPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${widget.folder.songs.length} songs',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: context.adaptiveTextSecondary,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.folder.name,
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    color: context.adaptiveTextPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${widget.folder.songs.length} songs',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: context.adaptiveTextSecondary,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
