@@ -12,6 +12,7 @@ pub enum BackendType {
     ResampledFallback,
     DsdNative,
     DsdDoP,
+    UsbDsdNative,
 }
 
 impl BackendType {
@@ -24,6 +25,7 @@ impl BackendType {
             Self::ResampledFallback => "resampled_fallback",
             Self::DsdNative => "dsd_native",
             Self::DsdDoP => "dsd_dop",
+            Self::UsbDsdNative => "usb_dsd_native",
         }
     }
 }
