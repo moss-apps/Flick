@@ -1,4 +1,4 @@
-use super::{DsdChannelLayout, DsdFormatDecoder};
+use super::{DsdBitOrder, DsdChannelLayout, DsdFormatDecoder};
 use crate::audio::dsd_engine::dsd::DsdRate;
 use anyhow::{anyhow, Result};
 use std::ffi::CString;
@@ -141,6 +141,10 @@ impl DsdFormatDecoder for WavpackDsdDecoder {
 
     fn channel_layout(&self) -> DsdChannelLayout {
         DsdChannelLayout::Interleaved
+    }
+
+    fn bit_order(&self) -> DsdBitOrder {
+        DsdBitOrder::MsbFirst
     }
 }
 
