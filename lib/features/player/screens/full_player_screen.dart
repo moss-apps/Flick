@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -3712,7 +3713,9 @@ class _AnimatedSongScene extends StatelessWidget {
                                             albumColor: albumColor,
                                           )
                                         : _AlbumArtBox(
-                                            song: song, size: artworkSize),
+                                            song: song,
+                                            size: artworkSize,
+                                            playerService: playerService),
                                   ),
                                 ),
                                 SizedBox(height: artworkSpacing),
@@ -3960,8 +3963,13 @@ class _AnimatedSongScene extends StatelessWidget {
 class _AlbumArtBox extends StatefulWidget {
   final Song song;
   final double? size;
+  final PlayerService? playerService;
 
-  const _AlbumArtBox({required this.song, this.size});
+  const _AlbumArtBox({
+    required this.song,
+    this.size,
+    this.playerService,
+  });
 
   @override
   State<_AlbumArtBox> createState() => _AlbumArtBoxState();
@@ -3970,10 +3978,27 @@ class _AlbumArtBox extends StatefulWidget {
 class _AlbumArtBoxState extends State<_AlbumArtBox>
     with TickerProviderStateMixin {
   static const double _labelRatio = 0.44;
+  static const Duration _spinDuration = Duration(seconds: 4);
+  static const Duration _seekAnimationDuration =
+      Duration(milliseconds: 450);
+  static const int _msPerSeekRevolution = 1500;
+  static const int _maxSeekRevolutions = 5;
+  static const int _minSeekRevolutions = 1;
+  static const int _forwardSeekThresholdMs = 1500;
+  static const double _secondsPerVinylRotation = 30.0;
 
   late final AnimationController _morphController;
   late final AnimationController _spinController;
+  late final AnimationController _seekAngleController;
   bool _isVinyl = false;
+  Duration _lastObservedPosition = Duration.zero;
+  double _userRotationOffset = 0.0;
+  bool _isUserDragging = false;
+  late final TapGestureRecognizer _tapRecognizer;
+  late final _RotationSeekRecognizer _rotationRecognizer;
+
+  bool get _isPlaying =>
+      widget.playerService?.isPlayingNotifier.value ?? false;
 
   @override
   void initState() {
@@ -3984,37 +4009,182 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
     );
     _spinController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 16),
+      duration: _spinDuration,
+    );
+    _seekAngleController = AnimationController(
+      vsync: this,
+      duration: _seekAnimationDuration,
     );
     _morphController.addStatusListener(_handleMorphStatus);
+    _tapRecognizer = TapGestureRecognizer()..onTap = _toggle;
+    _rotationRecognizer = _RotationSeekRecognizer(
+      onStart: _onRotationStart,
+      onUpdate: _onRotationUpdate,
+      onEnd: _onRotationEnd,
+      discCenter: () => Offset.zero, // Will be set in build
+    );
+    final service = widget.playerService;
+    if (service != null) {
+      _lastObservedPosition = service.positionNotifier.value;
+      service.positionNotifier.addListener(_onPositionChanged);
+      service.isPlayingNotifier.addListener(_onPlayingChanged);
+    }
   }
 
   @override
   void didUpdateWidget(covariant _AlbumArtBox oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.song.id != widget.song.id && _isVinyl) {
-      _isVinyl = false;
-      _spinController.stop();
-      _spinController.value = 0;
-      _morphController.value = 0;
+    if (oldWidget.song.id != widget.song.id) {
+      _lastObservedPosition = Duration.zero;
+      _seekAngleController.stop();
+      _seekAngleController.value = 0;
+      _userRotationOffset = 0.0;
+      _isUserDragging = false;
+      if (_isVinyl) {
+        _isVinyl = false;
+        _spinController.stop();
+        _spinController.value = 0;
+        _morphController.value = 0;
+      }
+    }
+    if (oldWidget.playerService != widget.playerService) {
+      oldWidget.playerService?.positionNotifier
+          .removeListener(_onPositionChanged);
+      oldWidget.playerService?.isPlayingNotifier
+          .removeListener(_onPlayingChanged);
+      final service = widget.playerService;
+      if (service != null) {
+        _lastObservedPosition = service.positionNotifier.value;
+        service.positionNotifier.addListener(_onPositionChanged);
+        service.isPlayingNotifier.addListener(_onPlayingChanged);
+      } else {
+        _lastObservedPosition = Duration.zero;
+      }
     }
   }
 
   @override
   void dispose() {
     _morphController.removeStatusListener(_handleMorphStatus);
+    widget.playerService?.positionNotifier.removeListener(_onPositionChanged);
+    widget.playerService?.isPlayingNotifier.removeListener(_onPlayingChanged);
+    _tapRecognizer.dispose();
+    _rotationRecognizer.dispose();
+    _seekAngleController.dispose();
     _spinController.dispose();
     _morphController.dispose();
     super.dispose();
   }
 
+  void _onPlayingChanged() {
+    if (!mounted) return;
+    if (!_isVinyl) return;
+    if (_isUserDragging) return;
+    if (_isPlaying) {
+      _startSpinning();
+    } else {
+      _spinController.stop();
+    }
+  }
+
+  void _startSpinning() {
+    if (!_isVinyl) return;
+    if (_morphController.isCompleted && !_spinController.isAnimating) {
+      _spinController.repeat();
+    }
+  }
+
   void _handleMorphStatus(AnimationStatus status) {
     if (!mounted) return;
     if (status == AnimationStatus.completed && _isVinyl) {
-      _spinController.repeat();
+      if (_isPlaying) {
+        _spinController.repeat();
+      }
     } else if (status == AnimationStatus.dismissed) {
       _spinController.value = 0;
     }
+  }
+
+  void _onPositionChanged() {
+    if (!_isVinyl) return;
+    if (_isUserDragging) return;
+    final service = widget.playerService;
+    if (service == null) return;
+    final newPosition = service.positionNotifier.value;
+    final oldPosition = _lastObservedPosition;
+    _lastObservedPosition = newPosition;
+
+    final deltaMs = newPosition.inMilliseconds - oldPosition.inMilliseconds;
+    if (deltaMs == 0) return;
+
+    final isRewind = deltaMs < 0;
+    final isForwardJump = deltaMs > _forwardSeekThresholdMs;
+    if (isRewind || isForwardJump) {
+      _animateSeek(deltaMs);
+    }
+  }
+
+  void _onRotationStart() {
+    if (!_isVinyl) return;
+    final service = widget.playerService;
+    if (service == null) return;
+    _isUserDragging = true;
+    _spinController.stop();
+    _seekAngleController.stop();
+    _seekAngleController.value = 0;
+    _lastObservedPosition = service.positionNotifier.value;
+  }
+
+  void _onRotationUpdate(double delta) {
+    if (!_isVinyl) return;
+    final service = widget.playerService;
+    if (service == null) return;
+    _userRotationOffset += delta;
+
+    final msPerRadian =
+        (_secondsPerVinylRotation * 1000) / (2 * math.pi);
+    final seekMsDelta = (delta * msPerRadian).round();
+    if (seekMsDelta != 0) {
+      final current = service.positionNotifier.value;
+      final duration = service.durationNotifier.value;
+      var newPositionMs = current.inMilliseconds + seekMsDelta;
+      if (duration.inMilliseconds > 0) {
+        newPositionMs = newPositionMs.clamp(0, duration.inMilliseconds);
+      } else {
+        newPositionMs = newPositionMs.clamp(0, 0x7FFFFFFF);
+      }
+      final newPosition = Duration(milliseconds: newPositionMs);
+      service.positionNotifier.value = newPosition;
+      _lastObservedPosition = newPosition;
+      unawaited(service.seek(newPosition));
+    }
+
+    setState(() {});
+  }
+
+  void _onRotationEnd() {
+    _isUserDragging = false;
+    if (_isVinyl && _isPlaying) {
+      _spinController.repeat();
+    }
+  }
+
+  void _animateSeek(int deltaMs) {
+    if (!_isVinyl) return;
+    var revolutions = (deltaMs.abs() / _msPerSeekRevolution).round();
+    revolutions = revolutions.clamp(_minSeekRevolutions, _maxSeekRevolutions);
+    final signed = deltaMs >= 0 ? revolutions : -revolutions;
+
+    final from = _seekAngleController.value;
+    final to = from + signed * 2 * math.pi;
+
+    _seekAngleController.stop();
+    _seekAngleController.value = from;
+    _seekAngleController.animateTo(
+      to,
+      duration: _seekAnimationDuration,
+      curve: Curves.easeOutCubic,
+    );
   }
 
   void _toggle() {
@@ -4025,6 +4195,9 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
         _morphController.forward();
       } else {
         _spinController.stop();
+        _seekAngleController.stop();
+        _seekAngleController.value = 0;
+        _userRotationOffset = 0.0;
         _morphController.reverse();
       }
     });
@@ -4034,6 +4207,10 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
   Widget build(BuildContext context) {
     final double resolvedSize =
         widget.size ?? context.responsive(280.0, 320.0, 360.0);
+    
+    // Update the disc center for rotation detection
+    _rotationRecognizer.discCenter = () => Offset(resolvedSize / 2, resolvedSize / 2);
+
     final framePadding = resolvedSize < 220 ? 5.0 : 7.0;
     final outerRadius = resolvedSize < 220 ? 28.0 : 34.0;
     final innerRadius = math.max(outerRadius - 7.0, 20.0);
@@ -4044,21 +4221,38 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
     final labelRadius = labelSize / 2;
 
     return Center(
-      child: GestureDetector(
+      child: RawGestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: _toggle,
+        gestures: {
+          TapGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+            () => _tapRecognizer,
+            (_) {},
+          ),
+          _RotationSeekRecognizer:
+              GestureRecognizerFactoryWithHandlers<_RotationSeekRecognizer>(
+            () => _rotationRecognizer,
+            (_) {},
+          ),
+        },
         child: SizedBox(
           width: resolvedSize,
           height: resolvedSize,
           child: AnimatedBuilder(
-            animation: Listenable.merge([_morphController, _spinController]),
+            animation: Listenable.merge([
+              _morphController,
+              _spinController,
+              _seekAngleController,
+            ]),
             builder: (context, _) {
-              final t = Curves.easeInOutCubic
-                  .transform(_morphController.value)
-                  .clamp(0.0, 1.0);
+              final rawT = Curves.easeInOutCubic
+                  .transform(_morphController.value);
+              final t = rawT.isNaN ? 0.0 : rawT.clamp(0.0, 1.0);
               final glass = (1.0 - t).clamp(0.0, 1.0);
-              final spinAngle =
-                  _spinController.value * 2 * math.pi * t;
+              final rawAngle = _spinController.value * 2 * math.pi * t +
+                  _seekAngleController.value +
+                  _userRotationOffset;
+              final spinAngle = rawAngle.isNaN ? 0.0 : rawAngle;
 
               final artSize = resolvedSize - (resolvedSize - labelSize) * t;
               final artFramePadding = framePadding * glass;
@@ -4193,6 +4387,127 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
         ),
       ),
     );
+  }
+}
+
+class _RotationSeekRecognizer extends OneSequenceGestureRecognizer {
+  _RotationSeekRecognizer({
+    required this.onStart,
+    required this.onUpdate,
+    required this.onEnd,
+    required this.discCenter,
+  });
+
+  final VoidCallback onStart;
+  final void Function(double delta) onUpdate;
+  final VoidCallback onEnd;
+  Offset Function() discCenter;
+
+  Offset? _startPos;
+  double? _lastAngle;
+  bool _accepted = false;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    _startPos = event.localPosition;
+    _lastAngle = null;
+    _accepted = false;
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (_accepted) {
+      if (event is PointerMoveEvent) {
+        _handleMove(event);
+      } else if (event is PointerUpEvent || event is PointerCancelEvent) {
+        onEnd();
+        _accepted = false;
+        stopTrackingPointer(event.pointer);
+      }
+      return;
+    }
+
+    if (event is PointerMoveEvent && _startPos != null) {
+      final center = discCenter();
+      if (center == Offset.zero) return;
+
+      final totalDx = event.localPosition.dx - _startPos!.dx;
+      final totalDy = event.localPosition.dy - _startPos!.dy;
+      final totalDist = math.sqrt(totalDx * totalDx + totalDy * totalDy);
+
+      if (totalDist < 12) return;
+
+      // Check if motion is tangential (rotational) vs radial (linear swipe)
+      final motionDx = event.localPosition.dx - _startPos!.dx;
+      final motionDy = event.localPosition.dy - _startPos!.dy;
+      final radiusDx = _startPos!.dx - center.dx;
+      final radiusDy = _startPos!.dy - center.dy;
+      final radiusLength = math.sqrt(radiusDx * radiusDx + radiusDy * radiusDy);
+      
+      if (radiusLength < 20) return; // Too close to center
+
+      final dotProduct = motionDx * radiusDx + motionDy * radiusDy;
+      final motionLength = math.sqrt(motionDx * motionDx + motionDy * motionDy);
+      final cosAngle = (dotProduct / (motionLength * radiusLength)).clamp(-1.0, 1.0);
+      
+      // If motion is mostly radial (cosAngle close to ±1), it's a swipe
+      // If motion is mostly tangential (cosAngle close to 0), it's rotation
+      if (cosAngle.abs() > 0.5) {
+        resolve(GestureDisposition.rejected);
+        stopTrackingPointer(event.pointer);
+        return;
+      }
+
+      resolve(GestureDisposition.accepted);
+      _accepted = true;
+      final initialDx = event.localPosition.dx - center.dx;
+      final initialDy = event.localPosition.dy - center.dy;
+      _lastAngle = math.atan2(initialDy, initialDx);
+      onStart();
+      _handleMove(event);
+    } else if (event is PointerUpEvent || event is PointerCancelEvent) {
+      stopTrackingPointer(event.pointer);
+    }
+  }
+
+  void _handleMove(PointerMoveEvent event) {
+    final center = discCenter();
+    if (center == Offset.zero) return;
+    final angle = math.atan2(
+      event.localPosition.dy - center.dy,
+      event.localPosition.dx - center.dx,
+    );
+    if (_lastAngle != null) {
+      var delta = angle - _lastAngle!;
+      if (delta > math.pi) delta -= 2 * math.pi;
+      if (delta < -math.pi) delta += 2 * math.pi;
+      onUpdate(delta);
+    }
+    _lastAngle = angle;
+  }
+
+  @override
+  void acceptGesture(int pointer) {}
+
+  @override
+  void rejectGesture(int pointer) {
+    _startPos = null;
+    _lastAngle = null;
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {}
+
+  @override
+  String get debugDescription => 'rotation seek';
+
+  @override
+  void dispose() {
+    super.dispose();
+    _startPos = null;
+    _lastAngle = null;
+    _accepted = false;
   }
 }
 
