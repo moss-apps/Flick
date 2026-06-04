@@ -2894,13 +2894,8 @@ class _SmartMixDetailScreen extends StatelessWidget {
               pinned: true,
               backgroundColor: Colors.transparent,
               surfaceTintColor: Colors.transparent,
-              leading: IconButton(
-                icon: Icon(
-                  LucideIcons.arrowLeft,
-                  color: context.adaptiveTextPrimary,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
+              leading: const SizedBox(),
+              titleSpacing: 0,
               flexibleSpace: FlexibleSpaceBar(
                 background: DecoratedBox(
                   decoration: BoxDecoration(
@@ -2937,6 +2932,17 @@ class _SmartMixDetailScreen extends StatelessWidget {
                               ],
                             ),
                           ),
+                        ),
+                      ),
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 20,
+                        left: 16,
+                        child: IconButton(
+                          icon: Icon(
+                            LucideIcons.arrowLeft,
+                            color: context.adaptiveTextPrimary,
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
                         ),
                       ),
                       Padding(
