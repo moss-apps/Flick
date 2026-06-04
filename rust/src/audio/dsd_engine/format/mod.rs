@@ -5,10 +5,16 @@ pub mod wavpack_decoder;
 use anyhow::Result;
 use std::path::Path;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DsdChannelLayout {
     SequentialBlocks { block_size: usize },
     Interleaved,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DsdBitOrder {
+    LsbFirst,
+    MsbFirst,
 }
 
 pub trait DsdFormatDecoder: Send {
@@ -20,6 +26,7 @@ pub trait DsdFormatDecoder: Send {
     fn read_dsd_bytes(&mut self, buf: &mut [u8]) -> Result<usize>;
     fn is_finished(&self) -> bool;
     fn channel_layout(&self) -> DsdChannelLayout;
+    fn bit_order(&self) -> DsdBitOrder;
 }
 
 pub fn open_dsd_decoder(path: &Path) -> Result<Box<dyn DsdFormatDecoder>> {
