@@ -594,7 +594,7 @@ SOFTWARE.
               NavigationSetting(
                 icon: LucideIcons.info,
                 title: 'About Flick Player',
-                subtitle: 'Version 0.18 .0-beta.1',
+                subtitle: 'Version 0.18.0-beta.1',
                 onTap: _showAboutBottomSheet,
               ),
               const SettingsDivider(),
