@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/utils/responsive.dart';
+import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/audio_output_diagnostics.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
@@ -628,6 +629,12 @@ class _AudioInfoBottomSheet extends ConsumerWidget {
 
   Widget _buildVisualizerPreview(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(appPreferencesProvider);
+    final colorMode = ref.watch(albumColorModeProvider);
+    final dominantColor = ref.watch(albumDominantColorSyncProvider);
+    final Color? albumColor =
+        (colorMode != AlbumColorMode.off && dominantColor != null)
+        ? dominantColor
+        : null;
 
     return Container(
       height: 100,
@@ -645,6 +652,7 @@ class _AudioInfoBottomSheet extends ConsumerWidget {
               animationStyle: prefs.visualizerAnimationStyle,
               frequencyMode: prefs.visualizerFrequencyMode,
               movementMode: prefs.visualizerMovementMode,
+              albumColor: albumColor,
             ),
           ),
           Positioned(
