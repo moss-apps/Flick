@@ -47,6 +47,7 @@ class AppPreferences {
   final bool welcomeCardDismissed;
   final bool replaceAlbumWithBitPerfectCapsule;
   final int folderGridPageSize;
+  final String? lastSeenChangelogVersion;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -95,6 +96,7 @@ class AppPreferences {
     this.welcomeCardDismissed = false,
     this.replaceAlbumWithBitPerfectCapsule = false,
     this.folderGridPageSize = 8,
+    this.lastSeenChangelogVersion,
   });
 
   AppPreferences copyWith({
@@ -144,6 +146,7 @@ class AppPreferences {
     bool? welcomeCardDismissed,
     bool? replaceAlbumWithBitPerfectCapsule,
     int? folderGridPageSize,
+    String? lastSeenChangelogVersion,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -178,7 +181,8 @@ class AppPreferences {
       artworkCardVerticalOffset:
           artworkCardVerticalOffset ?? this.artworkCardVerticalOffset,
       artworkCardShowTitle: artworkCardShowTitle ?? this.artworkCardShowTitle,
-      artworkCardShowArtist: artworkCardShowArtist ?? this.artworkCardShowArtist,
+      artworkCardShowArtist:
+          artworkCardShowArtist ?? this.artworkCardShowArtist,
       artworkCardShowAlbum: artworkCardShowAlbum ?? this.artworkCardShowAlbum,
       artworkCardShowFileInfo:
           artworkCardShowFileInfo ?? this.artworkCardShowFileInfo,
@@ -204,9 +208,12 @@ class AppPreferences {
       leftActionButton: leftActionButton ?? this.leftActionButton,
       rightActionButton: rightActionButton ?? this.rightActionButton,
       welcomeCardDismissed: welcomeCardDismissed ?? this.welcomeCardDismissed,
-      replaceAlbumWithBitPerfectCapsule: replaceAlbumWithBitPerfectCapsule ??
+      replaceAlbumWithBitPerfectCapsule:
+          replaceAlbumWithBitPerfectCapsule ??
           this.replaceAlbumWithBitPerfectCapsule,
       folderGridPageSize: folderGridPageSize ?? this.folderGridPageSize,
+      lastSeenChangelogVersion:
+          lastSeenChangelogVersion ?? this.lastSeenChangelogVersion,
     );
   }
 }
@@ -259,6 +266,7 @@ class AppPreferencesService {
   static const _replaceAlbumWithBitPerfectCapsuleKey =
       'replace_album_with_bit_perfect_capsule';
   static const _folderGridPageSizeKey = 'folder_grid_page_size';
+  static const _lastSeenChangelogVersionKey = 'last_seen_changelog_version';
 
   Future<AppPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -305,13 +313,11 @@ class AppPreferencesService {
           prefs.getDouble(_immersiveFullViewScaleKey) ?? 1.0,
       immersiveShowTitle: prefs.getBool(_immersiveShowTitleKey) ?? true,
       immersiveShowArtist: prefs.getBool(_immersiveShowArtistKey) ?? true,
-      immersiveShowFileInfo:
-          prefs.getBool(_immersiveShowFileInfoKey) ?? true,
+      immersiveShowFileInfo: prefs.getBool(_immersiveShowFileInfoKey) ?? true,
       widgetBgOpacity: prefs.getInt(_widgetBgOpacityKey) ?? 3,
       widgetShowAlbumArt: prefs.getBool(_widgetShowAlbumArtKey) ?? true,
       widgetShowArtist: prefs.getBool(_widgetShowArtistKey) ?? true,
-      widgetAccentColor:
-          prefs.getString(_widgetAccentColorKey) ?? 'white',
+      widgetAccentColor: prefs.getString(_widgetAccentColorKey) ?? 'white',
       widgetFlagshipTheme:
           prefs.getString(_widgetFlagshipThemeKey) ?? 'art_dominant',
       widgetFlagshipAccent:
@@ -320,14 +326,13 @@ class AppPreferencesService {
           prefs.getBool(_widgetFlagshipShowArtistKey) ?? true,
       lyricsMatchAudioFilename:
           prefs.getBool(_lyricsMatchAudioFilenameKey) ?? false,
-      leftActionButton:
-          prefs.getString(_leftActionButtonKey) ?? 'lyrics',
-      rightActionButton:
-          prefs.getString(_rightActionButtonKey) ?? 'favorites',
+      leftActionButton: prefs.getString(_leftActionButtonKey) ?? 'lyrics',
+      rightActionButton: prefs.getString(_rightActionButtonKey) ?? 'favorites',
       welcomeCardDismissed: prefs.getBool(_welcomeCardDismissedKey) ?? false,
       replaceAlbumWithBitPerfectCapsule:
           prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false,
       folderGridPageSize: prefs.getInt(_folderGridPageSizeKey) ?? 8,
+      lastSeenChangelogVersion: prefs.getString(_lastSeenChangelogVersionKey),
     );
   }
 
@@ -739,5 +744,19 @@ class AppPreferencesService {
   Future<void> setFolderGridPageSize(int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_folderGridPageSizeKey, value);
+  }
+
+  Future<String?> getLastSeenChangelogVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_lastSeenChangelogVersionKey);
+  }
+
+  Future<void> setLastSeenChangelogVersion(String? value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value == null) {
+      await prefs.remove(_lastSeenChangelogVersionKey);
+    } else {
+      await prefs.setString(_lastSeenChangelogVersionKey, value);
+    }
   }
 }
