@@ -220,16 +220,18 @@ class MusicNotificationService : Service() {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Music Playback",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Shows currently playing song with playback controls"
-            setShowBadge(false)
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Music Playback",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Shows currently playing song with playback controls"
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            notificationManager.createNotificationChannel(channel)
         }
-        notificationManager.createNotificationChannel(channel)
     }
 
     private fun setupMediaSession() {
