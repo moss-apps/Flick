@@ -24,3 +24,4 @@ export 'player_screen_mode_provider.dart';
 export 'update_check_provider.dart';
 export 'milestone_provider.dart';
 export 'tutorial_provider.dart';
+export 'whats_new_provider.dart';
