@@ -86,14 +86,15 @@ pub fn effective_dsd_output_mode_for_rate(
 
     #[cfg(target_os = "android")]
     {
-        if crate::audio::device::current_device_profile()
-            .as_ref()
-            .is_some_and(|p| p.supports_native_dsd)
-        {
+        let profile = crate::audio::device::current_device_profile();
+        let is_dap = profile.as_ref().is_some_and(|p| p.is_dap());
+        let supports_dsd = profile.as_ref().is_some_and(|p| p.supports_native_dsd);
+        if supports_dsd || is_dap {
             log_info!(
-                "[AUDIO] {:?} DSD requested; device supports ENCODING_DSD, \
+                "[AUDIO] {:?} DSD requested; device {} ENCODING_DSD, \
                  using Android DSD AudioTrack",
-                requested
+                requested,
+                if supports_dsd { "supports" } else { "is DAP, assuming" }
             );
             return DsdOutputMode::Native;
         }
@@ -242,11 +243,6 @@ fn resolve_dsd_engine_sample_rate(path: &PathBuf, output_mode: DsdOutputMode) ->
     let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
         .ok_or_else(|| format!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
     if effective_mode == DsdOutputMode::Native {
-        let decoder = open_dsd_decoder(path)
-            .map_err(|e| format!("Failed to probe DSD rate for {}: {}", path.display(), e))?;
-        let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
-            .ok_or_else(|| format!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
-
         #[cfg(target_os = "android")]
         {
             let use_audio_track = current_device_profile()
@@ -258,17 +254,35 @@ fn resolve_dsd_engine_sample_rate(path: &PathBuf, output_mode: DsdOutputMode) ->
                     #[cfg(not(feature = "uac2"))]
                     { false }
                 };
+            let frame_rate = dsd_rate.byte_rate();
             if use_audio_track {
-                let byte_rate = dsd_rate.byte_rate();
                 log_info!(
-                    "[AUDIO] DSD Native AudioTrack: dsd_rate={} Hz -> byte_rate={} Hz",
-                    dsd_rate.sample_rate(), byte_rate
+                    "[AUDIO] DSD Native AudioTrack: dsd_rate={} Hz -> frame_rate={} Hz",
+                    dsd_rate.sample_rate(), frame_rate
                 );
-                return resolve_requested_output_sample_rate(Some(byte_rate));
+                return resolve_requested_output_sample_rate(Some(frame_rate));
+            }
+            #[cfg(feature = "uac2")]
+            {
+                if crate::uac2::is_usb_session_active() {
+                    log_info!(
+                        "[AUDIO] DSD Native USB: dsd_rate={} Hz -> frame_rate={} Hz",
+                        dsd_rate.sample_rate(), frame_rate
+                    );
+                    return resolve_requested_output_sample_rate(Some(frame_rate));
+                }
             }
         }
 
-        return resolve_requested_output_sample_rate(Some(dsd_rate.sample_rate()));
+        #[cfg(not(target_os = "android"))]
+        {
+            return resolve_requested_output_sample_rate(Some(dsd_rate.byte_rate()));
+        }
+
+        #[cfg(target_os = "android")]
+        {
+            return resolve_requested_output_sample_rate(Some(dsd_rate.byte_rate()));
+        }
     }
     let existing_rate = read_audio_engine(|handle| handle.sample_rate()).unwrap_or(0);
     let target = resolve_dsd_pcm_sample_rate(dsd_rate, existing_rate);
@@ -292,27 +306,7 @@ fn verify_dsd_engine_rate(
     let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
         .ok_or_else(|| format!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
     let required_rate = match mode {
-        DsdOutputMode::Native => {
-            #[cfg(target_os = "android")]
-            {
-                let use_audio_track = current_device_profile()
-                    .as_ref()
-                    .is_some_and(|p| p.supports_native_dsd)
-                    && !{
-                        #[cfg(feature = "uac2")]
-                        { crate::uac2::is_usb_session_active() }
-                        #[cfg(not(feature = "uac2"))]
-                        { false }
-                    };
-                if use_audio_track {
-                    dsd_rate.byte_rate()
-                } else {
-                    dsd_rate.sample_rate()
-                }
-            }
-            #[cfg(not(target_os = "android"))]
-            { dsd_rate.sample_rate() }
-        }
+        DsdOutputMode::Native => dsd_rate.byte_rate(),
         DsdOutputMode::Dop => dsd_rate.dop_carrier_rate(),
         _ => return Ok(()),
     };
@@ -625,6 +619,14 @@ pub fn audio_set_dap_bit_perfect_enabled(enabled: bool) {
 #[flutter_rust_bridge::frb(sync)]
 pub fn audio_set_dsd_output_mode(mode: u8) {
     DSD_OUTPUT_MODE.store(mode.min(3), Ordering::Relaxed);
+}
+
+/// Toggle DSD bit-reverse override. When on, inverts the bit-order normalization
+/// so that MSB-first sources get reversed and LSB-first sources pass through.
+/// Use this to diagnose white-noise from wrong bit order.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_set_dsd_bit_reverse_override(enabled: bool) {
+    crate::audio::dsd_engine::output::set_dsd_bit_reverse_override(enabled);
 }
 
 /// Update the current platform capability snapshot used for engine selection.
