@@ -174,7 +174,7 @@ class _MilestoneCardState extends State<MilestoneCard>
     return AnimatedBuilder(
       animation: _discController,
       builder: (context, _) {
-        final scale = _discScale.value;
+        final scale = _discScale.value.clamp(0.001, double.infinity);
         final rotation = (_discRotation.value - 1.0) * (math.pi / 6);
         return Transform.rotate(
           angle: rotation,

@@ -32,11 +32,13 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/library_scanner_service.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/app_preferences_service.dart';
 import 'package:flick/services/milestone_service.dart';
 import 'package:flick/services/widget_sync_service.dart';
 import 'package:flick/services/widget_intent_handler.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/features/milestone/widgets/milestone_card.dart';
+import 'package:flick/features/whats_new/widgets/whats_new_bottom_sheet.dart';
 
 /// Main application widget for Flick Player.
 class FlickPlayerApp extends StatelessWidget {
@@ -82,6 +84,7 @@ class _MainShellState extends ConsumerState<MainShell>
   late final ProviderSubscription<Song?> _currentSongSubscription;
   late final ProviderSubscription<int> _navigationIndexSubscription;
   late final ProviderSubscription<PlayerState> _widgetSyncSubscription;
+  late final ProviderSubscription<AppPreferences>? _appPreferencesSubscription;
   late final WidgetIntentHandler _widgetIntentHandler;
 
   // Track previous song to detect changes
@@ -276,6 +279,8 @@ class _MainShellState extends ConsumerState<MainShell>
       if (tutorialState.autoStartPending && !tutorialState.active) {
         ref.read(tutorialProvider.notifier).start();
       }
+
+      _maybeShowWhatsNew();
     });
 
     _playerService.playbackDesyncedNotifier.addListener(
@@ -345,6 +350,36 @@ class _MainShellState extends ConsumerState<MainShell>
     );
   }
 
+  void _maybeShowWhatsNew() {
+    if (!mounted) return;
+    if (!ref.read(onboardingCompletedProvider)) {
+      return;
+    }
+
+    // Wait for the AppPreferencesNotifier to publish its loaded state. The
+    // listener fires when the real SharedPreferences values replace the
+    // default values, which is the moment we can decide whether a "What's
+    // New" sheet should appear.
+    _appPreferencesSubscription = ref.listenManual<AppPreferences>(
+      appPreferencesProvider,
+      (previous, next) {
+        if (!mounted) return;
+        final notifier = ref.read(whatsNewProvider.notifier);
+        notifier.evaluate();
+        final pending = ref.read(whatsNewProvider).pendingEntry;
+        if (pending == null) {
+          return;
+        }
+
+        // Persist the dismissal before showing so a force-quit between now
+        // and the user actually tapping "Got it" doesn't re-trigger on the
+        // next launch.
+        unawaited(notifier.markCurrentVersionSeen());
+        unawaited(WhatsNewBottomSheet.show(context, entry: pending));
+      },
+    );
+  }
+
   void _onPlaybackDesyncChanged() {
     if (!mounted) return;
     final desynced = _playerService.playbackDesyncedNotifier.value;
@@ -380,6 +415,7 @@ class _MainShellState extends ConsumerState<MainShell>
     _currentSongSubscription.close();
     _navigationIndexSubscription.close();
     _widgetSyncSubscription.close();
+    _appPreferencesSubscription?.close();
     unawaited(_widgetIntentHandler.detach());
     _pageController.removeListener(_onPageScroll);
     _pageController.dispose();

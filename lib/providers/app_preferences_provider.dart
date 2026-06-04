@@ -80,9 +80,7 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setShowEngineSelector(bool value) async {
     if (state.showEngineSelector == value) return;
     state = state.copyWith(showEngineSelector: value);
-    await ref
-        .read(appPreferencesServiceProvider)
-        .setShowEngineSelector(value);
+    await ref.read(appPreferencesServiceProvider).setShowEngineSelector(value);
   }
 
   Future<void> setCrossfadeEnabled(bool value) async {
@@ -244,17 +242,13 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setImmersiveShowTitle(bool value) async {
     if (state.immersiveShowTitle == value) return;
     state = state.copyWith(immersiveShowTitle: value);
-    await ref
-        .read(appPreferencesServiceProvider)
-        .setImmersiveShowTitle(value);
+    await ref.read(appPreferencesServiceProvider).setImmersiveShowTitle(value);
   }
 
   Future<void> setImmersiveShowArtist(bool value) async {
     if (state.immersiveShowArtist == value) return;
     state = state.copyWith(immersiveShowArtist: value);
-    await ref
-        .read(appPreferencesServiceProvider)
-        .setImmersiveShowArtist(value);
+    await ref.read(appPreferencesServiceProvider).setImmersiveShowArtist(value);
   }
 
   Future<void> setImmersiveShowFileInfo(bool value) async {
@@ -298,13 +292,17 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setWidgetFlagshipAccent(String value) async {
     if (state.widgetFlagshipAccent == value) return;
     state = state.copyWith(widgetFlagshipAccent: value);
-    await ref.read(appPreferencesServiceProvider).setWidgetFlagshipAccent(value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setWidgetFlagshipAccent(value);
   }
 
   Future<void> setWidgetFlagshipShowArtist(bool value) async {
     if (state.widgetFlagshipShowArtist == value) return;
     state = state.copyWith(widgetFlagshipShowArtist: value);
-    await ref.read(appPreferencesServiceProvider).setWidgetFlagshipShowArtist(value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setWidgetFlagshipShowArtist(value);
   }
 
   Future<void> setLyricsMatchAudioFilename(bool value) async {
@@ -330,7 +328,9 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setWelcomeCardDismissed(bool value) async {
     if (state.welcomeCardDismissed == value) return;
     state = state.copyWith(welcomeCardDismissed: value);
-    await ref.read(appPreferencesServiceProvider).setWelcomeCardDismissed(value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setWelcomeCardDismissed(value);
   }
 
   Future<void> setReplaceAlbumWithBitPerfectCapsule(bool value) async {
@@ -344,9 +344,15 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setFolderGridPageSize(int value) async {
     if (state.folderGridPageSize == value) return;
     state = state.copyWith(folderGridPageSize: value);
+    await ref.read(appPreferencesServiceProvider).setFolderGridPageSize(value);
+  }
+
+  Future<void> setLastSeenChangelogVersion(String? value) async {
+    if (state.lastSeenChangelogVersion == value) return;
+    state = state.copyWith(lastSeenChangelogVersion: value);
     await ref
         .read(appPreferencesServiceProvider)
-        .setFolderGridPageSize(value);
+        .setLastSeenChangelogVersion(value);
   }
 }
 

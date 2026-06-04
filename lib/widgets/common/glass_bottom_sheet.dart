@@ -251,15 +251,12 @@ class GlassBottomSheet extends StatelessWidget {
   }
 
   Widget _buildActions(BuildContext context) {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppConstants.spacingLg,
-        AppConstants.spacingMd,
+        AppConstants.spacingXs,
         AppConstants.spacingLg,
-        AppConstants.spacingMd,
-      ),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.glassBorder, width: 1)),
+        AppConstants.spacingXs,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,

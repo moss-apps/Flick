@@ -1,7 +1,8 @@
 use crate::uac2::audio_format::{AudioFormat, BitDepth, ChannelConfig, FormatType, SampleRate};
+use crate::uac2::compatibility::GenericUsbAudioDevice;
 use crate::uac2::descriptors::{
-    AudioControlDescriptor, AudioStreamingDescriptor, DescriptorKind, FeatureUnit, InputTerminal,
-    OutputTerminal,
+    parse_ac_descriptor, parse_as_descriptor, AudioControlDescriptor, AudioStreamingDescriptor,
+    DescriptorIter, DescriptorKind, FeatureUnit, InputTerminal, OutputTerminal,
 };
 use crate::uac2::device_classifier::DeviceClassifier;
 use crate::uac2::device_info_extractor::DeviceInfoExtractor;
@@ -91,8 +92,7 @@ impl CapabilityDetector {
             "Power capabilities detected"
         );
 
-        let config_desc = device.active_config_descriptor()?;
-        let descriptors = Self::parse_all_descriptors(device, handle, &config_desc)?;
+        let descriptors = Self::parse_all_descriptors(device, handle)?;
         debug!(descriptor_count = descriptors.len(), "Descriptors parsed");
 
         Self::extract_terminals(&descriptors, &mut capabilities);
@@ -113,11 +113,40 @@ impl CapabilityDetector {
     }
 
     fn parse_all_descriptors<T: UsbContext>(
-        _device: &Device<T>,
-        _handle: &DeviceHandle<T>,
-        _config_desc: &rusb::ConfigDescriptor,
+        device: &Device<T>,
+        handle: &DeviceHandle<T>,
     ) -> Result<Vec<DescriptorKind>, Uac2Error> {
-        Ok(Vec::new())
+        let config_desc = device.active_config_descriptor()?;
+        let mut all_descriptors = Vec::new();
+
+        for interface in config_desc.interfaces() {
+            for descriptor in interface.descriptors() {
+                if descriptor.class_code() != 0x01 {
+                    continue;
+                }
+
+                // Parse class-specific descriptors in extra bytes.
+                for extra in DescriptorIter::new(descriptor.extra()) {
+                    if let Ok(ac_desc) = parse_ac_descriptor(extra) {
+                        all_descriptors.push(ac_desc.into());
+                    } else if let Ok(as_desc) = parse_as_descriptor(extra) {
+                        all_descriptors.push(as_desc.into());
+                    }
+                }
+            }
+        }
+
+        // Also try the GenericUsbAudioDevice for comprehensive parsing.
+        if let Ok(generic) = GenericUsbAudioDevice::from_device(device, handle) {
+            // Merge clock sources, terminals from the generic model into descriptors.
+            for cs in &generic.clock_sources {
+                all_descriptors.push(DescriptorKind::AudioControl(
+                    AudioControlDescriptor::ClockSource(cs.clone()),
+                ));
+            }
+        }
+
+        Ok(all_descriptors)
     }
 
     fn extract_terminals(descriptors: &[DescriptorKind], capabilities: &mut DeviceCapabilities) {
@@ -170,7 +199,10 @@ impl CapabilityDetector {
 
         for desc in descriptors {
             match desc {
-                DescriptorKind::AudioStreaming(AudioStreamingDescriptor::General(gen)) => {
+                DescriptorKind::AudioStreaming(AudioStreamingDescriptor::GeneralV2(gen)) => {
+                    current_format_tag = Some(gen.w_format_tag);
+                }
+                DescriptorKind::AudioStreaming(AudioStreamingDescriptor::GeneralV1(gen)) => {
                     current_format_tag = Some(gen.w_format_tag);
                 }
                 DescriptorKind::AudioStreaming(AudioStreamingDescriptor::FormatTypeI(fmt)) => {

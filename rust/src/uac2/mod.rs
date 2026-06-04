@@ -1,4 +1,4 @@
-//! Custom USB Audio Class 2.0 (UAC 2.0) support for DAC/AMP detection and direct playback paths.
+//! Custom USB Audio Class 1.0 / 2.0 (UAC2) support for DAC/AMP detection and direct playback paths.
 
 #[cfg(all(feature = "uac2", target_os = "android"))]
 mod android_direct;
@@ -12,6 +12,8 @@ mod audio_sink;
 mod backend;
 #[cfg(feature = "uac2")]
 mod capabilities;
+#[cfg(feature = "uac2")]
+mod compatibility;
 #[cfg(feature = "uac2")]
 mod connection_manager;
 #[cfg(feature = "uac2")]
@@ -43,6 +45,8 @@ pub(crate) mod iso_packet_scheduler;
 #[cfg(feature = "uac2")]
 mod logging;
 #[cfg(feature = "uac2")]
+mod quirk;
+#[cfg(feature = "uac2")]
 mod registry;
 #[cfg(feature = "uac2")]
 mod ring_buffer;
@@ -56,6 +60,8 @@ mod transfer;
 mod transfer_buffer;
 #[cfg(feature = "uac2")]
 mod transfer_manager;
+#[cfg(feature = "uac2")]
+mod uac_version;
 
 #[cfg(all(test, feature = "uac2"))]
 mod tests;
@@ -69,7 +75,7 @@ pub use android_direct::{
     android_direct_verify_hardware_volume_health, clear_android_usb_device,
     create_android_usb_backend, force_release_usb_session, is_usb_session_active,
     mark_android_usb_fallback, negotiate_android_direct_output_sample_rate,
-    register_android_usb_device, set_android_direct_usb_enabled,     set_android_usb_dop_mode,
+    register_android_usb_device, set_android_direct_usb_enabled, set_android_usb_dop_mode,
     set_android_usb_dsd_native_mode,
     set_android_usb_lock_enabled, set_android_usb_playback_format, validate_android_direct_request,
     wait_for_android_usb_session_stop, AndroidDirectUsbBackend, AndroidDirectUsbDebugState,
@@ -93,16 +99,26 @@ pub use capabilities::{
     PowerCapabilities,
 };
 #[cfg(feature = "uac2")]
+pub use compatibility::{
+    AltSettingRef, AsInterfaceInfo, DsdAltSettingRef, EndpointInfo, GenericUsbAudioDevice,
+};
+#[cfg(feature = "uac2")]
 pub use connection_manager::{ConnectionManager, ConnectionState};
 #[cfg(feature = "uac2")]
 pub use descriptors::{
-    parse_ac_interface_header, parse_as_interface_general, parse_feature_unit, parse_format_type_i,
-    parse_format_type_ii, parse_format_type_iii, parse_iad, parse_input_terminal,
-    parse_output_terminal, AcInterfaceHeader, AsInterfaceGeneral, AudioControlDescriptor,
-    AudioControlParser, AudioStreamingDescriptor, AudioStreamingParser, DescriptorFactory,
-    DescriptorIter, DescriptorKind, DescriptorParser, FeatureUnit, FeatureUnitBuilder, FormatTypeI,
+    parse_ac_descriptor, parse_ac_interface_header, parse_ac_interface_header_v1,
+    parse_as_descriptor, parse_as_general_descriptor, parse_as_interface_general,
+    parse_clock_multiplier, parse_clock_selector, parse_clock_source, parse_effect_unit,
+    parse_endpoint_specific, parse_extension_unit, parse_feature_unit, parse_format_type_i,
+    parse_format_type_ii, parse_format_type_iii, parse_iad, parse_input_terminal, parse_mixer_unit,
+    parse_output_terminal, parse_processing_unit, parse_selector_unit,
+    AcInterfaceHeader, AcInterfaceHeaderV1, AcInterfaceHeaderV2, AsInterfaceGeneral,
+    AsInterfaceGeneralV1, AsInterfaceGeneralV2, AudioControlDescriptor, AudioControlParser,
+    AudioStreamingDescriptor, AudioStreamingParser, ClockMultiplier, ClockSelector, ClockSource,
+    ClockType, DescriptorFactory, DescriptorIter, DescriptorKind, DescriptorParser,
+    EffectUnit, EndpointSpecific, ExtensionUnit, FeatureUnit, FeatureUnitBuilder, FormatTypeI,
     FormatTypeIBuilder, FormatTypeII, FormatTypeIIBuilder, FormatTypeIII, Iad, InputTerminal,
-    OutputTerminal,
+    MixerUnit, OutputTerminal, ProcessingUnit, SelectorUnit,
 };
 #[cfg(feature = "uac2")]
 pub use device::{DeviceIdentification, DeviceInfo, DeviceMetadata, Uac2Device};
@@ -127,6 +143,8 @@ pub use format_negotiation::{
 #[cfg(feature = "uac2")]
 pub use logging::{init_logging, LogConfig, LogContext, LogLevel};
 #[cfg(feature = "uac2")]
+pub use quirk::{QuirkDatabase, UsbAudioQuirk, QUIRK_DATABASE};
+#[cfg(feature = "uac2")]
 pub use registry::{DeviceKey, DeviceRegistry};
 #[cfg(feature = "uac2")]
 pub use ring_buffer::{AdaptiveBuffer, AudioBuffer, LockFreeRingBuffer, RingBuffer};
@@ -143,3 +161,5 @@ pub use transfer::{
 pub use transfer_buffer::{BufferManager, BufferPool, TransferBuffer};
 #[cfg(feature = "uac2")]
 pub use transfer_manager::{TransferManager, TransferRecovery};
+#[cfg(feature = "uac2")]
+pub use uac_version::UacVersion;

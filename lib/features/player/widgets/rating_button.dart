@@ -164,7 +164,7 @@ class _RatingButtonState extends State<RatingButton>
                 final delay = i * 0.08;
                 final starProgress = (_starsController.value - delay)
                     .clamp(0.0, 1.0);
-                final easedProgress = Curves.easeOutBack.transform(starProgress);
+                final easedProgress = Curves.easeOutBack.transform(starProgress).clamp(0.001, double.infinity);
                 final isFilled = starIndex <= (widget.currentRating);
                 final isHovered = _hoveredStar > 0 && starIndex <= _hoveredStar;
 

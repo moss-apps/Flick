@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:in_app_update/in_app_update.dart';
+
+import '../core/constants/app_constants.dart';
 
 class UpdateCheckState {
   const UpdateCheckState({
@@ -13,6 +17,9 @@ class UpdateCheckState {
     this.updateAvailable = false,
     this.errorMessage,
     this.lastCheckedAt,
+    this.isPlayStoreBuild = true,
+    this.downloadUrl,
+    this.latestVersion,
   });
 
   final bool isOnline;
@@ -21,6 +28,9 @@ class UpdateCheckState {
   final bool updateAvailable;
   final String? errorMessage;
   final DateTime? lastCheckedAt;
+  final bool isPlayStoreBuild;
+  final String? downloadUrl;
+  final String? latestVersion;
 
   UpdateCheckState copyWith({
     bool? isOnline,
@@ -30,6 +40,11 @@ class UpdateCheckState {
     String? errorMessage,
     DateTime? lastCheckedAt,
     bool clearErrorMessage = false,
+    bool? isPlayStoreBuild,
+    String? downloadUrl,
+    String? latestVersion,
+    bool clearDownloadUrl = false,
+    bool clearLatestVersion = false,
   }) {
     return UpdateCheckState(
       isOnline: isOnline ?? this.isOnline,
@@ -40,6 +55,11 @@ class UpdateCheckState {
           ? null
           : errorMessage ?? this.errorMessage,
       lastCheckedAt: lastCheckedAt ?? this.lastCheckedAt,
+      isPlayStoreBuild: isPlayStoreBuild ?? this.isPlayStoreBuild,
+      downloadUrl:
+          clearDownloadUrl ? null : downloadUrl ?? this.downloadUrl,
+      latestVersion:
+          clearLatestVersion ? null : latestVersion ?? this.latestVersion,
     );
   }
 }
@@ -49,7 +69,12 @@ class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
       'https://play.google.com/store/apps/details?id=com.mossapps.flick';
   static const String flickPlayStoreMarketUrl =
       'market://details?id=com.mossapps.flick';
+  static const String flickWebsiteDownloadUrl = 'https://www.flick-player.site/';
   static const Duration _automaticRefreshCooldown = Duration(minutes: 30);
+
+  static final Uri _githubReleasesApiUri = Uri.parse(
+    'https://api.github.com/repos/ultraelectronica/flick_player/releases/latest',
+  );
 
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<dynamic>? _connectivitySubscription;
@@ -143,17 +168,57 @@ class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
         clearErrorMessage: true,
       );
     } on PlatformException {
+      await _checkGitHubForUpdate();
+    } catch (_) {
       state = state.copyWith(
         isChecking: false,
         hasChecked: true,
-        updateAvailable: false,
-        errorMessage: 'Update checks only work on the Play Store build.',
+        errorMessage: 'Unable to check for updates right now.',
         lastCheckedAt: DateTime.now(),
+      );
+    }
+  }
+
+  Future<void> _checkGitHubForUpdate() async {
+    try {
+      final response = await http.get(
+        _githubReleasesApiUri,
+        headers: const {
+          'Accept': 'application/vnd.github+json',
+          'User-Agent': 'FlickPlayer',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('GitHub API returned ${response.statusCode}');
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      var tag = (data['tag_name'] as String?)?.trim() ?? '';
+      if (tag.startsWith('v')) {
+        tag = tag.substring(1);
+      }
+
+      final isUpdateAvailable = tag.isNotEmpty && tag != kAppVersion;
+
+      state = state.copyWith(
+        isChecking: false,
+        hasChecked: true,
+        isPlayStoreBuild: false,
+        updateAvailable: isUpdateAvailable,
+        downloadUrl:
+            isUpdateAvailable ? flickWebsiteDownloadUrl : null,
+        latestVersion: tag.isNotEmpty ? tag : null,
+        lastCheckedAt: DateTime.now(),
+        clearErrorMessage: true,
       );
     } catch (_) {
       state = state.copyWith(
         isChecking: false,
         hasChecked: true,
+        isPlayStoreBuild: false,
+        updateAvailable: false,
         errorMessage: 'Unable to check for updates right now.',
         lastCheckedAt: DateTime.now(),
       );

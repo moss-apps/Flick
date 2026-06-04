@@ -79,7 +79,11 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
       return;
     }
     if (updateState.updateAvailable) {
-      _showToast('Update available on the Play Store.');
+      if (updateState.isPlayStoreBuild) {
+        _showToast('Update available on the Play Store.');
+      } else {
+        _showToast('Update available — download from flick-player.site');
+      }
       return;
     }
     if (updateState.errorMessage != null) {
@@ -120,18 +124,23 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
   ({IconData icon, String title, String subtitle}) _getUpdateStatusDetails(
     UpdateCheckState updateState,
   ) {
+    final isPlay = updateState.isPlayStoreBuild;
     if (updateState.isChecking) {
       return (
         icon: LucideIcons.refreshCw,
         title: 'Checking for Updates',
-        subtitle: 'Looking for the latest Play Store update right now',
+        subtitle: isPlay
+            ? 'Looking for the latest Play Store update right now'
+            : 'Looking for the latest Flick release right now',
       );
     }
     if (updateState.updateAvailable) {
       return (
         icon: LucideIcons.badgeAlert,
         title: 'Update Available',
-        subtitle: 'Open the Play Store to install the latest Flick build',
+        subtitle: isPlay
+            ? 'Open the Play Store to install the latest Flick build'
+            : 'Download the latest APK from flick-player.site',
       );
     }
     if (updateState.errorMessage != null) {
@@ -152,13 +161,17 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
       return (
         icon: LucideIcons.badgeCheck,
         title: 'No Update Available',
-        subtitle: 'You already have the latest Play Store release',
+        subtitle: isPlay
+            ? 'You already have the latest Play Store release'
+            : 'You already have the latest Flick release',
       );
     }
     return (
       icon: LucideIcons.info,
       title: 'Automatic Update Checks',
-      subtitle: 'Flick scans for Play Store updates whenever you are online',
+      subtitle: isPlay
+          ? 'Flick scans for Play Store updates whenever you are online'
+          : 'Flick checks flick-player.site for updates whenever you are online',
     );
   }
 
@@ -374,9 +387,13 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
               borderRadius: BorderRadius.circular(AppConstants.radiusLg),
               border: Border.all(color: AppColors.glassBorder),
             ),
-            child: SvgPicture.asset(
-              'assets/icons/flicklogo_svg.svg',
-              fit: BoxFit.contain,
+            child: Center(
+              child: SvgPicture.asset(
+                'assets/icons/flicklogo_svg.svg',
+                width: 48,
+                height: 48,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
           const SizedBox(height: AppConstants.spacingMd),
@@ -391,7 +408,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
           ),
           const SizedBox(height: 4),
           const Text(
-            'Version 0.17.0-beta.1',
+            'Version 0.18.0-beta.1',
             style: TextStyle(
               fontFamily: 'ProductSans',
               fontSize: 14,
@@ -539,7 +556,9 @@ SOFTWARE.
                     ? 'Checking for Updates...'
                     : 'Check Again',
                 subtitle: updateState.isOnline
-                    ? 'Run another Play Store update scan right now'
+                    ? updateState.isPlayStoreBuild
+                          ? 'Run another Play Store update scan right now'
+                          : 'Run another update scan right now'
                     : 'Reconnect to the internet to scan for updates',
                 onTap: updateState.isChecking ? null : _checkForUpdatesManually,
               ),
@@ -554,12 +573,21 @@ SOFTWARE.
                   onTap: _showPatchNotesBottomSheet,
                 ),
                 const SettingsDivider(),
-                ActionButton(
-                  icon: LucideIcons.externalLink,
-                  title: 'Open in Play Store',
-                  subtitle: 'Jump to the Flick listing and update from there',
-                  onTap: _openPlayStoreListing,
-                ),
+                if (updateState.isPlayStoreBuild)
+                  ActionButton(
+                    icon: LucideIcons.externalLink,
+                    title: 'Open in Play Store',
+                    subtitle: 'Jump to the Flick listing and update from there',
+                    onTap: _openPlayStoreListing,
+                  )
+                else
+                  ActionButton(
+                    icon: LucideIcons.download,
+                    title: 'Download Update',
+                    subtitle: 'Get the latest APK from flick-player.site',
+                    onTap: () =>
+                        _launchUrl(UpdateCheckNotifier.flickWebsiteDownloadUrl),
+                  ),
               ],
             ],
           ),
@@ -570,7 +598,7 @@ SOFTWARE.
               NavigationSetting(
                 icon: LucideIcons.info,
                 title: 'About Flick Player',
-                subtitle: 'Version 0.17.0-beta.1',
+                subtitle: 'Version 0.18.0-beta.1',
                 onTap: _showAboutBottomSheet,
               ),
               const SettingsDivider(),

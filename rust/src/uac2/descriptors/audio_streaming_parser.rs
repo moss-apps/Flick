@@ -11,16 +11,67 @@ use crate::uac2::error::Uac2Error;
 pub struct AudioStreamingParser;
 
 impl AudioStreamingParser {
-    pub fn parse_as_general(&self, data: &[u8]) -> Result<AsInterfaceGeneral, Uac2Error> {
+    pub fn parse_as_general(&self, data: &[u8]) -> Result<AudioStreamingDescriptor, Uac2Error> {
+        if data.len() < 7 {
+            return Err(Uac2Error::InvalidDescriptor("AS general too short".to_string()));
+        }
+        if data[1] != USB_DT_CS_INTERFACE || data[2] != UAC2_AS_GENERAL {
+            return Err(Uac2Error::InvalidDescriptor("not AS general".to_string()));
+        }
+        // UAC 2.0 AS General has bmControls at offset 5-6; UAC 1.0 doesn't
+        // Distinguishing heuristic: UAC 2.0 has bTerminalLink(3), bDelay(4),
+        // bmControls(5-6), wFormatTag(7-8). UAC 1.0: bTerminalLink(3),
+        // bDelay(4), wFormatTag(5-6).
+        let len = data[0] as usize;
+        if len >= 9 {
+            // UAC 2.0 style
+            let g = AsInterfaceGeneralV2 {
+                b_terminal_link: data[3],
+                b_delay: data[4],
+                bm_controls: read_u16_le(data, 5),
+                w_format_tag: read_u16_le(data, 7),
+            };
+            validate_as_interface_general(&AsInterfaceGeneral {
+                b_terminal_link: g.b_terminal_link,
+                b_delay: g.b_delay,
+                w_format_tag: g.w_format_tag,
+                bm_controls: g.bm_controls,
+            })?;
+            Ok(AudioStreamingDescriptor::GeneralV2(g))
+        } else {
+            // UAC 1.0 style
+            let g = AsInterfaceGeneralV1 {
+                b_terminal_link: data[3],
+                b_delay: data[4],
+                w_format_tag: read_u16_le(data, 5),
+            };
+            Ok(AudioStreamingDescriptor::GeneralV1(g))
+        }
+    }
+
+    /// Backward-compat: returns the V2 form (or V1 adapted)
+    pub fn parse_as_general_v2(&self, data: &[u8]) -> Result<AsInterfaceGeneral, Uac2Error> {
         const LEN: usize = 7;
         require_len(data, LEN)?;
         if data[1] != USB_DT_CS_INTERFACE || data[2] != UAC2_AS_GENERAL {
             return Err(Uac2Error::InvalidDescriptor("not AS general".to_string()));
         }
+        let len = data[0] as usize;
+        let (b_terminal_link, b_delay, w_format_tag, bm_controls) = if len >= 9 {
+            (
+                data[3],
+                data[4],
+                read_u16_le(data, 7),
+                read_u16_le(data, 5),
+            )
+        } else {
+            (data[3], data[4], read_u16_le(data, 5), 0u16)
+        };
         let g = AsInterfaceGeneral {
-            b_terminal_link: data[3],
-            b_delay: data[4],
-            w_format_tag: read_u16_le(data, 5),
+            b_terminal_link,
+            b_delay,
+            w_format_tag,
+            bm_controls,
         };
         validate_as_interface_general(&g)?;
         Ok(g)
@@ -112,6 +163,26 @@ impl AudioStreamingParser {
         validate_format_type_iii(&f)?;
         Ok(f)
     }
+
+    pub fn parse_endpoint_specific(&self, data: &[u8]) -> Result<EndpointSpecific, Uac2Error> {
+        const LEN: usize = 5;
+        require_len(data, LEN)?;
+        if data[1] != USB_DT_CS_ENDPOINT {
+            return Err(Uac2Error::InvalidDescriptor(
+                "not CS endpoint".to_string(),
+            ));
+        }
+        Ok(EndpointSpecific {
+            b_endpoint_address: data[2],
+            bm_attributes: data.get(3).copied().unwrap_or(0),
+            b_lock_delay_units: data.get(4).copied().unwrap_or(0),
+            w_lock_delay: if data.len() >= 7 {
+                read_u16_le(data, 5)
+            } else {
+                0
+            },
+        })
+    }
 }
 
 impl DescriptorParser for AudioStreamingParser {
@@ -123,13 +194,17 @@ impl DescriptorParser for AudioStreamingParser {
                 "descriptor too short".to_string(),
             ));
         }
+        // CS_ENDPOINT descriptors are on the endpoint, not interface
+        if data[1] == USB_DT_CS_ENDPOINT {
+            return self
+                .parse_endpoint_specific(data)
+                .map(AudioStreamingDescriptor::EndpointSpecific);
+        }
         if data[1] != USB_DT_CS_INTERFACE {
             return Err(Uac2Error::InvalidDescriptor("not CS interface".to_string()));
         }
         match (data[2], data.get(3).copied().unwrap_or(0)) {
-            (UAC2_AS_GENERAL, _) => self
-                .parse_as_general(data)
-                .map(AudioStreamingDescriptor::General),
+            (UAC2_AS_GENERAL, _) => self.parse_as_general(data),
             (UAC2_FORMAT_TYPE, UAC2_FORMAT_TYPE_I) => self
                 .parse_format_type_i(data)
                 .map(AudioStreamingDescriptor::FormatTypeI),

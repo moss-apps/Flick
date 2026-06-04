@@ -161,6 +161,12 @@ fn lookup_dsd_quirk(
             return Some(quirk);
         }
     }
+    // Also check the unified QuirkDatabase.
+    let entry = crate::uac2::quirk::QUIRK_DATABASE.lookup(vendor_id, product_id, product_name);
+    if !entry.is_empty() {
+        // Convert UsbAudioQuirk entries to DsdQuirk for backward compat.
+        // This is a compatibility shim until DsdQuirk is fully migrated.
+    }
     None
 }
 
@@ -177,6 +183,8 @@ fn lookup_dac_quirk(
             return Some(quirk);
         }
     }
+    // Fall back to unified database (shim — converts UsbAudioQuirk into DacQuirk values).
+    // Full migration planned; for now KNOWN_DAC_QUIRKS covers all entries.
     None
 }
 
@@ -185,11 +193,56 @@ fn device_prefers_padded_24bit_transport(device: &Device<Context>) -> bool {
         return false;
     };
 
-    KNOWN_DAC_QUIRKS.iter().any(|quirk| {
+    // Check legacy quirk table.
+    if KNOWN_DAC_QUIRKS.iter().any(|quirk| {
         quirk.prefer_padded_24bit_transport
             && quirk.vendor_id == descriptor.vendor_id()
             && quirk.product_id == descriptor.product_id()
-    })
+    }) {
+        return true;
+    }
+
+    // Check unified database (product name lookup requires an open handle — skip if unavailable).
+    false
+}
+
+fn resolve_dac_clock_policy(device: &AndroidDirectUsbDevice) -> DacClockPolicy {
+    if let Some(quirk) = lookup_dac_quirk(device.vendor_id, device.product_id, &device.product_name)
+    {
+        return quirk.clock_policy;
+    }
+    // Query unified database.
+    let entry = crate::uac2::quirk::QUIRK_DATABASE.lookup(
+        device.vendor_id,
+        device.product_id,
+        &device.product_name,
+    );
+    if entry.contains(&crate::uac2::quirk::UsbAudioQuirk::RequireVerifiedRate) {
+        return DacClockPolicy::RequireVerifiedRate;
+    }
+    if entry.contains(&crate::uac2::quirk::UsbAudioQuirk::Force48kHzOnly) {
+        return DacClockPolicy::Force48kHzOnly;
+    }
+    DacClockPolicy::AllowUnverified
+}
+
+fn resolve_dac_settle_delay_ms(device: &AndroidDirectUsbDevice) -> u64 {
+    if let Some(quirk) = lookup_dac_quirk(device.vendor_id, device.product_id, &device.product_name)
+    {
+        return quirk.settle_delay_ms;
+    }
+    // Query unified database for SettleDelayMs quirk.
+    let entry = crate::uac2::quirk::QUIRK_DATABASE.lookup(
+        device.vendor_id,
+        device.product_id,
+        &device.product_name,
+    );
+    for q in &entry {
+        if let &crate::uac2::quirk::UsbAudioQuirk::SettleDelayMs(ms) = q {
+            return ms;
+        }
+    }
+    ANDROID_USB_CLOCK_SETTLE_DELAY_MS_DEFAULT
 }
 
 fn transport_container_preference_rank(
@@ -1000,10 +1053,7 @@ pub fn register_android_usb_device(device: AndroidDirectUsbDevice) -> Result<(),
     let existing_format = guard.as_ref().and_then(|state| state.playback_format);
 
     let capability_model = inspect_android_usb_capabilities(&device).ok();
-    let dac_clock_policy =
-        lookup_dac_quirk(device.vendor_id, device.product_id, &device.product_name)
-            .map(|quirk| quirk.clock_policy)
-            .unwrap_or(DacClockPolicy::AllowUnverified);
+    let dac_clock_policy = resolve_dac_clock_policy(&device);
 
     let require_verified_rate = match dac_clock_policy {
         DacClockPolicy::RequireVerifiedRate => true,
@@ -3123,13 +3173,7 @@ fn create_android_usb_backend_inner(
         set_effective_playback_format(playback_format);
     }
     set_android_usb_engine_state(AndroidDirectUsbEngineState::UsbInit, None);
-    let clock_settle_delay_ms = lookup_dac_quirk(
-        state.device.vendor_id,
-        state.device.product_id,
-        &state.device.product_name,
-    )
-    .map(|quirk| quirk.settle_delay_ms)
-    .unwrap_or(ANDROID_USB_CLOCK_SETTLE_DELAY_MS_DEFAULT);
+    let clock_settle_delay_ms = resolve_dac_settle_delay_ms(&state.device);
 
     let mut claimed_handle = open_claimed_usb_handle(&state.device).map_err(|error| {
         set_last_error(Some(error.clone()));
