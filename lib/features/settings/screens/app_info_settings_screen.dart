@@ -404,7 +404,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
           ),
           const SizedBox(height: 4),
           const Text(
-            'Version 0.17.0-beta.1',
+            'Version 0.18.0-beta.1',
             style: TextStyle(
               fontFamily: 'ProductSans',
               fontSize: 14,
@@ -553,8 +553,8 @@ SOFTWARE.
                     : 'Check Again',
                 subtitle: updateState.isOnline
                     ? updateState.isPlayStoreBuild
-                        ? 'Run another Play Store update scan right now'
-                        : 'Run another update scan right now'
+                          ? 'Run another Play Store update scan right now'
+                          : 'Run another update scan right now'
                     : 'Reconnect to the internet to scan for updates',
                 onTap: updateState.isChecking ? null : _checkForUpdatesManually,
               ),
@@ -568,7 +568,7 @@ SOFTWARE.
                   subtitle: 'See what is new in this update',
                   onTap: _showPatchNotesBottomSheet,
                 ),
-              const SettingsDivider(),
+                const SettingsDivider(),
                 if (updateState.isPlayStoreBuild)
                   ActionButton(
                     icon: LucideIcons.externalLink,
@@ -581,9 +581,8 @@ SOFTWARE.
                     icon: LucideIcons.download,
                     title: 'Download Update',
                     subtitle: 'Get the latest APK from flick-player.site',
-                    onTap: () => _launchUrl(
-                      UpdateCheckNotifier.flickWebsiteDownloadUrl,
-                    ),
+                    onTap: () =>
+                        _launchUrl(UpdateCheckNotifier.flickWebsiteDownloadUrl),
                   ),
               ],
             ],
@@ -595,7 +594,7 @@ SOFTWARE.
               NavigationSetting(
                 icon: LucideIcons.info,
                 title: 'About Flick Player',
-                subtitle: 'Version 0.17 .0-beta.1',
+                subtitle: 'Version 0.18 .0-beta.1',
                 onTap: _showAboutBottomSheet,
               ),
               const SettingsDivider(),
