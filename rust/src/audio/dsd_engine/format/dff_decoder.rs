@@ -1,4 +1,4 @@
-use super::{DsdChannelLayout, DsdFormatDecoder};
+use super::{DsdBitOrder, DsdChannelLayout, DsdFormatDecoder};
 use anyhow::{anyhow, Result};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -108,5 +108,9 @@ impl DsdFormatDecoder for DffDecoder {
 
     fn channel_layout(&self) -> DsdChannelLayout {
         DsdChannelLayout::Interleaved
+    }
+
+    fn bit_order(&self) -> DsdBitOrder {
+        DsdBitOrder::MsbFirst
     }
 }
