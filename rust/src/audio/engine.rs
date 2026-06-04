@@ -1121,7 +1121,11 @@ pub fn create_audio_engine(
                 if verification.bit_perfect {
                     final_sample_rate = actual_sample_rate;
                     callback_data.reconfigure_sample_rate(final_sample_rate);
-                    callback_data.set_pipeline_mode(PipelineMode::Passthrough);
+                    if desired_strategy == OutputStrategy::UsbDsdNative {
+                        callback_data.set_pipeline_mode(PipelineMode::Dop);
+                    } else {
+                        callback_data.set_pipeline_mode(PipelineMode::Passthrough);
+                    }
                     output_runtime = build_output_runtime_state(
                         desired_strategy,
                         verification,
