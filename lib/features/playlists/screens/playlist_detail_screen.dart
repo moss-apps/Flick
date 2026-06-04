@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -8,7 +10,10 @@ import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/models/playlist.dart';
+import 'package:flick/services/album_art_service.dart';
+import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
@@ -24,10 +29,19 @@ class PlaylistDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
+  static const Color _darkBase = Color(0xFF121212);
+  static const double _backgroundBlend = 0.22;
+  static const double _appBarBlend = 0.30;
+
   final PlayerService _playerService = PlayerService();
   final SongRepository _songRepository = SongRepository();
+  final RecentlyPlayedRepository _recentlyPlayedRepository =
+      RecentlyPlayedRepository();
+  final ColorExtractionService _colorService = ColorExtractionService();
+
   List<Song> _songs = [];
   bool _isLoading = true;
+  Color? _playlistColor;
 
   @override
   void initState() {
@@ -124,6 +138,42 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
         _isLoading = false;
       });
     }
+
+    unawaited(_extractPlaylistColor(playlist.songIds));
+  }
+
+  Future<void> _extractPlaylistColor(List<String> songIds) async {
+    if (songIds.isEmpty) return;
+
+    final mostPlayed = await _recentlyPlayedRepository.getMostPlayedSongAmong(
+      songIds,
+    );
+    final topSong = mostPlayed ??
+        _songs.firstWhere(
+          (s) => s.albumArt != null && s.albumArt!.isNotEmpty,
+          orElse: () => _songs.isEmpty
+              ? throw StateError('empty playlist')
+              : _songs.first,
+        );
+
+    String? source = topSong.albumArt;
+    if (source == null || source.isEmpty) {
+      final sourcePath = topSong.filePath;
+      if (sourcePath == null || sourcePath.isEmpty) return;
+      source = await AlbumArtService.instance.resolveArtworkPath(
+        existingPath: null,
+        audioSourcePath: sourcePath,
+      );
+      if (source == null || !mounted) return;
+    }
+    final color = await _colorService.extractDominantColor(source);
+    if (!mounted || color == null) return;
+    setState(() => _playlistColor = color);
+  }
+
+  Color _tintBackground(double blend) {
+    if (_playlistColor == null) return AppColors.background;
+    return Color.lerp(_darkBase, _playlistColor!, blend)!;
   }
 
   void _playSong(Song song) {
@@ -164,236 +214,260 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     final otherPlaylists = allPlaylists
         .where((p) => p.id != playlist.id)
         .toList();
+    final bgColor = _tintBackground(_backgroundBlend);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(context, playlist),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.spacingLg,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      icon: LucideIcons.play,
-                      label: 'Play All',
-                      onTap: _playAll,
+    return TweenAnimationBuilder<Color?>(
+      tween: ColorTween(begin: AppColors.background, end: bgColor),
+      duration: AppConstants.animationSlow,
+      curve: Curves.easeOut,
+      builder: (context, animatedBg, _) {
+        final animatedAppBar = _playlistColor == null
+            ? AppColors.surface
+            : Color.lerp(_darkBase, _playlistColor!, _appBarBlend)!;
+        final resolvedBg = animatedBg ?? AppColors.background;
+        return Scaffold(
+          backgroundColor: resolvedBg,
+          body: AdaptiveColorProvider(
+            backgroundColor: resolvedBg,
+            albumDominantColor: _playlistColor,
+            child: CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  expandedHeight: 280,
+                  pinned: true,
+                  backgroundColor: animatedAppBar,
+                  leading: const SizedBox(),
+                  titleSpacing: 0,
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: _buildAppBarBackground(
+                      context,
+                      playlist,
+                      resolvedBg,
                     ),
                   ),
-                  const SizedBox(width: AppConstants.spacingMd),
-                  Expanded(
-                    child: _ActionButton(
-                      icon: LucideIcons.shuffle,
-                      label: 'Shuffle',
-                      onTap: _shuffleAll,
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingLg,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _ActionButton(
+                            icon: LucideIcons.play,
+                            label: 'Play All',
+                            onTap: _playAll,
+                          ),
+                        ),
+                        const SizedBox(width: AppConstants.spacingMd),
+                        Expanded(
+                          child: _ActionButton(
+                            icon: LucideIcons.shuffle,
+                            label: 'Shuffle',
+                            onTap: _shuffleAll,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppConstants.spacingLg),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingLg,
+                    ),
+                    child: Wrap(
+                      spacing: AppConstants.spacingSm,
+                      runSpacing: AppConstants.spacingSm,
+                      children: [
+                        _InfoChip(
+                          icon: LucideIcons.music,
+                          label: '${_songs.length} tracks',
+                        ),
+                        if (_songs.isNotEmpty)
+                          _InfoChip(
+                            icon: LucideIcons.clock,
+                            label: _formattedTotalDuration,
+                          ),
+                        _InfoChip(
+                          icon: LucideIcons.calendar,
+                          label: 'Created ${_formatDate(playlist.createdAt)}',
+                        ),
+                        if (playlist.updatedAt != null &&
+                            playlist.updatedAt != playlist.createdAt)
+                          _InfoChip(
+                            icon: LucideIcons.pencil,
+                            label: 'Updated ${_formatDate(playlist.updatedAt)}',
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppConstants.spacingLg),
+                ),
+                if (_isLoading)
+                  SliverFillRemaining(
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: context.adaptiveTextSecondary,
+                      ),
+                    ),
+                  )
+                else if (_songs.isEmpty)
+                  SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            LucideIcons.music,
+                            size: context.responsiveIcon(AppConstants.iconSizeXl),
+                            color: context.adaptiveTextTertiary.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: AppConstants.spacingMd),
+                          Text(
+                            'No songs in this playlist',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: context.adaptiveTextSecondary),
+                          ),
+                          const SizedBox(height: AppConstants.spacingSm),
+                          Text(
+                            'Add songs from the player menu',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: context.adaptiveTextTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else ...[
+                  _buildSectionTitle(context, 'Songs'),
+                  SliverPadding(
+                    padding: EdgeInsets.only(
+                      bottom: AppConstants.navBarHeight + 80,
+                    ),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final song = _songs[index];
+                        return _SongTile(
+                          song: song,
+                          onTap: () => _playSong(song),
+                          onRemove: () async {
+                            await ref
+                                .read(playlistsProvider.notifier)
+                                .removeSongFromPlaylist(
+                                  widget.playlist.id,
+                                  song.id,
+                                );
+                            _loadSongs();
+                          },
+                        );
+                      }, childCount: _songs.length),
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: AppConstants.spacingLg),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.spacingLg,
-              ),
-              child: Wrap(
-                spacing: AppConstants.spacingSm,
-                runSpacing: AppConstants.spacingSm,
-                children: [
-                  _InfoChip(
-                    icon: LucideIcons.music,
-                    label: '${_songs.length} tracks',
-                  ),
-                  if (_songs.isNotEmpty)
-                    _InfoChip(
-                      icon: LucideIcons.clock,
-                      label: _formattedTotalDuration,
-                    ),
-                  _InfoChip(
-                    icon: LucideIcons.calendar,
-                    label: 'Created ${_formatDate(playlist.createdAt)}',
-                  ),
-                  if (playlist.updatedAt != null &&
-                      playlist.updatedAt != playlist.createdAt)
-                    _InfoChip(
-                      icon: LucideIcons.pencil,
-                      label: 'Updated ${_formatDate(playlist.updatedAt)}',
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: AppConstants.spacingLg),
-          ),
-          if (_isLoading)
-            SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: context.adaptiveTextSecondary,
-                ),
-              ),
-            )
-          else if (_songs.isEmpty)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      LucideIcons.music,
-                      size: context.responsiveIcon(AppConstants.iconSizeXl),
-                      color: context.adaptiveTextTertiary.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: AppConstants.spacingMd),
-                    Text(
-                      'No songs in this playlist',
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(color: context.adaptiveTextSecondary),
-                    ),
-                    const SizedBox(height: AppConstants.spacingSm),
-                    Text(
-                      'Add songs from the player menu',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else ...[
-            _buildSectionTitle(context, 'Songs'),
-            SliverPadding(
-              padding: EdgeInsets.only(
-                bottom: AppConstants.navBarHeight + 80,
-              ),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final song = _songs[index];
-                  return _SongTile(
-                    song: song,
-                    onTap: () => _playSong(song),
-                    onRemove: () async {
-                      await ref
-                          .read(playlistsProvider.notifier)
-                          .removeSongFromPlaylist(
-                            widget.playlist.id,
-                            song.id,
+                if (otherPlaylists.isNotEmpty) ...[
+                  _buildSectionTitle(context, 'Other Playlists'),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 180,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppConstants.spacingLg,
+                        ),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: otherPlaylists.length,
+                        separatorBuilder: (_, __) => const SizedBox(
+                          width: AppConstants.spacingMd,
+                        ),
+                        itemBuilder: (context, index) {
+                          final other = otherPlaylists[index];
+                          return _PlaylistCard(
+                            playlist: other,
+                            onTap: () => _openPlaylist(other),
                           );
-                      _loadSongs();
-                    },
-                  );
-                }, childCount: _songs.length),
-              ),
-            ),
-          ],
-          if (otherPlaylists.isNotEmpty) ...[
-            _buildSectionTitle(context, 'Other Playlists'),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 180,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppConstants.spacingLg,
+                        },
+                      ),
+                    ),
                   ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: otherPlaylists.length,
-                  separatorBuilder: (_, __) => const SizedBox(
-                    width: AppConstants.spacingMd,
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: AppConstants.navBarHeight + 120),
                   ),
-                  itemBuilder: (context, index) {
-                    final other = otherPlaylists[index];
-                    return _PlaylistCard(
-                      playlist: other,
-                      onTap: () => _openPlaylist(other),
-                    );
-                  },
-                ),
-              ),
+                ],
+              ],
             ),
-            const SliverToBoxAdapter(
-              child: SizedBox(height: AppConstants.navBarHeight + 120),
-            ),
-          ],
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildAppBar(BuildContext context, Playlist playlist) {
-    return SliverAppBar(
-      expandedHeight: 280,
-      pinned: true,
-      backgroundColor: AppColors.surface,
-      leading: const SizedBox(),
-      titleSpacing: 0,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            _buildCollageBackground(),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    AppColors.background.withValues(alpha: 0.8),
-                    AppColors.background,
-                  ],
-                ),
-              ),
+  Widget _buildAppBarBackground(
+    BuildContext context,
+    Playlist playlist,
+    Color fadeTo,
+  ) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _buildCollageBackground(),
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                fadeTo.withValues(alpha: 0.8),
+                fadeTo,
+              ],
             ),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 20,
-              left: 16,
-              child: IconButton(
-                icon: Icon(
-                  LucideIcons.arrowLeft,
-                  color: context.adaptiveTextPrimary,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-            Positioned(
-              left: AppConstants.spacingLg,
-              right: AppConstants.spacingLg,
-              bottom: AppConstants.spacingLg,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    playlist.name,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: context.adaptiveTextPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_songs.length} songs${_songs.isNotEmpty ? ' • $_formattedTotalDuration' : ''}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: context.adaptiveTextSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 20,
+          left: 16,
+          child: IconButton(
+            icon: Icon(
+              LucideIcons.arrowLeft,
+              color: context.adaptiveTextPrimary,
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        Positioned(
+          left: AppConstants.spacingLg,
+          right: AppConstants.spacingLg,
+          bottom: AppConstants.spacingLg,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                playlist.name,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: context.adaptiveTextPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${_songs.length} songs${_songs.isNotEmpty ? ' • $_formattedTotalDuration' : ''}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.adaptiveTextSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
