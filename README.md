@@ -12,8 +12,8 @@
 ## Key Features
 
 ### Audio Engine
-- **Primary**: Custom Rust audio engine with UAC 2.0 support for bit-perfect playback through USB DACs/AMPs
-- **DAP Bit-Perfect**: High-resolution playback through device's internal DAC via Oboe/AAudio exclusive mode, with device qualification for confirmed bit-perfect DAPs
+- **Primary**: Custom Rust audio engine with UAC 2.0 support for bit-perfect PCM and native DSD playback through USB DACs/AMPs. DSD bit order handling per source format (LSB/MSB) with quirk-based byte ordering for specific DACs. I32 integer stream support for DoP/DSD transport on DAP internal path.
+- **DAP Bit-Perfect**: High-resolution playback through device's internal DAC via Oboe/AAudio exclusive mode, with device qualification for confirmed bit-perfect DAPs. I32 (integer) stream support for DoP and native DSD transport without format conversion.
 - **Fallback**: `just_audio` for standard audio playback on devices without USB audio support
 - **Audio Processing**: Advanced EQ, dynamics, and spatial/time effects via JustAudioProcessingController on Android
 - **EQ Preset Management**: Import/export functionality for EQ presets in JSON and TXT formats with parametric band support
@@ -21,7 +21,7 @@
 - **Gapless Playback**: Seamless transitions between tracks without silence
 - **Crossfade Support**: Configurable crossfade between tracks
 - **Bluetooth Codec Info**: Reference display of supported Bluetooth audio codecs and current route
-- **DSD Playback** (experimental): Native DSD, DoP, and PCM decimation output modes for DSF, DFF, and WavPack DSD files via custom Rust engine
+- **DSD Playback** (experimental): Native DSD, DoP, and PCM decimation output modes for DSF, DFF, and WavPack DSD files via custom Rust engine. USB direct native DSD with quirk-based byte ordering and multi-byte interleaved payload packing. I32 stream passthrough for DAPs.
 - **Audio Engine Selector**: Manual engine selection from the main menu, with auto-detection fallback
 
 ### USB Audio Class 2.0 (UAC 2.0)
@@ -30,10 +30,12 @@
 - Descriptor parsing for Audio Control and Audio Streaming interfaces
 - Core isochronous transfer engine retained for direct USB access; standard playback routes through Android's native USB DAC handling
 - Hot-plug detection with toast notifications on device connect/stream
-- Bit-perfect audio to external USB DACs via Android native routing
+- Bit-perfect PCM audio and native DSD bitstream delivery to external USB DACs
 - **USB Volume Control**: Dedicated volume popup with slider and mute for isochronous USB audio engines
 - **Scoring-Based Backend Selection**: Dynamic output strategy selection with compatibility scoring
 - **DAP Signature Registry**: Device detection via extensible signature registry (brand/models)
+- **DSD Quirks Table**: Per-device byte ordering overrides (endianness, bit reversal, subslot size) for native DSD compatibility (e.g., MOONDROP Dawn Pro)
+- **Enabled by Default**: UAC2 feature and multi-byte DSD slots active by default
 
 ### Advanced Equalizer & Audio Effects
 - 31-band parametric equalizer with preamp and controls
@@ -41,7 +43,7 @@
 - Preset management with import/export functionality (JSON/TXT formats)
 - Spatial and time effects including balance, tempo, damp, filter, delay, size, mix, feedback, and width
 - Android-optimized audio processing via JustAudioProcessingController
-- **Visualizer Customization**: Five animation styles (Bars, Wave, Curved Wave, Mirrored, Dots), five frequency modes, three movement styles
+- **Visualizer Customization**: Five animation styles (Bars, Wave, Curved Wave, Mirrored, Dots), five frequency modes, three movement styles, and album-dominant-color preview in visualizer settings
 
 ### Library Management
 - MediaStore-based scanning with differential database sync (~34x faster than filesystem walk)
@@ -60,6 +62,8 @@
 - **Multi-Select**: Long-press to enter batch selection with queue/favorite bulk actions
 - **Metadata Editor**: Full tag editing (title, artist, album, year, genre, track number) via Rust backend with SAF file writing
 - **Album & Folder Sorting**: Sort albums and folders by title, artist, duration, track count with persistent preferences
+- **Artist Detail Redesign**: Riverpod-based screen with dynamic color theming from album art, full-bleed artist image background, tinted app bar, and cached artist metadata via `ArtistEntity` Isar collection
+- **Playlist Detail Redesign**: Dynamic color theming extracted from most-played song's album art, info chips (track count, total duration, dates), "Other Playlists" section, and playlist metadata helpers
 
 ### Playback Features
 - Shuffle and repeat modes (off, one, all)
@@ -71,6 +75,7 @@
 - **Online Lyrics**: Search for synced (LRC) or plain-text lyrics from LRCLib.net
 - **Lyrics Sync Studio**: Built-in timestamp editor with Simple and Advanced modes, time-shift tools, and file import
 - **Immersive Full View**: Auto-hiding controls for full-bleed album art with customizable layout
+- **Vinyl Disc Morph**: Tap album art to morph into a spinning vinyl record with animated transition and radial-gradient disc rendering
 - **Star Ratings**: 1–5 star ratings on songs with animated overlay and persistent storage
 - **Song Sharing**: Share songs as album art, lyric, minimal, or solid color cards — save to gallery or share via apps
 - **Custom Player Action Buttons**: Configure left and right action button slots (rating, share, lyrics, shuffle, etc.)
@@ -145,6 +150,8 @@ When a song is playing in Locker and you want to switch to Flick's advanced audi
 
 - **DSD scanning**: DSF, DFF, and WavPack DSD (.wv) metadata scanning and artwork extraction (complete)
 - **DSD/DSF/DFF/WavPack playback**: engine-level native DSD decoding and playback with Native, DoP, and PCM decimation output modes (experimental)
+- **DSD bit order normalization**: Per-source LSB/MSB detection with global override (complete)
+- **Native DSD USB direct**: Quirk-based isochronous DSD bitstream delivery to external DACs (complete)
 - MQA support
 - Poweramp-style EQ filters, including low-pass
 - Android audio settings

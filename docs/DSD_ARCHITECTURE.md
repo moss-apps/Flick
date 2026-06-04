@@ -11,9 +11,10 @@ Flick Player supports four DSD-related formats through a unified DSD engine:
 | **WavPack DSD** | `.wv` | WavPack with DSD content | `wavpack-sys` C bindings |
 | **WavPack PCM** | `.wv` | WavPack with lossless PCM | `wavpack-sys` C bindings |
 
-The engine provides two output modes for DSD content:
+The engine provides three output modes for DSD content:
 - **PCM Decimation** — converts DSD bitstream to integer-multiple PCM rates (44.1k–705.6k) via a software CIC+FIR decimator. Works on any output device.
 - **DoP** (DSD over PCM) — packs raw DSD bits into 24/32-bit PCM frames with 0x05/0xFA marker bytes. Requires a DoP-capable DAC.
+- **Native DSD** — delivers the raw DSD bitstream directly to the DAC without any DSP processing. Uses USB isochronous transfers for USB DACs (with quirk-based byte ordering) or Android AAudio in I32 integer format for DAPs.
 
 ---
 
@@ -55,8 +56,16 @@ trait DsdFormatDecoder: Send {
     fn read_dsd_bytes(&mut self, buf: &mut [u8]) -> Result<usize>;
     fn is_finished(&self) -> bool;
     fn channel_layout(&self) -> DsdChannelLayout;
+    fn bit_order(&self) -> DsdBitOrder;
 }
 ```
+
+`DsdBitOrder` is an enum with `Lsb` and `Msb` variants that indicates whether the source format stores DSD data with least-significant-bit or most-significant-bit priority. Each decoder reports the bit order expected by that format:
+- DSF: MSB (default)
+- DFF: MSB (default)
+- WavPack DSD: MSB (default)
+
+The bit order is queried during `DsdOutputRouter` construction and used by native DSD output to normalize byte ordering before delivery.
 
 **`open_dsd_decoder()`** at `format/mod.rs:25-46` dispatches by extension:
 
@@ -93,7 +102,7 @@ WavPack files containing DSD content are opened via `wavpack-sys` with `OPEN_DSD
 
 **`rust/src/audio/dsd_engine/output/mod.rs`**
 
-The `DsdOutputRouter` routes raw DSD bytes to one of two processors depending on `DsdOutputMode`:
+The `DsdOutputRouter` routes raw DSD bytes to one of three processors depending on `DsdOutputMode`:
 
 ```
 dsd_bytes ──→ DsdOutputRouter
@@ -101,11 +110,36 @@ dsd_bytes ──→ DsdOutputRouter
                   ├── PcmDecimation → DsdDecimationPipeline (CIC+FIR)
                   │     → interleaved f32 PCM samples
                   │
-                  └── Dop → DopPacker
-                        → f32 samples with 0x05/0xFA markers
+                  ├── Dop → DopPacker
+                  │     → f32 samples with 0x05/0xFA markers
+                  │
+                  └── Native → normalize_dsd_byte() per byte
+                        → raw f32 bit containers (f32::from_bits)
 ```
 
-The router is created once per track in `DsdDecoderThread::spawn()` at `dsd_thread.rs:73`.
+The output mode is selected in the DSD decoder thread via `DsdOutputRouter::new(mode, dsd_rate, target, channels, source_bit_order)` at `dsd_thread.rs:73`.
+
+### Native DSD Byte Ordering
+
+Before native DSD output, each byte goes through `normalize_dsd_byte()` which checks the source format's bit order:
+- **LSB-first sources** (e.g., certain DSF encodings): byte is bit-reversed via `reverse_bits()`.
+- **MSB-first sources** (default): byte passes through unchanged.
+
+A global `DSD_BIT_REVERSE_OVERRIDE` atomic controls a forced reversal flag (exposed via `set_dsd_bit_reverse_override(bool)`). When the override is active, the normalization logic is inverted — useful for DACs that expect the opposite bit order.
+
+### DSD Quirks Table
+
+For USB native DSD delivery, device-specific quirks are stored in `KNOWN_DSD_QUIRKS` (in `rust/src/uac2/android_direct.rs`). Each `DsdQuirk` entry defines:
+
+| Field | Description |
+|-------|-------------|
+| `vendor_id` / `product_id` | USB VID/PID for exact match |
+| `product_name_contains` | Substring match on device name |
+| `preferred_subslot` | Bytes per channel per USB frame |
+| `big_endian` | Byte order for multi-byte payloads |
+| `bit_reverse` | Whether bit reversal is needed |
+
+The `lookup_dsd_quirk()` function queries this table during USB output loop initialization, feeding `dsd_big_endian` into `prepare_iso_transfer_payload()`. Known entries include MOONDROP Dawn Pro.
 
 ---
 
@@ -174,6 +208,14 @@ Supports three windows: Blackman (default), Hamming, and Kaiser. Coefficients ar
 **`rust/src/audio/dsd_engine/dsd/dop.rs`**
 
 The DoP standard encodes DSD data inside PCM frames. Each PCM sample carries one DSD channel of data plus an 8-bit marker byte.
+
+### DoP Word Building
+
+`build_dop_word()` (in `dop.rs`) constructs a 32-bit DoP word given DSD bytes and a marker. This method is shared between the f32-packing path and the I32 integer stream path, ensuring consistent marker placement regardless of output format.
+
+### I32 Packing
+
+For integer AAudio streams, `pack_dop_to_i32()` builds the same DoP words but writes them as `i32` values directly into the output buffer. This bypasses the f32 bit-layer indirection used in the standard path, preserving the raw DoP bit patterns for integer-format streams.
 
 ### Marker Protocol
 
@@ -310,16 +352,21 @@ All decoder threads use the same ring-buffer-based `SourceProvider`. When a new 
 Always uses `PipelineMode::Dsp`. DoP transport is not supported via cpal — the f32 samples are played as literal PCM (silence/garbage). PCM decimation mode must be used.
 
 ### Android Oboe (Managed)
-- Stereo f32 stream at device sample rate
-- Strategy selection picks the best backend from: `DsdNative`, `DapNative`, `MixerBitPerfect`, `DsdDoP`, `UsbDirect`, `MixerMatched`, `ResampledFallback`
+- Stereo f32 or i32 stream at device sample rate (I32 used for DoP/DSD native to preserve bit patterns)
+- Strategy selection picks the best backend from: `DsdNative`, `DapNative`, `MixerBitPerfect`, `DsdDoP`, `UsbDirect`, `UsbDsdNative`, `MixerMatched`, `ResampledFallback`
 - DoP: pipeline mode set to `Dop`; carrier rate negotiated with DAC
+- Native DSD: pipeline mode set to `Dop`; raw bytes packed into f32 containers or I32 stream passthrough
 
 ### Android USB Direct (UAC2)
 - DoP format negotiation via UAC2 descriptors
 - `AndroidDirectUsbPlaybackFormat.is_dop` flag
-- DoP sample encoding uses `encode_dop_slots()` in `uac2/android_direct.rs:5904`
-- Pipeline mode: `Passthrough` for bit-perfect verified, `Dop` for DoP transport
+- `AndroidDirectUsbPlaybackFormat.dsd_bit_rate` field for native DSD wire rate calculation
+- DoP sample encoding uses `encode_dop_slots()` in `uac2/android_direct.rs`
+- Native DSD encoding uses `encode_usb_pcm_slots()` with `dsd_big_endian` flag and `channels` parameter
+- Multi-byte interleaved payload packing: subslot_size=1 for direct byte copy, subslot_size>1 for interleaved multi-byte per channel with configurable endianness
+- Pipeline mode: `Passthrough` for bit-perfect verified PCM, `Dop` for DoP transport and native DSD
 - Device classifier checks for `FORMAT_TAG_DSD = 0x0008` and `FormatType::Dsd`
+- DSD quirks lookup at USB output loop initialization for per-device byte ordering
 
 ---
 
@@ -336,9 +383,11 @@ Always uses `PipelineMode::Dsp`. DoP transport is not supported via cpal — the
 
 - `current_dsd_output_mode()` — reads `DSD_OUTPUT_MODE` atomic (0=PCM, 1=DoP)
 - `audio_set_dsd_output_mode(mode: u8)` — writes the atomic
+- `audio_set_dsd_bit_reverse_override(bool)` — forces/inverts DSD byte ordering globally (exposed as `#[flutter_rust_bridge::frb(sync)]`)
 
 **DoP volume constraint** (`player_service.dart:3682-3707`):
 - DoP bypasses software gain (volume is no-op in `PipelineMode::Dop`)
+- Native DSD also bypasses software gain (pipeline mode `Dop`)
 - When software volume is needed (e.g. no hardware volume on DAC), the player auto-switches to PCM decimation mode
 
 ---
@@ -363,10 +412,12 @@ open_dsd_decoder() ─── Box<dyn DsdFormatDecoder>
 DsdDecoderThread::spawn()
     │
     ├── DsdRate::from_sample_rate(decoder.sample_rate())
-    ├── DsdOutputRouter::new(mode, dsd_rate, target, channels)
+    ├── source_bit_order = decoder.bit_order()
+    ├── DsdOutputRouter::new(mode, dsd_rate, target, channels, source_bit_order)
     │       │
     │       ├── PcmDecimation → DsdDecimationPipeline { CIC(3) + FIR(64) }
-    │       └── Dop → DopPacker { 0x05/0xFA markers, 24/32-bit frames }
+    │       ├── Dop → DopPacker { 0x05/0xFA markers, 24/32-bit frames }
+    │       └── Native → normalize_dsd_byte (MSB/LSB reversal)
     │
     ├── AudioSource + SourceProducer (ring buffer, 480k samples)
     │
@@ -384,6 +435,8 @@ dsd_decode_thread() [background thread]
 audio_callback() [cpal/Oboe/UAC2 thread]
     │
     ├── PipelineMode::Dop → sources.read() → passthrough
+    │     ├── f32 stream → direct write (DoP markers as f32 bit containers)
+    │     └── i32 stream → AndroidOutputCallbackI32 (f32::to_bits → i32)
     ├── PipelineMode::Passthrough → sources.read() → gain only
     └── PipelineMode::Dsp → sources.read() → crossfade → speed → EQ → fx → dynamics → gain
 ```
@@ -393,6 +446,10 @@ audio_callback() [cpal/Oboe/UAC2 thread]
 ## 12. Key Constraints
 
 - **DoP requires bit-perfect passthrough.** Any DSP processing corrupts the markers and DSD data.
+- **Native DSD requires bit-perfect passthrough.** Same constraint as DoP — any gain or DSP destroys the 1-bit sigma-delta encoded bitstream.
+- **DSD bit order varies by source format.** LSB vs MSB ordering is format-specific. The output router normalizes bytes based on the decoder's reported `bit_order()`. A global override can invert this for DACs that expect reversed byte order.
+- **USB native DSD uses quirk-based configuration.** Device-specific byte ordering (endianness, bit reversal, subslot size) is determined via `lookup_dsd_quirk()` during USB output loop initialization.
+- **Integer (I32) streams required for DoP/DSD on DAP.** F32 streams apply format conversion that corrupts DoP markers. I32 streams pass raw bit patterns through AAudio without conversion.
 - **DSF sequential blocks** need read-aligned chunk sizes: `(16384 / (block_size * channels)).ceil() * block_size * channels`.
 - **CIC decimation** introduces passband droop; the FIR stage compensates via Blackman-windowed lowpass.
 - **WavPack DSD detection** happens via bit 31 of mode flags, NOT file extension. The same `.wv` extension serves both DSD and PCM WavPack.

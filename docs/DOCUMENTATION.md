@@ -4,7 +4,7 @@
 
 **Flick Player** is a modern, high-performance music player application designed for audiophiles and casual listeners alike. Primarily running on Android, it bridges the gap between a beautiful, fluid user interface and a robust, low-level audio processing engine with advanced equalizer and effects capabilities.
 
-The application leverages the power of **Flutter** for a responsive, animated frontend and **Rust** for a stable, efficient backend. Key features include a custom "Function Code" (Audio Engine) that handles playback independent of the OS media controls in some aspects, ensuring high-fidelity audio output, along with advanced EQ and FX processing capabilities. The engine supports multiple output paths including USB DAC bit-perfect playback, Android's internal high-resolution audio path (DAP), native DSD bitstream delivery via JNI `AudioTrack`, DoP (DSD over PCM) transport, and standard Android audio output. Features include a home screen mini player widget, online lyrics search with a built-in timestamp editor (Lyrics Sync Studio), visualizer customization (animation styles, frequency modes, movement modes), a queue management overhaul, folder grid browsing, immersive full view, swipe actions on songs, Bluetooth codec reference display, and Play Store in-app updates.
+The application leverages the power of **Flutter** for a responsive, animated frontend and **Rust** for a stable, efficient backend. Key features include a custom "Function Code" (Audio Engine) that handles playback independent of the OS media controls in some aspects, ensuring high-fidelity audio output, along with advanced EQ and FX processing capabilities. The engine supports multiple output paths including USB DAC bit-perfect playback, native DSD bitstream delivery via USB direct (isochronous transfer with quirk-based byte ordering), Android's internal high-resolution audio path (DAP) with integer (I32) stream support for DoP/DSD transport, DoP (DSD over PCM) transport, and standard Android audio output. Features include a home screen mini player widget, online lyrics search with a built-in timestamp editor (Lyrics Sync Studio), visualizer customization (animation styles, frequency modes, movement modes) with album-color preview support, a queue management overhaul, folder grid browsing, immersive full view, swipe actions on songs, dynamic playlist and artist detail color theming from album art, album art to vinyl record morph animation, Bluetooth codec reference display, and Play Store in-app updates.
 
 ### Digital Audio Player (DAP) Support
 
@@ -40,23 +40,27 @@ The application identifies and optimizes for several known DAP brands and model 
 The core audio engine in `rust/src/audio/engine.rs` features a sophisticated architecture designed for high-performance audio processing:
 
 - **Lock-Free Design**: Uses atomic operations and lock-free data structures in the audio callback to prevent audio glitches
-- **Multiple Output Strategies**: Dynamically selects between USB Direct, DAP Native, Mixer Bit-Perfect, Mixer Matched, and Resampled Fallback based on device capabilities
+- **Multiple Output Strategies**: Dynamically selects between USB Direct, DAP Native, Mixer Bit-Perfect, Mixer Matched, Resampled Fallback, USB DSD Native, and DSD DoP based on device capabilities
+- **Integer Stream Support**: Opens AAudio in I32 format (instead of f32) for DoP/native DSD transport on the DAP path — raw bit patterns pass through without format conversion
+- **DSD Bit Order Handling**: Normalizes DSD byte ordering per-source (`DsdBitOrder::Lsb` / `DsdBitOrder::Msb`) with a global configurable override. USB native DSD applies quirk-based byte ordering for specific DACs
 - **Real-Time Processing Chain**: Implements a complete DSP chain including volume control, 10-band graphic equalizer with preamp, spatial/time FX, dynamics processing (compressor/limiter), playback speed control, and crossfading
-- **Runtime Pipeline Mode**: Dynamically selects between `Passthrough` (bit-perfect, skips all DSP) and `Dsp` (full processing chain) at runtime, based on output strategy and device capabilities
+- **Runtime Pipeline Mode**: Dynamically selects between `Passthrough` (bit-perfect, skips all DSP), `Dsp` (full processing chain), and `Dop` (DoP/DSD passthrough, no DSP) at runtime, based on output strategy and device capabilities
 - **Continuous Verification**: Constantly monitors and verifies that the actual output matches the requested format for quality assurance
 - **Thread Safety**: Properly separates real-time audio processing (lock-free) from control operations (thread-safe)
 
 #### Output Strategies
 
-The engine implements five distinct output strategies:
+The engine implements seven distinct output strategies:
 
-1. **USB Direct (`UsbDirect`)**: Bit-perfect playback through external USB DACs using libusb isochronous transfers (requires UAC 2.0 feature). The UAC2 pipeline info and transfer stats widgets have been removed from the UI, but the core engine remains.
-2. **DAP Native (`DapNative`)**: High-resolution audio through device's internal DAC using Oboe/AAudio in exclusive mode
-3. **Mixer Bit-Perfect (`MixerBitPerfect`)**: Android mixer path with bit-perfect format matching (Android 14+)
-4. **Mixer Matched (`MixerMatched`)**: Android mixer path with sample rate conversion when needed
-5. **Resampled Fallback (`ResampledFallback`)**: Fallback path with resampling when exact format matching isn't possible
+1. **USB Direct (`UsbDirect`)**: Bit-perfect PCM playback through external USB DACs using libusb isochronous transfers (requires UAC 2.0 feature). The UAC2 pipeline info and transfer stats widgets have been removed from the UI, but the core engine remains.
+2. **USB DSD Native (`UsbDsdNative`)**: Native DSD bitstream delivery through external USB DACs via isochronous transfers. Packs DSD bytes into multi-byte interleaved USB payloads with quirk-based byte ordering (endianness and bit reversal for specific DACs like MOONDROP Dawn Pro). Bypasses all DSP for bit-perfect DSD transport.
+3. **DAP Native (`DapNative`)**: High-resolution audio through device's internal DAC using Oboe/AAudio in exclusive mode. Supports I32 integer streams for DoP and native DSD transport on DAP devices.
+4. **DSD DoP (`DsdDoP`)**: DSD over PCM transport through the active output path (USB DAC or DAP internal), using the DoP marker protocol with pipeline mode set to `Dop` for bit-perfect passthrough.
+5. **Mixer Bit-Perfect (`MixerBitPerfect`)**: Android mixer path with bit-perfect format matching (Android 14+)
+6. **Mixer Matched (`MixerMatched`)**: Android mixer path with sample rate conversion when needed
+7. **Resampled Fallback (`ResampledFallback`)**: Fallback path with resampling when exact format matching isn't possible
 
-Each strategy is selected based on device capabilities and current playback requirements, with runtime verification ensuring the selected path meets quality expectations. The engine supports multiple output paths including USB DAC bit-perfect playback, Android's internal high-resolution audio path (DAP), and standard Android audio output.
+Each strategy is selected based on device capabilities and current playback requirements, with runtime verification ensuring the selected path meets quality expectations. The engine supports multiple output paths including USB DAC bit-perfect playback (PCM), USB DAC native DSD bitstream, Android's internal high-resolution audio path (DAP) with integer stream support for DoP/DSD, and standard Android audio output.
 
 ## Planned Features
 
@@ -78,14 +82,23 @@ The current roadmap includes:
 
 ### Recently Completed
 
-- **Milestone Tracking**: Achievement system tracking songs played (100/500/1000) and listening time (10/50 hours). `MilestoneService` with accumulated listen time, milestone dialogs from app shell, and persistent "shown" state per milestone. Welcome card on menu screen with animated dismiss.
+- **Milestone Tracking**: Achievement system tracking songs played (100/500/1000) and listening time (10/50 hours). `MilestoneService` with accumulated listen time, milestone dialogs from app shell, and persistent "shown" state per milestone. Collection view with per-tier accent colors (bronze/silver/gold/sapphire/amethyst), hero icons, and "next milestone" hint line.
 - **Support Flick Screen**: In-app donation screen with animated info tiles explaining how contributions fund Play Store fees, audio testing equipment, and DSD development. Pulsing heart icon in settings header links to support page.
+- **Artist Detail Redesign**: Migrated to Riverpod (`ConsumerStatefulWidget`) with dynamic color theming extracted from album art. Full-bleed artist image background, tinted app bar with animated color transitions, and `ArtistEntity` Isar collection with persistent art cache via `ArtistRepository`.
+- **Playlist Detail Redesign**: Dynamic color theming from most-played song's album art, full-bleed background collage, info chips (track count, total duration, dates), "Other Playlists" horizontal section, and `getMostPlayedSongAmong()` helper in `RecentlyPlayedRepository`.
+- **Vinyl Disc Morph Animation**: Tap album art to morph into a spinning vinyl record. `_VinylDiscPainter` draws a radial-gradient disc with grooves; `_morphController` (700ms) controls the transition; `_spinController` (16s rotation) spins the disc. Album art shrinks to center label size.
+- **Album Color in Visualizer Preview**: Visualizer settings preview now reads `albumColorModeProvider` and renders the preview with the album's dominant color when album color mode is active.
+- **DSD Bit Order Support**: `DsdBitOrder` enum (`Lsb`/`Msb`) with per-source detection. All DSD format decoders (DSF, DFF, WavPack) implement `bit_order()`. Global `set_dsd_bit_reverse_override()` for forced reversal. Native DSD output normalizes byte ordering, and USB direct applies per-device quirk-based ordering.
+- **USB Native DSD & Quirks**: `AndroidDirectUsbPlaybackFormat` now carries `dsd_bit_rate`. Known DSD quirks table (`KNOWN_DSD_QUIRKS`) with per-device big-endian flag, bit reversal override, and preferred subslot size (MOONDROP Dawn Pro entry). Multi-byte interleaved USB payload packing with configurable endianness.
+- **Integer (I32) AAudio Stream**: Engine opens AAudio in I32 format for DoP/native DSD on DAP devices. `AndroidOutputCallbackI32` reads f32 from the pipeline, extracts raw bit patterns via `f32::to_bits()`, and writes i32 to AAudio — preserving DoP markers and DSD data intact.
+- **UAC2 Feature Enabled by Default**: Multi-byte DSD slots and UAC2 feature flag now active by default.
+- **Transport Labels**: Debug transport labels updated from short codes to descriptive ones (`usb-native-dsd-u{subslot}x{bits}-bit`, `usb-dop-{bits}-bit`, `usb-pcm`).
 - **Audio Session Fix**: Rust engine now activates Android `AudioSession` on start — fixes audio focus, prevents ducking, and enables coexistence with notifications.
 - **Volume Slider Refinement**: Gain mapping changed from steep 0-60 dB curve to gentle 0-20 dB linear dB mapping for more precise control.
 - **Orbit Scroll Refactor**: `ValueNotifier` replaces per-item `setState`; cache size limited to prevent unbounded growth.
 - **Full Player Performance**: `SingleChildScrollView` wrapper removed from column layout, eliminating layout jank.
-- **DoP (DSD over PCM)**: DSD64–DSD512 packed into 24/32-bit PCM frames with 0x05/0xFA markers for DoP-capable DACs
-- **DSD Auto Output Mode**: Smart runtime probing (Native → DoP → PCM decimation) based on device capabilities
+- **DoP (DSD over PCM)**: DSD64–DSD512 packed into 24/32-bit PCM frames with 0x05/0xFA markers for DoP-capable DACs. DoP word building extracted to reusable method with I32 packing.
+- **DSD Auto Output Mode**: Smart runtime probing (Native → DoP → PCM decimation) based on device capabilities. DAP flag included in native DSD detection.
 - **WavPack DSD Detection**: Automatic `.wv` file routing to DSD or PCM decoder based on WavPack mode flags
 - **DSD Decimation Pipeline**: Improved CIC filter (integer+fractional state split), tuned FIR (256 taps, Kaiser beta 8.0), corrected sinc filter formula
 - **DSD Architecture Docs**: Complete architecture documentation and volume control investigation log
@@ -125,9 +138,11 @@ The application behaves as a hybrid system. Here is a breakdown of the key *Func
 Located in `rust/src/audio`, this is the heart of the application. It bypasses standard high-level players to give direct control over the audio stream.
 
 - **Engine (`engine.rs`)**: The central coordinator featuring a lock-free architecture for real-time audio processing. It runs on a designated high-priority thread to ensure music never stutters, managing the flow of data from the file to the speakers. The engine implements multiple output strategies:
-  - **USB Direct**: Bit-perfect playback through external USB DACs using libusb isochronous transfers
+  - **USB Direct**: Bit-perfect PCM playback through external USB DACs using libusb isochronous transfers
+  - **USB DSD Native**: Native DSD bitstream through USB DACs with quirk-based byte ordering (endianness, bit reversal) and multi-byte interleaved payload packing
   - **Android Managed**: Standard audio playback through Oboe/AAudio or the Android mixer
-  - **DAP Internal High-Res**: High-resolution audio through the device's internal DAC using Oboe/AAudio in exclusive mode
+  - **DAP Internal High-Res**: High-resolution audio through the device's internal DAC using Oboe/AAudio in exclusive mode with I32 integer stream support for DoP/DSD transport
+  - **DSD DoP**: DSD over PCM transport through USB DAC or DAP internal, with `PipelineMode::Dop` for bit-perfect passthrough
 
 - **Decoder (`decoder.rs`)**: Uses `symphonia` to read various audio formats (MP3, FLAC, WAV, OGG, M4A, ALAC, AIFF) and decode them into raw sound waves (PCM). DSD decoding is handled by the DSD engine (`dsd_engine/`) supporting DSF, DFF, and WavPack DSD formats with Native, DoP, and PCM decimation output modes.
 - **ALAC Converter (`alac_converter.rs`)**: Lossless real-time conversion of ALAC/M4A/AIFF files to WAV/PCM, preserving original bit depth (16/24/32-bit). Session-based streaming conversion for memory efficiency.

@@ -19,6 +19,7 @@ For best experience:
 - Multiple bit depth support (16, 24, 32-bit)
 - Volume and mute controls
 - Low latency operation
+- **DSD support** (optional): Native DSD requires `FORMAT_TAG_DSD` (0x0008) in device descriptors. DoP transport works with standard PCM interfaces. Per-device quirks (endianness, bit reversal, subslot size) are handled via `KNOWN_DSD_QUIRKS`.
 
 ## Tested Devices
 
@@ -28,7 +29,7 @@ These devices have been tested and work perfectly:
 
 | Manufacturer | Model | Max Sample Rate | Max Bit Depth | Notes |
 |--------------|-------|-----------------|---------------|-------|
-| MOONDROP | Dawn Pro | 384 kHz | 32-bit | Dual CS43131, balanced output |
+| MOONDROP | Dawn Pro | 384 kHz | 32-bit | Dual CS43131, balanced output. Native DSD via quirk table (big-endian USB packing). |
 | FiiO | K5 Pro | 384 kHz | 32-bit | Excellent compatibility |
 | Topping | D10s | 384 kHz | 32-bit | All features work |
 | Schiit | Modi 3+ | 192 kHz | 24-bit | Stable operation |

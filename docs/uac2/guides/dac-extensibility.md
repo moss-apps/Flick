@@ -71,7 +71,9 @@ pub enum BackendType {
     MixerBitPerfect,
     MixerMatched,
     ResampledFallback,
-    NetworkDac,  // new
+    UsbDsdNative,   // DSD native bitstream via USB isochronous
+    DsdDoP,          // DSD over PCM transport
+    NetworkDac,      // new
 }
 ```
 
@@ -79,7 +81,9 @@ Also add to `rust/src/audio/strategy.rs` `OutputStrategy`:
 ```rust
 pub enum OutputStrategy {
     // ...existing variants
-    NetworkDac,  // new
+    UsbDsdNative,   // new
+    DsdDoP,          // new
+    NetworkDac,      // new
 }
 ```
 
@@ -195,10 +199,36 @@ The DAP registry in `rust/src/audio/device.rs` contains the following brands:
 | `rust/src/audio/device.rs` | DAP signature registry, device classification |
 | `rust/src/audio/strategy.rs` | BackendCandidate scoring, strategy selection |
 | `rust/src/audio/backend.rs` | BackendType, BackendDescriptor, AudioBackend trait |
-| `rust/src/audio/engine.rs` | Engine creation per strategy |
+| `rust/src/audio/engine.rs` | Engine creation per strategy, integer (I32) stream support, pipeline mode selection |
 | `rust/src/audio/verifier.rs` | Output verification |
 | `rust/src/audio/manager.rs` | Capability detection, engine lifecycle |
+| `rust/src/uac2/android_direct.rs` | USB isochronous transfers, DSD quirk table, native DSD payload packing |
+| `rust/src/audio/dsd_engine/output/mod.rs` | DSD output routing, byte order normalization, global bit reverse override |
 | `lib/models/audio_engine_type.dart` | Flutter engine type enum |
 | `lib/services/audio_session_manager.dart` | Mode resolution logic |
 | `lib/services/android_audio_device_service.dart` | DAP keyword detection (Dart) |
 | `android/.../MainActivity.kt` | USB device management, capability reporting |
+
+## Adding a DSD Quirk
+
+To add native DSD support for a new USB DAC that needs special byte ordering, add a `DsdQuirk` entry to `KNOWN_DSD_QUIRKS` in `rust/src/uac2/android_direct.rs`:
+
+```rust
+DsdQuirk {
+    vendor_id: 0x1224,           // USB VID
+    product_id: 0x2A2A,         // USB PID
+    product_name_contains: None, // Or Some("DAC Name")
+    preferred_subslot: 2,       // Bytes per channel per USB frame
+    big_endian: true,           // Byte order for multi-byte payloads
+    bit_reverse: false,         // Whether per-byte bit reversal is needed
+}
+```
+
+Fields:
+- `vendor_id` / `product_id`: Exact USB VID/PID match (0 for wildcard)
+- `product_name_contains`: Substring match on USB product name string (case-insensitive)
+- `preferred_subslot`: Number of bytes per channel in each USB transfer frame
+- `big_endian`: When packing multi-byte interleaved channel data, send MSB first
+- `bit_reverse`: Invert bit order within each byte (for DACs expecting LSB-first DSD)
+
+The quirk is applied during USB output loop initialization via `lookup_dsd_quirk()`, which feeds the `dsd_big_endian` flag into `prepare_iso_transfer_payload()` for native DSD payload packing.
