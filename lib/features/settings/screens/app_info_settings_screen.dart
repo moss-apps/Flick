@@ -387,9 +387,13 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
               borderRadius: BorderRadius.circular(AppConstants.radiusLg),
               border: Border.all(color: AppColors.glassBorder),
             ),
-            child: SvgPicture.asset(
-              'assets/icons/flicklogo_svg.svg',
-              fit: BoxFit.contain,
+            child: Center(
+              child: SvgPicture.asset(
+                'assets/icons/flicklogo_svg.svg',
+                width: 48,
+                height: 48,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
           const SizedBox(height: AppConstants.spacingMd),
