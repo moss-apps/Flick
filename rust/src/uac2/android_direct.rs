@@ -5949,8 +5949,22 @@ fn encode_usb_pcm_slots(
             return Ok(());
         }
         DsdTransportMode::Native => {
-            for (i, &sample) in input.iter().enumerate() {
-                output[i] = (sample & 0xFF) as u8;
+            let ss = subslot_size as usize;
+            if ss == 1 {
+                for (i, &sample) in input.iter().enumerate() {
+                    output[i] = (sample & 0xFF) as u8;
+                }
+            } else {
+                log::warn!(
+                    "[USB-DSD] Native DSD subslot_size={} > 1: packing {} DSD bytes per slot (low bytes of i32)",
+                    ss, ss
+                );
+                for (i, &sample) in input.iter().enumerate() {
+                    let offset = i * ss;
+                    for b in 0..ss {
+                        output[offset + b] = ((sample >> (b * 8)) & 0xFF) as u8;
+                    }
+                }
             }
             return Ok(());
         }

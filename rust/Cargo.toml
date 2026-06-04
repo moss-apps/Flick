@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "staticlib"]
 
 [features]
-default = ["native_audio"]
+default = ["native_audio", "uac2"]
 # Enable native audio engine (now enabled on Android with CPAL/Oboe)
 native_audio = ["cpal", "symphonia", "rubato", "ringbuf", "crossbeam-channel", "wavpack-sys"]
 # Custom UAC 2.0 USB Audio (host-side DAC/AMP support)
