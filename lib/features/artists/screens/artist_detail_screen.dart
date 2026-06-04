@@ -413,20 +413,8 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
       pinned: true,
       scrolledUnderElevation: 0,
       backgroundColor: AppColors.surface,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppColors.glassBackground,
-          borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        ),
-        child: IconButton(
-          icon: Icon(
-            LucideIcons.arrowLeft,
-            color: context.adaptiveTextPrimary,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
+      leading: const SizedBox(),
+      titleSpacing: 0,
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
@@ -455,6 +443,17 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                     AppColors.background,
                   ],
                 ),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 20,
+              left: 16,
+              child: IconButton(
+                icon: Icon(
+                  LucideIcons.arrowLeft,
+                  color: context.adaptiveTextPrimary,
+                ),
+                onPressed: () => Navigator.of(context).pop(),
               ),
             ),
             Center(
