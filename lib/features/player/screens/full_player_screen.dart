@@ -1218,6 +1218,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                         .addSongToPlaylist(
                                           playlist.id,
                                           song.id,
+                                          song: song,
                                         );
                                     if (context.mounted) {
                                       Navigator.pop(context);
