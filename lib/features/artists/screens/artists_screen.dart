@@ -180,70 +180,24 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
   Widget build(BuildContext context) {
     return DisplayModeWrapper(
       child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: Stack(
-          children: [
-            _buildAmbientBackground(),
-            SafeArea(
-              bottom: false,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(context),
-                  Expanded(
-                    child: _isLoading
-                        ? _buildLoadingState()
-                        : _artists.isEmpty
-                        ? _buildEmptyState()
-                        : _buildArtistsList(),
-                  ),
-                ],
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: _isLoading
+                    ? _buildLoadingState()
+                    : _artists.isEmpty
+                    ? _buildEmptyState()
+                    : _buildArtistsList(),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    );
-  }
-
-  Widget _buildAmbientBackground() {
-    return Stack(
-      children: [
-        Positioned(
-          top: -100,
-          left: -80,
-          child: Container(
-            width: 240,
-            height: 240,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  AppColors.accent.withValues(alpha: 0.14),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 140,
-          right: -100,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  AppColors.surfaceLight.withValues(alpha: 0.20),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
