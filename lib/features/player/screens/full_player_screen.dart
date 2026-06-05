@@ -3995,6 +3995,8 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
   Duration _lastObservedPosition = Duration.zero;
   double _userRotationOffset = 0.0;
   bool _isUserDragging = false;
+  double _rotationHapticAccumulator = 0.0;
+  static const double _hapticTickInterval = math.pi / 12;
   late final TapGestureRecognizer _tapRecognizer;
   late final _RotationSeekRecognizer _rotationRecognizer;
 
@@ -4130,10 +4132,12 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
     final service = widget.playerService;
     if (service == null) return;
     _isUserDragging = true;
+    _rotationHapticAccumulator = 0.0;
     _spinController.stop();
     _seekAngleController.stop();
     _seekAngleController.value = 0;
     _lastObservedPosition = service.positionNotifier.value;
+    AppHaptics.selection();
   }
 
   void _onRotationUpdate(double delta) {
@@ -4141,6 +4145,12 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
     final service = widget.playerService;
     if (service == null) return;
     _userRotationOffset += delta;
+
+    _rotationHapticAccumulator += delta.abs();
+    if (_rotationHapticAccumulator >= _hapticTickInterval) {
+      _rotationHapticAccumulator -= _hapticTickInterval;
+      AppHaptics.selection();
+    }
 
     final msPerRadian =
         (_secondsPerVinylRotation * 1000) / (2 * math.pi);
@@ -4165,9 +4175,11 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
 
   void _onRotationEnd() {
     _isUserDragging = false;
+    _rotationHapticAccumulator = 0.0;
     if (_isVinyl && _isPlaying) {
       _spinController.repeat();
     }
+    AppHaptics.confirm();
   }
 
   void _animateSeek(int deltaMs) {
@@ -4189,7 +4201,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
   }
 
   void _toggle() {
-    AppHaptics.tap();
+    AppHaptics.confirm();
     setState(() {
       _isVinyl = !_isVinyl;
       if (_isVinyl) {
