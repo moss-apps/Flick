@@ -146,70 +146,24 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
   Widget build(BuildContext context) {
     return DisplayModeWrapper(
       child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: Stack(
-          children: [
-            _buildAmbientBackground(),
-            SafeArea(
-              bottom: false,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(context),
-                  Expanded(
-                    child: _isLoading
-                        ? _buildLoadingState()
-                        : _sortedAlbums.isEmpty
-                        ? _buildEmptyState()
-                        : _buildAlbumsGrid(),
-                  ),
-                ],
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: _isLoading
+                    ? _buildLoadingState()
+                    : _sortedAlbums.isEmpty
+                    ? _buildEmptyState()
+                    : _buildAlbumsGrid(),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    );
-  }
-
-  Widget _buildAmbientBackground() {
-    return Stack(
-      children: [
-        Positioned(
-          top: -120,
-          right: -80,
-          child: Container(
-            width: 260,
-            height: 260,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  AppColors.accent.withValues(alpha: 0.16),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 120,
-          left: -110,
-          child: Container(
-            width: 220,
-            height: 220,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  AppColors.surfaceLight.withValues(alpha: 0.22),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
