@@ -317,16 +317,20 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                       vertical: AppConstants.spacingMd,
                     ),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(
+                        SizedBox(
+                          width: 140,
                           child: _ActionButton(
                             icon: LucideIcons.play,
                             label: 'Play All',
                             onTap: _playAll,
+                            backgroundColor: AppColors.accent,
                           ),
                         ),
                         const SizedBox(width: AppConstants.spacingMd),
-                        Expanded(
+                        SizedBox(
+                          width: 140,
                           child: _ActionButton(
                             icon: LucideIcons.shuffle,
                             label: 'Shuffle',
@@ -563,17 +567,22 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color? backgroundColor;
 
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.backgroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bg = backgroundColor ?? AppColors.glassBackgroundStrong;
+    final fg = backgroundColor != null ? AppColors.background : context.adaptiveTextPrimary;
+
     return Material(
-      color: AppColors.glassBackgroundStrong,
+      color: bg,
       borderRadius: BorderRadius.circular(AppConstants.radiusLg),
       child: InkWell(
         onTap: onTap,
@@ -583,12 +592,12 @@ class _ActionButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: context.adaptiveTextPrimary, size: 18),
+              Icon(icon, color: fg, size: 18),
               const SizedBox(width: AppConstants.spacingSm),
               Text(
                 label,
                 style: TextStyle(
-                  color: context.adaptiveTextPrimary,
+                  color: fg,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
