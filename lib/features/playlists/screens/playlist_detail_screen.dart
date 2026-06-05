@@ -39,6 +39,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       RecentlyPlayedRepository();
   final ColorExtractionService _colorService = ColorExtractionService();
 
+  final ScrollController _scrollController = ScrollController();
+  bool _showAppBarActions = false;
+
   List<Song> _songs = [];
   bool _isLoading = true;
   Color? _playlistColor;
@@ -46,9 +49,24 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSongs();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final show = _scrollController.offset > 250;
+    if (show != _showAppBarActions) {
+      setState(() => _showAppBarActions = show);
+    }
   }
 
   Playlist get _currentPlaylist {
@@ -231,13 +249,96 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             backgroundColor: resolvedBg,
             albumDominantColor: _playlistColor,
             child: CustomScrollView(
+              controller: _scrollController,
               slivers: [
                 SliverAppBar(
                   expandedHeight: 280,
                   pinned: true,
                   backgroundColor: animatedAppBar,
-                  leading: const SizedBox(),
+                  leading: AnimatedOpacity(
+                    duration: AppConstants.animationFast,
+                    opacity: _showAppBarActions ? 1.0 : 0.0,
+                    child: IgnorePointer(
+                      ignoring: !_showAppBarActions,
+                      child: IconButton(
+                        icon: Icon(
+                          LucideIcons.arrowLeft,
+                          color: context.adaptiveTextPrimary,
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ),
                   titleSpacing: 0,
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: AnimatedOpacity(
+                          duration: AppConstants.animationFast,
+                          opacity: _showAppBarActions ? 1.0 : 0.0,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                playlist.name,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(
+                                      color: context.adaptiveTextPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '${_songs.length} songs${_songs.isNotEmpty ? ' • $_formattedTotalDuration' : ''}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: context.adaptiveTextSecondary,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      AnimatedOpacity(
+                        duration: AppConstants.animationFast,
+                        opacity: _showAppBarActions ? 1.0 : 0.0,
+                        child: IgnorePointer(
+                          ignoring: !_showAppBarActions,
+                          child: IconButton(
+                            icon: Icon(
+                              LucideIcons.play,
+                              color: context.adaptiveTextPrimary,
+                              size: 20,
+                            ),
+                            onPressed: _playAll,
+                          ),
+                        ),
+                      ),
+                      AnimatedOpacity(
+                        duration: AppConstants.animationFast,
+                        opacity: _showAppBarActions ? 1.0 : 0.0,
+                        child: IgnorePointer(
+                          ignoring: !_showAppBarActions,
+                          child: IconButton(
+                            icon: Icon(
+                              LucideIcons.shuffle,
+                              color: context.adaptiveTextPrimary,
+                              size: 20,
+                            ),
+                            onPressed: _shuffleAll,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   flexibleSpace: FlexibleSpaceBar(
                     background: _buildAppBarBackground(
                       context,
@@ -251,9 +352,6 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: Container(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: AppConstants.spacingLg,
-                    ),
                     decoration: BoxDecoration(
                       color: resolvedBg,
                       borderRadius: const BorderRadius.only(
@@ -266,10 +364,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       vertical: AppConstants.spacingMd,
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SizedBox(
-                          width: 140,
+                        Expanded(
                           child: _ActionButton(
                             icon: LucideIcons.play,
                             label: 'Play All',
@@ -278,8 +374,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                           ),
                         ),
                         const SizedBox(width: AppConstants.spacingMd),
-                        SizedBox(
-                          width: 140,
+                        Expanded(
                           child: _ActionButton(
                             icon: LucideIcons.shuffle,
                             label: 'Shuffle',
