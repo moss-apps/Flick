@@ -196,7 +196,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
 
     return DisplayModeWrapper(
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
         body: SafeArea(
           bottom: false,
           child: Column(
