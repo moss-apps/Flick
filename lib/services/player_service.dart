@@ -1490,6 +1490,95 @@ class PlayerService {
           !deviceInfo.hasUsbDac,
     );
 
+    final activeAltSetting = _intValue(
+      directUsbState?['active_alt_setting'] ??
+          directUsbState?['activeAltSetting'],
+    );
+    final activeEndpointAddress = _intValue(
+      directUsbState?['active_endpoint_address'] ??
+          directUsbState?['activeEndpointAddress'],
+    );
+    final transportFormat = _stringValue(
+      directUsbState?['transport_format'] ?? directUsbState?['transportFormat'],
+    );
+    final transportSubslot = _intValue(
+      directUsbState?['transport_subslot_size'] ??
+          directUsbState?['transportSubslotSize'],
+    );
+    final transportBitResolution = _intValue(
+      directUsbState?['transport_bit_resolution'] ??
+          directUsbState?['transportBitResolution'],
+    );
+    final activeSyncType = _stringValue(
+      directUsbState?['active_sync_type'] ?? directUsbState?['activeSyncType'],
+    );
+    final activeUsageType = _stringValue(
+      directUsbState?['active_usage_type'] ??
+          directUsbState?['activeUsageType'],
+    );
+    final activeRefresh = _intValue(
+      directUsbState?['active_refresh'] ?? directUsbState?['activeRefresh'],
+    );
+    final activeServiceIntervalUs = _intValue(
+      directUsbState?['active_service_interval_us'] ??
+          directUsbState?['activeServiceIntervalUs'],
+    );
+    final activeMaxPacketBytes = _intValue(
+      directUsbState?['active_max_packet_bytes'] ??
+          directUsbState?['activeMaxPacketBytes'],
+    );
+    final bufferFillMs = _intValue(
+      directUsbState?['buffer_fill_ms'] ?? directUsbState?['bufferFillMs'],
+    );
+    final bufferCapacityMs = _intValue(
+      directUsbState?['buffer_capacity_ms'] ??
+          directUsbState?['bufferCapacityMs'],
+    );
+    final bufferTargetMs = _intValue(
+      directUsbState?['buffer_target_ms'] ??
+          directUsbState?['bufferTargetMs'],
+    );
+    final framesPerPacket = _intValue(
+      directUsbState?['frames_per_packet'] ??
+          directUsbState?['framesPerPacket'],
+    );
+    final underrunCount = _intValue(
+      directUsbState?['underrun_count'] ?? directUsbState?['underrunCount'],
+    );
+    final producerFrames = _intValue(
+      directUsbState?['producer_frames'] ?? directUsbState?['producerFrames'],
+    );
+    final consumerFrames = _intValue(
+      directUsbState?['consumer_frames'] ?? directUsbState?['consumerFrames'],
+    );
+    final driftMsFromTarget = _intValue(
+      directUsbState?['drift_ms_from_target'] ??
+          directUsbState?['driftMsFromTarget'],
+    );
+    final urbTransport = usesRustDiagnostics &&
+            pathManagement == AudioPathManagement.directUsbExperimental
+        ? UrbTransportInfo(
+            activeAltSetting: activeAltSetting,
+            activeEndpointAddress: activeEndpointAddress,
+            activeSyncType: activeSyncType,
+            activeUsageType: activeUsageType,
+            activeRefresh: activeRefresh,
+            activeServiceIntervalUs: activeServiceIntervalUs,
+            activeMaxPacketBytes: activeMaxPacketBytes,
+            transportFormat: transportFormat,
+            transportSubslot: transportSubslot,
+            transportBitResolution: transportBitResolution,
+            bufferFillMs: bufferFillMs,
+            bufferCapacityMs: bufferCapacityMs,
+            bufferTargetMs: bufferTargetMs,
+            framesPerPacket: framesPerPacket,
+            underrunCount: underrunCount,
+            producerFrames: producerFrames,
+            consumerFrames: consumerFrames,
+            driftMsFromTarget: driftMsFromTarget,
+          )
+        : null;
+
     audioOutputDiagnosticsNotifier.value = AudioOutputDiagnostics(
       selectedMode: _sessionManager.selectedMode,
       initializedMode: _sessionManager.initializedMode,
@@ -1521,80 +1610,9 @@ class PlayerService {
       verificationReason: verificationReason,
       fallbackReason: _sessionManager.fallbackReason,
       capabilityFlags: capabilityFlags,
+      urbTransport: urbTransport,
     );
 
-    final activeAltSetting = _intValue(
-      directUsbState?['active_alt_setting'] ??
-          directUsbState?['activeAltSetting'],
-    );
-    final activeEndpointAddress = _intValue(
-      directUsbState?['active_endpoint_address'] ??
-          directUsbState?['activeEndpointAddress'],
-    );
-    final transportFormat = _stringValue(
-      directUsbState?['transport_format'] ?? directUsbState?['transportFormat'],
-    );
-    final transportSubslot = _intValue(
-      directUsbState?['transport_subslot_size'] ??
-          directUsbState?['transportSubslotSize'],
-    );
-    final transportBitResolution = _intValue(
-      directUsbState?['transport_bit_resolution'] ??
-          directUsbState?['transportBitResolution'],
-    );
-    final activeSyncType = _stringValue(
-      directUsbState?['active_sync_type'] ?? directUsbState?['activeSyncType'],
-    );
-    final activeUsageType = _stringValue(
-      directUsbState?['active_usage_type'] ??
-          directUsbState?['activeUsageType'],
-    );
-    final activeRefresh = _intValue(
-      directUsbState?['active_refresh'] ?? directUsbState?['activeRefresh'],
-    );
-    final activeSynchAddress = _intValue(
-      directUsbState?['active_synch_address'] ??
-          directUsbState?['activeSynchAddress'],
-    );
-    final activeServiceIntervalUs = _intValue(
-      directUsbState?['active_service_interval_us'] ??
-          directUsbState?['activeServiceIntervalUs'],
-    );
-    final activeMaxPacketBytes = _intValue(
-      directUsbState?['active_max_packet_bytes'] ??
-          directUsbState?['activeMaxPacketBytes'],
-    );
-    final packetSchedulePreview = _dynamicListValue(
-      directUsbState?['packet_schedule_frames_preview'] ??
-          directUsbState?['packetScheduleFramesPreview'],
-    );
-    final bufferFillMs = _intValue(
-      directUsbState?['buffer_fill_ms'] ?? directUsbState?['bufferFillMs'],
-    );
-    final bufferCapacityMs = _intValue(
-      directUsbState?['buffer_capacity_ms'] ??
-          directUsbState?['bufferCapacityMs'],
-    );
-    final bufferTargetMs = _intValue(
-      directUsbState?['buffer_target_ms'] ?? directUsbState?['bufferTargetMs'],
-    );
-    final framesPerPacket = _intValue(
-      directUsbState?['frames_per_packet'] ??
-          directUsbState?['framesPerPacket'],
-    );
-    final underrunCount = _intValue(
-      directUsbState?['underrun_count'] ?? directUsbState?['underrunCount'],
-    );
-    final producerFrames = _intValue(
-      directUsbState?['producer_frames'] ?? directUsbState?['producerFrames'],
-    );
-    final consumerFrames = _intValue(
-      directUsbState?['consumer_frames'] ?? directUsbState?['consumerFrames'],
-    );
-    final driftMsFromTarget = _intValue(
-      directUsbState?['drift_ms_from_target'] ??
-          directUsbState?['driftMsFromTarget'],
-    );
     _debugLog(
       '[Diagnostics] $reason: mode=${mode.logLabel}, '
       'selected=${_sessionManager.selectedMode.logLabel}, '
@@ -1607,12 +1625,11 @@ class PlayerService {
       'mixerManaged=$isMixerManaged, signature=${outputSignature ?? 'none'}, '
       'alt=${activeAltSetting ?? -1}, endpoint=${activeEndpointAddress ?? -1}, '
       'sync=${activeSyncType ?? 'none'}, usage=${activeUsageType ?? 'none'}, '
-      'refresh=${activeRefresh ?? -1}, synchAddress=${activeSynchAddress ?? -1}, '
+      'refresh=${activeRefresh ?? -1}, '
       'clockOk=$effectiveClockOk, rateVerified=$effectiveRateVerified, '
       'dacPolicy=${effectiveDirectUsbDacClockPolicy ?? 'none'}, '
       'bitPerfect=$directUsbBitPerfectVerified, '
       'serviceUs=${activeServiceIntervalUs ?? -1}, maxPacket=${activeMaxPacketBytes ?? -1}, '
-      'schedule=${packetSchedulePreview ?? const []}, '
       'bufferMs=${bufferFillMs ?? -1}/${bufferTargetMs ?? -1}/${bufferCapacityMs ?? -1}, '
       'framesPerPacket=${framesPerPacket ?? -1}, underruns=${underrunCount ?? -1}, '
       'producerFrames=${producerFrames ?? -1}, consumerFrames=${consumerFrames ?? -1}, '
@@ -1652,13 +1669,6 @@ class PlayerService {
   String? _detectedDapBrand(Map<String, dynamic>? profile) {
     final kind = _mapValue(profile?['kind']);
     return _stringValue(kind?['Dap']);
-  }
-
-  List<int>? _dynamicListValue(dynamic value) {
-    if (value is List) {
-      return value.whereType<num>().map((entry) => entry.toInt()).toList();
-    }
-    return null;
   }
 
   void _syncCurrentSongFromIndex(int newIndex, {bool fromListener = false}) {
