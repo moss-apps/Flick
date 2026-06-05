@@ -246,10 +246,24 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                     ),
                   ),
                 ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppConstants.spacingMd),
+                ),
                 SliverToBoxAdapter(
-                  child: Padding(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingLg,
+                    ),
+                    decoration: BoxDecoration(
+                      color: resolvedBg,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(AppConstants.radiusXl),
+                        topRight: Radius.circular(AppConstants.radiusXl),
+                      ),
+                    ),
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppConstants.spacingLg,
+                      vertical: AppConstants.spacingMd,
                     ),
                     child: Row(
                       children: [
@@ -446,7 +460,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
         Positioned(
           left: AppConstants.spacingLg,
           right: AppConstants.spacingLg,
-          bottom: AppConstants.spacingLg,
+          bottom: 4,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
