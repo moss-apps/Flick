@@ -23,6 +23,7 @@ import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
+import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/widgets/navigation/flick_nav_bar.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/providers/providers.dart';
@@ -100,6 +101,9 @@ class _MainShellState extends ConsumerState<MainShell>
 
   DateTime? _lastBackPressTime;
 
+  Timer? _idleTimer;
+  bool _isBottomBarCollapsed = false;
+
   @override
   void initState() {
     super.initState();
@@ -152,6 +156,16 @@ class _MainShellState extends ConsumerState<MainShell>
       navBarVisibleProvider,
       (previous, next) {
         _onNavBarVisibilityChanged(next);
+        if (next) {
+          _startIdleTimer();
+        } else {
+          _cancelIdleTimer();
+          if (_isBottomBarCollapsed) {
+            setState(() {
+              _isBottomBarCollapsed = false;
+            });
+          }
+        }
       },
     );
 
@@ -286,6 +300,15 @@ class _MainShellState extends ConsumerState<MainShell>
     _playerService.playbackDesyncedNotifier.addListener(
       _onPlaybackDesyncChanged,
     );
+
+    ref.listenManual<AppPreferences>(appPreferencesProvider, (previous, next) {
+      if (!mounted) return;
+      // Restart idle timer whenever preferences change so that enabling
+      // auto-collapse or changing the timeout takes effect immediately.
+      _startIdleTimer();
+    });
+
+    _startIdleTimer();
   }
 
   void _refreshLibraryDeletions() {
@@ -405,6 +428,7 @@ class _MainShellState extends ConsumerState<MainShell>
 
   @override
   void dispose() {
+    _cancelIdleTimer();
     _playerService.playbackDesyncedNotifier.removeListener(
       _onPlaybackDesyncChanged,
     );
@@ -434,13 +458,47 @@ class _MainShellState extends ConsumerState<MainShell>
     }
   }
 
+  void _startIdleTimer() {
+    _cancelIdleTimer();
+    final appPreferences = ref.read(appPreferencesProvider);
+    if (!appPreferences.bottomBarAutoCollapseEnabled) return;
+    if (!ref.read(navBarVisibleProvider)) return;
+
+    _idleTimer = Timer(
+      Duration(seconds: appPreferences.bottomBarAutoCollapseSeconds),
+      () {
+        if (mounted) {
+          setState(() {
+            _isBottomBarCollapsed = true;
+          });
+        }
+      },
+    );
+  }
+
+  void _cancelIdleTimer() {
+    _idleTimer?.cancel();
+    _idleTimer = null;
+  }
+
+  void _onUserInteraction() {
+    if (_isBottomBarCollapsed) {
+      setState(() {
+        _isBottomBarCollapsed = false;
+      });
+    }
+    _startIdleTimer();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.detached) {
+      _cancelIdleTimer();
       unawaited(ref.read(playerServiceProvider).persistLastPlayed());
       unawaited(WidgetSyncService.instance.pushKilled());
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
+      _cancelIdleTimer();
       unawaited(ref.read(playerServiceProvider).persistLastPlayed());
       unawaited(WidgetSyncService.instance.pushPaused());
 
@@ -464,6 +522,7 @@ class _MainShellState extends ConsumerState<MainShell>
       }
     }
     if (state == AppLifecycleState.resumed) {
+      _startIdleTimer();
       ref.read(updateCheckProvider.notifier).refreshIfOnline();
       ref.read(lastFmScrobbleQueueProvider).flush().catchError((e) {
         debugPrint('[LastFm] queue flush on resume failed: $e');
@@ -557,8 +616,12 @@ class _MainShellState extends ConsumerState<MainShell>
           extendBody: true,
           body: NotificationListener<ScrollNotification>(
             onNotification: _handleScrollNotification,
-            child: Stack(
-              children: [
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (_) => _onUserInteraction(),
+              onPointerMove: (_) => _onUserInteraction(),
+              child: Stack(
+                children: [
                 // Base Gradient
                 Container(
                   decoration: const BoxDecoration(
@@ -658,6 +721,7 @@ class _MainShellState extends ConsumerState<MainShell>
               ],
             ),
           ),
+          ),
         ),
       ),
     );
@@ -717,6 +781,7 @@ class _MainShellState extends ConsumerState<MainShell>
     return FlickNavBar(
       currentIndex: currentIndex,
       config: navBarConfig,
+      collapsed: _isBottomBarCollapsed,
       onTap: (index) {
         if (ref.read(navigationIndexProvider) != index) {
           ref.read(navigationIndexProvider.notifier).setIndex(index);
@@ -730,17 +795,149 @@ class _MainShellState extends ConsumerState<MainShell>
         );
       },
       showMiniPlayer: true,
-      miniPlayerWidget: const _EmbeddedMiniPlayer(),
+      miniPlayerWidget: _EmbeddedMiniPlayer(
+        collapsed: _isBottomBarCollapsed,
+      ),
     );
   }
 }
 
 /// Embedded mini player widget that uses Riverpod for state.
-class _EmbeddedMiniPlayer extends ConsumerWidget {
-  const _EmbeddedMiniPlayer();
+class _EmbeddedMiniPlayer extends ConsumerStatefulWidget {
+  final bool collapsed;
+
+  const _EmbeddedMiniPlayer({this.collapsed = false});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_EmbeddedMiniPlayer> createState() =>
+      _EmbeddedMiniPlayerState();
+}
+
+class _EmbeddedMiniPlayerState extends ConsumerState<_EmbeddedMiniPlayer> {
+  bool _showVisualizer = false;
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity.abs() > 300) {
+      setState(() {
+        _showVisualizer = !_showVisualizer;
+      });
+    }
+  }
+
+  Widget _buildSongInfo(Song currentSong) {
+    return Row(
+      key: const ValueKey('mini_player_song_info'),
+      children: [
+        // Album Art
+        Hero(
+          tag: 'mini_player_art',
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+              child: currentSong.albumArt != null
+                  ? CachedImageWidget(
+                      imagePath: currentSong.albumArt!,
+                      fit: BoxFit.cover,
+                      useThumbnail: true,
+                      thumbnailWidth: 128,
+                      thumbnailHeight: 128,
+                    )
+                  : const Icon(
+                      LucideIcons.music,
+                      size: 22,
+                      color: AppColors.textTertiary,
+                    ),
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 12),
+
+        // Song Info
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                currentSong.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: context.adaptiveTextPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                currentSong.artist,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 12,
+                  color: context.adaptiveTextSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Play/Pause Button
+        Consumer(
+          builder: (context, ref, _) {
+            final isPlaying = ref.watch(isPlayingProvider);
+            return IconButton(
+              onPressed: () =>
+                  ref.read(playerProvider.notifier).togglePlayPause(),
+              icon: Icon(
+                isPlaying ? LucideIcons.pause : LucideIcons.play,
+                color: context.adaptiveTextPrimary,
+                size: 20,
+              ),
+            );
+          },
+        ),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
+
+  Widget _buildVisualizer() {
+    final appPrefs = ref.watch(appPreferencesProvider);
+    final albumColor = ref.watch(albumDominantColorSyncProvider);
+    final playerService = ref.read(playerServiceProvider);
+
+    return SizedBox.expand(
+      key: const ValueKey('mini_player_visualizer'),
+      child: AudioVisualizer(
+        playerService: playerService,
+        animationStyle: appPrefs.visualizerAnimationStyle,
+        frequencyMode: appPrefs.visualizerFrequencyMode,
+        movementMode: appPrefs.visualizerMovementMode,
+        albumColor: albumColor,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentSong = ref.watch(currentSongProvider);
 
     if (currentSong == null) {
@@ -755,13 +952,20 @@ class _EmbeddedMiniPlayer extends ConsumerWidget {
           context,
           heroTag: 'mini_player_art',
         );
-        // Navigate to the returned tab index if provided
         if (result != null && context.mounted) {
           ref.read(navigationIndexProvider.notifier).setIndex(result);
         }
       },
+      onHorizontalDragStart: (_) {},
+      onHorizontalDragUpdate: (_) {},
+      onHorizontalDragEnd: _onHorizontalDragEnd,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+        margin: EdgeInsets.fromLTRB(
+          12,
+          12,
+          12,
+          widget.collapsed ? 12 : 8,
+        ),
         height: 56,
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -809,96 +1013,35 @@ class _EmbeddedMiniPlayer extends ConsumerWidget {
                 },
               ),
 
-              Row(
-                children: [
-                  // Album Art
-                  Hero(
-                    tag: 'mini_player_art',
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          bottomLeft: Radius.circular(16),
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          bottomLeft: Radius.circular(16),
-                        ),
-                        child: currentSong.albumArt != null
-                            ? CachedImageWidget(
-                                imagePath: currentSong.albumArt!,
-                                fit: BoxFit.cover,
-                                useThumbnail: true,
-                                thumbnailWidth: 128,
-                                thumbnailHeight: 128,
-                              )
-                            : const Icon(
-                                LucideIcons.music,
-                                size: 22,
-                                color: AppColors.textTertiary,
-                              ),
-                      ),
+              // Song info or visualizer
+              AnimatedSwitcher(
+                duration: AppConstants.animationNormal,
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeOutCubic,
+                transitionBuilder: (child, animation) {
+                  final isEntering = child.key == const ValueKey('mini_player_visualizer');
+                  final offset = isEntering
+                      ? const Offset(0.3, 0)
+                      : const Offset(-0.3, 0);
+                  return SlideTransition(
+                    position: Tween<Offset>(
+                      begin: offset,
+                      end: Offset.zero,
+                    ).animate(CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    )),
+                    child: FadeTransition(
+                      opacity: animation,
+                      child: child,
                     ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  // Song Info
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          currentSong.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'ProductSans',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: context.adaptiveTextPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          currentSong.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'ProductSans',
-                            fontSize: 12,
-                            color: context.adaptiveTextSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Play/Pause Button
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final isPlaying = ref.watch(isPlayingProvider);
-                      return IconButton(
-                        onPressed: () =>
-                            ref.read(playerProvider.notifier).togglePlayPause(),
-                        icon: Icon(
-                          isPlaying ? LucideIcons.pause : LucideIcons.play,
-                          color: context.adaptiveTextPrimary,
-                          size: 20,
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 4),
-                ],
+                  );
+                },
+                child: _showVisualizer
+                    ? _buildVisualizer()
+                    : _buildSongInfo(currentSong),
               ),
+
             ],
           ),
         ),
