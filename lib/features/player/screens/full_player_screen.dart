@@ -481,8 +481,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-              ],
+                      ),
+                  ],
             ),
             const SizedBox(height: 8),
             ValueListenableBuilder<Duration?>(
@@ -1218,6 +1218,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                         .addSongToPlaylist(
                                           playlist.id,
                                           song.id,
+                                          song: song,
                                         );
                                     if (context.mounted) {
                                       Navigator.pop(context);
@@ -3990,11 +3991,16 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
   late final AnimationController _morphController;
   late final AnimationController _spinController;
   late final AnimationController _seekAngleController;
+  late final AnimationController _outlineController;
   bool _isVinyl = false;
+  bool _isRotationEnabled = false;
   Duration _lastObservedPosition = Duration.zero;
   double _userRotationOffset = 0.0;
   bool _isUserDragging = false;
-  late final TapGestureRecognizer _tapRecognizer;
+  double _rotationHapticAccumulator = 0.0;
+  static const double _hapticTickInterval = math.pi / 12;
+  late final DoubleTapGestureRecognizer _doubleTapRecognizer;
+  late final TapGestureRecognizer _singleTapRecognizer;
   late final _RotationSeekRecognizer _rotationRecognizer;
 
   bool get _isPlaying =>
@@ -4015,8 +4021,21 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
       vsync: this,
       duration: _seekAnimationDuration,
     );
+    _outlineController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _outlineController.addStatusListener((status) {
+      if (!mounted) return;
+      if (status == AnimationStatus.completed) {
+        setState(() => _isRotationEnabled = true);
+      } else if (status == AnimationStatus.dismissed) {
+        setState(() => _isRotationEnabled = false);
+      }
+    });
     _morphController.addStatusListener(_handleMorphStatus);
-    _tapRecognizer = TapGestureRecognizer()..onTap = _toggle;
+    _doubleTapRecognizer = DoubleTapGestureRecognizer()..onDoubleTap = _toggle;
+    _singleTapRecognizer = TapGestureRecognizer()..onTap = _handleVinylSingleTap;
     _rotationRecognizer = _RotationSeekRecognizer(
       onStart: _onRotationStart,
       onUpdate: _onRotationUpdate,
@@ -4040,6 +4059,8 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
       _seekAngleController.value = 0;
       _userRotationOffset = 0.0;
       _isUserDragging = false;
+      _isRotationEnabled = false;
+      _outlineController.value = 0;
       if (_isVinyl) {
         _isVinyl = false;
         _spinController.stop();
@@ -4068,8 +4089,10 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
     _morphController.removeStatusListener(_handleMorphStatus);
     widget.playerService?.positionNotifier.removeListener(_onPositionChanged);
     widget.playerService?.isPlayingNotifier.removeListener(_onPlayingChanged);
-    _tapRecognizer.dispose();
+    _doubleTapRecognizer.dispose();
+    _singleTapRecognizer.dispose();
     _rotationRecognizer.dispose();
+    _outlineController.dispose();
     _seekAngleController.dispose();
     _spinController.dispose();
     _morphController.dispose();
@@ -4125,21 +4148,29 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
   }
 
   void _onRotationStart() {
-    if (!_isVinyl) return;
+    if (!_isVinyl || !_isRotationEnabled) return;
     final service = widget.playerService;
     if (service == null) return;
     _isUserDragging = true;
+    _rotationHapticAccumulator = 0.0;
     _spinController.stop();
     _seekAngleController.stop();
     _seekAngleController.value = 0;
     _lastObservedPosition = service.positionNotifier.value;
+    AppHaptics.selection();
   }
 
   void _onRotationUpdate(double delta) {
-    if (!_isVinyl) return;
+    if (!_isVinyl || !_isRotationEnabled) return;
     final service = widget.playerService;
     if (service == null) return;
     _userRotationOffset += delta;
+
+    _rotationHapticAccumulator += delta.abs();
+    if (_rotationHapticAccumulator >= _hapticTickInterval) {
+      _rotationHapticAccumulator -= _hapticTickInterval;
+      AppHaptics.selection();
+    }
 
     final msPerRadian =
         (_secondsPerVinylRotation * 1000) / (2 * math.pi);
@@ -4164,9 +4195,11 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
 
   void _onRotationEnd() {
     _isUserDragging = false;
+    _rotationHapticAccumulator = 0.0;
     if (_isVinyl && _isPlaying) {
       _spinController.repeat();
     }
+    AppHaptics.confirm();
   }
 
   void _animateSeek(int deltaMs) {
@@ -4188,7 +4221,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
   }
 
   void _toggle() {
-    AppHaptics.tap();
+    AppHaptics.confirm();
     setState(() {
       _isVinyl = !_isVinyl;
       if (_isVinyl) {
@@ -4198,9 +4231,22 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
         _seekAngleController.stop();
         _seekAngleController.value = 0;
         _userRotationOffset = 0.0;
+        _isRotationEnabled = false;
+        _outlineController.value = 0;
         _morphController.reverse();
       }
     });
+  }
+
+  void _handleVinylSingleTap() {
+    if (!_isVinyl) return;
+    if (_outlineController.isAnimating) return;
+    AppHaptics.confirm();
+    if (_isRotationEnabled) {
+      _outlineController.reverse();
+    } else {
+      _outlineController.forward();
+    }
   }
 
   @override
@@ -4224,16 +4270,22 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
       child: RawGestureDetector(
         behavior: HitTestBehavior.opaque,
         gestures: {
+          DoubleTapGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
+            () => _doubleTapRecognizer,
+            (_) {},
+          ),
           TapGestureRecognizer:
               GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-            () => _tapRecognizer,
+            () => _singleTapRecognizer,
             (_) {},
           ),
-          _RotationSeekRecognizer:
-              GestureRecognizerFactoryWithHandlers<_RotationSeekRecognizer>(
-            () => _rotationRecognizer,
-            (_) {},
-          ),
+          if (_isRotationEnabled)
+            _RotationSeekRecognizer:
+                GestureRecognizerFactoryWithHandlers<_RotationSeekRecognizer>(
+              () => _rotationRecognizer,
+              (_) {},
+            ),
         },
         child: SizedBox(
           width: resolvedSize,
@@ -4243,6 +4295,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
               _morphController,
               _spinController,
               _seekAngleController,
+              _outlineController,
             ]),
             builder: (context, _) {
               final rawT = Curves.easeInOutCubic
@@ -4376,6 +4429,14 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
                                 offset: const Offset(0, 0.5),
                               ),
                             ],
+                          ),
+                        ),
+                      ),
+                    if (_isVinyl && _outlineController.value > 0)
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _VinylOutlinePainter(
+                            progress: _outlineController.value,
                           ),
                         ),
                       ),
@@ -4556,6 +4617,34 @@ class _VinylDiscPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _VinylDiscPainter oldDelegate) =>
       oldDelegate.labelRatio != labelRatio;
+}
+
+class _VinylOutlinePainter extends CustomPainter {
+  _VinylOutlinePainter({required this.progress});
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0) return;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide / 2 - 2.5;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..color = Colors.white.withValues(alpha: 0.92)
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * progress,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _VinylOutlinePainter old) =>
+      old.progress != progress;
 }
 
 class _VisualizerArtBox extends StatelessWidget {

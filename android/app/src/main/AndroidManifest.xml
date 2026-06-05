@@ -71,7 +71,7 @@
             android:value="2" />
         <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"
-            android:value="true" />
+            android:resource="@bool/enable_impeller" />
         <!-- Media Notification Service for background playback -->
         <service
             android:name=".MusicNotificationService"

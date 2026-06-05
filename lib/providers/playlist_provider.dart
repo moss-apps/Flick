@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/models/playlist.dart';
+import 'package:flick/models/song.dart';
+import 'package:flick/services/player_service.dart';
 import 'package:flick/services/playlist_service.dart';
 
 final playlistServiceProvider = Provider<PlaylistService>((ref) {
@@ -94,9 +98,13 @@ class PlaylistsNotifier extends AsyncNotifier<PlaylistsState> {
     return false;
   }
 
-  Future<bool> addSongToPlaylist(String playlistId, String songId) async {
+  Future<bool> addSongToPlaylist(String playlistId, String songId, {Song? song}) async {
     final service = ref.read(playlistServiceProvider);
     final success = await service.addSongToPlaylist(playlistId, songId);
+
+    if (success && song != null) {
+      unawaited(PlayerService().addToQueue(song));
+    }
 
     if (success && ref.mounted) {
       ref.invalidateSelf();

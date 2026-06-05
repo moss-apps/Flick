@@ -472,7 +472,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
                                 onTap: () async {
                                   await sheetRef
                                       .read(playlistsProvider.notifier)
-                                      .addSongToPlaylist(playlist.id, song.id);
+                                      .addSongToPlaylist(playlist.id, song.id, song: song);
                                   if (context.mounted) {
                                     Navigator.pop(context);
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -530,7 +530,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
 
           await container
               .read(playlistsProvider.notifier)
-              .addSongToPlaylist(playlist.id, song.id);
+              .addSongToPlaylist(playlist.id, song.id, song: song);
 
           if (!dialogContext.mounted) return;
 

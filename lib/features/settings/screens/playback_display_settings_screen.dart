@@ -14,9 +14,6 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final songsViewMode = ref.watch(songsViewModeProvider);
     final navBarAlwaysVisible = ref.watch(navBarAlwaysVisibleProvider);
-    final ambientBackgroundEnabled = ref.watch(
-      ambientBackgroundEnabledProvider,
-    );
     final appPrefs = ref.watch(appPreferencesProvider);
     final playerService = ref.read(playerServiceProvider);
 
@@ -66,18 +63,6 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
                   ref
                       .read(navBarAlwaysVisibleProvider.notifier)
                       .setAlwaysVisible(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.sparkles,
-                title: 'Ambient Background',
-                subtitle: 'Use album art as the blurred app background',
-                value: ambientBackgroundEnabled,
-                onChanged: (value) {
-                  ref
-                      .read(ambientBackgroundEnabledProvider.notifier)
-                      .setEnabled(value);
                 },
               ),
               const SettingsDivider(),

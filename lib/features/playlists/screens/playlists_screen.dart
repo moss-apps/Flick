@@ -20,7 +20,7 @@ class PlaylistsScreen extends ConsumerWidget {
     final playlistsAsync = ref.watch(playlistsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
         child: Column(

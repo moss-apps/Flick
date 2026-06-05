@@ -565,26 +565,20 @@ class SettingsScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ambientBackgroundEnabled = ref.watch(
-      ambientBackgroundEnabledProvider,
-    );
     final currentSong = ref.watch(currentSongProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Base gradient
           Container(
             decoration: const BoxDecoration(
               gradient: AppColors.backgroundGradient,
             ),
           ),
-          // Ambient album-art background
-          if (ambientBackgroundEnabled)
-            Positioned.fill(
-              child: AmbientBackground(song: currentSong),
-            ),
+          Positioned.fill(
+            child: AmbientBackground(song: currentSong),
+          ),
           SafeArea(
             bottom: false,
             child: Column(

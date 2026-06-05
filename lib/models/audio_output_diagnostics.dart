@@ -25,6 +25,49 @@ class AudioCapabilityFlags {
 }
 
 @immutable
+class UrbTransportInfo {
+  const UrbTransportInfo({
+    this.activeAltSetting,
+    this.activeEndpointAddress,
+    this.activeSyncType,
+    this.activeUsageType,
+    this.activeRefresh,
+    this.activeServiceIntervalUs,
+    this.activeMaxPacketBytes,
+    this.transportFormat,
+    this.transportSubslot,
+    this.transportBitResolution,
+    this.bufferFillMs,
+    this.bufferCapacityMs,
+    this.bufferTargetMs,
+    this.framesPerPacket,
+    this.underrunCount,
+    this.producerFrames,
+    this.consumerFrames,
+    this.driftMsFromTarget,
+  });
+
+  final int? activeAltSetting;
+  final int? activeEndpointAddress;
+  final String? activeSyncType;
+  final String? activeUsageType;
+  final int? activeRefresh;
+  final int? activeServiceIntervalUs;
+  final int? activeMaxPacketBytes;
+  final String? transportFormat;
+  final int? transportSubslot;
+  final int? transportBitResolution;
+  final int? bufferFillMs;
+  final int? bufferCapacityMs;
+  final int? bufferTargetMs;
+  final int? framesPerPacket;
+  final int? underrunCount;
+  final int? producerFrames;
+  final int? consumerFrames;
+  final int? driftMsFromTarget;
+}
+
+@immutable
 class AudioOutputDiagnostics {
   const AudioOutputDiagnostics({
     required this.selectedMode,
@@ -52,6 +95,7 @@ class AudioOutputDiagnostics {
     required this.verificationReason,
     required this.fallbackReason,
     required this.capabilityFlags,
+    this.urbTransport,
   });
 
   final AudioEngineType selectedMode;
@@ -79,4 +123,5 @@ class AudioOutputDiagnostics {
   final String? verificationReason;
   final String? fallbackReason;
   final AudioCapabilityFlags capabilityFlags;
+  final UrbTransportInfo? urbTransport;
 }

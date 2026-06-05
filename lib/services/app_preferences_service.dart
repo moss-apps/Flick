@@ -48,6 +48,8 @@ class AppPreferences {
   final bool replaceAlbumWithBitPerfectCapsule;
   final int folderGridPageSize;
   final String? lastSeenChangelogVersion;
+  final bool bottomBarAutoCollapseEnabled;
+  final int bottomBarAutoCollapseSeconds;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -97,6 +99,8 @@ class AppPreferences {
     this.replaceAlbumWithBitPerfectCapsule = false,
     this.folderGridPageSize = 8,
     this.lastSeenChangelogVersion,
+    this.bottomBarAutoCollapseEnabled = false,
+    this.bottomBarAutoCollapseSeconds = 5,
   });
 
   AppPreferences copyWith({
@@ -147,6 +151,8 @@ class AppPreferences {
     bool? replaceAlbumWithBitPerfectCapsule,
     int? folderGridPageSize,
     String? lastSeenChangelogVersion,
+    bool? bottomBarAutoCollapseEnabled,
+    int? bottomBarAutoCollapseSeconds,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -214,6 +220,10 @@ class AppPreferences {
       folderGridPageSize: folderGridPageSize ?? this.folderGridPageSize,
       lastSeenChangelogVersion:
           lastSeenChangelogVersion ?? this.lastSeenChangelogVersion,
+      bottomBarAutoCollapseEnabled:
+          bottomBarAutoCollapseEnabled ?? this.bottomBarAutoCollapseEnabled,
+      bottomBarAutoCollapseSeconds:
+          bottomBarAutoCollapseSeconds ?? this.bottomBarAutoCollapseSeconds,
     );
   }
 }
@@ -267,6 +277,10 @@ class AppPreferencesService {
       'replace_album_with_bit_perfect_capsule';
   static const _folderGridPageSizeKey = 'folder_grid_page_size';
   static const _lastSeenChangelogVersionKey = 'last_seen_changelog_version';
+  static const _bottomBarAutoCollapseEnabledKey =
+      'bottom_bar_auto_collapse_enabled';
+  static const _bottomBarAutoCollapseSecondsKey =
+      'bottom_bar_auto_collapse_seconds';
 
   Future<AppPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -333,6 +347,10 @@ class AppPreferencesService {
           prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false,
       folderGridPageSize: prefs.getInt(_folderGridPageSizeKey) ?? 8,
       lastSeenChangelogVersion: prefs.getString(_lastSeenChangelogVersionKey),
+      bottomBarAutoCollapseEnabled:
+          prefs.getBool(_bottomBarAutoCollapseEnabledKey) ?? false,
+      bottomBarAutoCollapseSeconds:
+          prefs.getInt(_bottomBarAutoCollapseSecondsKey) ?? 5,
     );
   }
 
@@ -758,5 +776,25 @@ class AppPreferencesService {
     } else {
       await prefs.setString(_lastSeenChangelogVersionKey, value);
     }
+  }
+
+  Future<bool> getBottomBarAutoCollapseEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_bottomBarAutoCollapseEnabledKey) ?? false;
+  }
+
+  Future<void> setBottomBarAutoCollapseEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_bottomBarAutoCollapseEnabledKey, value);
+  }
+
+  Future<int> getBottomBarAutoCollapseSeconds() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_bottomBarAutoCollapseSecondsKey) ?? 5;
+  }
+
+  Future<void> setBottomBarAutoCollapseSeconds(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_bottomBarAutoCollapseSecondsKey, value);
   }
 }

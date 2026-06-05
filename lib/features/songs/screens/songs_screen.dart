@@ -132,10 +132,6 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Background ambient effects
-          _buildAmbientBackground(),
-
-          // Main content
           SafeArea(
             bottom: false,
             child: Column(
@@ -1306,50 +1302,6 @@ void _openFolderDetail(FolderGroup folder) {
       icon: LucideIcons.searchX,
       title: 'No matches found',
       subtitle: 'Try adjusting your search query',
-    );
-  }
-
-  Widget _buildAmbientBackground() {
-    return Stack(
-      children: [
-        // Top-left glow
-        Positioned(
-          top: -100,
-          left: -100,
-          child: Container(
-            width: 300,
-            height: 300,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.white.withValues(alpha: 0.03),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // Center-right glow (follows selected item area)
-        Positioned(
-          top: MediaQuery.of(context).size.height * 0.3,
-          right: -50,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.white.withValues(alpha: 0.02),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 

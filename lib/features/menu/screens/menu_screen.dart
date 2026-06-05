@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +26,7 @@ import 'package:flick/features/songs/screens/songs_screen.dart';
 import 'package:flick/models/playlist.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
@@ -52,6 +54,8 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   Map<ListeningRecapPeriod, ListeningRecap> _recaps = const {};
   bool _isHistoryLoading = true;
   bool _showEngineCard = true;
+  Color? _heroDominantColor;
+  String? _heroColorArtPath;
   late final AnimationController _welcomeCardController;
   late final Animation<double> _welcomeCardFade;
   late final Animation<Offset> _welcomeCardSlide;
@@ -95,6 +99,21 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
     _historySubscription = _recentlyPlayedRepository.watchHistory().listen((_) {
       _loadHistoryData(showLoadingState: false);
     });
+  }
+
+  Future<void> _updateHeroColor(String? artPath, String? filePath) async {
+    final resolvedPath = artPath ?? filePath;
+    if (resolvedPath == _heroColorArtPath) return;
+    _heroColorArtPath = resolvedPath;
+    if (resolvedPath == null || resolvedPath.isEmpty) {
+      if (mounted) setState(() => _heroDominantColor = null);
+      return;
+    }
+    final color =
+        await ColorExtractionService().extractDominantColor(resolvedPath);
+    if (mounted && _heroColorArtPath == resolvedPath) {
+      setState(() => _heroDominantColor = color);
+    }
   }
 
   Future<void> _loadHistoryData({bool showLoadingState = true}) async {
@@ -684,10 +703,9 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
 
     return DisplayModeWrapper(
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
         body: Stack(
           children: [
-            const Positioned.fill(child: _MenuBackdrop()),
             SafeArea(
               bottom: false,
               child: RefreshIndicator(
@@ -944,24 +962,28 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                 playlists.isEmpty ? 'Create' : 'See all',
                               ),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppConstants.spacingLg,
-                              ),
-                              child: playlists.isEmpty
-                                  ? _EmptyShelfCard(
-                                      title: 'No playlists yet',
-                                      subtitle:
-                                          'Create a playlist, import an M3U, or let the mixes above carry the session.',
-                                      icon: LucideIcons.listMusic,
-                                      onTap: () => _navigateTo(
-                                        context,
-                                        const PlaylistsScreen(),
+                            child: playlists.isEmpty
+                                  ? Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppConstants.spacingLg,
+                                      ),
+                                      child: _EmptyShelfCard(
+                                        title: 'No playlists yet',
+                                        subtitle:
+                                            'Create a playlist, import an M3U, or let the mixes above carry the session.',
+                                        icon: LucideIcons.listMusic,
+                                        onTap: () => _navigateTo(
+                                          context,
+                                          const PlaylistsScreen(),
+                                        ),
                                       ),
                                     )
                                   : SizedBox(
                                       height: 280,
                                       child: ListView.separated(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: AppConstants.spacingLg,
+                                        ),
                                         scrollDirection: Axis.horizontal,
                                         itemCount:
                                             homeData.playlistPreviews.length,
@@ -984,7 +1006,6 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                         },
                                       ),
                                     ),
-                            ),
                           ),
                         ),
                       if (appPreferences.showBrowseMore)
@@ -994,69 +1015,75 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                             title: 'Browse More',
                             subtitle:
                                 'Library views and utilities that still belong close to the music.',
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppConstants.spacingLg,
-                              ),
-                              child: Wrap(
-                                spacing: AppConstants.spacingSm,
-                                runSpacing: AppConstants.spacingSm,
-                                children: [
-                                  _BrowseChip(
-                                    icon: LucideIcons.library,
-                                    label: 'Library',
-                                    onTap: () {
-                                      if (widget.onNavigateToTab != null) {
-                                        widget.onNavigateToTab!(1);
-                                      } else {
-                                        _navigateTo(
-                                          context,
-                                          const SongsScreen(),
-                                        );
-                                      }
-                                    },
-                                  ),
-                                  _BrowseChip(
-                                    icon: LucideIcons.disc,
-                                    label: 'Albums',
-                                    onTap: () => _navigateTo(
-                                      context,
-                                      const AlbumsScreen(),
+                            child: SizedBox(
+                              height: 52,
+                              child: ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppConstants.spacingLg,
+                                ),
+                                scrollDirection: Axis.horizontal,
+                                itemCount: 6,
+                                separatorBuilder: (_, _) => const SizedBox(
+                                  width: AppConstants.spacingSm,
+                                ),
+                                itemBuilder: (context, index) {
+                                  return switch (index) {
+                                    0 => _BrowseChip(
+                                      icon: LucideIcons.library,
+                                      label: 'Library',
+                                      onTap: () {
+                                        if (widget.onNavigateToTab != null) {
+                                          widget.onNavigateToTab!(1);
+                                        } else {
+                                          _navigateTo(
+                                            context,
+                                            const SongsScreen(),
+                                          );
+                                        }
+                                      },
                                     ),
-                                  ),
-                                  _BrowseChip(
-                                    icon: LucideIcons.folder,
-                                    label: 'Folders',
-                                    onTap: () => _navigateTo(
-                                      context,
-                                      const FoldersScreen(),
+                                    1 => _BrowseChip(
+                                      icon: LucideIcons.disc,
+                                      label: 'Albums',
+                                      onTap: () => _navigateTo(
+                                        context,
+                                        const AlbumsScreen(),
+                                      ),
                                     ),
-                                  ),
-                                  _BrowseChip(
-                                    icon: LucideIcons.list,
-                                    label: 'Queue',
-                                    onTap: () => _navigateTo(
-                                      context,
-                                      const QueueScreen(),
+                                    2 => _BrowseChip(
+                                      icon: LucideIcons.folder,
+                                      label: 'Folders',
+                                      onTap: () => _navigateTo(
+                                        context,
+                                        const FoldersScreen(),
+                                      ),
                                     ),
-                                  ),
-                                  _BrowseChip(
-                                    icon: Icons.auto_graph_rounded,
-                                    label: 'Flick Replay',
-                                    onTap: () => _navigateTo(
-                                      context,
-                                      const ListeningRecapScreen(),
+                                    3 => _BrowseChip(
+                                      icon: LucideIcons.list,
+                                      label: 'Queue',
+                                      onTap: () => _navigateTo(
+                                        context,
+                                        const QueueScreen(),
+                                      ),
                                     ),
-                                  ),
-                                  _BrowseChip(
-                                    icon: LucideIcons.users,
-                                    label: 'Artists',
-                                    onTap: () => _navigateTo(
-                                      context,
-                                      const ArtistsScreen(),
+                                    4 => _BrowseChip(
+                                      icon: Icons.auto_graph_rounded,
+                                      label: 'Flick Replay',
+                                      onTap: () => _navigateTo(
+                                        context,
+                                        const ListeningRecapScreen(),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    _ => _BrowseChip(
+                                      icon: LucideIcons.users,
+                                      label: 'Artists',
+                                      onTap: () => _navigateTo(
+                                        context,
+                                        const ArtistsScreen(),
+                                      ),
+                                    ),
+                                  };
+                                },
                               ),
                             ),
                           ),
@@ -1305,116 +1332,17 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
             ),
           );
 
-    return Container(
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF194B68), Color(0xFF0C1624), Color(0xFF1D2A19)],
-          stops: [0.0, 0.56, 1.0],
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF08111B).withValues(alpha: 0.42),
-            blurRadius: 28,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -34,
-            right: -22,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF61B8FF).withValues(alpha: 0.18),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -56,
-            left: -22,
-            child: Container(
-              width: 170,
-              height: 170,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF9CDD7C).withValues(alpha: 0.12),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(AppConstants.spacingLg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: AppConstants.spacingXs),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.78),
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: AppConstants.spacingLg),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isCompactHero = constraints.maxWidth < 520;
-                    final compactButtons = <Widget>[primaryButton];
-                    if (secondaryButton != null) {
-                      compactButtons.add(secondaryButton);
-                    }
-
-                    if (isCompactHero) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          featureTile,
-                          const SizedBox(height: AppConstants.spacingMd),
-                          Wrap(
-                            spacing: AppConstants.spacingSm,
-                            runSpacing: AppConstants.spacingSm,
-                            children: compactButtons,
-                          ),
-                        ],
-                      );
-                    }
-
-                    return Row(
-                      children: [
-                        Expanded(child: featureTile),
-                        const SizedBox(width: AppConstants.spacingMd),
-                        Column(
-                          children: [
-                            primaryButton,
-                            if (secondaryButton != null) ...[
-                              const SizedBox(height: AppConstants.spacingSm),
-                              secondaryButton,
-                            ],
-                          ],
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
+    return _HeroCardWithBlobs(
+      dominantColor: _heroDominantColor,
+      featuredSong: featuredSong,
+      title: title,
+      subtitle: subtitle,
+      featureTile: featureTile,
+      primaryButton: primaryButton,
+      secondaryButton: secondaryButton,
+      onColorNeeded: () => _updateHeroColor(
+        featuredSong?.albumArt,
+        featuredSong?.filePath,
       ),
     );
   }
@@ -1925,59 +1853,302 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   }
 }
 
-class _MenuBackdrop extends StatelessWidget {
-  const _MenuBackdrop();
+class _HeroCardWithBlobs extends StatefulWidget {
+  final Color? dominantColor;
+  final Song? featuredSong;
+  final String title;
+  final String subtitle;
+  final Widget featureTile;
+  final Widget primaryButton;
+  final Widget? secondaryButton;
+  final VoidCallback onColorNeeded;
+
+  const _HeroCardWithBlobs({
+    required this.dominantColor,
+    required this.featuredSong,
+    required this.title,
+    required this.subtitle,
+    required this.featureTile,
+    required this.primaryButton,
+    this.secondaryButton,
+    required this.onColorNeeded,
+  });
+
+  @override
+  State<_HeroCardWithBlobs> createState() => _HeroCardWithBlobsState();
+}
+
+class _HeroCardWithBlobsState extends State<_HeroCardWithBlobs>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _blobController;
+
+  static const _defaultGradientColors = [
+    Color(0xFF194B68),
+    Color(0xFF0C1624),
+    Color(0xFF1D2A19),
+  ];
+
+  static const _defaultBlobColors = [
+    Color(0xFF61B8FF),
+    Color(0xFF9CDD7C),
+    Color(0xFF8B7AFF),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _blobController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat(reverse: true);
+    widget.onColorNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HeroCardWithBlobs old) {
+    super.didUpdateWidget(old);
+    if (widget.featuredSong?.albumArt != old.featuredSong?.albumArt ||
+        widget.featuredSong?.filePath != old.featuredSong?.filePath) {
+      widget.onColorNeeded();
+    }
+  }
+
+  @override
+  void dispose() {
+    _blobController.dispose();
+    super.dispose();
+  }
+
+  List<Color> _adaptiveGradientColors() {
+    final dc = widget.dominantColor;
+    if (dc == null) return _defaultGradientColors;
+
+    final darkened = Color.lerp(dc, const Color(0xFF000000), 0.55)!;
+    final darker = Color.lerp(dc, const Color(0xFF000000), 0.68)!;
+    final shifted = Color.lerp(
+      Color.fromARGB(
+        255,
+        (dc.g * 255.0).round().clamp(0, 255),
+        (dc.b * 255.0).round().clamp(0, 255),
+        (dc.r * 255.0).round().clamp(0, 255),
+      ),
+      const Color(0xFF000000),
+      0.60,
+    )!;
+
+    return [darkened, darker, shifted];
+  }
+
+  List<Color> _adaptiveBlobColors() {
+    final dc = widget.dominantColor;
+    if (dc == null) return _defaultBlobColors;
+
+    final hsl = HSLColor.fromColor(dc);
+    return [
+      HSLColor.fromAHSL(
+        1.0,
+        (hsl.hue + 30) % 360,
+        (hsl.saturation * 0.7 + 0.15).clamp(0.0, 1.0),
+        (hsl.lightness * 0.4 + 0.20).clamp(0.0, 1.0),
+      ).toColor(),
+      HSLColor.fromAHSL(
+        1.0,
+        (hsl.hue + 160) % 360,
+        (hsl.saturation * 0.6 + 0.15).clamp(0.0, 1.0),
+        (hsl.lightness * 0.35 + 0.18).clamp(0.0, 1.0),
+      ).toColor(),
+      HSLColor.fromAHSL(
+        1.0,
+        (hsl.hue + 280) % 360,
+        (hsl.saturation * 0.55 + 0.15).clamp(0.0, 1.0),
+        (hsl.lightness * 0.35 + 0.16).clamp(0.0, 1.0),
+      ).toColor(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF08111A), Color(0xFF111820), Color(0xFF16110E)],
-          stops: [0.0, 0.5, 1.0],
+    final gradientColors = _adaptiveGradientColors();
+    final blobColors = _adaptiveBlobColors();
+
+    return AnimatedBuilder(
+      animation: _blobController,
+      builder: (context, _) {
+        return Container(
+          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: gradientColors,
+              stops: const [0.0, 0.56, 1.0],
+            ),
+            border:
+                Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF08111B).withValues(alpha: 0.42),
+                blurRadius: 28,
+                offset: const Offset(0, 18),
+              ),
+            ],
+          ),
+          child: LayoutBuilder(
+            builder: (context, box) {
+              return Stack(
+                children: [
+                  _buildBlob(
+                    blobColors[0],
+                    170,
+                    Alignment(1.15, -0.45),
+                    0,
+                    box.maxWidth,
+                    box.maxHeight,
+                  ),
+                  _buildBlob(
+                    blobColors[1],
+                    190,
+                    Alignment(-0.15, 1.70),
+                    1,
+                    box.maxWidth,
+                    box.maxHeight,
+                  ),
+                  _buildBlob(
+                    blobColors[2],
+                    140,
+                    Alignment(0.50, -0.80),
+                    2,
+                    box.maxWidth,
+                    box.maxHeight,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(AppConstants.spacingLg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                        ),
+                        const SizedBox(height: AppConstants.spacingXs),
+                        Text(
+                          widget.subtitle,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.78),
+                                height: 1.45,
+                              ),
+                        ),
+                        const SizedBox(height: AppConstants.spacingLg),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isCompactHero = constraints.maxWidth < 520;
+                            final compactButtons = <Widget>[
+                              widget.primaryButton,
+                            ];
+                            if (widget.secondaryButton != null) {
+                              compactButtons.add(widget.secondaryButton!);
+                            }
+
+                            if (isCompactHero) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  widget.featureTile,
+                                  const SizedBox(
+                                    height: AppConstants.spacingMd,
+                                  ),
+                                  Row(
+                                    children: [
+                                      Expanded(child: widget.primaryButton),
+                                      if (widget.secondaryButton != null) ...[
+                                        const SizedBox(
+                                          width: AppConstants.spacingSm,
+                                        ),
+                                        Expanded(
+                                          child: widget.secondaryButton!,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              );
+                            }
+
+                            return Row(
+                              children: [
+                                Expanded(child: widget.featureTile),
+                                const SizedBox(width: AppConstants.spacingMd),
+                                IntrinsicWidth(
+                                  child: Column(
+                                    children: [
+                                      widget.primaryButton,
+                                      if (widget.secondaryButton != null) ...[
+                                        const SizedBox(
+                                          height: AppConstants.spacingSm,
+                                        ),
+                                        widget.secondaryButton!,
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBlob(
+    Color color,
+    double baseSize,
+    Alignment anchor,
+    int index,
+    double containerWidth,
+    double containerHeight,
+  ) {
+    final t = _blobController.value;
+    final phase = math.sin((t + index * 0.33) * math.pi);
+    final sizeScale = 1.0 + phase * 0.12;
+    final driftX = phase * 14.0 * (index.isEven ? 1 : -1);
+    final driftY = phase * 10.0 * (index.isOdd ? 1 : -1);
+    final size = baseSize * sizeScale;
+
+    final anchorOffset = anchor.alongSize(Size(containerWidth, containerHeight));
+
+    return Positioned(
+      left: anchorOffset.dx + driftX - size / 2,
+      top: anchorOffset.dy + driftY - size / 2,
+      child: IgnorePointer(
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [
+                color.withValues(alpha: 0.45 + phase * 0.10),
+                color.withValues(alpha: 0.0),
+              ],
+            ),
+          ),
         ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -110,
-            left: -70,
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF227FAF).withValues(alpha: 0.18),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 180,
-            right: -54,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFBF7C21).withValues(alpha: 0.12),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -90,
-            left: 40,
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF347A41).withValues(alpha: 0.11),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -2157,7 +2328,8 @@ class _HeroActionButton extends StatelessWidget {
             ),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,

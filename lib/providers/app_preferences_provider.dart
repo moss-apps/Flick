@@ -354,6 +354,22 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .read(appPreferencesServiceProvider)
         .setLastSeenChangelogVersion(value);
   }
+
+  Future<void> setBottomBarAutoCollapseEnabled(bool value) async {
+    if (state.bottomBarAutoCollapseEnabled == value) return;
+    state = state.copyWith(bottomBarAutoCollapseEnabled: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setBottomBarAutoCollapseEnabled(value);
+  }
+
+  Future<void> setBottomBarAutoCollapseSeconds(int value) async {
+    if (state.bottomBarAutoCollapseSeconds == value) return;
+    state = state.copyWith(bottomBarAutoCollapseSeconds: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setBottomBarAutoCollapseSeconds(value);
+  }
 }
 
 final appPreferencesProvider =

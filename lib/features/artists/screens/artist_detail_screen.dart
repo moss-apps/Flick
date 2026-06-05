@@ -49,6 +49,9 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
   final ArtistRepository _artistRepository = ArtistRepository();
   final ColorExtractionService _colorService = ColorExtractionService();
 
+  final ScrollController _scrollController = ScrollController();
+  bool _showAppBarActions = false;
+
   List<Song> _mostPlayedSongs = [];
   List<AlbumGroup> _artistAlbums = [];
   bool _isLoadingExtras = true;
@@ -61,9 +64,24 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
     super.initState();
     _artistArt = widget.artistArt;
     _artistArtSourcePath = widget.artistArtSourcePath;
+    _scrollController.addListener(_onScroll);
     _loadExtras();
     _resolveAndSaveArtistArt();
     _extractArtistColor();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final show = _scrollController.offset > 250;
+    if (show != _showAppBarActions) {
+      setState(() => _showAppBarActions = show);
+    }
   }
 
   Future<void> _loadExtras() async {
@@ -282,13 +300,96 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
               backgroundColor: resolvedBg,
               albumDominantColor: _artistColor,
               child: CustomScrollView(
+                controller: _scrollController,
                 slivers: [
                   SliverAppBar(
                     expandedHeight: 280,
                     pinned: true,
                     backgroundColor: animatedAppBar,
-                    leading: const SizedBox(),
+                  leading: AnimatedOpacity(
+                    duration: AppConstants.animationFast,
+                    opacity: _showAppBarActions ? 1.0 : 0.0,
+                    child: IgnorePointer(
+                      ignoring: !_showAppBarActions,
+                      child: IconButton(
+                        icon: Icon(
+                          LucideIcons.arrowLeft,
+                          color: context.adaptiveTextPrimary,
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ),
                     titleSpacing: 0,
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: AnimatedOpacity(
+                            duration: AppConstants.animationFast,
+                            opacity: _showAppBarActions ? 1.0 : 0.0,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.artistName,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(
+                                        color: context.adaptiveTextPrimary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${albumGroups.length} albums • ${widget.songs.length} songs',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: context.adaptiveTextSecondary,
+                                      ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        AnimatedOpacity(
+                          duration: AppConstants.animationFast,
+                          opacity: _showAppBarActions ? 1.0 : 0.0,
+                          child: IgnorePointer(
+                            ignoring: !_showAppBarActions,
+                            child: IconButton(
+                              icon: Icon(
+                                LucideIcons.play,
+                                color: context.adaptiveTextPrimary,
+                                size: 20,
+                              ),
+                              onPressed: _playAll,
+                            ),
+                          ),
+                        ),
+                        AnimatedOpacity(
+                          duration: AppConstants.animationFast,
+                          opacity: _showAppBarActions ? 1.0 : 0.0,
+                          child: IgnorePointer(
+                            ignoring: !_showAppBarActions,
+                            child: IconButton(
+                              icon: Icon(
+                                LucideIcons.shuffle,
+                                color: context.adaptiveTextPrimary,
+                                size: 20,
+                              ),
+                              onPressed: _shuffleAll,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     flexibleSpace: FlexibleSpaceBar(
                       background: _buildAppBarBackground(
                         context,
@@ -297,70 +398,82 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                       ),
                     ),
                   ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppConstants.spacingLg,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _ActionButton(
-                              icon: LucideIcons.play,
-                              label: 'Play All',
-                              onTap: _playAll,
-                            ),
-                          ),
-                          const SizedBox(width: AppConstants.spacingMd),
-                          Expanded(
-                            child: _ActionButton(
-                              icon: LucideIcons.shuffle,
-                              label: 'Shuffle',
-                              onTap: _shuffleAll,
-                            ),
-                          ),
-                        ],
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppConstants.spacingMd),
+                ),
+                SliverToBoxAdapter(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: resolvedBg,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(AppConstants.radiusXl),
+                        topRight: Radius.circular(AppConstants.radiusXl),
                       ),
                     ),
-                  ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: AppConstants.spacingLg),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppConstants.spacingLg,
-                      ),
-                      child: Wrap(
-                        spacing: AppConstants.spacingSm,
-                        runSpacing: AppConstants.spacingSm,
-                        children: [
-                          _InfoChip(
-                            icon: LucideIcons.music,
-                            label: '${widget.songs.length} songs',
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingLg,
+                      vertical: AppConstants.spacingMd,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _ActionButton(
+                            icon: LucideIcons.play,
+                            label: 'Play All',
+                            onTap: _playAll,
+                            backgroundColor: AppColors.accent,
                           ),
-                          _InfoChip(
-                            icon: LucideIcons.clock,
-                            label: _formattedTotalDuration,
+                        ),
+                        const SizedBox(width: AppConstants.spacingMd),
+                        Expanded(
+                          child: _ActionButton(
+                            icon: LucideIcons.shuffle,
+                            label: 'Shuffle',
+                            onTap: _shuffleAll,
                           ),
-                          if (_artistYear != null)
-                            _InfoChip(
-                              icon: LucideIcons.calendar,
-                              label: '${_artistYear!}',
-                            ),
-                          if (_artistGenre != null)
-                            _InfoChip(
-                              icon: LucideIcons.tags,
-                              label: _artistGenre!,
-                            ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: AppConstants.spacingLg),
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppConstants.spacingLg),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingLg,
+                    ),
+                    child: Wrap(
+                      spacing: AppConstants.spacingSm,
+                      runSpacing: AppConstants.spacingSm,
+                      children: [
+                        _InfoChip(
+                          icon: LucideIcons.music,
+                          label: '${widget.songs.length} songs',
+                        ),
+                        _InfoChip(
+                          icon: LucideIcons.clock,
+                          label: _formattedTotalDuration,
+                        ),
+                        if (_artistYear != null)
+                          _InfoChip(
+                            icon: LucideIcons.calendar,
+                            label: '${_artistYear!}',
+                          ),
+                        if (_artistGenre != null)
+                          _InfoChip(
+                            icon: LucideIcons.tags,
+                            label: _artistGenre!,
+                          ),
+                      ],
+                    ),
                   ),
-                  if (_artistAlbums.length > 1)
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppConstants.spacingLg),
+                ),
+                if (_artistAlbums.length > 1)
                     _buildSectionTitle(context, 'Albums'),
                   if (_artistAlbums.length > 1)
                     SliverToBoxAdapter(
@@ -499,7 +612,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
         Positioned(
           left: AppConstants.spacingLg,
           right: AppConstants.spacingLg,
-          bottom: AppConstants.spacingLg,
+          bottom: 4,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -549,17 +662,22 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color? backgroundColor;
 
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.backgroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bg = backgroundColor ?? AppColors.glassBackgroundStrong;
+    final fg = backgroundColor != null ? AppColors.background : context.adaptiveTextPrimary;
+
     return Material(
-      color: AppColors.glassBackgroundStrong,
+      color: bg,
       borderRadius: BorderRadius.circular(AppConstants.radiusLg),
       child: InkWell(
         onTap: onTap,
@@ -569,12 +687,12 @@ class _ActionButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: context.adaptiveTextPrimary, size: 18),
+              Icon(icon, color: fg, size: 18),
               const SizedBox(width: AppConstants.spacingSm),
               Text(
                 label,
                 style: TextStyle(
-                  color: context.adaptiveTextPrimary,
+                  color: fg,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),

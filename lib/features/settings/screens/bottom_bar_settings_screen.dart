@@ -15,6 +15,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(navBarConfigProvider);
+    final appPreferences = ref.watch(appPreferencesProvider);
     final enabled = config.enabledButtons;
     final enabledCount = enabled.length;
     final disabled = NavBarButton.values.where((b) => !enabled.contains(b)).toList();
@@ -24,6 +25,44 @@ class BottomBarSettingsScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SettingsSectionHeader('Auto Collapse'),
+          SettingsCard(
+            children: [
+              ToggleSetting(
+                icon: LucideIcons.timer,
+                title: 'Auto Collapse',
+                subtitle:
+                    'Hide navigation buttons after being idle',
+                value: appPreferences.bottomBarAutoCollapseEnabled,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setBottomBarAutoCollapseEnabled(value);
+                },
+              ),
+              if (appPreferences.bottomBarAutoCollapseEnabled) ...[
+                const SettingsDivider(),
+                SliderSetting(
+                  icon: LucideIcons.clock,
+                  title: 'Collapse After',
+                  subtitle:
+                      'Seconds of inactivity before collapsing',
+                  value: appPreferences.bottomBarAutoCollapseSeconds.toDouble(),
+                  displayValue:
+                      '${appPreferences.bottomBarAutoCollapseSeconds}s',
+                  min: 1,
+                  max: 30,
+                  divisions: 29,
+                  onChanged: (value) {
+                    ref
+                        .read(appPreferencesProvider.notifier)
+                        .setBottomBarAutoCollapseSeconds(value.round());
+                  },
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
           const SettingsSectionHeader('Buttons'),
           Container(
             clipBehavior: Clip.none,
