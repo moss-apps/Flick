@@ -71,7 +71,7 @@ const FolderEntitySchema = CollectionSchema(
   getId: _folderEntityGetId,
   getLinks: _folderEntityGetLinks,
   attach: _folderEntityAttach,
-  version: '3.3.0',
+  version: '3.3.2',
 );
 
 int _folderEntityEstimateSize(

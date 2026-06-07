@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:isar_community/isar.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -13,6 +15,8 @@ export 'entities/song_entity.dart';
 
 /// Database singleton for Isar operations.
 class Database {
+  static const String _databaseName = 'flick_player';
+
   static Isar? _instance;
 
   static Isar get instance {
@@ -27,16 +31,52 @@ class Database {
     if (_instance != null) return;
 
     final dir = await getApplicationDocumentsDirectory();
-    _instance = await Isar.open(
-      [
-        SongEntitySchema,
-        FolderEntitySchema,
-        RecentlyPlayedEntitySchema,
-        ArtistEntitySchema,
-      ],
-      directory: dir.path,
-      name: 'flick_player',
-    );
+    final schemas = [
+      SongEntitySchema,
+      FolderEntitySchema,
+      RecentlyPlayedEntitySchema,
+      ArtistEntitySchema,
+    ];
+
+    try {
+      _instance = await Isar.open(
+        schemas,
+        directory: dir.path,
+        name: _databaseName,
+      );
+    } on IsarError catch (e) {
+      if (e.message.contains('MDBX_INCOMPATIBLE')) {
+        await _deleteDatabaseFiles(dir.path);
+        _instance = await Isar.open(
+          schemas,
+          directory: dir.path,
+          name: _databaseName,
+        );
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  static Future<void> _deleteDatabaseFiles(String directory) async {
+    final paths = [
+      '$directory/$_databaseName.isar',
+      '$directory/$_databaseName.isar.lock',
+    ];
+
+    for (final path in paths) {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+
+    // Defensive cleanup for older recovery code that treated the database file
+    // path as a directory.
+    final legacyDirectory = Directory('$directory/$_databaseName.isar');
+    if (await legacyDirectory.exists()) {
+      await legacyDirectory.delete(recursive: true);
+    }
   }
 
   /// Close the database connection.

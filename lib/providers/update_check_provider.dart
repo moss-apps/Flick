@@ -73,7 +73,7 @@ class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
   static const Duration _automaticRefreshCooldown = Duration(minutes: 30);
 
   static final Uri _githubReleasesApiUri = Uri.parse(
-    'https://api.github.com/repos/ultraelectronica/flick_player/releases/latest',
+    'https://api.github.com/repos/moss-apps/Flick/releases/latest',
   );
 
   final Connectivity _connectivity = Connectivity();

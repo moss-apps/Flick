@@ -47,7 +47,7 @@ const ArtistEntitySchema = CollectionSchema(
   getId: _artistEntityGetId,
   getLinks: _artistEntityGetLinks,
   attach: _artistEntityAttach,
-  version: '3.3.0',
+  version: '3.3.2',
 );
 
 int _artistEntityEstimateSize(

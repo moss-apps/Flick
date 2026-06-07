@@ -54,6 +54,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   Map<ListeningRecapPeriod, ListeningRecap> _recaps = const {};
   bool _isHistoryLoading = true;
   bool _showEngineCard = true;
+  bool _showUpdateNotice = true;
   Color? _heroDominantColor;
   String? _heroColorArtPath;
   late final AnimationController _welcomeCardController;
@@ -748,16 +749,21 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                   : const SizedBox.shrink(),
                         ),
                       ),
-                    if (updateState.updateAvailable)
+                    if (updateState.updateAvailable && _showUpdateNotice)
                       SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppConstants.spacingLg,
-                            0,
-                            AppConstants.spacingLg,
-                            AppConstants.spacingLg,
+                        child: AnimatedSize(
+                          duration: AppConstants.animationNormal,
+                          curve: Curves.easeInOut,
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppConstants.spacingLg,
+                              0,
+                              AppConstants.spacingLg,
+                              AppConstants.spacingLg,
+                            ),
+                            child: _buildUpdateNotice(context),
                           ),
-                          child: _buildUpdateNotice(context),
                         ),
                       ),
                     if (isInitialLoading)
@@ -1218,6 +1224,33 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() => _showUpdateNotice = false);
+                  ScaffoldMessenger.of(context)
+                    ..removeCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          'Update notice hidden.',
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 4),
+                        action: SnackBarAction(
+                          label: 'Undo',
+                          onPressed: () =>
+                              setState(() => _showUpdateNotice = true),
+                        ),
+                      ),
+                    );
+                },
+                icon: const Icon(
+                  LucideIcons.x,
+                  size: 18,
+                  color: Colors.white70,
+                ),
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ),

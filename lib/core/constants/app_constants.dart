@@ -1,12 +1,12 @@
 /// Current marketing version of the app (matches the `version` field in
 /// `pubspec.yaml`). Bump in lockstep with each release.
-const String kAppVersion = '0.17.0-beta.1';
+const String kAppVersion = '0.18.0-beta.1';
 
 /// Current build number (matches the `version` `+N` suffix in
 /// `pubspec.yaml`). Bump whenever `kAppVersion` is bumped.
-const String kAppBuild = '11';
+const String kAppBuild = '12';
 
-/// Human-friendly version label, e.g. `0.17.0-beta.1 (build 11)`.
+/// Human-friendly version label, e.g. `0.18.0-beta.1 (build 12)`.
 const String kAppVersionLabel = '$kAppVersion (build $kAppBuild)';
 
 /// App-wide constants for Flick Player.

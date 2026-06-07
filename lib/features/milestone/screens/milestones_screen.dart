@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/providers/providers.dart';
 import 'package:flick/services/milestone_service.dart';
+import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/milestone/widgets/milestone_card.dart';
 
 /// Achievement-style collection view of every milestone tier. Unlocked tiles
 /// re-open the celebration card on tap; locked tiles show a small bottom
 /// sheet with the requirement and current progress.
-class MilestonesScreen extends StatefulWidget {
+class MilestonesScreen extends ConsumerStatefulWidget {
   const MilestonesScreen({super.key});
 
   @override
-  State<MilestonesScreen> createState() => _MilestonesScreenState();
+  ConsumerState<MilestonesScreen> createState() => _MilestonesScreenState();
 }
 
-class _MilestonesScreenState extends State<MilestonesScreen> {
+class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   final _service = MilestoneService();
   bool _loading = true;
   Map<MilestoneType, MilestoneRecord> _records = {};
@@ -45,26 +48,40 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
   @override
   Widget build(BuildContext context) {
     final unlocked = _records.length;
+    final currentSong = ref.watch(currentSongProvider);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, unlocked),
-            Expanded(
-              child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _refresh,
-                      child: _buildGrid(context),
-                    ),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: AppColors.backgroundGradient,
             ),
-          ],
-        ),
+          ),
+          Positioned.fill(
+            child: AmbientBackground(song: currentSong),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context, unlocked),
+                Expanded(
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _refresh,
+                          child: _buildGrid(context),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

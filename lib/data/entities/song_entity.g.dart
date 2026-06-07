@@ -243,7 +243,7 @@ const SongEntitySchema = CollectionSchema(
   getId: _songEntityGetId,
   getLinks: _songEntityGetLinks,
   attach: _songEntityAttach,
-  version: '3.3.0',
+  version: '3.3.2',
 );
 
 int _songEntityEstimateSize(

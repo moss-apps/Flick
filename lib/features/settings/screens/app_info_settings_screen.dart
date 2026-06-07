@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -28,10 +29,10 @@ class AppInfoSettingsScreen extends ConsumerStatefulWidget {
 class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     with SingleTickerProviderStateMixin {
   static final Uri _releaseNotesApiUri = Uri.parse(
-    'https://api.github.com/repos/ultraelectronica/flick_player/releases/latest',
+    'https://api.github.com/repos/moss-apps/Flick/releases/tags/0.18.0-beta.1',
   );
   static const String _releaseNotesUrl =
-      'https://github.com/ultraelectronica/flick_player/releases/latest';
+      'https://github.com/moss-apps/Flick/releases/tag/0.18.0-beta.1';
 
   late final AnimationController _donationPulseController;
   late final Animation<double> _donationPulseAnimation;
@@ -341,12 +342,51 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
                     borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                     border: Border.all(color: AppColors.glassBorder),
                   ),
-                  child: SelectableText(
-                    notes.body,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: context.adaptiveTextSecondary,
-                      height: 1.5,
+                  child: MarkdownBody(
+                    data: notes.body,
+                    styleSheet: MarkdownStyleSheet(
+                      p: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.adaptiveTextSecondary,
+                        height: 1.5,
+                      ),
+                      h1: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: context.adaptiveTextPrimary,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                      ),
+                      h2: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: context.adaptiveTextPrimary,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                      ),
+                      h3: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: context.adaptiveTextPrimary,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                      ),
+                      strong: const TextStyle(fontWeight: FontWeight.w700),
+                      code: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        color: context.adaptiveTextSecondary,
+                        backgroundColor: AppColors.glassBackgroundStrong,
+                      ),
+                      listBullet: TextStyle(
+                        color: context.adaptiveTextSecondary,
+                      ),
+                      horizontalRuleDecoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: AppColors.glassBorder),
+                        ),
+                      ),
+                      blockquote: TextStyle(
+                        color: context.adaptiveTextTertiary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      tableBorder: TableBorder.all(color: AppColors.glassBorder),
+                      tableHead: const TextStyle(fontWeight: FontWeight.w700),
                     ),
+                    selectable: true,
                   ),
                 ),
                 const SizedBox(height: AppConstants.spacingMd),
@@ -408,7 +448,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
           ),
           const SizedBox(height: 4),
           const Text(
-            'Version 0.18.0-beta.1',
+            'Version $kAppVersion',
             style: TextStyle(
               fontFamily: 'ProductSans',
               fontSize: 14,
@@ -440,7 +480,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
             children: [
               TextButton.icon(
                 onPressed: () => _launchUrl(
-                  'https://github.com/ultraelectronica/flick_player',
+                  'https://github.com/moss-apps/Flick',
                 ),
                 icon: const Icon(LucideIcons.squareCode, size: 18),
                 label: const Text(
@@ -598,7 +638,7 @@ SOFTWARE.
               NavigationSetting(
                 icon: LucideIcons.info,
                 title: 'About Flick Player',
-                subtitle: 'Version 0.18.0-beta.1',
+                subtitle: 'Version $kAppVersion',
                 onTap: _showAboutBottomSheet,
               ),
               const SettingsDivider(),
