@@ -96,7 +96,7 @@
 - Save recap images to gallery as PNG
 
 ### Ecosystem Integration
-- **Moss Ecosystem**: Part of the Moss app ecosystem by Ultra Electronica
+- **Moss Ecosystem**: Part of the Moss app ecosystem
 - **Latch Integration**: Flick can receive playback handoffs from Latch (another Moss app)
 - **Cross-app Playback**: Songs can be played from external sources via the Latch integration
 - **Shared Infrastructure**: Last.fm scrobbling, adaptive theming, and library scanning are shared across Moss apps
@@ -128,7 +128,7 @@
 
 ## Moss Ecosystem
 
-Flick Player is part of the **Moss ecosystem** by Ultra Electronica, a suite of interconnected apps that share infrastructure and capabilities.
+Flick Player is part of the **Moss ecosystem**, a suite of interconnected apps that share infrastructure and capabilities.
 
 ### Apps in the Ecosystem
 - **Flick Player**: High-performance audiophile music player with UAC 2.0 support

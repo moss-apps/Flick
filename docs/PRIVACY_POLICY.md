@@ -94,7 +94,7 @@ When you use the album art import feature:
 
 ### 6.3 Moss Ecosystem (Latch Integration)
 
-Flick Player is part of the **Moss ecosystem** by Ultra Electronica. It can receive playback handoffs from **Latch** (another Moss app):
+Flick Player is part of the **Moss ecosystem**. It can receive playback handoffs from **Latch** (another Moss app):
 
 - Playback intents contain only song file paths/metadata needed for playback
 - No personal data is exchanged between apps
