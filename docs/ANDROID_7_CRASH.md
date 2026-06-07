@@ -1,44 +1,79 @@
-# Android 7/7.1 (API 24/25) Crash
+# Android 7/7.1 (API 24/25) Compatibility
 
 ## Symptom
 
 App crashes immediately on Android 7.0 (API 24) and 7.1 (API 25) devices.
 
-## Root Cause
+## Root Causes
 
-The app's Gradle build targets Java 17 (`sourceCompatibility` / `targetCompatibility = VERSION_17`), but **core library desugaring was not enabled**. Android 7.x lacks native support for Java 8+ library APIs (`java.time`, `java.util.stream`, `java.util.function`, etc.). Without desugaring, any code path touching these APIs throws `NoClassDefFoundError` at runtime.
+The app's Gradle build targets Java 17 (`sourceCompatibility` /
+`targetCompatibility = VERSION_17`). Android 7.x lacks native support for some
+Java 8+ library APIs (`java.time`, `java.util.stream`, `java.util.function`,
+etc.), so core library desugaring must remain enabled while `minSdk` includes
+API 24/25.
 
-Additionally, Impeller is force-enabled (`AndroidManifest.xml`:
-`io.flutter.embedding.android.EnableImpeller = true`). Older GPU drivers on
-Android 7 devices have known compatibility issues with Impeller's rendering
-pipeline.
+Isar can also fail at startup with:
+
+```text
+IsarError: Cannot open Environment: MdbxError (-30784): MDBX_INCOMPATIBLE
+```
+
+This can happen when an existing `libmdbx` environment was created by an
+incompatible native library/flag combination. Isar stores the database as
+`<documents>/flick_player.isar` with a lock file at
+`<documents>/flick_player.isar.lock`.
+
+Additionally, Impeller is controlled through
+`io.flutter.embedding.android.EnableImpeller`. Older Android 7 GPU drivers can
+have compatibility issues with Impeller's rendering pipeline, so the base
+resource disables it and `values-v26` enables it again for Android 8+.
 
 ## Fix
 
-Raised `minSdkVersion` from `21` (Android 5.0) to `26` (Android 8.0).
+Keep Android 7 installable with `minSdk = 24`, but apply these compatibility
+guards:
 
-Android 8.0 natively includes all Java 8 library APIs, so the Java 17 compile
-target works without desugaring. This one-line change cleanly avoids the crash
-without introducing untested desugaring configuration.
+- Enable core library desugaring in `android/app/build.gradle.kts`.
+- Use `isar_community`, `isar_community_flutter_libs`, and
+  `isar_community_generator` `3.3.2`.
+- On `MDBX_INCOMPATIBLE`, delete both `flick_player.isar` and
+  `flick_player.isar.lock`, then reopen Isar so the app can recreate the local
+  library database.
+- Keep Impeller disabled for API 24/25 through `values/bools.xml` and enabled
+  for API 26+ through `values-v26/bools.xml`.
 
-### Change
+### Key Changes
 
 `android/app/build.gradle.kts`:
-```kotlin
-// Before
-minSdk = flutter.minSdkVersion  // 21
 
-// After
-minSdk = 26
+```kotlin
+compileOptions {
+    isCoreLibraryDesugaringEnabled = true
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+defaultConfig {
+    minSdk = 24
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+}
 ```
 
-### Why not add desugaring?
+`lib/data/database.dart`:
 
-- No Android 7 devices available for testing
-- Desugaring can have incomplete backports and subtle edge cases
-- Raising minSdk is deterministic — no runtime surprises
+```dart
+// On MDBX_INCOMPATIBLE, remove:
+// <documents>/flick_player.isar
+// <documents>/flick_player.isar.lock
+// Then reopen Isar with the same schema.
+```
 
 ## Impact
 
-- Devices running Android 5.0–7.1 (API 21–25) can no longer install Flick
-- All devices running Android 8.0+ (API 26+) are unaffected
+- Android 7.0/7.1 devices remain installable.
+- If an incompatible Isar environment exists, the local library database is
+  recreated. Users may need to rescan their music folders.
+- Android 8.0+ devices keep Impeller enabled.

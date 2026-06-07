@@ -15,7 +15,7 @@ This beta adds ten headline features:
 7. **Milestone card redesign** — Per-tier accent colors, achievement grid collection view, "next milestone — N to go" hint line
 8. **What's New system** — Bottom sheet changelog surface on first launch after update
 9. **Ambient background removed** — Ambient background decoration stripped from all library screens
-10. **Build & compatibility** — minSdk lowered to 24, Impeller configurable, V1+V2 APK signing
+10. **Build & compatibility** — Core library desugaring, Isar 3.3.2 with MDBX_INCOMPATIBLE recovery, Impeller configurable per API level, V1+V2 APK signing
 
 ## Highlights
 
@@ -113,10 +113,11 @@ This beta adds ten headline features:
 
 ### Build & Compatibility
 
-- minSdk lowered to 24 (Android 7.0+)
-- Impeller rendering configurable via bools.xml, disabled by default
-- V1 and V2 APK signing enabled in release config
-- Notification channel creation guarded behind API 26 check
+- **minSdk stays at 26** (Android 8.0+). Core library desugaring enabled for Java 17 target.
+- **Isar bumped to 3.3.2** with MDBX_INCOMPATIBLE recovery: corrupt database files are deleted and the library database is recreated automatically.
+- **Impeller rendering configurable** via bools.xml, disabled on API 24/25, enabled on API 26+.
+- V1 and V2 APK signing enabled in release config.
+- Notification channel creation guarded behind API 26 check.
 
 ### Updates & Distribution
 
@@ -157,7 +158,8 @@ This beta adds ten headline features:
 1. The What's New screen appears automatically on first launch after updating — no configuration needed
 2. The vinyl disc morph is activated by tapping album art in the player; rotation seeking works after the single-tap outline animation
 3. Navigation bar collapse happens automatically after the idle timeout; adjust or disable from Settings > Interface
-4. minSdk 24 means Android 7.0+ is now supported (was 26/Android 8.0+)
-5. Impeller can be enabled by setting `enable_impeller` to `true` in `bools.xml`
+4. minSdk remains 26 (Android 8.0+) — Android 7.0/7.1 are not supported
+5. Impeller is disabled on API 24/25 and enabled on API 26+ via `bools.xml` per-density resources
 6. Non-Play Store builds will now check for updates via the GitHub Releases API
 7. Ambient background effects have been removed entirely — the menu screen hero now uses color extraction from album art
+8. If an incompatible Isar database is detected, the local library is recreated automatically; users may need to rescan music folders
