@@ -65,7 +65,7 @@ const RecentlyPlayedEntitySchema = CollectionSchema(
   getId: _recentlyPlayedEntityGetId,
   getLinks: _recentlyPlayedEntityGetLinks,
   attach: _recentlyPlayedEntityAttach,
-  version: '3.3.0',
+  version: '3.3.2',
 );
 
 int _recentlyPlayedEntityEstimateSize(
