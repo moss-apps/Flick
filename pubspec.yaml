@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.18.0-beta.1+12
+version: 0.18.0-beta.1+13
 
 environment:
   sdk: ^3.10.4
@@ -39,6 +39,7 @@ dependencies:
     sdk: flutter
   flutter_cache_manager: ^3.4.1
   flutter_displaymode: ^0.7.0
+  flutter_markdown: ^0.7.7
   flutter_riverpod: ^3.0.3
   flutter_rust_bridge: ^2.12.0
   flutter_secure_storage: ^10.0.0
@@ -47,8 +48,8 @@ dependencies:
   freezed_annotation: ^3.0.0
   http: ^1.2.0
   image_picker: ^1.1.2
-  isar_community: ^3.3.0
-  isar_community_flutter_libs: ^3.3.0
+  isar_community: ^3.3.2
+  isar_community_flutter_libs: ^3.3.2
   json_annotation: ^4.9.0
   just_audio: ^0.10.5
   lucide_icons_flutter: ^3.1.8
@@ -74,7 +75,7 @@ dev_dependencies:
   freezed: ^3.0.0
   integration_test:
     sdk: flutter
-  isar_community_generator: ^3.3.0
+  isar_community_generator: ^3.3.2
   json_serializable: 6.11.2
   riverpod_generator: 4.0.0+1
   riverpod_lint: ^3.0.3

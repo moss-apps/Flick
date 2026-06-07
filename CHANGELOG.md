@@ -72,8 +72,9 @@
 - File type filter and sort options in folder browser.
 
 ### Build & Compatibility
-- **minSdk lowered to 24** (Android 7.0+), down from 26.
-- **Impeller rendering configurable** via bool resource, disabled by default.
+- **minSdk stays at 26** (Android 8.0+). Core library desugaring enabled for Java 17 target.
+- **Impeller rendering configurable** via bool resource, disabled on API 24/25, enabled on API 26+.
+- **Isar bumped to 3.3.2** with MDBX_INCOMPATIBLE recovery: corrupt database files are deleted and the library database is recreated automatically.
 - **V1 and V2 APK signing** enabled in release config.
 - Notification channel creation guarded behind API 26 check.
 
