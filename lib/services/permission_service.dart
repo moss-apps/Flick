@@ -16,10 +16,10 @@ class PermissionService {
   /// Returns true if permission is granted.
   Future<bool> requestStoragePermission() async {
     if (Platform.isAndroid) {
-      // For Android 13+, we need READ_MEDIA_AUDIO and READ_MEDIA_IMAGES
+      // For Android 13+, we need READ_MEDIA_AUDIO
       // For Android 10-12, we use Scoped Storage (no permission needed for SAF)
       // For Android 9-, we need READ_EXTERNAL_STORAGE
-      final statuses = await [Permission.audio, Permission.photos].request();
+      final statuses = await [Permission.audio].request();
 
       if (statuses[Permission.audio]!.isGranted) {
         return true;
