@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:math' show pi;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -22,6 +22,7 @@ import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/services/permission_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/widgets/common/glass_dialog.dart';
+import 'package:flick/widgets/common/vinyl_record.dart';
 
 class LibrarySettingsScreen extends ConsumerStatefulWidget {
   const LibrarySettingsScreen({super.key});
@@ -238,7 +239,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     _scanStopwatch.reset();
     _scanStopwatch.start();
     _vinylController.repeat();
-    _showScanningBottomSheet(displayName);
+    _showScanningOverlay(displayName);
 
     await for (final progress in _scannerService.scanFolder(uri, displayName)) {
       if (mounted) {
@@ -274,7 +275,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     _scanStopwatch.reset();
     _scanStopwatch.start();
     _vinylController.repeat();
-    _showScanningBottomSheet('All Folders');
+    _showScanningOverlay('All Folders');
 
     await for (final progress in _scannerService.scanAllFolders()) {
       if (mounted) {
@@ -330,123 +331,184 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     );
   }
 
-  void _showScanningBottomSheet(String folderName) {
-    GlassBottomSheet.show(
+  void _showScanningOverlay(String folderName) {
+    showGeneralDialog(
       context: context,
-      title: 'Scanning Library',
-      isDismissible: false,
-      enableDrag: false,
-      maxHeightRatio: 0.45,
-      content: ValueListenableBuilder<ScanProgress?>(
-        valueListenable: _scanProgressNotifier,
-        builder: (context, progress, _) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      transitionDuration: const Duration(milliseconds: 250),
+      pageBuilder: (_, animation, secondaryAnimation) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            fit: StackFit.expand,
             children: [
-              const SizedBox(height: AppConstants.spacingMd),
-              AnimatedBuilder(
-                animation: _vinylController,
-                builder: (context, child) {
-                  return Transform.rotate(
-                    angle: _vinylController.value * 2 * pi,
-                    child: child,
-                  );
-                },
-                child: SvgPicture.asset(
-                  'assets/icons/svg/record_vinyl_white.svg',
-                  width: 72,
-                  height: 72,
-                  colorFilter: const ColorFilter.mode(
-                    AppColors.textPrimary,
-                    BlendMode.srcIn,
-                  ),
+              // Blurred background
+              BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: AppConstants.glassBlurSigma,
+                  sigmaY: AppConstants.glassBlurSigma,
                 ),
+                child: const SizedBox.expand(),
               ),
-              const SizedBox(height: AppConstants.spacingMd),
-              Text(
-                progress?.currentFolder ?? folderName,
-                style: const TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
-                ),
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                progress?.currentFile ?? 'Initializing...',
-                style: const TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontSize: 13,
-                  color: AppColors.textTertiary,
-                ),
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppConstants.spacingLg),
-              Container(
-                padding: const EdgeInsets.all(AppConstants.spacingMd),
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackground,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildScanStat(
-                      'Songs Found',
-                      '${progress?.songsFound ?? 0}',
-                      LucideIcons.music,
-                    ),
-                    Container(
-                      width: 1,
-                      height: 40,
-                      color: AppColors.glassBorder,
-                    ),
-                    _buildScanStat(
-                      'Total Files',
-                      '${progress?.totalFiles ?? 0}',
-                      LucideIcons.file,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingMd),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () {
-                    _scannerService.cancelScan();
-                    _vinylController.stop();
-                    _scanStopwatch.stop();
-                    Navigator.of(context).pop();
-                    _scanProgressNotifier.value = null;
-                    setState(() {
-                      _isScanning = false;
-                      _scanProgress = null;
-                    });
+              // Spinning vinyl centered
+              Center(
+                child: AnimatedBuilder(
+                  animation: _vinylController,
+                  builder: (context, child) {
+                    return Transform.rotate(
+                      angle: _vinylController.value * 2 * pi,
+                      child: child,
+                    );
                   },
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      fontFamily: 'ProductSans',
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  child: const VinylRecord(size: 180),
+                ),
+              ),
+              // Bottom sheet panel
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: ValueListenableBuilder<ScanProgress?>(
+                  valueListenable: _scanProgressNotifier,
+                  builder: (context, progress, _) {
+                    return Container(
+                      margin: const EdgeInsets.all(AppConstants.spacingLg),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            AppColors.surfaceLight.withValues(alpha: 0.98),
+                            AppColors.surface.withValues(alpha: 0.98),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(AppConstants.radiusXl),
+                          bottom: Radius.circular(AppConstants.radiusXl),
+                        ),
+                        border: Border.all(color: AppColors.glassBorder),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.28),
+                            blurRadius: 20,
+                            offset: const Offset(0, -6),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppConstants.spacingLg,
+                        AppConstants.spacingSm,
+                        AppConstants.spacingLg,
+                        AppConstants.spacingLg,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Drag handle
+                          Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: AppColors.textTertiary,
+                              borderRadius: BorderRadius.circular(
+                                AppConstants.radiusRound,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppConstants.spacingMd),
+                          Text(
+                            progress?.currentFolder ?? folderName,
+                            style: const TextStyle(
+                              fontFamily: 'ProductSans',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            progress?.currentFile ?? 'Initializing...',
+                            style: const TextStyle(
+                              fontFamily: 'ProductSans',
+                              fontSize: 13,
+                              color: AppColors.textTertiary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppConstants.spacingLg),
+                          Container(
+                            padding: const EdgeInsets.all(AppConstants.spacingMd),
+                            decoration: BoxDecoration(
+                              color: AppColors.glassBackground,
+                              borderRadius: BorderRadius.circular(
+                                AppConstants.radiusMd,
+                              ),
+                              border: Border.all(color: AppColors.glassBorder),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildScanStat(
+                                  'Songs Found',
+                                  '${progress?.songsFound ?? 0}',
+                                  LucideIcons.music,
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 40,
+                                  color: AppColors.glassBorder,
+                                ),
+                                _buildScanStat(
+                                  'Total Files',
+                                  '${progress?.totalFiles ?? 0}',
+                                  LucideIcons.file,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppConstants.spacingMd),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton(
+                              onPressed: () {
+                                _scannerService.cancelScan();
+                                _vinylController.stop();
+                                _scanStopwatch.stop();
+                                Navigator.of(context).pop();
+                                _scanProgressNotifier.value = null;
+                                setState(() {
+                                  _isScanning = false;
+                                  _scanProgress = null;
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.textSecondary,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                              child: const Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  fontFamily: 'ProductSans',
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
