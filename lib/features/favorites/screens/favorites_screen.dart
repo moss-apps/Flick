@@ -32,7 +32,9 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   @override
   void initState() {
     super.initState();
+    final navBarNotifier = ref.read(navBarVisibleProvider.notifier);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      navBarNotifier.setVisible(true);
       _loadFavorites();
     });
   }
@@ -393,9 +395,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   }
 
   Widget _buildFavoritesList(String removalMode) {
-    return ListView.builder(
-      padding: EdgeInsets.only(bottom: AppConstants.navBarHeight + 120),
-      itemCount: _favorites.length,
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) => true,
+      child: ListView.builder(
+        padding: EdgeInsets.only(bottom: AppConstants.navBarHeight + 120),
+        itemCount: _favorites.length,
       itemBuilder: (context, index) {
         final song = _favorites[index];
         final isSelected = _selectedIds.contains(song.id);
@@ -429,6 +433,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
           onRemove: () => _removeFavorite(song),
         );
       },
+      ),
     );
   }
 }
