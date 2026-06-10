@@ -30,6 +30,10 @@ class GraphicEqGraph extends ConsumerWidget {
             (i) => ref.read(eqGraphicGainDbProvider(i)),
             growable: false,
           );
+          final bmtState = ref.read(equalizerProvider);
+          final bassDb = bmtState.bassDb;
+          final midDb = bmtState.midDb;
+          final trebleDb = bmtState.trebleDb;
 
           return LayoutBuilder(
             builder: (context, constraints) {
@@ -50,6 +54,9 @@ class GraphicEqGraph extends ConsumerWidget {
                 freqs: freqs,
                 gains: gains,
                 sampleCount: sampleCount,
+                bassDb: bassDb,
+                midDb: midDb,
+                trebleDb: trebleDb,
               );
               final spots = curvePoints
                   .map((p) => FlSpot(p.x, p.db))
@@ -57,7 +64,15 @@ class GraphicEqGraph extends ConsumerWidget {
 
               final dotSpots = List<FlSpot>.generate(
                 freqs.length,
-                (i) => FlSpot(equtils.hzToX(freqs[i]), gains[i]),
+                (i) => FlSpot(
+                  equtils.hzToX(freqs[i]),
+                  (gains[i] + equtils.bmtOffsetDbAtHz(
+                    freqs[i],
+                    bassDb: bassDb,
+                    midDb: midDb,
+                    trebleDb: trebleDb,
+                  )).clamp(equtils.eqMinDb, equtils.eqMaxDb).toDouble(),
+                ),
                 growable: false,
               );
 
