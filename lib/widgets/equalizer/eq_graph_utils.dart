@@ -31,20 +31,55 @@ double tToHz(double t) {
   return math.exp(v);
 }
 
+double bmtOffsetDbAtHz(
+  double hz, {
+  required double bassDb,
+  required double midDb,
+  required double trebleDb,
+}) {
+  if (bassDb == 0.0 && midDb == 0.0 && trebleDb == 0.0) return 0.0;
+
+  final logHz = math.log(hz.clamp(eqMinHz, eqMaxHz));
+
+  final bassSigma = 0.4;
+  final bassContrib =
+      bassDb / (1.0 + math.exp((logHz - math.log(250.0)) / bassSigma));
+
+  final midCenter = math.log(1500.0);
+  final midSigma = 0.55;
+  final midLog = logHz - midCenter;
+  final midContrib =
+      midDb * math.exp(-(midLog * midLog) / (2.0 * midSigma * midSigma));
+
+  final trebleSigma = 0.4;
+  final trebleContrib =
+      trebleDb / (1.0 + math.exp(-(logHz - math.log(5000.0)) / trebleSigma));
+
+  return (bassContrib + midContrib + trebleContrib)
+      .clamp(eqMinDb, eqMaxDb)
+      .toDouble();
+}
+
 List<({double x, double db})> buildParametricCurvePoints({
   required List<ParametricBand> bands,
   required int sampleCount,
+  double bassDb = 0.0,
+  double midDb = 0.0,
+  double trebleDb = 0.0,
 }) {
   final points = <({double x, double db})>[];
   for (var i = 0; i <= sampleCount; i++) {
     final t = i / sampleCount;
     final hz = tToHz(t);
-    final db = parametricResponseDbAtHz(
+    var db = parametricResponseDbAtHz(
       hz: hz,
       bands: bands,
       minDb: eqMinDb,
       maxDb: eqMaxDb,
     );
+    db = (db + bmtOffsetDbAtHz(hz, bassDb: bassDb, midDb: midDb, trebleDb: trebleDb))
+        .clamp(eqMinDb, eqMaxDb)
+        .toDouble();
     points.add((x: hzToX(hz), db: db));
   }
   return points;
@@ -54,12 +89,18 @@ List<({double x, double db})> buildGraphicCurvePoints({
   required List<double> freqs,
   required List<double> gains,
   required int sampleCount,
+  double bassDb = 0.0,
+  double midDb = 0.0,
+  double trebleDb = 0.0,
 }) {
   final points = <({double x, double db})>[];
   for (var i = 0; i <= sampleCount; i++) {
     final t = i / sampleCount;
     final hz = tToHz(t);
-    final db = interpDbAtHz(hz, freqs, gains);
+    var db = interpDbAtHz(hz, freqs, gains);
+    db = (db + bmtOffsetDbAtHz(hz, bassDb: bassDb, midDb: midDb, trebleDb: trebleDb))
+        .clamp(eqMinDb, eqMaxDb)
+        .toDouble();
     points.add((x: hzToX(hz), db: db));
   }
   return points;
