@@ -482,11 +482,18 @@ class _InteractiveEqGraphScreenState
         (i) => ref.read(eqGraphicGainDbProvider(i)),
         growable: false,
       );
+      final bmt = ref.read(equalizerProvider);
 
       for (var i = 0; i < freqs.length; i++) {
+        final combinedGain = (gains[i] + equtils.bmtOffsetDbAtHz(
+          freqs[i],
+          bassDb: bmt.bassDb,
+          midDb: bmt.midDb,
+          trebleDb: bmt.trebleDb,
+        )).clamp(equtils.eqMinDb, equtils.eqMaxDb).toDouble();
         final center = _dataToPixel(
           equtils.hzToX(freqs[i]),
-          gains[i],
+          combinedGain,
           size,
         );
         if ((position - center).distance <= _handleHitRadius) {
@@ -773,6 +780,9 @@ class _EqCurvePainter extends CustomPainter {
       freqs: freqs,
       gains: gains,
       sampleCount: math.max(96, plotRect.width.floor()),
+      bassDb: state.bassDb,
+      midDb: state.midDb,
+      trebleDb: state.trebleDb,
     );
     _drawCurvePath(canvas, plotRect, points, lineColor);
   }
@@ -781,6 +791,9 @@ class _EqCurvePainter extends CustomPainter {
     final points = equtils.buildParametricCurvePoints(
       bands: state.parametricBands,
       sampleCount: math.max(96, plotRect.width.floor()),
+      bassDb: state.bassDb,
+      midDb: state.midDb,
+      trebleDb: state.trebleDb,
     );
     _drawCurvePath(canvas, plotRect, points, lineColor);
   }
@@ -850,10 +863,16 @@ class _EqCurvePainter extends CustomPainter {
     final gains = state.graphicGainsDb;
 
     for (var i = 0; i < freqs.length; i++) {
+      final combinedGain = (gains[i] + equtils.bmtOffsetDbAtHz(
+        freqs[i],
+        bassDb: state.bassDb,
+        midDb: state.midDb,
+        trebleDb: state.trebleDb,
+      )).clamp(equtils.eqMinDb, equtils.eqMaxDb).toDouble();
       final tX = (equtils.hzToX(freqs[i]) - equtils.eqLogMin) /
           (equtils.eqLogMax - equtils.eqLogMin);
       final tY = 1.0 -
-          (gains[i] - equtils.eqMinDb) /
+          (combinedGain - equtils.eqMinDb) /
               (equtils.eqMaxDb - equtils.eqMinDb);
       final center = Offset(
         plotRect.left + tX.clamp(0.0, 1.0) * plotRect.width,
@@ -867,10 +886,17 @@ class _EqCurvePainter extends CustomPainter {
     final bands = state.parametricBands;
     for (var i = 0; i < bands.length; i++) {
       if (!bands[i].enabled) continue;
-      final db = parametricResponseDbAtHz(
-        hz: bands[i].frequencyHz,
-        bands: bands,
-      );
+      final db = (parametricResponseDbAtHz(
+            hz: bands[i].frequencyHz,
+            bands: bands,
+          ) + equtils.bmtOffsetDbAtHz(
+            bands[i].frequencyHz,
+            bassDb: state.bassDb,
+            midDb: state.midDb,
+            trebleDb: state.trebleDb,
+          ))
+          .clamp(equtils.eqMinDb, equtils.eqMaxDb)
+          .toDouble();
       final tX = (equtils.hzToX(bands[i].frequencyHz) - equtils.eqLogMin) /
           (equtils.eqLogMax - equtils.eqLogMin);
       final tY = 1.0 -
