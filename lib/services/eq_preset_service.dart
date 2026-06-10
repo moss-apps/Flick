@@ -12,6 +12,9 @@ class EqPreset {
   final double preampDb;
   final List<double> graphicGainsDb;
   final List<ParametricBand> parametricBands;
+  final double bassDb;
+  final double midDb;
+  final double trebleDb;
   final CompressorSettings compressor;
   final LimiterSettings limiter;
   final FxSettings fx;
@@ -24,6 +27,9 @@ class EqPreset {
     this.preampDb = 0.0,
     required this.graphicGainsDb,
     required this.parametricBands,
+    this.bassDb = 0.0,
+    this.midDb = 0.0,
+    this.trebleDb = 0.0,
     this.compressor = const CompressorSettings(),
     this.limiter = const LimiterSettings(),
     this.fx = const FxSettings(),
@@ -37,6 +43,9 @@ class EqPreset {
     double? preampDb,
     List<double>? graphicGainsDb,
     List<ParametricBand>? parametricBands,
+    double? bassDb,
+    double? midDb,
+    double? trebleDb,
     CompressorSettings? compressor,
     LimiterSettings? limiter,
     FxSettings? fx,
@@ -49,6 +58,9 @@ class EqPreset {
       preampDb: preampDb ?? this.preampDb,
       graphicGainsDb: graphicGainsDb ?? this.graphicGainsDb,
       parametricBands: parametricBands ?? this.parametricBands,
+      bassDb: bassDb ?? this.bassDb,
+      midDb: midDb ?? this.midDb,
+      trebleDb: trebleDb ?? this.trebleDb,
       compressor: compressor ?? this.compressor,
       limiter: limiter ?? this.limiter,
       fx: fx ?? this.fx,
@@ -73,6 +85,9 @@ class EqPreset {
           },
         )
         .toList(),
+    'bassDb': bassDb,
+    'midDb': midDb,
+    'trebleDb': trebleDb,
     'compressor': {
       'enabled': compressor.enabled,
       'thresholdDb': compressor.thresholdDb,
@@ -155,6 +170,9 @@ class EqPreset {
               growable: false,
             )
           : bands,
+      bassDb: (json['bassDb'] as num?)?.toDouble() ?? 0.0,
+      midDb: (json['midDb'] as num?)?.toDouble() ?? 0.0,
+      trebleDb: (json['trebleDb'] as num?)?.toDouble() ?? 0.0,
       compressor: CompressorSettings(
         enabled: (compressorJson?['enabled'] as bool?) ?? false,
         thresholdDb:
