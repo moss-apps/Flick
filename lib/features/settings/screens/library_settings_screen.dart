@@ -36,6 +36,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   final SongRepository _songRepository = SongRepository();
 
   List<MusicFolder> _folders = [];
+  final Map<String, FolderEntity> _folderEntities = {};
   int _songCount = 0;
   bool _isScanning = false;
   ScanProgress? _scanProgress;
@@ -91,9 +92,17 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   Future<void> _loadLibraryData() async {
     final folders = await _folderService.getSavedFolders();
     final count = await _songRepository.getSongCount();
+    final repo = FolderRepository();
+    final entities = <String, FolderEntity>{};
+    for (final folder in folders) {
+      final entity = await repo.getFolderByUri(folder.uri);
+      if (entity != null) entities[folder.uri] = entity;
+    }
     if (mounted) {
       setState(() {
         _folders = folders;
+        _folderEntities.clear();
+        _folderEntities.addAll(entities);
         _songCount = count;
       });
     }
@@ -538,6 +547,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   Widget _buildFolderItem(MusicFolder folder) {
+    final globalDeepScan = ref.watch(libraryScanPreferencesProvider).useDeepScan;
+    final entity = _folderEntities[folder.uri];
+    final effectiveDeepScan = entity?.useDeepScan ?? globalDeepScan;
+
     return Material(
       color: Colors.transparent,
       child: Padding(
@@ -573,54 +586,35 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (Platform.isAndroid)
-                    FutureBuilder<FolderEntity?>(
-                      future: FolderRepository().getFolderByUri(folder.uri),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) return const SizedBox.shrink();
-                        final entity = snapshot.data;
-                        final globalDeepScan = ref.watch(libraryScanPreferencesProvider).useDeepScan;
-                        final folderDeepScan = entity?.useDeepScan;
-                        final effectiveDeepScan = folderDeepScan ?? globalDeepScan;
-                        return Row(
-                          children: [
-                            Text(
-                              'Deep scan',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: context.adaptiveTextTertiary,
-                              ),
-                            ),
-                            const SizedBox(width: AppConstants.spacingXs),
-                            SizedBox(
-                              height: 20,
-                              child: Switch(
-                                value: effectiveDeepScan,
-                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                onChanged: (value) async {
-                                  final repo = FolderRepository();
-                                  final existing = await repo.getFolderByUri(folder.uri);
-                                  if (existing != null) {
-                                    existing.useDeepScan = value;
-                                    await repo.upsertFolder(existing);
-                                  } else {
-                                    final newEntity = FolderEntity()
-                                      ..uri = folder.uri
-                                      ..displayName = folder.displayName
-                                      ..dateAdded = folder.dateAdded
-                                      ..songCount = 0
-                                      ..useDeepScan = value;
-                                    await repo.upsertFolder(newEntity);
-                                  }
-                                  setState(() {});
-                                },
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                    Text(
+                      effectiveDeepScan ? 'Deep scan on' : 'Deep scan off',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.adaptiveTextTertiary,
+                      ),
                     ),
                 ],
               ),
             ),
+            if (Platform.isAndroid)
+              CustomSwitch(
+                value: effectiveDeepScan,
+                onChanged: (value) async {
+                  final repo = FolderRepository();
+                  if (entity != null) {
+                    entity.useDeepScan = value;
+                    await repo.upsertFolder(entity);
+                  } else {
+                    final newEntity = FolderEntity()
+                      ..uri = folder.uri
+                      ..displayName = folder.displayName
+                      ..dateAdded = folder.dateAdded
+                      ..songCount = 0
+                      ..useDeepScan = value;
+                    await repo.upsertFolder(newEntity);
+                  }
+                  setState(() {});
+                },
+              ),
             IconButton(
               icon: Icon(
                 LucideIcons.trash2,
