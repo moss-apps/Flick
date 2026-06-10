@@ -9,7 +9,7 @@ crate-type = ["cdylib", "staticlib"]
 [features]
 default = ["native_audio", "uac2"]
 # Enable native audio engine (now enabled on Android with CPAL/Oboe)
-native_audio = ["cpal", "symphonia", "rubato", "ringbuf", "crossbeam-channel", "wavpack-sys"]
+native_audio = ["cpal", "symphonia", "rubato", "ringbuf", "crossbeam-channel", "wavpack-sys", "opus-sys"]
 # Custom UAC 2.0 USB Audio (host-side DAC/AMP support)
 uac2 = ["rusb", "libusb1-sys"]
 
@@ -54,8 +54,8 @@ crossbeam-channel = { version = "0.5", optional = true }
 # WavPack decoder (FFI to libwavpack C library)
 wavpack-sys = { path = "vendor/wavpack-sys", optional = true }
 
-# ALAC/M4A decoder dependencies (using symphonia with all codecs)
-# Note: Symphonia 0.5 includes ALAC support via the "all" feature
+# Opus decoder (FFI to libopus C library)
+opus-sys = { path = "vendor/opus-sys", optional = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
 oboe = { version = "0.6", features = ["java-interface"] }
@@ -71,6 +71,7 @@ rubato = "0.15"
 ringbuf = "0.4"
 crossbeam-channel = "0.5"
 wavpack-sys = { path = "vendor/wavpack-sys" }
+opus-sys = { path = "vendor/opus-sys" }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
 notify = "6.1"
