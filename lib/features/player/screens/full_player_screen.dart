@@ -4009,10 +4009,10 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
   bool _isVinyl = false;
   bool _isRotationEnabled = false;
   Duration _lastObservedPosition = Duration.zero;
-  double _userRotationOffset = 0.0;
+  final ValueNotifier<double> _userRotationOffset = ValueNotifier(0.0);
   bool _isUserDragging = false;
   double _rotationHapticAccumulator = 0.0;
-  static const double _hapticTickInterval = math.pi / 12;
+  static const double _hapticTickInterval = math.pi / 16;
   late final DoubleTapGestureRecognizer _doubleTapRecognizer;
   late final TapGestureRecognizer _singleTapRecognizer;
   late final _RotationSeekRecognizer _rotationRecognizer;
@@ -4073,7 +4073,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
       _lastObservedPosition = Duration.zero;
       _seekAngleController.stop();
       _seekAngleController.value = 0;
-      _userRotationOffset = 0.0;
+      _userRotationOffset.value = 0.0;
       _isUserDragging = false;
       _isRotationEnabled = false;
       _outlineController.value = 0;
@@ -4112,6 +4112,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
     _seekAngleController.dispose();
     _spinController.dispose();
     _morphController.dispose();
+    _userRotationOffset.dispose();
     super.dispose();
   }
 
@@ -4173,19 +4174,19 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
     _seekAngleController.stop();
     _seekAngleController.value = 0;
     _lastObservedPosition = service.positionNotifier.value;
-    AppHaptics.selection();
+    AppHaptics.confirm();
   }
 
   void _onRotationUpdate(double delta) {
     if (!_isVinyl || !_isRotationEnabled) return;
     final service = widget.playerService;
     if (service == null) return;
-    _userRotationOffset += delta;
+    _userRotationOffset.value += delta;
 
     _rotationHapticAccumulator += delta.abs();
     if (_rotationHapticAccumulator >= _hapticTickInterval) {
       _rotationHapticAccumulator -= _hapticTickInterval;
-      AppHaptics.selection();
+      AppHaptics.tap();
     }
 
     final msPerRadian =
@@ -4205,8 +4206,6 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
       _lastObservedPosition = newPosition;
       unawaited(service.seek(newPosition));
     }
-
-    setState(() {});
   }
 
   void _onRotationEnd() {
@@ -4246,7 +4245,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
         _spinController.stop();
         _seekAngleController.stop();
         _seekAngleController.value = 0;
-        _userRotationOffset = 0.0;
+        _userRotationOffset.value = 0.0;
         _isRotationEnabled = false;
         _outlineController.value = 0;
         _morphController.reverse();
@@ -4312,6 +4311,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
               _spinController,
               _seekAngleController,
               _outlineController,
+              _userRotationOffset,
             ]),
             builder: (context, _) {
               final rawT = Curves.easeInOutCubic
@@ -4320,7 +4320,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
               final glass = (1.0 - t).clamp(0.0, 1.0);
               final rawAngle = _spinController.value * 2 * math.pi * t +
                   _seekAngleController.value +
-                  _userRotationOffset;
+                  _userRotationOffset.value;
               final spinAngle = rawAngle.isNaN ? 0.0 : rawAngle;
 
               final artSize = resolvedSize - (resolvedSize - labelSize) * t;
@@ -4513,7 +4513,7 @@ class _RotationSeekRecognizer extends OneSequenceGestureRecognizer {
       final totalDy = event.localPosition.dy - _startPos!.dy;
       final totalDist = math.sqrt(totalDx * totalDx + totalDy * totalDy);
 
-      if (totalDist < 12) return;
+      if (totalDist < 8) return;
 
       // Check if motion is tangential (rotational) vs radial (linear swipe)
       final motionDx = event.localPosition.dx - _startPos!.dx;
@@ -4522,7 +4522,7 @@ class _RotationSeekRecognizer extends OneSequenceGestureRecognizer {
       final radiusDy = _startPos!.dy - center.dy;
       final radiusLength = math.sqrt(radiusDx * radiusDx + radiusDy * radiusDy);
       
-      if (radiusLength < 20) return; // Too close to center
+      if (radiusLength < 10) return; // Too close to center
 
       final dotProduct = motionDx * radiusDx + motionDy * radiusDy;
       final motionLength = math.sqrt(motionDx * motionDx + motionDy * motionDy);
@@ -4530,7 +4530,7 @@ class _RotationSeekRecognizer extends OneSequenceGestureRecognizer {
       
       // If motion is mostly radial (cosAngle close to ±1), it's a swipe
       // If motion is mostly tangential (cosAngle close to 0), it's rotation
-      if (cosAngle.abs() > 0.5) {
+      if (cosAngle.abs() > 0.8) {
         resolve(GestureDisposition.rejected);
         stopTrackingPointer(event.pointer);
         return;
