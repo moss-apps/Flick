@@ -66,6 +66,7 @@ const UAC2_REQUEST_GET_CUR: u8 = 0x81;
 const UAC2_REQUEST_GET_RANGE: u8 = 0x82;
 const UAC2_CLOCK_SOURCE_SAM_FREQ_CONTROL: u16 = 0x0100;
 const UAC2_CLOCK_SOURCE_CLOCK_VALID_CONTROL: u16 = 0x0200;
+const UAC1_SAM_FREQ_CONTROL: u16 = 0x0100;
 const UAC2_INPUT_TERMINAL: u8 = 0x02;
 const UAC2_OUTPUT_TERMINAL: u8 = 0x03;
 const UAC2_FEATURE_UNIT: u8 = 0x06;
@@ -620,6 +621,7 @@ struct AndroidIsoStreamCandidate {
     /// bTerminalLink from the AS_GENERAL descriptor, used to trace the
     /// UAC2 topology to the correct Clock Entity.
     terminal_link: Option<u8>,
+    is_uac1: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -651,6 +653,8 @@ struct AndroidStreamingInterfaceFormat {
     subslot_size: u8,
     bit_resolution: u8,
     terminal_link: Option<u8>,
+    is_uac1: bool,
+    sample_rate_ranges: Vec<SamplingFrequencySubrange>,
 }
 
 #[derive(Debug)]
@@ -1718,6 +1722,37 @@ fn negotiate_android_direct_playback_format(
                     .or(current_rate)
                     .or(Some(requested_format.sample_rate));
                 last_message = Some(message);
+            }
+        } else if candidate.is_uac1 {
+            match set_uac1_sampling_frequency(
+                &claimed_handle.handle,
+                candidate.endpoint_address,
+                requested_format.sample_rate,
+            ) {
+                Ok(()) => {
+                    eprintln!(
+                        "[USB] UAC1 SET_CUR: endpoint=0x{:02x} rate={}Hz",
+                        candidate.endpoint_address, requested_format.sample_rate
+                    );
+                    dac_mode = DacMode::FixedClock;
+                    reported_rate = Some(requested_format.sample_rate);
+                    last_message = Some(format!(
+                        "UAC 1.0 device: set sampling frequency to {} Hz on endpoint 0x{:02x}",
+                        requested_format.sample_rate, candidate.endpoint_address
+                    ));
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[USB] UAC1 SET_CUR failed for endpoint=0x{:02x}: {}",
+                        candidate.endpoint_address, e
+                    );
+                    dac_mode = DacMode::AdaptiveStreaming;
+                    reported_rate = Some(requested_format.sample_rate);
+                    last_message = Some(format!(
+                        "UAC 1.0 device: failed to set rate on endpoint 0x{:02x}: {}; continuing with adaptive streaming",
+                        candidate.endpoint_address, e
+                    ));
+                }
             }
         } else if let Some(actual_rate) = choose_adaptive_sample_rate(
             requested_format.sample_rate,
@@ -2931,6 +2966,7 @@ fn build_android_usb_capability_model(
                         handle,
                         descriptor.interface_number(),
                         stream_format.terminal_link,
+                        &stream_format.sample_rate_ranges,
                     )
                 })
                 .clone();
@@ -4880,6 +4916,7 @@ fn select_stream_candidate(
                         handle,
                         descriptor.interface_number(),
                         stream_format.terminal_link,
+                        &stream_format.sample_rate_ranges,
                     )
                 })
                 .clone();
@@ -5003,6 +5040,7 @@ fn select_stream_candidate(
                     synch_address: endpoint.synch_address(),
                     feedback_endpoint,
                     terminal_link: stream_format.terminal_link,
+                    is_uac1: stream_format.is_uac1,
                 });
             }
         }
@@ -5379,6 +5417,32 @@ fn set_sampling_frequency(
     Ok(())
 }
 
+fn set_uac1_sampling_frequency(
+    handle: &DeviceHandle<Context>,
+    endpoint_address: u8,
+    sample_rate: u32,
+) -> Result<(), String> {
+    let request_type = USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE;
+    let value = UAC1_SAM_FREQ_CONTROL;
+    let index = endpoint_address as u16;
+    let data = [
+        (sample_rate & 0xFF) as u8,
+        ((sample_rate >> 8) & 0xFF) as u8,
+        ((sample_rate >> 16) & 0xFF) as u8,
+    ];
+    handle
+        .write_control(
+            request_type,
+            UAC2_REQUEST_SET_CUR,
+            value,
+            index,
+            &data,
+            Duration::from_secs(1),
+        )
+        .map_err(|error| format!("Failed to set UAC1 sampling frequency: {}", error))?;
+    Ok(())
+}
+
 fn get_sampling_frequency(
     handle: &DeviceHandle<Context>,
     interface_number: u8,
@@ -5511,7 +5575,12 @@ fn discover_stream_sample_rate_ranges(
     handle: &DeviceHandle<Context>,
     streaming_interface_number: u8,
     terminal_link: Option<u8>,
+    pre_parsed_ranges: &[SamplingFrequencySubrange],
 ) -> Vec<SamplingFrequencySubrange> {
+    if !pre_parsed_ranges.is_empty() {
+        return pre_parsed_ranges.to_vec();
+    }
+
     let Some(clock) = find_audio_control_clock(device, handle, terminal_link) else {
         return Vec::new();
     };
@@ -5812,6 +5881,9 @@ fn parse_android_streaming_interface_format(
     let mut subslot_size = None;
     let mut bit_resolution = None;
     let mut terminal_link = None;
+    let mut sample_rate_ranges = Vec::new();
+
+    let is_uac1 = descriptor.protocol_code() != 0x20;
 
     for extra in DescriptorIter::new(descriptor.extra()) {
         if extra.len() < 3 || extra[1] != USB_DT_CS_INTERFACE {
@@ -5820,13 +5892,14 @@ fn parse_android_streaming_interface_format(
 
         match extra[2] {
             UAC2_AS_GENERAL => {
-                // UAC2 AS_GENERAL layout: [0]=bLength [1]=bDescriptorType
-                // [2]=bDescriptorSubtype [3]=bTerminalLink [4]=bmControls
-                // [5]=bFormatType [6..9]=bmFormats [10]=bNrChannels ...
                 if extra.len() >= 4 {
                     terminal_link = Some(extra[3]);
                 }
-                if extra.len() >= 16 {
+                if is_uac1 {
+                    if extra.len() >= 7 {
+                        format_tag = Some(u16::from_le_bytes([extra[5], extra[6]]));
+                    }
+                } else if extra.len() >= 16 {
                     channels = Some(extra[10] as u16);
                     format_tag =
                         Some(u32::from_le_bytes([extra[6], extra[7], extra[8], extra[9]]) as u16);
@@ -5835,8 +5908,42 @@ fn parse_android_streaming_interface_format(
                 }
             }
             UAC2_FORMAT_TYPE if extra.get(3).copied() == Some(UAC2_FORMAT_TYPE_I) => {
-                if extra.len() >= 6 {
-                    // UAC2 sample rates live on the clock entity via GET_RANGE.
+                if is_uac1 {
+                    if extra.len() >= 8 {
+                        channels = Some(extra[4] as u16);
+                        subslot_size = Some(extra[5]);
+                        bit_resolution = Some(extra[6]);
+                        let sam_freq_type = extra[7];
+                        if sam_freq_type == 0 {
+                            if extra.len() >= 14 {
+                                let min = u32::from_le_bytes([extra[8], extra[9], extra[10], 0]);
+                                let max = u32::from_le_bytes([extra[11], extra[12], extra[13], 0]);
+                                sample_rate_ranges.push(SamplingFrequencySubrange {
+                                    min,
+                                    max,
+                                    res: 0,
+                                });
+                            }
+                        } else {
+                            for i in 0..sam_freq_type as usize {
+                                let offset = 8 + i * 3;
+                                if offset + 3 <= extra.len() {
+                                    let rate = u32::from_le_bytes([
+                                        extra[offset],
+                                        extra[offset + 1],
+                                        extra[offset + 2],
+                                        0,
+                                    ]);
+                                    sample_rate_ranges.push(SamplingFrequencySubrange {
+                                        min: rate,
+                                        max: rate,
+                                        res: 0,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } else if extra.len() >= 6 {
                     subslot_size = Some(extra[4]);
                     bit_resolution = Some(extra[5]);
                 }
@@ -5866,6 +5973,8 @@ fn parse_android_streaming_interface_format(
         subslot_size,
         bit_resolution,
         terminal_link,
+        is_uac1,
+        sample_rate_ranges,
     })
 }
 
@@ -5922,6 +6031,8 @@ fn transport_compatibility_penalty_for_candidate(
             subslot_size: candidate.subslot_size,
             bit_resolution: candidate.bit_resolution,
             terminal_link: candidate.terminal_link,
+            is_uac1: candidate.is_uac1,
+            sample_rate_ranges: vec![],
         },
         playback_format,
     )
