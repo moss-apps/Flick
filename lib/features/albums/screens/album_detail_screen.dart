@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/data/repositories/song_repository.dart';
@@ -13,6 +14,7 @@ import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/providers/navigation_provider.dart';
 
 /// Album detail screen showing songs, album info, and more from the artist.
 class AlbumDetailScreen extends ConsumerStatefulWidget {
@@ -58,6 +60,9 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
     _scrollController.addListener(_onScroll);
     _loadExtras();
     _extractAlbumColor();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(navBarVisibleProvider.notifier).setVisible(true);
+    });
   }
 
   @override
@@ -242,13 +247,17 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
             ? AppColors.surface
             : Color.lerp(_darkBase, _albumColor!, _appBarBlend)!;
         final resolvedBg = animatedBg ?? AppColors.background;
-        return Scaffold(
+        return Stack(
+          children: [
+            Scaffold(
           backgroundColor: resolvedBg,
           body: AdaptiveColorProvider(
             backgroundColor: resolvedBg,
             albumDominantColor: _albumColor,
-            child: CustomScrollView(
-              controller: _scrollController,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (_) => true,
+              child: CustomScrollView(
+                controller: _scrollController,
               slivers: [
                 SliverAppBar(
                   expandedHeight: 280,
@@ -497,8 +506,12 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                   child: SizedBox(height: AppConstants.navBarHeight + 120),
                 ),
               ],
+              ),
+              ),
             ),
-          ),
+            ),
+            const FloatingMiniPlayer(),
+          ],
         );
       },
     );
