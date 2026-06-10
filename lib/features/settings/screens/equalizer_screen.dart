@@ -2000,24 +2000,19 @@ class _GraphicBandSlider extends ConsumerWidget {
                     opacity: enabled ? 1.0 : 0.5,
                     child: RotatedBox(
                       quarterTurns: -1,
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 4,
-                          activeTrackColor: toneColor,
-                          inactiveTrackColor: AppColors.glassBorderStrong,
-                          thumbColor: toneColor,
-                          overlayColor: toneColor.withValues(alpha: 0.12),
-                        ),
-                        child: Slider(
-                          value: gainDb,
-                          min: EqualizerNotifier.gainMinDb,
-                          max: EqualizerNotifier.gainMaxDb,
-                          onChanged: enabled
-                              ? (v) => ref
-                                    .read(equalizerProvider.notifier)
-                                    .setGraphicGainDb(index, v)
-                              : null,
-                        ),
+                      child: _AnimatedSlider(
+                        value: gainDb,
+                        min: EqualizerNotifier.gainMinDb,
+                        max: EqualizerNotifier.gainMaxDb,
+                        activeTrackColor: toneColor,
+                        inactiveTrackColor: AppColors.glassBorderStrong,
+                        thumbColor: toneColor,
+                        overlayColor: toneColor.withValues(alpha: 0.12),
+                        onChanged: enabled
+                            ? (v) => ref
+                                  .read(equalizerProvider.notifier)
+                                  .setGraphicGainDb(index, v)
+                            : null,
                       ),
                     ),
                   ),
@@ -2034,6 +2029,108 @@ class _GraphicBandSlider extends ConsumerWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AnimatedSlider extends StatefulWidget {
+  final double value;
+  final double min;
+  final double max;
+  final ValueChanged<double>? onChanged;
+  final Color? activeTrackColor;
+  final Color? inactiveTrackColor;
+  final Color? thumbColor;
+  final Color? overlayColor;
+
+  const _AnimatedSlider({
+    required this.value,
+    required this.min,
+    required this.max,
+    this.onChanged,
+    this.activeTrackColor,
+    this.inactiveTrackColor,
+    this.thumbColor,
+    this.overlayColor,
+  });
+
+  @override
+  State<_AnimatedSlider> createState() => _AnimatedSliderState();
+}
+
+class _AnimatedSliderState extends State<_AnimatedSlider>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  double _currentValue = 0.0;
+  bool _isDragging = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentValue = widget.value;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _controller.addListener(() {
+      if (mounted) {
+        setState(() => _currentValue = _controller.value);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _animateTo(double target) {
+    _controller
+      ..stop()
+      ..value = _currentValue;
+    _controller.animateTo(
+      target,
+      curve: Curves.easeOutBack,
+      duration: const Duration(milliseconds: 350),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newValue = widget.value;
+    if ((newValue - _currentValue).abs() > 0.001 && !_isDragging) {
+      _animateTo(newValue);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SliderTheme(
+      data: SliderTheme.of(context).copyWith(
+        trackHeight: 4,
+        activeTrackColor: widget.activeTrackColor,
+        inactiveTrackColor: widget.inactiveTrackColor,
+        thumbColor: widget.thumbColor,
+        overlayColor: widget.overlayColor,
+      ),
+      child: Slider(
+        value: _currentValue,
+        min: widget.min,
+        max: widget.max,
+        onChangeStart: (_) {
+          _controller.stop();
+          _isDragging = true;
+        },
+        onChangeEnd: (_) => _isDragging = false,
+        onChanged: widget.onChanged != null
+            ? (v) {
+                setState(() => _currentValue = v);
+                widget.onChanged!(v);
+              }
+            : null,
       ),
     );
   }
