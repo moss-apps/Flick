@@ -14,6 +14,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 
 /// Groups songs by immediate subfolder relative to [prefix] within [folderUri].
@@ -87,6 +88,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(navBarVisibleProvider.notifier).setVisible(true);
       _loadFolders();
     });
     _loadSortOption();
@@ -316,13 +318,15 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
       }
     });
 
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        AppConstants.spacingLg,
-        0,
-        AppConstants.spacingLg,
-        AppConstants.navBarHeight + 120,
-      ),
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) => true,
+      child: GridView.builder(
+        padding: const EdgeInsets.fromLTRB(
+          AppConstants.spacingLg,
+          0,
+          AppConstants.spacingLg,
+          AppConstants.navBarHeight + 120,
+        ),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: context.gridColumns(compact: 2, phone: 2, tablet: 3),
         childAspectRatio: 0.78,
@@ -337,6 +341,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
           onTap: () => _openRootFolder(entry.folder),
         );
       },
+      ),
     );
   }
 }
@@ -641,6 +646,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(navBarVisibleProvider.notifier).setVisible(true);
       _loadSongs();
     });
     _loadSortOption();
@@ -795,22 +801,27 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
         ) +
         songs.length;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, totalCount),
-            Expanded(
-              child: subfolders.isEmpty && songs.isEmpty
-                  ? _buildEmptyState(context)
-                  : _buildContent(context, subfolders, songs),
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context, totalCount),
+                Expanded(
+                  child: subfolders.isEmpty && songs.isEmpty
+                      ? _buildEmptyState(context)
+                      : _buildContent(context, subfolders, songs),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        const FloatingMiniPlayer(),
+      ],
     );
   }
 
@@ -925,9 +936,11 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     List<FolderGroup> subfolders,
     List<Song> songs,
   ) {
-    return ListView(
-      padding: EdgeInsets.only(bottom: AppConstants.navBarHeight + 120),
-      children: [
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) => true,
+      child: ListView(
+        padding: EdgeInsets.only(bottom: AppConstants.navBarHeight + 120),
+        children: [
         if (subfolders.isNotEmpty) ...[
           _buildSubfolderGrid(context, subfolders),
           if (songs.isNotEmpty)
@@ -946,6 +959,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
             ),
           ),
       ],
+      ),
     );
   }
 
