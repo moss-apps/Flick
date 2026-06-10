@@ -8,6 +8,7 @@ class LineSeekBar extends StatefulWidget {
   final Duration duration;
   final ValueChanged<Duration> onChanged;
   final ValueChanged<Duration>? onChangeEnd;
+  final double appearProgress;
 
   const LineSeekBar({
     super.key,
@@ -15,6 +16,7 @@ class LineSeekBar extends StatefulWidget {
     required this.duration,
     required this.onChanged,
     this.onChangeEnd,
+    this.appearProgress = 1.0,
   });
 
   @override
@@ -245,6 +247,7 @@ class _LineSeekBarState extends State<LineSeekBar>
                           trackColor:
                               AppColors.textTertiary.withValues(alpha: 0.2),
                           activeColor: AppColors.accent,
+                          appearProgress: widget.appearProgress,
                         ),
                       );
                     },
@@ -272,6 +275,7 @@ class _LineSeekBarPainter extends CustomPainter {
   final double glowIntensity;
   final Color trackColor;
   final Color activeColor;
+  final double appearProgress;
 
   _LineSeekBarPainter({
     required this.progress,
@@ -280,16 +284,20 @@ class _LineSeekBarPainter extends CustomPainter {
     required this.glowIntensity,
     required this.trackColor,
     required this.activeColor,
+    required this.appearProgress,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final centerY = size.height / 2;
     final lineTop = centerY - lineHeight / 2;
-    final playedWidth = (size.width * progress).clamp(0.0, size.width);
+    final trackWidth = size.width * appearProgress;
+    final playedWidth = (trackWidth * progress).clamp(0.0, trackWidth);
+
+    if (trackWidth <= 0) return;
 
     final trackRRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, lineTop, size.width, lineHeight),
+      Rect.fromLTWH(0, lineTop, trackWidth, lineHeight),
       Radius.circular(lineHeight / 2),
     );
 
@@ -308,7 +316,7 @@ class _LineSeekBarPainter extends CustomPainter {
       canvas.drawRRect(playedRRect, paint);
     }
 
-    final dotX = playedWidth.clamp(0.0, size.width);
+    final dotX = playedWidth.clamp(0.0, trackWidth);
 
     if (glowIntensity > 0) {
       final glowPaint = Paint()..style = PaintingStyle.fill;
@@ -343,6 +351,7 @@ class _LineSeekBarPainter extends CustomPainter {
         oldDelegate.lineHeight != lineHeight ||
         oldDelegate.dotRadius != dotRadius ||
         oldDelegate.glowIntensity != glowIntensity ||
-        oldDelegate.activeColor != activeColor;
+        oldDelegate.activeColor != activeColor ||
+        oldDelegate.appearProgress != appearProgress;
   }
 }
