@@ -232,6 +232,8 @@ class _EqPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppConstants.spacingLg),
+          _BmtKnobsRow(enabled: enabled),
+          const SizedBox(height: AppConstants.spacingLg),
           AnimatedSwitcher(
             duration: AppConstants.animationNormal,
             switchInCurve: Curves.easeOutCubic,
@@ -498,6 +500,9 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
           preampDb: preset.preampDb,
           graphicGainsDb: preset.graphicGainsDb,
           parametricBands: preset.parametricBands,
+          bassDb: preset.bassDb,
+          midDb: preset.midDb,
+          trebleDb: preset.trebleDb,
           compressor: preset.compressor,
           limiter: preset.limiter,
           fx: preset.fx,
@@ -555,6 +560,9 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
             preampDb: preset.preampDb,
             graphicGainsDb: preset.graphicGainsDb,
             parametricBands: preset.parametricBands,
+            bassDb: preset.bassDb,
+            midDb: preset.midDb,
+            trebleDb: preset.trebleDb,
             compressor: preset.compressor,
             limiter: preset.limiter,
             fx: preset.fx,
@@ -1619,6 +1627,118 @@ class _ModeAndActionsRow extends ConsumerWidget {
                   notifier.resetParametric();
                 }
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BmtKnobsRow extends ConsumerWidget {
+  final bool enabled;
+  const _BmtKnobsRow({required this.enabled});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bassDb = ref.watch(eqBassDbProvider);
+    final midDb = ref.watch(eqMidDbProvider);
+    final trebleDb = ref.watch(eqTrebleDbProvider);
+
+    return _GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: AppConstants.spacingMd,
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingMd,
+              ),
+              child: Row(
+                children: [
+                  _IconTile(
+                    icon: LucideIcons.audioWaveform,
+                    enabled: enabled,
+                  ),
+                  const SizedBox(width: AppConstants.spacingMd),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tone Controls',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: context.adaptiveTextPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Bass, Mid & Treble',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.adaptiveTextTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if ((bassDb + midDb + trebleDb).abs() > 0.01)
+                    _ResetButton(
+                      onTap: () {
+                        final notifier = ref.read(equalizerProvider.notifier);
+                        notifier.setBassDb(0.0);
+                        notifier.setMidDb(0.0);
+                        notifier.setTrebleDb(0.0);
+                      },
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacingMd),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _LabeledKnob(
+                  icon: LucideIcons.arrowDown,
+                  label: 'Bass',
+                  valueLabel:
+                      '${bassDb >= 0 ? '+' : ''}${bassDb.toStringAsFixed(1)} dB',
+                  value: bassDb,
+                  min: EqualizerNotifier.gainMinDb,
+                  max: EqualizerNotifier.gainMaxDb,
+                  onChanged: enabled
+                      ? (v) =>
+                          ref.read(equalizerProvider.notifier).setBassDb(v)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.minus,
+                  label: 'Mid',
+                  valueLabel:
+                      '${midDb >= 0 ? '+' : ''}${midDb.toStringAsFixed(1)} dB',
+                  value: midDb,
+                  min: EqualizerNotifier.gainMinDb,
+                  max: EqualizerNotifier.gainMaxDb,
+                  onChanged: enabled
+                      ? (v) =>
+                          ref.read(equalizerProvider.notifier).setMidDb(v)
+                      : null,
+                ),
+                _LabeledKnob(
+                  icon: LucideIcons.arrowUp,
+                  label: 'Treble',
+                  valueLabel:
+                      '${trebleDb >= 0 ? '+' : ''}${trebleDb.toStringAsFixed(1)} dB',
+                  value: trebleDb,
+                  min: EqualizerNotifier.gainMinDb,
+                  max: EqualizerNotifier.gainMaxDb,
+                  onChanged: enabled
+                      ? (v) =>
+                          ref.read(equalizerProvider.notifier).setTrebleDb(v)
+                      : null,
+                ),
+              ],
             ),
           ],
         ),
