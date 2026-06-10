@@ -467,11 +467,36 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                     padding: EdgeInsets.only(
                       bottom: AppConstants.navBarHeight + 80,
                     ),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) {
+                    sliver: SliverReorderableList(
+                      proxyDecorator: (child, index, animation) {
+                        return Material(
+                          elevation: 4,
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(
+                            AppConstants.radiusMd,
+                          ),
+                          child: child,
+                        );
+                      },
+                      onReorder: (oldIndex, newIndex) {
+                        ref.read(playlistsProvider.notifier).reorderSongs(
+                          widget.playlist.id,
+                          oldIndex,
+                          newIndex,
+                        );
+                        setState(() {
+                          var adjustedNew = newIndex;
+                          if (oldIndex < adjustedNew) adjustedNew -= 1;
+                          final item = _songs.removeAt(oldIndex);
+                          _songs.insert(adjustedNew, item);
+                        });
+                      },
+                      itemBuilder: (context, index) {
                         final song = _songs[index];
                         return _SongTile(
+                          key: ValueKey(song.id),
                           song: song,
+                          index: index,
                           onTap: () => _playSong(song),
                           onRemove: () async {
                             await ref
@@ -483,7 +508,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                             _loadSongs();
                           },
                         );
-                      }, childCount: _songs.length),
+                      },
+                      itemCount: _songs.length,
                     ),
                   ),
                 ],
@@ -739,11 +765,14 @@ class _InfoChip extends StatelessWidget {
 
 class _SongTile extends StatelessWidget {
   final Song song;
+  final int? index;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
   const _SongTile({
+    super.key,
     required this.song,
+    this.index,
     required this.onTap,
     required this.onRemove,
   });
@@ -757,10 +786,26 @@ class _SongTile extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppConstants.spacingLg,
-            vertical: AppConstants.spacingSm,
+            vertical: AppConstants.spacingMd,
           ),
           child: Row(
             children: [
+              if (index != null)
+                ReorderableDragStartListener(
+                  index: index!,
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                      right: 8,
+                      top: 8,
+                      bottom: 8,
+                    ),
+                    child: Icon(
+                      LucideIcons.gripVertical,
+                      color: AppColors.textSecondary.withValues(alpha: 0.4),
+                      size: 20,
+                    ),
+                  ),
+                ),
               Container(
                 width: context.scaleSize(AppConstants.containerSizeMd),
                 height: context.scaleSize(AppConstants.containerSizeMd),
