@@ -3932,6 +3932,29 @@ class PlayerService {
     await moveQueueItem(index, 0);
   }
 
+  Future<void> moveUpNextItem(int oldIndex, int newIndex) async {
+    final upNextLength = _playlist.length - _currentIndex - 1;
+    if (oldIndex < 0 ||
+        oldIndex >= upNextLength ||
+        newIndex < 0 ||
+        newIndex >= upNextLength) {
+      return;
+    }
+    if (oldIndex == newIndex) return;
+
+    final playlistOldIndex = _currentIndex + 1 + oldIndex;
+    var playlistNewIndex = _currentIndex + 1 + newIndex;
+    if (playlistOldIndex < playlistNewIndex) playlistNewIndex -= 1;
+
+    final song = _playlist.removeAt(playlistOldIndex);
+    final entryId = _playlistQueueEntryIds.removeAt(playlistOldIndex);
+    _playlist.insert(playlistNewIndex, song);
+    _playlistQueueEntryIds.insert(playlistNewIndex, entryId);
+
+    _notifyUpNextChanged();
+    _debounceQueueChanged();
+  }
+
   // ==================== Playback Speed ====================
 
   Future<void> setPlaybackSpeed(double speed) async {

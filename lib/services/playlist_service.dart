@@ -181,6 +181,34 @@ class PlaylistService {
     return true;
   }
 
+  Future<bool> reorderSongs(
+    String playlistId,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    await _ensureLoaded();
+
+    final index = _playlists.indexWhere((p) => p.id == playlistId);
+    if (index == -1) return false;
+
+    final playlist = _playlists[index];
+    final songIds = List<String>.from(playlist.songIds);
+    var adjustedNew = newIndex;
+    if (oldIndex < adjustedNew) adjustedNew -= 1;
+    final item = songIds.removeAt(oldIndex);
+    songIds.insert(adjustedNew, item);
+
+    final updated = playlist.copyWith(
+      songIds: songIds,
+      updatedAt: DateTime.now(),
+    );
+
+    _playlists[index] = updated;
+    await _savePlaylists();
+
+    return true;
+  }
+
   Future<bool> removeSongFromPlaylist(String playlistId, String songId) async {
     await _ensureLoaded();
 
