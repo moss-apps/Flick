@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -10,6 +11,7 @@ import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/artists/screens/artist_detail_screen.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
 
@@ -33,6 +35,7 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
   bool _isLoading = true;
   bool _isGlanceMinimized = false;
   ArtistSortOption _sortOption = ArtistSortOption.name;
+  bool _visibilitySet = false;
 
   @override
   void initState() {
@@ -178,6 +181,16 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_visibilitySet) {
+      _visibilitySet = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ProviderScope.containerOf(context)
+              .read(navBarVisibleProvider.notifier)
+              .setVisible(true);
+        }
+      });
+    }
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -528,14 +541,16 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
                     ],
                   ),
                 )
-              : ListView.builder(
-                  padding: EdgeInsets.only(
-                    bottom: AppConstants.navBarHeight + 120,
-                  ),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final entry = filtered[index];
-                    return _ArtistCard(
+              : NotificationListener<ScrollNotification>(
+                  onNotification: (_) => true,
+                  child: ListView.builder(
+                    padding: EdgeInsets.only(
+                      bottom: AppConstants.navBarHeight + 120,
+                    ),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final entry = filtered[index];
+                      return _ArtistCard(
                       artistName: entry.key,
                       songs: entry.value,
                       artistArt: _getArtistArt(entry.value),
@@ -544,6 +559,7 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
                       onTap: () => _openArtistDetail(entry.key, entry.value),
                     );
                   },
+                  ),
                 ),
         ),
       ],
