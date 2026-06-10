@@ -14,9 +14,14 @@ Future<void> applyEqualizer(EqualizerState state) async {
 
   final useGraphic = state.mode == EqMode.graphic;
   final gains = _applyPreamp(
-    gains: useGraphic
-        ? state.graphicGainsDb
-        : _parametricToGraphicGains(state.parametricBands),
+    gains: _applyBmt(
+      gains: useGraphic
+          ? state.graphicGainsDb
+          : _parametricToGraphicGains(state.parametricBands),
+      bassDb: state.bassDb,
+      midDb: state.midDb,
+      trebleDb: state.trebleDb,
+    ),
     preampDb: state.preampDb,
   );
 
@@ -153,6 +158,35 @@ List<double> _applyPreamp({
   return List<double>.generate(
     gains.length,
     (index) => gains[index] + preampDb,
+    growable: false,
+  );
+}
+
+List<double> _applyBmt({
+  required List<double> gains,
+  required double bassDb,
+  required double midDb,
+  required double trebleDb,
+}) {
+  if (bassDb == 0.0 && midDb == 0.0 && trebleDb == 0.0) {
+    return List<double>.of(gains, growable: false);
+  }
+  // Bass: indices 0-3 (32, 64, 125, 250 Hz)
+  // Mid: indices 4-7 (500, 1k, 2k, 4k Hz)
+  // Treble: indices 8-9 (8k, 16k Hz)
+  return List<double>.generate(
+    gains.length,
+    (index) {
+      var gain = gains[index];
+      if (index <= 3) {
+        gain += bassDb;
+      } else if (index <= 7) {
+        gain += midDb;
+      } else {
+        gain += trebleDb;
+      }
+      return gain.clamp(-12.0, 12.0).toDouble();
+    },
     growable: false,
   );
 }
