@@ -7,6 +7,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
+import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/models/playlist.dart';
@@ -16,6 +17,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/providers/playlist_provider.dart';
+import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
@@ -51,6 +53,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     super.initState();
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(navBarVisibleProvider.notifier).setVisible(true);
       _loadSongs();
     });
   }
@@ -243,13 +246,17 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             ? AppColors.surface
             : Color.lerp(_darkBase, _playlistColor!, _appBarBlend)!;
         final resolvedBg = animatedBg ?? AppColors.background;
-        return Scaffold(
+        return Stack(
+          children: [
+            Scaffold(
           backgroundColor: resolvedBg,
           body: AdaptiveColorProvider(
             backgroundColor: resolvedBg,
             albumDominantColor: _playlistColor,
-            child: CustomScrollView(
-              controller: _scrollController,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (_) => true,
+              child: CustomScrollView(
+                controller: _scrollController,
               slivers: [
                 SliverAppBar(
                   expandedHeight: 280,
@@ -542,8 +549,12 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                   ),
                 ],
               ],
+              ),
+              ),
             ),
-          ),
+            ),
+            const FloatingMiniPlayer(),
+          ],
         );
       },
     );
