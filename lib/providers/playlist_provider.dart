@@ -113,6 +113,19 @@ class PlaylistsNotifier extends AsyncNotifier<PlaylistsState> {
     return success;
   }
 
+  Future<void> reorderSongs(
+    String playlistId,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    final service = ref.read(playlistServiceProvider);
+    final success = await service.reorderSongs(playlistId, oldIndex, newIndex);
+
+    if (success && ref.mounted) {
+      ref.invalidateSelf();
+    }
+  }
+
   Future<bool> removeSongFromPlaylist(String playlistId, String songId) async {
     final service = ref.read(playlistServiceProvider);
     final success = await service.removeSongFromPlaylist(playlistId, songId);
