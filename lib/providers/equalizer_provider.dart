@@ -384,6 +384,10 @@ class EqualizerState {
   /// Active preset name (optional display).
   final String? activePresetName;
 
+  final double bassDb;
+  final double midDb;
+  final double trebleDb;
+
   final CompressorSettings compressor;
   final LimiterSettings limiter;
   final FxSettings fx;
@@ -395,6 +399,9 @@ class EqualizerState {
     required this.graphicGainsDb,
     required this.parametricBands,
     this.activePresetName,
+    this.bassDb = 0.0,
+    this.midDb = 0.0,
+    this.trebleDb = 0.0,
     this.compressor = const CompressorSettings(),
     this.limiter = const LimiterSettings(),
     this.fx = const FxSettings(),
@@ -407,6 +414,9 @@ class EqualizerState {
     List<double>? graphicGainsDb,
     List<ParametricBand>? parametricBands,
     String? activePresetName,
+    double? bassDb,
+    double? midDb,
+    double? trebleDb,
     CompressorSettings? compressor,
     LimiterSettings? limiter,
     FxSettings? fx,
@@ -421,6 +431,9 @@ class EqualizerState {
       activePresetName: clearActivePresetName
           ? null
           : (activePresetName ?? this.activePresetName),
+      bassDb: bassDb ?? this.bassDb,
+      midDb: midDb ?? this.midDb,
+      trebleDb: trebleDb ?? this.trebleDb,
       compressor: compressor ?? this.compressor,
       limiter: limiter ?? this.limiter,
       fx: fx ?? this.fx,
@@ -473,6 +486,9 @@ class EqualizerState {
     'graphicGainsDb': graphicGainsDb,
     'parametricBands': parametricBands.map((b) => b.toJson()).toList(),
     'activePresetName': activePresetName,
+    'bassDb': bassDb,
+    'midDb': midDb,
+    'trebleDb': trebleDb,
     'compressor': compressor.toJson(),
     'limiter': limiter.toJson(),
     'fx': fx.toJson(),
@@ -515,6 +531,9 @@ class EqualizerState {
             )
           : bands,
       activePresetName: json['activePresetName'] as String?,
+      bassDb: (json['bassDb'] as num?)?.toDouble() ?? 0.0,
+      midDb: (json['midDb'] as num?)?.toDouble() ?? 0.0,
+      trebleDb: (json['trebleDb'] as num?)?.toDouble() ?? 0.0,
       compressor: compJson != null
           ? CompressorSettings.fromJson(compJson)
           : const CompressorSettings(),
@@ -647,6 +666,30 @@ class EqualizerNotifier extends Notifier<EqualizerState> {
     final clamped = value.clamp(preampMinDb, preampMaxDb).toDouble();
     if (state.preampDb == clamped) return;
     state = state.copyWith(preampDb: clamped, clearActivePresetName: true);
+    ref.read(eqGraphRepaintControllerProvider).bump();
+    _syncToAudio();
+  }
+
+  void setBassDb(double value) {
+    final clamped = value.clamp(gainMinDb, gainMaxDb).toDouble();
+    if (state.bassDb == clamped) return;
+    state = state.copyWith(bassDb: clamped, clearActivePresetName: true);
+    ref.read(eqGraphRepaintControllerProvider).bump();
+    _syncToAudio();
+  }
+
+  void setMidDb(double value) {
+    final clamped = value.clamp(gainMinDb, gainMaxDb).toDouble();
+    if (state.midDb == clamped) return;
+    state = state.copyWith(midDb: clamped, clearActivePresetName: true);
+    ref.read(eqGraphRepaintControllerProvider).bump();
+    _syncToAudio();
+  }
+
+  void setTrebleDb(double value) {
+    final clamped = value.clamp(gainMinDb, gainMaxDb).toDouble();
+    if (state.trebleDb == clamped) return;
+    state = state.copyWith(trebleDb: clamped, clearActivePresetName: true);
     ref.read(eqGraphRepaintControllerProvider).bump();
     _syncToAudio();
   }
@@ -971,6 +1014,9 @@ class EqualizerNotifier extends Notifier<EqualizerState> {
     double preampDb = 0.0,
     required List<double> graphicGainsDb,
     required List<ParametricBand> parametricBands,
+    double bassDb = 0.0,
+    double midDb = 0.0,
+    double trebleDb = 0.0,
     CompressorSettings compressor = const CompressorSettings(),
     LimiterSettings limiter = const LimiterSettings(),
     FxSettings fx = const FxSettings(),
@@ -985,6 +1031,9 @@ class EqualizerNotifier extends Notifier<EqualizerState> {
         growable: false,
       ),
       activePresetName: presetName,
+      bassDb: bassDb.clamp(gainMinDb, gainMaxDb).toDouble(),
+      midDb: midDb.clamp(gainMinDb, gainMaxDb).toDouble(),
+      trebleDb: trebleDb.clamp(gainMinDb, gainMaxDb).toDouble(),
       compressor: compressor,
       limiter: limiter,
       fx: fx,
@@ -1016,6 +1065,18 @@ final eqActivePresetNameProvider = Provider<String?>((ref) {
 
 final eqPreampDbProvider = Provider<double>((ref) {
   return ref.watch(equalizerProvider.select((s) => s.preampDb));
+});
+
+final eqBassDbProvider = Provider<double>((ref) {
+  return ref.watch(equalizerProvider.select((s) => s.bassDb));
+});
+
+final eqMidDbProvider = Provider<double>((ref) {
+  return ref.watch(equalizerProvider.select((s) => s.midDb));
+});
+
+final eqTrebleDbProvider = Provider<double>((ref) {
+  return ref.watch(equalizerProvider.select((s) => s.trebleDb));
 });
 
 final eqGraphicGainDbProvider = Provider.family<double, int>((ref, index) {
