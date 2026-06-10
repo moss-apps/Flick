@@ -6,9 +6,9 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/playlist.dart';
-import 'package:flick/models/song.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
+import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
 
@@ -17,6 +17,9 @@ class PlaylistsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(navBarVisibleProvider.notifier).setVisible(true);
+    });
     final playlistsAsync = ref.watch(playlistsProvider);
 
     return Scaffold(
@@ -265,9 +268,11 @@ class PlaylistsScreen extends ConsumerWidget {
     WidgetRef ref,
     List<Playlist> playlists,
   ) {
-    return ListView.builder(
-      padding: EdgeInsets.only(bottom: AppConstants.navBarHeight + 120),
-      itemCount: playlists.length,
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) => true,
+      child: ListView.builder(
+        padding: EdgeInsets.only(bottom: AppConstants.navBarHeight + 120),
+        itemCount: playlists.length,
       itemBuilder: (context, index) {
         final playlist = playlists[index];
         return _PlaylistCard(
@@ -294,6 +299,7 @@ class PlaylistsScreen extends ConsumerWidget {
               _exportPlaylist(context, ref, playlist, utf8: true),
         );
       },
+      ),
     );
   }
 
