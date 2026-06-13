@@ -57,8 +57,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final autoFocus = ref.watch(appPreferencesProvider).autoFocusSearch;
+
     ref.listen(navigationIndexProvider, (prev, next) {
-      if (next == NavBarButton.search.pageIndex) {
+      if (next == NavBarButton.search.pageIndex && autoFocus) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _focusNode.requestFocus();
         });
@@ -122,6 +124,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     vertical: 14,
                   ),
                 ),
+                autofocus: autoFocus,
                 textInputAction: TextInputAction.search,
               ),
             ),
