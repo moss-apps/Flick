@@ -61,6 +61,18 @@ class InterfaceSettingsScreen extends ConsumerWidget {
                 },
               ),
               const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.keyboard,
+                title: 'Auto-Focus Search',
+                subtitle: 'Automatically open keyboard when switching to search',
+                value: appPreferences.autoFocusSearch,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setAutoFocusSearch(value);
+                },
+              ),
+              const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.navigation,
                 title: 'Bottom Bar',
