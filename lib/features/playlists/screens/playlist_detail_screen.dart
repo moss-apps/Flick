@@ -9,6 +9,7 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/models/playback_context.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/models/playlist.dart';
 import 'package:flick/services/album_art_service.dart';
@@ -197,9 +198,15 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     return Color.lerp(_darkBase, _playlistColor!, blend)!;
   }
 
+  PlaybackContext get _playlistContext => PlaybackContext(
+    source: PlaybackSource.playlist,
+    sourceId: widget.playlist.id,
+    sourceName: widget.playlist.name,
+  );
+
   void _playSong(Song song) {
     if (_songs.isEmpty) return;
-    _playerService.play(song, playlist: _songs);
+    _playerService.play(song, playlist: _songs, context: _playlistContext);
     NavigationHelper.navigateToFullPlayer(
       context,
       heroTag: 'playlist_song_${song.id}',
@@ -208,14 +215,14 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
 
   void _playAll() {
     if (_songs.isEmpty) return;
-    _playerService.play(_songs.first, playlist: _songs);
+    _playerService.play(_songs.first, playlist: _songs, context: _playlistContext);
     NavigationHelper.navigateToFullPlayer(context, heroTag: 'playlist_play_all');
   }
 
   void _shuffleAll() {
     if (_songs.isEmpty) return;
     final shuffled = List<Song>.from(_songs)..shuffle();
-    _playerService.play(shuffled.first, playlist: shuffled);
+    _playerService.play(shuffled.first, playlist: shuffled, context: _playlistContext);
     NavigationHelper.navigateToFullPlayer(context, heroTag: 'playlist_shuffle');
   }
 
