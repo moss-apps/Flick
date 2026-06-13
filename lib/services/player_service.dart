@@ -665,6 +665,19 @@ class PlayerService {
     await _floatingPlayerService.hide();
   }
 
+  Future<void> onAppPaused() async {
+    if (!Platform.isAndroid) return;
+    final enabled = await _appPreferencesService.getFloatingPlayerEnabled();
+    if (!enabled) return;
+    if (_floatingPlayerActive) return;
+    await _activateFloatingPlayer();
+  }
+
+  Future<void> onAppResumed() async {
+    if (!_floatingPlayerActive) return;
+    await _deactivateFloatingPlayer();
+  }
+
   bool get _isGaplessActive =>
       _usingRustBackend &&
       gaplessPlaybackEnabledNotifier.value &&
