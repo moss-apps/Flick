@@ -3,9 +3,12 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/utils/responsive.dart';
+import 'package:flick/models/shuffle_mode.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/favorites_service.dart';
+import 'package:flick/features/player/widgets/shuffle_mode_sheet.dart';
+import 'package:flick/features/player/widgets/loop_mode_sheet.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 
 class CompactPlayerInfoLayout extends StatefulWidget {
@@ -172,19 +175,39 @@ class _CompactPlayerInfoLayoutState extends State<CompactPlayerInfoLayout> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ValueListenableBuilder<bool>(
-                valueListenable: widget.playerService.isShuffleNotifier,
-                builder: (context, isShuffle, _) {
-                  return IconButton(
-                    onPressed: () => widget.playerService.toggleShuffle(),
-                    padding: EdgeInsets.all(context.responsive(6.0, 8.0, 10.0)),
-                    constraints: const BoxConstraints(),
-                    icon: Icon(
-                      LucideIcons.shuffle,
-                      color: isShuffle
-                          ? context.adaptiveAccent
-                          : context.adaptiveTextTertiary,
-                      size: context.responsive(18.0, 20.0, 22.0),
+              ValueListenableBuilder<ShuffleMode>(
+                valueListenable: widget.playerService.shuffleModeNotifier,
+                builder: (context, shuffleMode, _) {
+                  final isActive = shuffleMode.isActive;
+                  final icon = switch (shuffleMode) {
+                    ShuffleMode.categories => LucideIcons.layers,
+                    ShuffleMode.random => LucideIcons.dices,
+                    _ => LucideIcons.shuffle,
+                  };
+                  return GestureDetector(
+                    onTap: () {
+                      widget.playerService.toggleShuffle();
+                      final next = widget.playerService.shuffleModeNotifier.value;
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(SnackBar(
+                          content: Text('Shuffle: ${next.label}'),
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 1),
+                        ));
+                    },
+                    onLongPress: () {
+                      ShuffleModeSheet.show(context, widget.playerService);
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.all(context.responsive(6.0, 8.0, 10.0)),
+                      child: Icon(
+                        icon,
+                        color: isActive
+                            ? context.adaptiveAccent
+                            : context.adaptiveTextTertiary,
+                        size: context.responsive(18.0, 20.0, 22.0),
+                      ),
                     ),
                   );
                 },
@@ -193,42 +216,52 @@ class _CompactPlayerInfoLayoutState extends State<CompactPlayerInfoLayout> {
               ValueListenableBuilder<LoopMode>(
                 valueListenable: widget.playerService.loopModeNotifier,
                 builder: (context, loopMode, _) {
-                  IconData icon = LucideIcons.repeat;
-                  Color color = context.adaptiveTextTertiary;
-                  if (loopMode == LoopMode.all) {
-                    color = context.adaptiveAccent;
-                  }
-                  if (loopMode == LoopMode.one) {
-                    icon = LucideIcons.repeat1;
-                    color = context.adaptiveAccent;
-                  }
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: [
-                      IconButton(
-                        onPressed: () => widget.playerService.toggleLoopMode(),
-                        padding: EdgeInsets.all(context.responsive(6.0, 8.0, 10.0)),
-                        constraints: const BoxConstraints(),
-                        icon: Icon(
-                          icon,
-                          color: color,
-                          size: context.responsive(18.0, 20.0, 22.0),
-                        ),
-                      ),
-                      if (loopMode == LoopMode.all)
-                        Positioned(
-                          bottom: 2,
-                          child: Container(
-                            width: 4,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: context.adaptiveAccent,
-                              shape: BoxShape.circle,
-                            ),
+                  final icon = LoopModeSheet.iconFor(loopMode);
+                  final isActive = loopMode != LoopMode.off;
+                  final color = isActive
+                      ? context.adaptiveAccent
+                      : context.adaptiveTextTertiary;
+                  return GestureDetector(
+                    onTap: () {
+                      widget.playerService.toggleLoopMode();
+                      final next = widget.playerService.loopModeNotifier.value;
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(SnackBar(
+                          content: Text('Repeat: ${next.label}'),
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 1),
+                        ));
+                    },
+                    onLongPress: () {
+                      LoopModeSheet.show(context, widget.playerService);
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.all(context.responsive(6.0, 8.0, 10.0)),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            icon,
+                            color: color,
+                            size: context.responsive(18.0, 20.0, 22.0),
                           ),
-                        ),
-                    ],
+                          if (loopMode == LoopMode.all)
+                            Positioned(
+                              bottom: -4,
+                              child: Container(
+                                width: 4,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: context.adaptiveAccent,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
