@@ -1033,13 +1033,19 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     );
   }
 
+  PlaybackContext get _folderContext => PlaybackContext(
+    source: PlaybackSource.folder,
+    sourceId: widget.folderUri,
+    sourceName: widget.displayName,
+  );
+
   Future<void> _playSong(
     Song song,
     List<Song> directSongs,
     List<FolderGroup> subfolders,
   ) async {
     final playlist = _buildPlaylist(directSongs, subfolders);
-    await ref.read(playerProvider.notifier).play(song, playlist: playlist);
+    await ref.read(playerProvider.notifier).play(song, playlist: playlist, context: _folderContext);
     if (mounted) {
       await NavigationHelper.navigateToFullPlayer(
         context,
@@ -1070,6 +1076,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     await ref.read(playerProvider.notifier).play(
           shuffled.first,
           playlist: shuffled,
+          context: _folderContext,
         );
     if (mounted) {
       await NavigationHelper.navigateToFullPlayer(
