@@ -52,6 +52,7 @@ class AppPreferences {
   final int bottomBarAutoCollapseSeconds;
   final bool keepPlayingOnQuit;
   final bool floatingPlayerEnabled;
+  final bool autoFocusSearch;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -105,6 +106,7 @@ class AppPreferences {
     this.bottomBarAutoCollapseSeconds = 5,
     this.keepPlayingOnQuit = false,
     this.floatingPlayerEnabled = false,
+    this.autoFocusSearch = false,
   });
 
   AppPreferences copyWith({
@@ -159,6 +161,7 @@ class AppPreferences {
     int? bottomBarAutoCollapseSeconds,
     bool? keepPlayingOnQuit,
     bool? floatingPlayerEnabled,
+    bool? autoFocusSearch,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -233,6 +236,7 @@ class AppPreferences {
       keepPlayingOnQuit: keepPlayingOnQuit ?? this.keepPlayingOnQuit,
       floatingPlayerEnabled:
           floatingPlayerEnabled ?? this.floatingPlayerEnabled,
+      autoFocusSearch: autoFocusSearch ?? this.autoFocusSearch,
     );
   }
 }
@@ -292,6 +296,7 @@ class AppPreferencesService {
       'bottom_bar_auto_collapse_seconds';
   static const _keepPlayingOnQuitKey = 'app_keep_playing_on_quit';
   static const _floatingPlayerEnabledKey = 'app_floating_player_enabled';
+  static const _autoFocusSearchKey = 'app_auto_focus_search';
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
@@ -368,6 +373,7 @@ class AppPreferencesService {
       keepPlayingOnQuit: prefs.getBool(_keepPlayingOnQuitKey) ?? false,
       floatingPlayerEnabled:
           prefs.getBool(_floatingPlayerEnabledKey) ?? false,
+      autoFocusSearch: prefs.getBool(_autoFocusSearchKey) ?? false,
     );
   }
 
@@ -863,5 +869,15 @@ class AppPreferencesService {
   Future<void> setFloatingPlayerEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_floatingPlayerEnabledKey, value);
+  }
+
+  Future<bool> getAutoFocusSearch() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_autoFocusSearchKey) ?? false;
+  }
+
+  Future<void> setAutoFocusSearch(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_autoFocusSearchKey, value);
   }
 }
