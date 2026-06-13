@@ -62,14 +62,28 @@ enum LoopMode {
   off,
   one,
   all,
-  advanceList,
+  advanceAlbum,
+  advanceArtist,
+  advanceFolder,
+  advancePlaylist,
   stopAfterCurrent;
+
+  bool get isAdvanceMode => switch (this) {
+    LoopMode.advanceAlbum ||
+    LoopMode.advanceArtist ||
+    LoopMode.advanceFolder ||
+    LoopMode.advancePlaylist => true,
+    _ => false,
+  };
 
   String get label => switch (this) {
     LoopMode.off => 'Off',
     LoopMode.one => 'Repeat One',
     LoopMode.all => 'Repeat All',
-    LoopMode.advanceList => 'Advance List',
+    LoopMode.advanceAlbum => 'Advance Album',
+    LoopMode.advanceArtist => 'Advance Artist',
+    LoopMode.advanceFolder => 'Advance Folder',
+    LoopMode.advancePlaylist => 'Advance Playlist',
     LoopMode.stopAfterCurrent => 'Stop After Current',
   };
 
@@ -77,7 +91,10 @@ enum LoopMode {
     LoopMode.off => 'Play list once, stop at end',
     LoopMode.one => 'Repeat current track',
     LoopMode.all => 'Repeat entire list',
-    LoopMode.advanceList => 'Play next album/folder/playlist when done',
+    LoopMode.advanceAlbum => 'Play next album when done',
+    LoopMode.advanceArtist => 'Play next artist when done',
+    LoopMode.advanceFolder => 'Play next folder when done',
+    LoopMode.advancePlaylist => 'Play next playlist when done',
     LoopMode.stopAfterCurrent => 'Stop after current song finishes',
   };
 }
@@ -210,7 +227,7 @@ bool shouldHandleManualCompletion({
   }
 
   return loopMode == LoopMode.off ||
-      loopMode == LoopMode.advanceList ||
+      loopMode.isAdvanceMode ||
       loopMode == LoopMode.stopAfterCurrent;
 }
 
@@ -2111,8 +2128,8 @@ class PlayerService {
       return;
     } else if (loopModeNotifier.value == LoopMode.all) {
       _setCurrentIndex(0);
-    } else if (loopModeNotifier.value == LoopMode.advanceList) {
-      await _advanceToNextCategory();
+    } else if (loopModeNotifier.value.isAdvanceMode) {
+      await _advanceForMode(loopModeNotifier.value);
       return;
     } else {
       await _pauseInternal();
@@ -3585,9 +3602,9 @@ class PlayerService {
       return;
     }
 
-    if (loopModeNotifier.value == LoopMode.advanceList) {
-      debugPrint('next(): LoopMode.advanceList, advancing to next category');
-      await _advanceToNextCategory();
+    if (loopModeNotifier.value.isAdvanceMode) {
+      debugPrint('next(): ${loopModeNotifier.value}, advancing to next category');
+      await _advanceForMode(loopModeNotifier.value);
       return;
     }
 
@@ -3670,7 +3687,10 @@ class PlayerService {
 
     switch (loopModeNotifier.value) {
       case LoopMode.off:
-      case LoopMode.advanceList:
+      case LoopMode.advanceAlbum:
+      case LoopMode.advanceArtist:
+      case LoopMode.advanceFolder:
+      case LoopMode.advancePlaylist:
       case LoopMode.stopAfterCurrent:
         await player.setLoopMode(just_audio.LoopMode.off);
         break;
@@ -4374,44 +4394,40 @@ class PlayerService {
     unawaited(_appPreferencesService.setAdvanceListOrder(order.index));
   }
 
-  Future<void> _advanceToNextCategory() async {
-    final ctx = _playbackContext;
-    if (ctx.source == PlaybackSource.unknown || ctx.source == PlaybackSource.allSongs) {
-      debugPrint('_advanceToNextCategory: no category context, pausing');
+  Future<void> _advanceForMode(LoopMode mode) async {
+    final song = currentSongNotifier.value;
+    if (song == null) {
       await _pauseInternal();
       await seek(Duration.zero);
       return;
     }
 
     try {
-      final nextSongs = await _getNextCategorySongs(ctx);
+      final List<Song>? nextSongs;
+      switch (mode) {
+        case LoopMode.advanceAlbum:
+          nextSongs = await _getNextAlbumSongs(song.album);
+        case LoopMode.advanceArtist:
+          nextSongs = await _getNextArtistSongs(song.artist);
+        case LoopMode.advanceFolder:
+          nextSongs = await _getNextFolderSongs(song.folderUri);
+        case LoopMode.advancePlaylist:
+          nextSongs = await _getNextPlaylistSongs(_playbackContext.sourceId);
+        default:
+          nextSongs = null;
+      }
+
       if (nextSongs == null || nextSongs.isEmpty) {
-        debugPrint('_advanceToNextCategory: no next category found, pausing');
+        debugPrint('_advanceForMode($mode): no next category found, pausing');
         await _pauseInternal();
         await seek(Duration.zero);
         return;
       }
       await play(nextSongs.first, playlist: nextSongs);
     } catch (e) {
-      debugPrint('_advanceToNextCategory: error: $e');
+      debugPrint('_advanceForMode($mode): error: $e');
       await _pauseInternal();
       await seek(Duration.zero);
-    }
-  }
-
-  Future<List<Song>?> _getNextCategorySongs(PlaybackContext ctx) async {
-    switch (ctx.source) {
-      case PlaybackSource.album:
-        return _getNextAlbumSongs(ctx.sourceId);
-      case PlaybackSource.artist:
-        return _getNextArtistSongs(ctx.sourceId);
-      case PlaybackSource.folder:
-        return _getNextFolderSongs(ctx.sourceId);
-      case PlaybackSource.playlist:
-        return _getNextPlaylistSongs(ctx.sourceId);
-      case PlaybackSource.allSongs:
-      case PlaybackSource.unknown:
-        return null;
     }
   }
 
