@@ -14,6 +14,7 @@ import 'package:flick/models/shuffle_mode.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/services/notification_service.dart';
+import 'package:flick/services/floating_player_service.dart';
 import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/services/audio_engine_manager.dart';
 import 'package:flick/services/audio_session_manager.dart';
@@ -286,6 +287,8 @@ class PlayerService {
   just_audio.AudioPlayer? _justAudioPlayer;
 
   final NotificationService _notificationService = NotificationService();
+  final FloatingPlayerService _floatingPlayerService = FloatingPlayerService();
+  bool _floatingPlayerActive = false;
   final LastPlayedService _lastPlayedService = LastPlayedService();
   final FavoritesService _favoritesService = FavoritesService();
   final Uac2PreferencesService _preferencesService = Uac2PreferencesService();
@@ -519,6 +522,7 @@ class PlayerService {
     _notifyQueueChanged();
     unawaited(_loadGaplessPlaybackPreference());
     unawaited(_loadCrossfadePreferences());
+    unawaited(_loadFloatingPlayerPreference());
   }
 
   Future<void> _loadCrossfadePreferences() async {
@@ -609,6 +613,56 @@ class PlayerService {
   Future<void> setGaplessPlaybackEnabled(bool enabled) async {
     gaplessPlaybackEnabledNotifier.value = enabled;
     await _preferencesService.setGaplessPlaybackEnabled(enabled);
+  }
+
+  Future<void> _loadFloatingPlayerPreference() async {
+    final enabled = await _appPreferencesService.getFloatingPlayerEnabled();
+    if (enabled) {
+      await _activateFloatingPlayer();
+    }
+  }
+
+  /// Activates the floating overlay. Returns `true` if the overlay could be
+  /// shown (Android + overlay permission granted), `false` if permission is
+  /// still required — in which case [requestFloatingPlayerPermission] should
+  /// be called first.
+  Future<bool> setFloatingPlayerEnabled(bool enabled) async {
+    if (enabled) {
+      return _activateFloatingPlayer();
+    }
+    await _deactivateFloatingPlayer();
+    return true;
+  }
+
+  Future<bool> requestFloatingPlayerPermission() async {
+    return _floatingPlayerService.requestPermission();
+  }
+
+  Future<bool> canShowFloatingPlayer() async {
+    if (!Platform.isAndroid) return false;
+    return _floatingPlayerService.canDrawOverlays();
+  }
+
+  Future<bool> _activateFloatingPlayer() async {
+    if (!Platform.isAndroid) return false;
+    final canDraw = await _floatingPlayerService.canDrawOverlays();
+    if (!canDraw) return false;
+    _floatingPlayerActive = true;
+    final song = currentSongNotifier.value;
+    if (song != null) {
+      await _floatingPlayerService.show(
+        song: song,
+        isPlaying: isPlayingNotifier.value,
+        duration: durationNotifier.value,
+        position: positionNotifier.value,
+      );
+    }
+    return true;
+  }
+
+  Future<void> _deactivateFloatingPlayer() async {
+    _floatingPlayerActive = false;
+    await _floatingPlayerService.hide();
   }
 
   bool get _isGaplessActive =>
@@ -2099,6 +2153,15 @@ class PlayerService {
       isFavorite: isFav,
       color: notificationColor,
     );
+
+    if (_floatingPlayerActive && Platform.isAndroid) {
+      await _floatingPlayerService.show(
+        song: song,
+        isPlaying: isPlayingNotifier.value,
+        duration: durationNotifier.value,
+        position: positionNotifier.value,
+      );
+    }
   }
 
   Future<void> _onSongFinished({String? endedPath}) {
@@ -4359,6 +4422,7 @@ class PlayerService {
     unawaited(_audioFocusSubscription?.cancel());
     cancelSleepTimer();
     _notificationService.hideNotification();
+    _floatingPlayerService.hide();
     if (_usingRustBackend) {
       if (Uac2PreferencesService.isKillIsochronousUsbOnQuitSync) {
         unawaited(_rustAudioService.stop());
