@@ -86,6 +86,7 @@ class MainActivity: FlutterActivity() {
     private val VISUALIZER_METHOD_CHANNEL = "com.mossapps.flick/visualizer"
     private val VISUALIZER_EVENT_CHANNEL = "com.mossapps.flick/visualizer_events"
     private val WIDGET_CHANNEL = "com.mossapps.flick/widget"
+    private val OVERLAY_CHANNEL = "com.mossapps.flick/overlay"
     private val LOCKER_PACKAGE = "com.mossapps.locker"
     private val LOCKER_RETURN_URI = "locker://return?source=flick"
     // private val CONVERTER_CHANNEL = "com.mossapps.flick/converter"
@@ -93,12 +94,14 @@ class MainActivity: FlutterActivity() {
     private val REQUEST_OPEN_DOCUMENT = 1003
     private val REQUEST_CREATE_DOCUMENT = 1004
     private val REQUEST_USB_PERMISSION = 1002
+    private val REQUEST_OVERLAY_PERMISSION = 1005
 
     private var pendingDocumentTreeResult: MethodChannel.Result? = null
     private var pendingOpenDocumentResult: MethodChannel.Result? = null
     private var pendingCreateDocumentResult: MethodChannel.Result? = null
     private var pendingUac2PermissionResult: MethodChannel.Result? = null
     private var pendingUac2PermissionCallback: ((Boolean) -> Unit)? = null
+    private var pendingOverlayPermissionResult: MethodChannel.Result? = null
     private var usbPermissionReceiver: BroadcastReceiver? = null
     private var usbHotplugReceiver: BroadcastReceiver? = null
     private val promptedUsbPermissionDeviceNames = mutableSetOf<String>()
@@ -658,6 +661,49 @@ class MainActivity: FlutterActivity() {
             }
         }
 
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            OVERLAY_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "canDrawOverlays" -> {
+                    result.success(Settings.canDrawOverlays(this))
+                }
+                "requestOverlayPermission" -> {
+                    pendingOverlayPermissionResult = result
+                    try {
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            android.net.Uri.parse("package:$packageName"),
+                        )
+                        startActivityForResult(intent, REQUEST_OVERLAY_PERMISSION)
+                    } catch (e: Exception) {
+                        pendingOverlayPermissionResult = null
+                        result.success(false)
+                    }
+                }
+                "showFloatingPlayer" -> {
+                    val intent = Intent(this, MusicNotificationService::class.java).apply {
+                        putExtra("floating", "show")
+                        call.argument<String>("title")?.let { putExtra("title", it) }
+                        call.argument<String>("artist")?.let { putExtra("artist", it) }
+                        call.argument<String>("albumArtPath")?.let { putExtra("albumArtPath", it) }
+                        call.argument<Boolean>("isPlaying")?.let { putExtra("isPlaying", it) }
+                    }
+                    startService(intent)
+                    result.success(null)
+                }
+                "hideFloatingPlayer" -> {
+                    startService(
+                        Intent(this, MusicNotificationService::class.java)
+                            .putExtra("floating", "hide")
+                    )
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         integrationChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             INTEGRATION_CHANNEL,
@@ -993,6 +1039,9 @@ class MainActivity: FlutterActivity() {
                 pendingCreateDocumentResult?.success(null)
             }
             pendingCreateDocumentResult = null
+        } else if (requestCode == REQUEST_OVERLAY_PERMISSION) {
+            pendingOverlayPermissionResult?.success(Settings.canDrawOverlays(this))
+            pendingOverlayPermissionResult = null
         }
     }
 
