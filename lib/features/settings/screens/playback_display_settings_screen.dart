@@ -40,6 +40,21 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
                       .setKeepPlayingOnQuit(value);
                 },
               ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.pictureInPicture2,
+                title: 'Floating Mini-Player',
+                subtitle: appPrefs.floatingPlayerEnabled
+                    ? 'A draggable overlay shows while using other apps'
+                    : 'Show a system overlay mini-player over other apps',
+                value: appPrefs.floatingPlayerEnabled,
+                onChanged: (value) => _onFloatingPlayerToggled(
+                  context,
+                  ref,
+                  playerService,
+                  value,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
@@ -172,5 +187,35 @@ class _GaplessPlaybackTile extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+Future<void> _onFloatingPlayerToggled(
+  BuildContext context,
+  WidgetRef ref,
+  PlayerService playerService,
+  bool value,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  if (value) {
+    final canShow = await playerService.canShowFloatingPlayer();
+    if (!canShow) {
+      final granted = await playerService.requestFloatingPlayerPermission();
+      if (!granted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Overlay permission is required to show the floating player',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+    await playerService.setFloatingPlayerEnabled(true);
+    ref.read(appPreferencesProvider.notifier).setFloatingPlayerEnabled(true);
+  } else {
+    await playerService.setFloatingPlayerEnabled(false);
+    ref.read(appPreferencesProvider.notifier).setFloatingPlayerEnabled(false);
   }
 }
