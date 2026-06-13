@@ -1345,7 +1345,6 @@ class LibraryScannerService {
       if (_isCancelled) break;
       running++;
 
-      // Capture in closures, no await here — fire and collect
       scanFolder(folder.uri, folder.displayName).listen(
         (progress) {
           if (!controller.isClosed) {
@@ -1355,15 +1354,15 @@ class LibraryScannerService {
                 totalFiles: progress.totalFiles,
                 currentFile: progress.currentFile,
                 currentFolder: folder.displayName,
-                isComplete: false, // only final event is complete
+                isComplete: false,
               ),
             );
           }
-          if (progress.isComplete) {
-            completed++;
-            if (completed >= running) {
-              controller.close();
-            }
+        },
+        onDone: () {
+          completed++;
+          if (completed >= running && !controller.isClosed) {
+            controller.close();
           }
         },
         onError: (e) {
