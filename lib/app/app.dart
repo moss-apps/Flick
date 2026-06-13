@@ -496,11 +496,13 @@ class _MainShellState extends ConsumerState<MainShell>
       _cancelIdleTimer();
       unawaited(ref.read(playerServiceProvider).persistLastPlayed());
       unawaited(WidgetSyncService.instance.pushKilled());
+      unawaited(ref.read(playerServiceProvider).onAppResumed());
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       _cancelIdleTimer();
       unawaited(ref.read(playerServiceProvider).persistLastPlayed());
       unawaited(WidgetSyncService.instance.pushPaused());
+      unawaited(ref.read(playerServiceProvider).onAppPaused());
 
       // Attempt to scrobble the current track before the app suspends.
       // Only fire if playback is not active — audio apps often keep playing
@@ -523,6 +525,7 @@ class _MainShellState extends ConsumerState<MainShell>
     }
     if (state == AppLifecycleState.resumed) {
       _startIdleTimer();
+      unawaited(ref.read(playerServiceProvider).onAppResumed());
       ref.read(updateCheckProvider.notifier).refreshIfOnline();
       ref.read(lastFmScrobbleQueueProvider).flush().catchError((e) {
         debugPrint('[LastFm] queue flush on resume failed: $e');
