@@ -59,6 +59,7 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
   bool _isSearching = false;
   bool _isWorking = false;
   late bool _hasCustomArtwork;
+  AlbumArtScope _scope = AlbumArtScope.wholeAlbum;
 
   @override
   void initState() {
@@ -139,9 +140,12 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
       }
 
       await _runMutation(
-        action: () => _service.applyImageBytes(song: widget.song, bytes: bytes),
-        successMessage: (result) =>
-            'Updated album art for "${result.albumName}".',
+        action: () => _scope == AlbumArtScope.wholeAlbum
+            ? _service.applyImageBytes(song: widget.song, bytes: bytes)
+            : _service.applyImageBytesToSong(song: widget.song, bytes: bytes),
+        successMessage: (result) => _scope == AlbumArtScope.wholeAlbum
+            ? 'Updated album art for "${result.albumName}".'
+            : 'Updated album art for "${widget.song.title}".',
       );
     } catch (error) {
       if (!mounted) {
@@ -158,12 +162,18 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
     }
 
     await _runMutation(
-      action: () => _service.applyOnlineCandidate(
-        song: widget.song,
-        candidate: candidate,
-      ),
-      successMessage: (result) =>
-          'Updated album art for "${result.albumName}".',
+      action: () => _scope == AlbumArtScope.wholeAlbum
+          ? _service.applyOnlineCandidate(
+              song: widget.song,
+              candidate: candidate,
+            )
+          : _service.applyOnlineCandidateToSong(
+              song: widget.song,
+              candidate: candidate,
+            ),
+      successMessage: (result) => _scope == AlbumArtScope.wholeAlbum
+          ? 'Updated album art for "${result.albumName}".'
+          : 'Updated album art for "${widget.song.title}".',
     );
   }
 
@@ -173,9 +183,12 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
     }
 
     await _runMutation(
-      action: () => _service.removeCustomArtwork(widget.song),
-      successMessage: (result) =>
-          'Removed custom album art for "${result.albumName}".',
+      action: () => _scope == AlbumArtScope.wholeAlbum
+          ? _service.removeCustomArtwork(widget.song)
+          : _service.removeCustomArtworkForSong(widget.song),
+      successMessage: (result) => _scope == AlbumArtScope.wholeAlbum
+          ? 'Removed custom album art for "${result.albumName}".'
+          : 'Removed custom album art for "${widget.song.title}".',
     );
   }
 
@@ -299,26 +312,7 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
                 ],
               ),
               const SizedBox(height: AppConstants.spacingSm),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: Text(
-                  'Applied to the whole album',
-                  style: TextStyle(
-                    fontFamily: 'ProductSans',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: context.adaptiveTextSecondary,
-                  ),
-                ),
-              ),
+              _buildScopeToggle(context),
               const SizedBox(height: AppConstants.spacingLg),
               _buildPreviewCard(
                 context,
@@ -396,6 +390,71 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildScopeToggle(BuildContext context) {
+    return Row(
+      children: [
+        _buildScopeChip(
+          context,
+          label: 'Whole album',
+          icon: LucideIcons.disc3,
+          selected: _scope == AlbumArtScope.wholeAlbum,
+          onTap: () => setState(() => _scope = AlbumArtScope.wholeAlbum),
+        ),
+        const SizedBox(width: AppConstants.spacingSm),
+        _buildScopeChip(
+          context,
+          label: 'This song only',
+          icon: LucideIcons.music,
+          selected: _scope == AlbumArtScope.songOnly,
+          onTap: () => setState(() => _scope = AlbumArtScope.songOnly),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScopeChip(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: _isWorking ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accent.withValues(alpha: 0.15) : AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? AppColors.accent : AppColors.glassBorder,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: selected ? AppColors.accent : context.adaptiveTextSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'ProductSans',
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: selected ? AppColors.accent : context.adaptiveTextSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -603,7 +662,9 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Imported art is saved inside the app and synced to every song in this album.',
+                  _scope == AlbumArtScope.wholeAlbum
+                      ? 'Imported art is saved inside the app and synced to every song in this album.'
+                      : 'Imported art is saved inside the app for this song only.',
                   style: TextStyle(
                     fontFamily: 'ProductSans',
                     fontSize: 12,
