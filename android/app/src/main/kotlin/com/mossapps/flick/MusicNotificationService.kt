@@ -182,8 +182,21 @@ class MusicNotificationService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        if (isKeepPlayingOnQuit() && isPlaying) {
+            android.util.Log.d("MusicNotification", "Task removed but keep-playing enabled; staying alive")
+            return
+        }
         android.util.Log.d("MusicNotification", "Task removed, shutting down app process")
         shutdownForTaskRemoval()
+    }
+
+    private fun isKeepPlayingOnQuit(): Boolean {
+        return try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            prefs.getBoolean("flutter.app_keep_playing_on_quit", false)
+        } catch (e: Exception) {
+            false
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
