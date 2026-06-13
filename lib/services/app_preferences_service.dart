@@ -281,6 +281,9 @@ class AppPreferencesService {
       'bottom_bar_auto_collapse_enabled';
   static const _bottomBarAutoCollapseSecondsKey =
       'bottom_bar_auto_collapse_seconds';
+  static const _shuffleModeKey = 'playback_shuffle_mode';
+  static const _loopModeKey = 'playback_loop_mode';
+  static const _advanceListOrderKey = 'playback_advance_list_order';
 
   Future<AppPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -796,5 +799,35 @@ class AppPreferencesService {
   Future<void> setBottomBarAutoCollapseSeconds(int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_bottomBarAutoCollapseSecondsKey, value);
+  }
+
+  Future<int> getShuffleMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_shuffleModeKey) ?? 0;
+  }
+
+  Future<void> setShuffleMode(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_shuffleModeKey, value);
+  }
+
+  Future<int> getLoopMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_loopModeKey) ?? 2;
+  }
+
+  Future<void> setLoopMode(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_loopModeKey, value);
+  }
+
+  Future<int> getAdvanceListOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_advanceListOrderKey) ?? 0;
+  }
+
+  Future<void> setAdvanceListOrder(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_advanceListOrderKey, value);
   }
 }
