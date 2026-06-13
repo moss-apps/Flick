@@ -10,6 +10,7 @@ class MediaStoreObserverService {
   StreamSubscription? _subscription;
   Timer? _debounce;
   bool _isProcessing = false;
+  bool _pendingRescan = false;
 
   MediaStoreObserverService({
     MusicFolderService? musicFolderService,
@@ -39,12 +40,29 @@ class MediaStoreObserverService {
 
   void _onChange(Map<String, dynamic> event) {
     _debounce?.cancel();
+    if (_isProcessing) {
+      _pendingRescan = true;
+      return;
+    }
     _debounce = Timer(const Duration(seconds: 3), _processChange);
   }
 
+  void notifyResumed() {
+    _debounce?.cancel();
+    if (_isProcessing) {
+      _pendingRescan = true;
+      return;
+    }
+    _debounce = Timer(const Duration(seconds: 1), _processChange);
+  }
+
   Future<void> _processChange() async {
-    if (_isProcessing) return;
+    if (_isProcessing) {
+      _pendingRescan = true;
+      return;
+    }
     _isProcessing = true;
+    _pendingRescan = false;
 
     try {
       await for (final _ in _scannerService.scanAllFolders()) {}
@@ -53,6 +71,11 @@ class MediaStoreObserverService {
       debugPrint('MediaStoreObserver rescan failed: $e');
     } finally {
       _isProcessing = false;
+      if (_pendingRescan) {
+        _pendingRescan = false;
+        _debounce?.cancel();
+        _debounce = Timer(const Duration(seconds: 3), _processChange);
+      }
     }
   }
 }
