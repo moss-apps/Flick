@@ -2068,6 +2068,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           inactiveBg: inactiveBg,
           inactiveBorder: inactiveBorder,
         );
+      case PlayerActionButton.volume:
+        return _buildVolumeButton(
+          context: context,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+        );
     }
   }
 
@@ -2467,6 +2476,129 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             size: actionIconSize,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildVolumeButton({
+    required BuildContext context,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+  }) {
+    return Tooltip(
+      message: 'Volume',
+      child: GestureDetector(
+        onTap: () => _showVolumeBottomSheet(context),
+        child: Container(
+          padding: actionPadding,
+          decoration: BoxDecoration(
+            color: inactiveBg,
+            borderRadius: BorderRadius.circular(actionRadius),
+            border: Border.all(color: inactiveBorder),
+          ),
+          child: Icon(
+            LucideIcons.volume,
+            color: Colors.white.withValues(alpha: 0.96),
+            size: actionIconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showVolumeBottomSheet(BuildContext context) {
+    final initialVolume = _playerService.currentVolume;
+    double currentVolume = initialVolume;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: AppColors.glassBorder),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      currentVolume > 0
+                          ? LucideIcons.volume2
+                          : LucideIcons.volumeX,
+                      color: AppColors.accent,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Volume',
+                      style: TextStyle(
+                        fontFamily: 'ProductSans',
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${(currentVolume * 100).round()}%',
+                      style: const TextStyle(
+                        fontFamily: 'ProductSans',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Icon(
+                      LucideIcons.volume1,
+                      color: AppColors.textTertiary,
+                      size: 20,
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: currentVolume,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 100,
+                        label: '${(currentVolume * 100).round()}%',
+                        onChanged: (value) {
+                          setSheetState(() {
+                            currentVolume = value;
+                          });
+                        },
+                        onChangeEnd: (value) async {
+                          await _playerService.setVolume(value);
+                        },
+                        activeColor: AppColors.accent,
+                        inactiveColor: AppColors.textTertiary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    Icon(
+                      LucideIcons.volume2,
+                      color: AppColors.textTertiary,
+                      size: 20,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
