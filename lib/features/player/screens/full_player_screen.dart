@@ -87,6 +87,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   double _cachedTopBarTextWidth = 0;
   bool _isLyricsMode = false;
   bool _isVinylRotationActive = false;
+  bool _isVinylMode = false;
   bool _isVisualizationMode = false;
   bool _isImmersiveFullView = false;
   int _songTransitionDirection = 1;
@@ -2645,9 +2646,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
                   hideQueueBadge: PlayerActionButtonX.fromStorageValue(appPrefs.leftActionButton) == PlayerActionButton.queue ||
                       PlayerActionButtonX.fromStorageValue(appPrefs.rightActionButton) == PlayerActionButton.queue,
-                  onRotationEnabledChanged: (enabled) {
+                   onRotationEnabledChanged: (enabled) {
                     _isVinylRotationActive = enabled;
                   },
+                   vinylMode: _isVinylMode,
+                   onVinylChanged: (vinyl) {
+                     _isVinylMode = vinyl;
+                   },
                  ),
               ),
             );
@@ -2722,6 +2727,8 @@ class _AnimatedSongScene extends StatelessWidget {
   final bool immersiveShowFileInfo;
   final bool hideQueueBadge;
   final void Function(bool enabled)? onRotationEnabledChanged;
+  final bool vinylMode;
+  final ValueChanged<bool>? onVinylChanged;
 
   const _AnimatedSongScene({
     required this.song,
@@ -2769,6 +2776,8 @@ class _AnimatedSongScene extends StatelessWidget {
     this.immersiveShowFileInfo = true,
     this.hideQueueBadge = false,
     this.onRotationEnabledChanged,
+    this.vinylMode = false,
+    this.onVinylChanged,
   });
 
   @override
@@ -3728,6 +3737,8 @@ class _AnimatedSongScene extends StatelessWidget {
                                             size: artworkSize,
                                             playerService: playerService,
                                             onRotationEnabledChanged: onRotationEnabledChanged,
+                                            initialVinyl: vinylMode,
+                                            onVinylChanged: onVinylChanged,
                                           ),
                                   ),
                                 ),
@@ -3978,12 +3989,16 @@ class _AlbumArtBox extends StatefulWidget {
   final double? size;
   final PlayerService? playerService;
   final void Function(bool enabled)? onRotationEnabledChanged;
+  final bool initialVinyl;
+  final ValueChanged<bool>? onVinylChanged;
 
   const _AlbumArtBox({
     required this.song,
     this.size,
     this.playerService,
     this.onRotationEnabledChanged,
+    this.initialVinyl = false,
+    this.onVinylChanged,
   });
 
   @override
@@ -4064,6 +4079,13 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
       service.positionNotifier.addListener(_onPositionChanged);
       service.isPlayingNotifier.addListener(_onPlayingChanged);
     }
+    if (widget.initialVinyl) {
+      _isVinyl = true;
+      _morphController.value = 1.0;
+      if (_isPlaying) {
+        _spinController.repeat();
+      }
+    }
   }
 
   @override
@@ -4078,10 +4100,11 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
       _isRotationEnabled = false;
       _outlineController.value = 0;
       if (_isVinyl) {
-        _isVinyl = false;
         _spinController.stop();
         _spinController.value = 0;
-        _morphController.value = 0;
+        if (_isPlaying) {
+          _spinController.repeat();
+        }
       }
     }
     if (oldWidget.playerService != widget.playerService) {
@@ -4251,6 +4274,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
         _morphController.reverse();
       }
     });
+    widget.onVinylChanged?.call(_isVinyl);
   }
 
   void _handleVinylSingleTap() {
