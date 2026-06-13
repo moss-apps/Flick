@@ -527,6 +527,7 @@ class _MainShellState extends ConsumerState<MainShell>
       ref.read(lastFmScrobbleQueueProvider).flush().catchError((e) {
         debugPrint('[LastFm] queue flush on resume failed: $e');
       });
+      ref.read(autoLibrarySyncServiceProvider).notifyResumed();
     }
   }
 
