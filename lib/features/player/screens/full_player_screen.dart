@@ -40,6 +40,7 @@ import 'package:flick/features/player/widgets/bit_perfect_capsule.dart';
 import 'package:flick/features/player/widgets/bit_perfect_indicator.dart';
 import 'package:flick/features/player/widgets/lyrics_editor_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/online_lyrics_search_sheet.dart';
+import 'package:flick/features/settings/screens/equalizer_screen.dart';
 import 'package:flick/features/player/widgets/line_seek_bar.dart';
 import 'package:flick/features/player/widgets/waveform_seek_bar.dart';
 import 'package:flick/models/progress_bar_style.dart';
@@ -2058,6 +2059,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           inactiveBg: inactiveBg,
           inactiveBorder: inactiveBorder,
         );
+      case PlayerActionButton.equalizer:
+        return _buildEqualizerButton(
+          context: context,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+        );
     }
   }
 
@@ -2396,6 +2406,63 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           ),
           child: Icon(
             LucideIcons.volume2,
+            color: Colors.white.withValues(alpha: 0.96),
+            size: actionIconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEqualizerButton({
+    required BuildContext context,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+  }) {
+    return Tooltip(
+      message: 'Equalizer',
+      child: GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const EqualizerScreen(),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                if (AppConstants.animationNormal == Duration.zero) {
+                  return child;
+                }
+                final curvedAnimation = CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                );
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.12, 0.0),
+                    end: Offset.zero,
+                  ).animate(curvedAnimation),
+                  child: FadeTransition(
+                    opacity: curvedAnimation,
+                    child: child,
+                  ),
+                );
+              },
+              transitionDuration: AppConstants.animationNormal,
+            ),
+          );
+        },
+        child: Container(
+          padding: actionPadding,
+          decoration: BoxDecoration(
+            color: inactiveBg,
+            borderRadius: BorderRadius.circular(actionRadius),
+            border: Border.all(color: inactiveBorder),
+          ),
+          child: Icon(
+            LucideIcons.slidersHorizontal,
             color: Colors.white.withValues(alpha: 0.96),
             size: actionIconSize,
           ),
