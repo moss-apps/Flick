@@ -195,12 +195,16 @@ class WidgetSyncService {
 
   int _loopModeToInt(LoopMode mode) {
     switch (mode) {
+      case LoopMode.off:
+        return 0;
       case LoopMode.one:
         return 1;
       case LoopMode.all:
         return 2;
-      case LoopMode.off:
-        return 0;
+      case LoopMode.advanceList:
+        return 3;
+      case LoopMode.stopAfterCurrent:
+        return 4;
     }
   }
 
