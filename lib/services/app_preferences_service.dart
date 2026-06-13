@@ -50,6 +50,7 @@ class AppPreferences {
   final String? lastSeenChangelogVersion;
   final bool bottomBarAutoCollapseEnabled;
   final int bottomBarAutoCollapseSeconds;
+  final bool keepPlayingOnQuit;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -101,6 +102,7 @@ class AppPreferences {
     this.lastSeenChangelogVersion,
     this.bottomBarAutoCollapseEnabled = false,
     this.bottomBarAutoCollapseSeconds = 5,
+    this.keepPlayingOnQuit = false,
   });
 
   AppPreferences copyWith({
@@ -153,6 +155,7 @@ class AppPreferences {
     String? lastSeenChangelogVersion,
     bool? bottomBarAutoCollapseEnabled,
     int? bottomBarAutoCollapseSeconds,
+    bool? keepPlayingOnQuit,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -224,6 +227,7 @@ class AppPreferences {
           bottomBarAutoCollapseEnabled ?? this.bottomBarAutoCollapseEnabled,
       bottomBarAutoCollapseSeconds:
           bottomBarAutoCollapseSeconds ?? this.bottomBarAutoCollapseSeconds,
+      keepPlayingOnQuit: keepPlayingOnQuit ?? this.keepPlayingOnQuit,
     );
   }
 }
@@ -281,6 +285,7 @@ class AppPreferencesService {
       'bottom_bar_auto_collapse_enabled';
   static const _bottomBarAutoCollapseSecondsKey =
       'bottom_bar_auto_collapse_seconds';
+  static const _keepPlayingOnQuitKey = 'app_keep_playing_on_quit';
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
@@ -354,6 +359,7 @@ class AppPreferencesService {
           prefs.getBool(_bottomBarAutoCollapseEnabledKey) ?? false,
       bottomBarAutoCollapseSeconds:
           prefs.getInt(_bottomBarAutoCollapseSecondsKey) ?? 5,
+      keepPlayingOnQuit: prefs.getBool(_keepPlayingOnQuitKey) ?? false,
     );
   }
 
@@ -829,5 +835,15 @@ class AppPreferencesService {
   Future<void> setAdvanceListOrder(int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_advanceListOrderKey, value);
+  }
+
+  Future<bool> getKeepPlayingOnQuit() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keepPlayingOnQuitKey) ?? false;
+  }
+
+  Future<void> setKeepPlayingOnQuit(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keepPlayingOnQuitKey, value);
   }
 }

@@ -370,6 +370,12 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .read(appPreferencesServiceProvider)
         .setBottomBarAutoCollapseSeconds(value);
   }
+
+  Future<void> setKeepPlayingOnQuit(bool value) async {
+    if (state.keepPlayingOnQuit == value) return;
+    state = state.copyWith(keepPlayingOnQuit: value);
+    await ref.read(appPreferencesServiceProvider).setKeepPlayingOnQuit(value);
+  }
 }
 
 final appPreferencesProvider =

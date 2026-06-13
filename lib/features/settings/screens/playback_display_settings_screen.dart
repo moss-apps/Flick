@@ -24,7 +24,23 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
         children: [
           const SettingsSectionHeader('Playback'),
           SettingsCard(
-            children: [_GaplessPlaybackTile(playerService: playerService)],
+            children: [
+              _GaplessPlaybackTile(playerService: playerService),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.music,
+                title: 'Keep Playing on Quit',
+                subtitle: appPrefs.keepPlayingOnQuit
+                    ? 'Playback continues when the app is swiped away'
+                    : 'Playback stops when the app is swiped away',
+                value: appPrefs.keepPlayingOnQuit,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setKeepPlayingOnQuit(value);
+                },
+              ),
+            ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
           const SettingsSectionHeader('Display'),
