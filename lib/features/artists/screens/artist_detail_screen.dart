@@ -11,6 +11,7 @@ import 'package:flick/data/repositories/artist_repository.dart';
 import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/screens/album_detail_screen.dart';
+import 'package:flick/models/playback_context.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/color_extraction_service.dart';
@@ -241,8 +242,14 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
     );
   }
 
+  PlaybackContext get _artistContext => PlaybackContext(
+    source: PlaybackSource.artist,
+    sourceId: widget.artistName,
+    sourceName: widget.artistName,
+  );
+
   void _playSong(Song song, {List<Song>? playlist}) {
-    widget.playerService.play(song, playlist: playlist ?? widget.songs);
+    widget.playerService.play(song, playlist: playlist ?? widget.songs, context: _artistContext);
     NavigationHelper.navigateToFullPlayer(
       context,
       heroTag: 'artist_song_${song.id}',
@@ -251,14 +258,14 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
 
   void _playAll() {
     if (widget.songs.isEmpty) return;
-    widget.playerService.play(widget.songs.first, playlist: widget.songs);
+    widget.playerService.play(widget.songs.first, playlist: widget.songs, context: _artistContext);
     NavigationHelper.navigateToFullPlayer(context, heroTag: 'artist_play_all');
   }
 
   void _shuffleAll() {
     if (widget.songs.isEmpty) return;
     final shuffled = List<Song>.from(widget.songs)..shuffle();
-    widget.playerService.play(shuffled.first, playlist: shuffled);
+    widget.playerService.play(shuffled.first, playlist: shuffled, context: _artistContext);
     NavigationHelper.navigateToFullPlayer(context, heroTag: 'artist_shuffle');
   }
 
