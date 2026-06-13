@@ -4,11 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'lastfm_provider.dart';
+import '../models/playback_context.dart';
+import '../models/shuffle_mode.dart';
 import '../models/song.dart';
 import '../services/player_service.dart';
 
 // Re-export LoopMode from player_service
 export '../services/player_service.dart' show LoopMode;
+export '../models/shuffle_mode.dart' show ShuffleMode;
+export '../models/playback_context.dart' show PlaybackContext, PlaybackSource;
 
 /// State class representing the current player state.
 @immutable
@@ -19,6 +23,7 @@ class PlayerState {
   final Duration duration;
   final Duration bufferedPosition;
   final bool isShuffle;
+  final ShuffleMode shuffleMode;
   final LoopMode loopMode;
   final double playbackSpeed;
   final Duration? sleepTimerRemaining;
@@ -33,6 +38,7 @@ class PlayerState {
     this.duration = Duration.zero,
     this.bufferedPosition = Duration.zero,
     this.isShuffle = false,
+    this.shuffleMode = ShuffleMode.off,
     this.loopMode = LoopMode.all,
     this.playbackSpeed = 1.0,
     this.sleepTimerRemaining,
@@ -48,6 +54,7 @@ class PlayerState {
     Duration? duration,
     Duration? bufferedPosition,
     bool? isShuffle,
+    ShuffleMode? shuffleMode,
     LoopMode? loopMode,
     double? playbackSpeed,
     Duration? sleepTimerRemaining,
@@ -64,6 +71,7 @@ class PlayerState {
       duration: duration ?? this.duration,
       bufferedPosition: bufferedPosition ?? this.bufferedPosition,
       isShuffle: isShuffle ?? this.isShuffle,
+      shuffleMode: shuffleMode ?? this.shuffleMode,
       loopMode: loopMode ?? this.loopMode,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       sleepTimerRemaining: clearSleepTimer
@@ -116,6 +124,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       duration: _service.durationNotifier.value,
       bufferedPosition: _service.bufferedPositionNotifier.value,
       isShuffle: _service.isShuffleNotifier.value,
+      shuffleMode: _service.shuffleModeNotifier.value,
       loopMode: _service.loopModeNotifier.value,
       playbackSpeed: _service.playbackSpeedNotifier.value,
       sleepTimerRemaining: _service.sleepTimerRemainingNotifier.value,
@@ -167,6 +176,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
         duration: _service.durationNotifier.value,
         bufferedPosition: _service.bufferedPositionNotifier.value,
         isShuffle: _service.isShuffleNotifier.value,
+        shuffleMode: _service.shuffleModeNotifier.value,
         loopMode: _service.loopModeNotifier.value,
         playbackSpeed: _service.playbackSpeedNotifier.value,
         sleepTimerRemaining: _service.sleepTimerRemainingNotifier.value,
@@ -232,6 +242,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
     _service.durationNotifier.addListener(syncState);
     _service.bufferedPositionNotifier.addListener(syncPosition);
     _service.isShuffleNotifier.addListener(syncState);
+    _service.shuffleModeNotifier.addListener(syncState);
     _service.loopModeNotifier.addListener(syncState);
     _service.playbackSpeedNotifier.addListener(syncState);
     _service.sleepTimerRemainingNotifier.addListener(syncState);
@@ -247,6 +258,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       _service.durationNotifier.removeListener(syncState);
       _service.bufferedPositionNotifier.removeListener(syncPosition);
       _service.isShuffleNotifier.removeListener(syncState);
+      _service.shuffleModeNotifier.removeListener(syncState);
       _service.loopModeNotifier.removeListener(syncState);
       _service.playbackSpeedNotifier.removeListener(syncState);
       _service.sleepTimerRemainingNotifier.removeListener(syncState);
@@ -300,8 +312,8 @@ class PlayerNotifier extends Notifier<PlayerState> {
   }
 
   /// Play a song, optionally with a playlist context.
-  Future<void> play(Song song, {List<Song>? playlist}) async {
-    await _service.play(song, playlist: playlist);
+  Future<void> play(Song song, {List<Song>? playlist, PlaybackContext? context}) async {
+    await _service.play(song, playlist: playlist, context: context);
   }
 
   /// Toggle play/pause.
@@ -379,9 +391,34 @@ class PlayerNotifier extends Notifier<PlayerState> {
     await _service.removeFromUpNext(upNextIndex);
   }
 
-  /// Toggle loop mode.
+  /// Toggle loop mode (quick cycle: off → all → one).
   void toggleLoopMode() {
     unawaited(_service.toggleLoopMode());
+  }
+
+  /// Set a specific loop mode.
+  Future<void> setLoopMode(LoopMode mode) async {
+    await _service.setLoopMode(mode);
+  }
+
+  /// Set a specific shuffle mode.
+  Future<void> setShuffleMode(ShuffleMode mode) async {
+    await _service.setShuffleMode(mode);
+  }
+
+  /// Set A-B repeat point A at current position.
+  void setAbRepeatA() {
+    _service.setAbRepeatA();
+  }
+
+  /// Set A-B repeat point B at current position.
+  void setAbRepeatB() {
+    _service.setAbRepeatB();
+  }
+
+  /// Clear A-B repeat.
+  void clearAbRepeat() {
+    _service.clearAbRepeat();
   }
 
   /// Set playback speed.
@@ -470,6 +507,11 @@ final loopModeProvider = Provider<LoopMode>((ref) {
 /// Playback speed selector.
 final playbackSpeedProvider = Provider<double>((ref) {
   return ref.watch(playerProvider.select((state) => state.playbackSpeed));
+});
+
+/// Shuffle mode selector (full enum).
+final shuffleModeProvider = Provider<ShuffleMode>((ref) {
+  return ref.watch(playerProvider.select((state) => state.shuffleMode));
 });
 
 /// Sleep timer remaining selector.
