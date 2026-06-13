@@ -54,6 +54,9 @@ class MusicNotificationService : Service() {
     private var isFavorite: Boolean = false
     private var currentColor: Int? = null
 
+    private var cachedAlbumArt: Bitmap? = null
+    private var cachedAlbumArtPath: String? = null
+
     private val actionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             android.util.Log.d("MusicNotification", "Received action: ${intent?.action}")
@@ -219,6 +222,40 @@ class MusicNotificationService : Service() {
         }
     }
 
+    private fun getAlbumArtBitmap(): Bitmap? {
+        val path = currentAlbumArtPath
+        if (path.isNullOrEmpty()) {
+            cachedAlbumArt = null
+            cachedAlbumArtPath = null
+            return null
+        }
+        if (path == cachedAlbumArtPath && cachedAlbumArt != null) {
+            return cachedAlbumArt
+        }
+        return try {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, options)
+            val maxDim = maxOf(options.outWidth, options.outHeight)
+            var sampleSize = 1
+            while (maxDim / sampleSize > 512) {
+                sampleSize *= 2
+            }
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            val bitmap = BitmapFactory.decodeFile(path, decodeOptions)
+            if (bitmap != null) {
+                cachedAlbumArt = bitmap
+                cachedAlbumArtPath = path
+            }
+            bitmap
+        } catch (e: Exception) {
+            android.util.Log.w("MusicNotification", "Failed to decode album art: ${e.message}")
+            cachedAlbumArt
+        }
+    }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -292,16 +329,8 @@ class MusicNotificationService : Service() {
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
             .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDuration)
 
-        currentAlbumArtPath?.let { path ->
-            try {
-                val bitmap = BitmapFactory.decodeFile(path)
-                if (bitmap != null) {
-                    metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-                }
-                else {}
-            } catch (e: Exception) {
-                android.util.Log.w("MusicNotification", "Failed to load album art: ${e.message}")
-            }
+        getAlbumArtBitmap()?.let { bitmap ->
+            metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
         }
 
         mediaSession.setMetadata(metadata.build())
@@ -376,9 +405,7 @@ class MusicNotificationService : Service() {
             )
         }
 
-        val albumArt: Bitmap? = currentAlbumArtPath?.let { path ->
-            try { BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
-        }
+        val albumArt: Bitmap? = getAlbumArtBitmap()
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentTitle)
