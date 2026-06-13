@@ -67,6 +67,7 @@ Future<void> _requestNotificationPermission() async {
 Future<void> _restoreLastPlayedSong() async {
   try {
     final playerService = PlayerService();
+    await playerService.restorePlaybackModes();
     await playerService.restoreLastPlayed();
   } catch (e) {
     debugPrint('Failed to restore last played song: $e');
