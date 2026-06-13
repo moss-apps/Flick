@@ -376,6 +376,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     state = state.copyWith(keepPlayingOnQuit: value);
     await ref.read(appPreferencesServiceProvider).setKeepPlayingOnQuit(value);
   }
+
+  Future<void> setFloatingPlayerEnabled(bool value) async {
+    if (state.floatingPlayerEnabled == value) return;
+    state = state.copyWith(floatingPlayerEnabled: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setFloatingPlayerEnabled(value);
+  }
 }
 
 final appPreferencesProvider =
