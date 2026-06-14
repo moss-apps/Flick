@@ -9,11 +9,40 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'audio_api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `ensure_audio_engine`, `prepare_decoder_source`, `read_audio_engine`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `with_audio_engine`
+// These functions are ignored because they are not marked as `pub`: `ensure_audio_engine_excluded`, `ensure_audio_engine`, `prepare_decoder_source`, `read_audio_engine`, `resolve_dsd_engine_sample_rate`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `verify_dop_passthrough`, `verify_dsd_engine_rate`, `with_audio_engine`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 Future<DsdOutputMode> currentDsdOutputMode() =>
     RustLib.instance.api.crateApiAudioApiCurrentDsdOutputMode();
+
+Future<DsdOutputMode> effectiveDsdOutputMode({
+  required DsdOutputMode requested,
+}) => RustLib.instance.api.crateApiAudioApiEffectiveDsdOutputMode(
+  requested: requested,
+);
+
+Future<DsdOutputMode> effectiveDsdOutputModeForRate({
+  required DsdOutputMode requested,
+  DsdRate? dsdRate,
+}) => RustLib.instance.api.crateApiAudioApiEffectiveDsdOutputModeForRate(
+  requested: requested,
+  dsdRate: dsdRate,
+);
+
+Future<void> setDsdTrackRate({required int rate}) =>
+    RustLib.instance.api.crateApiAudioApiSetDsdTrackRate(rate: rate);
+
+Future<void> clearDsdTrackRate() =>
+    RustLib.instance.api.crateApiAudioApiClearDsdTrackRate();
+
+Future<int?> currentDsdTrackRate() =>
+    RustLib.instance.api.crateApiAudioApiCurrentDsdTrackRate();
+
+Future<void> setPendingVolume({required double volume}) =>
+    RustLib.instance.api.crateApiAudioApiSetPendingVolume(volume: volume);
+
+Future<double?> takePendingVolume() =>
+    RustLib.instance.api.crateApiAudioApiTakePendingVolume();
 
 /// Check if native audio is available on this platform.
 bool audioIsNativeAvailable() =>
@@ -40,9 +69,22 @@ void audioSetDapBitPerfectEnabled({required bool enabled}) => RustLib
     .api
     .crateApiAudioApiAudioSetDapBitPerfectEnabled(enabled: enabled);
 
+/// Toggle experimental 432 Hz tuning. When enabled the engine leaves bit-perfect
+/// passthrough, runs the DSP path, and pins playback speed at 432/440.
+void audioSet432HzTuningEnabled({required bool enabled}) => RustLib.instance.api
+    .crateApiAudioApiAudioSet432HzTuningEnabled(enabled: enabled);
+
 /// Set the DSD output mode from Dart. 0 = PCM decimation, 1 = DoP, 2 = Native, 3 = Auto.
 void audioSetDsdOutputMode({required int mode}) =>
     RustLib.instance.api.crateApiAudioApiAudioSetDsdOutputMode(mode: mode);
+
+/// Toggle DSD bit-reverse override. When on, inverts the bit-order normalization
+/// so that MSB-first sources get reversed and LSB-first sources pass through.
+/// Use this to diagnose white-noise from wrong bit order.
+void audioSetDsdBitReverseOverride({required bool enabled}) => RustLib
+    .instance
+    .api
+    .crateApiAudioApiAudioSetDsdBitReverseOverride(enabled: enabled);
 
 /// Update the current platform capability snapshot used for engine selection.
 void audioSetCapabilityInfo({required AudioCapabilityInfo info}) =>
@@ -325,6 +367,8 @@ class AudioRuntimeDebugJsonState {
   final bool? directUsbVerified;
   final int? dsdSourceRate;
   final String? dsdEffectiveMode;
+  final int? dsdWireRate;
+  final String? dsdTransport;
 
   const AudioRuntimeDebugJsonState({
     required this.managerEngine,
@@ -342,6 +386,8 @@ class AudioRuntimeDebugJsonState {
     this.directUsbVerified,
     this.dsdSourceRate,
     this.dsdEffectiveMode,
+    this.dsdWireRate,
+    this.dsdTransport,
   });
 
   @override
@@ -360,7 +406,9 @@ class AudioRuntimeDebugJsonState {
       directUsbActive.hashCode ^
       directUsbVerified.hashCode ^
       dsdSourceRate.hashCode ^
-      dsdEffectiveMode.hashCode;
+      dsdEffectiveMode.hashCode ^
+      dsdWireRate.hashCode ^
+      dsdTransport.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -381,7 +429,9 @@ class AudioRuntimeDebugJsonState {
           directUsbActive == other.directUsbActive &&
           directUsbVerified == other.directUsbVerified &&
           dsdSourceRate == other.dsdSourceRate &&
-          dsdEffectiveMode == other.dsdEffectiveMode;
+          dsdEffectiveMode == other.dsdEffectiveMode &&
+          dsdWireRate == other.dsdWireRate &&
+          dsdTransport == other.dsdTransport;
 }
 
 class AudioRuntimeDebugState {
