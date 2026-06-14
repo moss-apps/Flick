@@ -62,8 +62,8 @@ static DAP_REGISTRY: &[DapSignature] = &[
         label: "FiiO",
         keywords: &["fiio"],
         model_prefixes: &[
-            "M11", "M15", "M17", "M21", "M23", "M27", "JM21",
-            "M0", "M1", "M3", "M5", "M6", "M7", "M8",
+            "M11", "M15", "M17", "M21", "M23", "M27", "JM21", "M0", "M1", "M3", "M5", "M6", "M7",
+            "M8",
         ],
         manufacturer_sufficient: true,
     },
@@ -72,8 +72,7 @@ static DAP_REGISTRY: &[DapSignature] = &[
         label: "iBasso",
         keywords: &["ibasso"],
         model_prefixes: &[
-            "DX160", "DX170", "DX180", "DX220", "DX240",
-            "DX260", "DX300", "DX320", "DX340",
+            "DX160", "DX170", "DX180", "DX220", "DX240", "DX260", "DX300", "DX320", "DX340",
         ],
         manufacturer_sufficient: true,
     },
@@ -189,8 +188,6 @@ pub struct DeviceSignals {
     pub mango_mode: bool,
 }
 
-
-
 pub fn classify_device(signals: DeviceSignals) -> DeviceProfile {
     let manufacturer = signals.manufacturer.to_ascii_lowercase();
     let brand = signals.brand.to_ascii_lowercase();
@@ -257,8 +254,8 @@ pub fn detect_android_device_profile<'local>(
     let manufacturer = get_build_field(env, "MANUFACTURER")?;
     let model = get_build_field(env, "MODEL")?;
     let brand = get_build_field(env, "BRAND")?;
-    let manufacturer_match = detect_dap(&manufacturer, &brand, &model)
-        .map(|sig| sig.label.to_string());
+    let manufacturer_match =
+        detect_dap(&manufacturer, &brand, &model).map(|sig| sig.label.to_string());
     let audio_caps = match probe_audio_capabilities(env, context) {
         Ok(caps) => caps,
         Err(error) => {
@@ -734,7 +731,10 @@ fn clear_pending_exception(env: &mut JNIEnv<'_>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{classify_device, detect_dap, is_known_dap_model, AudioCapabilities, DeviceKind, DeviceSignals};
+    use super::{
+        classify_device, detect_dap, is_known_dap_model, AudioCapabilities, DeviceKind,
+        DeviceSignals,
+    };
 
     #[test]
     fn detects_fiio_from_manufacturer() {
@@ -743,7 +743,10 @@ mod tests {
 
     #[test]
     fn detects_ibasso_from_manufacturer() {
-        assert_eq!(detect_dap("iBasso", "", "DX320").map(|s| s.label), Some("iBasso"));
+        assert_eq!(
+            detect_dap("iBasso", "", "DX320").map(|s| s.label),
+            Some("iBasso")
+        );
     }
 
     #[test]
@@ -753,7 +756,10 @@ mod tests {
 
     #[test]
     fn detects_astellkern_from_manufacturer_iriver() {
-        assert_eq!(detect_dap("iriver", "", "SP2000").map(|s| s.label), Some("Astell&Kern"));
+        assert_eq!(
+            detect_dap("iriver", "", "SP2000").map(|s| s.label),
+            Some("Astell&Kern")
+        );
     }
 
     #[test]
