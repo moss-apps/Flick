@@ -6,11 +6,10 @@
 use crate::audio::commands::{AudioCommand, AudioEvent, PlaybackProgress, PlaybackState};
 use crate::audio::crossfader::Crossfader;
 use crate::audio::decoder::DecoderThread;
-use crate::audio::decoder_handle::{DecoderHandle, FileType, detect_file_type};
-use crate::audio::dsd_engine::DsdDecoderThread;
-use crate::audio::wavpack_thread::WavpackDecoderThread;
+use crate::audio::decoder_handle::{detect_file_type, DecoderHandle, FileType};
 #[cfg(target_os = "android")]
 use crate::audio::device::current_device_profile;
+use crate::audio::dsd_engine::DsdDecoderThread;
 use crate::audio::dynamics::DynamicsChain;
 use crate::audio::equalizer::Equalizer;
 use crate::audio::fx::SpatialFx;
@@ -20,6 +19,7 @@ use crate::audio::strategy::OutputStrategy;
 use crate::audio::strategy::{select_strategy_excluded, DeviceCaps, TrackInfo};
 #[cfg(target_os = "android")]
 use crate::audio::verifier::OutputVerification;
+use crate::audio::wavpack_thread::WavpackDecoderThread;
 #[cfg(all(feature = "uac2", target_os = "android"))]
 use crate::uac2::{
     android_direct_debug_state, android_direct_output_signature, create_android_usb_backend,
@@ -210,7 +210,8 @@ impl AudioCallbackData {
     pub fn set_432hz_tuning_enabled(&self, enabled: bool) {
         self.tuning_432hz_enabled.store(enabled, Ordering::Relaxed);
         let speed = if enabled { TUNING_432HZ_RATIO } else { 1.0f32 };
-        self.playback_speed.store(speed.to_bits(), Ordering::Relaxed);
+        self.playback_speed
+            .store(speed.to_bits(), Ordering::Relaxed);
         *self.speed_frac_pos.lock() = 0.0;
     }
 
@@ -688,8 +689,7 @@ pub fn create_audio_engine(
             // Stream will be dropped here when the loop exits
         });
 
-    let audio_thread = audio_thread
-        .map_err(|e| format!("Failed to spawn audio thread: {}", e))?;
+    let audio_thread = audio_thread.map_err(|e| format!("Failed to spawn audio thread: {}", e))?;
 
     Ok(AudioEngineHandle {
         callback_data,
@@ -848,10 +848,7 @@ fn build_output_runtime_state(
                 {
                     let debug = crate::uac2::android_direct_debug_state();
                     let subslot = debug.transport_subslot_size.unwrap_or(4);
-                    format!(
-                        "usb-native-dsd-u{}x{}-bit",
-                        subslot, subslot * 8
-                    )
+                    format!("usb-native-dsd-u{}x{}-bit", subslot, subslot * 8)
                 }
                 #[cfg(not(feature = "uac2"))]
                 "usb-native-dsd".to_string()
@@ -951,7 +948,11 @@ pub fn create_audio_engine(
         && !will_attempt_usb;
     let mut requested_sample_rate = if dap_force_dsp {
         if let Some(rate) = preferred_sample_rate {
-            if rate > 48_000 { rate } else { 48_000 }
+            if rate > 48_000 {
+                rate
+            } else {
+                48_000
+            }
         } else {
             48_000
         }
@@ -987,7 +988,9 @@ pub fn create_audio_engine(
 
     let dsd_rate = crate::api::audio_api::current_dsd_track_rate()
         .and_then(crate::audio::dsd_engine::dsd::DsdRate::from_sample_rate)
-        .or_else(|| crate::audio::dsd_engine::dsd::DsdRate::from_sample_rate(requested_sample_rate));
+        .or_else(|| {
+            crate::audio::dsd_engine::dsd::DsdRate::from_sample_rate(requested_sample_rate)
+        });
     let supports_native_dsd = device_profile
         .as_ref()
         .is_some_and(|p| p.supports_native_dsd);
@@ -1005,7 +1008,8 @@ pub fn create_audio_engine(
                 alt.format_tag == "DSD"
                     && alt.subslot_size > 0
                     && dsd_rate.is_some_and(|r| {
-                        r.sample_rate() / (8 * u32::from(alt.subslot_size)) <= alt.sample_rates.iter().copied().max().unwrap_or(0)
+                        r.sample_rate() / (8 * u32::from(alt.subslot_size))
+                            <= alt.sample_rates.iter().copied().max().unwrap_or(0)
                             || alt.sample_rates.iter().any(|&sr| {
                                 sr == r.sample_rate() / (8 * u32::from(alt.subslot_size))
                             })
@@ -1164,9 +1168,10 @@ pub fn create_audio_engine(
     // - UsbDirect / DapNative → Passthrough (verified below; downgraded on failure)
     // - All other strategies   → Dsp (full processing chain)
     let initial_pipeline_mode = match desired_strategy {
-        OutputStrategy::UsbDirect | OutputStrategy::DapNative | OutputStrategy::DsdNative | OutputStrategy::UsbDsdNative => {
-            PipelineMode::Passthrough
-        }
+        OutputStrategy::UsbDirect
+        | OutputStrategy::DapNative
+        | OutputStrategy::DsdNative
+        | OutputStrategy::UsbDsdNative => PipelineMode::Passthrough,
         _ => PipelineMode::Dsp,
     };
     let callback_data = Arc::new(AudioCallbackData::new(
@@ -1343,7 +1348,12 @@ pub fn create_audio_engine(
                     callback_data.set_pipeline_mode(PipelineMode::Dop);
                     output_runtime = build_output_runtime_state(
                         OutputStrategy::DsdNative,
-                        OutputVerification::verify(requested_sample_rate, requested_sample_rate, true, true),
+                        OutputVerification::verify(
+                            requested_sample_rate,
+                            requested_sample_rate,
+                            true,
+                            true,
+                        ),
                         false,
                         false,
                     );
@@ -1386,10 +1396,8 @@ pub fn create_audio_engine(
         let prefer_exclusive = dap_bit_perfect_enabled
             && device_profile.as_ref().is_some_and(|p| p.is_dap())
             && !will_attempt_usb;
-        let is_dsd_dop = dsd_rate.is_some() && matches!(
-            desired_shared_strategy,
-            OutputStrategy::DsdDoP
-        );
+        let is_dsd_dop =
+            dsd_rate.is_some() && matches!(desired_shared_strategy, OutputStrategy::DsdDoP);
         let use_integer = is_dsd_dop || desired_shared_strategy.is_dsd();
         let managed = open_android_output_stream(
             Arc::clone(&callback_data_clone),
@@ -1516,8 +1524,7 @@ pub fn create_audio_engine(
             }
         });
 
-    let audio_thread = audio_thread
-        .map_err(|e| format!("Failed to spawn audio thread: {}", e))?;
+    let audio_thread = audio_thread.map_err(|e| format!("Failed to spawn audio thread: {}", e))?;
 
     Ok(AudioEngineHandle {
         callback_data,
@@ -1797,13 +1804,11 @@ fn open_android_output_stream(
                     .set_content_type(ContentType::Music)
                     .set_channel_conversion_allowed(!bit_perfect_route)
                     .set_format_conversion_allowed(!bit_perfect_route)
-                    .set_sample_rate_conversion_quality(
-                        if bit_perfect_route {
-                            SampleRateConversionQuality::None
-                        } else {
-                            SampleRateConversionQuality::Medium
-                        }
-                    )
+                    .set_sample_rate_conversion_quality(if bit_perfect_route {
+                        SampleRateConversionQuality::None
+                    } else {
+                        SampleRateConversionQuality::Medium
+                    })
                     .set_audio_api(audio_api);
 
                 if bit_perfect_route {
@@ -2056,7 +2061,10 @@ pub(crate) fn audio_callback(
         };
         let (read, old_source) = sources.read(output);
         if let Some(source) = old_source {
-            eprintln!("[dop] gapless transition (old={})", source.info.path.display());
+            eprintln!(
+                "[dop] gapless transition (old={})",
+                source.info.path.display()
+            );
             let _ = data.finished_tracks.try_send(source);
         }
         if read < output.len() {
@@ -2078,10 +2086,13 @@ pub(crate) fn audio_callback(
         };
 
         let (read, old_source) = sources.read(output);
-            if let Some(source) = old_source {
-                eprintln!("[crossfade] gapless transition (old={})", source.info.path.display());
-                let _ = data.finished_tracks.try_send(source);
-            }
+        if let Some(source) = old_source {
+            eprintln!(
+                "[crossfade] gapless transition (old={})",
+                source.info.path.display()
+            );
+            let _ = data.finished_tracks.try_send(source);
+        }
         if read < output.len() {
             output[read..].fill(0.0);
         }
@@ -2533,10 +2544,8 @@ fn command_processing_loop(
                                 .next_mut()
                                 .map(|s| s.info.path.to_string_lossy().to_string());
                             if let (Some(from_path), Some(to_path)) = (from, to) {
-                                let _ = event_tx.try_send(AudioEvent::CrossfadeStarted {
-                                    from_path,
-                                    to_path,
-                                });
+                                let _ = event_tx
+                                    .try_send(AudioEvent::CrossfadeStarted { from_path, to_path });
                             }
                         } else {
                             eprintln!(
@@ -2584,7 +2593,11 @@ fn spawn_decoder(
             let output_mode = crate::api::audio_api::effective_dsd_output_mode(requested);
             let (source, thread) = if let Some(seek) = seek_secs {
                 DsdDecoderThread::spawn_with_seek(
-                    path, output_mode, sample_rate, channels, Some(seek),
+                    path,
+                    output_mode,
+                    sample_rate,
+                    channels,
+                    Some(seek),
                 )
             } else {
                 DsdDecoderThread::spawn(path, output_mode, sample_rate, channels)
@@ -2593,9 +2606,7 @@ fn spawn_decoder(
         }
         FileType::WavPack => {
             let (source, handle) = if let Some(seek) = seek_secs {
-                WavpackDecoderThread::spawn_with_seek(
-                    path, sample_rate, channels, Some(seek),
-                )
+                WavpackDecoderThread::spawn_with_seek(path, sample_rate, channels, Some(seek))
             } else {
                 WavpackDecoderThread::spawn(path, sample_rate, channels)
             }?;
@@ -2628,9 +2639,7 @@ fn handle_play(
 
     match spawn_decoder(path.clone(), sample_rate, callback_data.channels(), None) {
         Ok((source, handle)) => {
-            start_playback_source(
-                source, handle, callback_data, state, decoders, event_tx,
-            );
+            start_playback_source(source, handle, callback_data, state, decoders, event_tx);
         }
         Err(e) => {
             let _ = event_tx.try_send(AudioEvent::Error {
@@ -2656,7 +2665,12 @@ fn handle_play_prepared(
     callback_data.crossfader.lock().reset();
 
     start_playback_source(
-        source, decoder_handle, callback_data, state, decoders, event_tx,
+        source,
+        decoder_handle,
+        callback_data,
+        state,
+        decoders,
+        event_tx,
     );
 }
 
@@ -2796,7 +2810,12 @@ fn handle_seek(
         }
     }
 
-    match spawn_decoder(path.clone(), sample_rate, callback_data.channels(), Some(target_secs)) {
+    match spawn_decoder(
+        path.clone(),
+        sample_rate,
+        callback_data.channels(),
+        Some(target_secs),
+    ) {
         Ok((mut source, handle)) => {
             source.set_ready();
             if !was_paused {
@@ -2863,7 +2882,12 @@ mod tests {
 
     fn build_passthrough_callback_data(sample_rate: u32, channels: usize) -> AudioCallbackData {
         let (finished_tx, _finished_rx) = bounded::<AudioSource>(8);
-        AudioCallbackData::new(sample_rate, channels, finished_tx, PipelineMode::Passthrough)
+        AudioCallbackData::new(
+            sample_rate,
+            channels,
+            finished_tx,
+            PipelineMode::Passthrough,
+        )
     }
 
     fn run_callback(data: &AudioCallbackData, output_len: usize) -> Vec<f32> {
