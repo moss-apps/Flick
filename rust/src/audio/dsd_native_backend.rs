@@ -31,12 +31,14 @@ impl DsdNativeBackend {
             channels,
         );
 
-        super::dsd_native_jni::dsd_track_create(dsd_sample_rate, channels).then(|| ()).ok_or_else(|| {
-            format!(
-                "Failed to create DSD AudioTrack (bit_rate={}, byte_rate={}, ch={})",
-                dsd_sample_rate, sample_rate, channels
-            )
-        })?;
+        super::dsd_native_jni::dsd_track_create(dsd_sample_rate, channels)
+            .then(|| ())
+            .ok_or_else(|| {
+                format!(
+                    "Failed to create DSD AudioTrack (bit_rate={}, byte_rate={}, ch={})",
+                    dsd_sample_rate, sample_rate, channels
+                )
+            })?;
 
         if !super::dsd_native_jni::dsd_track_play() {
             super::dsd_native_jni::dsd_track_stop();

@@ -15,11 +15,17 @@ const DSD_CLASS_NAME: &str = "com/mossapps/flick/DsdAudioTrackManager$Companion"
 #[cfg(target_os = "android")]
 fn get_cached_class() -> Option<*mut std::ffi::c_void> {
     let ptr = DSD_TRACK_CLASS.load(Ordering::Acquire);
-    if ptr.is_null() { None } else { Some(ptr) }
+    if ptr.is_null() {
+        None
+    } else {
+        Some(ptr)
+    }
 }
 
 #[cfg(target_os = "android")]
-fn find_dsd_class<'env>(env: &mut jni::AttachGuard<'env>) -> Result<jni::objects::JClass<'env>, jni::errors::Error> {
+fn find_dsd_class<'env>(
+    env: &mut jni::AttachGuard<'env>,
+) -> Result<jni::objects::JClass<'env>, jni::errors::Error> {
     if let Some(ptr) = get_cached_class() {
         return Ok(unsafe { jni::objects::JClass::from_raw(ptr as jni::sys::jclass) });
     }
@@ -32,9 +38,8 @@ fn find_dsd_class<'env>(env: &mut jni::AttachGuard<'env>) -> Result<jni::objects
         Err(_) => {
             let _ = env.exception_clear();
             let ctx = ndk_context::android_context();
-            let context = unsafe {
-                jni::objects::JObject::from_raw(ctx.context() as jni::sys::jobject)
-            };
+            let context =
+                unsafe { jni::objects::JObject::from_raw(ctx.context() as jni::sys::jobject) };
             if context.is_null() {
                 return Err(jni::errors::Error::NullPtr(
                     "No Android context available for classloader lookup",
@@ -89,7 +94,10 @@ pub fn dsd_track_preload_class() {
             Ok(())
         });
         if let Err(e) = result {
-            log::warn!("[DSD-NATIVE] Preload class failed (will retry with classloader): {}", e);
+            log::warn!(
+                "[DSD-NATIVE] Preload class failed (will retry with classloader): {}",
+                e
+            );
         }
     }
 }
@@ -103,12 +111,7 @@ pub fn dsd_track_class_available() -> bool {
         }
         let available = with_jni_env(|env| {
             let class = find_dsd_class(env)?;
-            let result = env.call_static_method(
-                &class,
-                "isEncodingDsdAvailable",
-                "()Z",
-                &[],
-            )?;
+            let result = env.call_static_method(&class, "isEncodingDsdAvailable", "()Z", &[])?;
             Ok(result.z()?)
         })
         .unwrap_or_else(|e| {
@@ -143,7 +146,10 @@ pub fn dsd_track_create(sample_rate: u32, channels: usize) -> bool {
                 &class,
                 "nativeCreate",
                 "(II)Z",
-                &[jni::objects::JValue::Int(sample_rate as i32), jni::objects::JValue::Int(channels as i32)],
+                &[
+                    jni::objects::JValue::Int(sample_rate as i32),
+                    jni::objects::JValue::Int(channels as i32),
+                ],
             )?;
             let created = result.z()?;
             Ok(created)
@@ -153,7 +159,8 @@ pub fn dsd_track_create(sample_rate: u32, channels: usize) -> bool {
                 DSD_TRACK_ACTIVE.store(true, Ordering::Release);
                 log::info!(
                     "[DSD-NATIVE] AudioTrack created: rate={} Hz, ch={}",
-                    sample_rate, channels
+                    sample_rate,
+                    channels
                 );
                 true
             }
