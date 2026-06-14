@@ -817,7 +817,16 @@ class _EmbeddedMiniPlayerState extends ConsumerState<_EmbeddedMiniPlayer> {
 
   void _onHorizontalDragEnd(DragEndDetails details) {
     final velocity = details.primaryVelocity ?? 0;
-    if (velocity.abs() > 300) {
+    if (velocity.abs() <= 300) return;
+
+    final swipeAction = ref.read(appPreferencesProvider).miniPlayerSwipeAction;
+    if (swipeAction == 'switchSongs') {
+      if (velocity < 0) {
+        ref.read(playerProvider.notifier).next();
+      } else {
+        ref.read(playerProvider.notifier).previous();
+      }
+    } else {
       setState(() {
         _showVisualizer = !_showVisualizer;
       });
