@@ -289,6 +289,7 @@ class PlayerService {
   final NotificationService _notificationService = NotificationService();
   final FloatingPlayerService _floatingPlayerService = FloatingPlayerService();
   bool _floatingPlayerActive = false;
+  bool _appInForeground = true;
   final LastPlayedService _lastPlayedService = LastPlayedService();
   final FavoritesService _favoritesService = FavoritesService();
   final Uac2PreferencesService _preferencesService = Uac2PreferencesService();
@@ -648,15 +649,7 @@ class PlayerService {
     final canDraw = await _floatingPlayerService.canDrawOverlays();
     if (!canDraw) return false;
     _floatingPlayerActive = true;
-    final song = currentSongNotifier.value;
-    if (song != null) {
-      await _floatingPlayerService.show(
-        song: song,
-        isPlaying: isPlayingNotifier.value,
-        duration: durationNotifier.value,
-        position: positionNotifier.value,
-      );
-    }
+    await _showFloatingPlayerOverlay();
     return true;
   }
 
@@ -665,15 +658,30 @@ class PlayerService {
     await _floatingPlayerService.hide();
   }
 
+  Future<void> _showFloatingPlayerOverlay() async {
+    if (!Platform.isAndroid) return;
+    if (!_floatingPlayerActive) return;
+    if (_appInForeground) return;
+    final song = currentSongNotifier.value;
+    if (song == null) return;
+    await _floatingPlayerService.show(
+      song: song,
+      isPlaying: isPlayingNotifier.value,
+      duration: durationNotifier.value,
+      position: positionNotifier.value,
+    );
+  }
+
   Future<void> onAppPaused() async {
     if (!Platform.isAndroid) return;
+    _appInForeground = false;
     final enabled = await _appPreferencesService.getFloatingPlayerEnabled();
     if (!enabled) return;
-    if (_floatingPlayerActive) return;
     await _activateFloatingPlayer();
   }
 
   Future<void> onAppResumed() async {
+    _appInForeground = true;
     if (!_floatingPlayerActive) return;
     await _deactivateFloatingPlayer();
   }
@@ -2167,14 +2175,7 @@ class PlayerService {
       color: notificationColor,
     );
 
-    if (_floatingPlayerActive && Platform.isAndroid) {
-      await _floatingPlayerService.show(
-        song: song,
-        isPlaying: isPlayingNotifier.value,
-        duration: durationNotifier.value,
-        position: positionNotifier.value,
-      );
-    }
+    await _showFloatingPlayerOverlay();
   }
 
   Future<void> _onSongFinished({String? endedPath}) {
