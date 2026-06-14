@@ -342,6 +342,7 @@ class PlayerService {
   VoidCallback? _bitPerfectLockedListener;
   bool _rustListenersAttached = false;
   bool _audioSessionConfigured = false;
+  bool _wasPlayingBeforeAudioInterruption = false;
   VoidCallback? _rustStateListener;
   VoidCallback? _rustPositionListener;
   VoidCallback? _rustDurationListener;
@@ -920,12 +921,13 @@ class PlayerService {
       currentSongNotifier.value?.isDsd == true;
 
   void _updateBitPerfectProcessingLocked() {
-    final locked = switch (currentEngineType) {
-      AudioEngineType.usbDacExperimental => true,
-      AudioEngineType.dapInternalHighRes =>
-        _uac2Service.isDapBitPerfectEnabledSync,
-      _ => false,
-    } ||
+    final locked =
+        switch (currentEngineType) {
+          AudioEngineType.usbDacExperimental => true,
+          AudioEngineType.dapInternalHighRes =>
+            _uac2Service.isDapBitPerfectEnabledSync,
+          _ => false,
+        } ||
         Uac2PreferencesService.is432HzTuningEnabledSync;
     if (bitPerfectProcessingLockedNotifier.value != locked) {
       bitPerfectProcessingLockedNotifier.value = locked;
@@ -1027,7 +1029,8 @@ class PlayerService {
           engineType == AudioEngineType.dapInternalHighRes) {
         final savedVolume = await _preferencesService.getUsbSoftwareVolume();
         final hasSavedVolume = await _preferencesService.hasUsbSoftwareVolume();
-        final bitPerfectOn = _uac2Service.isBitPerfectEnabledSync ||
+        final bitPerfectOn =
+            _uac2Service.isBitPerfectEnabledSync ||
             _uac2Service.isDapBitPerfectEnabledSync;
         if (bitPerfectOn && !hasSavedVolume) {
           // Bit-perfect safety default: 25 % when the user has never set
@@ -1051,6 +1054,9 @@ class PlayerService {
       return;
     }
 
+    // Any in-flight interruption state is irrelevant once we release focus.
+    _wasPlayingBeforeAudioInterruption = false;
+
     try {
       final session = await AudioSession.instance;
       await session.setActive(false);
@@ -1064,7 +1070,8 @@ class PlayerService {
     await _configureAndroidAudioSession();
     try {
       final session = await AudioSession.instance;
-      await session.setActive(true);
+      final granted = await session.setActive(true);
+      debugPrint('[AudioFocus] Rust engine focus request granted=$granted');
     } catch (e) {
       debugPrint(
         '[AudioFocus] Failed to activate audio session for Rust engine: $e',
@@ -1091,24 +1098,69 @@ class PlayerService {
 
     try {
       final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.music());
+      // Explicitly pause when ducked so the Rust/Oboe engine does not stay in
+      // a half-muted state after notification sounds. This makes every
+      // transient focus loss emit a matching pause/resume pair.
+      await session.configure(
+        const AudioSessionConfiguration.music().copyWith(
+          androidWillPauseWhenDucked: true,
+        ),
+      );
       _audioFocusSubscription ??= session.interruptionEventStream.listen((
         event,
       ) {
-        if (event.begin) {
-          if (isPlayingNotifier.value) {
-            unawaited(_pauseInternal());
-          }
-          return;
-        }
-
-        if (event.type == AudioInterruptionType.pause) {
-          unawaited(_resumeInternal());
-        }
+        _onAudioInterruptionEvent(event);
       });
       _audioSessionConfigured = true;
     } catch (e) {
       debugPrint('[AudioFocus] Failed to configure Android audio session: $e');
+    }
+  }
+
+  void _onAudioInterruptionEvent(AudioInterruptionEvent event) {
+    debugPrint(
+      '[AudioFocus] Interruption event: begin=${event.begin}, '
+      'type=${event.type}, wasPlaying=$_wasPlayingBeforeAudioInterruption, '
+      'playing=${isPlayingNotifier.value}',
+    );
+
+    if (event.begin) {
+      if (isPlayingNotifier.value) {
+        _wasPlayingBeforeAudioInterruption = true;
+        unawaited(_pauseInternal());
+      }
+      return;
+    }
+
+    // Interruption ended. Only resume if we were actually playing when it
+    // started; otherwise a manual pause during the interruption would cause
+    // an unwanted auto-resume.
+    if (!_wasPlayingBeforeAudioInterruption) {
+      return;
+    }
+    _wasPlayingBeforeAudioInterruption = false;
+
+    switch (event.type) {
+      case AudioInterruptionType.pause:
+      case AudioInterruptionType.duck:
+        unawaited(_resumeAfterAudioInterruption());
+      case AudioInterruptionType.unknown:
+        // Permanent focus loss (e.g. another app started long-form playback).
+        // Stay paused and let the user explicitly resume.
+        break;
+    }
+  }
+
+  Future<void> _resumeAfterAudioInterruption() async {
+    // The audio session may have been deactivated while we were paused
+    // (e.g. by a route change or by the system). Re-activate it before
+    // attempting to resume the Rust engine.
+    await _activateAudioSessionForRustEngine();
+    try {
+      await _resumeInternal();
+    } catch (e, stackTrace) {
+      debugPrint('[AudioFocus] Auto-resume after interruption failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
