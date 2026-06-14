@@ -1,5 +1,7 @@
 use crate::audio::dsd_engine::dsd::{DsdOutputMode, DsdRate};
-use crate::audio::dsd_engine::format::{open_dsd_decoder, DsdBitOrder, DsdChannelLayout, DsdFormatDecoder};
+use crate::audio::dsd_engine::format::{
+    open_dsd_decoder, DsdBitOrder, DsdChannelLayout, DsdFormatDecoder,
+};
 use crate::audio::dsd_engine::output::DsdOutputRouter;
 use crate::audio::source::{AudioSource, SourceInfo, SourceProducer};
 use anyhow::{anyhow, Result};
@@ -34,9 +36,8 @@ impl DsdDecoderThread {
     ) -> Result<(AudioSource, Self)> {
         let decoder = open_dsd_decoder(&path)?;
 
-        let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate()).ok_or_else(|| {
-            anyhow!("Unsupported DSD sample rate: {}", decoder.sample_rate())
-        })?;
+        let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
+            .ok_or_else(|| anyhow!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
 
         let source_channels = decoder.channels() as usize;
         let duration_secs = decoder.duration_secs();
@@ -44,7 +45,9 @@ impl DsdDecoderThread {
         let source_bit_order = decoder.bit_order();
 
         let output_sample_rate = match output_mode {
-            DsdOutputMode::PcmDecimation | DsdOutputMode::Auto => dsd_rate.best_pcm_target(target_rate),
+            DsdOutputMode::PcmDecimation | DsdOutputMode::Auto => {
+                dsd_rate.best_pcm_target(target_rate)
+            }
             DsdOutputMode::Dop => dsd_rate.dop_carrier_rate(),
             DsdOutputMode::Native => dsd_rate.byte_rate(),
         };
@@ -80,8 +83,13 @@ impl DsdDecoderThread {
             }
         }
 
-        let output_router =
-            DsdOutputRouter::new(output_mode, dsd_rate, output_sample_rate, source_channels, source_bit_order);
+        let output_router = DsdOutputRouter::new(
+            output_mode,
+            dsd_rate,
+            output_sample_rate,
+            source_channels,
+            source_bit_order,
+        );
 
         let stop_signal = Arc::new(AtomicBool::new(false));
         let stop_clone = Arc::clone(&stop_signal);
@@ -272,11 +280,7 @@ fn deinterleave_sequential_blocks(data: &[u8], channels: usize, block_size: usiz
     out
 }
 
-fn write_to_ring_buffer(
-    samples: &[f32],
-    producer: &mut SourceProducer,
-    stop_signal: &AtomicBool,
-) {
+fn write_to_ring_buffer(samples: &[f32], producer: &mut SourceProducer, stop_signal: &AtomicBool) {
     if samples.is_empty() {
         return;
     }
