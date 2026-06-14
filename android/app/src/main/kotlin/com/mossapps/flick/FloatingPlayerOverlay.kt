@@ -328,16 +328,9 @@ class FloatingPlayerOverlay(private val context: Context) {
     }
 
     private fun animateAppear(view: View) {
-        view.scaleX = 0f
-        view.scaleY = 0f
-        view.alpha = 0f
-        view.animate()
-            .scaleX(1f)
-            .scaleY(1f)
-            .alpha(1f)
-            .setDuration(300)
-            .setInterpolator(OvershootInterpolator(1.5f))
-            .start()
+        view.scaleX = 1f
+        view.scaleY = 1f
+        view.alpha = 1f
     }
 
     private fun animateDisappear(view: View, onComplete: () -> Unit) {
