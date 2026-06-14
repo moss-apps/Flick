@@ -1,4 +1,6 @@
-use crate::audio::engine::{create_audio_engine, desired_output_signature, AudioEngineHandle};
+use crate::audio::engine::{
+    create_audio_engine, desired_output_signature, AudioEngineHandle, TUNING_432HZ_ENABLED,
+};
 use crate::audio::strategy::OutputStrategy;
 use parking_lot::Mutex;
 use std::sync::OnceLock;
@@ -158,6 +160,14 @@ impl EngineManager {
 
     pub fn get_dap_bit_perfect_enabled(&self) -> bool {
         self.state.lock().dap_bit_perfect_enabled
+    }
+
+    pub fn set_432hz_tuning_enabled(&self, enabled: bool) {
+        TUNING_432HZ_ENABLED.store(enabled, std::sync::atomic::Ordering::Relaxed);
+        let _ = self.with_rust_handle(|handle| {
+            handle.set_432hz_tuning_enabled(enabled);
+            Ok(())
+        });
     }
 
     pub fn capability_route_type(&self) -> String {
