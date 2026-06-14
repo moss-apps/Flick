@@ -47,6 +47,12 @@ use std::thread;
 
 pub static XRUN_COUNT: AtomicU64 = AtomicU64::new(0);
 
+/// Global 432 Hz tuning override. When enabled the engine leaves bit-perfect
+/// passthrough and runs the DSP path at 432/440 speed. This is experimental
+/// and intentionally breaks strict bit-perfect delivery.
+pub static TUNING_432HZ_ENABLED: AtomicBool = AtomicBool::new(false);
+const TUNING_432HZ_RATIO: f32 = 432.0 / 440.0;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct AudioOutputRuntimeState {
     pub strategy: String,
@@ -114,6 +120,9 @@ pub struct AudioCallbackData {
     dynamics: Mutex<DynamicsChain>,
     /// Channel for sending finished tracks to command thread
     finished_tracks: Sender<AudioSource>,
+    /// Experimental 432 Hz tuning override. When enabled the callback leaves
+    /// passthrough and uses the DSP path at 432/440 speed.
+    tuning_432hz_enabled: AtomicBool,
 }
 
 impl AudioCallbackData {
@@ -130,9 +139,16 @@ impl AudioCallbackData {
         // Speed buffer needs to be larger to handle 2x speed (need 2x input for 1x output)
         let speed_buffer_size = buffer_size * 3;
 
+        let tuning_enabled = TUNING_432HZ_ENABLED.load(Ordering::Relaxed);
+        let initial_speed = if tuning_enabled {
+            TUNING_432HZ_RATIO
+        } else {
+            1.0f32
+        };
+
         Self {
             volume: std::sync::atomic::AtomicU32::new(1.0f32.to_bits()),
-            playback_speed: std::sync::atomic::AtomicU32::new(1.0f32.to_bits()),
+            playback_speed: std::sync::atomic::AtomicU32::new(initial_speed.to_bits()),
             paused: AtomicBool::new(false),
             pipeline_mode: AtomicU8::new(pipeline_mode as u8),
             base_pipeline_mode: AtomicU8::new(pipeline_mode as u8),
@@ -147,6 +163,7 @@ impl AudioCallbackData {
             fx: Mutex::new(SpatialFx::new(sample_rate)),
             dynamics: Mutex::new(DynamicsChain::new(sample_rate)),
             finished_tracks,
+            tuning_432hz_enabled: AtomicBool::new(tuning_enabled),
         }
     }
 
@@ -187,6 +204,16 @@ impl AudioCallbackData {
             .store(speed.clamp(0.5, 2.0).to_bits(), Ordering::Relaxed);
     }
 
+    /// Toggle experimental 432 Hz tuning. This switches the effective pipeline
+    /// out of passthrough and pins playback speed to 432/440.
+    #[inline]
+    pub fn set_432hz_tuning_enabled(&self, enabled: bool) {
+        self.tuning_432hz_enabled.store(enabled, Ordering::Relaxed);
+        let speed = if enabled { TUNING_432HZ_RATIO } else { 1.0f32 };
+        self.playback_speed.store(speed.to_bits(), Ordering::Relaxed);
+        *self.speed_frac_pos.lock() = 0.0;
+    }
+
     #[inline]
     pub fn is_paused(&self) -> bool {
         self.paused.load(Ordering::Relaxed)
@@ -199,7 +226,9 @@ impl AudioCallbackData {
 
     #[inline]
     pub fn is_passthrough(&self) -> bool {
-        self.pipeline_mode.load(Ordering::Relaxed) == PipelineMode::Passthrough as u8
+        let mode = self.pipeline_mode.load(Ordering::Relaxed);
+        let tuning = self.tuning_432hz_enabled.load(Ordering::Relaxed);
+        mode == PipelineMode::Passthrough as u8 && !tuning
     }
 
     #[inline]
@@ -367,6 +396,11 @@ impl AudioEngineHandle {
     /// Switch pipeline mode at runtime (used when Bit-perfect (DAP Internal) is toggled).
     pub fn set_pipeline_mode_passthrough(&self, passthrough: bool) -> Result<(), String> {
         self.send_command(AudioCommand::SetPipelineMode { passthrough })
+    }
+
+    /// Toggle experimental 432 Hz tuning. Breaks bit-perfect passthrough.
+    pub fn set_432hz_tuning_enabled(&self, enabled: bool) {
+        self.callback_data.set_432hz_tuning_enabled(enabled);
     }
 
     pub fn set_dop_override(&self, is_dop: bool) -> Result<(), String> {
