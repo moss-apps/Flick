@@ -23,9 +23,9 @@ impl DffDecoder {
         let sample_rate = dff
             .get_sample_rate()
             .map_err(|e| anyhow!("Failed to get DFF sample rate: {}", e))?;
-        let channels = dff
-            .get_num_channels()
-            .map_err(|e| anyhow!("Failed to get DFF channel count: {}", e))? as u16;
+        let channels =
+            dff.get_num_channels()
+                .map_err(|e| anyhow!("Failed to get DFF channel count: {}", e))? as u16;
         let data_offset = dff.get_dsd_data_offset();
         let audio_length = dff.get_audio_length();
 

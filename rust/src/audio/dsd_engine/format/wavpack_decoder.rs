@@ -24,8 +24,7 @@ impl WavpackDsdDecoder {
         let path_str = path
             .to_str()
             .ok_or_else(|| anyhow!("Invalid path encoding"))?;
-        let c_path =
-            CString::new(path_str).map_err(|_| anyhow!("Path contains null byte"))?;
+        let c_path = CString::new(path_str).map_err(|_| anyhow!("Path contains null byte"))?;
 
         let _file = File::open(path)?;
 
@@ -116,9 +115,8 @@ impl DsdFormatDecoder for WavpackDsdDecoder {
 
         let samples_to_read = buf.len() as u32;
         let mut int_buf = vec![0i32; buf.len()];
-        let unpacked = unsafe {
-            WavpackUnpackSamples(self.context, int_buf.as_mut_ptr(), samples_to_read)
-        };
+        let unpacked =
+            unsafe { WavpackUnpackSamples(self.context, int_buf.as_mut_ptr(), samples_to_read) };
 
         if unpacked == 0 {
             return Ok(0);

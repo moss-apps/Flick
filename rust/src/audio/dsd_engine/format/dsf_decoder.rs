@@ -33,9 +33,10 @@ impl DsfDecoder {
         let data = dsf.data_chunk();
         let data_size = data.chunk_size().saturating_sub(DSF_DATA_CHUNK_HEADER_SIZE);
 
-        let mut file = dsf.file().try_clone().map_err(|e| {
-            anyhow!("Failed to clone DSF file handle: {}", e)
-        })?;
+        let mut file = dsf
+            .file()
+            .try_clone()
+            .map_err(|e| anyhow!("Failed to clone DSF file handle: {}", e))?;
         drop(dsf);
 
         let data_offset =
