@@ -115,7 +115,11 @@ fn normalize_dsd_byte(byte: u8, source_order: DsdBitOrder) -> u8 {
         DsdBitOrder::MsbFirst => false,
     };
     if DSD_BIT_REVERSE_OVERRIDE.load(Ordering::Relaxed) {
-        if needs_reverse { byte } else { reverse_bits(byte) }
+        if needs_reverse {
+            byte
+        } else {
+            reverse_bits(byte)
+        }
     } else if needs_reverse {
         reverse_bits(byte)
     } else {
@@ -146,7 +150,10 @@ fn pack_native_dsd_f32(
     output.reserve(frames * channels);
     for i in 0..frames {
         for ch in 0..channels {
-            let ch_offset = channel_offsets.get(ch).copied().unwrap_or(ch * bytes_per_ch);
+            let ch_offset = channel_offsets
+                .get(ch)
+                .copied()
+                .unwrap_or(ch * bytes_per_ch);
             let b = dsd_bytes[ch_offset + i];
             let normalized = normalize_dsd_byte(b, source_bit_order);
             output.push(f32::from_bits(normalized as u32));

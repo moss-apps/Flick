@@ -203,6 +203,11 @@ final uac2DapBitPerfectEnabledProvider = FutureProvider<bool>((ref) async {
   return service.getDapBitPerfectEnabled();
 });
 
+final uac2432HzTuningEnabledProvider = FutureProvider<bool>((ref) async {
+  final service = ref.watch(uac2PreferencesServiceProvider);
+  return service.get432HzTuningEnabled();
+});
+
 final uac2ExclusiveDacModeProvider = uac2BitPerfectEnabledProvider;
 
 final killIsochronousUsbOnQuitProvider = FutureProvider<bool>((ref) async {

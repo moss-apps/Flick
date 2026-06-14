@@ -7,7 +7,9 @@ use super::validation::{
     validate_output_terminal,
 };
 use crate::uac2::error::Uac2Error;
+use flutter_rust_bridge::frb;
 
+#[frb(opaque)]
 pub struct AudioControlParser;
 
 impl AudioControlParser {
@@ -30,7 +32,9 @@ impl AudioControlParser {
     pub fn parse_ac_header_v1(&self, data: &[u8]) -> Result<AcInterfaceHeaderV1, Uac2Error> {
         require_len(data, 9)?;
         if data[1] != USB_DT_CS_INTERFACE || data[2] != UAC_AC_HEADER {
-            return Err(Uac2Error::InvalidDescriptor("not UAC1 AC header".to_string()));
+            return Err(Uac2Error::InvalidDescriptor(
+                "not UAC1 AC header".to_string(),
+            ));
         }
         let bcd_adc = read_u16_le(data, 3);
         let w_total_length = read_u16_le(data, 5);
@@ -134,9 +138,7 @@ impl AudioControlParser {
         const LEN: usize = 8;
         require_len(data, LEN)?;
         if data[1] != USB_DT_CS_INTERFACE || data[2] != UAC2_CLOCK_SOURCE {
-            return Err(Uac2Error::InvalidDescriptor(
-                "not clock source".to_string(),
-            ));
+            return Err(Uac2Error::InvalidDescriptor("not clock source".to_string()));
         }
         Ok(ClockSource {
             b_clock_id: data[3],

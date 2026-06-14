@@ -25,6 +25,35 @@ class BottomBarSettingsScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SettingsSectionHeader('Mini Player'),
+          SettingsCard(
+            children: [
+              SelectionSetting(
+                icon: LucideIcons.audioLines,
+                title: 'Visualizer',
+                subtitle: 'Swipe to show or hide the visualizer',
+                selected: appPreferences.miniPlayerSwipeAction == 'visualizer',
+                onTap: () {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setMiniPlayerSwipeAction('visualizer');
+                },
+              ),
+              const SettingsDivider(),
+              SelectionSetting(
+                icon: LucideIcons.skipForward,
+                title: 'Switch Songs',
+                subtitle: 'Swipe left/right to skip tracks',
+                selected: appPreferences.miniPlayerSwipeAction == 'switchSongs',
+                onTap: () {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setMiniPlayerSwipeAction('switchSongs');
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
           const SettingsSectionHeader('Auto Collapse'),
           SettingsCard(
             children: [

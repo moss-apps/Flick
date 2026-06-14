@@ -107,7 +107,12 @@ impl<T: UsbContext + Send + 'static> AudioBackend for Uac2Backend<T> {
         BackendDescriptor {
             backend_type: BackendType::UsbDirect,
             supports_passthrough: true,
-            max_sample_rate: self.format.sample_rates.first().map(|sr| sr.hz()).unwrap_or(48000),
+            max_sample_rate: self
+                .format
+                .sample_rates
+                .first()
+                .map(|sr| sr.hz())
+                .unwrap_or(48000),
             priority: 10,
         }
     }

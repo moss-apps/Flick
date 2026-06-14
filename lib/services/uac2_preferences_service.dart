@@ -19,6 +19,7 @@ class Uac2PreferencesService {
   static const _keyHiFiModeEnabled = 'uac2_hifi_mode_enabled';
   static const _keyBitPerfectEnabled = 'uac2_bit_perfect_enabled';
   static const _keyDapBitPerfectEnabled = 'uac2_dap_bit_perfect_enabled';
+  static const _key432HzTuningEnabled = 'uac2_432hz_tuning_enabled';
   static const _keyExclusiveDacModeEnabled = 'uac2_exclusive_dac_mode_enabled';
   static const _keyAudioEnginePreference = 'audio_engine_preference';
   static const _keyDeveloperModeEnabled = 'developer_mode_enabled';
@@ -34,6 +35,8 @@ class Uac2PreferencesService {
   static DsdOutputMode get dsdOutputModeSync => dsdOutputModeNotifier.value;
   static final ValueNotifier<bool> autoSwitchDsdForVolumeNotifier = ValueNotifier(false);
   static bool get autoSwitchDsdForVolumeSync => autoSwitchDsdForVolumeNotifier.value;
+  static final ValueNotifier<bool> tuning432HzNotifier = ValueNotifier(false);
+  static bool get is432HzTuningEnabledSync => tuning432HzNotifier.value;
 
   Future<void> saveSelectedDevice(Uac2DeviceInfo device) async {
     try {
@@ -164,6 +167,37 @@ class Uac2PreferencesService {
     }
   }
 
+  Future<void> set432HzTuningEnabled(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_key432HzTuningEnabled, enabled);
+      tuning432HzNotifier.value = enabled;
+    } catch (e) {
+      debugPrint('Failed to save 432 Hz tuning setting: $e');
+    }
+  }
+
+  Future<bool> get432HzTuningEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool(_key432HzTuningEnabled) ?? false;
+      if (tuning432HzNotifier.value != enabled) {
+        tuning432HzNotifier.value = enabled;
+      }
+      return enabled;
+    } catch (e) {
+      debugPrint('Failed to load 432 Hz tuning setting: $e');
+      return tuning432HzNotifier.value;
+    }
+  }
+
+  Future<void> initialize432HzTuningCache() async {
+    final enabled = await get432HzTuningEnabled();
+    if (tuning432HzNotifier.value != enabled) {
+      tuning432HzNotifier.value = enabled;
+    }
+  }
+
   Future<void> setExclusiveDacModeEnabled(bool enabled) {
     return setBitPerfectEnabled(enabled);
   }
@@ -281,6 +315,16 @@ class Uac2PreferencesService {
     } catch (e) {
       debugPrint('Failed to load USB software volume: $e');
       return 1.0;
+    }
+  }
+
+  Future<bool> hasUsbSoftwareVolume() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.containsKey(_keyUsbSoftwareVolume);
+    } catch (e) {
+      debugPrint('Failed to check USB software volume key: $e');
+      return false;
     }
   }
 
@@ -402,6 +446,7 @@ class Uac2PreferencesService {
       await prefs.remove(_keyHiFiModeEnabled);
       await prefs.remove(_keyBitPerfectEnabled);
       await prefs.remove(_keyDapBitPerfectEnabled);
+      await prefs.remove(_key432HzTuningEnabled);
       await prefs.remove(_keyExclusiveDacModeEnabled);
       await prefs.remove(_keyAudioEnginePreference);
       await prefs.remove(_keyDeveloperModeEnabled);
@@ -411,9 +456,10 @@ class Uac2PreferencesService {
     await prefs.remove(_keyGaplessPlaybackEnabled);
     await prefs.remove(_keyDsdOutputMode);
     await prefs.remove(_keyAutoSwitchDsdForVolume);
-    dsdOutputModeNotifier.value = DsdOutputMode.auto;
-    developerModeNotifier.value = false;
+      dsdOutputModeNotifier.value = DsdOutputMode.auto;
+      developerModeNotifier.value = false;
       killIsochronousUsbOnQuitNotifier.value = true;
+      tuning432HzNotifier.value = false;
     } catch (e) {
       debugPrint('Failed to clear preferences: $e');
     }

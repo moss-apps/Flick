@@ -47,11 +47,16 @@ class FloatingPlayerOverlay(private val context: Context) {
     private var downTime = 0L
     private var isDragging = false
     private var hasMoved = false
+    private var longPressTriggered = false
 
     private var tapCount = 0
     private val tapTimeoutRunnable = Runnable { flushTaps() }
     private val longPressRunnable = Runnable {
         if (!hasMoved) {
+            longPressTriggered = true
+            // A long-press consumes any pending multi-tap sequence.
+            mainHandler.removeCallbacks(tapTimeoutRunnable)
+            tapCount = 0
             openApp()
             showActionFeedback(R.drawable.ic_notification)
         }
@@ -224,6 +229,7 @@ class FloatingPlayerOverlay(private val context: Context) {
                 downTime = System.currentTimeMillis()
                 isDragging = false
                 hasMoved = false
+                longPressTriggered = false
                 v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).start()
                 mainHandler.postDelayed(longPressRunnable, LONG_PRESS)
             }
@@ -248,7 +254,10 @@ class FloatingPlayerOverlay(private val context: Context) {
                 v.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
                 mainHandler.removeCallbacks(longPressRunnable)
 
-                if (isDragging) {
+                if (longPressTriggered) {
+                    // Long-press already opened the app; don't treat the lift as a tap.
+                    longPressTriggered = false
+                } else if (isDragging) {
                     snapToEdge(v)
                 } else if (!hasMoved) {
                     handleTap()
@@ -328,16 +337,9 @@ class FloatingPlayerOverlay(private val context: Context) {
     }
 
     private fun animateAppear(view: View) {
-        view.scaleX = 0f
-        view.scaleY = 0f
-        view.alpha = 0f
-        view.animate()
-            .scaleX(1f)
-            .scaleY(1f)
-            .alpha(1f)
-            .setDuration(300)
-            .setInterpolator(OvershootInterpolator(1.5f))
-            .start()
+        view.scaleX = 1f
+        view.scaleY = 1f
+        view.alpha = 1f
     }
 
     private fun animateDisappear(view: View, onComplete: () -> Unit) {

@@ -1155,14 +1155,16 @@ pub fn set_android_usb_dop_mode(
         return Err("No Android direct USB DAC is registered".to_string());
     };
 
-    let current = state.playback_format.unwrap_or(AndroidDirectUsbPlaybackFormat {
-        sample_rate: carrier_rate,
-        bit_depth,
-        channels: 2,
-        is_dop: false,
-        dsd_transport: DsdTransportMode::None,
-        dsd_bit_rate: 0,
-    });
+    let current = state
+        .playback_format
+        .unwrap_or(AndroidDirectUsbPlaybackFormat {
+            sample_rate: carrier_rate,
+            bit_depth,
+            channels: 2,
+            is_dop: false,
+            dsd_transport: DsdTransportMode::None,
+            dsd_bit_rate: 0,
+        });
 
     let transport = if is_dop {
         DsdTransportMode::DoP
@@ -1188,23 +1190,23 @@ pub fn set_android_usb_dop_mode(
     Ok(())
 }
 
-pub fn set_android_usb_dsd_native_mode(
-    dsd_bit_rate: u32,
-) -> Result<(), String> {
+pub fn set_android_usb_dsd_native_mode(dsd_bit_rate: u32) -> Result<(), String> {
     let mut guard = DIRECT_USB_STATE.lock();
     let Some(state) = guard.as_mut() else {
         return Err("No Android direct USB DAC is registered".to_string());
     };
 
     let wire_rate = dsd_bit_rate / (8 * 4); // DSD_U32 default wire rate
-    let current = state.playback_format.unwrap_or(AndroidDirectUsbPlaybackFormat {
-        sample_rate: wire_rate,
-        bit_depth: 1,
-        channels: 2,
-        is_dop: false,
-        dsd_transport: DsdTransportMode::None,
-        dsd_bit_rate: 0,
-    });
+    let current = state
+        .playback_format
+        .unwrap_or(AndroidDirectUsbPlaybackFormat {
+            sample_rate: wire_rate,
+            bit_depth: 1,
+            channels: 2,
+            is_dop: false,
+            dsd_transport: DsdTransportMode::None,
+            dsd_bit_rate: 0,
+        });
 
     let native_format = AndroidDirectUsbPlaybackFormat {
         sample_rate: wire_rate,
@@ -2735,11 +2737,8 @@ fn refresh_android_usb_hardware_volume_snapshot_with_handle(
             UAC2_FEATURE_UNIT_VOLUME_CONTROL,
         ) {
             Ok(raw) => {
-                let normalized = normalize_hardware_volume(
-                    raw,
-                    control.min_volume_raw,
-                    control.max_volume_raw,
-                );
+                let normalized =
+                    normalize_hardware_volume(raw, control.min_volume_raw, control.max_volume_raw);
                 let muted = control
                     .mute_channel
                     .map(|channel| {
@@ -2755,10 +2754,7 @@ fn refresh_android_usb_hardware_volume_snapshot_with_handle(
                 return Ok((normalized, muted));
             }
             Err(e) => {
-                eprintln!(
-                    "[VolFlow] GET_CUR attempt {} failed: {e}",
-                    attempt + 1
-                );
+                eprintln!("[VolFlow] GET_CUR attempt {} failed: {e}", attempt + 1);
                 last_err = Some(e);
                 if attempt < GET_CUR_RETRIES - 1 {
                     std::thread::sleep(Duration::from_millis(RETRY_DELAY_MS));
@@ -2811,8 +2807,10 @@ pub fn android_direct_set_hardware_volume(volume: f64) -> Result<(), String> {
         control.max_volume_raw,
         control.resolution_raw,
     );
-    eprintln!("[VolFlow] min={} max={} res={} -> raw={target_raw}",
-        control.min_volume_raw, control.max_volume_raw, control.resolution_raw);
+    eprintln!(
+        "[VolFlow] min={} max={} res={} -> raw={target_raw}",
+        control.min_volume_raw, control.max_volume_raw, control.resolution_raw
+    );
     let write_result = write_feature_unit_i16_control(
         &claimed_handle.handle,
         control.interface_number,
@@ -2836,7 +2834,9 @@ pub fn android_direct_set_hardware_volume(volume: f64) -> Result<(), String> {
     let span = ((control.max_volume_raw - control.min_volume_raw) as f64).max(1.0);
     let tolerance = (step / span * 0.6).max(1e-6);
     if (normalized - expected).abs() > tolerance {
-        eprintln!("[VolFlow] post-SET_CUR volume mismatch: expected={expected:.3} got={normalized:.3}");
+        eprintln!(
+            "[VolFlow] post-SET_CUR volume mismatch: expected={expected:.3} got={normalized:.3}"
+        );
         return Err(format!(
             "volume verification failed: expected {:.3}, got {:.3}",
             expected, normalized
@@ -3999,7 +3999,12 @@ fn run_usb_render_loop(
         audio_callback(&mut render_buffer, &callback_data, &event_tx);
         if cycle_start.elapsed() > chunk_deadline {
             let count = crate::audio::engine::XRUN_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-            eprintln!("[Xrun] render cycle overrun: {:.1}ms > {}ms (total={})", cycle_start.elapsed().as_secs_f64() * 1000.0, ANDROID_USB_RENDER_CHUNK_MS, count);
+            eprintln!(
+                "[Xrun] render cycle overrun: {:.1}ms > {}ms (total={})",
+                cycle_start.elapsed().as_secs_f64() * 1000.0,
+                ANDROID_USB_RENDER_CHUNK_MS,
+                count
+            );
         }
         if render_buffer.is_empty() {
             if !warned_no_frames {
@@ -4944,7 +4949,10 @@ fn select_stream_candidate(
 
             if stream_format.format_tag == FORMAT_TAG_DSD
                 && !sample_rate_ranges.is_empty()
-                && !sampling_frequency_ranges_support_rate(&sample_rate_ranges, effective_sample_rate)
+                && !sampling_frequency_ranges_support_rate(
+                    &sample_rate_ranges,
+                    effective_sample_rate,
+                )
             {
                 continue;
             }
@@ -5073,11 +5081,7 @@ fn select_stream_candidate(
     });
 
     let label_rate = if is_native_dsd && dsd_bit_rate > 0 {
-        format!(
-            "DSD{}@{}Hz",
-            dsd_bit_rate,
-            dsd_bit_rate / 32
-        )
+        format!("DSD{}@{}Hz", dsd_bit_rate, dsd_bit_rate / 32)
     } else {
         format!("{} Hz", playback_format.sample_rate)
     };
@@ -6112,7 +6116,7 @@ fn validate_transport_against_playback_format(
             "Android USB direct requires at least {} bytes per subslot for {}-bit transport, got {}",
             min_subslot_size, playback_format.bit_depth, candidate.subslot_size
         ));
-    }
+        }
     }
     Ok(())
 }

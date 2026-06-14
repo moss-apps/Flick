@@ -36,9 +36,12 @@ pub mod verifier;
 pub mod wavpack_thread;
 
 pub use alac_converter::{AudioMetadata, ConversionSession};
-pub use commands::{AudioCommand, PlaybackState};
-pub use engine::{create_audio_engine, AudioEngineHandle};
 pub use backend::{AudioBackend, BackendDescriptor, BackendType};
-pub use device::{DapSignature, dap_signatures, detect_dap, is_known_dap_model};
+pub use commands::{AudioCommand, PlaybackState};
+pub use device::{dap_signatures, detect_dap, is_known_dap_model, DapSignature};
+pub use engine::{create_audio_engine, AudioEngineHandle};
 pub use manager::{AudioCapability, AudioCapabilitySnapshot, AudioEngine, EngineManager};
-pub use strategy::{BackendCandidate, DeviceCaps, TrackInfo, select_strategy, select_strategy_with_candidates, DEFAULT_CANDIDATES};
+pub use strategy::{
+    select_strategy, select_strategy_with_candidates, BackendCandidate, DeviceCaps, TrackInfo,
+    DEFAULT_CANDIDATES,
+};

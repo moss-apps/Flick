@@ -877,6 +877,12 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     // Pseudo audio header bytes from file path seed (deterministic).
     final bytes = _seededBytes(song.filePath ?? song.id, 16);
 
+    const stageColors = [
+      Color(0xFFFF9100), // File — vibrant orange
+      Color(0xFFEA80FC), // Decode — vibrant purple
+      Color(0xFF00E5FF), // Format — vibrant cyan
+    ];
+
     final stages = <_FlowStageData>[
       _FlowStageData(
         icon: Icons.insert_drive_file_outlined,
@@ -884,6 +890,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
         subtitle: fmt,
         detail: song.resolution ?? song.filePath?.split('.').last.toUpperCase(),
         visual: _FlowVisual.bytes(bytes, stageIndex: 0),
+        color: stageColors[0],
       ),
       _FlowStageData(
         icon: Icons.transform_rounded,
@@ -894,6 +901,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           bytes.map((b) => (b * 3) & 0xFF).toList(),
           stageIndex: 1,
         ),
+        color: stageColors[1],
       ),
       _FlowStageData(
         icon: Icons.multiline_chart_rounded,
@@ -907,13 +915,14 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           bd != null ? bd / 32.0 : 0.5,
           stageIndex: 2,
         ),
+        color: stageColors[2],
       ),
     ];
 
     return _FlowDiagram(
       stages: stages,
       expanded: expanded,
-      accentColor: Colors.green.shade400,
+      accentColor: const Color(0xFF00E676),
     );
   }
 
@@ -944,6 +953,14 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
             : 4)
         .toInt();
 
+    const stageColors = [
+      Color(0xFF69F0AE), // PCM Frames — vibrant mint
+      Color(0xFF40C4FF), // Endpoint — vibrant sky blue
+      Color(0xFF7C4DFF), // URB Packet — vibrant violet
+      Color(0xFFFFD740), // Buffer — vibrant amber
+      Color(0xFF64FFDA), // Stream — vibrant teal
+    ];
+
     final stages = <_FlowStageData>[
       _FlowStageData(
         icon: Icons.grid_on_rounded,
@@ -954,6 +971,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           _seededBytes('pcm-${widget.song.id}', 12),
           stageIndex: 0,
         ),
+        color: stageColors[0],
       ),
       _FlowStageData(
         icon: Icons.usb_rounded,
@@ -965,6 +983,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           if (urb.activeAltSetting != null) 'Alt ${urb.activeAltSetting}',
           if (urb.activeSyncType != null) urb.activeSyncType,
         ].join(' · '),
+        color: stageColors[1],
       ),
       _FlowStageData(
         icon: Icons.send_rounded,
@@ -978,6 +997,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
             '${urb.activeServiceIntervalUs} µs',
         ].join(' · '),
         visual: _FlowVisual.packets(packetCount, stageIndex: 2),
+        color: stageColors[2],
       ),
       _FlowStageData(
         icon: Icons.storage_rounded,
@@ -988,6 +1008,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           if (urb.bufferTargetMs != null) 'target ${urb.bufferTargetMs} ms',
         ].join(' · '),
         visual: _FlowVisual.buffer(fillRatio, stageIndex: 3),
+        color: stageColors[3],
       ),
       _FlowStageData(
         icon: Icons.stream_rounded,
@@ -1003,13 +1024,14 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           pending: urb.underrunCount == null,
           stageIndex: 4,
         ),
+        color: stageColors[4],
       ),
     ];
 
     return _FlowDiagram(
       stages: stages,
       expanded: expanded,
-      accentColor: Colors.blue.shade400,
+      accentColor: const Color(0xFF00B0FF),
     );
   }
 
@@ -1023,6 +1045,13 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
 
     final crcOk = _crcMatch(song);
 
+    const stageColors = [
+      Color(0xFFFFD600), // Rip Source — vibrant amber
+      Color(0xFFFFAB00), // Read Mode — vibrant orange
+      Color(0xFFFF6D00), // CRC — vibrant deep orange
+      Color(0xFFFFD600), // AccurateRip — vibrant amber
+    ];
+
     final stages = <_FlowStageData>[
       _FlowStageData(
         icon: Icons.disc_full_rounded,
@@ -1030,6 +1059,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
         subtitle: song.ripper ?? '-',
         detail: null,
         visual: _FlowVisual.check(song.ripper != null, stageIndex: 0),
+        color: stageColors[0],
       ),
       _FlowStageData(
         icon: Icons.playlist_add_check_rounded,
@@ -1037,6 +1067,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
         subtitle: song.readMode ?? '-',
         detail: null,
         visual: _FlowVisual.check(song.readMode != null, stageIndex: 1),
+        color: stageColors[1],
       ),
       _FlowStageData(
         icon: Icons.compare_arrows_rounded,
@@ -1044,6 +1075,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
         subtitle: song.copyCrc ?? '-',
         detail: song.testCrc != null ? 'Test: ${song.testCrc}' : null,
         visual: _FlowVisual.check(crcOk, pending: !crcOk, stageIndex: 2),
+        color: stageColors[2],
       ),
       _FlowStageData(
         icon: Icons.verified_rounded,
@@ -1055,13 +1087,14 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           pending: song.accurateRip == null,
           stageIndex: 3,
         ),
+        color: stageColors[3],
       ),
     ];
 
     return _FlowDiagram(
       stages: stages,
       expanded: expanded,
-      accentColor: Colors.amber.shade400,
+      accentColor: const Color(0xFFFFD600),
     );
   }
 
@@ -1118,6 +1151,7 @@ class _FlowStageData {
   final String subtitle;
   final String? detail;
   final _FlowVisual? visual;
+  final Color? color;
 
   const _FlowStageData({
     required this.icon,
@@ -1125,6 +1159,7 @@ class _FlowStageData {
     required this.subtitle,
     this.detail,
     this.visual,
+    this.color,
   });
 }
 
@@ -1180,6 +1215,9 @@ class _FlowDiagram extends StatelessWidget {
     required this.accentColor,
   });
 
+  List<Color> get _stageColors =>
+      stages.map((s) => s.color ?? accentColor).toList();
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -1219,7 +1257,10 @@ class _FlowDiagram extends StatelessWidget {
         list.add(
           SizedBox(
             width: 14,
-            child: _CompactFlowArrow(accentColor: accentColor),
+            child: _CompactFlowArrow(
+              fromColor: _stageColors[i],
+              toColor: _stageColors[i + 1],
+            ),
           ),
         );
       }
@@ -1247,7 +1288,8 @@ class _FlowDiagram extends StatelessWidget {
                 ),
                 if (i < stages.length - 1)
                   _FlowConnector(
-                    accentColor: accentColor,
+                    fromColor: _stageColors[i],
+                    toColor: _stageColors[i + 1],
                     active: i < 2,
                   ),
               ];
@@ -1261,9 +1303,14 @@ class _FlowDiagram extends StatelessWidget {
 
 /// Vertical connector with animated flowing dots and a glowing arrowhead.
 class _FlowConnector extends StatefulWidget {
-  final Color accentColor;
+  final Color fromColor;
+  final Color toColor;
   final bool active;
-  const _FlowConnector({required this.accentColor, this.active = true});
+  const _FlowConnector({
+    required this.fromColor,
+    required this.toColor,
+    this.active = true,
+  });
 
   @override
   State<_FlowConnector> createState() => _FlowConnectorState();
@@ -1312,7 +1359,8 @@ class _FlowConnectorState extends State<_FlowConnector>
           return CustomPaint(
             painter: _ConnectorPainter(
               progress: _controller.value,
-              color: widget.accentColor,
+              fromColor: widget.fromColor,
+              toColor: widget.toColor,
             ),
           );
         },
@@ -1323,8 +1371,13 @@ class _FlowConnectorState extends State<_FlowConnector>
 
 class _ConnectorPainter extends CustomPainter {
   final double progress;
-  final Color color;
-  const _ConnectorPainter({required this.progress, required this.color});
+  final Color fromColor;
+  final Color toColor;
+  const _ConnectorPainter({
+    required this.progress,
+    required this.fromColor,
+    required this.toColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1333,6 +1386,7 @@ class _ConnectorPainter extends CustomPainter {
     final cx = w / 2;
     final lineTop = 4.0;
     final lineBottom = h - 8.0;
+    final midColor = Color.lerp(fromColor, toColor, 0.5)!;
 
     // Main vertical line with gradient (faded at ends).
     final linePaint = Paint()
@@ -1340,9 +1394,9 @@ class _ConnectorPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          color.withValues(alpha: 0.15),
-          color.withValues(alpha: 0.55),
-          color.withValues(alpha: 0.15),
+          fromColor.withValues(alpha: 0.15),
+          midColor.withValues(alpha: 0.55),
+          toColor.withValues(alpha: 0.15),
         ],
       ).createShader(Rect.fromLTWH(cx - 0.75, lineTop, 1.5, lineBottom - lineTop));
     final rrect = RRect.fromRectAndRadius(
@@ -1356,11 +1410,12 @@ class _ConnectorPainter extends CustomPainter {
       final offset = (progress + i / 3.0) % 1.0;
       final y = lineTop + offset * (lineBottom - lineTop);
       final alpha = (1.0 - (offset - 0.5).abs() * 2.0).clamp(0.0, 1.0);
+      final particleColor = Color.lerp(fromColor, toColor, offset)!;
       final glow = Paint()
-        ..color = color.withValues(alpha: 0.35 * alpha)
+        ..color = particleColor.withValues(alpha: 0.35 * alpha)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
       canvas.drawCircle(Offset(cx, y), 3.0, glow);
-      final dot = Paint()..color = color.withValues(alpha: 0.85 * alpha);
+      final dot = Paint()..color = particleColor.withValues(alpha: 0.85 * alpha);
       canvas.drawCircle(Offset(cx, y), 1.8, dot);
     }
 
@@ -1370,19 +1425,25 @@ class _ConnectorPainter extends CustomPainter {
       ..lineTo(cx + 5, lineBottom - 1)
       ..lineTo(cx, lineBottom + 5)
       ..close();
-    final arrowPaint = Paint()..color = color.withValues(alpha: 0.7);
+    final arrowPaint = Paint()..color = toColor.withValues(alpha: 0.7);
     canvas.drawPath(arrowPath, arrowPaint);
   }
 
   @override
   bool shouldRepaint(_ConnectorPainter old) =>
-      old.progress != progress || old.color != color;
+      old.progress != progress ||
+      old.fromColor != fromColor ||
+      old.toColor != toColor;
 }
 
 /// Compact horizontal arrow with small flow pulse.
 class _CompactFlowArrow extends StatefulWidget {
-  final Color accentColor;
-  const _CompactFlowArrow({required this.accentColor});
+  final Color fromColor;
+  final Color toColor;
+  const _CompactFlowArrow({
+    required this.fromColor,
+    required this.toColor,
+  });
 
   @override
   State<_CompactFlowArrow> createState() => _CompactFlowArrowState();
@@ -1417,7 +1478,8 @@ class _CompactFlowArrowState extends State<_CompactFlowArrow>
           return CustomPaint(
             painter: _CompactArrowPainter(
               progress: _controller.value,
-              color: widget.accentColor,
+              fromColor: widget.fromColor,
+              toColor: widget.toColor,
             ),
           );
         },
@@ -1428,8 +1490,13 @@ class _CompactFlowArrowState extends State<_CompactFlowArrow>
 
 class _CompactArrowPainter extends CustomPainter {
   final double progress;
-  final Color color;
-  const _CompactArrowPainter({required this.progress, required this.color});
+  final Color fromColor;
+  final Color toColor;
+  const _CompactArrowPainter({
+    required this.progress,
+    required this.fromColor,
+    required this.toColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1438,19 +1505,25 @@ class _CompactArrowPainter extends CustomPainter {
     if (w < 6) return;
     final cy = h / 2;
 
-    // Faint line.
+    // Faint gradient line.
     final linePaint = Paint()
-      ..color = color.withValues(alpha: 0.35)
+      ..shader = LinearGradient(
+        colors: [
+          fromColor.withValues(alpha: 0.35),
+          toColor.withValues(alpha: 0.35),
+        ],
+      ).createShader(Rect.fromLTWH(2, cy, w - 6, 1))
       ..strokeWidth = 1.0;
     canvas.drawLine(Offset(2, cy), Offset(w - 4, cy), linePaint);
 
     // Flowing dot.
     final dx = 2.0 + progress * (w - 6);
+    final dotColor = Color.lerp(fromColor, toColor, progress)!;
     final glow = Paint()
-      ..color = color.withValues(alpha: 0.45)
+      ..color = dotColor.withValues(alpha: 0.45)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
     canvas.drawCircle(Offset(dx, cy), 2.5, glow);
-    final dot = Paint()..color = color.withValues(alpha: 0.9);
+    final dot = Paint()..color = dotColor.withValues(alpha: 0.9);
     canvas.drawCircle(Offset(dx, cy), 1.3, dot);
 
     // Arrowhead (scaled to width).
@@ -1461,13 +1534,15 @@ class _CompactArrowPainter extends CustomPainter {
       ..lineTo(w - 1, cy)
       ..lineTo(w - headW - 1, cy + headH)
       ..close();
-    final headPaint = Paint()..color = color.withValues(alpha: 0.75);
+    final headPaint = Paint()..color = toColor.withValues(alpha: 0.75);
     canvas.drawPath(head, headPaint);
   }
 
   @override
   bool shouldRepaint(_CompactArrowPainter old) =>
-      old.progress != progress || old.color != color;
+      old.progress != progress ||
+      old.fromColor != fromColor ||
+      old.toColor != toColor;
 }
 
 /// Compact horizontal stage pill (for collapsed view).
@@ -1484,6 +1559,7 @@ class _FlowStageCompact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = data.color ?? accentColor;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
       decoration: BoxDecoration(
@@ -1491,18 +1567,18 @@ class _FlowStageCompact extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            accentColor.withValues(alpha: 0.18),
-            accentColor.withValues(alpha: 0.06),
+            color.withValues(alpha: 0.18),
+            color.withValues(alpha: 0.06),
           ],
         ),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accentColor.withValues(alpha: 0.28), width: 0.8),
+        border: Border.all(color: color.withValues(alpha: 0.28), width: 0.8),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(data.icon, size: 12, color: accentColor),
+          Icon(data.icon, size: 12, color: color),
           const SizedBox(height: 1),
           Text(
             data.title,
@@ -1510,7 +1586,7 @@ class _FlowStageCompact extends StatelessWidget {
               fontFamily: 'ProductSans',
               fontSize: 8.5,
               fontWeight: FontWeight.w600,
-              color: accentColor.withValues(alpha: 0.95),
+              color: color.withValues(alpha: 0.95),
               height: 1.1,
             ),
             maxLines: 1,
@@ -1551,6 +1627,7 @@ class _FlowStageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = data.color ?? accentColor;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -1565,12 +1642,12 @@ class _FlowStageCard extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: accentColor.withValues(alpha: 0.3),
+          color: color.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: accentColor.withValues(alpha: 0.08),
+            color: color.withValues(alpha: 0.08),
             blurRadius: 12,
             spreadRadius: -2,
             offset: const Offset(0, 4),
@@ -1579,7 +1656,7 @@ class _FlowStageCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _StageIcon(icon: data.icon, color: accentColor, index: index),
+          _StageIcon(icon: data.icon, color: color, index: index),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -1587,7 +1664,7 @@ class _FlowStageCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _StageIndexBadge(index: index, total: total, color: accentColor),
+                    _StageIndexBadge(index: index, total: total, color: color),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -1624,7 +1701,7 @@ class _FlowStageCard extends StatelessWidget {
                 ],
                 if (data.visual != null) ...[
                   const SizedBox(height: 10),
-                  _FlowVisualRenderer(visual: data.visual!, color: accentColor),
+                  _FlowVisualRenderer(visual: data.visual!, color: color),
                 ],
               ],
             ),

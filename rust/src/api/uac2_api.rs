@@ -278,8 +278,6 @@ pub fn uac2_get_sampling_frequency() -> Result<u32, String> {
     }
 }
 
-
-
 #[derive(Debug, Clone)]
 pub struct Uac2ConnectionState {
     pub state: String,

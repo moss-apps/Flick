@@ -76,10 +76,10 @@ pub use android_direct::{
     create_android_usb_backend, force_release_usb_session, is_usb_session_active,
     mark_android_usb_fallback, negotiate_android_direct_output_sample_rate,
     register_android_usb_device, set_android_direct_usb_enabled, set_android_usb_dop_mode,
-    set_android_usb_dsd_native_mode,
-    set_android_usb_lock_enabled, set_android_usb_playback_format, validate_android_direct_request,
-    wait_for_android_usb_session_stop, AndroidDirectUsbBackend, AndroidDirectUsbDebugState,
-    AndroidDirectUsbDevice, AndroidDirectUsbPlaybackFormat, DsdTransportMode,
+    set_android_usb_dsd_native_mode, set_android_usb_lock_enabled, set_android_usb_playback_format,
+    validate_android_direct_request, wait_for_android_usb_session_stop, AndroidDirectUsbBackend,
+    AndroidDirectUsbDebugState, AndroidDirectUsbDevice, AndroidDirectUsbPlaybackFormat,
+    DsdTransportMode,
 };
 #[cfg(feature = "uac2")]
 pub use audio_format::{
@@ -111,12 +111,12 @@ pub use descriptors::{
     parse_clock_multiplier, parse_clock_selector, parse_clock_source, parse_effect_unit,
     parse_endpoint_specific, parse_extension_unit, parse_feature_unit, parse_format_type_i,
     parse_format_type_ii, parse_format_type_iii, parse_iad, parse_input_terminal, parse_mixer_unit,
-    parse_output_terminal, parse_processing_unit, parse_selector_unit,
-    AcInterfaceHeader, AcInterfaceHeaderV1, AcInterfaceHeaderV2, AsInterfaceGeneral,
-    AsInterfaceGeneralV1, AsInterfaceGeneralV2, AudioControlDescriptor, AudioControlParser,
-    AudioStreamingDescriptor, AudioStreamingParser, ClockMultiplier, ClockSelector, ClockSource,
-    ClockType, DescriptorFactory, DescriptorIter, DescriptorKind, DescriptorParser,
-    EffectUnit, EndpointSpecific, ExtensionUnit, FeatureUnit, FeatureUnitBuilder, FormatTypeI,
+    parse_output_terminal, parse_processing_unit, parse_selector_unit, AcInterfaceHeader,
+    AcInterfaceHeaderV1, AcInterfaceHeaderV2, AsInterfaceGeneral, AsInterfaceGeneralV1,
+    AsInterfaceGeneralV2, AudioControlDescriptor, AudioControlParser, AudioStreamingDescriptor,
+    AudioStreamingParser, ClockMultiplier, ClockSelector, ClockSource, ClockType,
+    DescriptorFactory, DescriptorIter, DescriptorKind, DescriptorParser, EffectUnit,
+    EndpointSpecific, ExtensionUnit, FeatureUnit, FeatureUnitBuilder, FormatTypeI,
     FormatTypeIBuilder, FormatTypeII, FormatTypeIIBuilder, FormatTypeIII, Iad, InputTerminal,
     MixerUnit, OutputTerminal, ProcessingUnit, SelectorUnit,
 };

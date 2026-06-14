@@ -11,6 +11,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 
@@ -31,6 +32,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                     final audioFormatAsync = ref.watch(audioFormatEnabledProvider);
                     final bitPerfectAsync = ref.watch(uac2BitPerfectEnabledProvider);
                     final dapBitPerfectAsync = ref.watch(uac2DapBitPerfectEnabledProvider);
+                    final tuning432HzAsync = ref.watch(uac2432HzTuningEnabledProvider);
                     final audioEngineAsync = ref.watch(audioEnginePreferenceProvider);
                     final developerModeAsync = ref.watch(developerModeEnabledProvider);
                     final diagnostics = ref.watch(audioOutputDiagnosticsProvider);
@@ -70,6 +72,12 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                         context,
                         preferencesService,
                         dsdOutputModeAsync,
+                      ),
+                      const SizedBox(height: AppConstants.spacingSm),
+                      _build432HzTuningTile(
+                        context,
+                        preferencesService,
+                        tuning432HzAsync,
                       ),
                       const SizedBox(height: AppConstants.spacingLg),
                       _buildSectionHeader(context, 'Advanced'),
@@ -1378,6 +1386,37 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             error: (_, _) => _buildErrorTile(context),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _build432HzTuningTile(
+    BuildContext context,
+    Uac2PreferencesService service,
+    AsyncValue<bool> tuningAsync,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: tuningAsync.when(
+        data: (enabled) => _buildSwitchTile(
+          context,
+          icon: LucideIcons.music2,
+          title: '432 Hz Tuning',
+          subtitle:
+              'Experimental — down-tune playback by 432/440. This disables bit-perfect passthrough and runs the DSP path.',
+          value: enabled,
+          onChanged: (value) async {
+            await service.set432HzTuningEnabled(value);
+            rust_audio.audioSet432HzTuningEnabled(enabled: value);
+            ref.invalidate(uac2432HzTuningEnabledProvider);
+          },
+        ),
+        loading: () => _buildLoadingTile(context),
+        error: (_, _) => _buildErrorTile(context),
       ),
     );
   }

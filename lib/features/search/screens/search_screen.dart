@@ -266,8 +266,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               color: context.adaptiveTextTertiary,
             ),
           ),
-          onTap: () {
-            ref.read(playerProvider.notifier).play(song, playlist: _results);
+          onTap: () async {
+            final notifier = ref.read(playerProvider.notifier);
+            final queueIndex = await notifier.addToQueue(song);
+            await notifier.playFromQueueIndex(queueIndex);
           },
           onLongPress: () {
             SongActionsBottomSheet.show(context, song);

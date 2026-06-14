@@ -1,9 +1,8 @@
 use crate::uac2::constants::*;
 use crate::uac2::descriptors::{
-    parse_ac_descriptor, parse_as_interface_general, parse_format_type_i,
-    AudioControlDescriptor, AudioStreamingDescriptor,
-    ClockSource, DescriptorIter, DescriptorKind, EndpointSpecific, FeatureUnit,
-    InputTerminal, OutputTerminal,
+    parse_ac_descriptor, parse_as_interface_general, parse_format_type_i, AudioControlDescriptor,
+    AudioStreamingDescriptor, ClockSource, DescriptorIter, DescriptorKind, EndpointSpecific,
+    FeatureUnit, InputTerminal, OutputTerminal,
 };
 use crate::uac2::error::Uac2Error;
 use crate::uac2::quirk::{QuirkDatabase, UsbAudioQuirk};
@@ -122,7 +121,8 @@ impl GenericUsbAudioDevice {
                                 match &desc {
                                     AudioControlDescriptor::HeaderV2(h) => {
                                         bcd_adc = h.bcd_adc;
-                                        uac_version = crate::uac2::uac_version::detect_uac_version(bcd_adc);
+                                        uac_version =
+                                            crate::uac2::uac_version::detect_uac_version(bcd_adc);
                                     }
                                     AudioControlDescriptor::HeaderV1(h) => {
                                         bcd_adc = h.bcd_adc;
@@ -205,8 +205,8 @@ impl GenericUsbAudioDevice {
                         let sync_type = endpoint.sync_type();
                         let usage_type = endpoint.usage_type();
                         let synch_address = endpoint.synch_address();
-                        let is_data = usage_type == UsageType::Data
-                            || usage_type == UsageType::FeedbackData;
+                        let is_data =
+                            usage_type == UsageType::Data || usage_type == UsageType::FeedbackData;
                         let is_feedback = usage_type == UsageType::Feedback
                             || usage_type == UsageType::FeedbackData;
 
@@ -217,10 +217,8 @@ impl GenericUsbAudioDevice {
                             service_interval
                         };
 
-                        let _max_packet_bytes = effective_iso_packet_bytes(
-                            endpoint.max_packet_size(),
-                            speed,
-                        );
+                        let _max_packet_bytes =
+                            effective_iso_packet_bytes(endpoint.max_packet_size(), speed);
 
                         // Parse endpoint-specific descriptor if present.
                         let mut ep_specific = None;
@@ -274,7 +272,8 @@ impl GenericUsbAudioDevice {
                 .sort_by_key(|a| (a.alt_setting, a.format_tag));
         }
 
-        let quirks = crate::uac2::quirk::QUIRK_DATABASE.lookup(vendor_id, product_id, &product_name);
+        let quirks =
+            crate::uac2::quirk::QUIRK_DATABASE.lookup(vendor_id, product_id, &product_name);
 
         debug!(
             uac_version = uac_version.as_str(),
@@ -356,12 +355,7 @@ impl GenericUsbAudioDevice {
     }
 
     /// Returns true when the data endpoint uses asynchronous sync (has a feedback endpoint).
-    pub fn is_async_endpoint(
-        &self,
-        interface_number: u8,
-        alt_setting: u8,
-        ep_address: u8,
-    ) -> bool {
+    pub fn is_async_endpoint(&self, interface_number: u8, alt_setting: u8, ep_address: u8) -> bool {
         self.endpoints_in_alt(interface_number, alt_setting)
             .iter()
             .find(|ep| ep.address == ep_address)

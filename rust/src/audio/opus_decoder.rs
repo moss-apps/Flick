@@ -4,7 +4,7 @@ use symphonia::core::audio::{AudioBuffer, AudioBufferRef, Signal, SignalSpec};
 use symphonia::core::codecs::{
     CodecDescriptor, CodecParameters, Decoder, DecoderOptions, FinalizeResult, CODEC_TYPE_OPUS,
 };
-use symphonia::core::errors::{decode_error, Error, Result, unsupported_error};
+use symphonia::core::errors::{decode_error, unsupported_error, Error, Result};
 use symphonia::core::formats::Packet;
 use symphonia::core::units::TimeBase;
 
@@ -26,11 +26,12 @@ impl Decoder for OpusDecoder {
             _ => return unsupported_error("opus: only mono and stereo are supported"),
         };
 
-        let inner = opus_sys::Decoder::new(sample_rate, ch)
-            .or_else(|e| Err(Error::IoError(std::io::Error::new(
+        let inner = opus_sys::Decoder::new(sample_rate, ch).or_else(|e| {
+            Err(Error::IoError(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("opus decoder init: error code {}", e),
-            ))))?;
+            )))
+        })?;
 
         let mut codec_params = CodecParameters::new();
         codec_params
@@ -60,20 +61,14 @@ impl Decoder for OpusDecoder {
             short_name: "opus",
             long_name: "Opus (via libopus)",
             inst_func: |params, opts| {
-                OpusDecoder::try_new(params, opts)
-                    .map(|d| Box::new(d) as Box<dyn Decoder>)
+                OpusDecoder::try_new(params, opts).map(|d| Box::new(d) as Box<dyn Decoder>)
             },
         }];
         DESCRIPTORS
     }
 
     fn decode(&mut self, packet: &Packet) -> Result<AudioBufferRef<'_>> {
-        let channels = self
-            .params
-            .channels
-            .map(|c| c.count())
-            .unwrap_or(2)
-            .max(1);
+        let channels = self.params.channels.map(|c| c.count()).unwrap_or(2).max(1);
         let data = &packet.data;
 
         if data.is_empty() {
@@ -97,23 +92,23 @@ impl Decoder for OpusDecoder {
 
         let n_frames = self.buf.len() / channels;
         let rate = self.params.sample_rate.unwrap_or(48_000);
-        let spec_channels = self
-            .params
-            .channels
-            .unwrap_or(symphonia::core::audio::Channels::FRONT_LEFT
-                | symphonia::core::audio::Channels::FRONT_RIGHT);
+        let spec_channels = self.params.channels.unwrap_or(
+            symphonia::core::audio::Channels::FRONT_LEFT
+                | symphonia::core::audio::Channels::FRONT_RIGHT,
+        );
         let spec = SignalSpec::new(rate, spec_channels);
 
         self.decoded = AudioBuffer::<f32>::new(n_frames as u64, spec);
 
-        self.decoded.render(Some(n_frames), |planes, _frame_count| {
-            for (ch, plane) in planes.planes().iter_mut().enumerate() {
-                for f in 0..n_frames {
-                    plane[f] = self.buf[f * channels + ch];
+        self.decoded
+            .render(Some(n_frames), |planes, _frame_count| {
+                for (ch, plane) in planes.planes().iter_mut().enumerate() {
+                    for f in 0..n_frames {
+                        plane[f] = self.buf[f * channels + ch];
+                    }
                 }
-            }
-            Ok(())
-        })?;
+                Ok(())
+            })?;
 
         Ok(AudioBufferRef::F32(std::borrow::Cow::Borrowed(
             &self.decoded,

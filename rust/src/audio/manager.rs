@@ -1,4 +1,6 @@
-use crate::audio::engine::{create_audio_engine, desired_output_signature, AudioEngineHandle};
+use crate::audio::engine::{
+    create_audio_engine, desired_output_signature, AudioEngineHandle, TUNING_432HZ_ENABLED,
+};
 use crate::audio::strategy::OutputStrategy;
 use parking_lot::Mutex;
 use std::sync::OnceLock;
@@ -160,6 +162,14 @@ impl EngineManager {
         self.state.lock().dap_bit_perfect_enabled
     }
 
+    pub fn set_432hz_tuning_enabled(&self, enabled: bool) {
+        TUNING_432HZ_ENABLED.store(enabled, std::sync::atomic::Ordering::Relaxed);
+        let _ = self.with_rust_handle(|handle| {
+            handle.set_432hz_tuning_enabled(enabled);
+            Ok(())
+        });
+    }
+
     pub fn capability_route_type(&self) -> String {
         self.state.lock().capability_snapshot.route_type.clone()
     }
@@ -194,7 +204,11 @@ impl EngineManager {
             .map(|snapshot| snapshot.has_capability(AudioCapability::UsbDac))
     }
 
-    pub fn ensure_rust_engine(&self, preferred_sample_rate: Option<u32>, excluded_strategies: Vec<OutputStrategy>) -> Result<(), String> {
+    pub fn ensure_rust_engine(
+        &self,
+        preferred_sample_rate: Option<u32>,
+        excluded_strategies: Vec<OutputStrategy>,
+    ) -> Result<(), String> {
         self.runtime()
             .block_on(self.ensure_rust_engine_async(preferred_sample_rate, excluded_strategies))
     }
@@ -305,7 +319,12 @@ impl EngineManager {
         crate::uac2::force_release_usb_session();
 
         let new_handle = tokio::task::spawn_blocking(move || {
-            create_audio_engine(preferred_sample_rate, allow_dap_native, dap_bit_perfect_enabled, excluded_strategies)
+            create_audio_engine(
+                preferred_sample_rate,
+                allow_dap_native,
+                dap_bit_perfect_enabled,
+                excluded_strategies,
+            )
         })
         .await
         .map_err(|error| format!("Rust engine initialization task failed: {}", error))??;

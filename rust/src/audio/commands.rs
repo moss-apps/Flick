@@ -36,7 +36,9 @@ pub enum AudioCommand {
     /// Enable/disable crossfade and set duration
     SetCrossfade { enabled: bool, duration_secs: f32 },
     /// Set the crossfade curve type
-    SetCrossfadeCurve { curve: crate::audio::crossfader::CrossfadeCurve },
+    SetCrossfadeCurve {
+        curve: crate::audio::crossfader::CrossfadeCurve,
+    },
     /// Set playback speed (0.5 to 2.0)
     SetPlaybackSpeed { speed: f32 },
     /// Set graphic EQ: enabled and 10 band gains in dB.

@@ -2,7 +2,6 @@ use crate::frb_generated::StreamSink;
 use dff_meta::DffFile;
 use dsf_meta::DsfFile;
 use id3::TagLike;
-use jwalk::WalkDir;
 use lofty::config::ParseOptions;
 use lofty::picture::PictureType;
 use lofty::prelude::*;
@@ -10,6 +9,7 @@ use lofty::probe::Probe;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 const SCAN_BATCH_SIZE: usize = 500;
 
@@ -66,7 +66,20 @@ fn is_supported_audio_path(path: &Path) -> bool {
 
     matches!(
         ext.as_str(),
-        "mp3" | "flac" | "ogg" | "oga" | "ogx" | "opus" | "m4a" | "wav" | "aif" | "aiff" | "alac" | "dsf" | "dff" | "wv"
+        "mp3"
+            | "flac"
+            | "ogg"
+            | "oga"
+            | "ogx"
+            | "opus"
+            | "m4a"
+            | "wav"
+            | "aif"
+            | "aiff"
+            | "alac"
+            | "dsf"
+            | "dff"
+            | "wv"
     )
 }
 
@@ -240,33 +253,36 @@ where
 
     WalkDir::new(root_path)
         .follow_links(false)
-        .process_read_dir(move |_, _, _, children| {
-            if respect_nomedia {
-                let has_nomedia = children.iter().any(|child| {
-                    child
-                        .as_ref()
-                        .ok()
-                        .and_then(|entry| entry.file_name.to_str())
-                        == Some(".nomedia")
-                });
-
-                if has_nomedia {
-                    children.clear();
-                }
+        .max_open(64)
+        .into_iter()
+        .filter_map(|result| match result {
+            Ok(entry) => Some(entry),
+            Err(err) => {
+                log::warn!("scanner: failed to read directory entry: {}", err);
+                None
             }
         })
-        .into_iter()
-        .filter_map(Result::ok)
         .filter(|entry| entry.file_type().is_file())
         .filter_map(|entry| {
             let path = entry.path();
-            if !should_include(&path)
-                || (respect_nomedia && is_in_nomedia_subtree(&path, &mut nomedia_cache))
-            {
+            if respect_nomedia && is_in_nomedia_subtree(path, &mut nomedia_cache) {
+                return None;
+            }
+            if !should_include(path) {
                 return None;
             }
 
-            let metadata = std::fs::metadata(&path).ok()?;
+            let metadata = match std::fs::metadata(path) {
+                Ok(meta) => meta,
+                Err(err) => {
+                    log::warn!(
+                        "scanner: failed to read metadata for {}: {}",
+                        path.display(),
+                        err
+                    );
+                    return None;
+                }
+            };
             let last_modified = metadata
                 .modified()
                 .ok()
@@ -404,7 +420,9 @@ fn extract_wavpack_metadata(
 ) -> Option<AudioFileMetadata> {
     let result = extract_lofty_metadata(entry, path, format);
     result.map(|mut meta| {
-        let is_dsd = meta.sample_rate.map_or(false, |sr| sr >= DSD_SAMPLE_RATE_THRESHOLD)
+        let is_dsd = meta
+            .sample_rate
+            .map_or(false, |sr| sr >= DSD_SAMPLE_RATE_THRESHOLD)
             || meta.bit_depth == Some(1);
         if is_dsd {
             meta.format = "wv-dsd".to_string();
@@ -565,5 +583,80 @@ mod tests {
         let probe = Probe::open(&path).unwrap().guess_file_type().unwrap();
 
         assert_eq!(probe.file_type(), Some(FileType::Opus));
+    }
+
+    fn write_dummy_mp3(path: &Path) {
+        // Enough bytes for the scanner to treat this as a regular file. We use
+        // the extension to decide inclusion, so content can be arbitrary.
+        fs::write(path, &[0u8; 16]).unwrap();
+    }
+
+    #[test]
+    fn hidden_files_and_folders_are_scanned() {
+        let dir = TestDir::new("hidden");
+        let hidden_dir = dir.path().join(".hidden_albums");
+        fs::create_dir_all(&hidden_dir).unwrap();
+        write_dummy_mp3(&hidden_dir.join("track1.mp3"));
+        write_dummy_mp3(&dir.path().join(".hidden_track.mp3"));
+        write_dummy_mp3(&dir.path().join("visible.mp3"));
+
+        let entries = collect_scan_file_entries(
+            dir.path().to_str().unwrap(),
+            &ScanOptions {
+                filter_non_music_files_and_folders: true,
+            },
+        );
+        let paths: HashSet<_> = entries.into_iter().map(|e| e.path).collect();
+
+        assert!(paths.contains(hidden_dir.join("track1.mp3").to_str().unwrap()));
+        assert!(paths.contains(dir.path().join(".hidden_track.mp3").to_str().unwrap()));
+        assert!(paths.contains(dir.path().join("visible.mp3").to_str().unwrap()));
+    }
+
+    #[test]
+    fn nomedia_folder_is_skipped() {
+        let dir = TestDir::new("nomedia");
+        let normal = dir.path().join("normal");
+        let blocked = dir.path().join("blocked");
+        fs::create_dir_all(&normal).unwrap();
+        fs::create_dir_all(&blocked).unwrap();
+        fs::write(blocked.join(".nomedia"), "").unwrap();
+        write_dummy_mp3(&normal.join("track.mp3"));
+        write_dummy_mp3(&blocked.join("track.mp3"));
+
+        let entries = collect_scan_file_entries(
+            dir.path().to_str().unwrap(),
+            &ScanOptions {
+                filter_non_music_files_and_folders: true,
+            },
+        );
+        let paths: Vec<_> = entries.into_iter().map(|e| e.path).collect();
+
+        assert!(paths
+            .iter()
+            .any(|p| p == normal.join("track.mp3").to_str().unwrap()));
+        assert!(!paths
+            .iter()
+            .any(|p| p == blocked.join("track.mp3").to_str().unwrap()));
+    }
+
+    #[test]
+    fn deep_tree_is_collected() {
+        let dir = TestDir::new("deep");
+        let mut current = dir.path().to_path_buf();
+        for i in 0..64 {
+            current = current.join(format!("level{i:02}"));
+        }
+        fs::create_dir_all(&current).unwrap();
+        write_dummy_mp3(&current.join("deep_track.mp3"));
+
+        let entries = collect_scan_file_entries(
+            dir.path().to_str().unwrap(),
+            &ScanOptions {
+                filter_non_music_files_and_folders: true,
+            },
+        );
+
+        assert_eq!(entries.len(), 1);
     }
 }

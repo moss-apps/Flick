@@ -60,7 +60,11 @@ impl OutputStrategy {
     pub fn requests_passthrough(self) -> bool {
         matches!(
             self,
-            Self::DapNative | Self::MixerBitPerfect | Self::UsbDirect | Self::DsdDoP | Self::UsbDsdNative
+            Self::DapNative
+                | Self::MixerBitPerfect
+                | Self::UsbDirect
+                | Self::DsdDoP
+                | Self::UsbDsdNative
         )
     }
 
@@ -221,7 +225,8 @@ fn score_usb_dsd_native(device: &DeviceCaps, track: &TrackInfo) -> Option<u8> {
         if byte_rate > 0 {
             log::debug!(
                 "[STRATEGY] score_usb_dsd_native = 115 (dsd_rate={}, byte_rate={})",
-                dsd_rate, byte_rate
+                dsd_rate,
+                byte_rate
             );
             return Some(115);
         }
@@ -230,14 +235,38 @@ fn score_usb_dsd_native(device: &DeviceCaps, track: &TrackInfo) -> Option<u8> {
 }
 
 pub static DEFAULT_CANDIDATES: &[BackendCandidate] = &[
-    BackendCandidate { backend_type: BackendType::UsbDsdNative, scorer: score_usb_dsd_native },
-    BackendCandidate { backend_type: BackendType::DsdNative, scorer: score_dsd_native },
-    BackendCandidate { backend_type: BackendType::DapNative, scorer: score_dap_native },
-    BackendCandidate { backend_type: BackendType::MixerBitPerfect, scorer: score_mixer_bit_perfect },
-    BackendCandidate { backend_type: BackendType::DsdDoP, scorer: score_dsd_dop },
-    BackendCandidate { backend_type: BackendType::UsbDirect, scorer: score_usb_direct },
-    BackendCandidate { backend_type: BackendType::MixerMatched, scorer: score_mixer_matched },
-    BackendCandidate { backend_type: BackendType::ResampledFallback, scorer: score_resampled_fallback },
+    BackendCandidate {
+        backend_type: BackendType::UsbDsdNative,
+        scorer: score_usb_dsd_native,
+    },
+    BackendCandidate {
+        backend_type: BackendType::DsdNative,
+        scorer: score_dsd_native,
+    },
+    BackendCandidate {
+        backend_type: BackendType::DapNative,
+        scorer: score_dap_native,
+    },
+    BackendCandidate {
+        backend_type: BackendType::MixerBitPerfect,
+        scorer: score_mixer_bit_perfect,
+    },
+    BackendCandidate {
+        backend_type: BackendType::DsdDoP,
+        scorer: score_dsd_dop,
+    },
+    BackendCandidate {
+        backend_type: BackendType::UsbDirect,
+        scorer: score_usb_direct,
+    },
+    BackendCandidate {
+        backend_type: BackendType::MixerMatched,
+        scorer: score_mixer_matched,
+    },
+    BackendCandidate {
+        backend_type: BackendType::ResampledFallback,
+        scorer: score_resampled_fallback,
+    },
 ];
 
 pub fn select_strategy(track: TrackInfo, device: &DeviceCaps) -> OutputStrategy {
@@ -353,9 +382,10 @@ mod tests {
             Some(200)
         }
 
-        let custom = vec![
-            BackendCandidate { backend_type: crate::audio::backend::BackendType::MixerMatched, scorer: always_mixer },
-        ];
+        let custom = vec![BackendCandidate {
+            backend_type: crate::audio::backend::BackendType::MixerMatched,
+            scorer: always_mixer,
+        }];
 
         let strategy = select_strategy_with_candidates(
             &TrackInfo::pcm(44_100, 2),
@@ -472,12 +502,7 @@ mod tests {
 
     #[test]
     fn dsd_falls_back_to_resampled_when_no_dsd_path() {
-        let strategy = select_strategy(
-            TrackInfo::dsd(2_822_400, 2),
-            &DeviceCaps {
-                ..test_caps()
-            },
-        );
+        let strategy = select_strategy(TrackInfo::dsd(2_822_400, 2), &DeviceCaps { ..test_caps() });
 
         assert_eq!(strategy, OutputStrategy::ResampledFallback);
     }

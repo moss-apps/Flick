@@ -7,3 +7,5 @@ import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 enum DsdOutputMode { pcmDecimation, dop, native, auto }
+
+enum DsdRate { dsd64, dsd128, dsd256, dsd512 }

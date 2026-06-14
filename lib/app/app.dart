@@ -814,10 +814,23 @@ class _EmbeddedMiniPlayer extends ConsumerStatefulWidget {
 
 class _EmbeddedMiniPlayerState extends ConsumerState<_EmbeddedMiniPlayer> {
   bool _showVisualizer = false;
+  int _songChangeDirection = 0; // 1=next, -1=previous, 0=none
+  String? _currentSongId;
 
   void _onHorizontalDragEnd(DragEndDetails details) {
     final velocity = details.primaryVelocity ?? 0;
-    if (velocity.abs() > 300) {
+    if (velocity.abs() <= 300) return;
+
+    final swipeAction = ref.read(appPreferencesProvider).miniPlayerSwipeAction;
+    if (swipeAction == 'switchSongs') {
+      if (velocity < 0) {
+        _songChangeDirection = -1;
+        ref.read(playerProvider.notifier).next();
+      } else {
+        _songChangeDirection = 1;
+        ref.read(playerProvider.notifier).previous();
+      }
+    } else {
       setState(() {
         _showVisualizer = !_showVisualizer;
       });
@@ -825,97 +838,145 @@ class _EmbeddedMiniPlayerState extends ConsumerState<_EmbeddedMiniPlayer> {
   }
 
   Widget _buildSongInfo(Song currentSong) {
-    return Row(
+    final previousSongId = _currentSongId;
+    final newSongId = currentSong.id;
+    _currentSongId = newSongId;
+
+    final songDirection = _songChangeDirection;
+    _songChangeDirection = 0;
+
+    return AnimatedSwitcher(
       key: const ValueKey('mini_player_song_info'),
-      children: [
-        // Album Art
-        Hero(
-          tag: 'mini_player_art',
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
+      duration: const Duration(milliseconds: 350),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        final key = (child.key as ValueKey).value as String;
+        final isNewSong = key == 'mini_player_song_$newSongId';
+        final isOldSong =
+            previousSongId != null && key == 'mini_player_song_$previousSongId';
+
+        if (!isNewSong && !isOldSong) {
+          return FadeTransition(opacity: animation, child: child);
+        }
+
+        final isNext = songDirection == 1;
+        final isPrevious = songDirection == -1;
+
+        final slideBegin = Offset(
+          isNext
+              ? (isNewSong ? 0.5 : -0.5)
+              : isPrevious
+                  ? (isNewSong ? -0.5 : 0.5)
+                  : 0,
+          0,
+        );
+
+        return SlideTransition(
+          position: Tween<Offset>(begin: slideBegin, end: Offset.zero)
+              .animate(animation),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation),
+            child: FadeTransition(
+              opacity: Tween<double>(begin: 0.0, end: 1.0).animate(animation),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: Row(
+        key: ValueKey('mini_player_song_$newSongId'),
+        mainAxisSize: MainAxisSize.max,
+        children: [
+            // Album Art
+            Hero(
+              tag: 'mini_player_art',
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                  child: currentSong.albumArt != null
+                      ? CachedImageWidget(
+                          imagePath: currentSong.albumArt!,
+                          fit: BoxFit.cover,
+                          useThumbnail: true,
+                          thumbnailWidth: 128,
+                          thumbnailHeight: 128,
+                        )
+                      : const Icon(
+                          LucideIcons.music,
+                          size: 22,
+                          color: AppColors.textTertiary,
+                        ),
+                ),
               ),
             ),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
-              ),
-              child: currentSong.albumArt != null
-                  ? CachedImageWidget(
-                      imagePath: currentSong.albumArt!,
-                      fit: BoxFit.cover,
-                      useThumbnail: true,
-                      thumbnailWidth: 128,
-                      thumbnailHeight: 128,
-                    )
-                  : const Icon(
-                      LucideIcons.music,
-                      size: 22,
-                      color: AppColors.textTertiary,
+
+            const SizedBox(width: 12),
+
+            // Song Info
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    currentSong.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: context.adaptiveTextPrimary,
                     ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    currentSong.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: 12,
+                      color: context.adaptiveTextSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
 
-        const SizedBox(width: 12),
-
-        // Song Info
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                currentSong.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  color: context.adaptiveTextPrimary,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                currentSong.artist,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontSize: 12,
-                  color: context.adaptiveTextSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+            // Play/Pause Button
+            Consumer(
+              builder: (context, ref, _) {
+                final isPlaying = ref.watch(isPlayingProvider);
+                return IconButton(
+                  onPressed: () =>
+                      ref.read(playerProvider.notifier).togglePlayPause(),
+                  icon: Icon(
+                    isPlaying ? LucideIcons.pause : LucideIcons.play,
+                    color: context.adaptiveTextPrimary,
+                    size: 20,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 4),
+          ],
         ),
-
-        // Play/Pause Button
-        Consumer(
-          builder: (context, ref, _) {
-            final isPlaying = ref.watch(isPlayingProvider);
-            return IconButton(
-              onPressed: () =>
-                  ref.read(playerProvider.notifier).togglePlayPause(),
-              icon: Icon(
-                isPlaying ? LucideIcons.pause : LucideIcons.play,
-                color: context.adaptiveTextPrimary,
-                size: 20,
-              ),
-            );
-          },
-        ),
-        const SizedBox(width: 4),
-      ],
-    );
+      );
   }
 
   Widget _buildVisualizer() {

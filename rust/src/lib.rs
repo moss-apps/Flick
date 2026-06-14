@@ -65,9 +65,7 @@ pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _reserved: *mut c_void) -> jni::s
 
 #[cfg(target_os = "android")]
 #[no_mangle]
-pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeInitRustAndroidContext<
-    'local,
->(
+pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeInitRustAndroidContext<'local>(
     mut env: JNIEnv<'local>,
     _activity: JObject<'_>,
     context: JObject<'local>,

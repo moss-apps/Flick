@@ -50,6 +50,7 @@ class AppPreferences {
   final String? lastSeenChangelogVersion;
   final bool bottomBarAutoCollapseEnabled;
   final int bottomBarAutoCollapseSeconds;
+  final String miniPlayerSwipeAction;
   final bool keepPlayingOnQuit;
   final bool floatingPlayerEnabled;
   final bool autoFocusSearch;
@@ -104,6 +105,7 @@ class AppPreferences {
     this.lastSeenChangelogVersion,
     this.bottomBarAutoCollapseEnabled = false,
     this.bottomBarAutoCollapseSeconds = 5,
+    this.miniPlayerSwipeAction = 'visualizer',
     this.keepPlayingOnQuit = false,
     this.floatingPlayerEnabled = false,
     this.autoFocusSearch = false,
@@ -159,6 +161,7 @@ class AppPreferences {
     String? lastSeenChangelogVersion,
     bool? bottomBarAutoCollapseEnabled,
     int? bottomBarAutoCollapseSeconds,
+    String? miniPlayerSwipeAction,
     bool? keepPlayingOnQuit,
     bool? floatingPlayerEnabled,
     bool? autoFocusSearch,
@@ -233,6 +236,8 @@ class AppPreferences {
           bottomBarAutoCollapseEnabled ?? this.bottomBarAutoCollapseEnabled,
       bottomBarAutoCollapseSeconds:
           bottomBarAutoCollapseSeconds ?? this.bottomBarAutoCollapseSeconds,
+      miniPlayerSwipeAction:
+          miniPlayerSwipeAction ?? this.miniPlayerSwipeAction,
       keepPlayingOnQuit: keepPlayingOnQuit ?? this.keepPlayingOnQuit,
       floatingPlayerEnabled:
           floatingPlayerEnabled ?? this.floatingPlayerEnabled,
@@ -294,6 +299,7 @@ class AppPreferencesService {
       'bottom_bar_auto_collapse_enabled';
   static const _bottomBarAutoCollapseSecondsKey =
       'bottom_bar_auto_collapse_seconds';
+  static const _miniPlayerSwipeActionKey = 'mini_player_swipe_action';
   static const _keepPlayingOnQuitKey = 'app_keep_playing_on_quit';
   static const _floatingPlayerEnabledKey = 'app_floating_player_enabled';
   static const _autoFocusSearchKey = 'app_auto_focus_search';
@@ -370,6 +376,8 @@ class AppPreferencesService {
           prefs.getBool(_bottomBarAutoCollapseEnabledKey) ?? false,
       bottomBarAutoCollapseSeconds:
           prefs.getInt(_bottomBarAutoCollapseSecondsKey) ?? 5,
+      miniPlayerSwipeAction:
+          prefs.getString(_miniPlayerSwipeActionKey) ?? 'visualizer',
       keepPlayingOnQuit: prefs.getBool(_keepPlayingOnQuitKey) ?? false,
       floatingPlayerEnabled:
           prefs.getBool(_floatingPlayerEnabledKey) ?? false,
@@ -819,6 +827,16 @@ class AppPreferencesService {
   Future<void> setBottomBarAutoCollapseSeconds(int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_bottomBarAutoCollapseSecondsKey, value);
+  }
+
+  Future<String> getMiniPlayerSwipeAction() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_miniPlayerSwipeActionKey) ?? 'visualizer';
+  }
+
+  Future<void> setMiniPlayerSwipeAction(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_miniPlayerSwipeActionKey, value);
   }
 
   Future<int> getShuffleMode() async {

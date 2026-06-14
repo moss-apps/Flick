@@ -91,22 +91,19 @@ pub fn probe_file(path: &Path) -> Result<ProbeResult, DecoderError> {
     let file1 = File::open(path)?;
     let mss1 = MediaSourceStream::new(Box::new(file1), Default::default());
 
-    let probed = match symphonia::default::get_probe()
-        .format(&hint, mss1, &format_opts, &metadata_opts)
-    {
-        Ok(probed) => probed,
-        Err(first_err) => {
-            // Content-based fallback: reopen and retry with no extension hint.
-            let file2 = File::open(path)?;
-            let mss2 = MediaSourceStream::new(Box::new(file2), Default::default());
-            let no_hint = Hint::new();
-            symphonia::default::get_probe()
-                .format(&no_hint, mss2, &format_opts, &metadata_opts)
-                .map_err(|_| {
-                    DecoderError::UnsupportedFormat(first_err.to_string())
-                })?
-        }
-    };
+    let probed =
+        match symphonia::default::get_probe().format(&hint, mss1, &format_opts, &metadata_opts) {
+            Ok(probed) => probed,
+            Err(first_err) => {
+                // Content-based fallback: reopen and retry with no extension hint.
+                let file2 = File::open(path)?;
+                let mss2 = MediaSourceStream::new(Box::new(file2), Default::default());
+                let no_hint = Hint::new();
+                symphonia::default::get_probe()
+                    .format(&no_hint, mss2, &format_opts, &metadata_opts)
+                    .map_err(|_| DecoderError::UnsupportedFormat(first_err.to_string()))?
+            }
+        };
 
     let format = probed.format;
 
@@ -140,8 +137,10 @@ pub fn probe_file(path: &Path) -> Result<ProbeResult, DecoderError> {
 
     let decoder_opts = DecoderOptions::default();
     let decoder: Box<dyn Decoder> = if codec_params.codec == CODEC_TYPE_OPUS {
-        Box::new(opus_decoder::OpusDecoder::try_new(codec_params, &decoder_opts)
-            .map_err(|e| DecoderError::UnsupportedFormat(e.to_string()))?)
+        Box::new(
+            opus_decoder::OpusDecoder::try_new(codec_params, &decoder_opts)
+                .map_err(|e| DecoderError::UnsupportedFormat(e.to_string()))?,
+        )
     } else {
         symphonia::default::get_codecs()
             .make(&codec_params, &decoder_opts)

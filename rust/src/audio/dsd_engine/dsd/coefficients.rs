@@ -45,9 +45,7 @@ pub enum WindowFunction {
 fn apply_window(index: usize, size: usize, window: &WindowFunction) -> f64 {
     let n = index as f64 / (size - 1) as f64;
     match window {
-        WindowFunction::Blackman => {
-            0.42 - 0.5 * (2.0 * PI * n).cos() + 0.08 * (4.0 * PI * n).cos()
-        }
+        WindowFunction::Blackman => 0.42 - 0.5 * (2.0 * PI * n).cos() + 0.08 * (4.0 * PI * n).cos(),
         WindowFunction::Hamming => 0.54 - 0.46 * (2.0 * PI * n).cos(),
         WindowFunction::Kaiser { beta } => {
             let alpha = (size as f64 - 1.0) / 2.0;
@@ -79,7 +77,11 @@ mod tests {
         let coeffs = generate_lowpass_fir(64, 352_800, 88_200);
         assert_eq!(coeffs.len(), 64);
         let sum: f64 = coeffs.iter().sum();
-        assert!((sum - 1.0).abs() < 0.01, "Filter sum should be ~1.0, got {}", sum);
+        assert!(
+            (sum - 1.0).abs() < 0.01,
+            "Filter sum should be ~1.0, got {}",
+            sum
+        );
     }
 
     #[test]
@@ -116,7 +118,11 @@ mod tests {
         };
 
         let dc = h_mag(0.0);
-        assert!((dc - 1.0).abs() < 0.01, "DC gain should be ~1.0, got {}", dc);
+        assert!(
+            (dc - 1.0).abs() < 0.01,
+            "DC gain should be ~1.0, got {}",
+            dc
+        );
 
         let mag_at_fc = h_mag(fc);
         assert!(

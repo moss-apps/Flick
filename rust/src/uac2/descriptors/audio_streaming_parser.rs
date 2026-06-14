@@ -7,13 +7,17 @@ use super::validation::{
     validate_format_type_iii,
 };
 use crate::uac2::error::Uac2Error;
+use flutter_rust_bridge::frb;
 
+#[frb(opaque)]
 pub struct AudioStreamingParser;
 
 impl AudioStreamingParser {
     pub fn parse_as_general(&self, data: &[u8]) -> Result<AudioStreamingDescriptor, Uac2Error> {
         if data.len() < 7 {
-            return Err(Uac2Error::InvalidDescriptor("AS general too short".to_string()));
+            return Err(Uac2Error::InvalidDescriptor(
+                "AS general too short".to_string(),
+            ));
         }
         if data[1] != USB_DT_CS_INTERFACE || data[2] != UAC2_AS_GENERAL {
             return Err(Uac2Error::InvalidDescriptor("not AS general".to_string()));
@@ -58,12 +62,7 @@ impl AudioStreamingParser {
         }
         let len = data[0] as usize;
         let (b_terminal_link, b_delay, w_format_tag, bm_controls) = if len >= 9 {
-            (
-                data[3],
-                data[4],
-                read_u16_le(data, 7),
-                read_u16_le(data, 5),
-            )
+            (data[3], data[4], read_u16_le(data, 7), read_u16_le(data, 5))
         } else {
             (data[3], data[4], read_u16_le(data, 5), 0u16)
         };
@@ -168,9 +167,7 @@ impl AudioStreamingParser {
         const LEN: usize = 5;
         require_len(data, LEN)?;
         if data[1] != USB_DT_CS_ENDPOINT {
-            return Err(Uac2Error::InvalidDescriptor(
-                "not CS endpoint".to_string(),
-            ));
+            return Err(Uac2Error::InvalidDescriptor("not CS endpoint".to_string()));
         }
         Ok(EndpointSpecific {
             b_endpoint_address: data[2],

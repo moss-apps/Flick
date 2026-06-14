@@ -4541,12 +4541,12 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
             builder: (context, _) {
               final rawT = Curves.easeInOutCubic
                   .transform(_morphController.value);
-              final t = rawT.isNaN ? 0.0 : rawT.clamp(0.0, 1.0);
+              final t = rawT.isFinite ? rawT.clamp(0.0, 1.0) : 0.0;
               final glass = (1.0 - t).clamp(0.0, 1.0);
               final rawAngle = _spinController.value * 2 * math.pi * t +
                   _seekAngleController.value +
                   _userRotationOffset.value;
-              final spinAngle = rawAngle.isNaN ? 0.0 : rawAngle;
+              final spinAngle = rawAngle.isFinite ? rawAngle : 0.0;
 
               final artSize = resolvedSize - (resolvedSize - labelSize) * t;
               final artFramePadding = framePadding * glass;

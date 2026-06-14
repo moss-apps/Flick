@@ -152,9 +152,9 @@ class _SongCardState extends State<SongCard> {
       onHorizontalDragCancel: dragCancel,
       child: RepaintBoundary(
         child: Transform.scale(
-          scale: widget.scale,
+          scale: widget.scale.isFinite ? widget.scale : 1.0,
           child: Opacity(
-            opacity: widget.opacity,
+            opacity: widget.opacity.isFinite ? widget.opacity.clamp(0.0, 1.0) : 1.0,
             child: SizedBox(
               width: cardWidth,
               height: cardHeight,

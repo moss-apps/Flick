@@ -162,7 +162,10 @@ pub fn write_tags_to_temp(
     })
 }
 
-fn apply_tag_fields(tagged_file: &mut lofty::file::TaggedFile, fields: &TagEditFields) -> Result<(), String> {
+fn apply_tag_fields(
+    tagged_file: &mut lofty::file::TaggedFile,
+    fields: &TagEditFields,
+) -> Result<(), String> {
     let tag = tagged_file.primary_tag_mut();
     let tag = match tag {
         Some(t) => Some(t),

@@ -44,7 +44,13 @@ impl QuirkDatabase {
         }
     }
 
-    pub fn add(&self, vendor_id: u16, product_id: u16, product_name_contains: &'static str, quirks: &'static [UsbAudioQuirk]) {
+    pub fn add(
+        &self,
+        vendor_id: u16,
+        product_id: u16,
+        product_name_contains: &'static str,
+        quirks: &'static [UsbAudioQuirk],
+    ) {
         self.entries.write().push(QuirkEntry {
             vendor_id,
             product_id,
@@ -53,12 +59,18 @@ impl QuirkDatabase {
         });
     }
 
-    pub fn lookup(&self, vendor_id: u16, product_id: u16, product_name: &str) -> Vec<UsbAudioQuirk> {
+    pub fn lookup(
+        &self,
+        vendor_id: u16,
+        product_id: u16,
+        product_name: &str,
+    ) -> Vec<UsbAudioQuirk> {
         let mut result = Vec::new();
         for entry in self.entries.read().iter() {
             if entry.vendor_id == vendor_id
                 && entry.product_id == product_id
-                && (entry.product_name_contains.is_empty() || product_name.contains(entry.product_name_contains))
+                && (entry.product_name_contains.is_empty()
+                    || product_name.contains(entry.product_name_contains))
             {
                 result.extend_from_slice(entry.quirks);
             }
@@ -66,13 +78,25 @@ impl QuirkDatabase {
         result
     }
 
-    pub fn has_quirk(&self, vendor_id: u16, product_id: u16, product_name: &str, quirk: UsbAudioQuirk) -> bool {
+    pub fn has_quirk(
+        &self,
+        vendor_id: u16,
+        product_id: u16,
+        product_name: &str,
+        quirk: UsbAudioQuirk,
+    ) -> bool {
         self.lookup(vendor_id, product_id, product_name)
             .iter()
             .any(|q| *q == quirk)
     }
 
-    pub fn find_quirk_by_type(&self, vendor_id: u16, product_id: u16, product_name: &str, quirk: UsbAudioQuirk) -> bool {
+    pub fn find_quirk_by_type(
+        &self,
+        vendor_id: u16,
+        product_id: u16,
+        product_name: &str,
+        quirk: UsbAudioQuirk,
+    ) -> bool {
         self.has_quirk(vendor_id, product_id, product_name, quirk)
     }
 }
@@ -117,7 +141,17 @@ mod tests {
 
     #[test]
     fn has_quirk_check() {
-        assert!(QUIRK_DATABASE.has_quirk(12230, 61546, "MOONDROP Dawn Pro", UsbAudioQuirk::RequireVerifiedRate));
-        assert!(!QUIRK_DATABASE.has_quirk(12230, 61546, "MOONDROP Dawn Pro", UsbAudioQuirk::Force48kHzOnly));
+        assert!(QUIRK_DATABASE.has_quirk(
+            12230,
+            61546,
+            "MOONDROP Dawn Pro",
+            UsbAudioQuirk::RequireVerifiedRate
+        ));
+        assert!(!QUIRK_DATABASE.has_quirk(
+            12230,
+            61546,
+            "MOONDROP Dawn Pro",
+            UsbAudioQuirk::Force48kHzOnly
+        ));
     }
 }

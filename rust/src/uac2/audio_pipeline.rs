@@ -1,6 +1,7 @@
 use crate::uac2::audio_format::{AudioFormat, BitDepth, ChannelConfig, SampleRate};
 use crate::uac2::error::Uac2Error;
 use crate::uac2::ring_buffer::{AudioBuffer, RingBuffer};
+use flutter_rust_bridge::frb;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info, warn};
 
@@ -9,6 +10,7 @@ pub trait FormatConverter: Send + Sync {
     fn output_size(&self, input_size: usize) -> usize;
 }
 
+#[frb(opaque)]
 pub struct PassthroughConverter;
 
 impl FormatConverter for PassthroughConverter {

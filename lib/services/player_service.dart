@@ -289,6 +289,7 @@ class PlayerService {
   final NotificationService _notificationService = NotificationService();
   final FloatingPlayerService _floatingPlayerService = FloatingPlayerService();
   bool _floatingPlayerActive = false;
+  bool _appInForeground = true;
   final LastPlayedService _lastPlayedService = LastPlayedService();
   final FavoritesService _favoritesService = FavoritesService();
   final Uac2PreferencesService _preferencesService = Uac2PreferencesService();
@@ -341,6 +342,7 @@ class PlayerService {
   VoidCallback? _bitPerfectLockedListener;
   bool _rustListenersAttached = false;
   bool _audioSessionConfigured = false;
+  bool _wasPlayingBeforeAudioInterruption = false;
   VoidCallback? _rustStateListener;
   VoidCallback? _rustPositionListener;
   VoidCallback? _rustDurationListener;
@@ -359,9 +361,9 @@ class PlayerService {
   Duration _restoredPosition = Duration.zero;
   double _currentVolume = 1.0;
 
-  /// Default volume for bit-perfect mode (-40 dB safety level).
+  /// Default volume for bit-perfect mode (25 %, safety level).
   /// Mapped to ~0.01 linear gain by Rust's volume_to_gain curve.
-  static const double _bitPerfectDefaultVolume = 1.0 / 3.0;
+  static const double _bitPerfectDefaultVolume = 0.25;
 
   double get currentVolume => _currentVolume;
 
@@ -513,6 +515,9 @@ class PlayerService {
     _uac2Service.dapBitPerfectEnabledNotifier.addListener(
       _updateBitPerfectProcessingLocked,
     );
+    Uac2PreferencesService.tuning432HzNotifier.addListener(
+      _updateBitPerfectProcessingLocked,
+    );
     _bitPerfectLockedListener = () {
       unawaited(reapplyEqualizer());
     };
@@ -648,15 +653,7 @@ class PlayerService {
     final canDraw = await _floatingPlayerService.canDrawOverlays();
     if (!canDraw) return false;
     _floatingPlayerActive = true;
-    final song = currentSongNotifier.value;
-    if (song != null) {
-      await _floatingPlayerService.show(
-        song: song,
-        isPlaying: isPlayingNotifier.value,
-        duration: durationNotifier.value,
-        position: positionNotifier.value,
-      );
-    }
+    await _showFloatingPlayerOverlay();
     return true;
   }
 
@@ -665,15 +662,30 @@ class PlayerService {
     await _floatingPlayerService.hide();
   }
 
+  Future<void> _showFloatingPlayerOverlay() async {
+    if (!Platform.isAndroid) return;
+    if (!_floatingPlayerActive) return;
+    if (_appInForeground) return;
+    final song = currentSongNotifier.value;
+    if (song == null) return;
+    await _floatingPlayerService.show(
+      song: song,
+      isPlaying: isPlayingNotifier.value,
+      duration: durationNotifier.value,
+      position: positionNotifier.value,
+    );
+  }
+
   Future<void> onAppPaused() async {
     if (!Platform.isAndroid) return;
+    _appInForeground = false;
     final enabled = await _appPreferencesService.getFloatingPlayerEnabled();
     if (!enabled) return;
-    if (_floatingPlayerActive) return;
     await _activateFloatingPlayer();
   }
 
   Future<void> onAppResumed() async {
+    _appInForeground = true;
     if (!_floatingPlayerActive) return;
     await _deactivateFloatingPlayer();
   }
@@ -909,12 +921,14 @@ class PlayerService {
       currentSongNotifier.value?.isDsd == true;
 
   void _updateBitPerfectProcessingLocked() {
-    final locked = switch (currentEngineType) {
-      AudioEngineType.usbDacExperimental => true,
-      AudioEngineType.dapInternalHighRes =>
-        _uac2Service.isDapBitPerfectEnabledSync,
-      _ => false,
-    };
+    final locked =
+        switch (currentEngineType) {
+          AudioEngineType.usbDacExperimental => true,
+          AudioEngineType.dapInternalHighRes =>
+            _uac2Service.isDapBitPerfectEnabledSync,
+          _ => false,
+        } ||
+        Uac2PreferencesService.is432HzTuningEnabledSync;
     if (bitPerfectProcessingLockedNotifier.value != locked) {
       bitPerfectProcessingLockedNotifier.value = locked;
     }
@@ -998,6 +1012,7 @@ class PlayerService {
       await Future.wait<void>([
         _preferencesService.initializeDeveloperModeCache(),
         _preferencesService.initializeKillIsochronousUsbOnQuitCache(),
+        _preferencesService.initialize432HzTuningCache(),
         _preferencesService.getDsdOutputMode(),
         _sessionManager.initialize(),
         _uac2Service.isBitPerfectEnabled(),
@@ -1005,12 +1020,23 @@ class PlayerService {
       final dapBitPerfect = await _preferencesService.getDapBitPerfectEnabled();
       _uac2Service.dapBitPerfectEnabledNotifier.value = dapBitPerfect;
       rust_audio.audioSetDapBitPerfectEnabled(enabled: dapBitPerfect);
+      rust_audio.audioSet432HzTuningEnabled(
+        enabled: Uac2PreferencesService.is432HzTuningEnabledSync,
+      );
 
       final engineType = _sessionManager.selectedMode;
       if (engineType == AudioEngineType.usbDacExperimental ||
           engineType == AudioEngineType.dapInternalHighRes) {
         final savedVolume = await _preferencesService.getUsbSoftwareVolume();
-        if (savedVolume != 1.0) {
+        final hasSavedVolume = await _preferencesService.hasUsbSoftwareVolume();
+        final bitPerfectOn =
+            _uac2Service.isBitPerfectEnabledSync ||
+            _uac2Service.isDapBitPerfectEnabledSync;
+        if (bitPerfectOn && !hasSavedVolume) {
+          // Bit-perfect safety default: 25 % when the user has never set
+          // a USB software volume, so the DAC doesn't receive a 100 % signal.
+          _currentVolume = _bitPerfectDefaultVolume;
+        } else if (savedVolume != 1.0) {
           _currentVolume = savedVolume;
         }
       }
@@ -1028,6 +1054,9 @@ class PlayerService {
       return;
     }
 
+    // Any in-flight interruption state is irrelevant once we release focus.
+    _wasPlayingBeforeAudioInterruption = false;
+
     try {
       final session = await AudioSession.instance;
       await session.setActive(false);
@@ -1041,7 +1070,8 @@ class PlayerService {
     await _configureAndroidAudioSession();
     try {
       final session = await AudioSession.instance;
-      await session.setActive(true);
+      final granted = await session.setActive(true);
+      debugPrint('[AudioFocus] Rust engine focus request granted=$granted');
     } catch (e) {
       debugPrint(
         '[AudioFocus] Failed to activate audio session for Rust engine: $e',
@@ -1068,24 +1098,69 @@ class PlayerService {
 
     try {
       final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.music());
+      // Explicitly pause when ducked so the Rust/Oboe engine does not stay in
+      // a half-muted state after notification sounds. This makes every
+      // transient focus loss emit a matching pause/resume pair.
+      await session.configure(
+        const AudioSessionConfiguration.music().copyWith(
+          androidWillPauseWhenDucked: true,
+        ),
+      );
       _audioFocusSubscription ??= session.interruptionEventStream.listen((
         event,
       ) {
-        if (event.begin) {
-          if (isPlayingNotifier.value) {
-            unawaited(_pauseInternal());
-          }
-          return;
-        }
-
-        if (event.type == AudioInterruptionType.pause) {
-          unawaited(_resumeInternal());
-        }
+        _onAudioInterruptionEvent(event);
       });
       _audioSessionConfigured = true;
     } catch (e) {
       debugPrint('[AudioFocus] Failed to configure Android audio session: $e');
+    }
+  }
+
+  void _onAudioInterruptionEvent(AudioInterruptionEvent event) {
+    debugPrint(
+      '[AudioFocus] Interruption event: begin=${event.begin}, '
+      'type=${event.type}, wasPlaying=$_wasPlayingBeforeAudioInterruption, '
+      'playing=${isPlayingNotifier.value}',
+    );
+
+    if (event.begin) {
+      if (isPlayingNotifier.value) {
+        _wasPlayingBeforeAudioInterruption = true;
+        unawaited(_pauseInternal());
+      }
+      return;
+    }
+
+    // Interruption ended. Only resume if we were actually playing when it
+    // started; otherwise a manual pause during the interruption would cause
+    // an unwanted auto-resume.
+    if (!_wasPlayingBeforeAudioInterruption) {
+      return;
+    }
+    _wasPlayingBeforeAudioInterruption = false;
+
+    switch (event.type) {
+      case AudioInterruptionType.pause:
+      case AudioInterruptionType.duck:
+        unawaited(_resumeAfterAudioInterruption());
+      case AudioInterruptionType.unknown:
+        // Permanent focus loss (e.g. another app started long-form playback).
+        // Stay paused and let the user explicitly resume.
+        break;
+    }
+  }
+
+  Future<void> _resumeAfterAudioInterruption() async {
+    // The audio session may have been deactivated while we were paused
+    // (e.g. by a route change or by the system). Re-activate it before
+    // attempting to resume the Rust engine.
+    await _activateAudioSessionForRustEngine();
+    try {
+      await _resumeInternal();
+    } catch (e, stackTrace) {
+      debugPrint('[AudioFocus] Auto-resume after interruption failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
@@ -2167,14 +2242,7 @@ class PlayerService {
       color: notificationColor,
     );
 
-    if (_floatingPlayerActive && Platform.isAndroid) {
-      await _floatingPlayerService.show(
-        song: song,
-        isPlaying: isPlayingNotifier.value,
-        duration: durationNotifier.value,
-        position: positionNotifier.value,
-      );
-    }
+    await _showFloatingPlayerOverlay();
   }
 
   Future<void> _onSongFinished({String? endedPath}) {
@@ -4459,6 +4527,9 @@ class PlayerService {
       _updateBitPerfectProcessingLocked,
     );
     _uac2Service.dapBitPerfectEnabledNotifier.removeListener(
+      _updateBitPerfectProcessingLocked,
+    );
+    Uac2PreferencesService.tuning432HzNotifier.removeListener(
       _updateBitPerfectProcessingLocked,
     );
     if (_bitPerfectLockedListener != null) {
