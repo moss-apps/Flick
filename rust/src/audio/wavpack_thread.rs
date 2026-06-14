@@ -63,8 +63,7 @@ impl WavpackDecoderThread {
         let c_path_str = path
             .to_str()
             .ok_or_else(|| anyhow!("Invalid path encoding"))?;
-        let c_path =
-            CString::new(c_path_str).map_err(|_| anyhow!("Path contains null byte"))?;
+        let c_path = CString::new(c_path_str).map_err(|_| anyhow!("Path contains null byte"))?;
 
         let _file = std::fs::File::open(&path)?;
 
@@ -87,9 +86,7 @@ impl WavpackDecoderThread {
 
         if is_dsd {
             unsafe { WavpackCloseFile(context) };
-            return Err(anyhow!(
-                "WavPack DSD file should use DSD pipeline, not PCM"
-            ));
+            return Err(anyhow!("WavPack DSD file should use DSD pipeline, not PCM"));
         }
 
         let file_sample_rate = unsafe { WavpackGetSampleRate(context) };
@@ -203,7 +200,10 @@ fn wavpack_pcm_decode_thread(
     if let Some(sample) = seek_sample {
         let result = unsafe { WavpackSeekSample64(context, sample) };
         if result == 0 {
-            log::warn!("[WV-PCM] Seek to sample {} failed, starting from beginning", sample);
+            log::warn!(
+                "[WV-PCM] Seek to sample {} failed, starting from beginning",
+                sample
+            );
             unsafe { WavpackSeekSample64(context, 0) };
         }
     }
@@ -212,13 +212,15 @@ fn wavpack_pcm_decode_thread(
     let needs_remix = file_channels != output_channels;
 
     let mut resampler = if needs_resampling {
-        Some(AudioResampler::new(
-            file_sample_rate,
-            output_sample_rate,
-            output_channels,
-            CHUNK_FRAMES as usize,
+        Some(
+            AudioResampler::new(
+                file_sample_rate,
+                output_sample_rate,
+                output_channels,
+                CHUNK_FRAMES as usize,
+            )
+            .map_err(|e| anyhow!("Failed to create resampler: {}", e))?,
         )
-        .map_err(|e| anyhow!("Failed to create resampler: {}", e))?)
     } else {
         None
     };
@@ -231,9 +233,12 @@ fn wavpack_pcm_decode_thread(
 
     log::info!(
         "[WV-PCM] Starting: rate={}/{} ch={}/{} bps={} float={}",
-        file_sample_rate, output_sample_rate,
-        file_channels, output_channels,
-        bytes_per_sample, is_float,
+        file_sample_rate,
+        output_sample_rate,
+        file_channels,
+        output_channels,
+        bytes_per_sample,
+        is_float,
     );
 
     loop {
@@ -241,9 +246,7 @@ fn wavpack_pcm_decode_thread(
             break;
         }
 
-        let unpacked = unsafe {
-            WavpackUnpackSamples(context, int_buf.as_mut_ptr(), CHUNK_FRAMES)
-        };
+        let unpacked = unsafe { WavpackUnpackSamples(context, int_buf.as_mut_ptr(), CHUNK_FRAMES) };
 
         if unpacked == 0 {
             break;
@@ -279,7 +282,8 @@ fn wavpack_pcm_decode_thread(
 
         let output = if let Some(ref mut rs) = resampler {
             resample_out.resize(pcm_data.len() * 2, 0.0f32);
-            let n = rs.process_interleaved(&pcm_data, &mut resample_out)
+            let n = rs
+                .process_interleaved(&pcm_data, &mut resample_out)
                 .map_err(|e| anyhow!("Resampling error: {}", e))?;
             resample_out[..n].to_vec()
         } else {
@@ -291,7 +295,8 @@ fn wavpack_pcm_decode_thread(
 
     if let Some(ref mut rs) = resampler {
         resample_out.resize(8192, 0.0f32);
-        let n = rs.flush(&mut resample_out)
+        let n = rs
+            .flush(&mut resample_out)
             .map_err(|e| anyhow!("Resampler flush error: {}", e))?;
         if n > 0 {
             write_to_ring_buffer(&resample_out[..n], &mut producer, &stop_signal);
@@ -303,12 +308,7 @@ fn wavpack_pcm_decode_thread(
     Ok(())
 }
 
-fn remix_channels(
-    input: &[f32],
-    in_ch: usize,
-    out_ch: usize,
-    frames: usize,
-) -> Vec<f32> {
+fn remix_channels(input: &[f32], in_ch: usize, out_ch: usize, frames: usize) -> Vec<f32> {
     if in_ch == out_ch {
         return input.to_vec();
     }
@@ -346,11 +346,7 @@ fn remix_channels(
     output
 }
 
-fn write_to_ring_buffer(
-    samples: &[f32],
-    producer: &mut SourceProducer,
-    stop_signal: &AtomicBool,
-) {
+fn write_to_ring_buffer(samples: &[f32], producer: &mut SourceProducer, stop_signal: &AtomicBool) {
     if samples.is_empty() {
         return;
     }
