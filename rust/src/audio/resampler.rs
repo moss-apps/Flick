@@ -161,16 +161,14 @@ impl AudioResampler {
             // Deinterleave input into channel buffers
             for ch in 0..self.channels {
                 for frame in 0..frames_per_chunk {
-                    self.input_buffers[ch][frame] =
-                        self.input_queue[frame * self.channels + ch];
+                    self.input_buffers[ch][frame] = self.input_queue[frame * self.channels + ch];
                 }
             }
             // Remove processed samples from queue
             self.input_queue.drain(0..samples_per_chunk);
 
             // Perform resampling
-            let input_refs: Vec<&[f32]> =
-                self.input_buffers.iter().map(|b| b.as_slice()).collect();
+            let input_refs: Vec<&[f32]> = self.input_buffers.iter().map(|b| b.as_slice()).collect();
             let (_, output_frames) = self
                 .resampler
                 .process_into_buffer(&input_refs, &mut self.output_buffers, None)
@@ -219,8 +217,7 @@ impl AudioResampler {
             // Deinterleave remaining input
             for ch in 0..self.channels {
                 for frame in 0..remaining_frames {
-                    self.input_buffers[ch][frame] =
-                        self.input_queue[frame * self.channels + ch];
+                    self.input_buffers[ch][frame] = self.input_queue[frame * self.channels + ch];
                 }
                 // Pad with zeros
                 for frame in remaining_frames..self.chunk_size {
@@ -229,8 +226,7 @@ impl AudioResampler {
             }
             self.input_queue.clear();
 
-            let input_refs: Vec<&[f32]> =
-                self.input_buffers.iter().map(|b| b.as_slice()).collect();
+            let input_refs: Vec<&[f32]> = self.input_buffers.iter().map(|b| b.as_slice()).collect();
             let (_, output_frames) = self
                 .resampler
                 .process_into_buffer(&input_refs, &mut self.output_buffers, None)
@@ -450,8 +446,7 @@ mod tests {
             if written == 0 {
                 break;
             }
-            output[total_written..total_written + written]
-                .copy_from_slice(&flush_buf[..written]);
+            output[total_written..total_written + written].copy_from_slice(&flush_buf[..written]);
             total_written += written;
         }
 
@@ -461,7 +456,8 @@ mod tests {
         let actual_ratio = output_frames as f64 / total_input_frames as f64;
 
         // Allow extra output up to one chunk_size worth due to final zero-padded flush.
-        let max_expected_ratio = expected_ratio * (1.0 + chunk_size as f64 / total_input_frames as f64);
+        let max_expected_ratio =
+            expected_ratio * (1.0 + chunk_size as f64 / total_input_frames as f64);
         assert!(
             actual_ratio <= max_expected_ratio && actual_ratio >= expected_ratio * 0.95,
             "output ratio out of range: expected {:.4}..{:.4}, got {:.4} (output_frames={}, input_frames={})",
