@@ -1026,7 +1026,14 @@ class PlayerService {
       if (engineType == AudioEngineType.usbDacExperimental ||
           engineType == AudioEngineType.dapInternalHighRes) {
         final savedVolume = await _preferencesService.getUsbSoftwareVolume();
-        if (savedVolume != 1.0) {
+        final hasSavedVolume = await _preferencesService.hasUsbSoftwareVolume();
+        final bitPerfectOn = _uac2Service.isBitPerfectEnabledSync ||
+            _uac2Service.isDapBitPerfectEnabledSync;
+        if (bitPerfectOn && !hasSavedVolume) {
+          // Bit-perfect safety default: 25 % when the user has never set
+          // a USB software volume, so the DAC doesn't receive a 100 % signal.
+          _currentVolume = _bitPerfectDefaultVolume;
+        } else if (savedVolume != 1.0) {
           _currentVolume = savedVolume;
         }
       }
