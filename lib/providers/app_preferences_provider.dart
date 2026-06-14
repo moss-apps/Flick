@@ -371,6 +371,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setBottomBarAutoCollapseSeconds(value);
   }
 
+  Future<void> setMiniPlayerSwipeAction(String value) async {
+    if (state.miniPlayerSwipeAction == value) return;
+    state = state.copyWith(miniPlayerSwipeAction: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setMiniPlayerSwipeAction(value);
+  }
+
   Future<void> setKeepPlayingOnQuit(bool value) async {
     if (state.keepPlayingOnQuit == value) return;
     state = state.copyWith(keepPlayingOnQuit: value);
