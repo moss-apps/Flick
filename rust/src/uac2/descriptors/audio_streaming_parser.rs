@@ -7,7 +7,9 @@ use super::validation::{
     validate_format_type_iii,
 };
 use crate::uac2::error::Uac2Error;
+use flutter_rust_bridge::frb;
 
+#[frb(opaque)]
 pub struct AudioStreamingParser;
 
 impl AudioStreamingParser {

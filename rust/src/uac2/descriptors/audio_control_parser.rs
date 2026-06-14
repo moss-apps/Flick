@@ -7,7 +7,9 @@ use super::validation::{
     validate_output_terminal,
 };
 use crate::uac2::error::Uac2Error;
+use flutter_rust_bridge::frb;
 
+#[frb(opaque)]
 pub struct AudioControlParser;
 
 impl AudioControlParser {

@@ -5,7 +5,9 @@ use super::iad_parser::parse_iad_internal;
 use super::parser_trait::DescriptorParser;
 use super::types::DescriptorKind;
 use crate::uac2::error::Uac2Error;
+use flutter_rust_bridge::frb;
 
+#[frb(opaque)]
 pub struct DescriptorFactory {
     ac_parser: AudioControlParser,
     as_parser: AudioStreamingParser,
