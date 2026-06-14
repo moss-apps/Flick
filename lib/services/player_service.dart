@@ -360,9 +360,9 @@ class PlayerService {
   Duration _restoredPosition = Duration.zero;
   double _currentVolume = 1.0;
 
-  /// Default volume for bit-perfect mode (-40 dB safety level).
+  /// Default volume for bit-perfect mode (25 %, safety level).
   /// Mapped to ~0.01 linear gain by Rust's volume_to_gain curve.
-  static const double _bitPerfectDefaultVolume = 1.0 / 3.0;
+  static const double _bitPerfectDefaultVolume = 0.25;
 
   double get currentVolume => _currentVolume;
 
@@ -512,6 +512,9 @@ class PlayerService {
       _updateBitPerfectProcessingLocked,
     );
     _uac2Service.dapBitPerfectEnabledNotifier.addListener(
+      _updateBitPerfectProcessingLocked,
+    );
+    Uac2PreferencesService.tuning432HzNotifier.addListener(
       _updateBitPerfectProcessingLocked,
     );
     _bitPerfectLockedListener = () {
@@ -922,7 +925,8 @@ class PlayerService {
       AudioEngineType.dapInternalHighRes =>
         _uac2Service.isDapBitPerfectEnabledSync,
       _ => false,
-    };
+    } ||
+        Uac2PreferencesService.is432HzTuningEnabledSync;
     if (bitPerfectProcessingLockedNotifier.value != locked) {
       bitPerfectProcessingLockedNotifier.value = locked;
     }
@@ -1006,6 +1010,7 @@ class PlayerService {
       await Future.wait<void>([
         _preferencesService.initializeDeveloperModeCache(),
         _preferencesService.initializeKillIsochronousUsbOnQuitCache(),
+        _preferencesService.initialize432HzTuningCache(),
         _preferencesService.getDsdOutputMode(),
         _sessionManager.initialize(),
         _uac2Service.isBitPerfectEnabled(),
@@ -1013,6 +1018,9 @@ class PlayerService {
       final dapBitPerfect = await _preferencesService.getDapBitPerfectEnabled();
       _uac2Service.dapBitPerfectEnabledNotifier.value = dapBitPerfect;
       rust_audio.audioSetDapBitPerfectEnabled(enabled: dapBitPerfect);
+      rust_audio.audioSet432HzTuningEnabled(
+        enabled: Uac2PreferencesService.is432HzTuningEnabledSync,
+      );
 
       final engineType = _sessionManager.selectedMode;
       if (engineType == AudioEngineType.usbDacExperimental ||
@@ -4460,6 +4468,9 @@ class PlayerService {
       _updateBitPerfectProcessingLocked,
     );
     _uac2Service.dapBitPerfectEnabledNotifier.removeListener(
+      _updateBitPerfectProcessingLocked,
+    );
+    Uac2PreferencesService.tuning432HzNotifier.removeListener(
       _updateBitPerfectProcessingLocked,
     );
     if (_bitPerfectLockedListener != null) {
