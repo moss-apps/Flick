@@ -204,7 +204,11 @@ impl EngineManager {
             .map(|snapshot| snapshot.has_capability(AudioCapability::UsbDac))
     }
 
-    pub fn ensure_rust_engine(&self, preferred_sample_rate: Option<u32>, excluded_strategies: Vec<OutputStrategy>) -> Result<(), String> {
+    pub fn ensure_rust_engine(
+        &self,
+        preferred_sample_rate: Option<u32>,
+        excluded_strategies: Vec<OutputStrategy>,
+    ) -> Result<(), String> {
         self.runtime()
             .block_on(self.ensure_rust_engine_async(preferred_sample_rate, excluded_strategies))
     }
@@ -315,7 +319,12 @@ impl EngineManager {
         crate::uac2::force_release_usb_session();
 
         let new_handle = tokio::task::spawn_blocking(move || {
-            create_audio_engine(preferred_sample_rate, allow_dap_native, dap_bit_perfect_enabled, excluded_strategies)
+            create_audio_engine(
+                preferred_sample_rate,
+                allow_dap_native,
+                dap_bit_perfect_enabled,
+                excluded_strategies,
+            )
         })
         .await
         .map_err(|error| format!("Rust engine initialization task failed: {}", error))??;
