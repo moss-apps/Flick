@@ -615,6 +615,13 @@ pub fn audio_set_dap_bit_perfect_enabled(enabled: bool) {
     let _ = enabled;
 }
 
+/// Toggle experimental 432 Hz tuning. When enabled the engine leaves bit-perfect
+/// passthrough, runs the DSP path, and pins playback speed at 432/440.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_set_432hz_tuning_enabled(enabled: bool) {
+    ENGINE_MANAGER.set_432hz_tuning_enabled(enabled);
+}
+
 /// Set the DSD output mode from Dart. 0 = PCM decimation, 1 = DoP, 2 = Native, 3 = Auto.
 #[flutter_rust_bridge::frb(sync)]
 pub fn audio_set_dsd_output_mode(mode: u8) {
