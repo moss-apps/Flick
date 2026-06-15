@@ -24,6 +24,25 @@ use jni::{
 static ANDROID_APP_CONTEXT: OnceLock<GlobalRef> = OnceLock::new();
 
 #[cfg(target_os = "android")]
+use std::sync::atomic::{AtomicBool, Ordering};
+
+#[cfg(target_os = "android")]
+static DEVELOPER_MODE: AtomicBool = AtomicBool::new(false);
+#[cfg(not(target_os = "android"))]
+use std::sync::atomic::AtomicBool;
+#[cfg(not(target_os = "android"))]
+static DEVELOPER_MODE: AtomicBool = AtomicBool::new(true);
+
+#[macro_export]
+macro_rules! dev_eprintln {
+    ($($arg:tt)*) => {
+        if crate::DEVELOPER_MODE.load(std::sync::atomic::Ordering::Relaxed) {
+            eprintln!($($arg)*);
+        }
+    };
+}
+
+#[cfg(target_os = "android")]
 fn initialize_android_app_context<'local>(
     env: &mut JNIEnv<'local>,
     context: &JObject<'local>,
@@ -57,7 +76,7 @@ fn initialize_android_app_context<'local>(
 pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _reserved: *mut c_void) -> jni::sys::jint {
     android_logger::init_once(
         android_logger::Config::default()
-            .with_max_level(log::LevelFilter::Debug)
+            .with_max_level(log::LevelFilter::Off)
             .with_tag("RustUSB"),
     );
     jni::JNIVersion::V6.into()
@@ -87,11 +106,11 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeInitRustAndroi
                     log::warn!("[ANDROID] Failed to detect device profile: {}", error);
                 }
             }
-            eprintln!("Rust Android audio context initialized");
+            dev_eprintln!("Rust Android audio context initialized");
             1
         }
         Err(error) => {
-            eprintln!("Failed to initialize Android app context: {}", error);
+            dev_eprintln!("Failed to initialize Android app context: {}", error);
             0
         }
     }
@@ -138,7 +157,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeRegisterRustDi
     ) {
         Ok(device) => device,
         Err(error) => {
-            eprintln!(
+            dev_eprintln!(
                 "Failed to prepare Android direct USB DAC registration: {}",
                 error
             );
@@ -149,7 +168,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeRegisterRustDi
     match crate::uac2::register_android_usb_device(device) {
         Ok(()) => 1,
         Err(error) => {
-            eprintln!("Failed to register Android direct USB DAC: {}", error);
+            dev_eprintln!("Failed to register Android direct USB DAC: {}", error);
             0
         }
     }
@@ -205,7 +224,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
     match crate::uac2::set_android_usb_playback_format(playback_format) {
         Ok(()) => 1,
         Err(error) => {
-            eprintln!(
+            dev_eprintln!(
                 "Failed to update Android direct USB playback format: {}",
                 error
             );
@@ -238,7 +257,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
     match crate::uac2::set_android_usb_lock_enabled(enabled != 0) {
         Ok(()) => 1,
         Err(error) => {
-            eprintln!("Failed to update Android direct USB lock state: {}", error);
+            dev_eprintln!("Failed to update Android direct USB lock state: {}", error);
             0
         }
     }
@@ -294,7 +313,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
     match crate::uac2::android_direct_set_hardware_volume(volume) {
         Ok(()) => 1,
         Err(error) => {
-            eprintln!(
+            dev_eprintln!(
                 "Failed to set Android direct USB hardware volume: {}",
                 error
             );
@@ -345,7 +364,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
     match crate::uac2::android_direct_set_hardware_mute(muted != 0) {
         Ok(()) => 1,
         Err(error) => {
-            eprintln!("Failed to set Android direct USB hardware mute: {}", error);
+            dev_eprintln!("Failed to set Android direct USB hardware mute: {}", error);
             0
         }
     }
@@ -521,4 +540,20 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeIsRustDirectUs
     _activity: JObject<'_>,
 ) -> jboolean {
     0
+}
+
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDeveloperMode(
+    _env: JNIEnv<'_>,
+    _activity: JObject<'_>,
+    enabled: jboolean,
+) {
+    DEVELOPER_MODE.store(enabled != 0, Ordering::Relaxed);
+    let level = if enabled != 0 {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Off
+    };
+    log::set_max_level(level);
 }
