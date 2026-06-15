@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/services/lastfm/lastfm_api_client.dart';
 import 'package:flick/services/lastfm/lastfm_models.dart';
 import 'package:flick/services/lastfm/lastfm_scrobble_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Offline-safe scrobble queue persisted in SharedPreferences.
 class LastFmScrobbleQueue {
@@ -23,9 +24,9 @@ class LastFmScrobbleQueue {
     if (queue.length > _kMaxQueueSize) {
       final dropped = queue.length - _kMaxQueueSize;
       queue.removeRange(0, dropped);
-      debugPrint('[LastFm] queue overflow: dropped $dropped oldest entries');
+      devLog('[LastFm] queue overflow: dropped $dropped oldest entries');
     }
-    debugPrint(
+    devLog(
       '[LastFm] queue enqueue artist="${entry.artist}" track="${entry.track}" pending=${queue.length}',
     );
     await _save(queue);
@@ -36,11 +37,11 @@ class LastFmScrobbleQueue {
   Future<void> flush() async {
     final raw = await _load();
     if (raw.isEmpty) {
-      debugPrint('[LastFm] queue flush skipped: empty');
+      devLog('[LastFm] queue flush skipped: empty');
       return;
     }
 
-    debugPrint('[LastFm] queue flush start pending=${raw.length}');
+    devLog('[LastFm] queue flush start pending=${raw.length}');
 
     final entries = raw
         .map(
@@ -52,23 +53,23 @@ class LastFmScrobbleQueue {
     try {
       await _service.scrobbleBatch(entries);
       await _clear();
-      debugPrint('[LastFm] queue flush success; queue cleared');
+      devLog('[LastFm] queue flush success; queue cleared');
     } on LastFmNoSessionException {
       // No active session — keep queue intact for later retry after login
-      debugPrint('[LastFm] queue flush skipped: no session; queue retained');
+      devLog('[LastFm] queue flush skipped: no session; queue retained');
       return;
     } on LastFmApiException catch (e) {
       if (e.code == 9) {
         // Invalid session key — keep queue; user must re-auth before retry
-        debugPrint(
+        devLog(
           '[LastFm] queue flush failed: session expired (code 9); queue retained until re-auth',
         );
         return;
       }
-      debugPrint('[LastFm] queue flush failed; queue retained');
+      devLog('[LastFm] queue flush failed; queue retained');
       rethrow;
     } catch (_) {
-      debugPrint('[LastFm] queue flush failed; queue retained');
+      devLog('[LastFm] queue flush failed; queue retained');
       rethrow;
     }
   }
@@ -87,7 +88,7 @@ class LastFmScrobbleQueue {
       return jsonDecode(raw) as List<dynamic>;
     } catch (e) {
       // Malformed or incompatible JSON; clear stored queue and start fresh
-      debugPrint('[LastFm] queue load failed; clearing corrupt data: $e');
+      devLog('[LastFm] queue load failed; clearing corrupt data: $e');
       await prefs.remove(_kQueueKey);
       return [];
     }

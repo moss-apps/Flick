@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flick/services/lastfm/lastfm_api_client.dart';
 import 'package:flick/services/lastfm/lastfm_auth_service.dart';
 import 'package:flick/services/lastfm/lastfm_models.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Handles Now Playing updates and scrobble submissions to Last.fm.
 class LastFmScrobbleService {
@@ -30,12 +31,12 @@ class LastFmScrobbleService {
   Future<void> updateNowPlaying(ScrobbleEntry entry) async {
     final session = await _auth.getSession();
     if (session == null) {
-      debugPrint('[LastFm] now-playing skipped: no session');
+      devLog('[LastFm] now-playing skipped: no session');
       return;
     }
 
     try {
-      debugPrint(
+      devLog(
         '[LastFm] now-playing send artist="${entry.artist}" track="${entry.track}"',
       );
       await _client.post({
@@ -48,10 +49,10 @@ class LastFmScrobbleService {
         if (entry.durationSeconds != null)
           'duration': entry.durationSeconds.toString(),
       });
-      debugPrint('[LastFm] now-playing success');
+      devLog('[LastFm] now-playing success');
     } catch (_) {
       // Now Playing is non-critical; failures are intentionally ignored.
-      debugPrint('[LastFm] now-playing failed');
+      devLog('[LastFm] now-playing failed');
     }
   }
 
@@ -62,20 +63,20 @@ class LastFmScrobbleService {
   /// Batch scrobble up to 50 tracks per API call.
   Future<void> scrobbleBatch(List<ScrobbleEntry> entries) async {
     if (entries.isEmpty) {
-      debugPrint('[LastFm] scrobble skipped: empty batch');
+      devLog('[LastFm] scrobble skipped: empty batch');
       return;
     }
 
     final session = await _auth.getSession();
     if (session == null) {
-      debugPrint('[LastFm] scrobble skipped: no session');
+      devLog('[LastFm] scrobble skipped: no session');
       throw LastFmNoSessionException();
     }
 
     const maxBatch = 50;
     for (var i = 0; i < entries.length; i += maxBatch) {
       final batch = entries.skip(i).take(maxBatch).toList();
-      debugPrint('[LastFm] scrobble send batchSize=${batch.length}');
+      devLog('[LastFm] scrobble send batchSize=${batch.length}');
       final params = <String, String>{
         'method': 'track.scrobble',
         'sk': session.sessionKey,
@@ -101,7 +102,7 @@ class LastFmScrobbleService {
       }
 
       await _client.post(params);
-      debugPrint('[LastFm] scrobble batch success');
+      devLog('[LastFm] scrobble batch success');
     }
   }
 }
