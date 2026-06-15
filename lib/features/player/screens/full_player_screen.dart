@@ -1280,263 +1280,276 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => SafeArea(
-        top: false,
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(sheetContext).size.height * 0.5,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: AppColors.glassBorder),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            context.responsive(16.0, 18.0, 20.0),
-            context.responsive(10.0, 11.0, 12.0),
-            context.responsive(16.0, 18.0, 20.0),
-            context.responsive(20.0, 22.0, 24.0),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.glassBorderStrong,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+      builder: (sheetContext) => ValueListenableBuilder<Song?>(
+        valueListenable: _playerService.currentSongNotifier,
+        builder: (sheetContext, currentSong, _) {
+          final activeSong = currentSong ?? song;
+          return SafeArea(
+            top: false,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(sheetContext).size.height * 0.5,
               ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border.all(color: AppColors.glassBorder),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                context.responsive(16.0, 18.0, 20.0),
+                context.responsive(10.0, 11.0, 12.0),
+                context.responsive(16.0, 18.0, 20.0),
+                context.responsive(20.0, 22.0, 24.0),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      context.responsive(10.0, 11.0, 12.0),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.glassBorderStrong,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    child: SizedBox(
-                      width: context.responsive(56.0, 62.0, 68.0),
-                      height: context.responsive(56.0, 62.0, 68.0),
-                      child: CachedImageWidget(
-                        imagePath: song.albumArt,
-                        audioSourcePath: song.filePath,
-                        fit: BoxFit.cover,
-                        useThumbnail: true,
-                        thumbnailWidth: 136,
-                        thumbnailHeight: 136,
-                        placeholder: Container(
-                          color: AppColors.surfaceLight,
-                          child: const Icon(
-                            LucideIcons.music,
-                            color: AppColors.textTertiary,
-                            size: 24,
-                          ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          context.responsive(10.0, 11.0, 12.0),
                         ),
-                        errorWidget: Container(
-                          color: AppColors.surfaceLight,
-                          child: const Icon(
-                            LucideIcons.music,
-                            color: AppColors.textTertiary,
-                            size: 24,
+                        child: SizedBox(
+                          width: context.responsive(56.0, 62.0, 68.0),
+                          height: context.responsive(56.0, 62.0, 68.0),
+                          child: CachedImageWidget(
+                            imagePath: activeSong.albumArt,
+                            audioSourcePath: activeSong.filePath,
+                            fit: BoxFit.cover,
+                            useThumbnail: true,
+                            thumbnailWidth: 136,
+                            thumbnailHeight: 136,
+                            placeholder: Container(
+                              color: AppColors.surfaceLight,
+                              child: const Icon(
+                                LucideIcons.music,
+                                color: AppColors.textTertiary,
+                                size: 24,
+                              ),
+                            ),
+                            errorWidget: Container(
+                              color: AppColors.surfaceLight,
+                              child: const Icon(
+                                LucideIcons.music,
+                                color: AppColors.textTertiary,
+                                size: 24,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          song.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'ProductSans',
-                            fontSize: context.responsive(16.0, 17.0, 18.0),
-                            fontWeight: FontWeight.w600,
-                            color: sheetContext.adaptiveTextPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          song.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'ProductSans',
-                            fontSize: context.responsive(12.0, 13.0, 14.0),
-                            color: sheetContext.adaptiveTextSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildSongInfoChip(
-                              sheetContext,
-                              song.formattedDuration,
+                            Text(
+                              activeSong.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'ProductSans',
+                                fontSize: context.responsive(16.0, 17.0, 18.0),
+                                fontWeight: FontWeight.w600,
+                                color: sheetContext.adaptiveTextPrimary,
+                              ),
                             ),
-                            _buildSongInfoChip(
-                              sheetContext,
-                              song.fileType.toUpperCase(),
+                            const SizedBox(height: 4),
+                            Text(
+                              activeSong.artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'ProductSans',
+                                fontSize: context.responsive(12.0, 13.0, 14.0),
+                                color: sheetContext.adaptiveTextSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _buildSongInfoChip(
+                                  sheetContext,
+                                  activeSong.formattedDuration,
+                                ),
+                                _buildSongInfoChip(
+                                  sheetContext,
+                                  activeSong.fileType.toUpperCase(),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                  if (!activeSong.isFromLocker)
+                    _buildSongActionTile(
+                      context: sheetContext,
+                      icon: LucideIcons.listPlus,
+                      label: 'Add to Queue',
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        await _queueSong(context, activeSong);
+                      },
+                    ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: LucideIcons.listMusic,
+                    label: 'Add to Playlist',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _showAddToPlaylistDialog(context, activeSong);
+                    },
+                  ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: LucideIcons.image,
+                    label: 'Set Album Art',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      unawaited(
+                        Future<void>.delayed(
+                          Duration.zero,
+                          () => AlbumArtPickerBottomSheet.show(context, activeSong),
+                        ),
+                      );
+                    },
+                  ),
+                  if (activeSong.filePath != null &&
+                      activeSong.startOffsetMs == null &&
+                      !activeSong.isExternal)
+                    _buildSongActionTile(
+                      context: sheetContext,
+                      icon: LucideIcons.pencil,
+                      label: 'Edit Metadata',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => MetadataEditorScreen(song: activeSong),
+                          ),
+                        ).then((saved) {
+                          if (saved == true) {
+                            ref.invalidate(songsProvider);
+                          }
+                        });
+                      },
+                    ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: LucideIcons.info,
+                    label: 'View Metadata',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _showSongMetadataBottomSheet(context, activeSong);
+                    },
+                  ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: LucideIcons.fileText,
+                    label: 'Lyrics',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _setLyricsMode(true);
+                    },
+                  ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: Icons.graphic_eq_rounded,
+                    label: _isVisualizationMode ? 'Hide Visualizer' : 'Visualizer',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _setVisualizationMode(!_isVisualizationMode);
+                    },
+                  ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: LucideIcons.user,
+                    label: 'Go to Artist',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _openArtistFromSong(context, activeSong);
+                    },
+                  ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: LucideIcons.disc,
+                    label: 'Go to Album',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _openAlbumFromSong(context, activeSong);
+                    },
+                  ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: Icons.dashboard_customize_rounded,
+                    label: 'Player Layout',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _showPlayerLayoutBottomSheet(context);
+                    },
+                  ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: LucideIcons.gauge,
+                    label: 'Playback Speed',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _showSpeedBottomSheet(context);
+                    },
+                  ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: LucideIcons.moonStar,
+                    label: 'Sleep Timer',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _showSleepTimerBottomSheet(context);
+                    },
+                  ),
+                  _buildSongActionTile(
+                    context: sheetContext,
+                    icon: LucideIcons.share2,
+                    label: 'Share',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (_) => ShareBottomSheet(song: activeSong),
+                      );
+                    },
+                  ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              if (!song.isFromLocker)
-                _buildSongActionTile(
-                  context: sheetContext,
-                  icon: LucideIcons.listPlus,
-                  label: 'Add to Queue',
-                  onTap: () async {
-                    Navigator.pop(sheetContext);
-                    await _queueSong(context, song);
-                  },
-                ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: LucideIcons.listMusic,
-                label: 'Add to Playlist',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _showAddToPlaylistDialog(context, song);
-                },
-              ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: LucideIcons.image,
-                label: 'Set Album Art',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  unawaited(
-                    Future<void>.delayed(
-                      Duration.zero,
-                      () => AlbumArtPickerBottomSheet.show(context, song),
-                    ),
-                  );
-                },
-              ),
-              if (song.filePath != null &&
-                  song.startOffsetMs == null &&
-                  !song.isExternal)
-                _buildSongActionTile(
-                  context: sheetContext,
-                  icon: LucideIcons.pencil,
-                  label: 'Edit Metadata',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    Navigator.of(context).push<bool>(
-                      MaterialPageRoute(
-                        builder: (_) => MetadataEditorScreen(song: song),
-                      ),
-                    ).then((saved) {
-                      if (saved == true) {
-                        ref.invalidate(songsProvider);
-                      }
-                    });
-                  },
-                ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: LucideIcons.info,
-                label: 'View Metadata',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _showSongMetadataBottomSheet(context, song);
-                },
-              ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: LucideIcons.fileText,
-                label: 'Lyrics',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _setLyricsMode(true);
-                },
-              ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: Icons.graphic_eq_rounded,
-                label: _isVisualizationMode ? 'Hide Visualizer' : 'Visualizer',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _setVisualizationMode(!_isVisualizationMode);
-                },
-              ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: LucideIcons.user,
-                label: 'Go to Artist',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _openArtistFromSong(context, song);
-                },
-              ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: LucideIcons.disc,
-                label: 'Go to Album',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _openAlbumFromSong(context, song);
-                },
-              ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: Icons.dashboard_customize_rounded,
-                label: 'Player Layout',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _showPlayerLayoutBottomSheet(context);
-                },
-              ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: LucideIcons.gauge,
-                label: 'Playback Speed',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _showSpeedBottomSheet(context);
-                },
-              ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: LucideIcons.moonStar,
-                label: 'Sleep Timer',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _showSleepTimerBottomSheet(context);
-                },
-              ),
-              _buildSongActionTile(
-                context: sheetContext,
-                icon: LucideIcons.share2,
-                label: 'Share',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  showModalBottomSheet(
-                    context: context,
-                    backgroundColor: Colors.transparent,
-                    isScrollControlled: true,
-                    builder: (_) => ShareBottomSheet(song: song),
-                  );
-                },
-              ),
-            ],
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
