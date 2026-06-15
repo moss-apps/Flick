@@ -7,6 +7,7 @@ import 'package:flick/services/lastfm/lastfm_credentials.dart';
 import 'package:flick/services/lastfm/lastfm_models.dart';
 import 'package:flick/services/lastfm/lastfm_scrobble_queue.dart';
 import 'package:flick/services/lastfm/lastfm_scrobble_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 part 'lastfm_provider.g.dart';
 
@@ -180,7 +181,7 @@ class LastFmScrobbleNotifier extends _$LastFmScrobbleNotifier {
         ? trackDurationSeconds
         : entry.durationSeconds;
     if (durationSeconds == null || durationSeconds <= 0) {
-      debugPrint('[LastFm] scrobble skipped: missing or zero duration');
+      devLog('[LastFm] scrobble skipped: missing or zero duration');
       return;
     }
 
@@ -198,7 +199,7 @@ class LastFmScrobbleNotifier extends _$LastFmScrobbleNotifier {
       await queue.flush();
     } catch (e) {
       // Offline or transient failure. Keep queued for later retry.
-      debugPrint('[LastFm] flush failed: $e');
+      devLog('[LastFm] flush failed: $e');
     }
   }
 
