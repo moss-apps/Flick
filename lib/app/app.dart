@@ -522,6 +522,16 @@ class _MainShellState extends ConsumerState<MainShell>
               listenedSeconds: notifier.accumulatedListenSeconds,
               trackDurationSeconds: playerState.duration.inSeconds,
             );
+        ref
+            .read(listenBrainzScrobbleProvider.notifier)
+            .onTrackEnded(
+              artist: song.artist,
+              track: song.title,
+              album: song.album,
+              albumArtist: null,
+              listenedSeconds: notifier.accumulatedListenSeconds,
+              trackDurationSeconds: playerState.duration.inSeconds,
+            );
       }
     }
     if (state == AppLifecycleState.resumed) {
@@ -530,6 +540,9 @@ class _MainShellState extends ConsumerState<MainShell>
       ref.read(updateCheckProvider.notifier).refreshIfOnline();
       ref.read(lastFmScrobbleQueueProvider).flush().catchError((e) {
         devLog('[LastFm] queue flush on resume failed: $e');
+      });
+      ref.read(listenbrainzScrobbleQueueProvider).flush().catchError((e) {
+        devLog('[ListenBrainz] queue flush on resume failed: $e');
       });
       ref.read(autoLibrarySyncServiceProvider).notifyResumed();
     }
