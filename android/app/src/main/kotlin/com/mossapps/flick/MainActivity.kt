@@ -875,6 +875,11 @@ class MainActivity: FlutterActivity() {
                     killIsochronousUsbOnQuit = enabled
                     result.success(true)
                 }
+                "setDeveloperMode" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: false
+                    nativeSetRustDeveloperMode(enabled)
+                    result.success(true)
+                }
                 "markDirectUsbFallback" -> {
                     val reason = call.argument<String>("reason")
                     result.success(nativeMarkRustDirectUsbFallback(reason))
@@ -4001,4 +4006,5 @@ class MainActivity: FlutterActivity() {
     private external fun nativeWaitRustDirectUsbSessionStopped(timeoutMs: Int): Boolean
     private external fun nativeIsRustDirectUsbSessionActive(): Boolean
     private external fun nativeMarkRustDirectUsbFallback(reason: String?): Boolean
+    private external fun nativeSetRustDeveloperMode(enabled: Boolean)
 }
