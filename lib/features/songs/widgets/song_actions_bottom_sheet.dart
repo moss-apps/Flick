@@ -764,6 +764,8 @@ class SongActionsBottomSheet extends ConsumerWidget {
       ),
     );
 
+    await repository.deleteSong(songId);
+
     if (deleteFile && song.filePath != null) {
       var deleted = false;
       try {
@@ -783,18 +785,10 @@ class SongActionsBottomSheet extends ConsumerWidget {
         } catch (_) {}
       }
 
-      if (!deleted && rootContext.mounted) {
-        ScaffoldMessenger.of(rootContext).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Could not delete the file. Removing from library instead.',
-            ),
-          ),
-        );
+      if (deleted) {
+        await MusicFolderService.removeFromMediaStore(song.filePath!);
       }
     }
-
-    await repository.deleteSong(songId);
 
     if (rootContext.mounted) {
       Navigator.of(rootContext).pop();
