@@ -3,6 +3,8 @@
 //! Decoding happens in a separate thread to avoid blocking the audio callback.
 //! Decoded samples are written to a ring buffer for consumption by the audio thread.
 
+use crate::dev_eprintln;
+
 use crate::audio::opus_decoder;
 use crate::audio::resampler::AudioResampler;
 use crate::audio::source::{AudioSource, SourceInfo, SourceProducer};
@@ -395,7 +397,7 @@ fn decode_thread(
             Ok(decoded) => decoded,
             Err(SymphoniaError::DecodeError(e)) => {
                 // Skip corrupted frames
-                eprintln!("Decode error (skipping frame): {}", e);
+                dev_eprintln!("Decode error (skipping frame): {}", e);
                 continue;
             }
             Err(e) => {
@@ -638,7 +640,7 @@ fn convert_to_interleaved_f32(buffer: &AudioBufferRef, output: &mut Vec<f32>) {
         }
         _ => {
             // Unsupported format - output silence
-            eprintln!("Unsupported audio buffer format");
+            dev_eprintln!("Unsupported audio buffer format");
         }
     }
 }

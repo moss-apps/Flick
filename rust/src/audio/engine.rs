@@ -3,6 +3,8 @@
 //! The engine manages the audio output stream, handles commands from Dart,
 //! and coordinates decoding, resampling, and crossfading.
 
+use crate::dev_eprintln;
+
 use crate::audio::commands::{AudioCommand, AudioEvent, PlaybackProgress, PlaybackState};
 use crate::audio::crossfader::Crossfader;
 use crate::audio::decoder::DecoderThread;
@@ -599,7 +601,7 @@ pub fn create_audio_engine(
         .filter(|rate| device_supports_sample_rate(&device, channels as u16, *rate))
         .unwrap_or(sample_rate);
 
-    eprintln!(
+    dev_eprintln!(
         "Audio engine opening output device '{}' at {} Hz (preferred: {:?})",
         device.name().unwrap_or_else(|_| "unknown".to_string()),
         target_sample_rate,
@@ -657,20 +659,20 @@ pub fn create_audio_engine(
                     audio_callback(data, &callback_data_clone, &event_tx_clone);
                 },
                 |err| {
-                    eprintln!("Audio stream error: {}", err);
+                    dev_eprintln!("Audio stream error: {}", err);
                 },
                 None,
             ) {
                 Ok(s) => s,
                 Err(e) => {
-                    eprintln!("Failed to build audio stream: {}", e);
+                    dev_eprintln!("Failed to build audio stream: {}", e);
                     return;
                 }
             };
 
             // Start the stream
             if let Err(e) = stream.play() {
-                eprintln!("Failed to start audio stream: {}", e);
+                dev_eprintln!("Failed to start audio stream: {}", e);
                 return;
             }
 
@@ -1113,7 +1115,7 @@ pub fn create_audio_engine(
 
     #[cfg(feature = "uac2")]
     let channels = {
-        eprintln!(
+        dev_eprintln!(
             "create_audio_engine: requested_rate={} Hz, strategy={:?}, debug_state: registered={}, effective_rate={:?}, requested_rate={:?}, effective_ch={:?}, requested_ch={:?}",
             requested_sample_rate,
             desired_strategy,
@@ -1146,7 +1148,7 @@ pub fn create_audio_engine(
                 ANDROID_DIRECT_CHANNELS
             };
 
-            eprintln!(
+            dev_eprintln!(
                 "create_audio_engine: DAC registered, will attempt USB backend with {} channels (format_matches: effective={}, requested={})",
                 channels, effective_matches, requested_matches
             );
@@ -1501,7 +1503,7 @@ pub fn create_audio_engine(
             };
 
             if let Err(error) = stream.start() {
-                eprintln!("Failed to start Android managed output stream: {}", error);
+                dev_eprintln!("Failed to start Android managed output stream: {}", error);
                 let _ = event_tx.try_send(AudioEvent::Error {
                     message: format!("Failed to start Android managed output stream: {}", error),
                 });
@@ -1520,7 +1522,7 @@ pub fn create_audio_engine(
             );
 
             if let Err(error) = stream.stop() {
-                eprintln!("Failed to stop Android direct output stream: {}", error);
+                dev_eprintln!("Failed to stop Android direct output stream: {}", error);
             }
         });
 
@@ -1568,7 +1570,7 @@ impl AudioOutputCallback for AndroidOutputCallbackF32 {
         audio_stream: &mut dyn AudioOutputStreamSafe,
         error: oboe::Error,
     ) {
-        eprintln!(
+        dev_eprintln!(
             "Android managed output error before close: {:?} (device_id={}, sample_rate={} Hz, sharing={:?}, api={:?})",
             error,
             audio_stream.get_device_id(),
@@ -1583,7 +1585,7 @@ impl AudioOutputCallback for AndroidOutputCallbackF32 {
         audio_stream: &mut dyn AudioOutputStreamSafe,
         error: oboe::Error,
     ) {
-        eprintln!(
+        dev_eprintln!(
             "Android managed output error after close: {:?} (device_id={}, sample_rate={} Hz, sharing={:?}, api={:?})",
             error,
             audio_stream.get_device_id(),
@@ -1601,7 +1603,7 @@ impl AudioOutputCallback for AndroidOutputCallbackF32 {
         let required_samples = audio_data.len() * ANDROID_DIRECT_CHANNELS;
 
         if required_samples > self.scratch.len() {
-            eprintln!(
+            dev_eprintln!(
                 "[oboe] burst {} frames > scratch {} frames — growing scratch",
                 audio_data.len(),
                 self.scratch.len() / ANDROID_DIRECT_CHANNELS,
@@ -1652,7 +1654,7 @@ impl AudioOutputCallback for AndroidOutputCallbackI32 {
         audio_stream: &mut dyn AudioOutputStreamSafe,
         error: oboe::Error,
     ) {
-        eprintln!(
+        dev_eprintln!(
             "Android managed i32 output error before close: {:?} (device_id={}, sample_rate={} Hz, sharing={:?}, api={:?})",
             error,
             audio_stream.get_device_id(),
@@ -1667,7 +1669,7 @@ impl AudioOutputCallback for AndroidOutputCallbackI32 {
         audio_stream: &mut dyn AudioOutputStreamSafe,
         error: oboe::Error,
     ) {
-        eprintln!(
+        dev_eprintln!(
             "Android managed i32 output error after close: {:?} (device_id={}, sample_rate={} Hz, sharing={:?}, api={:?})",
             error,
             audio_stream.get_device_id(),
@@ -1685,7 +1687,7 @@ impl AudioOutputCallback for AndroidOutputCallbackI32 {
         let required_samples = audio_data.len() * ANDROID_DIRECT_CHANNELS;
 
         if required_samples > self.scratch.len() {
-            eprintln!(
+            dev_eprintln!(
                 "[oboe-i32] burst {} frames > scratch {} frames — growing scratch",
                 audio_data.len(),
                 self.scratch.len() / ANDROID_DIRECT_CHANNELS,
@@ -1855,7 +1857,7 @@ fn open_android_output_stream(
                             ),
                         };
 
-                    eprintln!(
+                    dev_eprintln!(
                         "Android managed output opened '{}' (id {}, type {:?}) requested {} Hz -> actual {} Hz, api {:?}, sharing {:?}, format {:?}, channels {:?}",
                         selected_device.product_name,
                         selected_device.id,
@@ -1932,7 +1934,7 @@ fn select_android_output_device(target_sample_rate: u32) -> Result<AudioDeviceIn
     });
 
     for device in &devices {
-        eprintln!(
+        dev_eprintln!(
             "Android output candidate '{}' (id {}, type {:?}, sample_rates={:?}, channel_counts={:?}, formats={:?})",
             device.product_name,
             device.id,
@@ -2061,7 +2063,7 @@ pub(crate) fn audio_callback(
         };
         let (read, old_source) = sources.read(output);
         if let Some(source) = old_source {
-            eprintln!(
+            dev_eprintln!(
                 "[dop] gapless transition (old={})",
                 source.info.path.display()
             );
@@ -2087,7 +2089,7 @@ pub(crate) fn audio_callback(
 
         let (read, old_source) = sources.read(output);
         if let Some(source) = old_source {
-            eprintln!(
+            dev_eprintln!(
                 "[crossfade] gapless transition (old={})",
                 source.info.path.display()
             );
@@ -2146,7 +2148,7 @@ pub(crate) fn audio_callback(
     };
 
     if crossfader.is_active() && sources.next_mut().is_some() {
-        eprintln!(
+        dev_eprintln!(
             "[crossfade] callback mixing — position={}/{}",
             crossfader.position(),
             crossfader.duration_samples()
@@ -2191,7 +2193,7 @@ pub(crate) fn audio_callback(
         let _ = crossfader.mix(&buf_a[..needed], &buf_b[..needed], output, channels);
 
         if !crossfader.is_active() {
-            eprintln!("[crossfade] DONE — advancing to next track");
+            dev_eprintln!("[crossfade] DONE — advancing to next track");
             drop(crossfader);
             if let Some(source) = sources.advance_to_next() {
                 let _ = data.finished_tracks.try_send(source);
@@ -2528,7 +2530,7 @@ fn command_processing_loop(
                         // since the next track was pre-queued, so the buffer
                         // should be full by now.
                         if sources.next_has_enough_buffer(0.0) {
-                            eprintln!(
+                            dev_eprintln!(
                                 "[crossfade] TRIGGERING! remaining={:.3}s threshold={:.1}s",
                                 remaining,
                                 crossfader.duration_secs()
@@ -2548,7 +2550,7 @@ fn command_processing_loop(
                                     .try_send(AudioEvent::CrossfadeStarted { from_path, to_path });
                             }
                         } else {
-                            eprintln!(
+                            dev_eprintln!(
                                 "[crossfade] DELAYED - next buffer insufficient, waiting for more data"
                             );
                         }
@@ -2562,7 +2564,7 @@ fn command_processing_loop(
                     .unwrap_or(-1.0);
                 let threshold = crossfader.duration_secs() as f64;
                 if remaining > 0.0 && remaining <= threshold * 3.0 {
-                    eprintln!(
+                    dev_eprintln!(
                         "[crossfade] NEAR: active={} has_next={} has_current={} next_buffered={} remaining={:.3}s threshold={:.1}s",
                         crossfader.is_active(),
                         sources.has_next(),
