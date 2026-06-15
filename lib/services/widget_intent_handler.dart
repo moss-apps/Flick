@@ -7,6 +7,7 @@ import 'package:home_widget/home_widget.dart';
 
 import '../models/song.dart';
 import '../providers/player_provider.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 class WidgetIntentHandler {
   WidgetIntentHandler(this._ref, {VoidCallback? onOpenQueue})
@@ -50,10 +51,10 @@ class WidgetIntentHandler {
       } else if (uri.host == 'queue') {
         _onOpenQueue?.call();
       } else {
-        debugPrint('WidgetIntentHandler: unknown host ${uri.host}');
+        devLog('WidgetIntentHandler: unknown host ${uri.host}');
       }
     } catch (e, st) {
-      debugPrint('WidgetIntentHandler dispatch error: $e\n$st');
+      devLog('WidgetIntentHandler dispatch error: $e\n$st');
     }
   }
 
@@ -77,7 +78,7 @@ class WidgetIntentHandler {
         unawaited(_pushWidgetState());
         break;
       default:
-        debugPrint('WidgetIntentHandler: unknown player action $action');
+        devLog('WidgetIntentHandler: unknown player action $action');
     }
   }
 
@@ -97,7 +98,7 @@ class WidgetIntentHandler {
       }
       await HomeWidget.updateWidget(qualifiedAndroidName: _provider);
     } catch (e) {
-      debugPrint('WidgetIntentHandler: failed to push widget state: $e');
+      devLog('WidgetIntentHandler: failed to push widget state: $e');
     }
   }
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Service to extract dominant colors from images for adaptive theming.
 ///
@@ -60,7 +61,7 @@ class ColorExtractionService {
 
       return color;
     } catch (e) {
-      debugPrint('ColorExtractionService: Failed to extract color: $e');
+      devLog('ColorExtractionService: Failed to extract color: $e');
       return null;
     }
   }

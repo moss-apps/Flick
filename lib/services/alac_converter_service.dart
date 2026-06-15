@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../src/rust/api/alac_converter_api.dart' as alac_api;
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Service for converting ALAC/M4A/AIFF files to WAV/PCM format
 ///
@@ -226,7 +227,7 @@ class AlacAudioSource {
           await file.delete();
         }
       } catch (e) {
-        debugPrint('Failed to delete converted file: $e');
+        devLog('Failed to delete converted file: $e');
       }
       _convertedPath = null;
     }

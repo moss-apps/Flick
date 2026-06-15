@@ -6,6 +6,7 @@ import 'package:flick/models/audio_engine_type.dart';
 import 'package:flick/models/playback_state.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/audio_engine.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 typedef AndroidAudioSourcesBuilder =
     Future<just_audio.AudioSource> Function();
@@ -244,12 +245,12 @@ class AndroidAudioEngine implements AudioEngine {
     if (canReusePlaylist &&
         player.sequence.isNotEmpty &&
         !_loadedSingleTrackOnly) {
-      debugPrint(
+      devLog(
         '[Playback] Android load(${track.id}) using existing playlist',
       );
       await player.seek(Duration.zero, index: index);
     } else if (shouldFastStartCurrentTrackOnly) {
-      debugPrint(
+      devLog(
         '[Playback] Android load(${track.id}) fast-starting current track',
       );
       _awaitingInitialSeek = true;
@@ -263,7 +264,7 @@ class AndroidAudioEngine implements AudioEngine {
       _loadedSingleTrackOnly = true;
       _playlistSignature = const <String>[];
     } else {
-      debugPrint('[Playback] Android load(${track.id}) rebuilding playlist');
+      devLog('[Playback] Android load(${track.id}) rebuilding playlist');
       _awaitingInitialSeek = true;
       try {
         final source = await _sourcesBuilder();
@@ -305,12 +306,12 @@ class AndroidAudioEngine implements AudioEngine {
       final playback = player.play();
       unawaited(
         playback.catchError((Object error, StackTrace stackTrace) {
-          debugPrint('[Playback] Android play() failed: $error');
+          devLog('[Playback] Android play() failed: $error');
           debugPrintStack(stackTrace: stackTrace);
         }),
       );
     } catch (error, stackTrace) {
-      debugPrint('[Playback] Android play() failed immediately: $error');
+      devLog('[Playback] Android play() failed immediately: $error');
       debugPrintStack(stackTrace: stackTrace);
       rethrow;
     }

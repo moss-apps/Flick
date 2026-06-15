@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flick/services/uac2_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 class AndroidPlaybackDeviceInfo {
   const AndroidPlaybackDeviceInfo({
@@ -145,7 +146,7 @@ class AndroidAudioDeviceService {
       _channelConfigured = true;
       _channel.setMethodCallHandler((call) async {
         if (call.method == 'onPlaybackDevicesChanged') {
-          debugPrint('[Engine] Audio device change detected');
+          devLog('[Engine] Audio device change detected');
           if (Uac2Service.instance.shouldFreezeAndroidDirectUsbSessionQueries) {
             return;
           }
@@ -168,7 +169,7 @@ class AndroidAudioDeviceService {
       deviceInfoNotifier.value = info;
       return info;
     } catch (e) {
-      debugPrint('AndroidAudioDeviceService.refresh failed: $e');
+      devLog('AndroidAudioDeviceService.refresh failed: $e');
       deviceInfoNotifier.value = AndroidPlaybackDeviceInfo.unknown;
       return AndroidPlaybackDeviceInfo.unknown;
     }

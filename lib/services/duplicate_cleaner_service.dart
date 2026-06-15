@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../core/utils/audio_metadata_utils.dart';
 import '../data/repositories/song_repository.dart';
 import '../data/entities/song_entity.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Represents a group of duplicate songs.
 class DuplicateGroup {
@@ -101,7 +102,7 @@ class DuplicateCleanerService {
   /// Scan the library for duplicate songs.
   /// Duplicates are identified by matching title and artist (case-insensitive).
   Future<DuplicateScanResult> scanForDuplicates() async {
-    debugPrint('Starting duplicate scan...');
+    devLog('Starting duplicate scan...');
 
     final allSongs = await _songRepository.getAllSongEntities();
     final duplicateMap = <String, List<SongEntity>>{};
@@ -126,7 +127,7 @@ class DuplicateCleanerService {
       (sum, group) => sum + group.songsToRemove.length,
     );
 
-    debugPrint(
+    devLog(
       'Duplicate scan complete: Found $totalDuplicates duplicates in ${duplicateGroups.length} groups',
     );
 
@@ -141,7 +142,7 @@ class DuplicateCleanerService {
   Future<DuplicateRemovalResult> removeAllDuplicates(
     List<DuplicateGroup> groups,
   ) async {
-    debugPrint('Starting duplicate removal...');
+    devLog('Starting duplicate removal...');
 
     int removedCount = 0;
     int keptCount = 0;
@@ -157,17 +158,17 @@ class DuplicateCleanerService {
         }
 
         keptCount++;
-        debugPrint(
+        devLog(
           'Removed ${toRemove.length} duplicates of "${group.songToKeep.title}"',
         );
       } catch (e) {
         final error = 'Failed to remove duplicates for "${group.key}": $e';
         errors.add(error);
-        debugPrint(error);
+        devLog(error);
       }
     }
 
-    debugPrint(
+    devLog(
       'Duplicate removal complete: Removed $removedCount songs, kept $keptCount',
     );
 
@@ -187,7 +188,7 @@ class DuplicateCleanerService {
         await _songRepository.deleteSong(id);
         removedCount++;
       } catch (e) {
-        debugPrint('Failed to remove song $id: $e');
+        devLog('Failed to remove song $id: $e');
       }
     }
 

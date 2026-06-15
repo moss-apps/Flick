@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/services/uac2_preferences_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Playback state enum matching the Rust engine states.
 enum RustPlaybackState {
@@ -67,7 +68,7 @@ class RustAudioService {
 
     // Check if native audio is available on this platform
     if (!rust_audio.audioIsNativeAvailable()) {
-      debugPrint(
+      devLog(
         'Native audio engine not available (expected on mobile platforms)',
       );
       return false;
@@ -77,13 +78,13 @@ class RustAudioService {
       rust_audio.audioInit();
       rust_audio.audioSetHighResMode(enabled: _highResModeEnabled);
       _initialized = true;
-      debugPrint('Rust audio engine manager initialized');
+      devLog('Rust audio engine manager initialized');
 
       // Start event polling
       _startEventPolling();
       return true;
     } catch (e) {
-      debugPrint('Failed to initialize Rust audio engine: $e');
+      devLog('Failed to initialize Rust audio engine: $e');
       return false;
     }
   }
@@ -112,7 +113,7 @@ class RustAudioService {
         preferredSampleRate: preferredSampleRate,
       );
     } catch (e) {
-      debugPrint('Error detecting DAC availability: $e');
+      devLog('Error detecting DAC availability: $e');
       return false;
     }
   }
@@ -124,7 +125,7 @@ class RustAudioService {
     try {
       rust_audio.audioSetCapabilityInfo(info: info);
     } catch (e) {
-      debugPrint('Error updating audio capability info: $e');
+      devLog('Error updating audio capability info: $e');
     }
   }
 
@@ -146,7 +147,7 @@ class RustAudioService {
         preferredSampleRate: preferredSampleRate,
       );
     } catch (e) {
-      debugPrint('Error reading audio capability info: $e');
+      devLog('Error reading audio capability info: $e');
       return const rust_audio.AudioCapabilityInfo(
         capabilities: [rust_audio.AudioCapabilityType.standard],
         routeType: 'unknown',
@@ -182,7 +183,7 @@ class RustAudioService {
         preferredSampleRate: preferredSampleRate,
       );
     } catch (e) {
-      debugPrint('Error preparing Rust audio engine: $e');
+      devLog('Error preparing Rust audio engine: $e');
       rethrow;
     }
   }
@@ -201,7 +202,7 @@ class RustAudioService {
     try {
       return rust_audio.audioGetCurrentPath();
     } catch (e) {
-      debugPrint('Error getting current path: $e');
+      devLog('Error getting current path: $e');
       return _currentPath; // Fallback to cached value
     }
   }
@@ -517,7 +518,7 @@ class RustAudioService {
           onCrossfadeStarted?.call(fromPath, toPath);
         },
         error: (message) {
-          debugPrint('Rust audio error: $message');
+          devLog('Rust audio error: $message');
           onError?.call(message);
         },
         nextTrackReady: (path) {

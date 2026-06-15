@@ -8,6 +8,7 @@ import 'package:home_widget/home_widget.dart';
 import '../models/song.dart';
 import '../providers/player_provider.dart';
 import '../services/app_preferences_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 class WidgetSyncService {
   WidgetSyncService._();
@@ -102,7 +103,7 @@ class WidgetSyncService {
       _lastPushedSongId = song?.id;
       _lastPushedIsPlaying = state.isPlaying;
     } catch (e, st) {
-      debugPrint('WidgetSyncService push failed: $e\n$st');
+      devLog('WidgetSyncService push failed: $e\n$st');
     }
   }
 
@@ -114,7 +115,7 @@ class WidgetSyncService {
         qualifiedAndroidName: miniPlayerProvider,
       );
     } catch (e, st) {
-      debugPrint('WidgetSyncService pushPaused failed: $e\n$st');
+      devLog('WidgetSyncService pushPaused failed: $e\n$st');
     }
   }
 
@@ -133,7 +134,7 @@ class WidgetSyncService {
         qualifiedAndroidName: miniPlayerProvider,
       );
     } catch (e, st) {
-      debugPrint('WidgetSyncService pushKilled failed: $e\n$st');
+      devLog('WidgetSyncService pushKilled failed: $e\n$st');
     }
   }
 
@@ -172,7 +173,7 @@ class WidgetSyncService {
         qualifiedAndroidName: miniPlayerProvider,
       );
     } catch (e, st) {
-      debugPrint('WidgetSyncService pushCustomization failed: $e\n$st');
+      devLog('WidgetSyncService pushCustomization failed: $e\n$st');
     }
   }
 

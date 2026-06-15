@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Flutter service to communicate with native Android notification service.
 /// Handles media playback notifications with controls.
@@ -88,7 +89,7 @@ class NotificationService {
       await _channel.invokeMethod('showNotification', args);
       _isNotificationVisible = true;
     } catch (e) {
-      debugPrint('Failed to show notification: $e');
+      devLog('Failed to show notification: $e');
     }
   }
 
@@ -106,7 +107,7 @@ class NotificationService {
       }
       await _channel.invokeMethod('updateNotification', args);
     } catch (e) {
-      debugPrint('Failed to update notification state: $e');
+      devLog('Failed to update notification state: $e');
     }
   }
 
@@ -137,7 +138,7 @@ class NotificationService {
       await _channel.invokeMethod('updateNotification', args);
       _isNotificationVisible = true;
     } catch (e) {
-      debugPrint('Failed to update notification: $e');
+      devLog('Failed to update notification: $e');
     }
   }
 
@@ -147,7 +148,7 @@ class NotificationService {
       await _channel.invokeMethod('hideNotification');
       _isNotificationVisible = false;
     } catch (e) {
-      debugPrint('Failed to hide notification: $e');
+      devLog('Failed to hide notification: $e');
     }
   }
 }

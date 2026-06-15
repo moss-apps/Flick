@@ -6,6 +6,7 @@ import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
+import 'package:flick/core/utils/dev_log.dart';
 
 typedef AudioSessionSwitchHandler =
     Future<void> Function({
@@ -64,9 +65,7 @@ class AudioSessionManager {
   String? get fallbackReason => fallbackReasonNotifier.value;
 
   void _debugLog(String message) {
-    if (Uac2PreferencesService.isDeveloperModeEnabledSync) {
-      debugPrint(message);
-    }
+    devLog(message);
   }
 
   Future<void> initialize() async {

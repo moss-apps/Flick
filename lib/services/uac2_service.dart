@@ -10,6 +10,7 @@ import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/src/rust/api/uac2_api.dart' as rust_uac2;
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/uac2_exception.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 const Object _unset = Object();
 
@@ -165,7 +166,19 @@ class Uac2Service {
         'enabled': enabled,
       });
     } catch (e) {
-      debugPrint('Uac2Service.syncKillIsochronousUsbOnQuitToNative failed: $e');
+      devLog('Uac2Service.syncKillIsochronousUsbOnQuitToNative failed: $e');
+    }
+  }
+
+  Future<void> syncDeveloperModeToNative() async {
+    if (!Platform.isAndroid) return;
+    final enabled = Uac2PreferencesService.isDeveloperModeEnabledSync;
+    try {
+      await _channel.invokeMethod<bool>('setDeveloperMode', {
+        'enabled': enabled,
+      });
+    } catch (e) {
+      devLog('Uac2Service.syncDeveloperModeToNative failed: $e');
     }
   }
   Uac2DeviceStatus? _currentDeviceStatus;
@@ -308,7 +321,7 @@ class Uac2Service {
         requireActivatableDeviceName: false,
       );
       if (currentPlaybackDevice != null) {
-        debugPrint(
+        devLog(
           'Uac2Service.listDevices (Android): reusing frozen direct USB device '
           '${_describeAndroidDevice(currentPlaybackDevice)}',
         );
@@ -320,7 +333,7 @@ class Uac2Service {
     try {
       return rust_uac2.uac2ListDevices();
     } catch (e) {
-      debugPrint('Uac2Service.listDevices failed: $e');
+      devLog('Uac2Service.listDevices failed: $e');
       throw Uac2Exception.fromMessage(e.toString());
     }
   }
@@ -329,7 +342,7 @@ class Uac2Service {
     try {
       final raw = await _channel.invokeMethod<List<dynamic>>('listDevices');
       if (raw == null) {
-        debugPrint(
+        devLog(
           'Uac2Service.listDevices (Android): no UsbManager devices returned',
         );
         return [];
@@ -346,13 +359,13 @@ class Uac2Service {
           deviceName: deviceName,
         );
       }).toList();
-      debugPrint(
+      devLog(
         'Uac2Service.listDevices (Android): ${devices.length} candidate(s): '
         '${devices.map((device) => '${device.productName}@${device.deviceName}').join(', ')}',
       );
       return devices;
     } catch (e) {
-      debugPrint('Uac2Service.listDevices (Android) failed: $e');
+      devLog('Uac2Service.listDevices (Android) failed: $e');
       return [];
     }
   }
@@ -365,7 +378,7 @@ class Uac2Service {
       });
       return result ?? false;
     } catch (e) {
-      debugPrint('Uac2Service.hasPermission failed: $e');
+      devLog('Uac2Service.hasPermission failed: $e');
       return false;
     }
   }
@@ -378,7 +391,7 @@ class Uac2Service {
       });
       return result ?? false;
     } catch (e) {
-      debugPrint('Uac2Service.requestPermission failed: $e');
+      devLog('Uac2Service.requestPermission failed: $e');
       return false;
     }
   }
@@ -437,7 +450,7 @@ class Uac2Service {
         deviceType: 'DAC',
       );
     } catch (e) {
-      debugPrint('Uac2Service.getDeviceCapabilities failed: $e');
+      devLog('Uac2Service.getDeviceCapabilities failed: $e');
       return null;
     }
   }
@@ -535,7 +548,7 @@ class Uac2Service {
       );
       return true;
     } catch (e) {
-      debugPrint('Uac2Service.selectDevice failed: $e');
+      devLog('Uac2Service.selectDevice failed: $e');
       _updateStatus(
         Uac2DeviceStatus(
           device: device,
@@ -559,7 +572,7 @@ class Uac2Service {
     final resolvedDevice = await _resolvePreferredAndroidActivationDevice(null);
     if (resolvedDevice == null ||
         !(resolvedDevice.deviceName?.isNotEmpty ?? false)) {
-      debugPrint(
+      devLog(
         'Uac2Service.prepareAndroidExperimentalUsbPlayback: no activatable '
         'USB DAC was resolved',
       );
@@ -578,7 +591,7 @@ class Uac2Service {
       disallowedSampleRates: disallowedSampleRates,
     );
     if (selectedFormat == null) {
-      debugPrint(
+      devLog(
         'Uac2Service.prepareAndroidExperimentalUsbPlayback: no compatible '
         'direct USB output format could be selected for requested '
         '${format.sampleRate}Hz/${format.bitDepth}-bit/${format.channels}ch',
@@ -590,7 +603,7 @@ class Uac2Service {
         selectedFormat.bitDepth != format.bitDepth ||
         selectedFormat.channels != format.channels;
     if (usingFallbackFormat) {
-      debugPrint(
+      devLog(
         'Uac2Service.prepareAndroidExperimentalUsbPlayback: using fallback '
         'direct USB output ${selectedFormat.sampleRate}Hz/'
         '${selectedFormat.bitDepth}-bit/${selectedFormat.channels}ch for '
@@ -611,7 +624,7 @@ class Uac2Service {
       if (!sampleRateSupported ||
           !bitDepthSupported ||
           !channelCountSupported) {
-        debugPrint(
+        devLog(
           'Uac2Service.prepareAndroidExperimentalUsbPlayback: requested '
           '${selectedFormat.sampleRate}Hz/${selectedFormat.bitDepth}-bit/'
           '${selectedFormat.channels}ch '
@@ -631,7 +644,7 @@ class Uac2Service {
             'isNativeDsd': selectedFormat.isNativeDsd,
           });
       if (applied != true) {
-        debugPrint(
+        devLog(
           'Uac2Service.setDirectUsbPlaybackFormat returned false for '
           '${selectedFormat.sampleRate}Hz/${selectedFormat.bitDepth}-bit/'
           '${selectedFormat.channels}ch',
@@ -639,7 +652,7 @@ class Uac2Service {
         return false;
       }
     } catch (e) {
-      debugPrint('Uac2Service.setDirectUsbPlaybackFormat failed: $e');
+      devLog('Uac2Service.setDirectUsbPlaybackFormat failed: $e');
       return false;
     }
 
@@ -782,7 +795,7 @@ class Uac2Service {
               'isNativeDsd': format.isNativeDsd,
             });
         if (applied != true) {
-          debugPrint(
+          devLog(
             'Uac2Service.resetAndroidDirectUsbPath format apply returned '
             'false for ${format.sampleRate}Hz/${format.bitDepth}-bit/'
             '${format.channels}ch',
@@ -790,7 +803,7 @@ class Uac2Service {
           return false;
         }
       } catch (e) {
-        debugPrint(
+        devLog(
           'Uac2Service.resetAndroidDirectUsbPath format apply failed: $e',
         );
         return false;
@@ -816,12 +829,12 @@ class Uac2Service {
     try {
       await _channel.invokeMethod<bool>('clearDirectUsbPlaybackFormat');
     } catch (e) {
-      debugPrint('Uac2Service.clearDirectUsbPlaybackFormat failed: $e');
+      devLog('Uac2Service.clearDirectUsbPlaybackFormat failed: $e');
     }
     try {
       await _channel.invokeMethod<bool>('deactivateDirectUsb');
     } catch (e) {
-      debugPrint('Uac2Service.deactivateDirectUsb failed: $e');
+      devLog('Uac2Service.deactivateDirectUsb failed: $e');
     }
 
     await _refreshAndroidRouteStatus(
@@ -842,7 +855,7 @@ Future<void> markAndroidDirectUsbFallback(String reason) async {
         'reason': reason,
       });
     } catch (e) {
-      debugPrint('Uac2Service.markAndroidDirectUsbFallback failed: $e');
+      devLog('Uac2Service.markAndroidDirectUsbFallback failed: $e');
     }
   }
 
@@ -851,7 +864,7 @@ Future<void> markAndroidDirectUsbFallback(String reason) async {
     try {
       await _channel.invokeMethod<bool>('startPriorityAnchor');
     } catch (e) {
-      debugPrint('Uac2Service.startPriorityAnchor failed: $e');
+      devLog('Uac2Service.startPriorityAnchor failed: $e');
     }
   }
 
@@ -860,7 +873,7 @@ Future<void> stopPriorityAnchor() async {
     try {
       await _channel.invokeMethod<bool>('stopPriorityAnchor');
     } catch (e) {
-      debugPrint('Uac2Service.stopPriorityAnchor failed: $e');
+      devLog('Uac2Service.stopPriorityAnchor failed: $e');
     }
   }
 
@@ -893,7 +906,7 @@ Future<void> stopPriorityAnchor() async {
       );
       return true;
     } catch (e) {
-      debugPrint('Uac2Service.startStreaming failed: $e');
+      devLog('Uac2Service.startStreaming failed: $e');
       _updateStatus(
         _currentDeviceStatus!.copyWith(
           state: Uac2State.error,
@@ -932,7 +945,7 @@ Future<void> stopPriorityAnchor() async {
       );
       return true;
     } catch (e) {
-      debugPrint('Uac2Service.stopStreaming failed: $e');
+      devLog('Uac2Service.stopStreaming failed: $e');
       return false;
     }
   }
@@ -946,14 +959,14 @@ Future<void> stopPriorityAnchor() async {
       }
       await _preferencesService.clearSelectedDevice();
     } catch (e) {
-      debugPrint('Uac2Service.disconnect failed: $e');
+      devLog('Uac2Service.disconnect failed: $e');
     } finally {
       if (Platform.isAndroid) {
         await _setAndroidDirectUsbPlaybackActive(false);
         try {
           await _channel.invokeMethod<bool>('deactivateDirectUsb');
         } catch (e) {
-          debugPrint('Uac2Service.deactivateDirectUsb failed: $e');
+          devLog('Uac2Service.deactivateDirectUsb failed: $e');
         }
         await _refreshAndroidRouteStatus(
           formatOverride: _lastKnownFormat,
@@ -991,7 +1004,7 @@ Future<void> stopPriorityAnchor() async {
       _updateStatus(_currentDeviceStatus!.copyWith(volume: volume));
       return true;
     } catch (e) {
-      debugPrint('Uac2Service.setVolume failed: $e');
+      devLog('Uac2Service.setVolume failed: $e');
       return false;
     }
   }
@@ -1009,7 +1022,7 @@ Future<void> stopPriorityAnchor() async {
       if (result == 0) return false;
       return null; // -1 or any other value
     } catch (e) {
-      debugPrint('Uac2Service.verifyHardwareVolumeHealth failed: $e');
+      devLog('Uac2Service.verifyHardwareVolumeHealth failed: $e');
       return null;
     }
   }
@@ -1028,7 +1041,7 @@ Future<void> stopPriorityAnchor() async {
       if (!rust_uac2.uac2IsAvailable()) return null;
       return rust_uac2.uac2GetVolume();
     } catch (e) {
-      debugPrint('Uac2Service.getVolume failed: $e');
+      devLog('Uac2Service.getVolume failed: $e');
       return null;
     }
   }
@@ -1056,7 +1069,7 @@ Future<void> stopPriorityAnchor() async {
       _updateStatus(_currentDeviceStatus!.copyWith(muted: muted));
       return true;
     } catch (e) {
-      debugPrint('Uac2Service.setMute failed: $e');
+      devLog('Uac2Service.setMute failed: $e');
       return false;
     }
   }
@@ -1075,7 +1088,7 @@ Future<void> stopPriorityAnchor() async {
       if (!rust_uac2.uac2IsAvailable()) return null;
       return rust_uac2.uac2GetMute();
     } catch (e) {
-      debugPrint('Uac2Service.getMute failed: $e');
+      devLog('Uac2Service.getMute failed: $e');
       return null;
     }
   }
@@ -1090,7 +1103,7 @@ Future<void> stopPriorityAnchor() async {
       if (!rust_uac2.uac2IsAvailable()) return null;
       return rust_uac2.uac2GetVolumeRange();
     } catch (e) {
-      debugPrint('Uac2Service.getVolumeRange failed: $e');
+      devLog('Uac2Service.getVolumeRange failed: $e');
       return null;
     }
   }
@@ -1106,7 +1119,7 @@ Future<void> stopPriorityAnchor() async {
       await rust_uac2.uac2SetSamplingFrequency(frequency: frequency);
       return true;
     } catch (e) {
-      debugPrint('Uac2Service.setSamplingFrequency failed: $e');
+      devLog('Uac2Service.setSamplingFrequency failed: $e');
       return false;
     }
   }
@@ -1121,7 +1134,7 @@ Future<void> stopPriorityAnchor() async {
       if (!rust_uac2.uac2IsAvailable()) return null;
       return rust_uac2.uac2GetSamplingFrequency();
     } catch (e) {
-      debugPrint('Uac2Service.getSamplingFrequency failed: $e');
+      devLog('Uac2Service.getSamplingFrequency failed: $e');
       return null;
     }
   }
@@ -1134,7 +1147,7 @@ Future<void> stopPriorityAnchor() async {
       if (!rust_uac2.uac2IsAvailable()) return null;
       return rust_uac2.uac2GetConnectionState();
     } catch (e) {
-      debugPrint('Uac2Service.getConnectionState failed: $e');
+      devLog('Uac2Service.getConnectionState failed: $e');
       return null;
     }
   }
@@ -1148,7 +1161,7 @@ Future<void> stopPriorityAnchor() async {
       await rust_uac2.uac2SetAutoReconnect(enabled: enabled);
       return true;
     } catch (e) {
-      debugPrint('Uac2Service.setAutoReconnect failed: $e');
+      devLog('Uac2Service.setAutoReconnect failed: $e');
       return false;
     }
   }
@@ -1161,7 +1174,7 @@ Future<void> stopPriorityAnchor() async {
       if (!rust_uac2.uac2IsAvailable()) return false;
       return rust_uac2.uac2AttemptReconnect();
     } catch (e) {
-      debugPrint('Uac2Service.attemptReconnect failed: $e');
+      devLog('Uac2Service.attemptReconnect failed: $e');
       return false;
     }
   }
@@ -1174,7 +1187,7 @@ Future<void> stopPriorityAnchor() async {
       if (!rust_uac2.uac2IsAvailable()) return null;
       return rust_uac2.uac2GetFallbackInfo();
     } catch (e) {
-      debugPrint('Uac2Service.getFallbackInfo failed: $e');
+      devLog('Uac2Service.getFallbackInfo failed: $e');
       return null;
     }
   }
@@ -1187,7 +1200,7 @@ Future<void> stopPriorityAnchor() async {
       if (!rust_uac2.uac2IsAvailable()) return false;
       return rust_uac2.uac2ActivateFallback();
     } catch (e) {
-      debugPrint('Uac2Service.activateFallback failed: $e');
+      devLog('Uac2Service.activateFallback failed: $e');
       return false;
     }
   }
@@ -1201,7 +1214,7 @@ Future<void> stopPriorityAnchor() async {
       await rust_uac2.uac2DeactivateFallback();
       return true;
     } catch (e) {
-      debugPrint('Uac2Service.deactivateFallback failed: $e');
+      devLog('Uac2Service.deactivateFallback failed: $e');
       return false;
     }
   }
@@ -1482,7 +1495,7 @@ Future<void> stopPriorityAnchor() async {
         maxSampleRate: (map['maxSupportedSampleRate'] as num?)?.toInt(),
       );
     } catch (e) {
-      debugPrint('Uac2Service.getAndroidAudioCapabilityInfo failed: $e');
+      devLog('Uac2Service.getAndroidAudioCapabilityInfo failed: $e');
       return const rust_audio.AudioCapabilityInfo(
         capabilities: [rust_audio.AudioCapabilityType.standard],
         routeType: 'unknown',
@@ -1535,14 +1548,14 @@ Future<void> stopPriorityAnchor() async {
             );
           }
         } catch (e) {
-          debugPrint(
+          devLog(
             'Uac2Service.getAndroidPlaybackDebugState JSON failed: $e',
           );
         }
       }
       return map;
     } catch (e) {
-      debugPrint('Uac2Service.getAndroidPlaybackDebugState failed: $e');
+      devLog('Uac2Service.getAndroidPlaybackDebugState failed: $e');
       return null;
     }
   }
@@ -1589,7 +1602,7 @@ Future<void> stopPriorityAnchor() async {
         resolvedPreferred,
         requireActivatableDeviceName: requireActivatableDeviceName,
       )) {
-        debugPrint(
+        devLog(
           'Uac2Service._resolvePreferredAndroidDevice: using explicit '
           'preferred device ${_describeAndroidDevice(resolvedPreferred)}',
         );
@@ -1606,7 +1619,7 @@ Future<void> stopPriorityAnchor() async {
         resolvedCurrentDevice,
         requireActivatableDeviceName: requireActivatableDeviceName,
       )) {
-        debugPrint(
+        devLog(
           'Uac2Service._resolvePreferredAndroidDevice: using current route '
           'device ${_describeAndroidDevice(resolvedCurrentDevice)}',
         );
@@ -1622,7 +1635,7 @@ Future<void> stopPriorityAnchor() async {
       resolvedStoredDevice,
       requireActivatableDeviceName: requireActivatableDeviceName,
     )) {
-      debugPrint(
+      devLog(
         'Uac2Service._resolvePreferredAndroidDevice: using stored device '
         '${_describeAndroidDevice(resolvedStoredDevice)}',
       );
@@ -1636,14 +1649,14 @@ Future<void> stopPriorityAnchor() async {
       discoveredDevice,
       requireActivatableDeviceName: requireActivatableDeviceName,
     )) {
-      debugPrint(
+      devLog(
         'Uac2Service._resolvePreferredAndroidDevice: discovered default '
         'device ${_describeAndroidDevice(discoveredDevice)}',
       );
       return discoveredDevice;
     }
 
-    debugPrint(
+    devLog(
       'Uac2Service._resolvePreferredAndroidDevice: no usable Android USB '
       'device resolved (requireDeviceName=$requireActivatableDeviceName)',
     );
@@ -1766,7 +1779,7 @@ Future<void> stopPriorityAnchor() async {
 
     final devices = await _listDevicesAndroid();
     if (devices.isEmpty) {
-      debugPrint(
+      devLog(
         'Uac2Service._discoverDefaultAndroidUsbDevice: no UsbManager audio devices found',
       );
       return null;
@@ -1780,7 +1793,7 @@ Future<void> stopPriorityAnchor() async {
         if (normalizedRouteLabel.contains(productName) ||
             (manufacturer.isNotEmpty &&
                 normalizedRouteLabel.contains(manufacturer))) {
-          debugPrint(
+          devLog(
             'Uac2Service._discoverDefaultAndroidUsbDevice matched route '
             'label "$routeLabelHint" to ${device.productName}',
           );
@@ -1789,7 +1802,7 @@ Future<void> stopPriorityAnchor() async {
       }
     }
 
-    debugPrint(
+    devLog(
       'Uac2Service._discoverDefaultAndroidUsbDevice falling back to first '
       'UsbManager DAC candidate: ${devices.first.productName}',
     );
@@ -1906,7 +1919,7 @@ Future<void> stopPriorityAnchor() async {
       });
       _lastDirectUsbPlaybackActive = active;
     } catch (e) {
-      debugPrint('Uac2Service.setDirectUsbPlaybackActive failed: $e');
+      devLog('Uac2Service.setDirectUsbPlaybackActive failed: $e');
     }
   }
 
@@ -1989,7 +2002,7 @@ Future<void> stopPriorityAnchor() async {
       if (raw == null) return null;
       return raw.map((key, value) => MapEntry(key.toString(), value));
     } catch (e) {
-      debugPrint('Uac2Service._getAndroidRouteStatus failed: $e');
+      devLog('Uac2Service._getAndroidRouteStatus failed: $e');
       return null;
     }
   }
@@ -2095,7 +2108,7 @@ Future<void> stopPriorityAnchor() async {
       );
       return result ?? true;
     } catch (e) {
-      debugPrint('Uac2Service.setBitPerfectEnabled failed: $e');
+      devLog('Uac2Service.setBitPerfectEnabled failed: $e');
       return false;
     }
   }

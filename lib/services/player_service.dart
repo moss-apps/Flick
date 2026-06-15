@@ -36,6 +36,7 @@ import 'package:flick/services/album_color_mode_preference_service.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/alac_converter_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 enum HwVolumeCapability { unknown, supported, unsupported }
 
@@ -935,9 +936,7 @@ class PlayerService {
   }
 
   void _debugLog(String message) {
-    if (Uac2PreferencesService.isDeveloperModeEnabledSync) {
-      debugPrint(message);
-    }
+    devLog(message);
   }
 
   /// Initialize the audio engine.
@@ -1006,7 +1005,7 @@ class PlayerService {
   }
 
   Future<void> _initializeAudio() async {
-    debugPrint('[Engine] Initializing audio manager');
+    _debugLog('[Engine] Initializing audio manager');
 
     try {
       await Future.wait<void>([
@@ -1061,7 +1060,7 @@ class PlayerService {
       final session = await AudioSession.instance;
       await session.setActive(false);
     } catch (e) {
-      debugPrint('[AudioFocus] Failed to deactivate Android audio session: $e');
+      _debugLog('[AudioFocus] Failed to deactivate Android audio session: $e');
     }
   }
 
@@ -1071,9 +1070,9 @@ class PlayerService {
     try {
       final session = await AudioSession.instance;
       final granted = await session.setActive(true);
-      debugPrint('[AudioFocus] Rust engine focus request granted=$granted');
+      _debugLog('[AudioFocus] Rust engine focus request granted=$granted');
     } catch (e) {
-      debugPrint(
+      _debugLog(
         '[AudioFocus] Failed to activate audio session for Rust engine: $e',
       );
     }
@@ -1086,7 +1085,7 @@ class PlayerService {
       return;
     }
 
-    debugPrint('[Engine] Releasing Android-managed audio resources ($reason)');
+    _debugLog('[Engine] Releasing Android-managed audio resources ($reason)');
     await _disposeAndroidEngine();
     await _deactivateAndroidAudioSession();
   }
@@ -1113,12 +1112,12 @@ class PlayerService {
       });
       _audioSessionConfigured = true;
     } catch (e) {
-      debugPrint('[AudioFocus] Failed to configure Android audio session: $e');
+      _debugLog('[AudioFocus] Failed to configure Android audio session: $e');
     }
   }
 
   void _onAudioInterruptionEvent(AudioInterruptionEvent event) {
-    debugPrint(
+    _debugLog(
       '[AudioFocus] Interruption event: begin=${event.begin}, '
       'type=${event.type}, wasPlaying=$_wasPlayingBeforeAudioInterruption, '
       'playing=${isPlayingNotifier.value}',
@@ -1159,7 +1158,7 @@ class PlayerService {
     try {
       await _resumeInternal();
     } catch (e, stackTrace) {
-      debugPrint('[AudioFocus] Auto-resume after interruption failed: $e');
+      _debugLog('[AudioFocus] Auto-resume after interruption failed: $e');
       debugPrintStack(stackTrace: stackTrace);
     }
   }
@@ -1189,7 +1188,7 @@ class PlayerService {
         final session = await AudioSession.instance;
         await session.setActive(true);
       } catch (e) {
-        debugPrint('[AudioFocus] Failed to activate Android audio session: $e');
+        _debugLog('[AudioFocus] Failed to activate Android audio session: $e');
       }
     }
 
@@ -1224,7 +1223,7 @@ class PlayerService {
       return true;
     }
     if (_rustBackendAvailable && !_rustAudioService.isInitialized) {
-      debugPrint(
+      _debugLog(
         '[Engine] Rust backend flag was stale; reinitializing Rust audio manager',
       );
       _rustBackendAvailable = false;
@@ -1241,7 +1240,7 @@ class PlayerService {
       return _rustBackendAvailable;
     } catch (e) {
       _rustBackendAvailable = false;
-      debugPrint('Rust audio backend unavailable: $e');
+      _debugLog('Rust audio backend unavailable: $e');
       return false;
     } finally {
       completer.complete(_rustBackendAvailable);
@@ -1912,7 +1911,7 @@ class PlayerService {
 
     final newSong = _playlist[newIndex];
     if (fromListener && _shouldIgnoreAutoSyncedSong(newSong)) {
-      debugPrint(
+      _debugLog(
         'Ignoring transient auto-sync to ${newSong.title} during explicit play handoff',
       );
       return;
@@ -1929,7 +1928,7 @@ class PlayerService {
       _clearAutoSyncGuard();
     }
     if (newSong != currentSongNotifier.value) {
-      debugPrint(
+      _debugLog(
         'Track transition: ${currentSongNotifier.value?.title} -> ${newSong.title}',
       );
     }
@@ -2036,7 +2035,7 @@ class PlayerService {
       unawaited(_onSongFinished(endedPath: endedPath));
     };
     _rustAudioService.onError = (message) {
-      debugPrint('[PlayerService] Rust backend error: $message');
+      _debugLog('[PlayerService] Rust backend error: $message');
       unawaited(_refreshAudioOutputDiagnostics(reason: 'Rust backend error'));
     };
   }
@@ -2203,7 +2202,7 @@ class PlayerService {
       try {
         isFav = await _favoritesService.isFavorite(song.id);
       } catch (e) {
-        debugPrint('Failed to load favorite state: $e');
+        _debugLog('Failed to load favorite state: $e');
       }
     }
 
@@ -2229,7 +2228,7 @@ class PlayerService {
         }
       }
     } catch (e) {
-      debugPrint('Failed to extract notification color: $e');
+      _debugLog('Failed to extract notification color: $e');
     }
 
     await _notificationService.updateNotification(
@@ -2252,7 +2251,7 @@ class PlayerService {
   }
 
   Future<void> _onSongFinishedInternal({String? endedPath}) async {
-    debugPrint(
+    _debugLog(
       '_onSongFinished: loopMode=${loopModeNotifier.value}, currentIndex=$_currentIndex, playlistLength=${_playlist.length}, usingRustBackend=$_usingRustBackend, endedPath=$endedPath',
     );
 
@@ -2265,12 +2264,12 @@ class PlayerService {
       usingRustBackend: _usingRustBackend,
       loopMode: loopModeNotifier.value,
     )) {
-      debugPrint('_onSongFinished: skipping manual completion handling');
+      _debugLog('_onSongFinished: skipping manual completion handling');
       return;
     }
 
     if (loopModeNotifier.value == LoopMode.stopAfterCurrent) {
-      debugPrint('_onSongFinished: stopAfterCurrent, pausing');
+      _debugLog('_onSongFinished: stopAfterCurrent, pausing');
       await _pauseInternal();
       await seek(Duration.zero);
       return;
@@ -2279,11 +2278,11 @@ class PlayerService {
     if (loopModeNotifier.value == LoopMode.one) {
       final songToReplay = currentSongNotifier.value ?? _songAtCurrentIndex();
       if (songToReplay != null) {
-        debugPrint('_onSongFinished: LoopMode.one, replaying current song');
+        _debugLog('_onSongFinished: LoopMode.one, replaying current song');
         await _playInternal(songToReplay);
       }
     } else {
-      debugPrint('_onSongFinished: Calling next()');
+      _debugLog('_onSongFinished: Calling next()');
       await _nextInternal();
     }
   }
@@ -2346,7 +2345,7 @@ class PlayerService {
     try {
       await _playbackManager.stop();
     } catch (e) {
-      debugPrint('Stop failed: $e');
+      _debugLog('Stop failed: $e');
     }
     await _refreshAudioOutputDiagnostics(reason: 'playback stopped');
     cancelSleepTimer();
@@ -2490,7 +2489,7 @@ class PlayerService {
         return stagedPath;
       }
     } catch (e) {
-      debugPrint('Failed to stage content URI for playback: $e');
+      _debugLog('Failed to stage content URI for playback: $e');
     }
     return null;
   }
@@ -2573,7 +2572,7 @@ class PlayerService {
       return convertedPath;
     } catch (e) {
       _unsupportedWavConversionSources.add(sourceKey);
-      debugPrint('Failed to convert playback path to WAV: $e');
+      _debugLog('Failed to convert playback path to WAV: $e');
       return null;
     }
   }
@@ -2636,7 +2635,7 @@ class PlayerService {
   ) async {
     final inFlight = _rustEnginePreparationInFlight;
     if (inFlight != null) {
-      debugPrint(
+      _debugLog(
         '[Engine] Waiting for in-flight Rust engine preparation to complete',
       );
       await inFlight;
@@ -2663,13 +2662,13 @@ class PlayerService {
     if (requiresUsbDac) {
       final deviceInfo = await AndroidAudioDeviceService.instance.refresh();
       if (!deviceInfo.hasUsbDac) {
-        debugPrint('[Engine] USB init blocked: no USB DAC detected');
+        _debugLog('[Engine] USB init blocked: no USB DAC detected');
         throw StateError('Rust USB engine requires a USB DAC');
       }
     }
 
     if (!_rustAudioService.isInitialized) {
-      debugPrint(
+      _debugLog(
         '[Engine] Initializing Rust engine for ${playbackMode.logLabel}',
       );
     }
@@ -2693,12 +2692,12 @@ class PlayerService {
         playbackMode,
       );
       if (playbackMode == AudioEngineType.usbDacExperimental) {
-        debugPrint(
+        _debugLog(
           '[Engine] Ensuring USB DAC is registered before engine preparation',
         );
         final dacRegistered = await _ensureUsbDacRegistered();
         if (!dacRegistered) {
-          debugPrint(
+          _debugLog(
             '[Engine] Failed to register USB DAC before engine preparation',
           );
           throw StateError('USB DAC registration failed');
@@ -2772,7 +2771,7 @@ class PlayerService {
       return null;
     }
 
-    debugPrint(
+    _debugLog(
       '[Engine] DAP managed playback pinned to $preferredSampleRate Hz '
       '(${formatPreference.name}) while Bit-perfect (DAP Internal) is disabled',
     );
@@ -2813,11 +2812,11 @@ class PlayerService {
           directUsbState?['playback_format_sample_rate'] != null;
 
       if (alreadyRegistered && hasPlaybackFormat) {
-        debugPrint('[Engine] USB DAC already registered with playback format');
+        _debugLog('[Engine] USB DAC already registered with playback format');
         return true;
       }
 
-      debugPrint(
+      _debugLog(
         '[Engine] Preparing USB DAC for playback (registered=$alreadyRegistered, hasFormat=$hasPlaybackFormat)',
       );
 
@@ -2833,7 +2832,7 @@ class PlayerService {
       );
 
       if (!prepared) {
-        debugPrint('[Engine] Failed to prepare USB DAC for playback');
+        _debugLog('[Engine] Failed to prepare USB DAC for playback');
         return false;
       }
 
@@ -2848,18 +2847,18 @@ class PlayerService {
           verifyDirectUsbState?['playback_format_sample_rate'] != null;
 
       if (nowRegistered && nowHasFormat) {
-        debugPrint(
+        _debugLog(
           '[Engine] USB DAC successfully prepared: registered=$nowRegistered, hasFormat=$nowHasFormat, rate=${verifyDirectUsbState?['playback_format_sample_rate']}',
         );
       } else {
-        debugPrint(
+        _debugLog(
           '[Engine] USB DAC preparation incomplete: registered=$nowRegistered, hasFormat=$nowHasFormat',
         );
       }
 
       return nowRegistered && nowHasFormat;
     } catch (e) {
-      debugPrint('[Engine] Error ensuring USB DAC registration: $e');
+      _debugLog('[Engine] Error ensuring USB DAC registration: $e');
       return false;
     }
   }
@@ -2914,7 +2913,7 @@ class PlayerService {
       return false;
     }
     if (await _uac2Service.isBitPerfectEnabled()) {
-      debugPrint(
+      _debugLog(
         '[Engine] Bit-perfect (USB DAC) requires an exact verified DAC rate; '
         'skipping fallback-rate direct retry from '
         '${currentFormat.sampleRate} Hz',
@@ -2932,7 +2931,7 @@ class PlayerService {
       return false;
     }
 
-    debugPrint(
+    _debugLog(
       '[Engine] Direct USB clock setup failed at ${currentFormat.sampleRate} Hz; '
       'retrying direct USB at ${fallbackFormat.sampleRate} Hz',
     );
@@ -2955,7 +2954,7 @@ class PlayerService {
     final player = _justAudioPlayer;
     if (player == null) return;
 
-    debugPrint('[Engine] Disposing Android engine');
+    _debugLog('[Engine] Disposing Android engine');
 
     try {
       await player.stop();
@@ -2970,7 +2969,7 @@ class PlayerService {
   Future<void> _disposeUsbEngine() async {
     if (!_rustAudioService.isInitialized) return;
 
-    debugPrint('[Engine] Disposing Rust engine');
+    _debugLog('[Engine] Disposing Rust engine');
     if (_rustListenersAttached) {
       if (_rustStateListener != null) {
         _rustAudioService.stateNotifier.removeListener(_rustStateListener!);
@@ -3024,13 +3023,13 @@ class PlayerService {
     // This prevents USB "Resource busy" from overlapping sessions.
     if (from != to || from == null) {
       if (_rustEngine != null) {
-        debugPrint(
+        _debugLog(
           '[Engine] Full dispose of Rust engine before ${to.logLabel}',
         );
         await _disposeUsbEngine();
       }
       if (_justAudioPlayer != null) {
-        debugPrint(
+        _debugLog(
           '[Engine] Full dispose of Android engine before ${to.logLabel}',
         );
         await _disposeAndroidEngine();
@@ -3045,7 +3044,7 @@ class PlayerService {
 
     final hasDetachedAndroidPrewarm = _justAudioPlayer != null;
     if (hasDetachedAndroidPrewarm) {
-      debugPrint(
+      _debugLog(
         '[Engine] Disposing detached Android prewarm before ${to.logLabel}',
       );
       await _disposeAndroidEngine();
@@ -3072,7 +3071,7 @@ class PlayerService {
       _usingRustBackend = false;
     }
 
-    debugPrint(
+    _debugLog(
       '[Engine] Switch complete: ${from?.logLabel ?? 'none'} -> '
       '${to.logLabel} ($reason)',
     );
@@ -3137,7 +3136,7 @@ class PlayerService {
       return desiredEngine;
     }
 
-    debugPrint(
+    _debugLog(
       '[Engine] USB engine requested without a USB DAC; '
       'falling back to Android ($reason)',
     );
@@ -3231,7 +3230,7 @@ class PlayerService {
             _sameUac2Format(currentUsbFormat, targetUsbOutputFormat);
 
         if (formatMatches) {
-          debugPrint(
+          _debugLog(
             '[Engine] USB engine already active with matching format '
             '(${targetUsbOutputFormat.sampleRate}Hz/'
             '${targetUsbOutputFormat.bitDepth}-bit/'
@@ -3267,7 +3266,7 @@ class PlayerService {
             alreadyInUsbMode &&
             !_sameUac2Format(currentUsbFormat, preparedUsbFormat);
         if (needsDirectUsbPrewarm && _rustAudioService.isInitialized) {
-          debugPrint(
+          _debugLog(
             '[Engine] Prewarming active USB engine for '
             '${preparedUsbFormat.sampleRate}Hz/${preparedUsbFormat.bitDepth}-bit/'
             '${preparedUsbFormat.channels}ch before playback',
@@ -3291,7 +3290,7 @@ class PlayerService {
     List<Song>? playlist,
     PlaybackContext? context,
   }) {
-    debugPrint('[UI] tap(${song.id})');
+    _debugLog('[UI] tap(${song.id})');
     if (context != null) setPlaybackContext(context);
     return _enqueuePlaybackRequest(
       () => _playInternal(song, playlist: playlist),
@@ -3299,23 +3298,23 @@ class PlayerService {
   }
 
   Future<void> _enqueuePlaybackRequest(Future<void> Function() action) {
-    debugPrint('[PlayerService] _enqueuePlaybackRequest called');
+    _debugLog('[PlayerService] _enqueuePlaybackRequest called');
     final operation = _playRequestQueue
         .then<void>((_) async {
-          debugPrint(
+          _debugLog(
             '[PlayerService] _enqueuePlaybackRequest: previous operation complete, executing action',
           );
           try {
             await action();
           } catch (e, stack) {
-            debugPrint(
+            _debugLog(
               '[PlayerService] _enqueuePlaybackRequest action error: $e\n$stack',
             );
             rethrow;
           }
         })
         .catchError((e) {
-          debugPrint('[PlayerService] _enqueuePlaybackRequest queue error: $e');
+          _debugLog('[PlayerService] _enqueuePlaybackRequest queue error: $e');
         });
     _playRequestQueue = operation;
     return operation;
@@ -3324,7 +3323,7 @@ class PlayerService {
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
     try {
-      debugPrint(
+      _debugLog(
         '[Playback] play() called for ${song.title} '
         '(selected mode: ${_sessionManager.selectedMode.logLabel})',
       );
@@ -3380,7 +3379,7 @@ class PlayerService {
           song: song,
           reason: 'playback requested',
         );
-        debugPrint(
+        _debugLog(
           '[Engine] Playback route resolved to ${activeEngine.logLabel}',
         );
         await _runWithSuppressedSequenceStateUpdates(() async {
@@ -3405,7 +3404,7 @@ class PlayerService {
       if (recovered) {
         return;
       }
-      debugPrint(
+      _debugLog(
         '[Playback] play() failed for ${song.title} '
         'on ${currentEngineType.logLabel}: $e',
       );
@@ -3450,7 +3449,7 @@ class PlayerService {
         wasPlaying: isPlayingNotifier.value,
       );
     } catch (e) {
-      debugPrint('Failed to save last played position: $e');
+      _debugLog('Failed to save last played position: $e');
     }
   }
 
@@ -3512,7 +3511,7 @@ class PlayerService {
       );
 
       if (restoredSong.filePath != null) {
-        debugPrint(
+        _debugLog(
           '[Playback] Restored ${restoredSong.title} at '
           '${lastPlayed.position.inMilliseconds}ms; waiting for explicit playback',
         );
@@ -3521,12 +3520,12 @@ class PlayerService {
   }
 
   Future<void> pause() {
-    debugPrint('[PlayerService] pause() called');
+    _debugLog('[PlayerService] pause() called');
     return _enqueuePlaybackRequest(_pauseInternal);
   }
 
   Future<void> _pauseInternal() async {
-    debugPrint(
+    _debugLog(
       '[Playback] pause() called, hasAttachedEngine=${_playbackManager.hasAttachedEngine}',
     );
     if (isPlayingNotifier.value) {
@@ -3536,7 +3535,7 @@ class PlayerService {
     // If no engine has been attached yet (e.g. pausing a restored-but-not-started
     // track), there is nothing to pause — the optimistic update above is enough.
     if (!_playbackManager.hasAttachedEngine) {
-      debugPrint(
+      _debugLog(
         '[Playback] pause(): no engine attached, returning after optimistic update',
       );
       return;
@@ -3544,7 +3543,7 @@ class PlayerService {
     try {
       await _playbackManager.pause();
     } catch (e) {
-      debugPrint('Pause failed: $e');
+      _debugLog('Pause failed: $e');
     }
     await _refreshAudioOutputDiagnostics(
       reason: 'playback paused',
@@ -3564,7 +3563,7 @@ class PlayerService {
       return;
     }
 
-    debugPrint('[Playback] resume() called');
+    _debugLog('[Playback] resume() called');
     // Use the cached route selection maintained by the session manager's device
     // listener rather than doing another blocking device probe on resume.
     final desiredEngine = _sessionManager.selectedMode;
@@ -3573,7 +3572,7 @@ class PlayerService {
       song: song,
       reason: 'resume requested',
     );
-    debugPrint('[Engine] Resume route resolved to ${activeEngine.logLabel}');
+    _debugLog('[Engine] Resume route resolved to ${activeEngine.logLabel}');
 
     final latestState = _playbackManager.latestState;
     final canResumeDirectly =
@@ -3657,7 +3656,7 @@ class PlayerService {
       return false;
     }
 
-    debugPrint(
+    _debugLog(
       '[Engine] Direct USB startup refused: $message. Falling back to NORMAL_ANDROID',
     );
     await _uac2Service.markAndroidDirectUsbFallback(message);
@@ -3698,11 +3697,11 @@ class PlayerService {
   }
 
   Future<void> togglePlayPause() {
-    debugPrint(
+    _debugLog(
       '[PlayerService] togglePlayPause called, isPlaying=${isPlayingNotifier.value}',
     );
     return _enqueuePlaybackRequest(() async {
-      debugPrint(
+      _debugLog(
         '[PlayerService] togglePlayPause executing, isPlaying=${isPlayingNotifier.value}',
       );
       try {
@@ -3720,7 +3719,7 @@ class PlayerService {
         if (recovered) {
           return;
         }
-        debugPrint('[PlayerService] togglePlayPause error: $e\n$stack');
+        _debugLog('[PlayerService] togglePlayPause error: $e\n$stack');
       }
     });
   }
@@ -3729,28 +3728,28 @@ class PlayerService {
     try {
       await _playbackManager.seek(position);
     } catch (e) {
-      debugPrint('Seek failed: $e');
+      _debugLog('Seek failed: $e');
     }
     unawaited(_updateNotificationState());
   }
 
   Future<void> next() {
-    debugPrint('[PlayerService] next() called');
+    _debugLog('[PlayerService] next() called');
     return _enqueuePlaybackRequest(_nextInternal);
   }
 
   Future<void> _nextInternal() async {
-    debugPrint(
+    _debugLog(
       '[PlayerService] _nextInternal() called, playlist.length=${_playlist.length}, currentIndex=$_currentIndex',
     );
     if (_playlist.isEmpty) {
-      debugPrint(
+      _debugLog(
         '[PlayerService] _nextInternal: playlist is empty, returning early',
       );
       return;
     }
 
-    debugPrint(
+    _debugLog(
       'next(): currentIndex=$_currentIndex, playlistLength=${_playlist.length}, loopMode=${loopModeNotifier.value}',
     );
 
@@ -3776,7 +3775,7 @@ class PlayerService {
     final shuffle = shuffleModeNotifier.value;
     if (shuffle == ShuffleMode.songsAndCategories ||
         shuffle == ShuffleMode.categories) {
-      debugPrint(
+      _debugLog(
         'next(): category shuffle active, advancing to random category',
       );
       await _advanceToRandomCategory();
@@ -3784,36 +3783,36 @@ class PlayerService {
     }
 
     if (loopModeNotifier.value == LoopMode.all) {
-      debugPrint('next(): LoopMode.all, wrapping to index 0');
+      _debugLog('next(): LoopMode.all, wrapping to index 0');
       _setCurrentIndex(0);
       await _playSongAtCurrentIndex();
       return;
     }
 
     if (loopModeNotifier.value.isAdvanceMode) {
-      debugPrint(
+      _debugLog(
         'next(): ${loopModeNotifier.value}, advancing to next category',
       );
       await _advanceForMode(loopModeNotifier.value);
       return;
     }
 
-    debugPrint('next(): End of playlist, pausing');
+    _debugLog('next(): End of playlist, pausing');
     await _pauseInternal();
     await seek(Duration.zero);
   }
 
   Future<void> previous() {
-    debugPrint('[PlayerService] previous() called');
+    _debugLog('[PlayerService] previous() called');
     return _enqueuePlaybackRequest(_previousInternal);
   }
 
   Future<void> _previousInternal() async {
-    debugPrint(
+    _debugLog(
       '[PlayerService] _previousInternal() called, playlist.length=${_playlist.length}, currentIndex=$_currentIndex',
     );
     if (_playlist.isEmpty) {
-      debugPrint(
+      _debugLog(
         '[PlayerService] _previousInternal: playlist is empty, returning early',
       );
       return;
@@ -3864,7 +3863,7 @@ class PlayerService {
         await player.play();
       }
     } catch (e) {
-      debugPrint('Error rebuilding playlist: $e');
+      _debugLog('Error rebuilding playlist: $e');
     } finally {
       _isRebuildingPlaylist = false;
     }
@@ -4037,11 +4036,11 @@ class PlayerService {
     // Volume must go through DAC hardware exclusively.
     if (isCurrentTrackDoP && _isDirectUsbPath) {
       if (_shouldAttemptHardwareVolume()) {
-        debugPrint('[VolFlow] DoP HW path: uac2 setVolume($clampedVolume)');
+        _debugLog('[VolFlow] DoP HW path: uac2 setVolume($clampedVolume)');
         final hwOk = await _uac2Service.setVolume(clampedVolume);
         _onHwVolumeResult(hwOk);
       } else {
-        debugPrint(
+        _debugLog(
           '[VolFlow] DoP: no hardware volume available — volume unchanged',
         );
       }
@@ -4065,14 +4064,14 @@ class PlayerService {
     switch (tier) {
       case VolumeTier.hardware:
         if (_shouldAttemptHardwareVolume()) {
-          debugPrint('[VolFlow] HW path: uac2 setVolume($clampedVolume)');
+          _debugLog('[VolFlow] HW path: uac2 setVolume($clampedVolume)');
           final hwOk = await _uac2Service.setVolume(clampedVolume);
           _onHwVolumeResult(hwOk);
         }
         break;
       case VolumeTier.software:
         if (_usingRustBackend) {
-          debugPrint('[VolFlow] SW path: engine setVolume($clampedVolume)');
+          _debugLog('[VolFlow] SW path: engine setVolume($clampedVolume)');
           await _rustAudioService.setVolume(clampedVolume);
         }
         break;
@@ -4091,7 +4090,7 @@ class PlayerService {
   /// This restarts the active DSD track's decoder in PCM decimation mode,
   /// where the normal audio-callback gain-loop handles volume cleanly.
   Future<void> _switchDoPForVolumeTrack(double volume) async {
-    debugPrint('[VolFlow] DoP → PCM auto-switch for volume=$volume');
+    _debugLog('[VolFlow] DoP → PCM auto-switch for volume=$volume');
 
     // Persist the mode change so new DSD tracks also use PCM.
     await Uac2PreferencesService().setDsdOutputMode(DsdOutputMode.forcePcm);
@@ -4110,7 +4109,7 @@ class PlayerService {
 
     // Volume now works via normal callback gain.
     await _rustAudioService.setVolume(volume);
-    debugPrint('[VolFlow] DoP → PCM switch complete');
+    _debugLog('[VolFlow] DoP → PCM switch complete');
   }
 
   Future<int> addToQueue(Song song) async {
@@ -4300,7 +4299,7 @@ class PlayerService {
   Future<void> setPlaybackSpeed(double speed) async {
     final clampedSpeed = speed.clamp(0.5, 2.0).toDouble();
     if (isBitPerfectProcessingLocked) {
-      debugPrint(
+      _debugLog(
         '[Playback] Ignoring playback-speed change while Bit-perfect (USB DAC) is enabled',
       );
       if (_usingRustBackend) {
@@ -4469,7 +4468,7 @@ class PlayerService {
     if (_activeTier != VolumeTier.hardware) return;
     final healthy = await _uac2Service.verifyHardwareVolumeHealth();
     if (healthy == false) {
-      debugPrint(
+      _debugLog(
         '[VolFlow] HW volume health check failed — falling back to software tier',
       );
       _onHwVolumeResult(false);
@@ -4576,7 +4575,7 @@ class PlayerService {
         await file.delete();
       }
     } catch (e) {
-      debugPrint('Failed to delete temporary playback file: $e');
+      _debugLog('Failed to delete temporary playback file: $e');
     }
   }
 
@@ -4623,14 +4622,14 @@ class PlayerService {
       }
 
       if (nextSongs == null || nextSongs.isEmpty) {
-        debugPrint('_advanceForMode($mode): no next category found, pausing');
+        _debugLog('_advanceForMode($mode): no next category found, pausing');
         await _pauseInternal();
         await seek(Duration.zero);
         return;
       }
       await _playInternal(nextSongs.first, playlist: nextSongs);
     } catch (e) {
-      debugPrint('_advanceForMode($mode): error: $e');
+      _debugLog('_advanceForMode($mode): error: $e');
       await _pauseInternal();
       await seek(Duration.zero);
     }
@@ -4780,7 +4779,7 @@ class PlayerService {
           : songs;
       await _playInternal(ordered.first, playlist: ordered);
     } catch (e) {
-      debugPrint('_advanceToRandomCategory error: $e');
+      _debugLog('_advanceToRandomCategory error: $e');
       await _pauseInternal();
       await seek(Duration.zero);
     }

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/models/playlist.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 class PlaylistImportResult {
   final Playlist playlist;
@@ -241,7 +242,7 @@ class PlaylistService {
       final uri = await _storageChannel.invokeMethod<String>('openDocument', {
         'mimeTypes': _playlistMimeTypes,
       });
-      debugPrint('[PlaylistService] Selected URI: $uri');
+      devLog('[PlaylistService] Selected URI: $uri');
       if (uri == null || uri.trim().isEmpty) return null;
 
       final parsedUri = Uri.tryParse(uri);
@@ -253,7 +254,7 @@ class PlaylistService {
         'readTextDocument',
         {'uri': uri},
       );
-      debugPrint('[PlaylistService] Content length: ${content?.length ?? 0}');
+      devLog('[PlaylistService] Content length: ${content?.length ?? 0}');
       if (content == null || content.trim().isEmpty) {
         throw const FormatException('Selected playlist file is empty');
       }
@@ -262,15 +263,15 @@ class PlaylistService {
         'getDocumentDisplayName',
         {'uri': uri},
       );
-      debugPrint('[PlaylistService] Display name: $displayName');
+      devLog('[PlaylistService] Display name: $displayName');
 
       return _upsertPlaylistFromSource(
         PlaylistSourceFile(sourcePath: uri, displayName: displayName),
         content: content,
       );
     } catch (e, st) {
-      debugPrint('[PlaylistService] Import error: $e');
-      debugPrint('[PlaylistService] Import stack: $st');
+      devLog('[PlaylistService] Import error: $e');
+      devLog('[PlaylistService] Import stack: $st');
       rethrow;
     } finally {
       _importInProgress = false;
@@ -303,10 +304,10 @@ class PlaylistService {
           results.add(imported);
         }
       } catch (e, st) {
-        debugPrint(
+        devLog(
           '[PlaylistService] Failed to sync playlist source "${source.sourcePath}": $e',
         );
-        debugPrint('[PlaylistService] Playlist sync stack: $st');
+        devLog('[PlaylistService] Playlist sync stack: $st');
       }
     }
 
@@ -333,13 +334,13 @@ class PlaylistService {
       baseName,
       excludeId: existing?.id,
     );
-    debugPrint('[PlaylistService] Playlist name: $playlistName');
+    devLog('[PlaylistService] Playlist name: $playlistName');
 
     final entries = _parseM3uEntries(content);
-    debugPrint('[PlaylistService] Parsed ${entries.length} entries');
+    devLog('[PlaylistService] Parsed ${entries.length} entries');
     final lookup = songLookup ?? await _buildSongLookup();
     final resolved = _resolveSongIdsWithLookup(entries, lookup);
-    debugPrint(
+    devLog(
       '[PlaylistService] Resolved ${resolved.ids.length} songs, ${resolved.unmatchedEntries.length} unmatched',
     );
 
@@ -551,10 +552,10 @@ class PlaylistService {
           byFileName.putIfAbsent(fileName, () => []).add(song);
         }
       } catch (e, st) {
-        debugPrint(
+        devLog(
           '[PlaylistService] Skipping song during import matching: path="$filePath", error=$e',
         );
-        debugPrint('[PlaylistService] Song matching stack: $st');
+        devLog('[PlaylistService] Song matching stack: $st');
       }
     }
 
@@ -602,10 +603,10 @@ class PlaylistService {
           ids.add(match.id);
         }
       } catch (e, st) {
-        debugPrint(
+        devLog(
           '[PlaylistService] Failed to resolve playlist entry: "${entry.pathOrUri}", error=$e',
         );
-        debugPrint('[PlaylistService] Entry matching stack: $st');
+        devLog('[PlaylistService] Entry matching stack: $st');
         unmatched.add(entry.pathOrUri);
       }
     }
@@ -787,7 +788,7 @@ class PlaylistService {
       }
       return uri;
     } on FormatException catch (e) {
-      debugPrint('[PlaylistService] URI parse error for "$value": $e');
+      devLog('[PlaylistService] URI parse error for "$value": $e');
       return null;
     }
   }
@@ -796,7 +797,7 @@ class PlaylistService {
     try {
       return Uri.decodeFull(value);
     } on FormatException catch (e) {
-      debugPrint('[PlaylistService] URI decode error for "$value": $e');
+      devLog('[PlaylistService] URI decode error for "$value": $e');
       return value;
     }
   }

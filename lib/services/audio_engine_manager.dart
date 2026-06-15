@@ -5,6 +5,7 @@ import 'package:flick/models/audio_engine_type.dart';
 import 'package:flick/models/playback_state.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/audio_engine.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 class AudioEngineManager {
   final StreamController<PlaybackState> _controller =
@@ -52,7 +53,7 @@ class AudioEngineManager {
     _currentEngineType = engineType;
     _engineInitialized = true;
     _engineHasLoadedTrack = false;
-    debugPrint('[Engine] Attached: $engineLabel');
+    devLog('[Engine] Attached: $engineLabel');
 
     if (engineType != null) {
       // Preserve the last-known track while the engine is initialising so the
@@ -83,13 +84,13 @@ class AudioEngineManager {
     if (_engineInitialized &&
         _currentEngine != null &&
         _currentEngineType == engineType) {
-      debugPrint('[Engine] Prevented duplicate initialization');
+      devLog('[Engine] Prevented duplicate initialization');
       return;
     }
 
     final inFlight = _transitionInFlight;
     if (inFlight != null) {
-      debugPrint(
+      devLog(
         '[Engine] Waiting for in-flight engine transition to complete',
       );
       await inFlight;
@@ -125,14 +126,14 @@ class AudioEngineManager {
     bool autoPlay = true,
   }) async {
     final engine = _requireEngine();
-    debugPrint('[Playback] load(${track.id})');
+    devLog('[Playback] load(${track.id})');
     await engine.load(track);
     _engineHasLoadedTrack = true;
     if (initialPosition > Duration.zero) {
       await engine.seek(initialPosition);
     }
     if (autoPlay) {
-      debugPrint('[Playback] play()');
+      devLog('[Playback] play()');
       await engine.play();
     }
   }
@@ -154,20 +155,20 @@ class AudioEngineManager {
 
   Future<void> load(Song track) async {
     final engine = _requireEngine();
-    debugPrint('[Playback] load(${track.id})');
+    devLog('[Playback] load(${track.id})');
     await engine.load(track);
     _engineHasLoadedTrack = true;
   }
 
   Future<void> play() async {
     final engine = _requireEngine();
-    debugPrint('[Playback] play()');
+    devLog('[Playback] play()');
     await engine.play();
   }
 
   Future<void> pause() async {
     final engine = _requireEngine();
-    debugPrint('[Playback] pause()');
+    devLog('[Playback] pause()');
     await engine.pause();
   }
 

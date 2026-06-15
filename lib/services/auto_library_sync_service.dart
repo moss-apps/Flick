@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'mediastore_observer_service.dart';
 import 'background_metadata_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 class AutoLibrarySyncService {
   final MediaStoreObserverService? _observerService;
@@ -19,7 +20,7 @@ class AutoLibrarySyncService {
     if (_isRunning) return;
 
     _isRunning = true;
-    debugPrint('Auto library sync started (event-driven)');
+    devLog('Auto library sync started (event-driven)');
 
     if (Platform.isAndroid && _observerService != null) {
       _observerService.start();
@@ -32,7 +33,7 @@ class AutoLibrarySyncService {
     _observerService?.stop();
     _backgroundMetadataService?.stop();
     _isRunning = false;
-    debugPrint('Auto library sync stopped');
+    devLog('Auto library sync stopped');
   }
 
   void notifyResumed() {

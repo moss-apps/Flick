@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 class DisplayModeService {
   static final DisplayModeService _instance = DisplayModeService._internal();
@@ -23,7 +24,7 @@ class DisplayModeService {
       _currentMode = await FlutterDisplayMode.active;
       _preferredMode = await FlutterDisplayMode.preferred;
     } catch (e) {
-      debugPrint('Failed to initialize display modes: $e');
+      devLog('Failed to initialize display modes: $e');
     }
   }
 
@@ -33,7 +34,7 @@ class DisplayModeService {
       await FlutterDisplayMode.setHighRefreshRate();
       _currentMode = await FlutterDisplayMode.active;
     } catch (e) {
-      debugPrint('Failed to set high refresh rate: $e');
+      devLog('Failed to set high refresh rate: $e');
     }
   }
 
@@ -43,7 +44,7 @@ class DisplayModeService {
       await FlutterDisplayMode.setLowRefreshRate();
       _currentMode = await FlutterDisplayMode.active;
     } catch (e) {
-      debugPrint('Failed to set low refresh rate: $e');
+      devLog('Failed to set low refresh rate: $e');
     }
   }
 
@@ -54,7 +55,7 @@ class DisplayModeService {
       _currentMode = await FlutterDisplayMode.active;
       _preferredMode = mode;
     } catch (e) {
-      debugPrint('Failed to set preferred mode: $e');
+      devLog('Failed to set preferred mode: $e');
     }
   }
 

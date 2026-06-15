@@ -6,6 +6,7 @@ import 'package:flick/core/utils/uri_display_utils.dart';
 import 'permission_service.dart';
 import '../data/repositories/folder_repository.dart';
 import '../data/entities/folder_entity.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 String normalizeFolderIdentifier(String uri) {
   final parsed = Uri.tryParse(uri);
@@ -557,7 +558,7 @@ class MusicFolderService {
         'filePath': filePath,
       }) ?? false;
     } catch (e) {
-      debugPrint('deleteDocument failed: $e');
+      devLog('deleteDocument failed: $e');
       return false;
     }
   }
@@ -568,7 +569,7 @@ class MusicFolderService {
         'filePath': filePath,
       }) ?? false;
     } catch (e) {
-      debugPrint('removeFromMediaStore failed: $e');
+      devLog('removeFromMediaStore failed: $e');
       return false;
     }
   }

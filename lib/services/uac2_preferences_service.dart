@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/services/uac2_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 enum Uac2FormatPreference { highestQuality, compatibility, custom }
 
@@ -51,7 +52,7 @@ class Uac2PreferencesService {
       });
       await prefs.setString(_keySelectedDevice, deviceJson);
     } catch (e) {
-      debugPrint('Failed to save selected device: $e');
+      devLog('Failed to save selected device: $e');
     }
   }
 
@@ -71,7 +72,7 @@ class Uac2PreferencesService {
         deviceName: map['deviceName'] as String?,
       );
     } catch (e) {
-      debugPrint('Failed to load selected device: $e');
+      devLog('Failed to load selected device: $e');
       return null;
     }
   }
@@ -81,7 +82,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_keySelectedDevice);
     } catch (e) {
-      debugPrint('Failed to clear selected device: $e');
+      devLog('Failed to clear selected device: $e');
     }
   }
 
@@ -91,7 +92,7 @@ class Uac2PreferencesService {
       final formatJson = jsonEncode(format.toJson());
       await prefs.setString(_keyPreferredFormat, formatJson);
     } catch (e) {
-      debugPrint('Failed to save preferred format: $e');
+      devLog('Failed to save preferred format: $e');
     }
   }
 
@@ -104,7 +105,7 @@ class Uac2PreferencesService {
       final map = jsonDecode(formatJson) as Map<String, dynamic>;
       return Uac2AudioFormat.fromJson(map);
     } catch (e) {
-      debugPrint('Failed to load preferred format: $e');
+      devLog('Failed to load preferred format: $e');
       return null;
     }
   }
@@ -114,7 +115,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyHiFiModeEnabled, enabled);
     } catch (e) {
-      debugPrint('Failed to save HiFi mode setting: $e');
+      devLog('Failed to save HiFi mode setting: $e');
     }
   }
 
@@ -123,7 +124,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_keyHiFiModeEnabled) ?? false;
     } catch (e) {
-      debugPrint('Failed to load HiFi mode setting: $e');
+      devLog('Failed to load HiFi mode setting: $e');
       return false;
     }
   }
@@ -134,7 +135,7 @@ class Uac2PreferencesService {
       await prefs.setBool(_keyBitPerfectEnabled, enabled);
       await prefs.setBool(_keyExclusiveDacModeEnabled, enabled);
     } catch (e) {
-      debugPrint('Failed to save bit-perfect mode setting: $e');
+      devLog('Failed to save bit-perfect mode setting: $e');
     }
   }
 
@@ -143,7 +144,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_keyBitPerfectEnabled) ?? false;
     } catch (e) {
-      debugPrint('Failed to load bit-perfect mode setting: $e');
+      devLog('Failed to load bit-perfect mode setting: $e');
       return false;
     }
   }
@@ -153,7 +154,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyDapBitPerfectEnabled, enabled);
     } catch (e) {
-      debugPrint('Failed to save Bit-perfect (DAP Internal) setting: $e');
+      devLog('Failed to save Bit-perfect (DAP Internal) setting: $e');
     }
   }
 
@@ -162,7 +163,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_keyDapBitPerfectEnabled) ?? true;
     } catch (e) {
-      debugPrint('Failed to load Bit-perfect (DAP Internal) setting: $e');
+      devLog('Failed to load Bit-perfect (DAP Internal) setting: $e');
       return true;
     }
   }
@@ -173,7 +174,7 @@ class Uac2PreferencesService {
       await prefs.setBool(_key432HzTuningEnabled, enabled);
       tuning432HzNotifier.value = enabled;
     } catch (e) {
-      debugPrint('Failed to save 432 Hz tuning setting: $e');
+      devLog('Failed to save 432 Hz tuning setting: $e');
     }
   }
 
@@ -186,7 +187,7 @@ class Uac2PreferencesService {
       }
       return enabled;
     } catch (e) {
-      debugPrint('Failed to load 432 Hz tuning setting: $e');
+      devLog('Failed to load 432 Hz tuning setting: $e');
       return tuning432HzNotifier.value;
     }
   }
@@ -213,7 +214,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyAudioEnginePreference, preference.name);
     } catch (e) {
-      debugPrint('Failed to save audio engine preference: $e');
+      devLog('Failed to save audio engine preference: $e');
     }
   }
 
@@ -228,7 +229,7 @@ class Uac2PreferencesService {
         orElse: () => AudioEnginePreference.exoPlayer,
       );
     } catch (e) {
-      debugPrint('Failed to load audio engine preference: $e');
+      devLog('Failed to load audio engine preference: $e');
       return AudioEnginePreference.exoPlayer;
     }
   }
@@ -238,6 +239,7 @@ class Uac2PreferencesService {
     if (developerModeNotifier.value != enabled) {
       developerModeNotifier.value = enabled;
     }
+    await Uac2Service.instance.syncDeveloperModeToNative();
   }
 
   Future<void> initializeKillIsochronousUsbOnQuitCache() async {
@@ -252,8 +254,9 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyDeveloperModeEnabled, enabled);
       developerModeNotifier.value = enabled;
+      await Uac2Service.instance.syncDeveloperModeToNative();
     } catch (e) {
-      debugPrint('Failed to save developer mode setting: $e');
+      devLog('Failed to save developer mode setting: $e');
     }
   }
 
@@ -266,7 +269,7 @@ class Uac2PreferencesService {
       }
       return enabled;
     } catch (e) {
-      debugPrint('Failed to load developer mode setting: $e');
+      devLog('Failed to load developer mode setting: $e');
       return developerModeNotifier.value;
     }
   }
@@ -276,7 +279,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyAudioFormatEnabled, enabled);
     } catch (e) {
-      debugPrint('Failed to save audio format setting: $e');
+      devLog('Failed to save audio format setting: $e');
     }
   }
 
@@ -285,7 +288,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_keyAudioFormatEnabled) ?? true;
     } catch (e) {
-      debugPrint('Failed to load audio format setting: $e');
+      devLog('Failed to load audio format setting: $e');
       return true;
     }
   }
@@ -295,7 +298,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyFormatPreference, preference.name);
     } catch (e) {
-      debugPrint('Failed to save format preference: $e');
+      devLog('Failed to save format preference: $e');
     }
   }
 
@@ -304,7 +307,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble(_keyUsbSoftwareVolume, volume.clamp(0.0, 1.0));
     } catch (e) {
-      debugPrint('Failed to save USB software volume: $e');
+      devLog('Failed to save USB software volume: $e');
     }
   }
 
@@ -313,7 +316,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getDouble(_keyUsbSoftwareVolume) ?? 1.0;
     } catch (e) {
-      debugPrint('Failed to load USB software volume: $e');
+      devLog('Failed to load USB software volume: $e');
       return 1.0;
     }
   }
@@ -323,7 +326,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.containsKey(_keyUsbSoftwareVolume);
     } catch (e) {
-      debugPrint('Failed to check USB software volume key: $e');
+      devLog('Failed to check USB software volume key: $e');
       return false;
     }
   }
@@ -334,7 +337,7 @@ class Uac2PreferencesService {
       await prefs.setBool(_keyKillIsochronousUsbOnQuit, enabled);
       killIsochronousUsbOnQuitNotifier.value = enabled;
     } catch (e) {
-      debugPrint('Failed to save kill Isochronous USB on quit setting: $e');
+      devLog('Failed to save kill Isochronous USB on quit setting: $e');
     }
   }
 
@@ -347,7 +350,7 @@ class Uac2PreferencesService {
       }
       return enabled;
     } catch (e) {
-      debugPrint('Failed to load kill Isochronous USB on quit setting: $e');
+      devLog('Failed to load kill Isochronous USB on quit setting: $e');
       return killIsochronousUsbOnQuitNotifier.value;
     }
   }
@@ -357,7 +360,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyGaplessPlaybackEnabled, enabled);
     } catch (e) {
-      debugPrint('Failed to save gapless playback setting: $e');
+      devLog('Failed to save gapless playback setting: $e');
     }
   }
 
@@ -366,7 +369,7 @@ class Uac2PreferencesService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_keyGaplessPlaybackEnabled) ?? true;
     } catch (e) {
-      debugPrint('Failed to load gapless playback setting: $e');
+      devLog('Failed to load gapless playback setting: $e');
       return true;
     }
   }
@@ -382,7 +385,7 @@ class Uac2PreferencesService {
         orElse: () => Uac2FormatPreference.highestQuality,
       );
     } catch (e) {
-      debugPrint('Failed to load format preference: $e');
+      devLog('Failed to load format preference: $e');
       return Uac2FormatPreference.highestQuality;
     }
   }
@@ -393,7 +396,7 @@ class Uac2PreferencesService {
       await prefs.setString(_keyDsdOutputMode, mode.name);
       dsdOutputModeNotifier.value = mode;
     } catch (e) {
-      debugPrint('Failed to save DSD output mode: $e');
+      devLog('Failed to save DSD output mode: $e');
     }
   }
 
@@ -410,7 +413,7 @@ class Uac2PreferencesService {
       dsdOutputModeNotifier.value = mode;
       return mode;
     } catch (e) {
-      debugPrint('Failed to load DSD output mode: $e');
+      devLog('Failed to load DSD output mode: $e');
       return DsdOutputMode.auto;
     }
   }
@@ -421,7 +424,7 @@ class Uac2PreferencesService {
       await prefs.setBool(_keyAutoSwitchDsdForVolume, value);
       autoSwitchDsdForVolumeNotifier.value = value;
     } catch (e) {
-      debugPrint('Failed to save auto-switch DSD for volume: $e');
+      devLog('Failed to save auto-switch DSD for volume: $e');
     }
   }
 
@@ -432,7 +435,7 @@ class Uac2PreferencesService {
       autoSwitchDsdForVolumeNotifier.value = value;
       return value;
     } catch (e) {
-      debugPrint('Failed to load auto-switch DSD for volume: $e');
+      devLog('Failed to load auto-switch DSD for volume: $e');
       return false;
     }
   }
@@ -461,7 +464,7 @@ class Uac2PreferencesService {
       killIsochronousUsbOnQuitNotifier.value = true;
       tuning432HzNotifier.value = false;
     } catch (e) {
-      debugPrint('Failed to clear preferences: $e');
+      devLog('Failed to clear preferences: $e');
     }
   }
 }

@@ -14,6 +14,7 @@ import '../services/rip_log_service.dart';
 import '../services/fingerprint_cache_service.dart';
 import '../services/uac2_preferences_service.dart';
 import '../src/rust/api/scanner.dart'; // Rust bridge
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Progress update during library scanning.
 class ScanProgress {
@@ -72,7 +73,7 @@ class LibraryScannerService {
     final scanPreferences = await _scanPreferencesService.getPreferences();
 
     if (_currentlyScanning.contains(scanKey)) {
-      debugPrint('Folder $displayName is already being scanned, skipping...');
+      devLog('Folder $displayName is already being scanned, skipping...');
       return;
     }
 
@@ -101,13 +102,13 @@ class LibraryScannerService {
               );
               return;
             } catch (e) {
-              debugPrint(
+              devLog(
                 'Rust deep scan failed for $displayName at $resolvedScanRoot: $e, '
                 'falling back to SAF',
               );
             }
           } else {
-            debugPrint(
+            devLog(
               'Deep scan requested for $displayName but no filesystem path '
               'resolvable, falling back to SAF',
             );
@@ -131,7 +132,7 @@ class LibraryScannerService {
               );
               return;
             } catch (e) {
-              debugPrint(
+              devLog(
                 'MediaStore scan failed for $displayName at $resolvedScanRoot: $e, '
                 'falling back to SAF',
               );
@@ -182,7 +183,7 @@ class LibraryScannerService {
       ]);
       _logScanTiming(displayName, 'MediaStore audio query', stopwatch.elapsed);
     } catch (e) {
-      debugPrint("MediaStore audio query failed for $displayName: $e");
+      devLog("MediaStore audio query failed for $displayName: $e");
       return;
     }
 
@@ -487,7 +488,7 @@ class LibraryScannerService {
         stopwatch.elapsed,
       );
     } catch (e) {
-      debugPrint('MediaStore non-audio query failed for $displayName: $e');
+      devLog('MediaStore non-audio query failed for $displayName: $e');
       return;
     }
 
@@ -638,7 +639,7 @@ class LibraryScannerService {
       );
       _logScanTiming(displayName, 'SAF fast scan', stopwatch.elapsed);
     } catch (e) {
-      debugPrint("Error scanning Android folder: $e");
+      devLog("Error scanning Android folder: $e");
       return;
     }
 
@@ -1402,7 +1403,7 @@ class LibraryScannerService {
           scanPreferences,
         );
       } catch (e) {
-        debugPrint('Deletion refresh failed for ${folder.displayName}: $e');
+        devLog('Deletion refresh failed for ${folder.displayName}: $e');
       }
     }
 
@@ -1443,7 +1444,7 @@ class LibraryScannerService {
           scanPreferences,
         );
       } else {
-        debugPrint(
+        devLog(
           'Skipping deletion check for $displayName: '
           'cannot resolve filesystem path',
         );
@@ -1470,7 +1471,7 @@ class LibraryScannerService {
         await _songRepository.deleteSongsByPath(deletedPaths);
       }
 
-      debugPrint(
+      devLog(
         'Deleted ${deletedPaths.length} missing songs from $displayName',
       );
     }
@@ -1505,14 +1506,14 @@ class LibraryScannerService {
           filePaths,
         );
         if (Uac2PreferencesService.isDeveloperModeEnabledSync) {
-          debugPrint(
+          devLog(
             '[LibraryScanner] MediaStore deletion check (${filePaths.length} paths): '
             '${stopwatch.elapsed.inMilliseconds}ms, ${result.length} deleted',
           );
         }
         return result;
       } catch (e) {
-        debugPrint('MediaStore deletion check failed, falling back to SAF: $e');
+        devLog('MediaStore deletion check failed, falling back to SAF: $e');
       }
     }
 
@@ -1550,7 +1551,7 @@ class LibraryScannerService {
       ),
     );
     if (Uac2PreferencesService.isDeveloperModeEnabledSync) {
-      debugPrint(
+      devLog(
         '[LibraryScanner] Rust deletion check (${knownFiles.length} known): '
         '${stopwatch.elapsed.inMilliseconds}ms, ${result.length} deleted',
       );
@@ -1581,7 +1582,7 @@ class LibraryScannerService {
             isSameOrDescendantFolder(root, normalized),
       );
       if (overlapsExisting) {
-        debugPrint(
+        devLog(
           'Skipping overlapping scan root ${folder.displayName} (${folder.uri})',
         );
         continue;
@@ -1607,7 +1608,7 @@ class LibraryScannerService {
     try {
       return await _musicFolderService.fetchMetadata(chunkUris);
     } catch (e) {
-      debugPrint(
+      devLog(
         'Error fetching metadata chunk (${chunkUris.length} files): $e',
       );
       return null;
@@ -1624,7 +1625,7 @@ class LibraryScannerService {
       try {
         await task();
       } catch (e) {
-        debugPrint('[LibraryScanner] $label failed for $displayName: $e');
+        devLog('[LibraryScanner] $label failed for $displayName: $e');
       } finally {
         _logScanTiming(displayName, label, stopwatch.elapsed);
       }
@@ -1633,7 +1634,7 @@ class LibraryScannerService {
 
   void _logScanTiming(String displayName, String label, Duration elapsed) {
     if (!Uac2PreferencesService.isDeveloperModeEnabledSync) return;
-    debugPrint(
+    devLog(
       '[LibraryScanner] $displayName $label: ${elapsed.inMilliseconds}ms',
     );
   }
@@ -1762,7 +1763,7 @@ class LibraryScannerService {
 
       await _playlistService.syncPlaylistsFromSources(sources);
     } catch (e) {
-      debugPrint('Failed to sync playlists from $folderUri: $e');
+      devLog('Failed to sync playlists from $folderUri: $e');
     }
   }
 
@@ -1811,7 +1812,7 @@ class LibraryScannerService {
         'uri': uri,
       });
     } catch (e) {
-      debugPrint('[LibraryScanner] Failed to read text file $uri: $e');
+      devLog('[LibraryScanner] Failed to read text file $uri: $e');
       return null;
     }
   }
@@ -1940,7 +1941,7 @@ class LibraryScannerService {
         }
       }
     } catch (e) {
-      debugPrint('[LibraryScanner] Error scanning for CUE/log files: $e');
+      devLog('[LibraryScanner] Error scanning for CUE/log files: $e');
     }
     return (cueMap: cueMap, logMap: result);
   }

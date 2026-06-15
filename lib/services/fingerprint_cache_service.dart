@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Caches file fingerprints (path -> lastModifiedMs) per folder,
 /// so re-scans can diff against disk without loading the full song DB.
@@ -34,7 +35,7 @@ class FileFingerprintCache {
       _cache[folderUri] = map;
       return map;
     } catch (e) {
-      debugPrint('[FingerprintCache] Load error: $e');
+      devLog('[FingerprintCache] Load error: $e');
       return null;
     }
   }
@@ -51,7 +52,7 @@ class FileFingerprintCache {
       final file = File('$dir/$key.json');
       await file.writeAsString(jsonEncode(fingerprints));
     } catch (e) {
-      debugPrint('[FingerprintCache] Save error: $e');
+      devLog('[FingerprintCache] Save error: $e');
     }
   }
 
@@ -77,7 +78,7 @@ class FileFingerprintCache {
       final file = File('$dir/$key.json');
       if (file.existsSync()) await file.delete();
     } catch (e) {
-      debugPrint('[FingerprintCache] Remove error: $e');
+      devLog('[FingerprintCache] Remove error: $e');
     }
   }
 }

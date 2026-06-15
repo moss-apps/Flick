@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'music_folder_service.dart';
 import 'library_scanner_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 class MediaStoreObserverService {
   final MusicFolderService _musicFolderService;
@@ -23,11 +24,11 @@ class MediaStoreObserverService {
       _subscription = _musicFolderService.mediaStoreChanges.listen(
         _onChange,
         onError: (e) {
-          debugPrint('MediaStoreObserver error: $e');
+          devLog('MediaStoreObserver error: $e');
         },
       );
     } catch (e) {
-      debugPrint('MediaStoreObserver failed to start: $e');
+      devLog('MediaStoreObserver failed to start: $e');
     }
   }
 
@@ -66,9 +67,9 @@ class MediaStoreObserverService {
 
     try {
       await for (final _ in _scannerService.scanAllFolders()) {}
-      debugPrint('MediaStoreObserver: auto-rescan complete');
+      devLog('MediaStoreObserver: auto-rescan complete');
     } catch (e) {
-      debugPrint('MediaStoreObserver rescan failed: $e');
+      devLog('MediaStoreObserver rescan failed: $e');
     } finally {
       _isProcessing = false;
       if (_pendingRescan) {

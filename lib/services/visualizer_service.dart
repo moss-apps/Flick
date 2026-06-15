@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Service that bridges Android's [Visualizer] API to Flutter FFT bar data.
 ///
@@ -46,7 +47,7 @@ class VisualizerService {
         return true;
       }
     } catch (e) {
-      debugPrint('[VisualizerService] attach failed: $e');
+      devLog('[VisualizerService] attach failed: $e');
     }
     _attached = false;
     return false;
@@ -66,7 +67,7 @@ class VisualizerService {
     try {
       await _methodChannel.invokeMethod('detachVisualizer');
     } catch (e) {
-      debugPrint('[VisualizerService] detach failed: $e');
+      devLog('[VisualizerService] detach failed: $e');
     }
   }
 
@@ -75,7 +76,7 @@ class VisualizerService {
     _eventSubscription = _eventChannel.receiveBroadcastStream().listen(
       _onFftData,
       onError: (Object e) {
-        debugPrint('[VisualizerService] event error: $e');
+        devLog('[VisualizerService] event error: $e');
         barHeightsNotifier.value = null;
       },
     );

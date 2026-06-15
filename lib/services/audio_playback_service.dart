@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flick/services/alac_converter_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Enhanced audio playback service with lossless conversion support.
 ///
@@ -24,19 +25,19 @@ class AudioPlaybackService {
 
       // Check if WAV conversion is needed.
       if (AlacConverterService.requiresWavConversion(filePath)) {
-        debugPrint('Lossless source detected, converting to WAV...');
+        devLog('Lossless source detected, converting to WAV...');
 
         // Check cache first
         if (_conversionCache.containsKey(filePath)) {
           playablePath = _conversionCache[filePath]!;
-          debugPrint('Using cached conversion: $playablePath');
+          devLog('Using cached conversion: $playablePath');
         } else {
           // Convert file
           final alacSource = AlacAudioSource(filePath);
           playablePath = await alacSource.getPlayablePath();
           _currentAlacSource = alacSource;
           _conversionCache[filePath] = playablePath;
-          debugPrint('Converted to: $playablePath');
+          devLog('Converted to: $playablePath');
         }
       }
 
@@ -44,7 +45,7 @@ class AudioPlaybackService {
       await _player.setFilePath(playablePath);
       await _player.play();
     } catch (e) {
-      debugPrint('Error playing file: $e');
+      devLog('Error playing file: $e');
       rethrow;
     }
   }
@@ -79,7 +80,7 @@ class AudioPlaybackService {
           await file.delete();
         }
       } catch (e) {
-        debugPrint('Failed to delete cached file: $e');
+        devLog('Failed to delete cached file: $e');
       }
     }
     _conversionCache.clear();

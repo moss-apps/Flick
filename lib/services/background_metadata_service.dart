@@ -4,6 +4,7 @@ import 'music_folder_service.dart';
 import '../data/repositories/song_repository.dart';
 import '../data/entities/song_entity.dart';
 import 'uac2_preferences_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 class BackgroundMetadataService {
   final MusicFolderService _musicFolderService;
@@ -32,7 +33,7 @@ class BackgroundMetadataService {
 
   void _logTiming(String label, Duration elapsed) {
     if (!Uac2PreferencesService.isDeveloperModeEnabledSync) return;
-    debugPrint('[BackgroundMetadata] $label: ${elapsed.inMilliseconds}ms');
+    devLog('[BackgroundMetadata] $label: ${elapsed.inMilliseconds}ms');
   }
 
   Future<int> extractPendingMetadata() async {
@@ -113,7 +114,7 @@ class BackgroundMetadataService {
             chunkStopwatch.elapsed,
           );
         } catch (e) {
-          debugPrint('BackgroundMetadataService batch failed: $e');
+          devLog('BackgroundMetadataService batch failed: $e');
         }
       }
 

@@ -6,6 +6,7 @@ import 'package:flick/core/utils/audio_metadata_utils.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 class ExternalPlaybackService {
   ExternalPlaybackService._();
@@ -34,7 +35,7 @@ class ExternalPlaybackService {
     try {
       return await _channel.invokeMethod<bool>('returnToLocker') ?? false;
     } on PlatformException catch (e) {
-      debugPrint('Failed to return to Locker: ${e.message}');
+      devLog('Failed to return to Locker: ${e.message}');
       return false;
     }
   }
@@ -49,7 +50,7 @@ class ExternalPlaybackService {
       }
       return _playExternalPayload(payload.cast<String, dynamic>());
     } on PlatformException catch (e) {
-      debugPrint('Failed to consume pending external playback: ${e.message}');
+      devLog('Failed to consume pending external playback: ${e.message}');
       return false;
     }
   }
@@ -111,7 +112,7 @@ class ExternalPlaybackService {
       await PlayerService().play(song, playlist: [song]);
       return true;
     } catch (e, stackTrace) {
-      debugPrint('Failed to start external playback for $uri: $e');
+      devLog('Failed to start external playback for $uri: $e');
       debugPrintStack(stackTrace: stackTrace);
       return false;
     }

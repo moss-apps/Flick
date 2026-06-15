@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Flutter service to communicate with the native Android floating
 /// mini-player overlay (WindowManager TYPE_APPLICATION_OVERLAY).
@@ -18,7 +19,7 @@ class FloatingPlayerService {
       final result = await _channel.invokeMethod<bool>('canDrawOverlays');
       return result ?? false;
     } catch (e) {
-      debugPrint('canDrawOverlays failed: $e');
+      devLog('canDrawOverlays failed: $e');
       return false;
     }
   }
@@ -31,7 +32,7 @@ class FloatingPlayerService {
           await _channel.invokeMethod<bool>('requestOverlayPermission');
       return result ?? false;
     } catch (e) {
-      debugPrint('requestOverlayPermission failed: $e');
+      devLog('requestOverlayPermission failed: $e');
       return false;
     }
   }
@@ -54,7 +55,7 @@ class FloatingPlayerService {
       if (position != null) args['position'] = position.inMilliseconds;
       await _channel.invokeMethod('showFloatingPlayer', args);
     } catch (e) {
-      debugPrint('Failed to show floating player: $e');
+      devLog('Failed to show floating player: $e');
     }
   }
 
@@ -63,7 +64,7 @@ class FloatingPlayerService {
     try {
       await _channel.invokeMethod('hideFloatingPlayer');
     } catch (e) {
-      debugPrint('Failed to hide floating player: $e');
+      devLog('Failed to hide floating player: $e');
     }
   }
 }
