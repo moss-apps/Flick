@@ -40,6 +40,7 @@ import 'package:flick/services/widget_intent_handler.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/features/milestone/widgets/milestone_card.dart';
 import 'package:flick/features/whats_new/widgets/whats_new_bottom_sheet.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 /// Main application widget for Flick Player.
 class FlickPlayerApp extends StatelessWidget {
@@ -324,7 +325,7 @@ class _MainShellState extends ConsumerState<MainShell>
         ref.invalidate(musicFoldersProvider);
       }
     } catch (e) {
-      debugPrint('Library deletion refresh failed: $e');
+      devLog('Library deletion refresh failed: $e');
     }
   }
 
@@ -528,7 +529,7 @@ class _MainShellState extends ConsumerState<MainShell>
       unawaited(ref.read(playerServiceProvider).onAppResumed());
       ref.read(updateCheckProvider.notifier).refreshIfOnline();
       ref.read(lastFmScrobbleQueueProvider).flush().catchError((e) {
-        debugPrint('[LastFm] queue flush on resume failed: $e');
+        devLog('[LastFm] queue flush on resume failed: $e');
       });
       ref.read(autoLibrarySyncServiceProvider).notifyResumed();
     }
