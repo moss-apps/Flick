@@ -1410,6 +1410,10 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               'Experimental — down-tune playback by 432/440. This disables bit-perfect passthrough and runs the DSP path.',
           value: enabled,
           onChanged: (value) async {
+            if (value && !enabled && !_awaiting432HzConfirm) {
+              final confirmed = await _confirmEnable432HzTuning(context);
+              if (!confirmed || !context.mounted) return;
+            }
             await service.set432HzTuningEnabled(value);
             rust_audio.audioSet432HzTuningEnabled(enabled: value);
             ref.invalidate(uac2432HzTuningEnabledProvider);
@@ -1419,6 +1423,58 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
         error: (_, _) => _buildErrorTile(context),
       ),
     );
+  }
+
+  bool _awaiting432HzConfirm = false;
+
+  Future<bool> _confirmEnable432HzTuning(BuildContext context) {
+    if (_awaiting432HzConfirm) return Future.value(false);
+    _awaiting432HzConfirm = true;
+    const warnColor = Colors.amber;
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: warnColor, size: 22),
+            const SizedBox(width: AppConstants.spacingSm),
+            Expanded(
+              child: Text(
+                'Enable 432 Hz Tuning?',
+                style: TextStyle(color: context.adaptiveTextPrimary),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'This slows playback to 432/440 (~1.8% lower pitch and tempo) and '
+          'disables bit-perfect passthrough. Music will sound slightly lower '
+          'in tone. Only enable this if you intentionally want A=432 tuning.',
+          style: TextStyle(color: context.adaptiveTextSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.accent)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: warnColor,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Enable'),
+          ),
+        ],
+      ),
+    ).then((result) {
+      _awaiting432HzConfirm = false;
+      return result ?? false;
+    });
   }
 
   Widget _buildExperimentalWarning(BuildContext context) {
