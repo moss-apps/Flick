@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/settings/widgets/lastfm_settings_tile.dart';
+import 'package:flick/features/settings/widgets/listenbrainz_settings_tile.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 
 class IntegrationsSettingsScreen extends StatelessWidget {
@@ -15,7 +16,7 @@ class IntegrationsSettingsScreen extends StatelessWidget {
         children: [
           const SettingsSectionHeader('Integrations'),
           const SettingsCard(
-            children: [LastFmSettingsTile()],
+            children: [LastFmSettingsTile(), ListenBrainzSettingsTile()],
           ),
           const SizedBox(height: AppConstants.spacingLg),
           const SizedBox(height: AppConstants.navBarHeight + 40),

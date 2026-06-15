@@ -158,7 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           iconBg: const Color(0xFF6F2D4A),
                           iconFg: const Color(0xFFFF8BB8),
                           title: 'Integrations',
-                          subtitle: 'Last.fm scrobbling',
+                          subtitle: 'Last.fm & ListenBrainz scrobbling',
                           onTap: () => _navigate(
                             context,
                             const IntegrationsSettingsScreen(),
