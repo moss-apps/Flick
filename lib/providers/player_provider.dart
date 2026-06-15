@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'lastfm_provider.dart';
+import 'listenbrainz_provider.dart';
 import '../models/playback_context.dart';
 import '../models/shuffle_mode.dart';
 import '../models/song.dart';
@@ -287,6 +288,18 @@ class PlayerNotifier extends Notifier<PlayerState> {
           )
           .catchError((e) => devLog('[LastFm] onTrackStarted error: $e')),
     );
+    unawaited(
+      ref
+          .read(listenBrainzScrobbleProvider.notifier)
+          .onTrackStarted(
+            artist: song.artist,
+            track: song.title,
+            album: song.album,
+            albumArtist: null,
+            durationSeconds: song.duration.inSeconds,
+          )
+          .catchError((e) => devLog('[ListenBrainz] onTrackStarted error: $e')),
+    );
   }
 
   void _handleTrackEnded({
@@ -309,6 +322,19 @@ class PlayerNotifier extends Notifier<PlayerState> {
             trackDurationSeconds: trackDurationSeconds,
           )
           .catchError((e) => devLog('[LastFm] onTrackEnded error: $e')),
+    );
+    unawaited(
+      ref
+          .read(listenBrainzScrobbleProvider.notifier)
+          .onTrackEnded(
+            artist: endedSong.artist,
+            track: endedSong.title,
+            album: endedSong.album,
+            albumArtist: null,
+            listenedSeconds: listenedSeconds,
+            trackDurationSeconds: trackDurationSeconds,
+          )
+          .catchError((e) => devLog('[ListenBrainz] onTrackEnded error: $e')),
     );
   }
 
