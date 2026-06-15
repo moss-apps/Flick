@@ -1,5 +1,102 @@
 # Changelog
 
+## 0.19.0-beta.1 (2026-06-15)
+
+### ListenBrainz Scrobbling
+- Full offline-safe ListenBrainz scrobbling with queued submissions via SharedPreferences persistence.
+- **ListenBrainz API client** with rate-limit handling (respects retry-after headers).
+- **ListenBrainzAuthService** for token validation and session management.
+- **Freezed models** for session tokens and listen entries (track metadata, timestamps).
+- Track-start and track-end scrobble events on app resume.
+- Settings tile under Settings → Integrations.
+
+### Floating Player Overlay
+- Android floating mini-player overlay (SYSTEM_ALERT_WINDOW) with drag-to-move and tap-to-open.
+- Lifecycle-aware pause/resume handlers integrated into audio service.
+- "Keep Playing on Quit" setting prevents audio shutdown when exiting the app.
+- Floating player toggle in Settings → Playback.
+- Configurable mini-player swipe action (open visualizer, next track, etc.).
+- Floating player integrated across all screens — albums, artists, playlists, folders, equalizer.
+- Nav bar visibility enforced on every screen so the player is always reachable.
+
+### Playback Modes Overhaul
+- **AdvanceListOrder**: choose how playback advances — by album, artist, folder, playlist, or default.
+- **ShuffleMode** categories: off, shuffle all, shuffle within source context.
+- **PlaybackContext** model tracks the current playback source (album, artist, folder, playlist) for scoped shuffle and advance.
+- A-B repeat mode for looping a section of a track.
+- New loop modes: off, track, context, all.
+- Long-press shuffle/loop buttons now open mode selection bottom sheets instead of cycling blindly. Snackbar feedback on change.
+- Playback modes restored when resuming the last played song.
+- Icons for each advance mode category.
+
+### Experimental 432 Hz Tuning
+- A4=432 Hz pitch tuning via Rust FFI, toggled from Settings → Audio → UAC2.
+- Preference persisted across sessions with confirmation dialog before enabling.
+- 432 Hz cache initialized alongside the audio session manager.
+- Integration with bit-perfect mode defaults.
+
+### Bass / Mid / Treble Tone Controls
+- Three-band tone stack (bass, mid, treble) layered on top of the 31-band parametric EQ.
+- Per-band offset affects the EQ graph rendering, hit detection, and parametric curve building.
+- BMT fields added to `EqPreset` for preset import/export.
+- Smooth animated transitions on equalizer `RotaryKnob` controls.
+- Animated slider widget extracted for reuse across the EQ band editor.
+
+### Opus Audio Codec
+- Vendored **opus-sys** crate with full Opus 1.x sources — CELT + SILK codecs.
+- Multi-architecture optimizations: SSE4.1, ARM NEON, ARM EDSP, MIPSr1.
+- Opus decoder Rust bindings integrated into the audio pipeline.
+- OGG container extension hints normalized; custom Opus decoder support for `.opus` files.
+- Includes training scripts, fuzzers, and unit tests for SILK and CELT components.
+
+### Recently Played Redesign
+- Paginated loading replaces infinite scroll — smoother performance on large histories.
+- Smart date grouping: entries grouped by Today, Yesterday, This Week, and older months.
+- Reactive song info in bottom sheet actions updates without full rebuild.
+
+### Developer Mode & Logging
+- **Developer mode toggle** in Android `MainActivity` via JNI. When off, verbose logging is suppressed.
+- `devLog` utility replaces all `debugPrint` calls across ~20 Dart services — output gated behind developer mode.
+- `dev_eprintln!` macro replaces `eprintln!` in Rust for USB, audio debug, and DSD transport logging.
+- Zero-cost logging path when developer mode is disabled.
+
+### Vinyl Record & Animations
+- Shared **VinylRecord** widget component — custom-painted radial-gradient disc with grooves and label area — replaces inline implementations across the player and milestone screens.
+- Album art scope toggle: display vinyl from a single song's art or the whole album's art.
+- Vinyl mode state tracked per-player to prevent gesture conflicts during rotation.
+- Waveform seek bar and line seek bar now animate in on song change via `appearProgress`.
+- Waveform layer nests its animation inside a consumer for reactive updates.
+- Mini-player song changes animate with a directional slide transition.
+
+### Scanner & Library UX
+- Scanner backend migrated from `jwalk` to `walkdir` for simpler, more maintainable directory traversal.
+- Scanning UI replaced bottom sheet with a fullscreen overlay and a scan-complete summary sheet.
+- Pending-rescan flag prevents missed scanner events during concurrent processing.
+- Auto library sync fires on app resume — keeps the database fresh without manual scans.
+
+### Song Deletion & MediaStore
+- Static `removeFromMediaStore` method for safe file removal from Android's MediaStore database.
+- Song deleted from the Isar repository before the file is removed from disk.
+- MediaStore removal fallback in `deleteDocumentViaSaf` for content URI files.
+- Confirmation dialog before song deletion.
+
+### USB Audio Improvements
+- **UAC1 sampling frequency negotiation** added for older UAC 1.0 devices.
+- USB volume preference check — falls back to bit-perfect default (-40 dB) when no saved volume exists.
+- Long-press gesture on album art correctly handled without triggering an accidental tap.
+- Audio interruption handling improved with duck-aware pause/resume logic.
+
+### Code Formatting & Polish
+- Mass Rust reformatting pass — 100-column limit, consistent struct initializers, organized imports.
+- Consistent code style across the Android Direct USB module, audio engine, DSD decoder, and UAC2 APIs.
+- Dismissible update notice with slide-fade animation on the menu screen.
+- Reactive `FolderEntity` cached with `FutureBuilder` to avoid redundant deep-scan lookups.
+- Album art bitmap cached to avoid redundant decoding per render frame.
+- NaN guards on non-finite scale and opacity values in visualizer rendering.
+- Auto-focus search field preference (Settings → Interface) — only auto-focuses the keyboard when enabled.
+- Volume button added to player action buttons with a bottom-sheet volume control.
+- Equalizer initialized on app start and reapplied across audio session changes.
+
 ## 0.18.0-beta.1 (2026-06-07)
 
 ### UAC 1.0 & 2.0 Descriptor Parsing
