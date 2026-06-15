@@ -313,11 +313,22 @@ class RecentlyPlayedRepository {
 
   /// Get flat list of recently played entries (most recent first).
   Future<List<RecentlyPlayedEntry>> getRecentHistory({int limit = 50}) async {
+    return getRecentHistoryPaginated(offset: 0, limit: limit);
+  }
+
+  /// Get a paginated slice of recently played entries (most recent first).
+  Future<List<RecentlyPlayedEntry>> getRecentHistoryPaginated({
+    int offset = 0,
+    int limit = 50,
+  }) async {
     final entries = await _isar.recentlyPlayedEntitys
         .where()
         .sortByPlayedAtDesc()
+        .offset(offset)
         .limit(limit)
         .findAll();
+
+    if (entries.isEmpty) return const [];
 
     final allSongEntities = await _songRepository.getAllSongEntities();
     final songMap = {for (var e in allSongEntities) e.id: e};
