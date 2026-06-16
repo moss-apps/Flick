@@ -31,16 +31,6 @@ class FlickNavBar extends StatefulWidget {
 }
 
 class _FlickNavBarState extends State<FlickNavBar> {
-  int _direction = 0;
-
-  @override
-  void didUpdateWidget(FlickNavBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.currentIndex != widget.currentIndex) {
-      _direction = widget.currentIndex > oldWidget.currentIndex ? 1 : -1;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final buttons = widget.config.orderedButtons;
@@ -155,7 +145,6 @@ class _FlickNavBarState extends State<FlickNavBar> {
                       button: button,
                       isSelected: widget.currentIndex == button.pageIndex,
                       config: widget.config,
-                      direction: _direction,
                       onTap: () => widget.onTap(button.pageIndex),
                     ),
                   ),
@@ -490,14 +479,12 @@ class _FlickNavItem extends StatefulWidget {
   final NavBarButton button;
   final bool isSelected;
   final NavBarConfig config;
-  final int direction;
   final VoidCallback onTap;
 
   const _FlickNavItem({
     required this.button,
     required this.isSelected,
     required this.config,
-    required this.direction,
     required this.onTap,
   });
 
@@ -509,11 +496,9 @@ class _FlickNavItemState extends State<_FlickNavItem>
     with TickerProviderStateMixin {
   late final AnimationController _scaleController;
   late final AnimationController _selectionController;
-  late final AnimationController _slideController;
   late final Animation<double> _scaleAnimation;
   late final Animation<double> _selectionAnimation;
   late final Animation<double> _iconScaleAnimation;
-  Animation<Offset> _slideAnimation = const AlwaysStoppedAnimation(Offset.zero);
 
   @override
   void initState() {
@@ -540,12 +525,6 @@ class _FlickNavItemState extends State<_FlickNavItem>
     _iconScaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(parent: _selectionController, curve: Curves.easeOutBack),
     );
-
-    _slideController = AnimationController(
-      duration: AppConstants.animationNormal,
-      vsync: this,
-      value: 1.0,
-    );
   }
 
   @override
@@ -553,26 +532,8 @@ class _FlickNavItemState extends State<_FlickNavItem>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isSelected != widget.isSelected) {
       if (widget.isSelected) {
-        if (widget.direction != 0) {
-          _slideAnimation = Tween<Offset>(
-            begin: Offset(widget.direction.toDouble() * 0.25, 0),
-            end: Offset.zero,
-          ).animate(
-            CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
-          );
-          _slideController.forward(from: 0.0);
-        }
         _selectionController.forward();
       } else {
-        if (widget.direction != 0) {
-          _slideAnimation = Tween<Offset>(
-            begin: Offset.zero,
-            end: Offset(widget.direction.toDouble() * -0.25, 0),
-          ).animate(
-            CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
-          );
-          _slideController.forward(from: 0.0);
-        }
         _selectionController.reverse();
       }
     }
@@ -582,7 +543,6 @@ class _FlickNavItemState extends State<_FlickNavItem>
   void dispose() {
     _scaleController.dispose();
     _selectionController.dispose();
-    _slideController.dispose();
     super.dispose();
   }
 
@@ -619,64 +579,61 @@ class _FlickNavItemState extends State<_FlickNavItem>
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: AnimatedBuilder(
-          animation: Listenable.merge([_scaleAnimation, _selectionAnimation]),
-          builder: (context, child) {
-            final lerpColor = Color.lerp(
-              AppColors.inactiveState,
-              AppColors.activeState,
-              _selectionAnimation.value,
-            );
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_scaleAnimation, _selectionAnimation]),
+        builder: (context, child) {
+          final lerpColor = Color.lerp(
+            AppColors.inactiveState,
+            AppColors.activeState,
+            _selectionAnimation.value,
+          );
 
-            return Transform.scale(
-              scale: _scaleAnimation.value,
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: horizontalPadding,
-                  vertical: verticalPadding,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Transform.scale(
-                      scale: _iconScaleAnimation.value,
-                      child: Icon(
-                        widget.button.icon,
-                        color: lerpColor,
-                        size: iconSize,
-                      ),
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Transform.scale(
+                    scale: _iconScaleAnimation.value,
+                    child: Icon(
+                      widget.button.icon,
+                      color: lerpColor,
+                      size: iconSize,
                     ),
-                    SizedBox(height: spacing),
-                    if (widget.config.showLabels)
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            widget.button.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: 'ProductSans',
-                              fontSize: fontSize,
-                              fontWeight: widget.isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: lerpColor,
-                              letterSpacing: 0.4,
-                            ),
+                  ),
+                  SizedBox(height: spacing),
+                  if (widget.config.showLabels)
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          widget.button.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'ProductSans',
+                            fontSize: fontSize,
+                            fontWeight: widget.isSelected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: lerpColor,
+                            letterSpacing: 0.4,
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
-            );
-          },
+            ),
+          );
+        },
         ),
-      ),
-    );
+      );
+    }
   }
-}
