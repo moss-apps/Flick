@@ -564,6 +564,15 @@ class _FlickNavItemState extends State<_FlickNavItem>
         }
         _selectionController.forward();
       } else {
+        if (widget.direction != 0) {
+          _slideAnimation = Tween<Offset>(
+            begin: Offset.zero,
+            end: Offset(widget.direction.toDouble() * -0.25, 0),
+          ).animate(
+            CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+          );
+          _slideController.forward(from: 0.0);
+        }
         _selectionController.reverse();
       }
     }
