@@ -645,9 +645,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                   appPrefs.artworkCardShowTitle,
                               artworkCardShowArtist:
                                   appPrefs.artworkCardShowArtist,
-                              artworkCardShowAlbum:
-                                  appPrefs.artworkCardShowAlbum,
-                              immersiveTextScale: appPrefs.immersiveTextScale,
+                               artworkCardShowAlbum:
+                                   appPrefs.artworkCardShowAlbum,
+                               artworkCardShowFrame:
+                                   appPrefs.artworkCardShowFrame,
+                               immersiveTextScale: appPrefs.immersiveTextScale,
                               immersiveVerticalOffset:
                                   appPrefs.immersiveVerticalOffset,
                               immersiveFullViewScale:
@@ -753,8 +755,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                   title: 'Artwork size',
                                   value: appPrefs.artworkCardArtworkScale,
                                   min: 0.8,
-                                  max: 1.18,
-                                  divisions: 19,
+                                  max: 1.36,
+                                  divisions: 28,
                                   valueLabel:
                                       '${(appPrefs.artworkCardArtworkScale * 100).round()}%',
                                   onChanged:
@@ -809,6 +811,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                   value: appPrefs.artworkCardShowFileInfo,
                                   onChanged:
                                       prefsNotifier.setArtworkCardShowFileInfo,
+                                ),
+                                _PlayerCustomizationToggle(
+                                  title: 'Show frame',
+                                  value: appPrefs.artworkCardShowFrame,
+                                  onChanged:
+                                      prefsNotifier.setArtworkCardShowFrame,
                                 ),
                               ],
                             ),
@@ -1021,11 +1029,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                               appPrefs.artworkCardShowTitle,
                           artworkCardShowArtist:
                               appPrefs.artworkCardShowArtist,
-                          artworkCardShowAlbum:
-                              appPrefs.artworkCardShowAlbum,
-                          artworkCardShowFileInfo:
-                              appPrefs.artworkCardShowFileInfo,
-                          immersiveTextScale: appPrefs.immersiveTextScale,
+                           artworkCardShowAlbum:
+                               appPrefs.artworkCardShowAlbum,
+                           artworkCardShowFileInfo:
+                               appPrefs.artworkCardShowFileInfo,
+                           artworkCardShowFrame:
+                               appPrefs.artworkCardShowFrame,
+                           immersiveTextScale: appPrefs.immersiveTextScale,
                           immersiveVerticalOffset:
                               appPrefs.immersiveVerticalOffset,
                           immersiveFullViewScale:
@@ -2853,6 +2863,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   artworkCardShowArtist: appPrefs.artworkCardShowArtist,
                   artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
                   artworkCardShowFileInfo: appPrefs.artworkCardShowFileInfo,
+                  artworkCardShowFrame: appPrefs.artworkCardShowFrame,
                   immersiveTextScale: appPrefs.immersiveTextScale,
                   immersiveVerticalOffset: appPrefs.immersiveVerticalOffset,
                   immersiveFullViewScale: appPrefs.immersiveFullViewScale,
@@ -2934,6 +2945,7 @@ class _AnimatedSongScene extends StatelessWidget {
   final bool artworkCardShowArtist;
   final bool artworkCardShowAlbum;
   final bool artworkCardShowFileInfo;
+  final bool artworkCardShowFrame;
   final double immersiveTextScale;
   final double immersiveVerticalOffset;
   final double immersiveFullViewScale;
@@ -2983,6 +2995,7 @@ class _AnimatedSongScene extends StatelessWidget {
     this.artworkCardShowArtist = true,
     this.artworkCardShowAlbum = true,
     this.artworkCardShowFileInfo = true,
+    this.artworkCardShowFrame = true,
     this.immersiveTextScale = 1.0,
     this.immersiveVerticalOffset = 0.0,
     this.immersiveFullViewScale = 1.0,
@@ -3831,7 +3844,7 @@ class _AnimatedSongScene extends StatelessWidget {
         final maxArtworkSize = context.responsive(320.0, 360.0, 400.0);
         final baseArtworkSize = math
             .min(
-              constraints.maxWidth - (horizontalPadding * 2),
+              (constraints.maxWidth - (horizontalPadding * 2)) * 0.82,
               isVeryShortHeight
                   ? constraints.maxHeight * 0.32
                   : isShortHeight
@@ -3843,7 +3856,7 @@ class _AnimatedSongScene extends StatelessWidget {
         final artworkSize = (baseArtworkSize * artworkCardArtworkScale)
             .clamp(
               isVeryShortHeight ? 140.0 : 160.0,
-              constraints.maxWidth - (horizontalPadding * 2),
+              constraints.maxWidth,
             )
             .toDouble();
         final artworkSpacing = isVeryShortHeight
@@ -3935,26 +3948,32 @@ class _AnimatedSongScene extends StatelessWidget {
                                 Flexible(
                                   flex: isVeryShortHeight ? 5 : 7,
                                   child: Center(
-                                    child: visualizationMode
-                                        ? _VisualizerArtBox(
-                                            playerService: playerService,
-                                            size: artworkSize,
-                                            animationStyle:
-                                                visualizerAnimationStyle,
-                                            frequencyMode:
-                                                visualizerFrequencyMode,
-                                            movementMode:
-                                                visualizerMovementMode,
-                                            albumColor: albumColor,
-                                          )
-                                        : _AlbumArtBox(
-                                            song: song,
-                                            size: artworkSize,
-                                            playerService: playerService,
-                                            onRotationEnabledChanged: onRotationEnabledChanged,
-                                            initialVinyl: vinylMode,
-                                            onVinylChanged: onVinylChanged,
-                                          ),
+                                    child: OverflowBox(
+                                      maxWidth: artworkSize,
+                                      maxHeight: artworkSize,
+                                      child: visualizationMode
+                                          ? _VisualizerArtBox(
+                                              playerService: playerService,
+                                              size: artworkSize,
+                                              animationStyle:
+                                                  visualizerAnimationStyle,
+                                              frequencyMode:
+                                                  visualizerFrequencyMode,
+                                              movementMode:
+                                                  visualizerMovementMode,
+                                              albumColor: albumColor,
+                                              showFrame: artworkCardShowFrame,
+                                            )
+                                          : _AlbumArtBox(
+                                              song: song,
+                                              size: artworkSize,
+                                              playerService: playerService,
+                                              onRotationEnabledChanged: onRotationEnabledChanged,
+                                              initialVinyl: vinylMode,
+                                              onVinylChanged: onVinylChanged,
+                                              showFrame: artworkCardShowFrame,
+                                            ),
+                                    ),
                                   ),
                                 ),
                                 SizedBox(height: artworkSpacing),
@@ -4205,6 +4224,7 @@ class _AlbumArtBox extends StatefulWidget {
   final void Function(bool enabled)? onRotationEnabledChanged;
   final bool initialVinyl;
   final ValueChanged<bool>? onVinylChanged;
+  final bool showFrame;
 
   const _AlbumArtBox({
     required this.song,
@@ -4213,6 +4233,7 @@ class _AlbumArtBox extends StatefulWidget {
     this.onRotationEnabledChanged,
     this.initialVinyl = false,
     this.onVinylChanged,
+    this.showFrame = true,
   });
 
   @override
@@ -4586,86 +4607,118 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
                           ),
                         ),
                       ),
-                    Container(
-                      width: artSize,
-                      height: artSize,
-                      padding: EdgeInsets.all(artFramePadding),
-                      decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(artOuterRadius),
-                        gradient: glass > 0.01
-                            ? LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white
-                                      .withValues(alpha: 0.16 * glass),
-                                  Colors.white
-                                      .withValues(alpha: 0.06 * glass),
-                                  Colors.white
-                                      .withValues(alpha: 0.02 * glass),
-                                ],
-                                stops: const [0.0, 0.4, 1.0],
-                              )
-                            : null,
-                        border: Border.all(
-                          color: glass > 0.5
-                              ? Colors.white
-                                  .withValues(alpha: 0.12 * glass)
-                              : Colors.black
-                                  .withValues(alpha: 0.28 * t),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(
-                              alpha: 0.32 * (0.35 + 0.65 * glass),
-                            ),
-                            blurRadius:
-                                shadowBlur * (0.45 + 0.55 * glass),
-                            offset: Offset(
-                              0,
-                              shadowOffsetY * (0.25 + 0.75 * glass),
-                            ),
-                          ),
-                          if (glass > 0.05)
-                            BoxShadow(
-                              color: Colors.white.withValues(
-                                alpha: 0.06 * glass,
+                    widget.showFrame
+                        ? Container(
+                            width: artSize,
+                            height: artSize,
+                            padding: EdgeInsets.all(artFramePadding),
+                            decoration: BoxDecoration(
+                              borderRadius:
+                                  BorderRadius.circular(artOuterRadius),
+                              gradient: glass > 0.01
+                                  ? LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.white
+                                            .withValues(alpha: 0.16 * glass),
+                                        Colors.white
+                                            .withValues(alpha: 0.06 * glass),
+                                        Colors.white
+                                            .withValues(alpha: 0.02 * glass),
+                                      ],
+                                      stops: const [0.0, 0.4, 1.0],
+                                    )
+                                  : null,
+                              border: Border.all(
+                                color: glass > 0.5
+                                    ? Colors.white
+                                        .withValues(alpha: 0.12 * glass)
+                                    : Colors.black
+                                        .withValues(alpha: 0.28 * t),
+                                width: 1,
                               ),
-                              blurRadius: 1,
-                              offset: const Offset(0, 1),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                    alpha: 0.32 * (0.35 + 0.65 * glass),
+                                  ),
+                                  blurRadius:
+                                      shadowBlur * (0.45 + 0.55 * glass),
+                                  offset: Offset(
+                                    0,
+                                    shadowOffsetY * (0.25 + 0.75 * glass),
+                                  ),
+                                ),
+                                if (glass > 0.05)
+                                  BoxShadow(
+                                    color: Colors.white.withValues(
+                                      alpha: 0.06 * glass,
+                                    ),
+                                    blurRadius: 1,
+                                    offset: const Offset(0, 1),
+                                  ),
+                              ],
                             ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(artInnerRadius),
-                        child: CachedImageWidget(
-                          imagePath: widget.song.albumArt,
-                          audioSourcePath: widget.song.filePath,
-                          fit: BoxFit.cover,
-                          placeholder: Container(
-                            color: Colors.white.withValues(alpha: 0.05),
-                            child: Icon(
-                              LucideIcons.music,
-                              size: iconSize * (1 - t * 0.5),
-                              color:
-                                  Colors.white.withValues(alpha: 0.48),
+                            child: ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(artInnerRadius),
+                              child: CachedImageWidget(
+                                imagePath: widget.song.albumArt,
+                                audioSourcePath: widget.song.filePath,
+                                fit: BoxFit.cover,
+                                placeholder: Container(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  child: Icon(
+                                    LucideIcons.music,
+                                    size: iconSize * (1 - t * 0.5),
+                                    color:
+                                        Colors.white.withValues(alpha: 0.48),
+                                  ),
+                                ),
+                                errorWidget: Container(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  child: Icon(
+                                    LucideIcons.music,
+                                    size: iconSize * (1 - t * 0.5),
+                                    color:
+                                        Colors.white.withValues(alpha: 0.48),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(artOuterRadius),
+                            child: SizedBox(
+                              width: artSize,
+                              height: artSize,
+                              child: CachedImageWidget(
+                                imagePath: widget.song.albumArt,
+                                audioSourcePath: widget.song.filePath,
+                                fit: BoxFit.cover,
+                                placeholder: Container(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  child: Icon(
+                                    LucideIcons.music,
+                                    size: iconSize * (1 - t * 0.5),
+                                    color:
+                                        Colors.white.withValues(alpha: 0.48),
+                                  ),
+                                ),
+                                errorWidget: Container(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  child: Icon(
+                                    LucideIcons.music,
+                                    size: iconSize * (1 - t * 0.5),
+                                    color:
+                                        Colors.white.withValues(alpha: 0.48),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                          errorWidget: Container(
-                            color: Colors.white.withValues(alpha: 0.05),
-                            child: Icon(
-                              LucideIcons.music,
-                              size: iconSize * (1 - t * 0.5),
-                              color:
-                                  Colors.white.withValues(alpha: 0.48),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                     if (t > 0.35)
                       IgnorePointer(
                         child: Container(
@@ -4908,6 +4961,7 @@ class _VisualizerArtBox extends StatelessWidget {
   final String frequencyMode;
   final String movementMode;
   final Color? albumColor;
+  final bool showFrame;
 
   const _VisualizerArtBox({
     required this.playerService,
@@ -4916,6 +4970,7 @@ class _VisualizerArtBox extends StatelessWidget {
     this.frequencyMode = 'full',
     this.movementMode = 'bouncy',
     this.albumColor,
+    this.showFrame = true,
   });
 
   @override
@@ -4927,51 +4982,62 @@ class _VisualizerArtBox extends StatelessWidget {
     final shadowBlur = resolvedSize < 220 ? 28.0 : 36.0;
     final shadowOffsetY = resolvedSize < 220 ? 14.0 : 20.0;
 
-    return Center(
-      child: Container(
-        width: resolvedSize,
-        height: resolvedSize,
-        padding: EdgeInsets.all(framePadding),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(outerRadius),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white.withValues(alpha: 0.16),
-              Colors.white.withValues(alpha: 0.06),
-              Colors.white.withValues(alpha: 0.02),
-            ],
-            stops: const [0.0, 0.4, 1.0],
-          ),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.32),
-              blurRadius: shadowBlur,
-              offset: Offset(0, shadowOffsetY),
-            ),
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.06),
-              blurRadius: 1,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(innerRadius),
-          child: Container(
-            color: const Color(0xFF0A0A0A),
-            child: AudioVisualizer(
-              playerService: playerService,
-              animationStyle: animationStyle,
-              frequencyMode: frequencyMode,
-              movementMode: movementMode,
-              albumColor: albumColor,
-            ),
-          ),
-        ),
+    final visualizer = Container(
+      color: const Color(0xFF0A0A0A),
+      child: AudioVisualizer(
+        playerService: playerService,
+        animationStyle: animationStyle,
+        frequencyMode: frequencyMode,
+        movementMode: movementMode,
+        albumColor: albumColor,
       ),
+    );
+
+    return Center(
+      child: showFrame
+          ? Container(
+              width: resolvedSize,
+              height: resolvedSize,
+              padding: EdgeInsets.all(framePadding),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(outerRadius),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.16),
+                    Colors.white.withValues(alpha: 0.06),
+                    Colors.white.withValues(alpha: 0.02),
+                  ],
+                  stops: const [0.0, 0.4, 1.0],
+                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.32),
+                    blurRadius: shadowBlur,
+                    offset: Offset(0, shadowOffsetY),
+                  ),
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    blurRadius: 1,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(innerRadius),
+                child: visualizer,
+              ),
+            )
+          : ClipRRect(
+              borderRadius: BorderRadius.circular(outerRadius),
+              child: SizedBox(
+                width: resolvedSize,
+                height: resolvedSize,
+                child: visualizer,
+              ),
+            ),
     );
   }
 }
@@ -5232,6 +5298,7 @@ class _PlayerLayoutPreview extends StatelessWidget {
   final bool artworkCardShowTitle;
   final bool artworkCardShowArtist;
   final bool artworkCardShowAlbum;
+  final bool artworkCardShowFrame;
   final double immersiveTextScale;
   final double immersiveVerticalOffset;
   final double immersiveFullViewScale;
@@ -5247,6 +5314,7 @@ class _PlayerLayoutPreview extends StatelessWidget {
     this.artworkCardShowTitle = true,
     this.artworkCardShowArtist = true,
     this.artworkCardShowAlbum = true,
+    this.artworkCardShowFrame = true,
     required this.immersiveTextScale,
     required this.immersiveVerticalOffset,
     required this.immersiveFullViewScale,
@@ -5481,6 +5549,7 @@ class _FullScreenPreview extends StatelessWidget {
   final bool artworkCardShowArtist;
   final bool artworkCardShowAlbum;
   final bool artworkCardShowFileInfo;
+  final bool artworkCardShowFrame;
   final double immersiveTextScale;
   final double immersiveVerticalOffset;
   final double immersiveFullViewScale;
@@ -5498,6 +5567,7 @@ class _FullScreenPreview extends StatelessWidget {
     this.artworkCardShowArtist = true,
     this.artworkCardShowAlbum = true,
     this.artworkCardShowFileInfo = true,
+    this.artworkCardShowFrame = true,
     required this.immersiveTextScale,
     required this.immersiveVerticalOffset,
     required this.immersiveFullViewScale,
