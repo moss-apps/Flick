@@ -588,7 +588,7 @@ class PlayerService {
         !_uac2Service.isBitPerfectEnabledSync &&
         !_uac2Service.isDapBitPerfectEnabledSync) {
       final pref = await _preferencesService.getAudioEnginePreference();
-      if (pref != AudioEnginePreference.rustOboe) {
+      if (pref == AudioEnginePreference.exoPlayer) {
         await _preferencesService.setAudioEnginePreference(
           AudioEnginePreference.rustOboe,
         );
