@@ -125,6 +125,15 @@ pub struct AudioCallbackData {
     /// Experimental 432 Hz tuning override. When enabled the callback leaves
     /// passthrough and uses the DSP path at 432/440 speed.
     tuning_432hz_enabled: AtomicBool,
+    /// Set when crossfade is enabled. Forces the callback out of passthrough so
+    /// the DSP/crossfade mix path runs — even when the engine verified a
+    /// bit-perfect output (e.g. MixerBitPerfect on a phone whose speaker
+    /// natively supports the track rate). Without this, crossfade is silently
+    /// skipped because is_passthrough() returns true.
+    crossfade_forces_dsp: AtomicBool,
+    /// One-shot latch so the crossfade-trigger diagnostic is emitted at most
+    /// once per near-end window (avoids flooding the event channel).
+    crossfade_diag_emitted: AtomicBool,
 }
 
 impl AudioCallbackData {
@@ -166,6 +175,8 @@ impl AudioCallbackData {
             dynamics: Mutex::new(DynamicsChain::new(sample_rate)),
             finished_tracks,
             tuning_432hz_enabled: AtomicBool::new(tuning_enabled),
+            crossfade_forces_dsp: AtomicBool::new(false),
+            crossfade_diag_emitted: AtomicBool::new(false),
         }
     }
 
@@ -215,6 +226,11 @@ impl AudioCallbackData {
         self.playback_speed
             .store(speed.to_bits(), Ordering::Relaxed);
         *self.speed_frac_pos.lock() = 0.0;
+        // The crossfade mix bypasses speed resampling, so an in-progress fade
+        // would emit audio at the wrong pitch under the pinned 432/440 speed.
+        if enabled {
+            self.crossfader.lock().reset();
+        }
     }
 
     #[inline]
@@ -231,7 +247,17 @@ impl AudioCallbackData {
     pub fn is_passthrough(&self) -> bool {
         let mode = self.pipeline_mode.load(Ordering::Relaxed);
         let tuning = self.tuning_432hz_enabled.load(Ordering::Relaxed);
-        mode == PipelineMode::Passthrough as u8 && !tuning
+        let crossfade = self.crossfade_forces_dsp.load(Ordering::Relaxed);
+        mode == PipelineMode::Passthrough as u8 && !tuning && !crossfade
+    }
+
+    /// Whether crossfade may run. Crossfade requires the DSP path (not
+    /// passthrough) AND must be suppressed under 432 Hz tuning, because the
+    /// crossfade mix branch bypasses the speed resampler and would emit audio
+    /// at the wrong pitch while the engine is pinned to 432/440.
+    #[inline]
+    pub fn is_crossfade_allowed(&self) -> bool {
+        !self.is_passthrough() && !self.tuning_432hz_enabled.load(Ordering::Relaxed)
     }
 
     #[inline]
@@ -2407,6 +2433,19 @@ fn command_processing_loop(
                         let mut crossfader = callback_data.crossfader.lock();
                         crossfader.set_enabled(enabled);
                         crossfader.set_duration(duration_secs);
+                        drop(crossfader);
+                        // Crossfade needs the DSP path. Force out of passthrough
+                        // when enabled so the mix runs even on a verified
+                        // bit-perfect output (e.g. phone speaker at native rate).
+                        callback_data
+                            .crossfade_forces_dsp
+                            .store(enabled, Ordering::Relaxed);
+                        log::info!(
+                            "[crossfade] set enabled={} duration={:.1}s forces_dsp={}",
+                            enabled,
+                            duration_secs,
+                            enabled
+                        );
                     }
                     AudioCommand::SetCrossfadeCurve { curve } => {
                         callback_data.crossfader.lock().set_curve(curve);
@@ -2514,27 +2553,36 @@ fn command_processing_loop(
         // Both locks are held across the entire check+start to prevent the
         // audio callback from doing a hard gapless transition between the
         // remaining check and the crossfader.start() call.
-        if !callback_data.is_passthrough() {
+        // Skipped entirely in passthrough (bit-perfect) and under 432 Hz
+        // tuning (the mix bypasses speed resampling — see is_crossfade_allowed).
+        if callback_data.is_crossfade_allowed() {
             let mut sources = callback_data.sources.lock();
             let mut crossfader = callback_data.crossfader.lock();
+            let configured = crossfader.configured_duration_secs();
             if crossfader.is_enabled()
                 && !crossfader.is_active()
                 && sources.has_next()
-                && crossfader.duration_secs() > 0.0
+                && configured > 0.0
             {
                 if let Some(current) = sources.current() {
                     let remaining = current.remaining_secs();
-                    if remaining > 0.0 && remaining <= crossfader.duration_secs() as f64 {
+                    // Clamp the fade to at most half the track so a short
+                    // source does not have its start eaten by the fade-in.
+                    let effective =
+                        clamp_crossfade_secs(configured, current.info.duration_secs);
+                    if effective > 0.0 && remaining > 0.0 && remaining <= effective as f64 {
                         // Only start crossfade if next track has buffered data.
                         // Require any data (≥0s) — the decoder has been running
                         // since the next track was pre-queued, so the buffer
                         // should be full by now.
                         if sources.next_has_enough_buffer(0.0) {
                             dev_eprintln!(
-                                "[crossfade] TRIGGERING! remaining={:.3}s threshold={:.1}s",
+                                "[crossfade] TRIGGERING! remaining={:.3}s configured={:.1}s effective={:.1}s",
                                 remaining,
-                                crossfader.duration_secs()
+                                configured,
+                                effective
                             );
+                            crossfader.set_active_duration_secs(effective);
                             crossfader.start();
                             state.store(PlaybackState::Crossfading as u8, Ordering::Relaxed);
                             let _ = event_tx
@@ -2556,13 +2604,13 @@ fn command_processing_loop(
                         }
                     }
                 }
-            } else if crossfader.is_enabled() && crossfader.duration_secs() > 0.0 {
+            } else if crossfader.is_enabled() && configured > 0.0 {
                 // Only print when we're near the crossfade window
                 let remaining = sources
                     .current()
                     .map(|s| s.remaining_secs())
                     .unwrap_or(-1.0);
-                let threshold = crossfader.duration_secs() as f64;
+                let threshold = configured as f64;
                 if remaining > 0.0 && remaining <= threshold * 3.0 {
                     dev_eprintln!(
                         "[crossfade] NEAR: active={} has_next={} has_current={} next_buffered={} remaining={:.3}s threshold={:.1}s",
@@ -2571,9 +2619,59 @@ fn command_processing_loop(
                         sources.current().is_some(),
                         sources.next_has_enough_buffer(0.0),
                         remaining,
-                        crossfader.duration_secs()
+                        configured
                     );
                 }
+            }
+        }
+
+        // Diagnostic: when crossfade is enabled but the trigger above hasn't
+        // fired, surface every gate condition ONCE per near-end window through
+        // the error event channel. dev_eprintln!/log::info! go to logcat,
+        // which is invisible in `flutter logs`; AudioEvent::Error is forwarded
+        // by the Dart layer via devLog() (I/flutter). Locks are taken in
+        // separate scopes (never nested) to match the audio callback's order.
+        let diag_needed = {
+            let cf = callback_data.crossfader.lock();
+            cf.is_enabled() && !cf.is_active()
+        };
+        if diag_needed {
+            let configured = callback_data.crossfader.lock().configured_duration_secs();
+            let (remaining, has_next, has_current, next_buffered, total) = {
+                let src = callback_data.sources.lock();
+                (
+                    src.current().map(|s| s.remaining_secs()).unwrap_or(-1.0),
+                    src.has_next(),
+                    src.current().is_some(),
+                    src.next_has_enough_buffer(0.0),
+                    src.current().map(|s| s.info.duration_secs).unwrap_or(-1.0),
+                )
+            };
+            let cfg = configured as f64;
+            if remaining <= 0.0 || remaining > cfg * 3.0 {
+                callback_data
+                    .crossfade_diag_emitted
+                    .store(false, Ordering::Relaxed);
+            } else if !callback_data
+                .crossfade_diag_emitted
+                .swap(true, Ordering::Relaxed)
+            {
+                let effective = clamp_crossfade_secs(configured, total);
+                let msg = format!(
+                    "[crossfade-diag] allowed={} has_next={} has_current={} next_buffered={} remaining={:.2}s configured={:.1}s total={:.1}s effective={:.2} | passthrough={} tuning={} forces_dsp={}",
+                    callback_data.is_crossfade_allowed(),
+                    has_next,
+                    has_current,
+                    next_buffered,
+                    remaining,
+                    configured,
+                    total,
+                    effective,
+                    callback_data.is_passthrough(),
+                    callback_data.tuning_432hz_enabled.load(Ordering::Relaxed),
+                    callback_data.crossfade_forces_dsp.load(Ordering::Relaxed),
+                );
+                let _ = event_tx.try_send(AudioEvent::Error { message: msg });
             }
         }
 
@@ -2740,6 +2838,21 @@ fn queue_playback_source(
     let _ = event_tx.try_send(AudioEvent::NextTrackReady { path: queued_path });
 }
 
+/// Clamp the crossfade duration for a track of `track_total_secs`.
+///
+/// The fade is capped at half the track length so the fade-in never eats more
+/// than the first half of a short source. Tracks whose duration is unknown
+/// (`<= 0.0`) use the configured duration unchanged. The caller must skip
+/// crossfade when the returned value is `<= 0.0` (only possible when
+/// `configured` itself is `<= 0.0`).
+fn clamp_crossfade_secs(configured: f32, track_total_secs: f64) -> f32 {
+    if track_total_secs <= 0.0 {
+        return configured;
+    }
+    let half = (track_total_secs * 0.5) as f32;
+    configured.min(half)
+}
+
 fn handle_skip_to_next(
     callback_data: &AudioCallbackData,
     state: &Arc<AtomicU8>,
@@ -2748,15 +2861,27 @@ fn handle_skip_to_next(
     let mut sources = callback_data.sources.lock();
     let mut crossfader = callback_data.crossfader.lock();
 
-    if sources.has_next() {
-        if crossfader.is_enabled() && !crossfader.is_active() {
-            // Start crossfade
+    if !sources.has_next() {
+        return;
+    }
+
+    // Manual skip crossfades when allowed (DSP path, no 432 Hz tuning) and the
+    // fade length is sane for the incoming track; otherwise hard-cut.
+    let started = if callback_data.is_crossfade_allowed()
+        && crossfader.is_enabled()
+        && !crossfader.is_active()
+    {
+        let configured = crossfader.configured_duration_secs();
+        let next_total = sources.next().map(|s| s.info.duration_secs).unwrap_or(0.0);
+        let effective = clamp_crossfade_secs(configured, next_total);
+        if configured > 0.0 && effective > 0.0 {
             let from_path = sources
                 .current()
                 .map(|s| s.info.path.to_string_lossy().to_string());
             let to_path = sources
                 .next_mut()
                 .map(|s| s.info.path.to_string_lossy().to_string());
+            crossfader.set_active_duration_secs(effective);
             crossfader.start();
             state.store(PlaybackState::Crossfading as u8, Ordering::Relaxed);
             let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Crossfading));
@@ -2766,11 +2891,18 @@ fn handle_skip_to_next(
                     to_path: to,
                 });
             }
+            true
         } else {
-            // Immediate transition
-            sources.advance_to_next();
-            state.store(PlaybackState::Playing as u8, Ordering::Relaxed);
+            false
         }
+    } else {
+        false
+    };
+
+    if !started {
+        // Immediate transition
+        sources.advance_to_next();
+        state.store(PlaybackState::Playing as u8, Ordering::Relaxed);
     }
 }
 
