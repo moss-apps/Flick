@@ -165,7 +165,7 @@ class _CrossfadeSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SettingsSectionHeader('Crossfade'),
+            const SettingsSectionHeader('Crossfade', tag: 'Experimental'),
             SettingsCard(
               children: [
                 ToggleSetting(
