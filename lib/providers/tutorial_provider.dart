@@ -1,13 +1,74 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flick/features/onboarding/tutorial_targets.dart';
 
 enum TutorialStep {
-  welcome,
-  navBar,
-  miniPlayer,
-  browseMusic,
-  settingsTab,
-  fullPlayer,
+  welcome(
+    title: 'Welcome to Flick',
+    description: "Let's take a quick tour of your new music player.",
+  ),
+  navBar(
+    title: 'Navigation Bar',
+    description: 'Tap icons to switch tabs. Long-press to customize the bar.',
+    spotlightTarget: TutorialTarget.navBar,
+  ),
+  songsTab(
+    title: 'Songs Tab',
+    description: 'Your whole library lives here. Tap any song to play it.',
+    requiredTabIndex: 1,
+  ),
+  searchEntry(
+    title: 'Search',
+    description: 'Search across songs, artists, and albums instantly.',
+    spotlightTarget: TutorialTarget.songsSearchBar,
+    requiredTabIndex: 1,
+  ),
+  sortButton(
+    title: 'Sort & Filter',
+    description: 'Reorder, filter, and shuffle from this header.',
+    spotlightTarget: TutorialTarget.songsSortButton,
+    requiredTabIndex: 1,
+  ),
+  songCardGestures(
+    title: 'Song Gestures',
+    description: 'Tap to play, long-press for options (queue, play next, info).',
+    requiredTabIndex: 1,
+  ),
+  miniPlayer(
+    title: 'Mini Player',
+    description: "Shows what's playing. Tap to open the full player.",
+    spotlightTarget: TutorialTarget.miniPlayer,
+  ),
+  settingsTab(
+    title: 'Settings',
+    description: 'Customize audio, display, navigation, and integrations.',
+    requiredTabIndex: 2,
+  ),
+  fullPlayerHint(
+    title: 'Full Player',
+    description:
+        'Tap the mini player for waveform seekbar, EQ, lyrics, and visualizer.',
+  ),
+  manualPointer(
+    title: "That's the tour!",
+    description:
+        'Want every control documented? Open the in-app Manual anytime from Settings \u2192 Help & Manual.',
+    isManualPointer: true,
+  );
+
+  const TutorialStep({
+    required this.title,
+    required this.description,
+    this.spotlightTarget,
+    this.requiredTabIndex,
+    this.isManualPointer = false,
+  });
+
+  final String title;
+  final String description;
+  final TutorialTarget? spotlightTarget;
+  final int? requiredTabIndex;
+  final bool isManualPointer;
 }
 
 class TutorialState {
@@ -37,8 +98,8 @@ class TutorialState {
     );
   }
 
-  TutorialStep get step => TutorialStep.values[
-      currentStep.clamp(0, TutorialStep.values.length - 1)];
+  TutorialStep get step =>
+      TutorialStep.values[currentStep.clamp(0, TutorialStep.values.length - 1)];
   bool get isLastStep => currentStep >= TutorialStep.values.length - 1;
   int get totalSteps => TutorialStep.values.length;
 }
@@ -96,7 +157,6 @@ class TutorialNotifier extends Notifier<TutorialState> {
   }
 }
 
-final tutorialProvider =
-    NotifierProvider<TutorialNotifier, TutorialState>(
+final tutorialProvider = NotifierProvider<TutorialNotifier, TutorialState>(
   TutorialNotifier.new,
 );
