@@ -112,8 +112,7 @@ class _ManualScreenState extends State<ManualScreen> {
                 itemCount: kManualSections.length,
                 itemBuilder: (context, i) {
                   final section = kManualSections[i];
-                  final initiallyExpanded =
-                      widget.initialSection == section.id;
+                  final initiallyExpanded = widget.initialSection == section.id;
                   return _ManualSectionCard(
                     key: _sectionKeys[section.id],
                     section: section,
@@ -162,9 +161,19 @@ class _ManualScreenState extends State<ManualScreen> {
       itemCount: hits.length,
       itemBuilder: (context, i) {
         final hit = hits[i];
-        return _ManualEntryCard(
-          sectionLabel: hit.section.title,
-          entry: hit.entry,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ManualEntryContent(
+              sectionLabel: hit.section.title,
+              entry: hit.entry,
+            ),
+            if (i < hits.length - 1) ...[
+              const SizedBox(height: AppConstants.spacingMd),
+              const Divider(color: AppColors.glassBorder, height: 1),
+              const SizedBox(height: AppConstants.spacingMd),
+            ],
+          ],
         );
       },
     );
@@ -244,50 +253,48 @@ class _ManualSectionCardState extends State<_ManualSectionCard> {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => setState(() => _expanded = !_expanded),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.spacingLg,
-                  vertical: AppConstants.spacingMd,
-                ),
-                child: Row(
-                  children: [
-                    Icon(widget.section.icon, size: 20, color: AppColors.accent),
-                    const SizedBox(width: AppConstants.spacingMd),
-                    Expanded(
-                      child: Text(
-                        widget.section.title,
-                        style: const TextStyle(
-                          fontFamily: 'ProductSans',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${widget.section.entries.length}',
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingLg,
+                vertical: AppConstants.spacingMd,
+              ),
+              child: Row(
+                children: [
+                  Icon(widget.section.icon, size: 20, color: AppColors.accent),
+                  const SizedBox(width: AppConstants.spacingMd),
+                  Expanded(
+                    child: Text(
+                      widget.section.title,
                       style: const TextStyle(
                         fontFamily: 'ProductSans',
-                        fontSize: 13,
-                        color: AppColors.textTertiary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(width: AppConstants.spacingSm),
-                    AnimatedRotation(
-                      turns: _expanded ? 0.25 : 0,
-                      duration: AppConstants.animationNormal,
-                      child: const Icon(
-                        LucideIcons.chevronRight,
-                        size: 18,
-                        color: AppColors.textTertiary,
-                      ),
+                  ),
+                  Text(
+                    '${widget.section.entries.length}',
+                    style: const TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: 13,
+                      color: AppColors.textTertiary,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: AppConstants.spacingSm),
+                  AnimatedRotation(
+                    turns: _expanded ? 0.25 : 0,
+                    duration: AppConstants.animationNormal,
+                    child: const Icon(
+                      LucideIcons.chevronRight,
+                      size: 18,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -325,9 +332,8 @@ class _ManualSectionCardState extends State<_ManualSectionCard> {
 
 class _ManualEntryCard extends StatelessWidget {
   final ManualEntry entry;
-  final String? sectionLabel;
 
-  const _ManualEntryCard({required this.entry, this.sectionLabel});
+  const _ManualEntryCard({required this.entry});
 
   @override
   Widget build(BuildContext context) {
@@ -339,74 +345,85 @@ class _ManualEntryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
         border: Border.all(color: AppColors.glassBorder),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (sectionLabel != null) ...[
-            Text(
-              sectionLabel!.toUpperCase(),
-              style: const TextStyle(
-                fontFamily: 'ProductSans',
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.1,
-                color: AppColors.textTertiary,
-              ),
-            ),
-            const SizedBox(height: 4),
-          ],
+      child: _ManualEntryContent(entry: entry),
+    );
+  }
+}
+
+class _ManualEntryContent extends StatelessWidget {
+  final ManualEntry entry;
+  final String? sectionLabel;
+
+  const _ManualEntryContent({required this.entry, this.sectionLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (sectionLabel != null) ...[
           Text(
-            entry.title,
+            sectionLabel!.toUpperCase(),
             style: const TextStyle(
               fontFamily: 'ProductSans',
-              fontSize: 15,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              letterSpacing: 1.1,
+              color: AppColors.textTertiary,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            entry.body,
-            style: const TextStyle(
-              fontFamily: 'ProductSans',
-              fontSize: 13.5,
-              color: AppColors.textSecondary,
-              height: 1.5,
-            ),
+          const SizedBox(height: 4),
+        ],
+        Text(
+          entry.title,
+          style: const TextStyle(
+            fontFamily: 'ProductSans',
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
           ),
-          if (entry.tips != null && entry.tips!.isNotEmpty) ...[
-            const SizedBox(height: AppConstants.spacingSm),
-            for (final tip in entry.tips!) ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          entry.body,
+          style: const TextStyle(
+            fontFamily: 'ProductSans',
+            fontSize: 13.5,
+            color: AppColors.textSecondary,
+            height: 1.5,
+          ),
+        ),
+        if (entry.tips != null && entry.tips!.isNotEmpty) ...[
+          const SizedBox(height: AppConstants.spacingSm),
+          for (final tip in entry.tips!) ...[
+            Text.rich(
+              TextSpan(
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 7),
+                  const WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
                     child: Icon(
                       LucideIcons.lightbulb,
                       size: 13,
                       color: AppColors.milestoneAmethyst,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      tip,
-                      style: const TextStyle(
-                        fontFamily: 'ProductSans',
-                        fontSize: 12.5,
-                        color: AppColors.textTertiary,
-                        height: 1.45,
-                      ),
+                  const TextSpan(text: ' '),
+                  TextSpan(
+                    text: tip,
+                    style: const TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: 12.5,
+                      color: AppColors.textTertiary,
+                      height: 1.45,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-            ],
+            ),
+            const SizedBox(height: 4),
           ],
         ],
-      ),
+      ],
     );
   }
 }
