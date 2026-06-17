@@ -140,6 +140,21 @@ impl Crossfader {
         self.duration_samples = (self.sample_rate as f32 * duration_secs) as usize;
     }
 
+    /// Rebind to a new output sample rate, preserving the enabled state,
+    /// configured duration (in seconds), and curve. Any in-progress fade is
+    /// cancelled. Called by `reconfigure_sample_rate` so a mid-session
+    /// output-rate change (e.g. 48k → 44.1k during Oboe stream open) does not
+    /// silently wipe the user's crossfade preference.
+    pub fn rebind_sample_rate(&mut self, sample_rate: u32) {
+        let configured_secs = self.configured_duration_secs();
+        self.sample_rate = sample_rate;
+        let samples = (sample_rate as f32 * configured_secs) as usize;
+        self.configured_duration_samples = samples;
+        self.duration_samples = samples;
+        self.active = false;
+        self.position = 0;
+    }
+
     /// Get the crossfade duration in seconds.
     pub fn duration_secs(&self) -> f32 {
         self.duration_samples as f32 / self.sample_rate as f32
@@ -463,5 +478,25 @@ mod tests {
         crossfader.set_duration(3.0);
         assert!((crossfader.configured_duration_secs() - 3.0).abs() < 0.01);
         assert!((crossfader.duration_secs() - 3.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_rebind_sample_rate_preserves_state() {
+        let mut crossfader = Crossfader::new(48000, 4.0);
+        crossfader.set_curve(CrossfadeCurve::Linear);
+        crossfader.start();
+        assert!(crossfader.is_active());
+
+        // A mid-session output-rate change (e.g. 48k -> 44.1k) must NOT wipe
+        // the user's enabled/duration/curve preference.
+        crossfader.rebind_sample_rate(44100);
+
+        assert!(crossfader.is_enabled());
+        // Configured duration in seconds is preserved across the rate change.
+        assert!((crossfader.configured_duration_secs() - 4.0).abs() < 0.05);
+        // Sample counts are recomputed at the new rate.
+        assert_eq!(crossfader.duration_samples(), (44100.0 * 4.0) as usize);
+        // An in-progress fade is cancelled.
+        assert!(!crossfader.is_active());
     }
 }
