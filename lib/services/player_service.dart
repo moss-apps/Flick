@@ -630,19 +630,24 @@ class PlayerService {
     required bool enabled,
     required double durationSecs,
   }) async {
-    _debugLog(
-      '[crossfade] applyCrossfadeSettings enabled=$enabled duration=${durationSecs}s '
-      'usingRust=$_usingRustBackend engine=${currentEngineType.logLabel}',
-    );
+    final wasEnabled = _rustAudioService.crossfadeEnabledNotifier.value;
     _rustAudioService.crossfadeEnabledNotifier.value = enabled;
     _rustAudioService.crossfadeDurationNotifier.value = durationSecs;
     if (_usingRustBackend) {
       await _applyRustPlaybackProcessingPolicy(currentEngineType);
-      if (enabled &&
+      // Only (re)queue the next track when crossfade transitions to on.
+      // Re-queueing on every duration-slider drag spawns redundant decoders
+      // and can race the engine's source provider.
+      if (!wasEnabled &&
+          enabled &&
           _isCrossfadeActive &&
           currentSongNotifier.value != null &&
           isPlayingNotifier.value) {
-        await _queueNextTrackForGapless();
+        try {
+          await _queueNextTrackForGapless();
+        } catch (e) {
+          _debugLog('[crossfade] re-queue on enable failed: $e');
+        }
       }
     }
   }
@@ -2293,11 +2298,6 @@ class PlayerService {
     _debugLog(
       '_onSongFinished: loopMode=${loopModeNotifier.value}, currentIndex=$_currentIndex, playlistLength=${_playlist.length}, usingRustBackend=$_usingRustBackend, endedPath=$endedPath',
     );
-    _debugLog(
-      '[crossfade] at song-end: crossfadeActive=$_isCrossfadeActive '
-      'gaplessActive=$_isGaplessActive pref=${_rustAudioService.crossfadeEnabledNotifier.value} '
-      'locked=$isBitPerfectProcessingLocked shouldQueue=$_shouldQueueNextTrack',
-    );
 
     if (_isGaplessActive || _isCrossfadeActive) {
       await _handleGaplessTrackEnded();
@@ -2933,11 +2933,6 @@ class PlayerService {
       final crossfadeOn =
           !isBitPerfectProcessingLocked &&
           _rustAudioService.crossfadeEnabledNotifier.value;
-      _debugLog(
-        '[crossfade] policy engine=${playbackMode.logLabel} '
-        'enabled=$crossfadeOn (locked=$isBitPerfectProcessingLocked '
-        'pref=${_rustAudioService.crossfadeEnabledNotifier.value})',
-      );
       await _rustAudioService.setCrossfade(
         enabled: crossfadeOn,
         durationSecs: _rustAudioService.crossfadeDurationNotifier.value,
@@ -3437,16 +3432,14 @@ class PlayerService {
         _debugLog(
           '[Engine] Playback route resolved to ${activeEngine.logLabel}',
         );
+        if (_usingRustBackend) {
+          await _applyRustPlaybackProcessingPolicy(activeEngine);
+        }
         await _runWithSuppressedSequenceStateUpdates(() async {
           await _playbackManager.playTrack(song);
         });
         _ensurePositionSaveTimer();
         _updatePriorityAnchor();
-        _debugLog(
-          '[crossfade] after play: shouldQueueNext=$_shouldQueueNextTrack '
-          'crossfadeActive=$_isCrossfadeActive gaplessActive=$_isGaplessActive '
-          'playlistLen=${_playlist.length}',
-        );
         if (_shouldQueueNextTrack && _playlist.length > 1) {
           unawaited(_queueNextTrackForGapless());
         }
@@ -3490,10 +3483,6 @@ class PlayerService {
     final nextIndex = isLastTrack ? 0 : _currentIndex + 1;
     final nextSong = _playlist[nextIndex];
     final nextPath = await _resolveRustPath(nextSong);
-    _debugLog(
-      '[crossfade] queueNext nextIndex=$nextIndex path=${nextPath ?? 'null'} '
-      'crossfadeActive=$_isCrossfadeActive',
-    );
     if (nextPath != null) {
       await _rustAudioService.queueNext(nextPath);
     }
