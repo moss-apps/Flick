@@ -27,50 +27,54 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: AppConstants.animationNormal,
     );
     _opacity = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOutCubic,
     );
 
-    ref.listenManual(tutorialProvider.select((s) => s.currentStep), (prev, next) {
-      _onStepChanged(next);
-    });
+    ref.listenManual(
+      tutorialProvider.select((s) => s.currentStep),
+      (prev, next) => _onStepChanged(next),
+    );
   }
 
   void _onStepChanged(int stepIndex) {
-    final step = TutorialStep.values[stepIndex.clamp(0, TutorialStep.values.length - 1)];
-    _currentSpotlight = null;
-    _measureAttempted = false;
+    final step = TutorialStep.values[
+        stepIndex.clamp(0, TutorialStep.values.length - 1)];
 
     if (step.requiredTabIndex != null) {
-      ref.read(navigationIndexProvider.notifier).setIndex(step.requiredTabIndex!);
+      ref
+          .read(navigationIndexProvider.notifier)
+          .setIndex(step.requiredTabIndex!);
     }
 
-    if (step.spotlightTarget == null) {
-      if (mounted) setState(() {});
-      return;
-    }
+    setState(() {
+      _currentSpotlight = null;
+      _measureAttempted = step.spotlightTarget == null;
+    });
+
+    if (step.spotlightTarget == null) return;
 
     final target = step.spotlightTarget!;
-    Future.delayed(
-      step.requiredTabIndex != null
-          ? const Duration(milliseconds: 450)
-          : const Duration(milliseconds: 80),
-      () {
+    final delay = step.requiredTabIndex != null
+        ? AppConstants.animationNormal + const Duration(milliseconds: 50)
+        : const Duration(milliseconds: 50);
+
+    Future.delayed(delay, () {
+      if (!mounted) return;
+      if (ref.read(tutorialProvider).currentStep != stepIndex) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          final rect =
-              ref.read(tutorialTargetRegistryProvider).rectFor(target);
-          setState(() {
-            _currentSpotlight = rect;
-            _measureAttempted = true;
-          });
+        if (ref.read(tutorialProvider).currentStep != stepIndex) return;
+        final rect = ref.read(tutorialTargetRegistryProvider).rectFor(target);
+        setState(() {
+          _currentSpotlight = rect;
+          _measureAttempted = true;
         });
-      },
-    );
+      });
+    });
   }
 
   @override
@@ -100,25 +104,23 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay>
     final screenSize = MediaQuery.of(context).size;
     final step = state.step;
 
-    final showSpotlight = step.spotlightTarget != null &&
+    final hasSpotlight = step.spotlightTarget != null &&
         _currentSpotlight != null &&
         _measureAttempted;
-    final fallbackToCenter = step.spotlightTarget != null &&
-        _currentSpotlight == null &&
-        _measureAttempted;
-    final centered = step.spotlightTarget == null || fallbackToCenter;
+    final centered = step.spotlightTarget == null || !hasSpotlight;
 
     return Stack(
-      key: ValueKey(state.currentStep),
       children: [
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {},
-          child: CustomPaint(
-            size: screenSize,
-            painter: _SpotlightPainter(
-              spotlight: showSpotlight ? _currentSpotlight : null,
-              borderRadius: 16,
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: screenSize,
+              painter: _SpotlightPainter(
+                spotlight: hasSpotlight ? _currentSpotlight : null,
+                borderRadius: 16,
+              ),
             ),
           ),
         ),
