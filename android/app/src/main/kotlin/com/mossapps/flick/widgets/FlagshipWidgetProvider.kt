@@ -3,19 +3,11 @@ package com.mossapps.flick.widgets
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.text.Layout
-import android.text.StaticLayout
-import android.text.TextPaint
-import android.text.TextUtils
 import android.util.Log
-import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
-import androidx.core.content.res.ResourcesCompat
 import com.mossapps.flick.R
 
 class FlagshipWidgetProvider : AppWidgetProvider() {
@@ -69,14 +61,30 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                     // ponytail: RemoteViews ignores custom XML fonts on many devices, so render text to bitmaps
                     views.setImageViewBitmap(
                         R.id.flagship_title,
-                        createTextBitmap(context, title, R.font.product_sans_bold, 15, Color.WHITE, textWidthPx),
+                        WidgetTextRenderer.createTextBitmap(
+                            context,
+                            title,
+                            R.font.product_sans_bold,
+                            15,
+                            Color.WHITE,
+                            textWidthPx,
+                            Layout.Alignment.ALIGN_CENTER,
+                        ),
                     )
                     views.setContentDescription(R.id.flagship_title, title)
 
                     if (showArtist && artist.isNotEmpty()) {
                         views.setImageViewBitmap(
                             R.id.flagship_artist,
-                            createTextBitmap(context, artist, R.font.product_sans_regular, 12, accentColor, textWidthPx),
+                            WidgetTextRenderer.createTextBitmap(
+                                context,
+                                artist,
+                                R.font.product_sans_regular,
+                                12,
+                                accentColor,
+                                textWidthPx,
+                                Layout.Alignment.ALIGN_CENTER,
+                            ),
                         )
                         views.setContentDescription(R.id.flagship_artist, artist)
                         views.setViewVisibility(R.id.flagship_artist, View.VISIBLE)
@@ -164,7 +172,15 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                     val tapText = context.getString(R.string.widget_tap_to_open)
                     views.setImageViewBitmap(
                         R.id.flagship_title,
-                        createTextBitmap(context, tapText, R.font.product_sans_bold, 15, Color.WHITE, textWidthPx),
+                        WidgetTextRenderer.createTextBitmap(
+                            context,
+                            tapText,
+                            R.font.product_sans_bold,
+                            15,
+                            Color.WHITE,
+                            textWidthPx,
+                            Layout.Alignment.ALIGN_CENTER,
+                        ),
                     )
                     views.setContentDescription(R.id.flagship_title, tapText)
                     views.setViewVisibility(R.id.flagship_artist, View.GONE)
@@ -185,36 +201,5 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
         } catch (e: Exception) {
             Log.e(TAG, "Error updating flagship widget", e)
         }
-    }
-
-    private fun createTextBitmap(
-        context: Context,
-        text: String,
-        fontRes: Int,
-        textSizeSp: Int,
-        textColor: Int,
-        maxWidthPx: Int,
-    ): Bitmap {
-        val dm = context.resources.displayMetrics
-        val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = ResourcesCompat.getFont(context, fontRes)
-            textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, textSizeSp.toFloat(), dm)
-            color = textColor
-        }
-        val ellipsized = TextUtils.ellipsize(text, paint, maxWidthPx.toFloat(), TextUtils.TruncateAt.END)
-        @Suppress("DEPRECATION")
-        val layout = StaticLayout(
-            ellipsized,
-            paint,
-            maxWidthPx,
-            Layout.Alignment.ALIGN_CENTER,
-            1f,
-            0f,
-            false,
-        )
-        val bitmap = Bitmap.createBitmap(maxWidthPx, layout.height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        layout.draw(canvas)
-        return bitmap
     }
 }
