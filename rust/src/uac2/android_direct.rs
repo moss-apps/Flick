@@ -3535,6 +3535,62 @@ fn create_android_usb_backend_inner(
                 );
             }
         }
+    } else if candidate.is_uac1 {
+        // UAC1 has no UAC2 clock entity; the sample rate is set endpoint-level
+        // via SET_CUR (UAC1_SAM_FREQ_CONTROL 0x0100) on the streaming endpoint.
+        // Re-issue it here because the alt-setting reset to 0 above may have
+        // cleared device state, then trust the endpoint-level set. UAC1
+        // endpoints are set-only (no GET_CUR readback for sample rate), so
+        // clock "verification" is structurally impossible — a successful
+        // SET_CUR is the strongest evidence available and is what the UAC1
+        // spec defines as the rate-setting mechanism.
+        // ponytail: ceiling — a device that resets its rate when the streaming
+        // alt setting is switched on (after this SET_CUR) would need a
+        // post-alt re-SET_CUR; add that if a UAC1 dongle shows wrong-rate
+        // playback despite SET_CUR succeeding here.
+        match set_uac1_sampling_frequency(
+            &claimed_handle.handle,
+            candidate.endpoint_address,
+            playback_format.sample_rate,
+        ) {
+            Ok(()) => {
+                clock_control_attempted = true;
+                clock_control_succeeded = true;
+                clock_verification_passed = true;
+                reported_sample_rate = Some(playback_format.sample_rate);
+                set_dac_mode(DacMode::FixedClock);
+                set_clock_verification(
+                    clock_control_attempted,
+                    clock_control_succeeded,
+                    clock_verification_passed,
+                    reported_sample_rate,
+                );
+                let message = format!(
+                    "[clock-diag] UAC1: SET_CUR {}Hz on endpoint 0x{:02x} succeeded — trusting endpoint-level rate (no UAC2 clock entity)",
+                    playback_format.sample_rate, candidate.endpoint_address
+                );
+                dev_eprintln!("{}", message);
+                set_last_error(Some(message));
+            }
+            Err(e) => {
+                clock_control_attempted = true;
+                clock_control_succeeded = false;
+                clock_verification_passed = false;
+                reported_sample_rate = None;
+                set_clock_verification(
+                    clock_control_attempted,
+                    clock_control_succeeded,
+                    false,
+                    None,
+                );
+                let message = format!(
+                    "[clock-diag] UAC1 SET_CUR {}Hz on endpoint 0x{:02x} failed: {} — will refuse",
+                    playback_format.sample_rate, candidate.endpoint_address, e
+                );
+                dev_eprintln!("{}", message);
+                set_last_error(Some(message));
+            }
+        }
     } else {
         let message = format!(
             "[clock-diag] Cannot verify {}Hz: no clock entity for alt {} — will refuse",
