@@ -1,5 +1,65 @@
 # Changelog
 
+## 0.19.1-beta.2 (2026-06-18)
+
+### Home Widgets Redesigned
+- **Mini player widget** redesigned with bitmap text rendering for RemoteViews font compatibility across Android versions.
+- **WidgetTextRenderer** class extracts text-to-bitmap rendering, making widget labels crisp on all devices.
+- **Flagship 2×2 widget** enabled — redesigned layout with transport controls, shuffle/repeat buttons, accent color support, and per-widget content settings.
+- Widget art loading with max-pixel-dimension parameter for performance.
+- Removed unused widget drawables, themes, progress drawable preferences, and dead layout code.
+
+### Crossfade Fixes & Polish
+- **Crossfade advance pending flag** prevents duplicate track advancement during crossfade transitions.
+- Crossfade state tracking moved to `RustAudioService` for accurate lifecycle management.
+- Crossfader diagnostics improved with stream restart on Oboe interruption.
+- `rebind_sample_rate` preserves crossfader settings across sample rate changes.
+- Prevent redundant crossfade re-queuing on duration-change events.
+- Separate configured vs. active crossfade durations — fade clamps to half the track length.
+- Crossfade forces DSP audio path; suppressed under 432 Hz tuning.
+- Crossfade section tagged as experimental in settings.
+
+### Help & Manual System
+- **Manual screen** with search bar and collapsible sections covering all app features.
+- Full manual data models with organized help content across the entire app.
+- **Tutorial overlay** with dynamic spotlight positioning that highlights UI elements.
+- Tutorial target registry and anchor widget for consistent tutorial UI.
+- `TutorialStep` enum refactored with metadata (title, description, target).
+- Help & Manual section added to Settings.
+- Song search bar and sort button wrapped in tutorial targets.
+- Nav bar and mini player wrapped in tutorial targets for guided onboarding.
+
+### Songs Screen: Album Grid Mode
+- Songs screen refactored from folder-based grouping to album-based grid mode.
+- Album-based sorting replaces folder sort option.
+- Folder sort option removed in favor of album sort.
+
+### Folder Tree View
+- New folder tree view mode with expandable hierarchy, glass styling, and guide lines.
+- Toggle between grid and tree view for folder browsing.
+
+### Nav Bar & Bottom Sheet Polish
+- `FlickNavBar` converted to `StatefulWidget` with directional slide animation on item select/deselect.
+- Removed sliding animation from nav bar items for simpler interaction.
+- Bottom sheets dismiss on tap outside.
+- Optional tag badge on `SettingsSectionHeader` for marking experimental features.
+
+### Artwork Card Frame
+- Optional glass frame around album art cards — toggle in Settings.
+- `showArtworkCardFrame` preference with persistence.
+- Artwork sizing adjusted to accommodate the frame.
+
+### Audio Engine & UAC1
+- **UAC1 sample rate handling** via endpoint SET_CUR requests for older UAC 1.0 devices.
+- Audio engine defaults to `rustOboe` only when `exoPlayer` preference is selected.
+- Refined DAP shared path logic and audio engine selection UI.
+
+### UI Polish
+- Milestone collection grid switched to list layout for cleaner scrolling.
+- `AnimatedCrossFade` replaced with `AnimatedSize` for smoother section expansion in settings.
+- Removed unused manual screen sections; extracted entry content widget.
+- Tutorial overlay logic and state management refactored.
+
 ## 0.19.0-beta.1 (2026-06-15)
 
 ### ListenBrainz Scrobbling
