@@ -46,6 +46,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                   artworkCardShowArtist: appPrefs.artworkCardShowArtist,
                   artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
                   artworkCardShowFileInfo: appPrefs.artworkCardShowFileInfo,
+                  artworkCardShowFrame: appPrefs.artworkCardShowFrame,
                   immersiveTextScale: appPrefs.immersiveTextScale,
                   immersiveVerticalOffset: appPrefs.immersiveVerticalOffset,
                   immersiveFullViewScale: appPrefs.immersiveFullViewScale,
@@ -237,8 +238,8 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                 value: appPrefs.artworkCardArtworkScale,
                 displayValue: _percentLabel(appPrefs.artworkCardArtworkScale),
                 min: 0.8,
-                max: 1.18,
-                divisions: 19,
+                max: 1.36,
+                divisions: 28,
                 onChanged: (value) {
                   ref
                       .read(appPreferencesProvider.notifier)
@@ -325,6 +326,18 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                   ref
                       .read(appPreferencesProvider.notifier)
                       .setArtworkCardShowFileInfo(value);
+                },
+              ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.frame,
+                title: 'Show Frame',
+                subtitle: 'Show the glass frame around album art',
+                value: appPrefs.artworkCardShowFrame,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setArtworkCardShowFrame(value);
                 },
               ),
               const SettingsDivider(),
@@ -436,6 +449,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                           artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
                           artworkCardShowFileInfo:
                               appPrefs.artworkCardShowFileInfo,
+                          artworkCardShowFrame: appPrefs.artworkCardShowFrame,
                           immersiveTextScale: appPrefs.immersiveTextScale,
                           immersiveVerticalOffset:
                               appPrefs.immersiveVerticalOffset,
@@ -529,6 +543,7 @@ class _LayoutPreview extends StatelessWidget {
     required this.artworkCardShowArtist,
     required this.artworkCardShowAlbum,
     required this.artworkCardShowFileInfo,
+    required this.artworkCardShowFrame,
     required this.immersiveTextScale,
     required this.immersiveVerticalOffset,
     required this.immersiveFullViewScale,
@@ -546,6 +561,7 @@ class _LayoutPreview extends StatelessWidget {
   final bool artworkCardShowArtist;
   final bool artworkCardShowAlbum;
   final bool artworkCardShowFileInfo;
+  final bool artworkCardShowFrame;
   final double immersiveTextScale;
   final double immersiveVerticalOffset;
   final double immersiveFullViewScale;
@@ -913,6 +929,7 @@ class _FullScreenPreview extends StatelessWidget {
     this.artworkCardShowArtist = true,
     this.artworkCardShowAlbum = true,
     this.artworkCardShowFileInfo = true,
+    this.artworkCardShowFrame = true,
     required this.immersiveTextScale,
     required this.immersiveVerticalOffset,
     required this.immersiveFullViewScale,
@@ -930,6 +947,7 @@ class _FullScreenPreview extends StatelessWidget {
   final bool artworkCardShowArtist;
   final bool artworkCardShowAlbum;
   final bool artworkCardShowFileInfo;
+  final bool artworkCardShowFrame;
   final double immersiveTextScale;
   final double immersiveVerticalOffset;
   final double immersiveFullViewScale;

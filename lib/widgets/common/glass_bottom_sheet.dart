@@ -46,21 +46,28 @@ class AppBottomSheetSurface extends StatelessWidget {
     return RepaintBoundary(
       child: SafeArea(
         top: false,
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: maxHeight),
-            child: Container(
-              decoration: decoration,
-              padding:
-                  padding ??
-                  EdgeInsets.fromLTRB(
-                    AppConstants.spacingLg,
-                    AppConstants.spacingSm,
-                    AppConstants.spacingLg,
-                    mediaQuery.padding.bottom + AppConstants.spacingLg,
-                  ),
-              child: child,
+        child: GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          behavior: HitTestBehavior.opaque,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: GestureDetector(
+              onTap: () {},
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: Container(
+                  decoration: decoration,
+                  padding:
+                      padding ??
+                      EdgeInsets.fromLTRB(
+                        AppConstants.spacingLg,
+                        AppConstants.spacingSm,
+                        AppConstants.spacingLg,
+                        mediaQuery.padding.bottom + AppConstants.spacingLg,
+                      ),
+                  child: child,
+                ),
+              ),
             ),
           ),
         ),

@@ -28,6 +28,7 @@ class AppPreferences {
   final bool artworkCardShowArtist;
   final bool artworkCardShowAlbum;
   final bool artworkCardShowFileInfo;
+  final bool artworkCardShowFrame;
   final double immersiveTextScale;
   final double immersiveVerticalOffset;
   final double immersiveFullViewScale;
@@ -83,6 +84,7 @@ class AppPreferences {
     this.artworkCardShowArtist = true,
     this.artworkCardShowAlbum = true,
     this.artworkCardShowFileInfo = true,
+    this.artworkCardShowFrame = true,
     this.immersiveTextScale = 1.0,
     this.immersiveVerticalOffset = 0.0,
     this.immersiveFullViewScale = 1.0,
@@ -139,6 +141,7 @@ class AppPreferences {
     bool? artworkCardShowArtist,
     bool? artworkCardShowAlbum,
     bool? artworkCardShowFileInfo,
+    bool? artworkCardShowFrame,
     double? immersiveTextScale,
     double? immersiveVerticalOffset,
     double? immersiveFullViewScale,
@@ -204,6 +207,7 @@ class AppPreferences {
       artworkCardShowAlbum: artworkCardShowAlbum ?? this.artworkCardShowAlbum,
       artworkCardShowFileInfo:
           artworkCardShowFileInfo ?? this.artworkCardShowFileInfo,
+      artworkCardShowFrame: artworkCardShowFrame ?? this.artworkCardShowFrame,
       immersiveTextScale: immersiveTextScale ?? this.immersiveTextScale,
       immersiveVerticalOffset:
           immersiveVerticalOffset ?? this.immersiveVerticalOffset,
@@ -274,6 +278,7 @@ class AppPreferencesService {
   static const _artworkCardShowArtistKey = 'artwork_card_show_artist';
   static const _artworkCardShowAlbumKey = 'artwork_card_show_album';
   static const _artworkCardShowFileInfoKey = 'artwork_card_show_file_info';
+  static const _artworkCardShowFrameKey = 'artwork_card_show_frame';
   static const _immersiveTextScaleKey = 'immersive_text_scale';
   static const _immersiveVerticalOffsetKey = 'immersive_vertical_offset';
   static const _immersiveFullViewScaleKey = 'immersive_full_view_scale';
@@ -345,6 +350,7 @@ class AppPreferencesService {
       artworkCardShowAlbum: prefs.getBool(_artworkCardShowAlbumKey) ?? true,
       artworkCardShowFileInfo:
           prefs.getBool(_artworkCardShowFileInfoKey) ?? true,
+      artworkCardShowFrame: prefs.getBool(_artworkCardShowFrameKey) ?? true,
       immersiveTextScale: prefs.getDouble(_immersiveTextScaleKey) ?? 1.0,
       immersiveVerticalOffset:
           prefs.getDouble(_immersiveVerticalOffsetKey) ?? 0.0,
@@ -638,6 +644,16 @@ class AppPreferencesService {
   Future<void> setArtworkCardShowFileInfo(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_artworkCardShowFileInfoKey, value);
+  }
+
+  Future<bool> getArtworkCardShowFrame() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_artworkCardShowFrameKey) ?? true;
+  }
+
+  Future<void> setArtworkCardShowFrame(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_artworkCardShowFrameKey, value);
   }
 
   Future<void> setImmersiveTextScale(double value) async {

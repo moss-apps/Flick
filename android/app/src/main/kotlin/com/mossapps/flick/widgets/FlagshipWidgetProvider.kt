@@ -3,17 +3,26 @@ package com.mossapps.flick.widgets
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
-import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
+import android.text.TextUtils
 import android.util.Log
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
+import androidx.core.content.res.ResourcesCompat
 import com.mossapps.flick.R
 
 class FlagshipWidgetProvider : AppWidgetProvider() {
 
     companion object {
         private const val TAG = "FlagshipWidget"
+        private const val ART_MAX_PX = 1024
     }
 
     override fun onUpdate(
@@ -30,24 +39,26 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                 ?: context.getString(R.string.widget_nothing_playing)
             val artist = prefs.getString(WidgetPrefs.KEY_ARTIST, "") ?: ""
             val artPath = prefs.getString(WidgetPrefs.KEY_ALBUM_ART, "") ?: ""
-            val positionMs = readMs(prefs, WidgetPrefs.KEY_POSITION_MS)
-            val durationMs = readMs(prefs, WidgetPrefs.KEY_DURATION_MS)
             val showArtist = WidgetPrefs.getFlagshipShowArtist(context)
             val accentColor = WidgetPrefs.getFlagshipAccentColor(context)
-            val theme = WidgetPrefs.getFlagshipTheme(context)
-            Log.d(TAG, "hasSong=$hasSong, isPlaying=$isPlaying, title=$title, theme=$theme, idsCount=${appWidgetIds.size}")
+            val isShuffle = prefs.getBoolean(WidgetPrefs.KEY_IS_SHUFFLE, false)
+            val loopMode = prefs.getInt(WidgetPrefs.KEY_LOOP_MODE, 0)
+            Log.d(TAG, "hasSong=$hasSong, isPlaying=$isPlaying, title=$title, idsCount=${appWidgetIds.size}")
+
+            val dm = context.resources.displayMetrics
+            val marginPadDp = 48f
 
             for (id in appWidgetIds) {
-                Log.d(TAG, "Updating widget id=$id with theme=$theme")
-                val layoutId = when (theme) {
-                    "card" -> R.layout.widget_flagship_card
-                    "split" -> R.layout.widget_flagship_split
-                    else -> R.layout.widget_flagship_art
-                }
-                val views = RemoteViews(context.packageName, layoutId)
+                Log.d(TAG, "Updating widget id=$id")
+                val views = RemoteViews(context.packageName, R.layout.widget_flagship_art)
+
+                val options = appWidgetManager.getAppWidgetOptions(id)
+                val widgetWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
+                val widgetWidthPx = if (widgetWidthDp > 0) (widgetWidthDp * dm.density).toInt() else dm.widthPixels
+                val textWidthPx = (widgetWidthPx - marginPadDp * dm.density).toInt().coerceAtLeast(100)
 
                 if (hasSong) {
-                    val art = WidgetArtLoader.load(artPath)
+                    val art = WidgetArtLoader.load(artPath, ART_MAX_PX)
                     if (art != null) {
                         views.setImageViewBitmap(R.id.flagship_art, art)
                     } else {
@@ -55,12 +66,19 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                     }
                     views.setViewVisibility(R.id.flagship_art, View.VISIBLE)
 
-                    views.setTextViewText(R.id.flagship_title, title)
-                    views.setTextColor(R.id.flagship_title, Color.WHITE)
+                    // ponytail: RemoteViews ignores custom XML fonts on many devices, so render text to bitmaps
+                    views.setImageViewBitmap(
+                        R.id.flagship_title,
+                        createTextBitmap(context, title, R.font.product_sans_bold, 15, Color.WHITE, textWidthPx),
+                    )
+                    views.setContentDescription(R.id.flagship_title, title)
 
                     if (showArtist && artist.isNotEmpty()) {
-                        views.setTextViewText(R.id.flagship_artist, artist)
-                        views.setTextColor(R.id.flagship_artist, accentColor)
+                        views.setImageViewBitmap(
+                            R.id.flagship_artist,
+                            createTextBitmap(context, artist, R.font.product_sans_regular, 12, accentColor, textWidthPx),
+                        )
+                        views.setContentDescription(R.id.flagship_artist, artist)
                         views.setViewVisibility(R.id.flagship_artist, View.VISIBLE)
                     } else {
                         views.setViewVisibility(R.id.flagship_artist, View.GONE)
@@ -68,23 +86,45 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
 
                     views.setImageViewResource(
                         R.id.flagship_play_pause,
-                        if (isPlaying) R.drawable.widget_ic_pause else R.drawable.widget_ic_play,
+                        if (isPlaying) R.drawable.widget_ic_lucide_pause else R.drawable.widget_ic_lucide_play,
                     )
                     views.setViewVisibility(R.id.flagship_prev, View.VISIBLE)
                     views.setViewVisibility(R.id.flagship_play_pause, View.VISIBLE)
                     views.setViewVisibility(R.id.flagship_next, View.VISIBLE)
+                    views.setViewVisibility(R.id.flagship_shuffle, View.VISIBLE)
+                    views.setViewVisibility(R.id.flagship_repeat, View.VISIBLE)
 
-                    if (durationMs > 0) {
-                        views.setViewVisibility(R.id.flagship_progress, View.VISIBLE)
-                        views.setProgressBar(
-                            R.id.flagship_progress,
-                            1000,
-                            (positionMs * 1000L / durationMs).toInt().coerceIn(0, 1000),
-                            false,
-                        )
-                    } else {
-                        views.setViewVisibility(R.id.flagship_progress, View.GONE)
-                    }
+                    // ponytail: distinguish active from inactive via bg highlight + glyph swap,
+                    // not just tint (white accent makes tint-only changes invisible)
+                    val inactiveTint = Color.argb(0x55, 0xFF, 0xFF, 0xFF)
+                    val activeBg = R.drawable.widget_button_transport_active_bg
+                    val inactiveBg = R.drawable.widget_button_transport_bg
+                    views.setInt(
+                        R.id.flagship_shuffle,
+                        "setBackgroundResource",
+                        if (isShuffle) activeBg else inactiveBg,
+                    )
+                    views.setInt(
+                        R.id.flagship_shuffle,
+                        "setColorFilter",
+                        if (isShuffle) accentColor else inactiveTint,
+                    )
+                    val repeatActive = loopMode != 0
+                    views.setInt(
+                        R.id.flagship_repeat,
+                        "setBackgroundResource",
+                        if (repeatActive) activeBg else inactiveBg,
+                    )
+                    views.setImageViewResource(
+                        R.id.flagship_repeat,
+                        if (loopMode == 1) R.drawable.widget_ic_repeat1
+                        else R.drawable.widget_ic_lucide_repeat,
+                    )
+                    views.setInt(
+                        R.id.flagship_repeat,
+                        "setColorFilter",
+                        if (repeatActive) accentColor else inactiveTint,
+                    )
 
                     views.setOnClickPendingIntent(
                         R.id.flagship_art,
@@ -110,19 +150,29 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                         R.id.flagship_prev,
                         WidgetIntents.playerPrevious(context),
                     )
+                    views.setOnClickPendingIntent(
+                        R.id.flagship_shuffle,
+                        WidgetIntents.playerShuffle(context),
+                    )
+                    views.setOnClickPendingIntent(
+                        R.id.flagship_repeat,
+                        WidgetIntents.playerRepeat(context),
+                    )
                 } else {
                     views.setImageViewResource(R.id.flagship_art, R.drawable.widget_default_art)
                     views.setViewVisibility(R.id.flagship_art, View.VISIBLE)
-                    views.setTextViewText(
+                    val tapText = context.getString(R.string.widget_tap_to_open)
+                    views.setImageViewBitmap(
                         R.id.flagship_title,
-                        context.getString(R.string.widget_tap_to_open),
+                        createTextBitmap(context, tapText, R.font.product_sans_bold, 15, Color.WHITE, textWidthPx),
                     )
-                    views.setTextColor(R.id.flagship_title, Color.WHITE)
+                    views.setContentDescription(R.id.flagship_title, tapText)
                     views.setViewVisibility(R.id.flagship_artist, View.GONE)
-                    views.setViewVisibility(R.id.flagship_progress, View.GONE)
                     views.setViewVisibility(R.id.flagship_prev, View.GONE)
                     views.setViewVisibility(R.id.flagship_play_pause, View.GONE)
                     views.setViewVisibility(R.id.flagship_next, View.GONE)
+                    views.setViewVisibility(R.id.flagship_shuffle, View.GONE)
+                    views.setViewVisibility(R.id.flagship_repeat, View.GONE)
 
                     val openIntent = WidgetIntents.openApp(context, 40)
                     views.setOnClickPendingIntent(R.id.flagship_art, openIntent)
@@ -137,11 +187,34 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    private fun readMs(prefs: SharedPreferences, key: String): Long {
-        return try {
-            prefs.getLong(key, 0L)
-        } catch (_: ClassCastException) {
-            prefs.getInt(key, 0).toLong()
+    private fun createTextBitmap(
+        context: Context,
+        text: String,
+        fontRes: Int,
+        textSizeSp: Int,
+        textColor: Int,
+        maxWidthPx: Int,
+    ): Bitmap {
+        val dm = context.resources.displayMetrics
+        val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = ResourcesCompat.getFont(context, fontRes)
+            textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, textSizeSp.toFloat(), dm)
+            color = textColor
         }
+        val ellipsized = TextUtils.ellipsize(text, paint, maxWidthPx.toFloat(), TextUtils.TruncateAt.END)
+        @Suppress("DEPRECATION")
+        val layout = StaticLayout(
+            ellipsized,
+            paint,
+            maxWidthPx,
+            Layout.Alignment.ALIGN_CENTER,
+            1f,
+            0f,
+            false,
+        )
+        val bitmap = Bitmap.createBitmap(maxWidthPx, layout.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        layout.draw(canvas)
+        return bitmap
     }
 }

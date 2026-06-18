@@ -6,7 +6,7 @@ import 'package:flick/core/utils/responsive.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/models/nav_bar_config.dart';
 
-class FlickNavBar extends StatelessWidget {
+class FlickNavBar extends StatefulWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
   final VoidCallback? onBottomBarSettings;
@@ -27,8 +27,13 @@ class FlickNavBar extends StatelessWidget {
   });
 
   @override
+  State<FlickNavBar> createState() => _FlickNavBarState();
+}
+
+class _FlickNavBarState extends State<FlickNavBar> {
+  @override
   Widget build(BuildContext context) {
-    final buttons = config.orderedButtons;
+    final buttons = widget.config.orderedButtons;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final horizontalPadding = context.scaleSize(AppConstants.spacingLg);
     final verticalPadding = context.scaleSize(AppConstants.spacingSm);
@@ -48,7 +53,7 @@ class FlickNavBar extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: collapsed
+          colors: widget.collapsed
               ? [Colors.transparent, Colors.transparent]
               : [
                   AppColors.surfaceLight.withValues(alpha: 0.92),
@@ -57,10 +62,10 @@ class FlickNavBar extends StatelessWidget {
         ),
         borderRadius: borderRadius,
         border: Border.all(
-          color: collapsed ? Colors.transparent : AppColors.glassBorder,
+          color: widget.collapsed ? Colors.transparent : AppColors.glassBorder,
           width: 1,
         ),
-        boxShadow: collapsed
+        boxShadow: widget.collapsed
             ? [
                 const BoxShadow(
                   color: Colors.transparent,
@@ -93,12 +98,12 @@ class FlickNavBar extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (showMiniPlayer && miniPlayerWidget != null) miniPlayerWidget!,
+          if (widget.showMiniPlayer && widget.miniPlayerWidget != null) widget.miniPlayerWidget!,
           AnimatedCrossFade(
             firstChild: _buildNavigationRow(context, buttons),
             secondChild: const SizedBox.shrink(),
             crossFadeState:
-                collapsed
+                widget.collapsed
                     ? CrossFadeState.showSecond
                     : CrossFadeState.showFirst,
             duration: AppConstants.animationNormal,
@@ -110,21 +115,21 @@ class FlickNavBar extends StatelessWidget {
   }
 
   Widget _buildNavigationRow(BuildContext context, List<NavBarButton> buttons) {
-    final spacingFactor = config.buttonSpacingFactor;
+    final spacingFactor = widget.config.buttonSpacingFactor;
     final baseItemPadding = context.scaleSize(AppConstants.spacingMd);
     final itemPadding = baseItemPadding * spacingFactor;
 
     const minTapTargetSize = 48.0;
 
-    final missingEssentials = config.missingEssentials;
-    final isOnMissingEssential = missingEssentials.any((b) => b.pageIndex == currentIndex);
+    final missingEssentials = widget.config.missingEssentials;
+    final isOnMissingEssential = missingEssentials.any((b) => b.pageIndex == widget.currentIndex);
 
     return GestureDetector(
-      onLongPress: onBottomBarSettings,
+      onLongPress: widget.onBottomBarSettings,
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: itemPadding,
-          vertical: context.scaleSize(AppConstants.spacingXs) * config.barSizeFactor,
+          vertical: context.scaleSize(AppConstants.spacingXs) * widget.config.barSizeFactor,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -138,9 +143,9 @@ class FlickNavBar extends StatelessWidget {
                     constraints: const BoxConstraints(minHeight: minTapTargetSize),
                     child: _FlickNavItem(
                       button: button,
-                      isSelected: currentIndex == button.pageIndex,
-                      config: config,
-                      onTap: () => onTap(button.pageIndex),
+                      isSelected: widget.currentIndex == button.pageIndex,
+                      config: widget.config,
+                      onTap: () => widget.onTap(button.pageIndex),
                     ),
                   ),
                 );
@@ -152,10 +157,10 @@ class FlickNavBar extends StatelessWidget {
                   constraints: const BoxConstraints(minHeight: minTapTargetSize),
                   child: _OverflowNavItem(
                     isSelected: isOnMissingEssential,
-                    config: config,
+                    config: widget.config,
                     missingButtons: missingEssentials,
-                    onSelect: (button) => onTap(button.pageIndex),
-                    onBottomBarSettings: onBottomBarSettings,
+                    onSelect: (button) => widget.onTap(button.pageIndex),
+                    onBottomBarSettings: widget.onBottomBarSettings,
                   ),
                 ),
               ),
@@ -628,7 +633,7 @@ class _FlickNavItemState extends State<_FlickNavItem>
             ),
           );
         },
-      ),
-    );
+        ),
+      );
+    }
   }
-}

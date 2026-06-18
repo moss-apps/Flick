@@ -28,6 +28,7 @@ import 'package:flick/widgets/navigation/flick_nav_bar.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
+import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flick/features/onboarding/widgets/tutorial_overlay.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/models/song.dart';
@@ -791,25 +792,31 @@ class _MainShellState extends ConsumerState<MainShell>
     final currentIndex = ref.watch(navigationIndexProvider);
     final navBarConfig = ref.watch(navBarConfigProvider);
 
-    return FlickNavBar(
-      currentIndex: currentIndex,
-      config: navBarConfig,
-      collapsed: _isBottomBarCollapsed,
-      onTap: (index) {
-        if (ref.read(navigationIndexProvider) != index) {
-          ref.read(navigationIndexProvider.notifier).setIndex(index);
-        }
-      },
-      onBottomBarSettings: () {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => const BottomBarSettingsScreen(),
-          ),
-        );
-      },
-      showMiniPlayer: true,
-      miniPlayerWidget: _EmbeddedMiniPlayer(
+    return TutorialTargetAnchor(
+      target: TutorialTarget.navBar,
+      child: FlickNavBar(
+        currentIndex: currentIndex,
+        config: navBarConfig,
         collapsed: _isBottomBarCollapsed,
+        onTap: (index) {
+          if (ref.read(navigationIndexProvider) != index) {
+            ref.read(navigationIndexProvider.notifier).setIndex(index);
+          }
+        },
+        onBottomBarSettings: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const BottomBarSettingsScreen(),
+            ),
+          );
+        },
+        showMiniPlayer: true,
+        miniPlayerWidget: TutorialTargetAnchor(
+          target: TutorialTarget.miniPlayer,
+          child: _EmbeddedMiniPlayer(
+            collapsed: _isBottomBarCollapsed,
+          ),
+        ),
       ),
     );
   }

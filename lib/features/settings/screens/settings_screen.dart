@@ -15,6 +15,7 @@ import 'package:flick/features/settings/screens/widget_settings_screen.dart';
 import 'package:flick/features/settings/screens/support_flick_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/milestone/screens/milestones_screen.dart';
+import 'package:flick/features/manual/screens/manual_screen.dart';
 import 'package:flick/services/milestone_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -173,6 +174,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle: 'Customize home screen widgets',
                           onTap: () =>
                               _navigate(context, const WidgetSettingsScreen()),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppConstants.spacingLg),
+                    _buildSectionHeader(context, 'Help'),
+                    SettingsCard(
+                      children: [
+                        _CategoryTile(
+                          icon: LucideIcons.bookOpen,
+                          iconBg: const Color(0xFF2D4A6F),
+                          iconFg: const Color(0xFF8BB8FF),
+                          title: 'Help & Manual',
+                          subtitle: 'Browse the full controls guide',
+                          onTap: () =>
+                              _navigate(context, const ManualScreen()),
                         ),
                       ],
                     ),

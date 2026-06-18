@@ -1,3 +1,5 @@
+import 'dart:math' show cos, pi, sin, sqrt;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -8,11 +10,10 @@ import 'package:flick/features/settings/screens/equalizer_screen.dart';
 import 'package:flick/features/settings/screens/uac2_settings_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/services/android_audio_device_service.dart';
-// TODO: crossfade disabled for this version
-// import 'package:flick/core/utils/app_haptics.dart';
-// import 'package:flick/providers/app_preferences_provider.dart';
-// import 'package:flick/services/rust_audio_service.dart';
-// import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
+import 'package:flick/providers/app_preferences_provider.dart';
+import 'package:flick/providers/player_provider.dart';
+import 'package:flick/services/player_service.dart';
+import 'package:flick/services/uac2_preferences_service.dart';
 
 class AudioSettingsScreen extends ConsumerStatefulWidget {
   const AudioSettingsScreen({super.key});
@@ -23,9 +24,6 @@ class AudioSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _AudioSettingsScreenState extends ConsumerState<AudioSettingsScreen> {
-  // TODO: crossfade disabled for this version
-  // final _rustAudioService = RustAudioService();
-
   @override
   void initState() {
     super.initState();
@@ -33,33 +31,6 @@ class _AudioSettingsScreenState extends ConsumerState<AudioSettingsScreen> {
       AndroidAudioDeviceService.instance.refresh();
     });
   }
-
-  // static const _curveLabels = <String>[
-  //   'Equal Power',
-  //   'Linear',
-  //   'Square Root',
-  //   'S-Curve',
-  // ];
-
-  // static const _curveValues = <rust_audio.CrossfadeCurveType>[
-  //   rust_audio.CrossfadeCurveType.equalPower,
-  //   rust_audio.CrossfadeCurveType.linear,
-  //   rust_audio.CrossfadeCurveType.squareRoot,
-  //   rust_audio.CrossfadeCurveType.sCurve,
-  // ];
-
-  // Future<void> _applyCrossfade() async {
-  //   final prefs = ref.read(appPreferencesProvider);
-  //   await _rustAudioService.setCrossfade(
-  //     enabled: prefs.crossfadeEnabled,
-  //     durationSecs: prefs.crossfadeDurationSecs,
-  //   );
-  //   final curve = _curveValues[prefs.crossfadeCurveIndex.clamp(
-  //     0,
-  //     _curveValues.length - 1,
-  //   )];
-  //   await _rustAudioService.setCrossfadeCurve(curve);
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -111,15 +82,414 @@ class _AudioSettingsScreenState extends ConsumerState<AudioSettingsScreen> {
               ),
             ],
           ),
-          // TODO: crossfade disabled for this version
-          // const SizedBox(height: AppConstants.spacingLg),
-          // const SettingsSectionHeader('Crossfade'),
-          // SettingsCard(
+          const SizedBox(height: AppConstants.spacingLg),
+          const _CrossfadeSection(),
           const SizedBox(height: AppConstants.spacingLg),
           const SizedBox(height: AppConstants.navBarHeight + 40),
         ],
       ),
     );
+  }
+}
+
+class _CrossfadeSection extends ConsumerWidget {
+  const _CrossfadeSection();
+
+  static const _curveLabels = <String>[
+    'Equal Power',
+    'Linear',
+    'Square Root',
+    'S-Curve',
+  ];
+
+  Future<void> _setEnabled(
+    WidgetRef ref,
+    PlayerService playerService,
+    bool value,
+  ) async {
+    final prefs = ref.read(appPreferencesProvider);
+    await ref.read(appPreferencesProvider.notifier).setCrossfadeEnabled(value);
+    await playerService.applyCrossfadeSettings(
+      enabled: value,
+      durationSecs: prefs.crossfadeDurationSecs,
+    );
+  }
+
+  Future<void> _setDuration(
+    WidgetRef ref,
+    PlayerService playerService,
+    double value,
+  ) async {
+    final prefs = ref.read(appPreferencesProvider);
+    await ref
+        .read(appPreferencesProvider.notifier)
+        .setCrossfadeDurationSecs(value);
+    await playerService.applyCrossfadeSettings(
+      enabled: prefs.crossfadeEnabled,
+      durationSecs: value,
+    );
+  }
+
+  Future<void> _setCurve(
+    WidgetRef ref,
+    PlayerService playerService,
+    int index,
+  ) async {
+    final prefs = ref.read(appPreferencesProvider);
+    await ref
+        .read(appPreferencesProvider.notifier)
+        .setCrossfadeCurveIndex(index);
+    await playerService.applyCrossfadeSettings(
+      enabled: prefs.crossfadeEnabled,
+      durationSecs: prefs.crossfadeDurationSecs,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(appPreferencesProvider);
+    final playerService = ref.read(playerServiceProvider);
+
+    return ListenableBuilder(
+      listenable: playerService.bitPerfectProcessingLockedNotifier,
+      builder: (context, _) {
+        final locked = playerService.bitPerfectProcessingLockedNotifier.value;
+        final is432Hz = Uac2PreferencesService.is432HzTuningEnabledSync;
+        final effectiveEnabled = !locked && prefs.crossfadeEnabled;
+        final controlsEnabled = !locked;
+
+        final disabledHint = is432Hz
+            ? 'Turn off 432 Hz tuning to use crossfade'
+            : 'Not available in bit-perfect mode';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SettingsSectionHeader('Crossfade', tag: 'Experimental'),
+            SettingsCard(
+              children: [
+                ToggleSetting(
+                  icon: LucideIcons.shuffle,
+                  title: 'Crossfade',
+                  subtitle: locked
+                      ? disabledHint
+                      : 'Overlap the end of a track with the next',
+                  value: effectiveEnabled,
+                  onChanged: locked
+                      ? (_) {}
+                      : (v) => _setEnabled(ref, playerService, v),
+                ),
+                const SettingsDivider(),
+                SliderSetting(
+                  icon: LucideIcons.timer,
+                  title: 'Duration',
+                  subtitle: 'Length of the overlap',
+                  value: prefs.crossfadeDurationSecs.clamp(0.5, 12.0),
+                  displayValue:
+                      '${prefs.crossfadeDurationSecs.toStringAsFixed(1)} s',
+                  min: 0.5,
+                  max: 12.0,
+                  divisions: 23,
+                  onChanged: controlsEnabled
+                      ? (v) => _setDuration(ref, playerService, v)
+                      : null,
+                ),
+                const SettingsDivider(),
+                _CrossfadeCurvePicker(
+                  selectedIndex: prefs.crossfadeCurveIndex,
+                  enabled: controlsEnabled,
+                  onSelect: controlsEnabled
+                      ? (i) => _setCurve(ref, playerService, i)
+                      : null,
+                ),
+                const SettingsDivider(),
+                _CrossfadePreview(
+                  curveIndex: prefs.crossfadeCurveIndex,
+                  curveName: _curveLabels[prefs.crossfadeCurveIndex],
+                  durationSecs: prefs.crossfadeDurationSecs,
+                  enabled: effectiveEnabled,
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CrossfadeCurvePicker extends StatelessWidget {
+  const _CrossfadeCurvePicker({
+    required this.selectedIndex,
+    required this.enabled,
+    this.onSelect,
+  });
+
+  final int selectedIndex;
+  final bool enabled;
+  final ValueChanged<int>? onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppConstants.spacingLg,
+        AppConstants.spacingMd,
+        AppConstants.spacingLg,
+        AppConstants.spacingLg,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: AppConstants.spacingXs),
+            child: Text(
+              'Curve',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: enabled
+                    ? context.adaptiveTextPrimary
+                    : context.adaptiveTextTertiary,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          Row(
+            children: [
+              for (
+                var i = 0;
+                i < _CrossfadeSection._curveLabels.length;
+                i++
+              ) ...[
+                if (i > 0) const SizedBox(width: AppConstants.spacingSm),
+                Expanded(
+                  child: _CurveChip(
+                    label: _CrossfadeSection._curveLabels[i],
+                    selected: i == selectedIndex,
+                    enabled: enabled,
+                    onTap: enabled ? () => onSelect?.call(i) : null,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CurveChip extends StatelessWidget {
+  const _CurveChip({
+    required this.label,
+    required this.selected,
+    required this.enabled,
+    this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.45,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: AppConstants.animationFast,
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.spacingMd,
+            vertical: AppConstants.spacingSm,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.textPrimary.withValues(alpha: 0.12)
+                : AppColors.glassBackgroundStrong,
+            borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+            border: Border.all(
+              color: selected
+                  ? AppColors.textPrimary.withValues(alpha: 0.6)
+                  : AppColors.glassBorder,
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: selected
+                  ? context.adaptiveTextPrimary
+                  : context.adaptiveTextSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CrossfadePreview extends StatelessWidget {
+  const _CrossfadePreview({
+    required this.curveIndex,
+    required this.curveName,
+    required this.durationSecs,
+    required this.enabled,
+  });
+
+  final int curveIndex;
+  final String curveName;
+  final double durationSecs;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppConstants.spacingLg,
+        AppConstants.spacingMd,
+        AppConstants.spacingLg,
+        AppConstants.spacingLg,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Preview',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: enabled
+                      ? context.adaptiveTextPrimary
+                      : context.adaptiveTextTertiary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                curveName,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: context.adaptiveTextSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+            child: Container(
+              height: 100,
+              width: double.infinity,
+              color: AppColors.glassBackgroundStrong,
+              child: CustomPaint(
+                painter: _CrossfadeCurvePainter(
+                  curveIndex: curveIndex,
+                  trackAColor: AppColors.textPrimary.withValues(
+                    alpha: enabled ? 0.18 : 0.07,
+                  ),
+                  trackBColor: AppColors.textSecondary.withValues(
+                    alpha: enabled ? 0.30 : 0.12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingSm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '0 s',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.adaptiveTextTertiary,
+                ),
+              ),
+              Text(
+                '${durationSecs.toStringAsFixed(1)} s',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.adaptiveTextTertiary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CrossfadeCurvePainter extends CustomPainter {
+  _CrossfadeCurvePainter({
+    required this.curveIndex,
+    required this.trackAColor,
+    required this.trackBColor,
+  });
+
+  final int curveIndex;
+  final Color trackAColor;
+  final Color trackBColor;
+
+  (double, double) _gains(double t) {
+    switch (curveIndex) {
+      case 0: // Equal power
+        final angle = t * pi / 2;
+        return (cos(angle), sin(angle));
+      case 1: // Linear
+        return (1.0 - t, t);
+      case 2: // Square root
+        return (sqrt(1.0 - t), sqrt(t));
+      case 3: // S-Curve (smoothstep)
+        final s = t * t * (3.0 - 2.0 * t);
+        return (1.0 - s, s);
+      default:
+        return (1.0 - t, t);
+    }
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final midY = size.height / 2;
+    const steps = 60;
+
+    final pathA = Path()..moveTo(0, midY);
+    final pathB = Path()..moveTo(0, midY);
+
+    for (var i = 0; i <= steps; i++) {
+      final t = i / steps;
+      final (gainA, gainB) = _gains(t);
+      final x = t * size.width;
+      pathA.lineTo(x, midY - gainA * midY);
+      pathB.lineTo(x, midY + gainB * midY);
+    }
+
+    pathA
+      ..lineTo(size.width, midY)
+      ..close();
+    pathB
+      ..lineTo(size.width, midY)
+      ..close();
+
+    canvas
+      ..drawPath(pathA, Paint()..color = trackAColor)
+      ..drawPath(pathB, Paint()..color = trackBColor);
+
+    // Centre reference line.
+    canvas.drawLine(
+      Offset(0, midY),
+      Offset(size.width, midY),
+      Paint()
+        ..color = AppColors.textPrimary.withValues(alpha: 0.08)
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CrossfadeCurvePainter oldDelegate) {
+    return oldDelegate.curveIndex != curveIndex ||
+        oldDelegate.trackAColor != trackAColor ||
+        oldDelegate.trackBColor != trackBColor;
   }
 }
 

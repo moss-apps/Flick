@@ -125,6 +125,22 @@ pub struct AudioCallbackData {
     /// Experimental 432 Hz tuning override. When enabled the callback leaves
     /// passthrough and uses the DSP path at 432/440 speed.
     tuning_432hz_enabled: AtomicBool,
+    /// Set when crossfade is enabled. Forces the callback out of passthrough so
+    /// the DSP/crossfade mix path runs — even when the engine verified a
+    /// bit-perfect output (e.g. MixerBitPerfect on a phone whose speaker
+    /// natively supports the track rate). Without this, crossfade is silently
+    /// skipped because is_passthrough() returns true.
+    crossfade_forces_dsp: AtomicBool,
+    /// Lock-free mirror of `crossfader.is_active()`. The command thread polls
+    /// this instead of locking the crossfader so the real-time callback's
+    /// `try_lock` never collides mid-fade (a collision drops the fade gains and
+    /// emits the outgoing track at full volume = audible chopping).
+    crossfade_active: AtomicBool,
+    /// Set by the Oboe error callback when the output stream is disconnected
+    /// (audio focus loss, phone call, route change). The command loop reopens
+    /// the stream so playback resumes at the interrupted position instead of
+    /// jumping to another time.
+    stream_needs_restart: AtomicBool,
 }
 
 impl AudioCallbackData {
@@ -166,6 +182,9 @@ impl AudioCallbackData {
             dynamics: Mutex::new(DynamicsChain::new(sample_rate)),
             finished_tracks,
             tuning_432hz_enabled: AtomicBool::new(tuning_enabled),
+            crossfade_forces_dsp: AtomicBool::new(false),
+            crossfade_active: AtomicBool::new(false),
+            stream_needs_restart: AtomicBool::new(false),
         }
     }
 
@@ -215,6 +234,12 @@ impl AudioCallbackData {
         self.playback_speed
             .store(speed.to_bits(), Ordering::Relaxed);
         *self.speed_frac_pos.lock() = 0.0;
+        // The crossfade mix bypasses speed resampling, so an in-progress fade
+        // would emit audio at the wrong pitch under the pinned 432/440 speed.
+        if enabled {
+            self.crossfader.lock().reset();
+            self.crossfade_active.store(false, Ordering::Relaxed);
+        }
     }
 
     #[inline]
@@ -227,11 +252,38 @@ impl AudioCallbackData {
         self.paused.store(paused, Ordering::Relaxed);
     }
 
+    /// Mark the Oboe output stream as disconnected so the command loop reopens
+    /// it and resumes playback at the interrupted position.
+    #[inline]
+    pub fn request_stream_restart(&self) {
+        self.stream_needs_restart.store(true, Ordering::Release);
+    }
+
+    #[inline]
+    pub fn stream_restart_requested(&self) -> bool {
+        self.stream_needs_restart.load(Ordering::Acquire)
+    }
+
+    #[inline]
+    pub fn clear_stream_restart_request(&self) {
+        self.stream_needs_restart.store(false, Ordering::Release);
+    }
+
     #[inline]
     pub fn is_passthrough(&self) -> bool {
         let mode = self.pipeline_mode.load(Ordering::Relaxed);
         let tuning = self.tuning_432hz_enabled.load(Ordering::Relaxed);
-        mode == PipelineMode::Passthrough as u8 && !tuning
+        let crossfade = self.crossfade_forces_dsp.load(Ordering::Relaxed);
+        mode == PipelineMode::Passthrough as u8 && !tuning && !crossfade
+    }
+
+    /// Whether crossfade may run. Crossfade requires the DSP path (not
+    /// passthrough) AND must be suppressed under 432 Hz tuning, because the
+    /// crossfade mix branch bypasses the speed resampler and would emit audio
+    /// at the wrong pitch while the engine is pinned to 432/440.
+    #[inline]
+    pub fn is_crossfade_allowed(&self) -> bool {
+        !self.is_passthrough() && !self.tuning_432hz_enabled.load(Ordering::Relaxed)
     }
 
     #[inline]
@@ -248,7 +300,8 @@ impl AudioCallbackData {
         let buffer_size = (sample_rate as usize / 10) * self.channels;
         let speed_buffer_size = buffer_size * 3;
 
-        *self.crossfader.lock() = Crossfader::disabled(sample_rate);
+        self.crossfader.lock().rebind_sample_rate(sample_rate);
+        self.crossfade_active.store(false, Ordering::Relaxed);
         *self.sources.lock() = SourceProvider::new(sample_rate, self.channels);
         *self.mix_buffer_a.lock() = vec![0.0; buffer_size];
         *self.mix_buffer_b.lock() = vec![0.0; buffer_size];
@@ -686,6 +739,7 @@ pub fn create_audio_engine(
                 decoders_clone,
                 target_sample_rate,
                 shutdown_clone,
+                None,
             );
 
             // Stream will be dropped here when the loop exits
@@ -923,6 +977,130 @@ impl AndroidManagedStream {
         }
     }
 }
+
+/// Owns the Android-managed Oboe output stream and reopens it when the system
+/// tears it down (audio focus loss, phone call, route change). The shared
+/// `AudioCallbackData` keeps the current source's read position and the decoder
+/// threads stay alive, so a reopened stream resumes exactly where playback was
+/// interrupted instead of jumping to another time.
+#[cfg(target_os = "android")]
+struct ManagedStreamSupervisor {
+    stream: Option<AndroidManagedStream>,
+    callback_data: Arc<AudioCallbackData>,
+    event_tx: Sender<AudioEvent>,
+    target_sample_rate: u32,
+    prefer_exclusive: bool,
+    use_integer: bool,
+    reopen_failures: u32,
+    next_retry: Option<std::time::Instant>,
+}
+
+#[cfg(target_os = "android")]
+impl ManagedStreamSupervisor {
+    fn new(
+        stream: AndroidManagedStream,
+        callback_data: Arc<AudioCallbackData>,
+        event_tx: Sender<AudioEvent>,
+        target_sample_rate: u32,
+        prefer_exclusive: bool,
+        use_integer: bool,
+    ) -> Self {
+        Self {
+            stream: Some(stream),
+            callback_data,
+            event_tx,
+            target_sample_rate,
+            prefer_exclusive,
+            use_integer,
+            reopen_failures: 0,
+            next_retry: None,
+        }
+    }
+
+    fn start(&mut self) -> Result<(), oboe::Error> {
+        match self.stream.as_mut() {
+            Some(s) => s.start(),
+            None => Ok(()),
+        }
+    }
+
+    fn stop(&mut self) {
+        if let Some(mut s) = self.stream.take() {
+            let _ = s.stop();
+        }
+    }
+
+    /// Drop the disconnected stream and open a fresh one with the same
+    /// parameters. The source position is untouched, so the new stream
+    /// continues from the interrupted sample.
+    fn poll_restart(&mut self, shutdown: &AtomicBool) {
+        if !self.callback_data.stream_restart_requested() {
+            return;
+        }
+        if shutdown.load(Ordering::Acquire) {
+            return;
+        }
+        if let Some(until) = self.next_retry {
+            if std::time::Instant::now() < until {
+                return;
+            }
+        }
+        self.callback_data.clear_stream_restart_request();
+
+        if let Some(mut old) = self.stream.take() {
+            let _ = old.stop();
+        }
+
+        log::info!(
+            "[ENGINE] Reopening Oboe output stream after interruption to resume at the interrupted position"
+        );
+        match open_android_output_stream(
+            Arc::clone(&self.callback_data),
+            self.event_tx.clone(),
+            self.target_sample_rate,
+            self.prefer_exclusive,
+            self.use_integer,
+        ) {
+            Ok(mut new_stream) => match new_stream.start() {
+                Ok(()) => {
+                    self.reopen_failures = 0;
+                    self.next_retry = None;
+                    self.stream = Some(new_stream);
+                    log::info!(
+                        "[ENGINE] Oboe stream reopened; playback resumes from the interrupted position"
+                    );
+                }
+                Err(error) => {
+                    log::warn!(
+                        "[ENGINE] Reopened Oboe stream failed to start: {} (will retry)",
+                        error
+                    );
+                    self.schedule_backoff();
+                }
+            },
+            Err(error) => {
+                log::warn!("[ENGINE] Oboe stream reopen failed: {} (will retry)", error);
+                self.schedule_backoff();
+            }
+        }
+    }
+
+    fn schedule_backoff(&mut self) {
+        self.reopen_failures = self.reopen_failures.saturating_add(1);
+        let delay_secs = match self.reopen_failures {
+            1 => 0.2,
+            2 => 0.5,
+            3 => 1.0,
+            4 => 2.0,
+            _ => 5.0,
+        };
+        self.next_retry =
+            Some(std::time::Instant::now() + std::time::Duration::from_secs_f64(delay_secs));
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+struct ManagedStreamSupervisor;
 
 #[cfg(target_os = "android")]
 pub fn create_audio_engine(
@@ -1382,6 +1560,10 @@ pub fn create_audio_engine(
     }
 
     let mut managed_stream = None;
+    // Hoisted so the audio thread can reopen the managed Oboe stream with the
+    // same parameters after an interruption (preserving the playback position).
+    let mut managed_prefer_exclusive = false;
+    let mut managed_use_integer = false;
     #[cfg(feature = "uac2")]
     let use_managed_fallback = direct_usb_backend.is_none() && dsd_native_backend.is_none();
     #[cfg(not(feature = "uac2"))]
@@ -1395,18 +1577,18 @@ pub fn create_audio_engine(
         } else {
             desired_strategy
         };
-        let prefer_exclusive = dap_bit_perfect_enabled
+        managed_prefer_exclusive = dap_bit_perfect_enabled
             && device_profile.as_ref().is_some_and(|p| p.is_dap())
             && !will_attempt_usb;
         let is_dsd_dop =
             dsd_rate.is_some() && matches!(desired_shared_strategy, OutputStrategy::DsdDoP);
-        let use_integer = is_dsd_dop || desired_shared_strategy.is_dsd();
+        managed_use_integer = is_dsd_dop || desired_shared_strategy.is_dsd();
         let managed = open_android_output_stream(
             Arc::clone(&callback_data_clone),
             event_tx_clone.clone(),
             requested_sample_rate,
-            prefer_exclusive,
-            use_integer,
+            managed_prefer_exclusive,
+            managed_use_integer,
         )?;
         let verification = OutputVerification::verify(
             requested_sample_rate,
@@ -1463,6 +1645,7 @@ pub fn create_audio_engine(
                     decoders_clone,
                     final_sample_rate,
                     shutdown_clone,
+                    None,
                 );
 
                 if let Some(mut backend) = direct_usb_backend.take() {
@@ -1482,6 +1665,7 @@ pub fn create_audio_engine(
                     decoders_clone,
                     final_sample_rate,
                     shutdown_clone,
+                    None,
                 );
 
                 if let Some(mut backend) = dsd_native_backend.take() {
@@ -1492,8 +1676,15 @@ pub fn create_audio_engine(
             #[cfg(not(target_os = "android"))]
             let _ = dsd_native_backend;
 
-            let mut stream = match managed_stream.take() {
-                Some(stream) => stream,
+            let mut supervisor = match managed_stream.take() {
+                Some(stream) => ManagedStreamSupervisor::new(
+                    stream,
+                    Arc::clone(&callback_data_for_thread),
+                    event_tx.clone(),
+                    final_sample_rate,
+                    managed_prefer_exclusive,
+                    managed_use_integer,
+                ),
                 None => {
                     let _ = event_tx.try_send(AudioEvent::Error {
                         message: "No Android managed output stream was prepared".to_string(),
@@ -1502,10 +1693,13 @@ pub fn create_audio_engine(
                 }
             };
 
-            if let Err(error) = stream.start() {
+            if let Err(error) = supervisor.start() {
                 dev_eprintln!("Failed to start Android managed output stream: {}", error);
                 let _ = event_tx.try_send(AudioEvent::Error {
-                    message: format!("Failed to start Android managed output stream: {}", error),
+                    message: format!(
+                        "Failed to start Android managed output stream: {}",
+                        error
+                    ),
                 });
                 return;
             }
@@ -1519,11 +1713,10 @@ pub fn create_audio_engine(
                 decoders_clone,
                 final_sample_rate,
                 shutdown_clone,
+                Some(&mut supervisor),
             );
 
-            if let Err(error) = stream.stop() {
-                dev_eprintln!("Failed to stop Android direct output stream: {}", error);
-            }
+            supervisor.stop();
         });
 
     let audio_thread = audio_thread.map_err(|e| format!("Failed to spawn audio thread: {}", e))?;
@@ -1593,6 +1786,7 @@ impl AudioOutputCallback for AndroidOutputCallbackF32 {
             audio_stream.get_sharing_mode(),
             audio_stream.get_audio_api(),
         );
+        self.callback_data.request_stream_restart();
     }
 
     fn on_audio_ready(
@@ -1677,6 +1871,7 @@ impl AudioOutputCallback for AndroidOutputCallbackI32 {
             audio_stream.get_sharing_mode(),
             audio_stream.get_audio_api(),
         );
+        self.callback_data.request_stream_restart();
     }
 
     fn on_audio_ready(
@@ -2063,10 +2258,6 @@ pub(crate) fn audio_callback(
         };
         let (read, old_source) = sources.read(output);
         if let Some(source) = old_source {
-            dev_eprintln!(
-                "[dop] gapless transition (old={})",
-                source.info.path.display()
-            );
             let _ = data.finished_tracks.try_send(source);
         }
         if read < output.len() {
@@ -2089,10 +2280,6 @@ pub(crate) fn audio_callback(
 
         let (read, old_source) = sources.read(output);
         if let Some(source) = old_source {
-            dev_eprintln!(
-                "[crossfade] gapless transition (old={})",
-                source.info.path.display()
-            );
             let _ = data.finished_tracks.try_send(source);
         }
         if read < output.len() {
@@ -2148,11 +2335,6 @@ pub(crate) fn audio_callback(
     };
 
     if crossfader.is_active() && sources.next_mut().is_some() {
-        dev_eprintln!(
-            "[crossfade] callback mixing — position={}/{}",
-            crossfader.position(),
-            crossfader.duration_samples()
-        );
         let mut buf_a = match data.mix_buffer_a.try_lock() {
             Some(b) => b,
             None => {
@@ -2193,7 +2375,7 @@ pub(crate) fn audio_callback(
         let _ = crossfader.mix(&buf_a[..needed], &buf_b[..needed], output, channels);
 
         if !crossfader.is_active() {
-            dev_eprintln!("[crossfade] DONE — advancing to next track");
+            data.crossfade_active.store(false, Ordering::Relaxed);
             drop(crossfader);
             if let Some(source) = sources.advance_to_next() {
                 let _ = data.finished_tracks.try_send(source);
@@ -2299,11 +2481,21 @@ fn command_processing_loop(
     decoders: Arc<Mutex<Vec<DecoderHandle>>>,
     sample_rate: u32,
     shutdown: Arc<AtomicBool>,
+    mut supervisor: Option<&mut ManagedStreamSupervisor>,
 ) {
     loop {
         // Check shutdown flag
         if shutdown.load(Ordering::Acquire) {
             break;
+        }
+
+        // Reopen the Oboe stream if it was disconnected by an interruption
+        // (audio focus loss, phone call, route change). The in-memory source
+        // keeps its read position, so playback resumes exactly where it left
+        // off instead of jumping to another time.
+        #[cfg(target_os = "android")]
+        if let Some(supervisor) = supervisor.as_mut() {
+            supervisor.poll_restart(&shutdown);
         }
 
         // Check for finished tracks
@@ -2384,6 +2576,7 @@ fn command_processing_loop(
                     AudioCommand::Stop => {
                         callback_data.sources.lock().stop();
                         callback_data.crossfader.lock().reset();
+                        callback_data.crossfade_active.store(false, Ordering::Relaxed);
                         state.store(PlaybackState::Stopped as u8, Ordering::Relaxed);
                         let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Stopped));
                     }
@@ -2407,6 +2600,23 @@ fn command_processing_loop(
                         let mut crossfader = callback_data.crossfader.lock();
                         crossfader.set_enabled(enabled);
                         crossfader.set_duration(duration_secs);
+                        let still_active = crossfader.is_active();
+                        drop(crossfader);
+                        callback_data
+                            .crossfade_active
+                            .store(still_active, Ordering::Relaxed);
+                        // Crossfade needs the DSP path. Force out of passthrough
+                        // when enabled so the mix runs even on a verified
+                        // bit-perfect output (e.g. phone speaker at native rate).
+                        callback_data
+                            .crossfade_forces_dsp
+                            .store(enabled, Ordering::Relaxed);
+                        log::info!(
+                            "[crossfade] set enabled={} duration={:.1}s forces_dsp={}",
+                            enabled,
+                            duration_secs,
+                            enabled
+                        );
                     }
                     AudioCommand::SetCrossfadeCurve { curve } => {
                         callback_data.crossfader.lock().set_curve(curve);
@@ -2514,65 +2724,64 @@ fn command_processing_loop(
         // Both locks are held across the entire check+start to prevent the
         // audio callback from doing a hard gapless transition between the
         // remaining check and the crossfader.start() call.
-        if !callback_data.is_passthrough() {
-            let mut sources = callback_data.sources.lock();
-            let mut crossfader = callback_data.crossfader.lock();
-            if crossfader.is_enabled()
-                && !crossfader.is_active()
-                && sources.has_next()
-                && crossfader.duration_secs() > 0.0
-            {
-                if let Some(current) = sources.current() {
-                    let remaining = current.remaining_secs();
-                    if remaining > 0.0 && remaining <= crossfader.duration_secs() as f64 {
-                        // Only start crossfade if next track has buffered data.
-                        // Require any data (≥0s) — the decoder has been running
-                        // since the next track was pre-queued, so the buffer
-                        // should be full by now.
-                        if sources.next_has_enough_buffer(0.0) {
-                            dev_eprintln!(
-                                "[crossfade] TRIGGERING! remaining={:.3}s threshold={:.1}s",
-                                remaining,
-                                crossfader.duration_secs()
-                            );
-                            crossfader.start();
-                            state.store(PlaybackState::Crossfading as u8, Ordering::Relaxed);
-                            let _ = event_tx
-                                .try_send(AudioEvent::StateChanged(PlaybackState::Crossfading));
-                            let from = sources
-                                .current()
-                                .map(|s| s.info.path.to_string_lossy().to_string());
-                            let to = sources
-                                .next_mut()
-                                .map(|s| s.info.path.to_string_lossy().to_string());
-                            if let (Some(from_path), Some(to_path)) = (from, to) {
-                                let _ = event_tx
-                                    .try_send(AudioEvent::CrossfadeStarted { from_path, to_path });
+        // Skipped entirely in passthrough (bit-perfect) and under 432 Hz
+        // tuning (the mix bypasses speed resampling — see is_crossfade_allowed).
+        if callback_data.is_crossfade_allowed() {
+            // Fast path: if a crossfade is already in flight there is nothing
+            // to trigger. Read the lock-free mirror so the real-time callback's
+            // `crossfader` try_lock is never contended during the fade (a failed
+            // try_lock drops the fade gains and emits the outgoing track at full
+            // volume = audible chopping).
+            if callback_data.crossfade_active.load(Ordering::Relaxed) {
+                // Nothing to do; no locks taken.
+            } else {
+                let mut sources = callback_data.sources.lock();
+                let mut crossfader = callback_data.crossfader.lock();
+                let configured = crossfader.configured_duration_secs();
+                if crossfader.is_enabled()
+                    && !crossfader.is_active()
+                    && sources.has_next()
+                    && configured > 0.0
+                {
+                    if let Some(current) = sources.current() {
+                        let remaining = current.remaining_secs();
+                        // Clamp the fade to at most half the track so a short
+                        // source does not have its start eaten by the fade-in.
+                        let effective =
+                            clamp_crossfade_secs(configured, current.info.duration_secs);
+                        if effective > 0.0 && remaining > 0.0 && remaining <= effective as f64 {
+                            // Only start crossfade if next track has buffered data.
+                            // Require any data (≥0s) — the decoder has been running
+                            // since the next track was pre-queued, so the buffer
+                            // should be full by now.
+                            if sources.next_has_enough_buffer(0.0) {
+                                crossfader.set_active_duration_secs(effective);
+                                crossfader.start();
+                                callback_data
+                                    .crossfade_active
+                                    .store(true, Ordering::Relaxed);
+                                state.store(
+                                    PlaybackState::Crossfading as u8,
+                                    Ordering::Relaxed,
+                                );
+                                let _ = event_tx.try_send(AudioEvent::StateChanged(
+                                    PlaybackState::Crossfading,
+                                ));
+                                let from = sources
+                                    .current()
+                                    .map(|s| s.info.path.to_string_lossy().to_string());
+                                let to = sources
+                                    .next_mut()
+                                    .map(|s| s.info.path.to_string_lossy().to_string());
+                                if let (Some(from_path), Some(to_path)) = (from, to) {
+                                    let _ = event_tx.try_send(AudioEvent::CrossfadeStarted {
+                                        from_path,
+                                        to_path,
+                                    });
+                                }
                             }
-                        } else {
-                            dev_eprintln!(
-                                "[crossfade] DELAYED - next buffer insufficient, waiting for more data"
-                            );
                         }
                     }
-                }
-            } else if crossfader.is_enabled() && crossfader.duration_secs() > 0.0 {
-                // Only print when we're near the crossfade window
-                let remaining = sources
-                    .current()
-                    .map(|s| s.remaining_secs())
-                    .unwrap_or(-1.0);
-                let threshold = crossfader.duration_secs() as f64;
-                if remaining > 0.0 && remaining <= threshold * 3.0 {
-                    dev_eprintln!(
-                        "[crossfade] NEAR: active={} has_next={} has_current={} next_buffered={} remaining={:.3}s threshold={:.1}s",
-                        crossfader.is_active(),
-                        sources.has_next(),
-                        sources.current().is_some(),
-                        sources.next_has_enough_buffer(0.0),
-                        remaining,
-                        crossfader.duration_secs()
-                    );
                 }
             }
         }
@@ -2638,6 +2847,7 @@ fn handle_play(
 
     callback_data.sources.lock().stop();
     callback_data.crossfader.lock().reset();
+    callback_data.crossfade_active.store(false, Ordering::Relaxed);
 
     match spawn_decoder(path.clone(), sample_rate, callback_data.channels(), None) {
         Ok((source, handle)) => {
@@ -2665,6 +2875,7 @@ fn handle_play_prepared(
 
     callback_data.sources.lock().stop();
     callback_data.crossfader.lock().reset();
+    callback_data.crossfade_active.store(false, Ordering::Relaxed);
 
     start_playback_source(
         source,
@@ -2740,6 +2951,21 @@ fn queue_playback_source(
     let _ = event_tx.try_send(AudioEvent::NextTrackReady { path: queued_path });
 }
 
+/// Clamp the crossfade duration for a track of `track_total_secs`.
+///
+/// The fade is capped at half the track length so the fade-in never eats more
+/// than the first half of a short source. Tracks whose duration is unknown
+/// (`<= 0.0`) use the configured duration unchanged. The caller must skip
+/// crossfade when the returned value is `<= 0.0` (only possible when
+/// `configured` itself is `<= 0.0`).
+fn clamp_crossfade_secs(configured: f32, track_total_secs: f64) -> f32 {
+    if track_total_secs <= 0.0 {
+        return configured;
+    }
+    let half = (track_total_secs * 0.5) as f32;
+    configured.min(half)
+}
+
 fn handle_skip_to_next(
     callback_data: &AudioCallbackData,
     state: &Arc<AtomicU8>,
@@ -2748,16 +2974,31 @@ fn handle_skip_to_next(
     let mut sources = callback_data.sources.lock();
     let mut crossfader = callback_data.crossfader.lock();
 
-    if sources.has_next() {
-        if crossfader.is_enabled() && !crossfader.is_active() {
-            // Start crossfade
+    if !sources.has_next() {
+        return;
+    }
+
+    // Manual skip crossfades when allowed (DSP path, no 432 Hz tuning) and the
+    // fade length is sane for the incoming track; otherwise hard-cut.
+    let started = if callback_data.is_crossfade_allowed()
+        && crossfader.is_enabled()
+        && !crossfader.is_active()
+    {
+        let configured = crossfader.configured_duration_secs();
+        let next_total = sources.next().map(|s| s.info.duration_secs).unwrap_or(0.0);
+        let effective = clamp_crossfade_secs(configured, next_total);
+        if configured > 0.0 && effective > 0.0 {
             let from_path = sources
                 .current()
                 .map(|s| s.info.path.to_string_lossy().to_string());
             let to_path = sources
                 .next_mut()
                 .map(|s| s.info.path.to_string_lossy().to_string());
+            crossfader.set_active_duration_secs(effective);
             crossfader.start();
+            callback_data
+                .crossfade_active
+                .store(crossfader.is_active(), Ordering::Relaxed);
             state.store(PlaybackState::Crossfading as u8, Ordering::Relaxed);
             let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Crossfading));
             if let (Some(from), Some(to)) = (from_path, to_path) {
@@ -2766,11 +3007,18 @@ fn handle_skip_to_next(
                     to_path: to,
                 });
             }
+            true
         } else {
-            // Immediate transition
-            sources.advance_to_next();
-            state.store(PlaybackState::Playing as u8, Ordering::Relaxed);
+            false
         }
+    } else {
+        false
+    };
+
+    if !started {
+        // Immediate transition
+        sources.advance_to_next();
+        state.store(PlaybackState::Playing as u8, Ordering::Relaxed);
     }
 }
 
@@ -2803,6 +3051,7 @@ fn handle_seek(
 
     callback_data.sources.lock().stop();
     callback_data.crossfader.lock().reset();
+    callback_data.crossfade_active.store(false, Ordering::Relaxed);
     *callback_data.speed_frac_pos.lock() = 0.0;
 
     {

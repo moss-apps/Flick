@@ -217,6 +217,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setArtworkCardShowFileInfo(value);
   }
 
+  Future<void> setArtworkCardShowFrame(bool value) async {
+    if (state.artworkCardShowFrame == value) return;
+    state = state.copyWith(artworkCardShowFrame: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setArtworkCardShowFrame(value);
+  }
+
   Future<void> setImmersiveTextScale(double value) async {
     if (state.immersiveTextScale == value) return;
     state = state.copyWith(immersiveTextScale: value);

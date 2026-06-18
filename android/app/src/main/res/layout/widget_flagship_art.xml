@@ -12,99 +12,94 @@
         android:scaleType="centerCrop"
         android:src="@drawable/widget_default_art" />
 
-    <ImageView
-        android:layout_width="match_parent"
-        android:layout_height="120dp"
-        android:layout_gravity="bottom"
-        android:contentDescription="@null"
-        android:scaleType="fitXY"
-        android:src="@drawable/widget_scrim_bottom" />
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/widget_background"
         android:orientation="vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="40dp">
+        android:padding="12dp">
 
-        <TextView
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/flagship_shuffle"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/widget_button_transport_bg"
+                android:contentDescription="@string/widget_shuffle"
+                android:padding="7dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/widget_ic_lucide_shuffle" />
+
+            <ImageButton
+                android:id="@+id/flagship_prev"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/widget_button_transport_bg"
+                android:contentDescription="@string/widget_previous"
+                android:padding="8dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/widget_ic_lucide_skip_back" />
+
+            <ImageButton
+                android:id="@+id/flagship_play_pause"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/widget_button_play_bg"
+                android:contentDescription="@string/widget_play_pause"
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/widget_ic_lucide_play" />
+
+            <ImageButton
+                android:id="@+id/flagship_next"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/widget_button_transport_bg"
+                android:contentDescription="@string/widget_next"
+                android:padding="8dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/widget_ic_lucide_skip_forward" />
+
+            <ImageButton
+                android:id="@+id/flagship_repeat"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/widget_button_transport_bg"
+                android:contentDescription="@string/widget_repeat"
+                android:padding="7dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/widget_ic_lucide_repeat" />
+        </LinearLayout>
+
+        <ImageView
             android:id="@+id/flagship_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:fontFamily="@font/product_sans"
-            android:singleLine="true"
-            android:textColor="#FFFFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="10dp"
+            android:contentDescription="@string/widget_nothing_playing"
+            android:scaleType="fitCenter" />
 
-        <TextView
+        <ImageView
             android:id="@+id/flagship_artist"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:ellipsize="end"
-            android:fontFamily="@font/product_sans"
-            android:singleLine="true"
-            android:textColor="#B3FFFFFF"
-            android:textSize="12sp"
+            android:contentDescription="@string/widget_nothing_playing"
+            android:scaleType="fitCenter"
             android:visibility="gone" />
     </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="6dp"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <ImageButton
-            android:id="@+id/flagship_prev"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/widget_button_transport_bg"
-            android:contentDescription="@string/widget_previous"
-            android:padding="8dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/widget_ic_previous" />
-
-        <ImageButton
-            android:id="@+id/flagship_play_pause"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp"
-            android:background="@drawable/widget_button_play_bg"
-            android:contentDescription="@string/widget_play_pause"
-            android:padding="10dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/widget_ic_play" />
-
-        <ImageButton
-            android:id="@+id/flagship_next"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/widget_button_transport_bg"
-            android:contentDescription="@string/widget_next"
-            android:padding="8dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/widget_ic_next" />
-    </LinearLayout>
-
-    <ProgressBar
-        android:id="@+id/flagship_progress"
-        style="@android:style/Widget.ProgressBar.Horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="3dp"
-        android:layout_gravity="bottom"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="2dp"
-        android:max="1000"
-        android:progress="0"
-        android:progressDrawable="@drawable/widget_progress_white" />
 
 </FrameLayout>

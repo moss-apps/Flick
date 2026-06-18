@@ -30,8 +30,12 @@ impl Default for CrossfadeCurve {
 pub struct Crossfader {
     /// Whether crossfade is enabled
     enabled: bool,
-    /// Duration of crossfade in samples
+    /// Duration of crossfade in samples (the active fade length, possibly
+    /// clamped per-track for short sources).
     duration_samples: usize,
+    /// The user-configured duration in samples. Used as the end-of-track
+    /// trigger threshold and as the unclamped fade length for long tracks.
+    configured_duration_samples: usize,
     /// Current position in the crossfade (0 to duration_samples)
     position: usize,
     /// Whether a crossfade is currently in progress
@@ -49,9 +53,11 @@ impl Crossfader {
     /// * `sample_rate` - Audio sample rate (e.g., 48000)
     /// * `duration_secs` - Crossfade duration in seconds (e.g., 3.0)
     pub fn new(sample_rate: u32, duration_secs: f32) -> Self {
+        let duration_samples = (sample_rate as f32 * duration_secs) as usize;
         Self {
             enabled: true,
-            duration_samples: (sample_rate as f32 * duration_secs) as usize,
+            duration_samples,
+            configured_duration_samples: duration_samples,
             position: 0,
             active: false,
             curve: CrossfadeCurve::default(),
@@ -64,6 +70,7 @@ impl Crossfader {
         Self {
             enabled: false,
             duration_samples: 0,
+            configured_duration_samples: 0,
             position: 0,
             active: false,
             curve: CrossfadeCurve::default(),
@@ -105,8 +112,47 @@ impl Crossfader {
     }
 
     /// Set the crossfade duration.
+    ///
+    /// Resets both the configured (threshold) and active (fade length)
+    /// durations to the user preference.
     pub fn set_duration(&mut self, duration_secs: f32) {
+        let samples = (self.sample_rate as f32 * duration_secs) as usize;
+        self.duration_samples = samples;
+        self.configured_duration_samples = samples;
+    }
+
+    /// The user-configured duration in seconds. Used by the engine as the
+    /// end-of-track trigger threshold and as the fade length when the track
+    /// is long enough.
+    #[inline]
+    pub fn configured_duration_secs(&self) -> f32 {
+        self.configured_duration_samples as f32 / self.sample_rate as f32
+    }
+
+    /// Set the active fade length for the upcoming crossfade, independently of
+    /// the configured duration. The engine clamps this to half the current
+    /// track's length for short sources. Should only be called immediately
+    /// before [`start`]. Leaves the configured duration untouched so the next
+    /// track recomputes its clamp from the user preference.
+    ///
+    /// [`start`]: Crossfader::start
+    pub fn set_active_duration_secs(&mut self, duration_secs: f32) {
         self.duration_samples = (self.sample_rate as f32 * duration_secs) as usize;
+    }
+
+    /// Rebind to a new output sample rate, preserving the enabled state,
+    /// configured duration (in seconds), and curve. Any in-progress fade is
+    /// cancelled. Called by `reconfigure_sample_rate` so a mid-session
+    /// output-rate change (e.g. 48k → 44.1k during Oboe stream open) does not
+    /// silently wipe the user's crossfade preference.
+    pub fn rebind_sample_rate(&mut self, sample_rate: u32) {
+        let configured_secs = self.configured_duration_secs();
+        self.sample_rate = sample_rate;
+        let samples = (sample_rate as f32 * configured_secs) as usize;
+        self.configured_duration_samples = samples;
+        self.duration_samples = samples;
+        self.active = false;
+        self.position = 0;
     }
 
     /// Get the crossfade duration in seconds.
@@ -399,6 +445,58 @@ mod tests {
             }
         }
 
+        assert!(!crossfader.is_active());
+    }
+
+    #[test]
+    fn test_configured_duration_independent_of_active_clamp() {
+        let mut crossfader = Crossfader::new(48000, 5.0);
+        // Configured duration reflects the user preference.
+        assert!((crossfader.configured_duration_secs() - 5.0).abs() < 0.01);
+
+        // Engine clamps the active fade to 1.0s for a short track.
+        crossfader.set_active_duration_secs(1.0);
+        assert!((crossfader.duration_secs() - 1.0).abs() < 0.01);
+        // Configured duration must be untouched so the next track recomputes.
+        assert!((crossfader.configured_duration_secs() - 5.0).abs() < 0.01);
+
+        crossfader.start();
+        assert!(crossfader.is_active());
+        // Active fade runs for the clamped 1s (48000 samples), not 5s.
+        for _ in 0..48000 {
+            if crossfader.advance() {
+                break;
+            }
+        }
+        assert!(!crossfader.is_active());
+    }
+
+    #[test]
+    fn test_set_duration_resets_configured_and_active() {
+        let mut crossfader = Crossfader::new(48000, 1.0);
+        crossfader.set_active_duration_secs(0.5);
+        crossfader.set_duration(3.0);
+        assert!((crossfader.configured_duration_secs() - 3.0).abs() < 0.01);
+        assert!((crossfader.duration_secs() - 3.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_rebind_sample_rate_preserves_state() {
+        let mut crossfader = Crossfader::new(48000, 4.0);
+        crossfader.set_curve(CrossfadeCurve::Linear);
+        crossfader.start();
+        assert!(crossfader.is_active());
+
+        // A mid-session output-rate change (e.g. 48k -> 44.1k) must NOT wipe
+        // the user's enabled/duration/curve preference.
+        crossfader.rebind_sample_rate(44100);
+
+        assert!(crossfader.is_enabled());
+        // Configured duration in seconds is preserved across the rate change.
+        assert!((crossfader.configured_duration_secs() - 4.0).abs() < 0.05);
+        // Sample counts are recomputed at the new rate.
+        assert_eq!(crossfader.duration_samples(), (44100.0 * 4.0) as usize);
+        // An in-progress fade is cancelled.
         assert!(!crossfader.is_active());
     }
 }

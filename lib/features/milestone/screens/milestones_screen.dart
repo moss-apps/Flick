@@ -127,27 +127,28 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   }
 
   Widget _buildGrid(BuildContext context) {
-    return GridView.builder(
+    return ListView.builder(
       padding: const EdgeInsets.symmetric(
         horizontal: AppConstants.spacingLg,
         vertical: AppConstants.spacingMd,
-      ),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 320,
-        mainAxisSpacing: AppConstants.spacingMd,
-        crossAxisSpacing: AppConstants.spacingMd,
-        childAspectRatio: 1.5,
       ),
       itemCount: MilestoneType.values.length,
       itemBuilder: (context, index) {
         final type = MilestoneType.values[index];
         final record = _records[type];
-        return _MilestoneTile(
-          type: type,
-          record: record,
-          playCount: _playCount,
-          listenSeconds: _listenSeconds,
-          onTap: () => _handleTileTap(type, record),
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: index < MilestoneType.values.length - 1
+                ? AppConstants.spacingMd
+                : 0,
+          ),
+          child: _MilestoneTile(
+            type: type,
+            record: record,
+            playCount: _playCount,
+            listenSeconds: _listenSeconds,
+            onTap: () => _handleTileTap(type, record),
+          ),
         );
       },
     );
@@ -274,57 +275,55 @@ class _MilestoneTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    ColoredSettingsIcon(
-                      icon: type.tierIcon,
-                      backgroundColor: iconBg,
-                      iconColor: iconFg,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  ColoredSettingsIcon(
+                    icon: type.tierIcon,
+                    backgroundColor: iconBg,
+                    iconColor: iconFg,
+                  ),
+                  const SizedBox(width: AppConstants.spacingMd),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          type.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: unlocked
+                                    ? context.adaptiveTextPrimary
+                                    : context.adaptiveTextTertiary,
+                              ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          unlocked
+                              ? 'Achieved ${_formatDate(record!.achievedAt)}'
+                              : 'Locked',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.adaptiveTextTertiary),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: AppConstants.spacingMd),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            type.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: unlocked
-                                      ? context.adaptiveTextPrimary
-                                      : context.adaptiveTextTertiary,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            unlocked
-                                ? 'Achieved ${_formatDate(record!.achievedAt)}'
-                                : 'Locked',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: context.adaptiveTextTertiary),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      unlocked
-                          ? LucideIcons.circleCheck
-                          : LucideIcons.chevronRight,
-                      color: unlocked
-                          ? tierColor
-                          : context.adaptiveTextTertiary,
-                      size: 18,
-                    ),
-                  ],
-                ),
+                  ),
+                  Icon(
+                    unlocked
+                        ? LucideIcons.circleCheck
+                        : LucideIcons.chevronRight,
+                    color: unlocked
+                        ? tierColor
+                        : context.adaptiveTextTertiary,
+                    size: 18,
+                  ),
+                ],
               ),
               if (!unlocked) ...[
                 const SizedBox(height: AppConstants.spacingSm),

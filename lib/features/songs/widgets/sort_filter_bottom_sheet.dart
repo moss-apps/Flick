@@ -18,7 +18,8 @@ class SortFilterBottomSheet extends StatelessWidget {
     required this.onFilterChanged,
   });
 
-  static void show(BuildContext context, {
+  static void show(
+    BuildContext context, {
     required SongSortOption currentSort,
     required SongFileTypeFilter currentFilter,
     required ValueChanged<SongSortOption> onSortChanged,
@@ -59,7 +60,9 @@ class SortFilterBottomSheet extends StatelessWidget {
               const SizedBox(height: 16),
               _buildSectionHeader(context, 'SORT BY'),
               const SizedBox(height: 8),
-              ...SongSortOption.values.map((option) => _buildSortTile(context, option)),
+              ...SongSortOption.values.map(
+                (option) => _buildSortTile(context, option),
+              ),
               const SizedBox(height: 16),
               const Divider(color: AppColors.glassBorder, height: 1),
               const SizedBox(height: 12),
@@ -68,7 +71,9 @@ class SortFilterBottomSheet extends StatelessWidget {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: SongFileTypeFilter.values.map((filter) => _buildFilterChip(context, filter)).toList(),
+                children: SongFileTypeFilter.values
+                    .map((filter) => _buildFilterChip(context, filter))
+                    .toList(),
               ),
               const SizedBox(height: 8),
             ],
@@ -143,7 +148,9 @@ class SortFilterBottomSheet extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                     color: isSelected
                         ? AppColors.accent
                         : context.adaptiveTextPrimary,
@@ -189,9 +196,7 @@ class SortFilterBottomSheet extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected
-                ? AppColors.accent
-                : context.adaptiveTextPrimary,
+            color: isSelected ? AppColors.accent : context.adaptiveTextPrimary,
           ),
         ),
       ),
@@ -210,8 +215,8 @@ class SortFilterBottomSheet extends StatelessWidget {
         return LucideIcons.calendar;
       case SongSortOption.fileType:
         return LucideIcons.file;
-      case SongSortOption.folder:
-        return LucideIcons.folder;
+      case SongSortOption.album:
+        return LucideIcons.disc;
       case SongSortOption.year:
         return LucideIcons.calendarDays;
       case SongSortOption.genre:
@@ -231,8 +236,8 @@ class SortFilterBottomSheet extends StatelessWidget {
         return 'Date Added';
       case SongSortOption.fileType:
         return 'Format';
-      case SongSortOption.folder:
-        return 'Folder';
+      case SongSortOption.album:
+        return 'Album';
       case SongSortOption.year:
         return 'Year';
       case SongSortOption.genre:

@@ -503,8 +503,11 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     final dapBothOff = diagnostics?.detectedDap == true &&
         !(await service.getBitPerfectEnabled()) &&
         !(await service.getDapBitPerfectEnabled());
-    final effective = dapBothOff ? AudioEnginePreference.rustOboe : current;
-    if (dapBothOff && current != AudioEnginePreference.rustOboe) {
+    final effective =
+        (dapBothOff && current == AudioEnginePreference.exoPlayer)
+            ? AudioEnginePreference.rustOboe
+            : current;
+    if (dapBothOff && current == AudioEnginePreference.exoPlayer) {
       await service.setAudioEnginePreference(AudioEnginePreference.rustOboe);
       ref.invalidate(audioEnginePreferenceProvider);
     }
@@ -571,10 +574,11 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                 dialogContext,
                 title: 'Rust via Oboe',
                 subtitle: dapBothOff
-                    ? 'Required now so software volume and DSP stay active on the DAP shared path.'
+                    ? 'Keeps software volume and DSP active on the DAP shared path.'
                     : 'Android-managed Rust playback path using the native Oboe backend.',
                 selected: effective == AudioEnginePreference.rustOboe,
-                badgeText: dapBothOff ? 'Active' : null,
+                badgeText:
+                    (dapBothOff && effective != current) ? 'Active' : null,
                 onTap: () async {
                   final engineChanged = current != AudioEnginePreference.rustOboe;
                   final wasBitPerfectEnabled =
@@ -604,28 +608,23 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               _buildAudioEngineOption(
                 dialogContext,
                 title: 'Isochronous USB',
-                subtitle: dapBothOff
-                    ? 'Unavailable until Bit-perfect (USB DAC) or Bit-perfect (DAP Internal) is enabled.'
-                    : 'Direct libusb isochronous USB engine. Best paired with Bit-perfect (USB DAC) for verified external DAC playback.',
+                subtitle:
+                    'Direct libusb isochronous USB engine. Best paired with Bit-perfect (USB DAC) for verified external DAC playback.',
                 selected: effective == AudioEnginePreference.isochronousUsb,
-                enabled: !dapBothOff,
-                badgeText: dapBothOff ? 'Locked' : null,
-                onTap: dapBothOff
-                    ? null
-                    : () async {
-                        final changed =
-                            current != AudioEnginePreference.isochronousUsb;
-                        await service.setAudioEnginePreference(
-                          AudioEnginePreference.isochronousUsb,
-                        );
-                        ref.invalidate(audioEnginePreferenceProvider);
-                        if (dialogContext.mounted) {
-                          Navigator.of(dialogContext).pop();
-                        }
-                        if (changed && context.mounted) {
-                          _showRestartRequiredToast(context);
-                        }
-                      },
+                onTap: () async {
+                  final changed =
+                      current != AudioEnginePreference.isochronousUsb;
+                  await service.setAudioEnginePreference(
+                    AudioEnginePreference.isochronousUsb,
+                  );
+                  ref.invalidate(audioEnginePreferenceProvider);
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                  if (changed && context.mounted) {
+                    _showRestartRequiredToast(context);
+                  }
+                },
               ),
             ],
           ),
@@ -654,7 +653,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
           const SizedBox(width: AppConstants.spacingSm),
           Expanded(
             child: Text(
-              'Both bit-perfect options are off on this DAP, so playback is locked to Rust via Oboe for non-bit-perfect output, DSP, and software volume.',
+              'Both bit-perfect options are off on this DAP, so the standard engine is unavailable. You can still use Rust via Oboe or Isochronous USB.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: context.adaptiveTextSecondary,
                 height: 1.35,

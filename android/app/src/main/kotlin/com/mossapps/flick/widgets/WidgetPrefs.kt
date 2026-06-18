@@ -78,12 +78,8 @@ internal object WidgetPrefs {
 
     // --- Flagship widget preferences ---
 
-    private const val KEY_FLAGSHIP_THEME = "flick_widget_flagship_theme"
     private const val KEY_FLAGSHIP_ACCENT = "flick_widget_flagship_accent"
     private const val KEY_FLAGSHIP_SHOW_ARTIST = "flick_widget_flagship_show_artist"
-
-    fun getFlagshipTheme(context: Context): String =
-        get(context).getString(KEY_FLAGSHIP_THEME, "art_dominant") ?: "art_dominant"
 
     fun getFlagshipShowArtist(context: Context): Boolean =
         get(context).getBoolean(KEY_FLAGSHIP_SHOW_ARTIST, true)
@@ -101,13 +97,4 @@ internal object WidgetPrefs {
         }
     }
 
-    fun getFlagshipProgressDrawableRes(context: Context): Int {
-        return when (getFlagshipAccentName(context)) {
-            "amber" -> R.drawable.widget_progress_amber
-            "blue" -> R.drawable.widget_progress_blue
-            "green" -> R.drawable.widget_progress_green
-            "purple" -> R.drawable.widget_progress_purple
-            else -> R.drawable.widget_progress_white
-        }
-    }
 }

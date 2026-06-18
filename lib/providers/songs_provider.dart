@@ -13,7 +13,16 @@ final songRepositoryProvider = Provider<SongRepository>((ref) {
 });
 
 /// Sort options for the song list.
-enum SongSortOption { albumArtist, title, artist, dateAdded, fileType, folder, year, genre }
+enum SongSortOption {
+  albumArtist,
+  title,
+  artist,
+  dateAdded,
+  fileType,
+  album,
+  year,
+  genre,
+}
 
 /// A group of songs within the same folder.
 class FolderGroup {
@@ -99,14 +108,14 @@ class SongsState {
   final SongSortOption sortOption;
   final SongFileTypeFilter fileTypeFilter;
   final List<Song> sortedSongs;
-  final List<FolderGroup> folderGroups;
+  final List<AlbumGroup> albumGroups;
 
   const SongsState._({
     required this.songs,
     required this.sortOption,
     required this.fileTypeFilter,
     required this.sortedSongs,
-    required this.folderGroups,
+    required this.albumGroups,
   });
 
   factory SongsState({
@@ -119,7 +128,7 @@ class SongsState {
       sortOption: sortOption,
       fileTypeFilter: fileTypeFilter,
       sortedSongs: computeSortedSongs(songs, sortOption, fileTypeFilter),
-      folderGroups: _computeFolderGroups(songs, sortOption, fileTypeFilter),
+      albumGroups: _computeAlbumGroups(songs, sortOption, fileTypeFilter),
     );
   }
 
@@ -196,12 +205,50 @@ class SongsState {
         });
       case SongSortOption.fileType:
         result.sort((a, b) => a.fileType.compareTo(b.fileType));
-      case SongSortOption.folder:
+      case SongSortOption.album:
         result.sort((a, b) {
-          final folderA = extractRelativeSubfolder(a.folderUri, a.filePath);
-          final folderB = extractRelativeSubfolder(b.folderUri, b.filePath);
-          final folderCompare = folderA.compareTo(folderB);
-          if (folderCompare != 0) return folderCompare;
+          final albumA = a.album?.trim().isNotEmpty == true
+              ? a.album!.trim()
+              : 'Unknown Album';
+          final albumB = b.album?.trim().isNotEmpty == true
+              ? b.album!.trim()
+              : 'Unknown Album';
+          final albumCompare = albumA.compareTo(albumB);
+          if (albumCompare != 0) return albumCompare;
+
+          final artistA = a.albumArtist?.trim().isNotEmpty == true
+              ? a.albumArtist!.trim()
+              : a.artist.trim();
+          final artistB = b.albumArtist?.trim().isNotEmpty == true
+              ? b.albumArtist!.trim()
+              : b.artist.trim();
+          final artistCompare = artistA.compareTo(artistB);
+          if (artistCompare != 0) return artistCompare;
+
+          final discA = (a.discNumber != null && a.discNumber! > 0)
+              ? a.discNumber!
+              : 1;
+          final discB = (b.discNumber != null && b.discNumber! > 0)
+              ? b.discNumber!
+              : 1;
+          final discCompare = discA.compareTo(discB);
+          if (discCompare != 0) return discCompare;
+
+          final trackA = (a.trackNumber != null && a.trackNumber! > 0)
+              ? a.trackNumber
+              : null;
+          final trackB = (b.trackNumber != null && b.trackNumber! > 0)
+              ? b.trackNumber
+              : null;
+          final hasTrackA = trackA != null;
+          final hasTrackB = trackB != null;
+          if (hasTrackA && hasTrackB) {
+            final trackCompare = trackA.compareTo(trackB);
+            if (trackCompare != 0) return trackCompare;
+          } else if (hasTrackA != hasTrackB) {
+            return hasTrackA ? -1 : 1;
+          }
+
           return a.title.compareTo(b.title);
         });
       case SongSortOption.year:
@@ -214,8 +261,12 @@ class SongsState {
         });
       case SongSortOption.genre:
         result.sort((a, b) {
-          final genreA = a.genre?.trim().isNotEmpty == true ? a.genre!.trim() : '\u{10FFFF}';
-          final genreB = b.genre?.trim().isNotEmpty == true ? b.genre!.trim() : '\u{10FFFF}';
+          final genreA = a.genre?.trim().isNotEmpty == true
+              ? a.genre!.trim()
+              : '\u{10FFFF}';
+          final genreB = b.genre?.trim().isNotEmpty == true
+              ? b.genre!.trim()
+              : '\u{10FFFF}';
           final genreCompare = genreA.compareTo(genreB);
           if (genreCompare != 0) return genreCompare;
           return a.title.compareTo(b.title);
@@ -224,12 +275,12 @@ class SongsState {
     return result;
   }
 
-  static List<FolderGroup> _computeFolderGroups(
+  static List<AlbumGroup> _computeAlbumGroups(
     List<Song> songs,
     SongSortOption sortOption,
     SongFileTypeFilter fileTypeFilter,
   ) {
-    if (sortOption != SongSortOption.folder) return [];
+    if (sortOption != SongSortOption.album) return [];
 
     var result = List<Song>.from(songs);
 
@@ -239,34 +290,77 @@ class SongsState {
           .toList();
     }
 
-    final groups = <String, FolderGroup>{};
+    final groupedSongs = <String, List<Song>>{};
+    final albumNames = <String, String>{};
+    final albumArtists = <String, String>{};
+
     for (final song in result) {
-      final subfolder = extractRelativeSubfolder(song.folderUri, song.filePath);
-      final key = subfolder.isEmpty ? (song.folderUri ?? '__root__') : subfolder;
-      final displayName = subfolder.isEmpty
-          ? folderDisplayName(song.folderUri, song.filePath)
-          : subfolder.split('/').where((p) => p.isNotEmpty).last;
-      groups.putIfAbsent(
-        key,
-        () => FolderGroup(
-          name: displayName,
-          key: key,
-          folderUri: song.folderUri,
-          songs: [],
-        ),
-      );
-      groups[key]!.songs.add(song);
+      final albumName = song.album?.trim().isNotEmpty == true
+          ? song.album!.trim()
+          : 'Unknown Album';
+      final albumArtist = song.albumArtist?.trim().isNotEmpty == true
+          ? song.albumArtist!.trim()
+          : (song.artist.trim().isNotEmpty
+                ? song.artist.trim()
+                : 'Unknown Artist');
+      final key = albumName;
+
+      groupedSongs.putIfAbsent(key, () => []).add(song);
+      albumNames[key] = albumName;
+      albumArtists[key] = albumArtist;
     }
 
-    final sorted = groups.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
-    return sorted;
+    final groups = groupedSongs.entries.map((entry) {
+      final songsList = List<Song>.from(entry.value)
+        ..sort((a, b) {
+          final discA = (a.discNumber != null && a.discNumber! > 0)
+              ? a.discNumber!
+              : 1;
+          final discB = (b.discNumber != null && b.discNumber! > 0)
+              ? b.discNumber!
+              : 1;
+          final discCompare = discA.compareTo(discB);
+          if (discCompare != 0) return discCompare;
+
+          final trackA = (a.trackNumber != null && a.trackNumber! > 0)
+              ? a.trackNumber
+              : null;
+          final trackB = (b.trackNumber != null && b.trackNumber! > 0)
+              ? b.trackNumber
+              : null;
+          final hasTrackA = trackA != null;
+          final hasTrackB = trackB != null;
+          if (hasTrackA && hasTrackB) {
+            final trackCompare = trackA.compareTo(trackB);
+            if (trackCompare != 0) return trackCompare;
+          } else if (hasTrackA != hasTrackB) {
+            return hasTrackA ? -1 : 1;
+          }
+
+          final titleCompare = a.title.compareTo(b.title);
+          if (titleCompare != 0) return titleCompare;
+
+          return a.artist.compareTo(b.artist);
+        });
+
+      return AlbumGroup(
+        key: entry.key,
+        albumName: albumNames[entry.key] ?? 'Unknown Album',
+        albumArtist: albumArtists[entry.key] ?? 'Unknown Artist',
+        songs: songsList,
+      );
+    }).toList();
+
+    groups.sort((a, b) {
+      final artistCompare = a.albumArtist.compareTo(b.albumArtist);
+      if (artistCompare != 0) return artistCompare;
+      return a.albumName.compareTo(b.albumName);
+    });
+
+    return groups;
   }
 
-  static String extractRelativeSubfolder(
-    String? folderUri,
-    String? filePath,
-  ) {
+  static String extractRelativeSubfolder(String? folderUri, String? filePath) {
     if (folderUri == null || folderUri.isEmpty) return '';
     if (filePath == null || filePath.isEmpty) return '';
 

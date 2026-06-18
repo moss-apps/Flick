@@ -517,7 +517,7 @@ class PlayerService {
       _updateBitPerfectProcessingLocked,
     );
     Uac2PreferencesService.tuning432HzNotifier.addListener(
-      _updateBitPerfectProcessingLocked,
+      _on432HzTuningChanged,
     );
     _bitPerfectLockedListener = () {
       unawaited(reapplyEqualizer());
@@ -588,7 +588,7 @@ class PlayerService {
         !_uac2Service.isBitPerfectEnabledSync &&
         !_uac2Service.isDapBitPerfectEnabledSync) {
       final pref = await _preferencesService.getAudioEnginePreference();
-      if (pref != AudioEnginePreference.rustOboe) {
+      if (pref == AudioEnginePreference.exoPlayer) {
         await _preferencesService.setAudioEnginePreference(
           AudioEnginePreference.rustOboe,
         );
@@ -619,6 +619,37 @@ class PlayerService {
   Future<void> setGaplessPlaybackEnabled(bool enabled) async {
     gaplessPlaybackEnabledNotifier.value = enabled;
     await _preferencesService.setGaplessPlaybackEnabled(enabled);
+  }
+
+  /// Push the current crossfade preferences to the Rust engine.
+  ///
+  /// Called by the settings UI after persisting the new values. The actual
+  /// engine command is routed through [_applyRustPlaybackProcessingPolicy],
+  /// which suppresses crossfade in bit-perfect mode and under 432 Hz tuning.
+  Future<void> applyCrossfadeSettings({
+    required bool enabled,
+    required double durationSecs,
+  }) async {
+    final wasEnabled = _rustAudioService.crossfadeEnabledNotifier.value;
+    _rustAudioService.crossfadeEnabledNotifier.value = enabled;
+    _rustAudioService.crossfadeDurationNotifier.value = durationSecs;
+    if (_usingRustBackend) {
+      await _applyRustPlaybackProcessingPolicy(currentEngineType);
+      // Only (re)queue the next track when crossfade transitions to on.
+      // Re-queueing on every duration-slider drag spawns redundant decoders
+      // and can race the engine's source provider.
+      if (!wasEnabled &&
+          enabled &&
+          _isCrossfadeActive &&
+          currentSongNotifier.value != null &&
+          isPlayingNotifier.value) {
+        try {
+          await _queueNextTrackForGapless();
+        } catch (e) {
+          _debugLog('[crossfade] re-queue on enable failed: $e');
+        }
+      }
+    }
   }
 
   Future<void> _loadFloatingPlayerPreference() async {
@@ -700,7 +731,7 @@ class PlayerService {
   bool get _isCrossfadeActive =>
       _usingRustBackend &&
       _rustAudioService.crossfadeEnabledNotifier.value &&
-      !isBitPerfectModeEnabled;
+      !isBitPerfectProcessingLocked;
 
   bool get _shouldQueueNextTrack =>
       _usingRustBackend &&
@@ -932,6 +963,16 @@ class PlayerService {
         Uac2PreferencesService.is432HzTuningEnabledSync;
     if (bitPerfectProcessingLockedNotifier.value != locked) {
       bitPerfectProcessingLockedNotifier.value = locked;
+    }
+  }
+
+  /// Listener for 432 Hz tuning changes. Crossfade is suppressed under tuning
+  /// (the mix bypasses speed resampling), so re-applying the processing policy
+  /// pushes the new crossfade state to the Rust engine immediately.
+  void _on432HzTuningChanged() {
+    _updateBitPerfectProcessingLocked();
+    if (_usingRustBackend) {
+      unawaited(_applyRustPlaybackProcessingPolicy(currentEngineType));
     }
   }
 
@@ -2034,6 +2075,9 @@ class PlayerService {
       if (!_usingRustBackend) return;
       unawaited(_onSongFinished(endedPath: endedPath));
     };
+    _rustAudioService.onCrossfadeStarted = (fromPath, toPath) {
+      _debugLog('[crossfade] ENGINE TRIGGERED: $fromPath -> $toPath');
+    };
     _rustAudioService.onError = (message) {
       _debugLog('[PlayerService] Rust backend error: $message');
       unawaited(_refreshAudioOutputDiagnostics(reason: 'Rust backend error'));
@@ -2883,13 +2927,19 @@ class PlayerService {
     } else {
       await _rustAudioService.setVolume(_currentVolume);
       await _rustAudioService.setPlaybackSpeed(playbackSpeedNotifier.value);
+      // Crossfade is suppressed whenever DSP processing is locked out — this
+      // includes 432 Hz tuning, where the crossfade mix bypasses speed
+      // resampling and would emit audio at the wrong pitch.
+      final crossfadeOn =
+          !isBitPerfectProcessingLocked &&
+          _rustAudioService.crossfadeEnabledNotifier.value;
       await _rustAudioService.setCrossfade(
-        enabled: _rustAudioService.crossfadeEnabledNotifier.value,
+        enabled: crossfadeOn,
         durationSecs: _rustAudioService.crossfadeDurationNotifier.value,
       );
     }
 
-    if (!isBitPerfectModeEnabled) {
+    if (!isBitPerfectProcessingLocked) {
       final curveIndex = await _appPreferencesService.getCrossfadeCurveIndex();
       final curves = <rust_audio.CrossfadeCurveType>[
         rust_audio.CrossfadeCurveType.equalPower,
@@ -3382,6 +3432,9 @@ class PlayerService {
         _debugLog(
           '[Engine] Playback route resolved to ${activeEngine.logLabel}',
         );
+        if (_usingRustBackend) {
+          await _applyRustPlaybackProcessingPolicy(activeEngine);
+        }
         await _runWithSuppressedSequenceStateUpdates(() async {
           await _playbackManager.playTrack(song);
         });
@@ -4529,7 +4582,7 @@ class PlayerService {
       _updateBitPerfectProcessingLocked,
     );
     Uac2PreferencesService.tuning432HzNotifier.removeListener(
-      _updateBitPerfectProcessingLocked,
+      _on432HzTuningChanged,
     );
     if (_bitPerfectLockedListener != null) {
       bitPerfectProcessingLockedNotifier.removeListener(

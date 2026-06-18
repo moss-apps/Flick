@@ -11,9 +11,10 @@ import 'package:flick/providers/providers.dart';
 
 /// Section header used in settings sub-screens.
 class SettingsSectionHeader extends StatelessWidget {
-  const SettingsSectionHeader(this.title, {super.key});
+  const SettingsSectionHeader(this.title, {super.key, this.tag});
 
   final String title;
+  final String? tag;
 
   @override
   Widget build(BuildContext context) {
@@ -22,13 +23,36 @@ class SettingsSectionHeader extends StatelessWidget {
         left: AppConstants.spacingXs,
         bottom: AppConstants.spacingSm,
       ),
-      child: Text(
-        title.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: context.adaptiveTextTertiary,
-          letterSpacing: 1.2,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Row(
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: context.adaptiveTextTertiary,
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (tag != null) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD4A030).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                tag!.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFD4A030),
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
