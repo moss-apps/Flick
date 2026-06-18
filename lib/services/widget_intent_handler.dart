@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
@@ -83,6 +82,7 @@ class WidgetIntentHandler {
   }
 
   static const _provider = 'com.mossapps.flick.widgets.MiniPlayerWidgetProvider';
+  static const _flagshipProvider = 'com.mossapps.flick.widgets.FlagshipWidgetProvider';
 
   Future<void> _pushWidgetState() async {
     try {
@@ -96,7 +96,10 @@ class WidgetIntentHandler {
         await HomeWidget.saveWidgetData('flick_widget_artist', song.artist);
         await HomeWidget.saveWidgetData('flick_widget_album_art', song.albumArt ?? '');
       }
+      await HomeWidget.saveWidgetData('flick_widget_is_shuffle', state.isShuffle);
+      await HomeWidget.saveWidgetData('flick_widget_loop_mode', state.loopMode.index);
       await HomeWidget.updateWidget(qualifiedAndroidName: _provider);
+      await HomeWidget.updateWidget(qualifiedAndroidName: _flagshipProvider);
     } catch (e) {
       devLog('WidgetIntentHandler: failed to push widget state: $e');
     }
