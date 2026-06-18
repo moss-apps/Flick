@@ -5,53 +5,46 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg_3">
 
+    <ImageView
+        android:id="@+id/widget_art_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/widget_open_app"
+        android:scaleType="centerCrop"
+        android:src="@drawable/widget_default_art" />
+
     <LinearLayout
         android:id="@+id/widget_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="10dp"
-        android:paddingEnd="8dp">
-
-        <ImageView
-            android:id="@+id/widget_art"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:background="@drawable/widget_art_background"
-            android:contentDescription="@string/widget_open_app"
-            android:scaleType="centerCrop"
-            android:src="@drawable/widget_default_art" />
+        android:paddingStart="16dp"
+        android:paddingEnd="10dp">
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <TextView
+            <ImageView
                 android:id="@+id/widget_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="@font/product_sans_bold"
-                android:singleLine="true"
-                android:text="@string/widget_nothing_playing"
-                android:textColor="#FFF5F5F5"
-                android:textSize="13sp" />
+                android:adjustViewBounds="true"
+                android:contentDescription="@string/widget_nothing_playing"
+                android:scaleType="fitStart" />
 
-            <TextView
+            <ImageView
                 android:id="@+id/widget_artist"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:ellipsize="end"
-                android:fontFamily="@font/product_sans_regular"
-                android:singleLine="true"
-                android:textColor="#FFFFFFFF"
-                android:textSize="11sp"
+                android:layout_marginTop="2dp"
+                android:adjustViewBounds="true"
+                android:contentDescription="@string/widget_nothing_playing"
+                android:scaleType="fitStart"
                 android:visibility="gone" />
         </LinearLayout>
 
@@ -59,33 +52,34 @@
             android:id="@+id/widget_prev"
             android:layout_width="32dp"
             android:layout_height="32dp"
+            android:layout_marginStart="2dp"
             android:background="@drawable/widget_button_transport_bg"
             android:contentDescription="@string/widget_previous"
             android:padding="6dp"
             android:scaleType="centerInside"
-            android:src="@drawable/widget_ic_previous" />
+            android:src="@drawable/widget_ic_lucide_skip_back" />
 
         <ImageButton
             android:id="@+id/widget_play_pause"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:layout_marginStart="2dp"
+            android:layout_marginStart="4dp"
             android:background="@drawable/widget_button_play_bg"
             android:contentDescription="@string/widget_play_pause"
             android:padding="8dp"
             android:scaleType="centerInside"
-            android:src="@drawable/widget_ic_play" />
+            android:src="@drawable/widget_ic_lucide_play" />
 
         <ImageButton
             android:id="@+id/widget_next"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:layout_marginStart="2dp"
+            android:layout_marginStart="4dp"
             android:background="@drawable/widget_button_transport_bg"
             android:contentDescription="@string/widget_next"
             android:padding="6dp"
             android:scaleType="centerInside"
-            android:src="@drawable/widget_ic_next" />
+            android:src="@drawable/widget_ic_lucide_skip_forward" />
 
     </LinearLayout>
 
