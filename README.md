@@ -1,11 +1,17 @@
-# Flick Player
+# Flick
 ---
 <p align="center">
-  <img src="docs/app_screenshots/flick_banner.png" alt="Flick Player Banner" width="100%">
+  <img src="docs/app_screenshots/flick_banner.png" alt="Flick Banner" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.mossapps.flick">
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
+  </a>
 </p>
 
 ---
-### Flick Player is a high-performance music player application built with Flutter and Rust, designed primarily for audiophiles who demand bit-perfect audio playback through external DACs and amplifiers.
+### Flick is a high-performance music player application built with Flutter and Rust, designed primarily for audiophiles who demand bit-perfect audio playback through external DACs and amplifiers.
 
 > **GitHub Releases**: Download the latest builds from [GitHub Releases](https://github.com/anomalyco/opencode/releases) or the [Google Play Store](https://play.google.com/store/apps/details?id=com.mossapps.flick).
 
@@ -128,10 +134,10 @@
 
 ## Moss Ecosystem
 
-Flick Player is part of the **Moss ecosystem**, a suite of interconnected apps that share infrastructure and capabilities.
+Flick is part of the **Moss ecosystem**, a suite of interconnected apps that share infrastructure and capabilities.
 
 ### Apps in the Ecosystem
-- **Flick Player**: High-performance audiophile music player with UAC 2.0 support
+- **Flick**: High-performance audiophile music player with UAC 2.0 support
 - **Latch**: [Part of the Moss ecosystem](https://github.com/moss-apps/Latch)
 
 ### Cross-App Integration
@@ -342,7 +348,7 @@ flutter build apk --release
 
 ### Android
 
-Flick Player is designed exclusively for Android. The application uses a multi-strategy audio engine:
+Flick is designed exclusively for Android. The application uses a multi-strategy audio engine:
 
 - **USB Direct**: Bit-perfect playback through external USB DACs via the custom Rust UAC 2.0 isochronous engine.
 - **DAP Native**: High-resolution playback through the device's internal DAC via Oboe/AAudio exclusive mode, with device qualification for confirmed bit-perfect DAPs.
@@ -358,7 +364,7 @@ UAC 2.0 DAC/AMP detection uses the USB Host API. The pipeline info and transfer 
 
 ## Architecture
 
-Flick Player follows a feature-based architecture with clear separation of concerns:
+Flick follows a feature-based architecture with clear separation of concerns:
 
 - **Services Layer**: Business logic for audio playback, library management, and device communication
 - **Providers Layer**: Riverpod providers for reactive state management
@@ -394,7 +400,7 @@ Documentation is available in the `docs/` directory:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Flick Player is purely open-source and free. There are no premium features, ads, or paid components.
+Flick is purely open-source and free. There are no premium features, ads, or paid components.
 
 ## Contributors
 
