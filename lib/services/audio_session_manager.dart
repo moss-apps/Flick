@@ -251,7 +251,20 @@ class AudioSessionManager {
         info.hasUsbDac ||
         capabilityReportsUsb ||
         looksLikeUsbAudioRoute) {
-      if (audioEnginePreference == AudioEnginePreference.rustOboe) {
+    // ponytail: selects the Rust engine for BT when low-latency pref is on.
+    // The real win (Oboe PerformanceMode::LowLatency on BT) needs frb codegen
+    // to thread a flag into open_android_output_stream — deferred. This at
+    // least routes through the Rust engine which auto-detects BT routes.
+    if (info.isBluetoothRoute &&
+        Uac2PreferencesService.isBtLowLatencyModeSync) {
+      _debugLog(
+        '[Session] Selected RUST_OBOE for Bluetooth because Low-latency mode '
+        'is enabled (${info.routeLabel ?? info.routeType ?? 'unknown'})',
+      );
+      return AudioEngineType.rustOboe;
+    }
+
+    if (audioEnginePreference == AudioEnginePreference.rustOboe) {
         _debugLog(
           '[Session] Selected RUST_OBOE because an external USB DAC is '
           'attached and the user prefers the Rust Android-managed engine '
