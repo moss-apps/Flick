@@ -38,6 +38,9 @@ class Uac2PreferencesService {
   static bool get autoSwitchDsdForVolumeSync => autoSwitchDsdForVolumeNotifier.value;
   static final ValueNotifier<bool> tuning432HzNotifier = ValueNotifier(false);
   static bool get is432HzTuningEnabledSync => tuning432HzNotifier.value;
+  static final ValueNotifier<bool> btLowLatencyModeNotifier = ValueNotifier(false);
+  static bool get isBtLowLatencyModeSync => btLowLatencyModeNotifier.value;
+  static const _keyBtLowLatencyMode = 'bt_low_latency_mode';
 
   Future<void> saveSelectedDevice(Uac2DeviceInfo device) async {
     try {
@@ -374,6 +377,30 @@ class Uac2PreferencesService {
     }
   }
 
+  Future<void> setBtLowLatencyMode(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyBtLowLatencyMode, enabled);
+      btLowLatencyModeNotifier.value = enabled;
+    } catch (e) {
+      devLog('Failed to save BT low-latency setting: $e');
+    }
+  }
+
+  Future<bool> getBtLowLatencyMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool(_keyBtLowLatencyMode) ?? false;
+      if (btLowLatencyModeNotifier.value != enabled) {
+        btLowLatencyModeNotifier.value = enabled;
+      }
+      return enabled;
+    } catch (e) {
+      devLog('Failed to load BT low-latency setting: $e');
+      return false;
+    }
+  }
+
   Future<Uac2FormatPreference> getFormatPreference() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -459,10 +486,12 @@ class Uac2PreferencesService {
     await prefs.remove(_keyGaplessPlaybackEnabled);
     await prefs.remove(_keyDsdOutputMode);
     await prefs.remove(_keyAutoSwitchDsdForVolume);
+    await prefs.remove(_keyBtLowLatencyMode);
       dsdOutputModeNotifier.value = DsdOutputMode.auto;
       developerModeNotifier.value = false;
       killIsochronousUsbOnQuitNotifier.value = true;
       tuning432HzNotifier.value = false;
+      btLowLatencyModeNotifier.value = false;
     } catch (e) {
       devLog('Failed to clear preferences: $e');
     }
