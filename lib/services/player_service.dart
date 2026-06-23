@@ -16,6 +16,7 @@ import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/services/notification_service.dart';
 import 'package:flick/services/floating_player_service.dart';
 import 'package:flick/services/android_audio_device_service.dart';
+import 'package:flick/services/bluetooth_service.dart';
 import 'package:flick/services/audio_engine_manager.dart';
 import 'package:flick/services/audio_session_manager.dart';
 import 'package:flick/services/equalizer_service.dart';
@@ -286,6 +287,9 @@ class PlayerService {
   }
 
   just_audio.AudioPlayer? _justAudioPlayer;
+  // Cached crossfade curve index (0..3) for synchronous reads inside the
+  // just_audio engine's config provider; refreshed from prefs on load/change.
+  int _crossfadeCurveIndex = 0;
 
   final NotificationService _notificationService = NotificationService();
   final FloatingPlayerService _floatingPlayerService = FloatingPlayerService();
@@ -348,6 +352,9 @@ class PlayerService {
   VoidCallback? _rustPositionListener;
   VoidCallback? _rustDurationListener;
   StreamSubscription<AudioInterruptionEvent>? _audioFocusSubscription;
+  StreamSubscription<Map<Object?, Object?>>? _bluetoothDeviceEventSubscription;
+  DateTime? _bluetoothDisconnectedAt;
+  static const Duration _bluetoothReconnectWindow = Duration(seconds: 30);
   bool _audioInitialized = false;
   Future<void>? _audioInitInFlight;
   Future<void>? _appLaunchPreparationInFlight;
@@ -529,11 +536,46 @@ class PlayerService {
     unawaited(_loadGaplessPlaybackPreference());
     unawaited(_loadCrossfadePreferences());
     unawaited(_loadFloatingPlayerPreference());
+    _initBluetoothReconnectHandling();
+  }
+
+  void _initBluetoothReconnectHandling() {
+    _bluetoothDeviceEventSubscription = BluetoothService.instance.deviceEvents
+        .listen((event) {
+          final type = event['event'] as String?;
+          if (type == 'disconnected') {
+            if (isPlayingNotifier.value) {
+              _bluetoothDisconnectedAt = DateTime.now();
+            }
+          } else if (type == 'connected') {
+            _maybeResumeOnBluetoothReconnect();
+          }
+        });
+  }
+
+  Future<void> _maybeResumeOnBluetoothReconnect() async {
+    final disconnectTime = _bluetoothDisconnectedAt;
+    if (disconnectTime == null) return;
+    _bluetoothDisconnectedAt = null;
+    final resumeEnabled =
+        await _appPreferencesService.getResumeOnBluetoothReconnect();
+    if (!resumeEnabled) return;
+    if (DateTime.now().difference(disconnectTime) >
+        _bluetoothReconnectWindow) {
+      return;
+    }
+    if (currentSongNotifier.value == null || isPlayingNotifier.value) return;
+    _debugLog(
+      '[Bluetooth] Reconnected within ${_bluetoothReconnectWindow.inSeconds}s; '
+      'resuming playback',
+    );
+    unawaited(resume());
   }
 
   Future<void> _loadCrossfadePreferences() async {
     final enabled = await _appPreferencesService.getCrossfadeEnabled();
     final duration = await _appPreferencesService.getCrossfadeDurationSecs();
+    _crossfadeCurveIndex = await _appPreferencesService.getCrossfadeCurveIndex();
     _rustAudioService.crossfadeEnabledNotifier.value = enabled;
     _rustAudioService.crossfadeDurationNotifier.value = duration;
   }
@@ -633,6 +675,8 @@ class PlayerService {
     final wasEnabled = _rustAudioService.crossfadeEnabledNotifier.value;
     _rustAudioService.crossfadeEnabledNotifier.value = enabled;
     _rustAudioService.crossfadeDurationNotifier.value = durationSecs;
+    _crossfadeCurveIndex = await _appPreferencesService.getCrossfadeCurveIndex();
+
     if (_usingRustBackend) {
       await _applyRustPlaybackProcessingPolicy(currentEngineType);
       // Only (re)queue the next track when crossfade transitions to on.
@@ -648,6 +692,31 @@ class PlayerService {
         } catch (e) {
           _debugLog('[crossfade] re-queue on enable failed: $e');
         }
+      }
+      return;
+    }
+
+    // just_audio (standard) engine: crossfade runs in-engine, but a track loaded
+    // while crossfade was off used a ConcatenatingAudioSource (hard cut). On the
+    // on-transition, reload the current track as a single source at the same
+    // position so the engine can intercept the tail and crossfade.
+    if (currentEngineType == AudioEngineType.normalAndroid &&
+        !wasEnabled &&
+        enabled &&
+        currentSongNotifier.value != null &&
+        isPlayingNotifier.value) {
+      final song = currentSongNotifier.value!;
+      final position = positionNotifier.value;
+      try {
+        await _runWithSuppressedSequenceStateUpdates(() async {
+          await _playbackManager.load(song);
+          if (position > Duration.zero) {
+            await _playbackManager.seek(position);
+          }
+          await _playbackManager.play();
+        });
+      } catch (e) {
+        _debugLog('[crossfade] reload on enable failed: $e');
       }
     }
   }
@@ -1251,6 +1320,19 @@ class PlayerService {
       shouldIgnoreTrack: (track) => track.filePath == null,
       shouldFastStartCurrentTrackOnly: () =>
           loopModeNotifier.value != LoopMode.all,
+      crossfadeConfigProvider: () {
+        final curves = AndroidCrossfadeCurve.values;
+        final curve =
+            curves[_crossfadeCurveIndex.clamp(0, curves.length - 1)];
+        return AndroidCrossfadeConfig(
+          enabled: _rustAudioService.crossfadeEnabledNotifier.value &&
+              !isBitPerfectProcessingLocked,
+          durationSecs: _rustAudioService.crossfadeDurationNotifier.value,
+          curve: curve,
+        );
+      },
+      onNextSong: _resolveAndroidCrossfadeNext,
+      onTrackAdvanced: _onAndroidTrackAdvanced,
     );
     engine.onTrackEnded = () {
       if (_usingRustBackend) return;
@@ -3488,6 +3570,34 @@ class PlayerService {
     }
   }
 
+  /// Resolves the next song for the just_audio crossfade engine. Mirrors the
+  /// linear-next rule used by the Rust gapless path (shuffle is honoured
+  /// because [_playlist] is pre-shuffled at play time). Returns null when there
+  /// is no successor so the engine lets the track end naturally.
+  Song? _resolveAndroidCrossfadeNext() {
+    if (_playlist.isEmpty) return null;
+    if (loopModeNotifier.value == LoopMode.one) return null;
+    final isLastTrack = _currentIndex >= _playlist.length - 1;
+    if (isLastTrack) {
+      if (loopModeNotifier.value != LoopMode.all) return null;
+      return _playlist[0];
+    }
+    return _playlist[_currentIndex + 1];
+  }
+
+  /// Called by the just_audio engine after a crossfade swap completes. The
+  /// engine's emitted PlaybackState already drives currentSongNotifier, index
+  /// sync, notification, replay tracking and position save via
+  /// [_bindPlaybackState]; this only covers the two gaps that path leaves out.
+  void _onAndroidTrackAdvanced(Song song) {
+    final index = _playlist.indexWhere((entry) => entry.id == song.id);
+    if (index >= 0) {
+      _setCurrentIndex(index);
+    }
+    _consumeQueueEntryAt(_currentIndex);
+    _updatePriorityAnchor();
+  }
+
   Future<void> _savePosition({Song? song, Duration? position}) async {
     final resolvedSong = song ?? currentSongNotifier.value;
     if (!_shouldPersistSong(resolvedSong)) return;
@@ -4553,6 +4663,7 @@ class PlayerService {
     _positionSaveTimer?.cancel();
     _stopHwVolumeHealthTimer();
     unawaited(_audioFocusSubscription?.cancel());
+    unawaited(_bluetoothDeviceEventSubscription?.cancel());
     cancelSleepTimer();
     _notificationService.hideNotification();
     _floatingPlayerService.hide();
