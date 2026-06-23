@@ -28,6 +28,14 @@ static PENDING_VOLUME: AtomicU32 = AtomicU32::new(0);
 
 const PENDING_VOLUME_NONE: u32 = 0xFFFF_FFFF;
 
+// ponytail: crossfade state survives engine recreation (sample-rate / strategy
+// changes recreate the engine, wiping crossfade) via these pending atomics,
+// mirroring the PENDING_VOLUME pattern. Three separate atomics because enabled/
+// duration and curve are pushed through two distinct Dart calls.
+static PENDING_XF_ENABLED: AtomicU8 = AtomicU8::new(u8::MAX);
+static PENDING_XF_DURATION: AtomicU32 = AtomicU32::new(0xFFFF_FFFF);
+static PENDING_XF_CURVE: AtomicU8 = AtomicU8::new(u8::MAX);
+
 pub fn current_dsd_output_mode() -> DsdOutputMode {
     match DSD_OUTPUT_MODE.load(Ordering::Relaxed) {
         1 => DsdOutputMode::Dop,
@@ -174,6 +182,43 @@ pub fn take_pending_volume() -> Option<f32> {
     }
     PENDING_VOLUME.store(PENDING_VOLUME_NONE, Ordering::Relaxed);
     Some(f32::from_bits(bits))
+}
+
+pub fn set_pending_crossfade(enabled: bool, duration_secs: f32) {
+    PENDING_XF_ENABLED.store(if enabled { 1 } else { 0 }, Ordering::Relaxed);
+    PENDING_XF_DURATION.store(duration_secs.to_bits(), Ordering::Relaxed);
+}
+
+pub fn set_pending_crossfade_curve(curve: crate::audio::crossfader::CrossfadeCurve) {
+    let raw = match curve {
+        crate::audio::crossfader::CrossfadeCurve::EqualPower => 0,
+        crate::audio::crossfader::CrossfadeCurve::Linear => 1,
+        crate::audio::crossfader::CrossfadeCurve::SquareRoot => 2,
+        crate::audio::crossfader::CrossfadeCurve::SCurve => 3,
+    };
+    PENDING_XF_CURVE.store(raw, Ordering::Relaxed);
+}
+
+pub fn take_pending_crossfade() -> Option<(bool, f32, crate::audio::crossfader::CrossfadeCurve)> {
+    let enabled_raw = PENDING_XF_ENABLED.swap(u8::MAX, Ordering::Relaxed);
+    if enabled_raw == u8::MAX {
+        return None;
+    }
+    let enabled = enabled_raw == 1;
+    let dur_bits = PENDING_XF_DURATION.swap(0xFFFF_FFFF, Ordering::Relaxed);
+    let duration_secs = if dur_bits == 0xFFFF_FFFF {
+        3.0
+    } else {
+        f32::from_bits(dur_bits)
+    };
+    let curve_raw = PENDING_XF_CURVE.swap(u8::MAX, Ordering::Relaxed);
+    let curve = match curve_raw {
+        1 => crate::audio::crossfader::CrossfadeCurve::Linear,
+        2 => crate::audio::crossfader::CrossfadeCurve::SquareRoot,
+        3 => crate::audio::crossfader::CrossfadeCurve::SCurve,
+        _ => crate::audio::crossfader::CrossfadeCurve::EqualPower,
+    };
+    Some((enabled, duration_secs, curve))
 }
 
 fn with_audio_engine<T>(
@@ -1102,11 +1147,13 @@ pub fn audio_set_fx(
 }
 
 /// Configure crossfade settings.
-/// Only available when not in bit-perfect (passthrough) mode.
+///
+/// The engine's own `is_crossfade_allowed()` trigger gate (plus the Dart-side
+/// processing policy) authoritatively decide whether crossfade runs; the old
+/// passthrough guard here was redundant and self-defeating — it blocked the
+/// very `crossfade_forces_dsp` flip that lets crossfade escape passthrough.
 pub fn audio_set_crossfade(enabled: bool, duration_secs: f32) -> Result<(), String> {
-    if let Some(true) = read_audio_engine(|handle| handle.is_passthrough()) {
-        return Err("Crossfade is not available in bit-perfect playback mode".to_string());
-    }
+    set_pending_crossfade(enabled, duration_secs);
     with_audio_engine(|handle| handle.set_crossfade(enabled, duration_secs))
 }
 
@@ -1184,17 +1231,14 @@ pub fn audio_poll_event() -> Option<AudioEventType> {
 }
 
 /// Set the crossfade curve type.
-/// Only available when not in bit-perfect (passthrough) mode.
 pub fn audio_set_crossfade_curve(curve: CrossfadeCurveType) -> Result<(), String> {
-    if let Some(true) = read_audio_engine(|handle| handle.is_passthrough()) {
-        return Err("Crossfade is not available in bit-perfect playback mode".to_string());
-    }
     let curve = match curve {
         CrossfadeCurveType::EqualPower => crate::audio::crossfader::CrossfadeCurve::EqualPower,
         CrossfadeCurveType::Linear => crate::audio::crossfader::CrossfadeCurve::Linear,
         CrossfadeCurveType::SquareRoot => crate::audio::crossfader::CrossfadeCurve::SquareRoot,
         CrossfadeCurveType::SCurve => crate::audio::crossfader::CrossfadeCurve::SCurve,
     };
+    set_pending_crossfade_curve(curve);
     with_audio_engine(|handle| handle.set_crossfade_curve(curve))
 }
 
@@ -1221,4 +1265,44 @@ pub fn audio_get_channels() -> Option<usize> {
 /// Shutdown the audio engine.
 pub fn audio_shutdown() -> Result<(), String> {
     ENGINE_MANAGER.shutdown()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::audio::crossfader::CrossfadeCurve;
+
+    #[test]
+    fn pending_crossfade_round_trip() {
+        let _ = take_pending_crossfade();
+
+        set_pending_crossfade(true, 5.0);
+        set_pending_crossfade_curve(CrossfadeCurve::Linear);
+        let (enabled, dur, curve) = take_pending_crossfade().expect("pending set");
+        assert!(enabled);
+        assert!((dur - 5.0).abs() < 1e-6);
+        assert_eq!(curve, CrossfadeCurve::Linear);
+        assert!(take_pending_crossfade().is_none(), "take must clear");
+
+        set_pending_crossfade(false, 12.5);
+        let (enabled, dur, _) = take_pending_crossfade().unwrap();
+        assert!(!enabled, "disabled state must round-trip");
+        assert!((dur - 12.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn pending_crossfade_all_curves() {
+        for (curve, expect) in [
+            (CrossfadeCurve::EqualPower, CrossfadeCurve::EqualPower),
+            (CrossfadeCurve::Linear, CrossfadeCurve::Linear),
+            (CrossfadeCurve::SquareRoot, CrossfadeCurve::SquareRoot),
+            (CrossfadeCurve::SCurve, CrossfadeCurve::SCurve),
+        ] {
+            let _ = take_pending_crossfade();
+            set_pending_crossfade(true, 3.0);
+            set_pending_crossfade_curve(curve);
+            let (_, _, got) = take_pending_crossfade().unwrap();
+            assert_eq!(got, expect, "curve {:?} did not round-trip", curve);
+        }
+    }
 }
