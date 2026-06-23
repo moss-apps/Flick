@@ -212,6 +212,23 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
     NavigationHelper.navigateToFullPlayer(context, heroTag: 'album_shuffle');
   }
 
+  Future<void> _queueAll() async {
+    if (widget.songs.isEmpty) return;
+    for (final song in widget.songs) {
+      await widget.playerService.addToQueue(song);
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Queued ${widget.songs.length} songs'),
+        action: SnackBarAction(
+          label: 'View queue',
+          onPressed: () => NavigationHelper.navigateToQueue(context),
+        ),
+      ),
+    );
+  }
+
   void _openAlbum(AlbumGroup album) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -390,6 +407,14 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                             icon: LucideIcons.shuffle,
                             label: 'Shuffle',
                             onTap: _shuffleAll,
+                          ),
+                        ),
+                        const SizedBox(width: AppConstants.spacingMd),
+                        Expanded(
+                          child: _ActionButton(
+                            icon: LucideIcons.listMusic,
+                            label: 'Queue',
+                            onTap: _queueAll,
                           ),
                         ),
                       ],
