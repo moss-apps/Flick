@@ -53,6 +53,12 @@ class AppPreferences {
   final int bottomBarAutoCollapseSeconds;
   final String miniPlayerSwipeAction;
   final bool keepPlayingOnQuit;
+  final bool pauseOnBluetoothDisconnect;
+  final bool resumeOnBluetoothReconnect;
+  final String preferredBluetoothDevice;
+  final int btPreferredCodec;
+  final String btLdacBitrate;
+  final bool btAbsoluteVolumeSync;
   final bool floatingPlayerEnabled;
   final bool autoFocusSearch;
 
@@ -109,6 +115,12 @@ class AppPreferences {
     this.bottomBarAutoCollapseSeconds = 5,
     this.miniPlayerSwipeAction = 'visualizer',
     this.keepPlayingOnQuit = false,
+    this.pauseOnBluetoothDisconnect = true,
+    this.resumeOnBluetoothReconnect = false,
+    this.preferredBluetoothDevice = '',
+    this.btPreferredCodec = -1,
+    this.btLdacBitrate = 'adaptive',
+    this.btAbsoluteVolumeSync = false,
     this.floatingPlayerEnabled = false,
     this.autoFocusSearch = false,
   });
@@ -166,6 +178,12 @@ class AppPreferences {
     int? bottomBarAutoCollapseSeconds,
     String? miniPlayerSwipeAction,
     bool? keepPlayingOnQuit,
+    bool? pauseOnBluetoothDisconnect,
+    bool? resumeOnBluetoothReconnect,
+    String? preferredBluetoothDevice,
+    int? btPreferredCodec,
+    String? btLdacBitrate,
+    bool? btAbsoluteVolumeSync,
     bool? floatingPlayerEnabled,
     bool? autoFocusSearch,
   }) {
@@ -243,6 +261,16 @@ class AppPreferences {
       miniPlayerSwipeAction:
           miniPlayerSwipeAction ?? this.miniPlayerSwipeAction,
       keepPlayingOnQuit: keepPlayingOnQuit ?? this.keepPlayingOnQuit,
+      pauseOnBluetoothDisconnect:
+          pauseOnBluetoothDisconnect ?? this.pauseOnBluetoothDisconnect,
+      resumeOnBluetoothReconnect:
+          resumeOnBluetoothReconnect ?? this.resumeOnBluetoothReconnect,
+      preferredBluetoothDevice:
+          preferredBluetoothDevice ?? this.preferredBluetoothDevice,
+      btPreferredCodec: btPreferredCodec ?? this.btPreferredCodec,
+      btLdacBitrate: btLdacBitrate ?? this.btLdacBitrate,
+      btAbsoluteVolumeSync:
+          btAbsoluteVolumeSync ?? this.btAbsoluteVolumeSync,
       floatingPlayerEnabled:
           floatingPlayerEnabled ?? this.floatingPlayerEnabled,
       autoFocusSearch: autoFocusSearch ?? this.autoFocusSearch,
@@ -306,6 +334,14 @@ class AppPreferencesService {
       'bottom_bar_auto_collapse_seconds';
   static const _miniPlayerSwipeActionKey = 'mini_player_swipe_action';
   static const _keepPlayingOnQuitKey = 'app_keep_playing_on_quit';
+  static const _pauseOnBluetoothDisconnectKey =
+      'app_pause_on_bluetooth_disconnect';
+  static const _resumeOnBluetoothReconnectKey =
+      'app_resume_on_bluetooth_reconnect';
+  static const _preferredBluetoothDeviceKey = 'app_preferred_bluetooth_device';
+  static const _btPreferredCodecKey = 'app_bt_preferred_codec';
+  static const _btLdacBitrateKey = 'app_bt_ldac_bitrate';
+  static const _btAbsoluteVolumeSyncKey = 'app_bt_absolute_volume_sync';
   static const _floatingPlayerEnabledKey = 'app_floating_player_enabled';
   static const _autoFocusSearchKey = 'app_auto_focus_search';
   static const _shuffleModeKey = 'playback_shuffle_mode';
@@ -385,6 +421,16 @@ class AppPreferencesService {
       miniPlayerSwipeAction:
           prefs.getString(_miniPlayerSwipeActionKey) ?? 'visualizer',
       keepPlayingOnQuit: prefs.getBool(_keepPlayingOnQuitKey) ?? false,
+      pauseOnBluetoothDisconnect:
+          prefs.getBool(_pauseOnBluetoothDisconnectKey) ?? true,
+      resumeOnBluetoothReconnect:
+          prefs.getBool(_resumeOnBluetoothReconnectKey) ?? false,
+      preferredBluetoothDevice:
+          prefs.getString(_preferredBluetoothDeviceKey) ?? '',
+      btPreferredCodec: prefs.getInt(_btPreferredCodecKey) ?? -1,
+      btLdacBitrate: prefs.getString(_btLdacBitrateKey) ?? 'adaptive',
+      btAbsoluteVolumeSync:
+          prefs.getBool(_btAbsoluteVolumeSyncKey) ?? false,
       floatingPlayerEnabled:
           prefs.getBool(_floatingPlayerEnabledKey) ?? false,
       autoFocusSearch: prefs.getBool(_autoFocusSearchKey) ?? false,
@@ -893,6 +939,66 @@ class AppPreferencesService {
   Future<void> setKeepPlayingOnQuit(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keepPlayingOnQuitKey, value);
+  }
+
+  Future<bool> getPauseOnBluetoothDisconnect() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_pauseOnBluetoothDisconnectKey) ?? true;
+  }
+
+  Future<void> setPauseOnBluetoothDisconnect(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_pauseOnBluetoothDisconnectKey, value);
+  }
+
+  Future<bool> getResumeOnBluetoothReconnect() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_resumeOnBluetoothReconnectKey) ?? false;
+  }
+
+  Future<void> setResumeOnBluetoothReconnect(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_resumeOnBluetoothReconnectKey, value);
+  }
+
+  Future<String> getPreferredBluetoothDevice() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_preferredBluetoothDeviceKey) ?? '';
+  }
+
+  Future<void> setPreferredBluetoothDevice(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_preferredBluetoothDeviceKey, value);
+  }
+
+  Future<int> getBtPreferredCodec() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_btPreferredCodecKey) ?? -1;
+  }
+
+  Future<void> setBtPreferredCodec(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_btPreferredCodecKey, value);
+  }
+
+  Future<String> getBtLdacBitrate() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_btLdacBitrateKey) ?? 'adaptive';
+  }
+
+  Future<void> setBtLdacBitrate(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_btLdacBitrateKey, value);
+  }
+
+  Future<bool> getBtAbsoluteVolumeSync() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_btAbsoluteVolumeSyncKey) ?? false;
+  }
+
+  Future<void> setBtAbsoluteVolumeSync(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_btAbsoluteVolumeSyncKey, value);
   }
 
   Future<bool> getFloatingPlayerEnabled() async {
