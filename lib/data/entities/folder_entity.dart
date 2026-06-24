@@ -26,4 +26,13 @@ class FolderEntity {
   /// Per-folder deep scan override.
   /// null = use global default, true = always deep scan, false = never deep scan.
   bool? useDeepScan;
+
+  /// Whether this folder lives on removable storage (USB/SD).
+  bool? isRemovable;
+
+  /// MediaStore volume name to target for this folder (null = default external).
+  String? mediaStoreVolume;
+
+  /// Last known mount state of the volume ("mounted", "unmounted", "unknown").
+  String? volumeState;
 }
