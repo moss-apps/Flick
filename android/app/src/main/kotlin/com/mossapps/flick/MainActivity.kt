@@ -58,6 +58,8 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.os.PowerManager
+import android.os.storage.StorageManager
+import android.os.storage.StorageVolume
 import androidx.documentfile.provider.DocumentFile
 import com.mossapps.flick.audiofx.JustAudioProcessingController
 import io.flutter.embedding.android.FlutterActivity
@@ -431,6 +433,14 @@ class MainActivity: FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "URI is required", null)
                     }
                 }
+                "resolveStorageInfo" -> {
+                    val uri = call.argument<String>("uri")
+                    if (uri != null) {
+                        result.success(resolveStorageInfo(uri))
+                    } else {
+                        result.error("INVALID_ARGUMENT", "URI is required", null)
+                    }
+                }
                 "isIgnoringBatteryOptimizations" -> {
                     result.success(isIgnoringBatteryOptimizations())
                 }
@@ -537,10 +547,11 @@ class MainActivity: FlutterActivity() {
                 }
                 "queryMediaStoreAudio" -> {
                     val folderPaths = call.argument<List<String>>("folderPaths")
+                    val volumeName = call.argument<String?>("volumeName")
                     mainScope.launch {
                         try {
                             val files = withContext(Dispatchers.IO) {
-                                queryMediaStoreAudio(folderPaths ?: emptyList())
+                                queryMediaStoreAudio(folderPaths ?: emptyList(), volumeName)
                             }
                             result.success(files)
                         } catch (e: Exception) {
@@ -550,10 +561,11 @@ class MainActivity: FlutterActivity() {
                 }
                 "queryMediaStoreNonAudio" -> {
                     val folderPaths = call.argument<List<String>>("folderPaths")
+                    val volumeName = call.argument<String?>("volumeName")
                     mainScope.launch {
                         try {
                             val files = withContext(Dispatchers.IO) {
-                                queryMediaStoreNonAudio(folderPaths ?: emptyList())
+                                queryMediaStoreNonAudio(folderPaths ?: emptyList(), volumeName)
                             }
                             result.success(files)
                         } catch (e: Exception) {
@@ -563,10 +575,11 @@ class MainActivity: FlutterActivity() {
                 }
                 "queryMediaStoreDeletions" -> {
                     val filePaths = call.argument<List<String>>("filePaths")
+                    val volumeName = call.argument<String?>("volumeName")
                     mainScope.launch {
                         try {
                             val deleted = withContext(Dispatchers.IO) {
-                                queryMediaStoreDeletions(filePaths ?: emptyList())
+                                queryMediaStoreDeletions(filePaths ?: emptyList(), volumeName)
                             }
                             result.success(deleted)
                         } catch (e: Exception) {
@@ -1327,27 +1340,68 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun resolveTreeUriToPath(uriString: String): String? {
+        return resolveStorageInfo(uriString)["fsPath"] as? String
+    }
+
+    // Single source of truth for filesystem path + MediaStore-volume routing, including
+    // removable (USB/SD) volumes which queryMediaStoreAudio must target by their own name.
+    // ponytail: removable per-volume MediaStore is API 29+; pre-29 returns null -> SAF fallback.
+    private fun resolveStorageInfo(uriString: String): Map<String, Any?> {
+        val unknown = mapOf<String, Any?>(
+            "fsPath" to null,
+            "mediaStoreVolume" to null,
+            "isRemovable" to false,
+            "isPrimary" to false,
+            "state" to "unknown",
+        )
         return try {
             val uri = Uri.parse(uriString)
             if (uri.scheme == "file") {
-                return uri.path
+                return mapOf(
+                    "fsPath" to uri.path,
+                    "mediaStoreVolume" to null,
+                    "isRemovable" to false,
+                    "isPrimary" to true,
+                    "state" to "mounted",
+                )
             }
-
             if (uri.scheme != "content" ||
                 uri.authority != "com.android.externalstorage.documents"
             ) {
-                return null
+                return unknown
             }
 
             val documentId = DocumentsContract.getTreeDocumentId(uri)
             val decodedId = Uri.decode(documentId)
             val parts = decodedId.split(":", limit = 2)
-            if (parts.isEmpty()) {
-                return null
-            }
-
+            if (parts.isEmpty()) return unknown
             val volumeId = parts[0]
             val relativePath = parts.getOrNull(1)?.trim('/') ?: ""
+            val isPrimaryDoc = volumeId.lowercase() == "primary" ||
+                volumeId.lowercase() == "home"
+
+            val sm = getSystemService(Context.STORAGE_SERVICE) as? StorageManager
+            val matched = sm?.storageVolumes?.firstOrNull { vol ->
+                if (isPrimaryDoc) vol.isPrimary
+                else vol.uuid?.equals(volumeId, ignoreCase = true) == true
+            }
+
+            if (matched != null) {
+                val basePath = storageVolumePath(matched)
+                val candidate = if (basePath == null) null
+                    else if (relativePath.isEmpty()) basePath else "$basePath/$relativePath"
+                val readable = candidate != null &&
+                    File(candidate).let { it.exists() && it.canRead() }
+                return mapOf(
+                    "fsPath" to if (readable) candidate else null,
+                    "mediaStoreVolume" to mediaStoreVolumeNameFor(volumeId, matched.isPrimary),
+                    "isRemovable" to matched.isRemovable,
+                    "isPrimary" to matched.isPrimary,
+                    "state" to matched.state,
+                )
+            }
+
+            // Legacy fallback when StorageManager didn't enumerate the volume.
             val basePath = when (volumeId.lowercase()) {
                 "primary" -> Environment.getExternalStorageDirectory().absolutePath
                 "home" -> Environment.getExternalStoragePublicDirectory(
@@ -1355,23 +1409,45 @@ class MainActivity: FlutterActivity() {
                 ).absolutePath
                 else -> "/storage/$volumeId"
             }
-
-            val candidate = if (relativePath.isEmpty()) {
-                basePath
-            } else {
-                "$basePath/$relativePath"
-            }
-
+            val candidate = if (relativePath.isEmpty()) basePath else "$basePath/$relativePath"
             val candidateFile = File(candidate)
-            if (!candidateFile.exists() || !candidateFile.canRead()) {
-                return null
-            }
+            if (!candidateFile.exists() || !candidateFile.canRead()) return unknown
 
-            candidateFile.absolutePath
+            mapOf(
+                "fsPath" to candidateFile.absolutePath,
+                "mediaStoreVolume" to mediaStoreVolumeNameFor(volumeId, isPrimaryDoc),
+                "isRemovable" to !isPrimaryDoc,
+                "isPrimary" to isPrimaryDoc,
+                "state" to "mounted",
+            )
         } catch (e: Exception) {
-            Log.w("MainActivity", "Failed to resolve tree URI to path: $uriString", e)
-            null
+            Log.w("MainActivity", "resolveStorageInfo failed: ${e.message}", e)
+            unknown
         }
+    }
+
+    private fun storageVolumePath(volume: StorageVolume): String? {
+        // getDirectory() is API 30+; getPath() is hidden until then.
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            volume.directory?.absolutePath
+        } else {
+            try {
+                val m = volume.javaClass.getMethod("getPath")
+                m.invoke(volume) as? String
+            } catch (e: Exception) {
+                Log.w("MainActivity", "StorageVolume.getPath() reflection failed: ${e.message}")
+                null
+            }
+        }
+    }
+
+    private fun mediaStoreVolumeNameFor(volumeId: String, isPrimary: Boolean): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        // Primary uses VOLUME_EXTERNAL_PRIMARY. For removable storage the
+        // MediaStore volume name is the volume's FAT UUID (== volumeId here).
+        // If MediaStore hasn't indexed that volume, the query yields 0 rows
+        // and the caller falls back to SAF — safe degradation.
+        return if (isPrimary) MediaStore.VOLUME_EXTERNAL_PRIMARY else volumeId
     }
 
     private fun deleteDocumentViaSaf(folderTreeUri: String, filePath: String): Boolean {
@@ -1792,11 +1868,11 @@ class MainActivity: FlutterActivity() {
         return if (value > 0) value else null
     }
 
-    private fun queryMediaStoreAudio(folderPaths: List<String>): List<Map<String, Any?>> {
+    private fun queryMediaStoreAudio(folderPaths: List<String>, volumeName: String? = null): List<Map<String, Any?>> {
         val startedAt = System.nanoTime()
         val result = mutableListOf<Map<String, Any?>>()
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+            MediaStore.Audio.Media.getContentUri(volumeName ?: MediaStore.VOLUME_EXTERNAL)
         } else {
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         }
@@ -1890,14 +1966,14 @@ class MainActivity: FlutterActivity() {
         return result
     }
 
-    private fun queryMediaStoreNonAudio(folderPaths: List<String>): List<Map<String, Any?>> {
+    private fun queryMediaStoreNonAudio(folderPaths: List<String>, volumeName: String? = null): List<Map<String, Any?>> {
         val result = mutableListOf<Map<String, Any?>>()
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return result
         }
 
-        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        val collection = MediaStore.Files.getContentUri(volumeName ?: MediaStore.VOLUME_EXTERNAL)
 
         val projection = arrayOf(
             MediaStore.Files.FileColumns._ID,
@@ -1965,12 +2041,12 @@ class MainActivity: FlutterActivity() {
         return result
     }
 
-    private fun queryMediaStoreDeletions(filePaths: List<String>): List<String> {
+    private fun queryMediaStoreDeletions(filePaths: List<String>, volumeName: String? = null): List<String> {
         if (filePaths.isEmpty()) return emptyList()
 
         val existingPaths = mutableSetOf<String>()
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+            MediaStore.Audio.Media.getContentUri(volumeName ?: MediaStore.VOLUME_EXTERNAL)
         } else {
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         }
