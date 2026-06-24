@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/gestures.dart';
@@ -22,6 +23,7 @@ import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/screens/album_detail_screen.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
@@ -80,6 +82,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
   _AlbumGridSortOption _albumSortOption = _AlbumGridSortOption.name;
+  bool _albumIsListView = false;
   double _albumGridScale = 1.0;
   double _albumGridTargetScale = 1.0;
   Ticker? _albumGridTicker;
@@ -99,6 +102,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     _listScrollController.addListener(_onListScroll);
     _albumGridScrollController.addListener(_onAlbumGridScroll);
     _loadAlbumSortOption();
+    _loadAlbumViewMode();
   }
 
   @override
@@ -569,6 +573,10 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final sortedAlbums = _sortedAlbumGroups(albums);
     _syncAlbumPagination(sortedAlbums);
 
+    if (_albumIsListView) {
+      return _buildAlbumListView(sortedAlbums);
+    }
+
     final visibleCount = min(_visibleAlbumCount, sortedAlbums.length);
     final visibleAlbums = sortedAlbums
         .take(visibleCount)
@@ -677,6 +685,50 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                       ),
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAlbumListView(List<AlbumGroup> albums) {
+    final visibleCount = min(_visibleAlbumCount, albums.length);
+    final visibleAlbums = albums
+        .take(visibleCount)
+        .toList(growable: false);
+    final hasMore = visibleCount < albums.length;
+
+    return ListView.builder(
+      controller: _albumGridScrollController,
+      padding: const EdgeInsets.fromLTRB(
+        AppConstants.spacingLg,
+        0,
+        AppConstants.spacingLg,
+        AppConstants.navBarHeight + 120,
+      ),
+      itemCount: visibleAlbums.length + 1,
+      itemBuilder: (context, index) {
+        if (index == visibleAlbums.length) {
+          if (!(hasMore || visibleCount > _getAlbumPageSize())) {
+            return const SizedBox.shrink();
+          }
+          return Padding(
+            padding: const EdgeInsets.only(top: AppConstants.spacingSm),
+            child: _AlbumLoadMoreIndicator(
+              visibleCount: visibleCount,
+              totalCount: albums.length,
+              isComplete: !hasMore && visibleCount > _getAlbumPageSize(),
+              onLoadMore: hasMore ? _loadMoreAlbums : null,
+            ),
+          );
+        }
+        final album = visibleAlbums[index];
+        return Padding(
+          key: ValueKey(album.key),
+          padding: const EdgeInsets.only(bottom: AppConstants.spacingSm),
+          child: _AlbumListTile(
+            album: album,
+            onTap: () => _openAlbumDetail(album),
           ),
         );
       },
@@ -1100,6 +1152,26 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     }
   }
 
+  Future<void> _loadAlbumViewMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getBool('songs_album_view_mode_list') ?? false;
+    if (!mounted) return;
+    if (value != _albumIsListView) {
+      setState(() => _albumIsListView = value);
+    }
+  }
+
+  Future<void> _setAlbumViewMode(bool isList) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('songs_album_view_mode_list', isList);
+    if (mounted) {
+      setState(() {
+        _albumIsListView = isList;
+        _albumPaginationSignature = '';
+      });
+    }
+  }
+
   void _loadMoreAlbums() {
     if (!mounted || _visibleAlbumCount >= _totalAlbumCount) {
       return;
@@ -1261,6 +1333,451 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     }
   }
 
+  List<Song> _selectedSongs() {
+    final ids = _selectedIds;
+    return _cachedDisplaySongs.where((s) => ids.contains(s.id)).toList();
+  }
+
+  Future<void> _addSelectedToPlaylist() async {
+    final songs = _selectedSongs();
+    if (songs.isEmpty || !mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => AppBottomSheetSurface(
+        maxHeightRatio: 0.72,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _sheetDragHandle(),
+            const SizedBox(height: AppConstants.spacingMd),
+            Row(
+              children: [
+                Icon(
+                  LucideIcons.listMusic,
+                  color: sheetContext.adaptiveTextSecondary,
+                  size: 20,
+                ),
+                const SizedBox(width: AppConstants.spacingSm),
+                Expanded(
+                  child: Text(
+                    'Add ${songs.length} songs to playlist',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: sheetContext.adaptiveTextPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            Flexible(
+              fit: FlexFit.loose,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final playlistsAsync = ref.watch(playlistsProvider);
+                  return playlistsAsync.when(
+                    loading: () => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(AppConstants.spacingXl),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                    error: (error, _) => Padding(
+                      padding: const EdgeInsets.all(AppConstants.spacingXl),
+                      child: Text('Error loading playlists: $error'),
+                    ),
+                    data: (state) => ListView(
+                      shrinkWrap: true,
+                      children: [
+                        _selectionSheetTile(
+                          icon: LucideIcons.plus,
+                          label: 'Create new playlist',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _createPlaylistWithSelected();
+                          },
+                        ),
+                        const Divider(
+                          height: 1,
+                          color: AppColors.glassBorderStrong,
+                        ),
+                        const SizedBox(height: AppConstants.spacingSm),
+                        ...state.playlists.map(
+                          (playlist) => _selectionSheetTile(
+                            icon: LucideIcons.listMusic,
+                            label: playlist.name,
+                            onTap: () {
+                              Navigator.pop(context);
+                              _addSongsToPlaylist(
+                                playlist.id,
+                                playlist.name,
+                                songs,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addSongsToPlaylist(
+    String playlistId,
+    String playlistName,
+    List<Song> songs,
+  ) async {
+    final notifier = ref.read(playlistsProvider.notifier);
+    for (final song in songs) {
+      await notifier.addSongToPlaylist(playlistId, song.id);
+    }
+    if (!mounted) return;
+    _showSongActionSnackBar('Added ${songs.length} songs to $playlistName');
+    _exitSelectionMode();
+  }
+
+  Future<void> _createPlaylistWithSelected() async {
+    final songs = _selectedSongs();
+    if (songs.isEmpty || !mounted) return;
+
+    final controller = TextEditingController();
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        Future<void> create(String value) async {
+          final name = value.trim();
+          if (name.isEmpty) return;
+
+          final playlist = await ref
+              .read(playlistsProvider.notifier)
+              .createPlaylist(name);
+
+          if (playlist == null) {
+            if (dialogContext.mounted) {
+              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                const SnackBar(
+                  content: Text('A playlist with this name already exists'),
+                ),
+              );
+            }
+            return;
+          }
+
+          for (final song in songs) {
+            await ref
+                .read(playlistsProvider.notifier)
+                .addSongToPlaylist(playlist.id, song.id);
+          }
+
+          if (!dialogContext.mounted) return;
+          Navigator.pop(dialogContext);
+          if (mounted) {
+            _showSongActionSnackBar(
+              'Created $name and added ${songs.length} songs',
+            );
+            _exitSelectionMode();
+          }
+        }
+
+        return AlertDialog(
+          title: const Text('Create Playlist'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Playlist name',
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: create,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => create(controller.text),
+              child: const Text('Create'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+  }
+
+  Future<void> _showMoreActions() async {
+    final allSelected = _selectedIds.length == _cachedDisplaySongs.length &&
+        _cachedDisplaySongs.isNotEmpty;
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => AppBottomSheetSurface(
+        maxHeightRatio: 0.6,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _sheetDragHandle(),
+            const SizedBox(height: AppConstants.spacingMd),
+            Row(
+              children: [
+                Icon(
+                  LucideIcons.ellipsisVertical,
+                  color: sheetContext.adaptiveTextSecondary,
+                  size: 20,
+                ),
+                const SizedBox(width: AppConstants.spacingSm),
+                Text(
+                  'More actions',
+                  style: TextStyle(
+                    fontFamily: 'ProductSans',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: sheetContext.adaptiveTextPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            Flexible(
+              fit: FlexFit.loose,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  _selectionSheetTile(
+                    icon:
+                        allSelected ? LucideIcons.x : LucideIcons.checkCheck,
+                    label: allSelected ? 'Deselect all' : 'Select all',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      if (allSelected) {
+                        _exitSelectionMode();
+                      } else {
+                        _selectAll(_cachedDisplaySongs);
+                      }
+                    },
+                  ),
+                  _selectionSheetTile(
+                    icon: LucideIcons.circlePlus,
+                    label: 'Create playlist from selected',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _createPlaylistWithSelected();
+                    },
+                  ),
+                  _selectionSheetTile(
+                    icon: LucideIcons.trash2,
+                    label: 'Delete selected',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _deleteSelected();
+                    },
+                    destructive: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteSelected() async {
+    final songs = _selectedSongs();
+    if (songs.isEmpty || !mounted) return;
+
+    final canDeleteFiles = songs.any(
+      (s) => s.filePath != null && s.filePath!.isNotEmpty && !s.isExternal,
+    );
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Delete ${songs.length} songs?'),
+        content: Text(
+          canDeleteFiles
+              ? 'Remove the database entries or delete the files from your device. This cannot be undone.'
+              : 'Remove these songs from your library. The files on your device will not be affected.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _deleteSelectedSongs(songs, deleteFiles: false);
+            },
+            child: const Text('Remove from Library'),
+          ),
+          if (canDeleteFiles)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _deleteSelectedSongs(songs, deleteFiles: true);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+              child: const Text('Delete Files'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteSelectedSongs(
+    List<Song> songs, {
+    required bool deleteFiles,
+  }) async {
+    final repository = ref.read(songRepositoryProvider);
+    final rootContext = context;
+    if (!mounted) return;
+
+    showDialog<void>(
+      context: rootContext,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+
+    // ponytail: per-song loop; swap to repository.deleteSongsByIds + batched file ops if deleting thousands.
+    for (final song in songs) {
+      final songId = int.tryParse(song.id);
+      if (songId == null) continue;
+      try {
+        await repository.deleteSong(songId);
+      } catch (_) {}
+      if (deleteFiles &&
+          song.filePath != null &&
+          song.filePath!.isNotEmpty &&
+          !song.isExternal) {
+        var deleted = false;
+        try {
+          deleted = await MusicFolderService.deleteDocument(
+            folderTreeUri: song.folderUri ?? song.filePath!,
+            filePath: song.filePath!,
+          );
+        } catch (_) {}
+        if (!deleted) {
+          try {
+            final file = File(song.filePath!);
+            if (await file.exists()) {
+              await file.delete();
+              deleted = true;
+            }
+          } catch (_) {}
+        }
+        if (deleted) {
+          try {
+            await MusicFolderService.removeFromMediaStore(song.filePath!);
+          } catch (_) {}
+        }
+      }
+    }
+
+    ref.invalidate(songsProvider);
+    if (rootContext.mounted) Navigator.of(rootContext).pop();
+    if (mounted) {
+      _exitSelectionMode();
+      _showSongActionSnackBar(
+        deleteFiles
+            ? 'Deleted ${songs.length} songs'
+            : 'Removed ${songs.length} songs from library',
+      );
+    }
+  }
+
+  Widget _sheetDragHandle() {
+    return Center(
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: AppColors.glassBorderStrong,
+          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+        ),
+      ),
+    );
+  }
+
+  Widget _selectionSheetTile({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool destructive = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: destructive
+                      ? Colors.redAccent.withValues(alpha: 0.16)
+                      : AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: destructive
+                      ? Colors.redAccent
+                      : context.adaptiveTextSecondary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: 'ProductSans',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: destructive
+                        ? Colors.redAccent
+                        : context.adaptiveTextPrimary,
+                  ),
+                ),
+              ),
+              Icon(
+                LucideIcons.chevronRight,
+                size: 16,
+                color: context.adaptiveTextTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showSongActionSnackBar(String message, {VoidCallback? onUndo}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -1367,13 +1884,21 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
 
           Row(
             children: [
-              if (isAlbumMode)
+              if (isAlbumMode) ...[
+                _buildHeaderIconButton(
+                  context: context,
+                  icon: _albumIsListView
+                      ? LucideIcons.layoutGrid
+                      : LucideIcons.list,
+                  onTap: () => _setAlbumViewMode(!_albumIsListView),
+                ),
+                const SizedBox(width: AppConstants.spacingSm),
                 _buildHeaderIconButton(
                   context: context,
                   icon: LucideIcons.listFilter,
                   onTap: () => _showAlbumFilterPopup(context, currentFilter),
-                )
-              else
+                ),
+              ] else
                 _buildHeaderIconButton(
                   context: context,
                   icon: LucideIcons.checkCheck,
@@ -1453,12 +1978,10 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
 
   Widget _buildSelectionHeader() {
     final count = _selectedIds.length;
-    final allSelected =
-        count == _cachedDisplaySongs.length && _cachedDisplaySongs.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingMd,
+        horizontal: AppConstants.spacingSm,
         vertical: AppConstants.spacingMd,
       ),
       child: Row(
@@ -1468,31 +1991,24 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
             color: context.adaptiveTextPrimary,
             onPressed: _exitSelectionMode,
           ),
-          const SizedBox(width: AppConstants.spacingSm),
           Expanded(
             child: Text(
               '$count selected',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: context.adaptiveTextPrimary,
               ),
             ),
           ),
-          if (!allSelected)
-            TextButton(
-              onPressed: () => _selectAll(_cachedDisplaySongs),
-              child: Text(
-                'Select All',
-                style: TextStyle(color: context.adaptiveTextSecondary),
-              ),
-            ),
           IconButton(
             icon: Icon(
               LucideIcons.listPlus,
               color: AppColors.accent.withValues(alpha: 0.8),
             ),
             onPressed: count > 0 ? () => _queueSelected() : null,
-            tooltip: 'Queue selected',
+            tooltip: 'Add to queue',
           ),
           IconButton(
             icon: Icon(
@@ -1500,7 +2016,23 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
               color: Colors.red.withValues(alpha: 0.8),
             ),
             onPressed: count > 0 ? () => _favoriteSelected() : null,
-            tooltip: 'Favorite selected',
+            tooltip: 'Add to favorites',
+          ),
+          IconButton(
+            icon: Icon(
+              LucideIcons.listMusic,
+              color: AppColors.accent.withValues(alpha: 0.8),
+            ),
+            onPressed: count > 0 ? _addSelectedToPlaylist : null,
+            tooltip: 'Add to playlist',
+          ),
+          IconButton(
+            icon: Icon(
+              LucideIcons.ellipsisVertical,
+              color: context.adaptiveTextPrimary,
+            ),
+            onPressed: count > 0 ? _showMoreActions : null,
+            tooltip: 'More actions',
           ),
         ],
       ),
@@ -2222,6 +2754,124 @@ class _AlbumCardState extends State<_AlbumCard>
           LucideIcons.music,
           color: AppColors.textTertiary,
           size: 18,
+        ),
+      ),
+    );
+  }
+}
+
+class _AlbumListTile extends StatelessWidget {
+  final AlbumGroup album;
+  final VoidCallback onTap;
+
+  const _AlbumListTile({required this.album, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    Song? artSong;
+    for (final s in album.songs) {
+      if (s.albumArt != null && s.albumArt!.isNotEmpty) {
+        artSong = s;
+        break;
+      }
+    }
+    final artPath = artSong?.albumArt;
+    final sourcePath = artSong?.filePath ?? album.songs.first.filePath;
+    final trackCount = album.songs.length;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        onTap: () {
+          AppHaptics.tap();
+          onTap();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.spacingMd,
+            vertical: AppConstants.spacingSm,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.surfaceLight.withValues(alpha: 0.65),
+                AppColors.surface.withValues(alpha: 0.78),
+              ],
+            ),
+            border: Border.all(color: AppColors.glassBorder),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                child: SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: CachedImageWidget(
+                    imagePath: artPath,
+                    audioSourcePath: sourcePath,
+                    fit: BoxFit.cover,
+                    useThumbnail: true,
+                    thumbnailWidth: 104,
+                    thumbnailHeight: 104,
+                    placeholder: const ColoredBox(
+                      color: AppColors.surface,
+                      child: Icon(
+                        LucideIcons.disc,
+                        color: AppColors.textTertiary,
+                        size: 20,
+                      ),
+                    ),
+                    errorWidget: const ColoredBox(
+                      color: AppColors.surface,
+                      child: Icon(
+                        LucideIcons.disc,
+                        color: AppColors.textTertiary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      album.albumName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: context.adaptiveTextPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$trackCount tracks • ${album.albumArtist}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.adaptiveTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingSm),
+              Icon(
+                LucideIcons.chevronRight,
+                color: context.adaptiveTextTertiary,
+                size: context.responsiveIcon(AppConstants.iconSizeMd),
+              ),
+            ],
+          ),
         ),
       ),
     );

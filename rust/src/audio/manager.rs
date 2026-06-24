@@ -337,6 +337,14 @@ impl EngineManager {
                 let _ = handle.set_volume(volume);
             }
         }
+        if let Some((enabled, duration_secs, curve)) =
+            crate::api::audio_api::take_pending_crossfade()
+        {
+            if let Some(handle) = state.rust_handle.as_ref() {
+                let _ = handle.set_crossfade(enabled, duration_secs);
+                let _ = handle.set_crossfade_curve(curve);
+            }
+        }
         Ok(())
     }
 

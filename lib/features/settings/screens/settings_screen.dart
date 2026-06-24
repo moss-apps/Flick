@@ -4,6 +4,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/settings/screens/app_info_settings_screen.dart';
 import 'package:flick/features/settings/screens/audio_settings_screen.dart';
+import 'package:flick/features/settings/screens/bluetooth_settings_screen.dart';
 import 'package:flick/features/settings/screens/interface_settings_screen.dart';
 import 'package:flick/features/settings/screens/library_settings_screen.dart';
 import 'package:flick/features/settings/screens/playback_display_settings_screen.dart';
@@ -113,6 +114,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle: 'UAC2 and equalizer',
                           onTap: () =>
                               _navigate(context, const AudioSettingsScreen()),
+                        ),
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.bluetooth,
+                          iconBg: const Color(0xFF2D4A6F),
+                          iconFg: const Color(0xFF8BB8FF),
+                          title: 'Bluetooth',
+                          subtitle: 'Disconnect behavior and codec info',
+                          onTap: () => _navigate(
+                            context,
+                            const BluetoothSettingsScreen(),
+                          ),
                         ),
                         const SettingsDivider(),
                         _CategoryTile(

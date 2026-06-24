@@ -106,10 +106,18 @@ class MusicNotificationService : Service() {
     private val noisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
-                android.util.Log.d(
-                    "MusicNotification",
-                    "[AudioFocus] ACTION_AUDIO_BECOMING_NOISY observed; active engine handles pause"
-                )
+                if (isPauseOnDisconnectEnabled()) {
+                    android.util.Log.d(
+                        "MusicNotification",
+                        "ACTION_AUDIO_BECOMING_NOISY → pause"
+                    )
+                    sendCommandToFlutter("pause")
+                } else {
+                    android.util.Log.d(
+                        "MusicNotification",
+                        "[AudioFocus] ACTION_AUDIO_BECOMING_NOISY observed; pause-on-disconnect disabled"
+                    )
+                }
             }
         }
     }
@@ -212,6 +220,15 @@ class MusicNotificationService : Service() {
             prefs.getBoolean("flutter.app_keep_playing_on_quit", false)
         } catch (e: Exception) {
             false
+        }
+    }
+
+    private fun isPauseOnDisconnectEnabled(): Boolean {
+        return try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            prefs.getBoolean("flutter.app_pause_on_bluetooth_disconnect", true)
+        } catch (e: Exception) {
+            true
         }
     }
 

@@ -18,6 +18,14 @@ package com.mossapps.flick
 
 import android.Manifest
 import android.app.PendingIntent
+import android.bluetooth.BluetoothA2dp
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.ContentResolver
 import android.content.ContentUris
@@ -73,6 +81,7 @@ import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
+import java.util.UUID
 import kotlin.math.roundToInt
 import kotlin.math.min
 
@@ -87,6 +96,8 @@ class MainActivity: FlutterActivity() {
     private val VISUALIZER_EVENT_CHANNEL = "com.mossapps.flick/visualizer_events"
     private val WIDGET_CHANNEL = "com.mossapps.flick/widget"
     private val OVERLAY_CHANNEL = "com.mossapps.flick/overlay"
+    private val BLUETOOTH_CHANNEL = "com.mossapps.flick/bluetooth"
+    private val BLUETOOTH_EVENT_CHANNEL = "com.mossapps.flick/bluetooth_events"
     private val LOCKER_PACKAGE = "com.mossapps.locker"
     private val LOCKER_RETURN_URI = "locker://return?source=flick"
     // private val CONVERTER_CHANNEL = "com.mossapps.flick/converter"
@@ -144,6 +155,9 @@ class MainActivity: FlutterActivity() {
     private var visualizerEventSink: EventChannel.EventSink? = null
     private var widgetChannel: MethodChannel? = null
     private val HOME_WIDGET_LAUNCH_ACTION = "com.mossapps.flick.WIDGET_LAUNCH"
+    private var a2dpProxy: BluetoothA2dp? = null
+    private var bluetoothEventSink: EventChannel.EventSink? = null
+    private var aclReceiver: BroadcastReceiver? = null
 
     // Load the Rust shared library before calling into native startup hooks.
     init {
@@ -163,6 +177,7 @@ class MainActivity: FlutterActivity() {
         handleExternalPlaybackIntent(intent)
         handleUsbAttachIntent(intent)
         maybeRequestPermissionForConnectedUsbAudioDevices(reason = "activity create")
+        registerBluetoothAclReceiver()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -906,6 +921,46 @@ class MainActivity: FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        ensureA2dpProxy()
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BLUETOOTH_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getConnectedDevices" -> result.success(getConnectedBluetoothDevices())
+                "getCodecStatus" -> {
+                    val address = call.argument<String>("address")
+                    result.success(if (address != null) getBluetoothCodecStatus(address) else null)
+                }
+                "setCodecConfig" -> {
+                    val address = call.argument<String>("address") ?: ""
+                    val codecType = call.argument<Int>("codecType") ?: 0
+                    val sampleRate = call.argument<Int>("sampleRate") ?: 0
+                    val bitsPerSample = call.argument<Int>("bitsPerSample") ?: 0
+                    val channelMode = call.argument<Int>("channelMode") ?: 0
+                    val ldacBitrate = call.argument<Int>("ldacBitrate") ?: 0
+                    result.success(setBluetoothCodecConfigNative(address, codecType, sampleRate, bitsPerSample, channelMode, ldacBitrate))
+                }
+                "getBatteryLevel" -> {
+                    val address = call.argument<String>("address") ?: ""
+                    readBluetoothBatteryLevel(address, result)
+                }
+                "setAbsoluteVolumeEnabled" -> {
+                    val address = call.argument<String>("address") ?: ""
+                    val enabled = call.argument<Boolean>("enabled") ?: true
+                    result.success(setBluetoothAbsoluteVolume(address, enabled))
+                }
+                else -> result.notImplemented()
+            }
+        }
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, BLUETOOTH_EVENT_CHANNEL).setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    bluetoothEventSink = events
+                }
+                override fun onCancel(arguments: Any?) {
+                    bluetoothEventSink = null
+                }
+            }
+        )
 
         // Audio processing channel for Android native AudioEffect counterparts.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, EQUALIZER_CHANNEL).setMethodCallHandler { call, result ->
@@ -3957,15 +4012,247 @@ class MainActivity: FlutterActivity() {
         visualizerEventSink = null
     }
 
+    private val btBatteryServiceUuid = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
+    private val btBatteryCharUuid = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")
+
+    private fun bluetoothAdapter(): BluetoothAdapter? =
+        (getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
+
+    // ponytail: async proxy; if not yet connected when Flutter queries, returns empty — UI retries.
+    private fun ensureA2dpProxy() {
+        if (a2dpProxy != null) return
+        val adapter = bluetoothAdapter() ?: return
+        try {
+            adapter.getProfileProxy(this, object : BluetoothProfile.ServiceListener {
+                override fun onServiceConnected(profile: Int, proxy: BluetoothProfile?) {
+                    if (profile == BluetoothProfile.A2DP) {
+                        a2dpProxy = proxy as? BluetoothA2dp
+                    }
+                }
+                override fun onServiceDisconnected(profile: Int) {
+                    if (profile == BluetoothProfile.A2DP) a2dpProxy = null
+                }
+            }, BluetoothProfile.A2DP)
+        } catch (e: SecurityException) {
+            Log.w("Bluetooth", "getProfileProxy blocked (BLUETOOTH_CONNECT not granted?): ${e.message}")
+        }
+    }
+
+    private fun getConnectedBluetoothDevices(): List<Map<String, Any?>> {
+        val a2dp = a2dpProxy ?: return emptyList()
+        return try {
+            a2dp.connectedDevices.map { device ->
+                mapOf(
+                    "address" to device.address,
+                    "name" to (device.name ?: "Unknown"),
+                    "isA2dp" to true
+                )
+            }
+        } catch (e: SecurityException) {
+            Log.w("Bluetooth", "connectedDevices blocked: ${e.message}")
+            emptyList()
+        }
+    }
+
+    private fun btCodecTypeLabel(t: Int): String = when (t) {
+        0 -> "SBC"; 1 -> "AAC"; 2 -> "aptX"; 3 -> "aptX HD"; 4 -> "LDAC"; else -> "Codec $t"
+    }
+    private fun btDecodeSampleRate(bits: Int): Int? = when {
+        bits and 0x1 != 0 -> 44100
+        bits and 0x2 != 0 -> 88200
+        bits and 0x4 != 0 -> 48000
+        bits and 0x8 != 0 -> 96000
+        bits and 0x10 != 0 -> 176400
+        bits and 0x20 != 0 -> 192000
+        else -> null
+    }
+    private fun btDecodeBitsPerSample(bits: Int): Int? = when {
+        bits and 0x1 != 0 -> 16
+        bits and 0x2 != 0 -> 24
+        bits and 0x4 != 0 -> 32
+        else -> null
+    }
+    private fun btDecodeChannelMode(bits: Int): String? = when {
+        bits and 0x1 != 0 -> "Mono"
+        bits and 0x2 != 0 -> "Stereo"
+        bits and 0x4 != 0 -> "Dual"
+        else -> null
+    }
+
+    // Requires API 33+ (BluetoothA2dp.getCodecStatus is @SystemApi → reflection).
+    private fun getBluetoothCodecStatus(address: String): Map<String, Any?>? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+        val a2dp = a2dpProxy ?: return null
+        val device = a2dp.connectedDevices.firstOrNull { it.address == address } ?: return null
+        return try {
+            val status = a2dp.javaClass
+                .getMethod("getCodecStatus", BluetoothDevice::class.java)
+                .invoke(a2dp, device) ?: return null
+            val config = status.javaClass.getMethod("getCodecConfig").invoke(status) ?: return null
+            val codecType = config.javaClass.getMethod("getCodecType").invoke(config) as Int
+            val sampleRate = config.javaClass.getMethod("getSampleRate").invoke(config) as Int
+            val bitsPerSample = config.javaClass.getMethod("getBitsPerSample").invoke(config) as Int
+            val channelMode = config.javaClass.getMethod("getChannelMode").invoke(config) as Int
+            mapOf(
+                "codecName" to btCodecTypeLabel(codecType),
+                "sampleRate" to btDecodeSampleRate(sampleRate),
+                "bitsPerSample" to btDecodeBitsPerSample(bitsPerSample),
+                "channelMode" to btDecodeChannelMode(channelMode)
+            )
+        } catch (e: Exception) {
+            Log.w("Bluetooth", "getCodecStatus failed: ${e.message}")
+            null
+        }
+    }
+
+    // ponytail: hidden/@SystemApi; reflection returns false when OEM blocks. Best-effort.
+    private fun setBluetoothCodecConfigNative(
+        address: String, codecType: Int, sampleRate: Int, bitsPerSample: Int, channelMode: Int, ldacBitrate: Int
+    ): Boolean {
+        if (codecType < 0) return true // Automatic = let system decide
+        val a2dp = a2dpProxy ?: return false
+        val device = a2dp.connectedDevices.firstOrNull { it.address == address } ?: return false
+        return try {
+            val codecConfigClass = Class.forName("android.bluetooth.BluetoothCodecConfig")
+            val constructor = codecConfigClass.getConstructor(
+                Int::class.javaPrimitiveType, Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType, Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType, Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType, Long::class.javaPrimitiveType
+            )
+            val codecPriorityHighest = 1_000_000
+            val allCodecTypes = intArrayOf(0, 1, 2, 3, 5, 4) // SBC, AAC, aptX, aptX HD, aptX Adaptive, LDAC
+            val configs = java.lang.reflect.Array.newInstance(codecConfigClass, allCodecTypes.size)
+            for (i in allCodecTypes.indices) {
+                val ct = allCodecTypes[i]
+                val priority = if (ct == codecType) codecPriorityHighest else 0
+                val cs1 = if (ct == 4 && codecType == 4) ldacBitrate.toLong() else 0L
+                java.lang.reflect.Array.set(configs, i,
+                    constructor.newInstance(ct, priority, sampleRate, bitsPerSample, channelMode, cs1, 0L, 0L, 0L)
+                )
+            }
+            val arrayClass = java.lang.reflect.Array.newInstance(codecConfigClass, 0).javaClass
+            val setMethod = a2dp.javaClass.getMethod("setCodecConfig", BluetoothDevice::class.java, arrayClass)
+            (setMethod.invoke(a2dp, device, configs) as? Boolean) ?: false
+        } catch (e: Exception) {
+            Log.w("Bluetooth", "setCodecConfig failed (likely hidden/blocked): ${e.message}")
+            false
+        }
+    }
+
+    // ponytail: best-effort GATT battery; some devices refuse a second link → null. 4s timeout.
+    private fun readBluetoothBatteryLevel(address: String, result: MethodChannel.Result) {
+        val adapter = bluetoothAdapter()
+        if (adapter == null) { result.success(null); return }
+        val device = try { adapter.getRemoteDevice(address) } catch (e: Exception) { null }
+        if (device == null) { result.success(null); return }
+        val handler = Handler(Looper.getMainLooper())
+        var finished = false
+        fun finish(value: Int?) {
+            if (!finished) { finished = true; result.success(value) }
+        }
+        val gattCallback = object : BluetoothGattCallback() {
+            private fun report(value: ByteArray?) {
+                finish(if (value != null && value.isNotEmpty()) value[0].toInt() and 0xFF else null)
+            }
+            override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
+                when (newState) {
+                    BluetoothProfile.STATE_CONNECTED -> g.discoverServices()
+                    BluetoothProfile.STATE_DISCONNECTED -> { try { g.close() } catch (_: Exception) {}; finish(null) }
+                }
+            }
+            override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
+                val svc = g.getService(btBatteryServiceUuid)
+                val ch = svc?.getCharacteristic(btBatteryCharUuid)
+                if (ch != null) g.readCharacteristic(ch) else { try { g.close() } catch (_: Exception) {}; finish(null) }
+            }
+            override fun onCharacteristicRead(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray, status: Int) {
+                report(value); try { g.close() } catch (_: Exception) {}
+            }
+        }
+        val gatt = try {
+            device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+        } catch (e: Exception) {
+            finish(null); return
+        }
+        if (gatt == null) { finish(null); return }
+        handler.postDelayed({
+            if (!finished) {
+                finished = true
+                try { gatt.close() } catch (_: Exception) {}
+                result.success(null)
+            }
+        }, 4000)
+    }
+
+    // ponytail: no public absolute-volume API; Settings.Global needs WRITE_SECURE_SETTINGS → fails on non-rooted.
+    private fun setBluetoothAbsoluteVolume(address: String, enabled: Boolean): Boolean {
+        return try {
+            Settings.Global.putInt(contentResolver, "absolute_volume_enabled", if (enabled) 1 else 0)
+        } catch (e: SecurityException) {
+            Log.w("Bluetooth", "absolute volume blocked (needs WRITE_SECURE_SETTINGS): ${e.message}")
+            false
+        } catch (e: Exception) {
+            Log.w("Bluetooth", "absolute volume failed: ${e.message}")
+            false
+        }
+    }
+
+    private fun registerBluetoothAclReceiver() {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val action = intent?.action ?: return
+                val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                }
+                val event = when (action) {
+                    BluetoothDevice.ACTION_ACL_CONNECTED -> "connected"
+                    BluetoothDevice.ACTION_ACL_DISCONNECTED -> "disconnected"
+                    else -> return
+                }
+                val address = try { device?.address ?: "" } catch (e: SecurityException) { "" }
+                val name = try { device?.name ?: "Unknown" } catch (e: SecurityException) { "Unknown" }
+                bluetoothEventSink?.success(mapOf("event" to event, "address" to address, "name" to name))
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(receiver, filter)
+            }
+            aclReceiver = receiver
+        } catch (e: Exception) {
+            Log.w("Bluetooth", "ACL receiver registration failed: ${e.message}")
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiverSafely(usbHotplugReceiver)
         unregisterReceiverSafely(usbPermissionReceiver)
+        unregisterReceiverSafely(aclReceiver)
+        aclReceiver = null
         unregisterVolumeContentObserver()
         justAudioProcessingController.release()
         detachVisualizer()
         usbHotplugReceiver = null
         usbPermissionReceiver = null
+        try {
+            bluetoothAdapter()?.closeProfileProxy(BluetoothProfile.A2DP, a2dpProxy)
+        } catch (e: Exception) {
+            Log.w("Bluetooth", "closeProfileProxy failed: ${e.message}")
+        }
+        a2dpProxy = null
         if (killIsochronousUsbOnQuit) {
             deactivateDirectUsb()
         }

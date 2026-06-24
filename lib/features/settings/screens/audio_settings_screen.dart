@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/models/audio_engine_type.dart';
 import 'package:flick/features/settings/screens/equalizer_screen.dart';
 import 'package:flick/features/settings/screens/uac2_settings_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
@@ -65,19 +66,6 @@ class _AudioSettingsScreenState extends ConsumerState<AudioSettingsScreen> {
                       builder: (_) => const EqualizerScreen(),
                     ),
                   );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          const SettingsSectionHeader('Bluetooth Audio'),
-          SettingsCard(
-            children: [
-              ValueListenableBuilder<AndroidPlaybackDeviceInfo>(
-                valueListenable:
-                    AndroidAudioDeviceService.instance.deviceInfoNotifier,
-                builder: (context, deviceInfo, _) {
-                  return _BluetoothCodecInfo(deviceInfo: deviceInfo);
                 },
               ),
             ],
@@ -210,6 +198,29 @@ class _CrossfadeSection extends ConsumerWidget {
                   enabled: effectiveEnabled,
                 ),
               ],
+            ),
+            ListenableBuilder(
+              listenable: playerService.initializedPlaybackModeNotifier,
+              builder: (context, _) {
+                if (playerService.currentEngineType ==
+                    AudioEngineType.normalAndroid) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.spacingMd,
+                    vertical: AppConstants.spacingXs,
+                  ),
+                  child: Text(
+                    'Crossfade is most reliable on the Standard engine. '
+                    'On the high-quality (Rust) engine it can be unstable — '
+                    'switch to Standard for consistent crossfades.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.adaptiveTextTertiary,
+                        ),
+                  ),
+                );
+              },
             ),
           ],
         );
@@ -493,123 +504,3 @@ class _CrossfadeCurvePainter extends CustomPainter {
   }
 }
 
-class _BluetoothCodecInfo extends StatelessWidget {
-  const _BluetoothCodecInfo({required this.deviceInfo});
-
-  final AndroidPlaybackDeviceInfo deviceInfo;
-
-  @override
-  Widget build(BuildContext context) {
-    final currentRouteLabel = deviceInfo.isBluetoothRoute
-        ? 'Current route: ${deviceInfo.routeSummary}. Android is handling codec negotiation right now.'
-        : 'When you play over Bluetooth, Android negotiates the codec with your headphones or speaker.';
-
-    return Padding(
-      padding: const EdgeInsets.all(AppConstants.spacingLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackgroundStrong,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                ),
-                child: Icon(
-                  LucideIcons.bluetooth,
-                  color: context.adaptiveTextSecondary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: AppConstants.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Bluetooth codec info',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      currentRouteLabel,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          Wrap(
-            spacing: AppConstants.spacingSm,
-            runSpacing: AppConstants.spacingSm,
-            children: const [
-              _CodecChip('SBC'),
-              _CodecChip('AAC'),
-              _CodecChip('aptX'),
-              _CodecChip('aptX HD'),
-              _CodecChip('aptX Adaptive'),
-              _CodecChip('LDAC'),
-              _CodecChip('LC3'),
-              _CodecChip('LHDC'),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          Text(
-            'Flick does not force Bluetooth codecs itself. The active codec depends on Android, your phone, your headset, signal quality, and any Bluetooth developer settings.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: context.adaptiveTextSecondary,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: AppConstants.spacingSm),
-          Text(
-            'If you want to prefer AAC, SBC, aptX, LDAC, or another supported codec, change it in Android Bluetooth settings or Developer Options when your device allows it.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.adaptiveTextTertiary,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CodecChip extends StatelessWidget {
-  const _CodecChip(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingMd,
-        vertical: AppConstants.spacingSm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong,
-        borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: context.adaptiveTextSecondary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}

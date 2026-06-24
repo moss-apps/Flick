@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
@@ -20,6 +21,73 @@ typedef AndroidEngineDisposer = Future<void> Function();
 typedef AndroidTrackSyncBlocker = bool Function();
 typedef AndroidTrackIgnorePredicate = bool Function(Song track);
 typedef AndroidFastStartPredicate = bool Function();
+typedef AndroidCrossfadeConfigProvider = AndroidCrossfadeConfig Function();
+typedef AndroidNextSongProvider = Song? Function();
+typedef AndroidTrackAdvancedCallback = void Function(Song track);
+
+/// Crossfade curve applied to the outgoing/incoming volume ramps.
+enum AndroidCrossfadeCurve {
+  equalPower,
+  linear,
+  squareRoot,
+  sCurve,
+}
+
+/// Live snapshot of crossfade settings consumed by [AndroidAudioEngine].
+class AndroidCrossfadeConfig {
+  const AndroidCrossfadeConfig({
+    required this.enabled,
+    required this.durationSecs,
+    required this.curve,
+  });
+
+  final bool enabled;
+  final double durationSecs;
+  final AndroidCrossfadeCurve curve;
+
+  static const disabled = AndroidCrossfadeConfig(
+    enabled: false,
+    durationSecs: 3.0,
+    curve: AndroidCrossfadeCurve.equalPower,
+  );
+}
+
+/// Incoming-track volume fraction (0..1) at ramp progress [p] (0..1).
+/// The outgoing fraction is [crossfadeInVolume] evaluated at `(1 - p)`, which
+/// keeps every curve symmetric (equal-power satisfies `out^2 + in^2 == 1`).
+@visibleForTesting
+double crossfadeInVolume(AndroidCrossfadeCurve curve, double p) {
+  final c = p.clamp(0.0, 1.0).toDouble();
+  switch (curve) {
+    case AndroidCrossfadeCurve.equalPower:
+      return math.sin(c * math.pi / 2);
+    case AndroidCrossfadeCurve.linear:
+      return c;
+    case AndroidCrossfadeCurve.squareRoot:
+      return math.sqrt(c);
+    case AndroidCrossfadeCurve.sCurve:
+      return c * c * (3 - 2 * c);
+  }
+}
+
+/// Pure trigger predicate: should a crossfade be armed given the current
+/// playback position? Extracted so it can be unit-tested without a player.
+@visibleForTesting
+bool shouldArmCrossfade({
+  required bool enabled,
+  required Duration duration,
+  required Duration position,
+  required double fadeSecs,
+}) {
+  if (!enabled || fadeSecs <= 0) return false;
+  if (duration.inMilliseconds <= 0) return false;
+  final fadeMs = (fadeSecs * 1000).round();
+  // A track shorter than (or equal to) the fade has no solo segment to fade
+  // out of — let it end naturally.
+  if (duration.inMilliseconds <= fadeMs) return false;
+  final remaining = duration - position;
+  return remaining.inMilliseconds <= fadeMs;
+}
 
 @visibleForTesting
 bool shouldUseFastStartCurrentTrackOnly({
@@ -52,6 +120,9 @@ class AndroidAudioEngine implements AudioEngine {
     required AndroidTrackSyncBlocker shouldSuppressTrackSync,
     required AndroidTrackIgnorePredicate shouldIgnoreTrack,
     required AndroidFastStartPredicate shouldFastStartCurrentTrackOnly,
+    AndroidCrossfadeConfigProvider? crossfadeConfigProvider,
+    AndroidNextSongProvider? onNextSong,
+    AndroidTrackAdvancedCallback? onTrackAdvanced,
   }) : _playerProvider = playerProvider,
        _sourcesBuilder = sourcesBuilder,
        _sourceBuilder = sourceBuilder,
@@ -60,7 +131,11 @@ class AndroidAudioEngine implements AudioEngine {
        _disposeEngine = disposeEngine,
        _shouldSuppressTrackSync = shouldSuppressTrackSync,
        _shouldIgnoreTrack = shouldIgnoreTrack,
-       _shouldFastStartCurrentTrackOnly = shouldFastStartCurrentTrackOnly;
+       _shouldFastStartCurrentTrackOnly = shouldFastStartCurrentTrackOnly,
+       _crossfadeConfigProvider = crossfadeConfigProvider ??
+           (() => AndroidCrossfadeConfig.disabled),
+       _onNextSong = onNextSong,
+       _onTrackAdvanced = onTrackAdvanced;
 
   final AndroidPlayerProvider _playerProvider;
   final AndroidAudioSourcesBuilder _sourcesBuilder;
@@ -71,6 +146,9 @@ class AndroidAudioEngine implements AudioEngine {
   final AndroidTrackSyncBlocker _shouldSuppressTrackSync;
   final AndroidTrackIgnorePredicate _shouldIgnoreTrack;
   final AndroidFastStartPredicate _shouldFastStartCurrentTrackOnly;
+  final AndroidCrossfadeConfigProvider _crossfadeConfigProvider;
+  final AndroidNextSongProvider? _onNextSong;
+  final AndroidTrackAdvancedCallback? _onTrackAdvanced;
 
   final StreamController<PlaybackState> _controller =
       StreamController<PlaybackState>.broadcast();
@@ -82,9 +160,22 @@ class AndroidAudioEngine implements AudioEngine {
   bool _awaitingInitialSeek = false;
   bool _loadedSingleTrackOnly = false;
 
+  // Crossfade state. [_player] is always the currently-audible/active player;
+  // [_secondary] is the idle slot reused as the incoming player on each fade.
+  // On a crossfade the two swap roles (ping-pong), so both stay attached but
+  // only the active one's stream emissions are forwarded.
+  just_audio.AudioPlayer? _secondary;
+  Timer? _crossfadeTimer;
+  bool _crossfadeArmed = false;
+  double _rampUserVolume = 1.0;
+  Duration _rampElapsed = Duration.zero;
+  Duration _rampTotal = Duration.zero;
+  AndroidCrossfadeCurve _rampCurve = AndroidCrossfadeCurve.equalPower;
+
   VoidCallback? onTrackEnded;
 
   static const int fastStartPlaylistThreshold = 24;
+  static const Duration _rampTick = Duration(milliseconds: 20);
 
   @override
   Stream<PlaybackState> get playbackStateStream => _controller.stream;
@@ -98,15 +189,28 @@ class AndroidAudioEngine implements AudioEngine {
     return player;
   }
 
+  Future<just_audio.AudioPlayer> _ensureSecondary() async {
+    final existing = _secondary;
+    if (existing != null) return existing;
+    final player = just_audio.AudioPlayer();
+    _secondary = player;
+    _attachListeners(player);
+    await player.setVolume(0);
+    await player.setLoopMode(just_audio.LoopMode.off);
+    return player;
+  }
+
   void _attachListeners(just_audio.AudioPlayer player) {
     _subscriptions.add(
       player.playerStateStream.listen((state) {
+        if (!identical(player, _player)) return;
         _emit(_state.copyWith(isPlaying: state.playing));
       }),
     );
 
     _subscriptions.add(
       player.playbackEventStream.listen((event) {
+        if (!identical(player, _player)) return;
         final nextDuration = event.duration ?? _state.duration;
         _emit(
           _state.copyWith(
@@ -121,19 +225,23 @@ class AndroidAudioEngine implements AudioEngine {
 
     _subscriptions.add(
       player.positionStream.listen((pos) {
+        if (!identical(player, _player)) return;
         _emit(_state.copyWith(position: pos));
         _syncTrackFromIndex(player.currentIndex);
+        _maybeArmCrossfade(player, pos);
       }),
     );
 
     _subscriptions.add(
       player.bufferedPositionStream.listen((pos) {
+        if (!identical(player, _player)) return;
         _emit(_state.copyWith(bufferedPosition: pos));
       }),
     );
 
     _subscriptions.add(
       player.durationStream.listen((dur) {
+        if (!identical(player, _player)) return;
         if (dur == null) return;
         _emit(_state.copyWith(duration: dur));
       }),
@@ -141,19 +249,21 @@ class AndroidAudioEngine implements AudioEngine {
 
     _subscriptions.add(
       player.sequenceStateStream.listen((sequenceState) {
-        final index = sequenceState.currentIndex;
-        _syncTrackFromIndex(index);
+        if (!identical(player, _player)) return;
+        _syncTrackFromIndex(sequenceState.currentIndex);
       }),
     );
 
     _subscriptions.add(
       player.currentIndexStream.listen((index) {
+        if (!identical(player, _player)) return;
         _syncTrackFromIndex(index);
       }),
     );
 
     _subscriptions.add(
       player.processingStateStream.listen((state) {
+        if (!identical(player, _player)) return;
         if (state == just_audio.ProcessingState.completed) {
           onTrackEnded?.call();
         }
@@ -218,6 +328,7 @@ class AndroidAudioEngine implements AudioEngine {
 
   @override
   Future<void> load(Song track) async {
+    await _cancelCrossfade();
     final player = await _ensurePlayer();
     final playlist = _playlistProvider();
     var index = playlist.indexWhere((song) => song.id == track.id);
@@ -234,6 +345,35 @@ class AndroidAudioEngine implements AudioEngine {
 
     _loadedTrack = track;
     await _configurePlayer(player);
+
+    final cfg = _crossfadeConfigProvider();
+    if (cfg.enabled) {
+      // Crossfade needs a single-track source so the engine can intercept the
+      // tail; a ConcatenatingAudioSource would auto-advance with a hard cut.
+      devLog(
+        '[Playback] Android load(${track.id}) single-track (crossfade)',
+      );
+      _awaitingInitialSeek = true;
+      try {
+        final source = await _sourceBuilder(track);
+        await player.setAudioSource(source, preload: true);
+        await player.seek(Duration.zero);
+      } finally {
+        _awaitingInitialSeek = false;
+      }
+      _loadedSingleTrackOnly = true;
+      _playlistSignature = const <String>[];
+      _emit(
+        _state.copyWith(
+          currentTrack: track,
+          isPlaying: player.playing,
+          position: player.position,
+          bufferedPosition: player.bufferedPosition,
+          duration: player.duration ?? track.duration,
+        ),
+      );
+      return;
+    }
 
     final shouldFastStartCurrentTrackOnly = shouldUseFastStartCurrentTrackOnly(
       allowFastStart: _shouldFastStartCurrentTrackOnly(),
@@ -315,16 +455,38 @@ class AndroidAudioEngine implements AudioEngine {
       debugPrintStack(stackTrace: stackTrace);
       rethrow;
     }
+    // Resume a crossfade ramp that was frozen by pause().
+    if (_crossfadeArmed) {
+      final outgoing = _secondary;
+      if (outgoing != null) {
+        try {
+          await outgoing.play();
+        } catch (_) {}
+        _startRampTimer(outgoing, player);
+      }
+    }
   }
 
   @override
   Future<void> pause() async {
     final player = await _ensurePlayer();
     await player.pause();
+    if (_crossfadeArmed) {
+      // Freeze the ramp where it is; play() resumes from [_rampElapsed].
+      _crossfadeTimer?.cancel();
+      _crossfadeTimer = null;
+      final outgoing = _secondary;
+      if (outgoing != null) {
+        try {
+          await outgoing.pause();
+        } catch (_) {}
+      }
+    }
   }
 
   @override
   Future<void> stop() async {
+    await _cancelCrossfade();
     final player = await _ensurePlayer();
     await player.stop();
     _emit(
@@ -340,21 +502,189 @@ class AndroidAudioEngine implements AudioEngine {
   @override
   Future<void> seek(Duration position) async {
     final player = await _ensurePlayer();
+    if (_crossfadeArmed) {
+      // Aborting the in-flight fade: silence the outgoing tail and snap the
+      // active player back to full volume before seeking.
+      await _cancelCrossfade();
+      try {
+        await player.setVolume(_rampUserVolume);
+      } catch (_) {}
+    }
     await player.seek(position);
   }
 
   @override
   void updateTrack(Song track) {}
 
+  void _maybeArmCrossfade(just_audio.AudioPlayer player, Duration pos) {
+    if (_crossfadeArmed) return;
+    final cfg = _crossfadeConfigProvider();
+    final duration = player.duration;
+    if (!shouldArmCrossfade(
+      enabled: cfg.enabled,
+      duration: duration ?? Duration.zero,
+      position: pos,
+      fadeSecs: cfg.durationSecs,
+    )) {
+      return;
+    }
+    _armCrossfade(cfg, (cfg.durationSecs * 1000).round());
+  }
+
+  void _armCrossfade(AndroidCrossfadeConfig cfg, int fadeMs) {
+    // Set synchronously so the next position tick can't re-enter.
+    _crossfadeArmed = true;
+    unawaited(() async {
+      final outgoing = _player;
+      if (outgoing == null) {
+        _crossfadeArmed = false;
+        return;
+      }
+      final next = _onNextSong?.call();
+      if (next == null || next.id == _loadedTrack?.id) {
+        // Nothing to crossfade into (end of list / loop-one): let the track
+        // end naturally so onTrackEnded handles it.
+        _crossfadeArmed = false;
+        return;
+      }
+      try {
+        final incoming = await _ensureSecondary();
+        final source = await _sourceBuilder(next);
+        _rampUserVolume = outgoing.volume <= 0 ? 1.0 : outgoing.volume;
+        await incoming.setAudioSource(source, preload: true);
+        await incoming.seek(Duration.zero);
+        await incoming.setVolume(0);
+        await incoming.setSpeed(outgoing.speed);
+        await incoming.setLoopMode(just_audio.LoopMode.off);
+        unawaited(
+          incoming.play().catchError((Object error, StackTrace stackTrace) {
+            devLog('[crossfade] incoming play() failed: $error');
+            debugPrintStack(stackTrace: stackTrace);
+          }),
+        );
+        _loadedTrack = next;
+        _loadedSingleTrackOnly = true;
+        _playlistSignature = const <String>[];
+        _rampTotal = Duration(milliseconds: fadeMs);
+        _rampElapsed = Duration.zero;
+        _rampCurve = cfg.curve;
+        // Swap roles: incoming becomes the active player, outgoing becomes the
+        // idle slot and is faded out by the ramp.
+        _player = incoming;
+        _secondary = outgoing;
+        _startRampTimer(outgoing, incoming);
+        // The emitted state drives PlayerService's track-change bookkeeping
+        // (index sync, notification, replay tracking, position save).
+        _emit(
+          _state.copyWith(
+            currentTrack: next,
+            position: Duration.zero,
+            bufferedPosition: Duration.zero,
+            duration: incoming.duration ?? next.duration,
+          ),
+        );
+        // Queue-entry consumption + priority anchor are not covered by the
+        // playback-state subscription, so the service does them here.
+        _onTrackAdvanced?.call(next);
+      } catch (error, stackTrace) {
+        devLog('[crossfade] arm failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+        _crossfadeArmed = false;
+        final active = _player;
+        if (active != null) {
+          try {
+            await active.setVolume(_rampUserVolume);
+          } catch (_) {}
+        }
+      }
+    }());
+  }
+
+  void _startRampTimer(
+    just_audio.AudioPlayer outgoing,
+    just_audio.AudioPlayer incoming,
+  ) {
+    _crossfadeTimer?.cancel();
+    _crossfadeTimer = Timer.periodic(_rampTick, (timer) {
+      // Hold the ramp while paused; play() restarts it from [_rampElapsed].
+      if (!incoming.playing) return;
+      _rampElapsed += _rampTick;
+      final p = _rampTotal.inMilliseconds <= 0
+          ? 1.0
+          : (_rampElapsed.inMilliseconds / _rampTotal.inMilliseconds)
+              .clamp(0.0, 1.0)
+              .toDouble();
+      final inVol = _rampUserVolume * crossfadeInVolume(_rampCurve, p);
+      final outVol = _rampUserVolume * crossfadeInVolume(_rampCurve, 1 - p);
+      incoming.setVolume(inVol);
+      outgoing.setVolume(outVol);
+      if (p >= 1.0) {
+        timer.cancel();
+        _crossfadeTimer = null;
+        unawaited(_finishCrossfade(outgoing));
+      }
+    });
+  }
+
+  Future<void> _finishCrossfade(just_audio.AudioPlayer outgoing) async {
+    try {
+      await outgoing.stop();
+    } catch (_) {}
+    try {
+      await outgoing.setVolume(_rampUserVolume);
+    } catch (_) {}
+    try {
+      await outgoing.seek(Duration.zero);
+    } catch (_) {}
+    _crossfadeArmed = false;
+  }
+
+  Future<void> _cancelCrossfade() async {
+    _crossfadeTimer?.cancel();
+    _crossfadeTimer = null;
+    final wasArmed = _crossfadeArmed;
+    _crossfadeArmed = false;
+    final secondary = _secondary;
+    if (secondary != null) {
+      try {
+        await secondary.stop();
+      } catch (_) {}
+      try {
+        await secondary.setVolume(_rampUserVolume);
+      } catch (_) {}
+      try {
+        await secondary.seek(Duration.zero);
+      } catch (_) {}
+    }
+    // If we were mid-fade, the active player's volume was being ramped down;
+    // restore it so the user doesn't get a silently-seeking track.
+    if (wasArmed) {
+      final active = _player;
+      if (active != null) {
+        try {
+          await active.setVolume(_rampUserVolume);
+        } catch (_) {}
+      }
+    }
+  }
+
   @override
   Future<void> dispose() async {
+    _crossfadeTimer?.cancel();
+    _crossfadeTimer = null;
+    _crossfadeArmed = false;
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }
     _subscriptions.clear();
+    final secondary = _secondary;
+    _secondary = null;
     _player = null;
     _playlistSignature = const <String>[];
     _loadedSingleTrackOnly = false;
+    try {
+      await secondary?.dispose();
+    } catch (_) {}
     await _disposeEngine();
     await _controller.close();
   }

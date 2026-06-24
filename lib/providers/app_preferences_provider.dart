@@ -393,6 +393,50 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setKeepPlayingOnQuit(value);
   }
 
+  Future<void> setPauseOnBluetoothDisconnect(bool value) async {
+    if (state.pauseOnBluetoothDisconnect == value) return;
+    state = state.copyWith(pauseOnBluetoothDisconnect: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setPauseOnBluetoothDisconnect(value);
+  }
+
+  Future<void> setResumeOnBluetoothReconnect(bool value) async {
+    if (state.resumeOnBluetoothReconnect == value) return;
+    state = state.copyWith(resumeOnBluetoothReconnect: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setResumeOnBluetoothReconnect(value);
+  }
+
+  Future<void> setPreferredBluetoothDevice(String value) async {
+    if (state.preferredBluetoothDevice == value) return;
+    state = state.copyWith(preferredBluetoothDevice: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setPreferredBluetoothDevice(value);
+  }
+
+  Future<void> setBtLdacBitrate(String value) async {
+    if (state.btLdacBitrate == value) return;
+    state = state.copyWith(btLdacBitrate: value);
+    await ref.read(appPreferencesServiceProvider).setBtLdacBitrate(value);
+  }
+
+  Future<void> setBtPreferredCodec(int value) async {
+    if (state.btPreferredCodec == value) return;
+    state = state.copyWith(btPreferredCodec: value);
+    await ref.read(appPreferencesServiceProvider).setBtPreferredCodec(value);
+  }
+
+  Future<void> setBtAbsoluteVolumeSync(bool value) async {
+    if (state.btAbsoluteVolumeSync == value) return;
+    state = state.copyWith(btAbsoluteVolumeSync: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setBtAbsoluteVolumeSync(value);
+  }
+
   Future<void> setFloatingPlayerEnabled(bool value) async {
     if (state.floatingPlayerEnabled == value) return;
     state = state.copyWith(floatingPlayerEnabled: value);
