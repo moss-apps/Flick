@@ -701,6 +701,21 @@ pub fn audio_set_dsd_bit_reverse_override(enabled: bool) {
     crate::audio::dsd_engine::output::set_dsd_bit_reverse_override(enabled);
 }
 
+/// Force the native-DSD wire byte order on the USB direct transport (DSD_U32
+/// packing). Pass `None` to defer to the device quirk (auto). Use to diagnose
+/// channel-swapped or noisy DSD from a wrong byte-order assumption.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_set_dsd_big_endian_override(value: Option<bool>) {
+    crate::audio::dsd_engine::output::set_dsd_big_endian_override(value);
+}
+
+/// Force the native-DSD subslot size (1=DSD_U8, 2=DSD_U16, 4=DSD_U32) on the
+/// USB direct transport. Pass `None` to defer to the descriptor / device quirk.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_set_dsd_subslot_override(value: Option<u8>) {
+    crate::audio::dsd_engine::output::set_dsd_subslot_override(value);
+}
+
 /// Update the current platform capability snapshot used for engine selection.
 #[flutter_rust_bridge::frb(sync)]
 pub fn audio_set_capability_info(info: AudioCapabilityInfo) {
