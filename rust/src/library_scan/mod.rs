@@ -1,7 +1,7 @@
 mod database;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 mod hybrid;
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 mod tests;
 mod two_phase;
 mod types;
