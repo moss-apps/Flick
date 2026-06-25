@@ -999,6 +999,19 @@ fn samples_to_millis(samples: usize, sample_rate: u32, channels: usize) -> u32 {
     ((samples as u64 * 1_000) / (sample_rate as u64 * channels as u64)) as u32
 }
 
+// ponytail: Native DSD packs one DSD byte per i32, so the render ring flows at
+// the byte rate (dsd_bit_rate/8), not the UAC2 wire rate (dsd_bit_rate/32).
+// Buffer sizing, priming, and fill-ms telemetry must use the byte rate or they
+// read ~4x low. Upgrade path: if a future transport packs >1 byte/i32, extend here.
+fn effective_ring_rate(playback_format: &AndroidDirectUsbPlaybackFormat) -> u32 {
+    if playback_format.dsd_transport == DsdTransportMode::Native && playback_format.dsd_bit_rate > 0
+    {
+        playback_format.dsd_bit_rate / 8
+    } else {
+        playback_format.sample_rate
+    }
+}
+
 pub struct AndroidDirectUsbBackend {
     stop: Arc<AtomicBool>,
     producer_thread_handle: Option<JoinHandle<()>>,
@@ -1023,6 +1036,60 @@ static LAST_SET_HW_VOLUME: AtomicI16 = AtomicI16::new(0);
 /// Global guard: only one USB streaming session may be active at a time.
 /// Prevents "Resource busy" from concurrent or overlapping claim attempts.
 static USB_SESSION_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+// ponytail: DoP/Native payload integrity, audited per encoded transfer by the
+// output loop (audit_dsd_payload). Read live by direct_path_is_bit_perfect so the
+// bit-perfect flag reflects current wire payload, not just rate/depth/clock.
+static USB_DSD_PAYLOAD_VERIFIED: AtomicBool = AtomicBool::new(false);
+
+fn usb_dsd_payload_verified() -> bool {
+    USB_DSD_PAYLOAD_VERIFIED.load(Ordering::SeqCst)
+}
+
+/// Verify the just-encoded wire payload looks like real DSD transport data.
+/// DoP: every word's marker byte must be 0x05/0xFA and channel-0 markers must
+/// alternate at least once. Native: require at least one non-zero byte (gross
+/// pipeline-failure guard; DSD has no in-band markers to check).
+fn audit_dsd_payload(
+    buffer: &[u8],
+    dsd_transport: DsdTransportMode,
+    subslot_size: u8,
+    channels: u16,
+) -> bool {
+    if buffer.is_empty() {
+        return false;
+    }
+    let ss = subslot_size as usize;
+    match dsd_transport {
+        DsdTransportMode::DoP => {
+            if ss == 0 {
+                return false;
+            }
+            let ch = channels.max(1) as usize;
+            let num_words = buffer.len() / ss;
+            if num_words < 2 {
+                return false;
+            }
+            let mut prev_ch0: Option<u8> = None;
+            let mut alternations = 0u32;
+            for word in 0..num_words {
+                let marker = buffer[word * ss + (ss - 1)];
+                if marker != 0x05 && marker != 0xFA {
+                    return false;
+                }
+                if word % ch == 0 {
+                    if prev_ch0.is_some_and(|p| marker != p) {
+                        alternations += 1;
+                    }
+                    prev_ch0 = Some(marker);
+                }
+            }
+            alternations >= 1
+        }
+        DsdTransportMode::Native => buffer.iter().any(|&b| b != 0),
+        DsdTransportMode::None => true,
+    }
+}
 
 pub fn set_android_direct_usb_enabled(enabled: bool) {
     ANDROID_DIRECT_USB_ENABLED.store(enabled, Ordering::Release);
@@ -1393,6 +1460,8 @@ pub fn android_direct_debug_state() -> AndroidDirectUsbDebugState {
     let clock_status = state.clock_status.as_ref();
     let runtime_stats = state.runtime_stats.as_ref();
     let capability_model = state.capability_model.as_ref();
+    // Compute live (before the struct literal moves String fields out of state).
+    let bit_perfect_verified = direct_path_is_bit_perfect(&state);
 
     AndroidDirectUsbDebugState {
         registered: true,
@@ -1459,7 +1528,7 @@ pub fn android_direct_debug_state() -> AndroidDirectUsbDebugState {
         last_error: state.last_error,
         direct_mode_refusal_reason: state.direct_mode_refusal_reason,
         usb_stream_stable: state.usb_stream_stable,
-        bit_perfect_verified: state.bit_perfect_verified,
+        bit_perfect_verified,
         software_volume_active: state.software_volume_active,
         hardware_volume_supported: state.hardware_volume_control.is_some(),
         hardware_mute_supported: state
@@ -2182,10 +2251,17 @@ fn direct_path_is_bit_perfect(state: &AndroidDirectUsbState) -> bool {
     // Bit-perfect requires: matching format, verified clock, and the engine
     // callback is running in bit_perfect bypass mode (no volume/EQ/dynamics).
     // Software volume is always inactive when bit_perfect bypass is enabled.
+    // For DSD transports, additionally require that the live wire payload has
+    // passed the DoP-marker / native-byte audit (USB_DSD_PAYLOAD_VERIFIED).
+    let payload_ok = match effective.dsd_transport {
+        DsdTransportMode::DoP | DsdTransportMode::Native => usb_dsd_payload_verified(),
+        DsdTransportMode::None => true,
+    };
     requested.sample_rate == effective.sample_rate
         && requested.bit_depth == effective.bit_depth
         && requested.channels == effective.channels
         && state.clock_verification_passed
+        && payload_ok
 }
 
 fn set_effective_playback_format(playback_format: AndroidDirectUsbPlaybackFormat) {
@@ -2998,7 +3074,8 @@ fn build_android_usb_capability_model(
     let mut supported_channels = Vec::new();
     let mut stream_rate_cache =
         std::collections::HashMap::<(u8, Option<u8>), Vec<SamplingFrequencySubrange>>::new();
-    let dsd_subslot_override = resolve_dsd_quirk_for_device(device, handle).map(|q| q.preferred_subslot);
+    let dsd_subslot_override = crate::audio::dsd_engine::output::dsd_subslot_override()
+        .or_else(|| resolve_dsd_quirk_for_device(device, handle).map(|q| q.preferred_subslot));
 
     for interface in config_descriptor.interfaces() {
         for descriptor in interface.descriptors() {
@@ -3912,7 +3989,7 @@ fn create_android_usb_backend_inner(
     set_android_usb_engine_state(AndroidDirectUsbEngineState::UsbReady, None);
     set_software_volume_active(false);
     let runtime_stats = Arc::new(AndroidDirectUsbRuntimeStats::new(
-        playback_format.sample_rate,
+        effective_ring_rate(&playback_format),
         playback_format.channels as usize,
         ANDROID_USB_BUFFER_CAPACITY_MS,
         ANDROID_USB_BUFFER_TARGET_MS,
@@ -4085,8 +4162,8 @@ fn run_usb_render_loop(
     stop: Arc<AtomicBool>,
 ) {
     let channels = playback_format.channels as usize;
-    let chunk_frames =
-        ((playback_format.sample_rate as usize * ANDROID_USB_RENDER_CHUNK_MS) / 1_000).max(1);
+    let ring_rate = effective_ring_rate(&playback_format);
+    let chunk_frames = ((ring_rate as usize * ANDROID_USB_RENDER_CHUNK_MS) / 1_000).max(1);
     let chunk_samples = chunk_frames.saturating_mul(channels);
     let target_samples = runtime_stats.buffer_target_samples;
     let mut render_buffer = vec![0.0f32; chunk_samples];
@@ -4334,6 +4411,17 @@ fn prepare_iso_transfer_payload(
         dsd_big_endian,
         dsd_bit_reverse,
     )?;
+    if dsd_transport != DsdTransportMode::None {
+        USB_DSD_PAYLOAD_VERIFIED.store(
+            audit_dsd_payload(
+                &transfer_buffer,
+                dsd_transport,
+                candidate.subslot_size,
+                candidate.channels,
+            ),
+            Ordering::SeqCst,
+        );
+    }
 
     Ok(Some(IsoTransferPayload {
         frame_count: packet_samples.len() / channels,
@@ -4527,12 +4615,14 @@ fn run_usb_output_loop(
         claimed_interfaces,
     } = claimed_handle;
     let playback_format = state.playback_format.unwrap();
+    USB_DSD_PAYLOAD_VERIFIED.store(false, Ordering::SeqCst);
     let dsd_quirk = resolve_dsd_quirk(
         state.device.vendor_id,
         state.device.product_id,
         &state.device.product_name,
     );
-    let dsd_big_endian = dsd_quirk.map(|q| q.big_endian).unwrap_or(false);
+    let dsd_big_endian = crate::audio::dsd_engine::output::dsd_big_endian_override()
+        .unwrap_or_else(|| dsd_quirk.map(|q| q.big_endian).unwrap_or(false));
     let dsd_bit_reverse = dsd_quirk.map(|q| q.bit_reverse).unwrap_or(false);
     let slot_bytes = candidate.subslot_size as usize;
     if slot_bytes == 0 {
@@ -5010,7 +5100,8 @@ fn select_stream_candidate(
         .map_err(|error| format!("Failed to read active USB config descriptor: {}", error))?;
     let mut candidates = Vec::new();
     let prefer_padded_24bit_transport = device_prefers_padded_24bit_transport(device);
-    let dsd_subslot_override = resolve_dsd_quirk_for_device(device, handle).map(|q| q.preferred_subslot);
+    let dsd_subslot_override = crate::audio::dsd_engine::output::dsd_subslot_override()
+        .or_else(|| resolve_dsd_quirk_for_device(device, handle).map(|q| q.preferred_subslot));
     let mut stream_rate_cache =
         std::collections::HashMap::<(u8, Option<u8>), Vec<SamplingFrequencySubrange>>::new();
     for interface in config_descriptor.interfaces() {
@@ -6895,5 +6986,75 @@ mod dsd_bitperfect_tests {
     #[test]
     fn unknown_device_has_no_dsd_quirk() {
         assert!(resolve_dsd_quirk(0x0001, 0x0002, "Mystery DAC").is_none());
+    }
+
+    #[test]
+    fn audit_dop_valid_alternating_markers() {
+        // ss=4 stereo: marker is the last byte of each 4-byte word; channel-0
+        // words (L0,L1) alternate 0x05 -> 0xFA.
+        let buf: [u8; 16] = [
+            0xAA, 0xAA, 0xAA, 0x05, // L0
+            0xAA, 0xAA, 0xAA, 0x05, // R0
+            0xAA, 0xAA, 0xAA, 0xFA, // L1
+            0xAA, 0xAA, 0xAA, 0xFA, // R1
+        ];
+        assert!(audit_dsd_payload(&buf, DsdTransportMode::DoP, 4, 2));
+    }
+
+    #[test]
+    fn audit_dop_rejects_bad_marker_byte() {
+        let buf: [u8; 8] = [0xAA, 0xAA, 0xAA, 0x05, 0xAA, 0xAA, 0xAA, 0x00];
+        assert!(!audit_dsd_payload(&buf, DsdTransportMode::DoP, 4, 2));
+    }
+
+    #[test]
+    fn audit_dop_rejects_non_alternating_or_short() {
+        // two channel-0 words with identical marker -> no alternation
+        let flat: [u8; 16] = [
+            0xAA, 0xAA, 0xAA, 0x05, 0xAA, 0xAA, 0xAA, 0x05, 0xAA, 0xAA, 0xAA, 0x05, 0xAA, 0xAA,
+            0xAA, 0x05,
+        ];
+        assert!(!audit_dsd_payload(&flat, DsdTransportMode::DoP, 4, 2));
+        // fewer than 2 words
+        assert!(!audit_dsd_payload(&[0, 0, 0, 0x05], DsdTransportMode::DoP, 4, 2));
+    }
+
+    #[test]
+    fn audit_dop_24bit_marker_in_last_byte() {
+        // ss=3: marker at byte[2]. L0=0x05, L1=0xFA (stereo -> 4 words).
+        let buf: [u8; 12] = [
+            0xAA, 0xAA, 0x05, 0xAA, 0xAA, 0x05, 0xAA, 0xAA, 0xFA, 0xAA, 0xAA, 0xFA,
+        ];
+        assert!(audit_dsd_payload(&buf, DsdTransportMode::DoP, 3, 2));
+    }
+
+    #[test]
+    fn audit_native_requires_nonzero() {
+        assert!(audit_dsd_payload(&[0x00, 0x55, 0x00], DsdTransportMode::Native, 1, 2));
+        assert!(!audit_dsd_payload(&[0, 0, 0, 0], DsdTransportMode::Native, 1, 2));
+        assert!(!audit_dsd_payload(&[], DsdTransportMode::Native, 1, 2));
+    }
+
+    #[test]
+    fn effective_ring_rate_uses_byte_rate_for_native() {
+        // DSD64: dsd_bit_rate 2_822_400 -> byte rate 352_800, wire rate 88_200.
+        let native = AndroidDirectUsbPlaybackFormat {
+            sample_rate: 88_200,
+            bit_depth: 1,
+            channels: 2,
+            is_dop: false,
+            dsd_transport: DsdTransportMode::Native,
+            dsd_bit_rate: 2_822_400,
+        };
+        assert_eq!(effective_ring_rate(&native), 352_800);
+        let pcm = AndroidDirectUsbPlaybackFormat {
+            sample_rate: 96_000,
+            bit_depth: 24,
+            channels: 2,
+            is_dop: false,
+            dsd_transport: DsdTransportMode::None,
+            dsd_bit_rate: 0,
+        };
+        assert_eq!(effective_ring_rate(&pcm), 96_000);
     }
 }
