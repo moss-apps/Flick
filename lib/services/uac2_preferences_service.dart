@@ -10,10 +10,15 @@ enum AudioEnginePreference { exoPlayer, rustOboe, isochronousUsb }
 
 enum DsdOutputMode { auto, forcePcm, forceDop, native }
 
+/// Per-device field-tuning override for native-DSD wire byte order (DSD_U32 packing).
+enum DsdByteOrderOverride { auto, littleEndian, bigEndian }
+
 class Uac2PreferencesService {
   static final ValueNotifier<bool> developerModeNotifier = ValueNotifier(false);
   static final ValueNotifier<bool> killIsochronousUsbOnQuitNotifier = ValueNotifier(true);
   static final ValueNotifier<DsdOutputMode> dsdOutputModeNotifier = ValueNotifier(DsdOutputMode.auto);
+  static final ValueNotifier<DsdByteOrderOverride> dsdByteOrderOverrideNotifier = ValueNotifier(DsdByteOrderOverride.auto);
+  static final ValueNotifier<int?> dsdSubslotOverrideNotifier = ValueNotifier(null);
   static const _keySelectedDevice = 'uac2_selected_device';
   static const _keyPreferredFormat = 'uac2_preferred_format';
   static const _keyFormatPreference = 'uac2_format_preference';
@@ -30,10 +35,14 @@ class Uac2PreferencesService {
   static const _keyGaplessPlaybackEnabled = 'gapless_playback_enabled';
   static const _keyDsdOutputMode = 'dsd_output_mode';
   static const _keyAutoSwitchDsdForVolume = 'auto_switch_dsd_for_volume';
+  static const _keyDsdByteOrderOverride = 'dsd_byte_order_override';
+  static const _keyDsdSubslotOverride = 'dsd_subslot_override';
 
   static bool get isDeveloperModeEnabledSync => developerModeNotifier.value;
   static bool get isKillIsochronousUsbOnQuitSync => killIsochronousUsbOnQuitNotifier.value;
   static DsdOutputMode get dsdOutputModeSync => dsdOutputModeNotifier.value;
+  static DsdByteOrderOverride get dsdByteOrderOverrideSync => dsdByteOrderOverrideNotifier.value;
+  static int? get dsdSubslotOverrideSync => dsdSubslotOverrideNotifier.value;
   static final ValueNotifier<bool> autoSwitchDsdForVolumeNotifier = ValueNotifier(false);
   static bool get autoSwitchDsdForVolumeSync => autoSwitchDsdForVolumeNotifier.value;
   static final ValueNotifier<bool> tuning432HzNotifier = ValueNotifier(false);
@@ -445,6 +454,58 @@ class Uac2PreferencesService {
     }
   }
 
+  Future<void> setDsdByteOrderOverride(DsdByteOrderOverride value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyDsdByteOrderOverride, value.name);
+      dsdByteOrderOverrideNotifier.value = value;
+    } catch (e) {
+      devLog('Failed to save DSD byte order override: $e');
+    }
+  }
+
+  Future<DsdByteOrderOverride> getDsdByteOrderOverride() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final value = prefs.getString(_keyDsdByteOrderOverride);
+      final mode = value == null
+          ? DsdByteOrderOverride.auto
+          : DsdByteOrderOverride.values.firstWhere(
+              (e) => e.name == value,
+              orElse: () => DsdByteOrderOverride.auto,
+            );
+      dsdByteOrderOverrideNotifier.value = mode;
+      return mode;
+    } catch (e) {
+      devLog('Failed to load DSD byte order override: $e');
+      return DsdByteOrderOverride.auto;
+    }
+  }
+
+  /// Force a native-DSD subslot size (1=U8, 2=U16, 4=U32). Pass null for auto.
+  Future<void> setDsdSubslotOverride(int? value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_keyDsdSubslotOverride, value ?? 0);
+      dsdSubslotOverrideNotifier.value = value;
+    } catch (e) {
+      devLog('Failed to save DSD subslot override: $e');
+    }
+  }
+
+  Future<int?> getDsdSubslotOverride() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getInt(_keyDsdSubslotOverride) ?? 0;
+      final value = stored == 0 ? null : stored;
+      dsdSubslotOverrideNotifier.value = value;
+      return value;
+    } catch (e) {
+      devLog('Failed to load DSD subslot override: $e');
+      return null;
+    }
+  }
+
   Future<void> setAutoSwitchDsdForVolume(bool value) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -487,7 +548,11 @@ class Uac2PreferencesService {
     await prefs.remove(_keyDsdOutputMode);
     await prefs.remove(_keyAutoSwitchDsdForVolume);
     await prefs.remove(_keyBtLowLatencyMode);
+    await prefs.remove(_keyDsdByteOrderOverride);
+    await prefs.remove(_keyDsdSubslotOverride);
       dsdOutputModeNotifier.value = DsdOutputMode.auto;
+      dsdByteOrderOverrideNotifier.value = DsdByteOrderOverride.auto;
+      dsdSubslotOverrideNotifier.value = null;
       developerModeNotifier.value = false;
       killIsochronousUsbOnQuitNotifier.value = true;
       tuning432HzNotifier.value = false;
