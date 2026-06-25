@@ -9,6 +9,7 @@ import 'api/metadata_editor.dart';
 import 'api/scanner.dart';
 import 'api/simple.dart';
 import 'api/uac2_api.dart';
+import 'audio/crossfader.dart';
 import 'audio/dsd_engine/dsd.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -87,6 +88,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  (bool, double, CrossfadeCurve)
+  dco_decode_box_autoadd_record_bool_f_32_crossfade_curve(dynamic raw);
+
+  @protected
   ScanOptions dco_decode_box_autoadd_scan_options(dynamic raw);
 
   @protected
@@ -109,6 +114,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt dco_decode_box_autoadd_usize(dynamic raw);
+
+  @protected
+  CrossfadeCurve dco_decode_crossfade_curve(dynamic raw);
 
   @protected
   CrossfadeCurveType dco_decode_crossfade_curve_type(dynamic raw);
@@ -186,6 +194,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
+  (bool, double, CrossfadeCurve)?
+  dco_decode_opt_box_autoadd_record_bool_f_32_crossfade_curve(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -199,6 +211,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  (bool, double, CrossfadeCurve) dco_decode_record_bool_f_32_crossfade_curve(
+    dynamic raw,
+  );
 
   @protected
   (String, PlatformInt64) dco_decode_record_string_i_64(dynamic raw);
@@ -340,6 +357,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  (bool, double, CrossfadeCurve)
+  sse_decode_box_autoadd_record_bool_f_32_crossfade_curve(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ScanOptions sse_decode_box_autoadd_scan_options(SseDeserializer deserializer);
 
   @protected
@@ -368,6 +391,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_box_autoadd_usize(SseDeserializer deserializer);
+
+  @protected
+  CrossfadeCurve sse_decode_crossfade_curve(SseDeserializer deserializer);
 
   @protected
   CrossfadeCurveType sse_decode_crossfade_curve_type(
@@ -459,6 +485,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  (bool, double, CrossfadeCurve)?
+  sse_decode_opt_box_autoadd_record_bool_f_32_crossfade_curve(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -472,6 +504,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  (bool, double, CrossfadeCurve) sse_decode_record_bool_f_32_crossfade_curve(
+    SseDeserializer deserializer,
+  );
 
   @protected
   (String, PlatformInt64) sse_decode_record_string_i_64(
@@ -636,6 +673,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_record_bool_f_32_crossfade_curve(
+    (bool, double, CrossfadeCurve) self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_scan_options(
     ScanOptions self,
     SseSerializer serializer,
@@ -670,6 +713,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_crossfade_curve(
+    CrossfadeCurve self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_crossfade_curve_type(
@@ -786,6 +835,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_record_bool_f_32_crossfade_curve(
+    (bool, double, CrossfadeCurve)? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
@@ -800,6 +855,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_record_bool_f_32_crossfade_curve(
+    (bool, double, CrossfadeCurve) self,
     SseSerializer serializer,
   );
 
