@@ -16,6 +16,7 @@
 pub mod alac_converter;
 pub mod backend;
 pub mod commands;
+pub mod convolver;
 pub mod crossfader;
 pub mod decoder;
 pub mod decoder_handle;
@@ -27,6 +28,7 @@ pub mod dynamics;
 pub mod engine;
 pub mod equalizer;
 pub mod fx;
+pub mod ir_loader;
 pub mod manager;
 pub mod opus_decoder;
 pub mod resampler;
