@@ -15,6 +15,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// Bottom sheet with actions for a song (add to playlist, favorites, view metadata, etc.)
 class SongActionsBottomSheet extends ConsumerWidget {
@@ -155,20 +156,16 @@ class SongActionsBottomSheet extends ConsumerWidget {
               _showMetadataSheet(context);
             },
           ),
-          _buildActionTile(
-            context: context,
-            icon: LucideIcons.folderOpen,
-            label: 'Show in Files',
-            onTap: () {
-              Navigator.pop(context);
-              // TODO: Implement show in files functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(song.filePath ?? 'File path not available'),
-                ),
-              );
-            },
-          ),
+          if (song.filePath != null && !song.isExternal)
+            _buildActionTile(
+              context: context,
+              icon: LucideIcons.share2,
+              label: 'Share',
+              onTap: () {
+                Navigator.pop(context);
+                unawaited(Share.shareXFiles([XFile(song.filePath!)]));
+              },
+            ),
           const SizedBox(height: AppConstants.spacingSm),
           Divider(height: 1, color: AppColors.glassBorderStrong),
           const SizedBox(height: AppConstants.spacingSm),
