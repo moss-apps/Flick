@@ -1077,6 +1077,7 @@ class MainActivity: FlutterActivity() {
     private fun openDocumentTree() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
         startActivityForResult(intent, REQUEST_OPEN_DOCUMENT_TREE)
@@ -1137,27 +1138,41 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun takePersistableUriPermission(uriString: String): Boolean {
+        val uri = Uri.parse(uriString)
+        // Persist read + write so metadata edits survive restarts. WRITE may not
+        // be granted for older (read-only) grants, so fall back to READ only.
         return try {
-            val uri = Uri.parse(uriString)
             contentResolver.takePersistableUriPermission(
                 uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
             true
         } catch (e: Exception) {
-            false
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                true
+            } catch (e2: Exception) {
+                false
+            }
         }
     }
 
     private fun releasePersistableUriPermission(uriString: String) {
-        try {
-            val uri = Uri.parse(uriString)
-            contentResolver.releasePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-        } catch (e: Exception) {
-            // Ignore if permission wasn't held
+        val uri = Uri.parse(uriString)
+        // Release each flag independently; releasing them together fails if one
+        // isn't held.
+        for (flag in listOf(
+            Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        )) {
+            try {
+                contentResolver.releasePersistableUriPermission(uri, flag)
+            } catch (e: Exception) {
+                // Ignore if this flag wasn't held
+            }
         }
     }
 
