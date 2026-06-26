@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +21,6 @@ import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart'
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/player_screen_mode.dart';
 import 'package:flick/models/player_action_button.dart';
-import 'package:flick/models/shuffle_mode.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/features/player/widgets/shuffle_mode_sheet.dart';
 import 'package:flick/features/player/widgets/loop_mode_sheet.dart';
@@ -29,12 +29,8 @@ import 'package:flick/services/external_playback_service.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/providers/rating_provider.dart';
-import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/features/player/widgets/rating_button.dart';
 import 'package:flick/services/player_screen_mode_preference_service.dart';
-import 'package:flick/providers/album_color_provider.dart';
-import 'package:flick/providers/app_preferences_provider.dart';
-import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/bit_perfect_capsule.dart';
 import 'package:flick/features/player/widgets/bit_perfect_indicator.dart';
@@ -44,7 +40,6 @@ import 'package:flick/features/settings/screens/equalizer_screen.dart';
 import 'package:flick/features/player/widgets/line_seek_bar.dart';
 import 'package:flick/features/player/widgets/waveform_seek_bar.dart';
 import 'package:flick/models/progress_bar_style.dart';
-import 'package:flick/providers/progress_bar_style_provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
@@ -6243,9 +6238,8 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
         builder: (context, constraints) {
           final centerPadding = constraints.maxHeight * _centerFactor;
           return ListView.builder(
-            controller: _scrollController,
+            scrollCacheExtent: ScrollCacheExtent.pixels(_lineHeight * 8), controller: _scrollController,
             padding: EdgeInsets.fromLTRB(10, centerPadding, 10, centerPadding),
-            cacheExtent: _lineHeight * 8,
             itemCount: lyrics.lines.length,
             itemExtent: _lineHeight,
             itemBuilder: (context, index) {

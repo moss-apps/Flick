@@ -3,6 +3,7 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import '../audio/crossfader.dart';
 import '../audio/dsd_engine/dsd.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -43,6 +44,20 @@ Future<void> setPendingVolume({required double volume}) =>
 
 Future<double?> takePendingVolume() =>
     RustLib.instance.api.crateApiAudioApiTakePendingVolume();
+
+Future<void> setPendingCrossfade({
+  required bool enabled,
+  required double durationSecs,
+}) => RustLib.instance.api.crateApiAudioApiSetPendingCrossfade(
+  enabled: enabled,
+  durationSecs: durationSecs,
+);
+
+Future<void> setPendingCrossfadeCurve({required CrossfadeCurve curve}) =>
+    RustLib.instance.api.crateApiAudioApiSetPendingCrossfadeCurve(curve: curve);
+
+Future<(bool, double, CrossfadeCurve)?> takePendingCrossfade() =>
+    RustLib.instance.api.crateApiAudioApiTakePendingCrossfade();
 
 /// Check if native audio is available on this platform.
 bool audioIsNativeAvailable() =>
@@ -85,6 +100,17 @@ void audioSetDsdBitReverseOverride({required bool enabled}) => RustLib
     .instance
     .api
     .crateApiAudioApiAudioSetDsdBitReverseOverride(enabled: enabled);
+
+/// Force the native-DSD wire byte order on the USB direct transport (DSD_U32
+/// packing). Pass `None` to defer to the device quirk (auto). Use to diagnose
+/// channel-swapped or noisy DSD from a wrong byte-order assumption.
+void audioSetDsdBigEndianOverride({bool? value}) => RustLib.instance.api
+    .crateApiAudioApiAudioSetDsdBigEndianOverride(value: value);
+
+/// Force the native-DSD subslot size (1=DSD_U8, 2=DSD_U16, 4=DSD_U32) on the
+/// USB direct transport. Pass `None` to defer to the descriptor / device quirk.
+void audioSetDsdSubslotOverride({int? value}) => RustLib.instance.api
+    .crateApiAudioApiAudioSetDsdSubslotOverride(value: value);
 
 /// Update the current platform capability snapshot used for engine selection.
 void audioSetCapabilityInfo({required AudioCapabilityInfo info}) =>
@@ -210,7 +236,11 @@ Future<void> audioSetFx({
 );
 
 /// Configure crossfade settings.
-/// Only available when not in bit-perfect (passthrough) mode.
+///
+/// The engine's own `is_crossfade_allowed()` trigger gate (plus the Dart-side
+/// processing policy) authoritatively decide whether crossfade runs; the old
+/// passthrough guard here was redundant and self-defeating — it blocked the
+/// very `crossfade_forces_dsp` flip that lets crossfade escape passthrough.
 Future<void> audioSetCrossfade({
   required bool enabled,
   required double durationSecs,
@@ -243,7 +273,6 @@ AudioEventType? audioPollEvent() =>
     RustLib.instance.api.crateApiAudioApiAudioPollEvent();
 
 /// Set the crossfade curve type.
-/// Only available when not in bit-perfect (passthrough) mode.
 Future<void> audioSetCrossfadeCurve({required CrossfadeCurveType curve}) =>
     RustLib.instance.api.crateApiAudioApiAudioSetCrossfadeCurve(curve: curve);
 

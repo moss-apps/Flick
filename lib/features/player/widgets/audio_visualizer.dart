@@ -565,7 +565,7 @@ class _VisualizerBarPainter extends CustomPainter {
     }
 
     // Convert Catmull-Rom control points to smooth cubic Bézier path.
-    Path _smoothPath(List<Offset> pts) {
+    Path smoothPath(List<Offset> pts) {
       final path = Path();
       if (pts.length < 2) return path;
       path.moveTo(pts[0].dx, pts[0].dy);
@@ -589,7 +589,7 @@ class _VisualizerBarPainter extends CustomPainter {
     }
 
     // --- Filled area ---
-    final curvePath = _smoothPath(points);
+    final curvePath = smoothPath(points);
     final fillPath = Path.from(curvePath);
     fillPath.lineTo(size.width, baseline);
     fillPath.lineTo(0, baseline);

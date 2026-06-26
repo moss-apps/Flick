@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'mediastore_observer_service.dart';
 import 'background_metadata_service.dart';
 import 'package:flick/core/utils/dev_log.dart';

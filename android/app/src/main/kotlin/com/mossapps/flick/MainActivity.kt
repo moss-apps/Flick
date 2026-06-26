@@ -58,6 +58,8 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.os.PowerManager
+import android.os.storage.StorageManager
+import android.os.storage.StorageVolume
 import androidx.documentfile.provider.DocumentFile
 import com.mossapps.flick.audiofx.JustAudioProcessingController
 import io.flutter.embedding.android.FlutterActivity
@@ -431,6 +433,14 @@ class MainActivity: FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "URI is required", null)
                     }
                 }
+                "resolveStorageInfo" -> {
+                    val uri = call.argument<String>("uri")
+                    if (uri != null) {
+                        result.success(resolveStorageInfo(uri))
+                    } else {
+                        result.error("INVALID_ARGUMENT", "URI is required", null)
+                    }
+                }
                 "isIgnoringBatteryOptimizations" -> {
                     result.success(isIgnoringBatteryOptimizations())
                 }
@@ -537,10 +547,11 @@ class MainActivity: FlutterActivity() {
                 }
                 "queryMediaStoreAudio" -> {
                     val folderPaths = call.argument<List<String>>("folderPaths")
+                    val volumeName = call.argument<String?>("volumeName")
                     mainScope.launch {
                         try {
                             val files = withContext(Dispatchers.IO) {
-                                queryMediaStoreAudio(folderPaths ?: emptyList())
+                                queryMediaStoreAudio(folderPaths ?: emptyList(), volumeName)
                             }
                             result.success(files)
                         } catch (e: Exception) {
@@ -550,10 +561,11 @@ class MainActivity: FlutterActivity() {
                 }
                 "queryMediaStoreNonAudio" -> {
                     val folderPaths = call.argument<List<String>>("folderPaths")
+                    val volumeName = call.argument<String?>("volumeName")
                     mainScope.launch {
                         try {
                             val files = withContext(Dispatchers.IO) {
-                                queryMediaStoreNonAudio(folderPaths ?: emptyList())
+                                queryMediaStoreNonAudio(folderPaths ?: emptyList(), volumeName)
                             }
                             result.success(files)
                         } catch (e: Exception) {
@@ -563,10 +575,11 @@ class MainActivity: FlutterActivity() {
                 }
                 "queryMediaStoreDeletions" -> {
                     val filePaths = call.argument<List<String>>("filePaths")
+                    val volumeName = call.argument<String?>("volumeName")
                     mainScope.launch {
                         try {
                             val deleted = withContext(Dispatchers.IO) {
-                                queryMediaStoreDeletions(filePaths ?: emptyList())
+                                queryMediaStoreDeletions(filePaths ?: emptyList(), volumeName)
                             }
                             result.success(deleted)
                         } catch (e: Exception) {
@@ -1064,6 +1077,7 @@ class MainActivity: FlutterActivity() {
     private fun openDocumentTree() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
         startActivityForResult(intent, REQUEST_OPEN_DOCUMENT_TREE)
@@ -1124,27 +1138,41 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun takePersistableUriPermission(uriString: String): Boolean {
+        val uri = Uri.parse(uriString)
+        // Persist read + write so metadata edits survive restarts. WRITE may not
+        // be granted for older (read-only) grants, so fall back to READ only.
         return try {
-            val uri = Uri.parse(uriString)
             contentResolver.takePersistableUriPermission(
                 uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
             true
         } catch (e: Exception) {
-            false
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                true
+            } catch (e2: Exception) {
+                false
+            }
         }
     }
 
     private fun releasePersistableUriPermission(uriString: String) {
-        try {
-            val uri = Uri.parse(uriString)
-            contentResolver.releasePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-        } catch (e: Exception) {
-            // Ignore if permission wasn't held
+        val uri = Uri.parse(uriString)
+        // Release each flag independently; releasing them together fails if one
+        // isn't held.
+        for (flag in listOf(
+            Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        )) {
+            try {
+                contentResolver.releasePersistableUriPermission(uri, flag)
+            } catch (e: Exception) {
+                // Ignore if this flag wasn't held
+            }
         }
     }
 
@@ -1327,27 +1355,68 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun resolveTreeUriToPath(uriString: String): String? {
+        return resolveStorageInfo(uriString)["fsPath"] as? String
+    }
+
+    // Single source of truth for filesystem path + MediaStore-volume routing, including
+    // removable (USB/SD) volumes which queryMediaStoreAudio must target by their own name.
+    // ponytail: removable per-volume MediaStore is API 29+; pre-29 returns null -> SAF fallback.
+    private fun resolveStorageInfo(uriString: String): Map<String, Any?> {
+        val unknown = mapOf<String, Any?>(
+            "fsPath" to null,
+            "mediaStoreVolume" to null,
+            "isRemovable" to false,
+            "isPrimary" to false,
+            "state" to "unknown",
+        )
         return try {
             val uri = Uri.parse(uriString)
             if (uri.scheme == "file") {
-                return uri.path
+                return mapOf(
+                    "fsPath" to uri.path,
+                    "mediaStoreVolume" to null,
+                    "isRemovable" to false,
+                    "isPrimary" to true,
+                    "state" to "mounted",
+                )
             }
-
             if (uri.scheme != "content" ||
                 uri.authority != "com.android.externalstorage.documents"
             ) {
-                return null
+                return unknown
             }
 
             val documentId = DocumentsContract.getTreeDocumentId(uri)
             val decodedId = Uri.decode(documentId)
             val parts = decodedId.split(":", limit = 2)
-            if (parts.isEmpty()) {
-                return null
-            }
-
+            if (parts.isEmpty()) return unknown
             val volumeId = parts[0]
             val relativePath = parts.getOrNull(1)?.trim('/') ?: ""
+            val isPrimaryDoc = volumeId.lowercase() == "primary" ||
+                volumeId.lowercase() == "home"
+
+            val sm = getSystemService(Context.STORAGE_SERVICE) as? StorageManager
+            val matched = sm?.storageVolumes?.firstOrNull { vol ->
+                if (isPrimaryDoc) vol.isPrimary
+                else vol.uuid?.equals(volumeId, ignoreCase = true) == true
+            }
+
+            if (matched != null) {
+                val basePath = storageVolumePath(matched)
+                val candidate = if (basePath == null) null
+                    else if (relativePath.isEmpty()) basePath else "$basePath/$relativePath"
+                val readable = candidate != null &&
+                    File(candidate).let { it.exists() && it.canRead() }
+                return mapOf(
+                    "fsPath" to if (readable) candidate else null,
+                    "mediaStoreVolume" to mediaStoreVolumeNameFor(volumeId, matched.isPrimary),
+                    "isRemovable" to matched.isRemovable,
+                    "isPrimary" to matched.isPrimary,
+                    "state" to matched.state,
+                )
+            }
+
+            // Legacy fallback when StorageManager didn't enumerate the volume.
             val basePath = when (volumeId.lowercase()) {
                 "primary" -> Environment.getExternalStorageDirectory().absolutePath
                 "home" -> Environment.getExternalStoragePublicDirectory(
@@ -1355,23 +1424,45 @@ class MainActivity: FlutterActivity() {
                 ).absolutePath
                 else -> "/storage/$volumeId"
             }
-
-            val candidate = if (relativePath.isEmpty()) {
-                basePath
-            } else {
-                "$basePath/$relativePath"
-            }
-
+            val candidate = if (relativePath.isEmpty()) basePath else "$basePath/$relativePath"
             val candidateFile = File(candidate)
-            if (!candidateFile.exists() || !candidateFile.canRead()) {
-                return null
-            }
+            if (!candidateFile.exists() || !candidateFile.canRead()) return unknown
 
-            candidateFile.absolutePath
+            mapOf(
+                "fsPath" to candidateFile.absolutePath,
+                "mediaStoreVolume" to mediaStoreVolumeNameFor(volumeId, isPrimaryDoc),
+                "isRemovable" to !isPrimaryDoc,
+                "isPrimary" to isPrimaryDoc,
+                "state" to "mounted",
+            )
         } catch (e: Exception) {
-            Log.w("MainActivity", "Failed to resolve tree URI to path: $uriString", e)
-            null
+            Log.w("MainActivity", "resolveStorageInfo failed: ${e.message}", e)
+            unknown
         }
+    }
+
+    private fun storageVolumePath(volume: StorageVolume): String? {
+        // getDirectory() is API 30+; getPath() is hidden until then.
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            volume.directory?.absolutePath
+        } else {
+            try {
+                val m = volume.javaClass.getMethod("getPath")
+                m.invoke(volume) as? String
+            } catch (e: Exception) {
+                Log.w("MainActivity", "StorageVolume.getPath() reflection failed: ${e.message}")
+                null
+            }
+        }
+    }
+
+    private fun mediaStoreVolumeNameFor(volumeId: String, isPrimary: Boolean): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        // Primary uses VOLUME_EXTERNAL_PRIMARY. For removable storage the
+        // MediaStore volume name is the volume's FAT UUID (== volumeId here).
+        // If MediaStore hasn't indexed that volume, the query yields 0 rows
+        // and the caller falls back to SAF — safe degradation.
+        return if (isPrimary) MediaStore.VOLUME_EXTERNAL_PRIMARY else volumeId
     }
 
     private fun deleteDocumentViaSaf(folderTreeUri: String, filePath: String): Boolean {
@@ -1586,89 +1677,134 @@ class MainActivity: FlutterActivity() {
     }
 
     // Phase 1: Fast Scan (Filesystem only)
-    private fun fastScanAudioFiles(
+    private data class TreeDocEntry(
+        val documentId: String,
+        val name: String,
+        val mimeType: String?,
+        val size: Long,
+        val lastModified: Long,
+    )
+
+    // Walks a granted SAF tree with one contentResolver.query() per directory
+    // (single IPC returning all columns) instead of per-attribute DocumentFile
+    // calls. .nomedia short-circuits a subtree when [respectNomedia] is true.
+    private fun listTreeDocuments(
         uriString: String,
-        filterNonMusicFilesAndFolders: Boolean
-    ): List<Map<String, Any?>> {
-        val uri = Uri.parse(uriString)
-        val documentFile = DocumentFile.fromTreeUri(this, uri) ?: return emptyList()
+        respectNomedia: Boolean,
+    ): List<TreeDocEntry> {
+        val treeUri = Uri.parse(uriString)
+        val rootDocId = try {
+            DocumentsContract.getTreeDocumentId(treeUri)
+        } catch (e: Exception) {
+            return emptyList()
+        }
+        val projection = arrayOf(
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE,
+            DocumentsContract.Document.COLUMN_SIZE,
+            DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+        )
+        val result = mutableListOf<TreeDocEntry>()
+        val visited = HashSet<String>() // ponytail: cycle guard for misbehaving providers
 
-        val audioExtensions =
-            setOf("mp3", "flac", "wav", "aac", "m4a", "ogg", "oga", "ogx", "opus", "wma", "alac", "aif", "aiff", "cue", "wv", "dsf", "dff")
-        val result = mutableListOf<Map<String, Any?>>()
-
-        fun scanDirectory(dir: DocumentFile) {
-            val children = dir.listFiles()
-            if (filterNonMusicFilesAndFolders &&
-                children.any { child -> child.name == ".nomedia" }
-            ) {
+        fun scanDir(docId: String) {
+            if (!visited.add(docId)) return
+            val childrenUri = try {
+                DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
+            } catch (e: Exception) {
                 return
             }
-
-            for (file in children) {
-                if (file.isDirectory) {
-                    scanDirectory(file)
-                } else if (file.isFile) {
-                    val name = file.name ?: continue
-                    val extension = name.substringAfterLast('.', "").lowercase()
-                    if (!filterNonMusicFilesAndFolders || extension in audioExtensions) {
-                        result.add(mapOf(
-                            "uri" to file.uri.toString(),
-                            "name" to name,
-                            "size" to file.length(),
-                            "lastModified" to file.lastModified(),
-                            "mimeType" to file.type,
-                            "extension" to extension
-                        ))
+            val entries = mutableListOf<TreeDocEntry>()
+            var hasNomedia = false
+            try {
+                contentResolver.query(childrenUri, projection, null, null, null)?.use { c ->
+                    val idIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                    val nameIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                    val mimeIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
+                    val sizeIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE)
+                    val modIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                    while (c.moveToNext()) {
+                        val name = if (nameIdx >= 0) c.getString(nameIdx) else null
+                        if (name == null) continue
+                        if (respectNomedia && name == ".nomedia") hasNomedia = true
+                        val childDocId = if (idIdx >= 0) c.getString(idIdx) else null
+                        if (childDocId == null) continue
+                        entries.add(
+                            TreeDocEntry(
+                                documentId = childDocId,
+                                name = name,
+                                mimeType = if (mimeIdx >= 0) c.getString(mimeIdx) else null,
+                                size = if (sizeIdx >= 0 && !c.isNull(sizeIdx)) c.getLong(sizeIdx) else 0L,
+                                lastModified = if (modIdx >= 0 && !c.isNull(modIdx)) c.getLong(modIdx) else 0L,
+                            ),
+                        )
                     }
+                }
+            } catch (e: Exception) {
+                Log.w("MainActivity", "listTreeDocuments query failed: ${e.message}", e)
+            }
+            if (hasNomedia) return
+            for (e in entries) {
+                if (e.mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
+                    scanDir(e.documentId)
+                } else {
+                    result.add(e)
                 }
             }
         }
 
-        scanDirectory(documentFile)
+        scanDir(rootDocId)
         return result
+    }
+
+    private fun fastScanAudioFiles(
+        uriString: String,
+        filterNonMusicFilesAndFolders: Boolean
+    ): List<Map<String, Any?>> {
+        val audioExtensions =
+            setOf("mp3", "flac", "wav", "aac", "m4a", "ogg", "oga", "ogx", "opus", "wma", "alac", "aif", "aiff", "cue", "wv", "dsf", "dff")
+        val treeUri = Uri.parse(uriString)
+
+        return listTreeDocuments(uriString, filterNonMusicFilesAndFolders)
+            .filter { entry ->
+                !filterNonMusicFilesAndFolders ||
+                    entry.name.substringAfterLast('.', "").lowercase() in audioExtensions
+            }
+            .map { entry ->
+                val extension = entry.name.substringAfterLast('.', "").lowercase()
+                mapOf(
+                    "uri" to DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId).toString(),
+                    "name" to entry.name,
+                    "size" to entry.size,
+                    "lastModified" to entry.lastModified,
+                    "mimeType" to entry.mimeType,
+                    "extension" to extension,
+                )
+            }
     }
 
     private fun scanPlaylistFiles(
         uriString: String,
         filterNonMusicFilesAndFolders: Boolean
     ): List<Map<String, Any?>> {
-        val uri = Uri.parse(uriString)
-        val documentFile = DocumentFile.fromTreeUri(this, uri) ?: return emptyList()
         val playlistExtensions = setOf("m3u", "m3u8")
-        val result = mutableListOf<Map<String, Any?>>()
+        val treeUri = Uri.parse(uriString)
 
-        fun scanDirectory(dir: DocumentFile) {
-            val children = dir.listFiles()
-            if (filterNonMusicFilesAndFolders &&
-                children.any { child -> child.name == ".nomedia" }
-            ) {
-                return
+        return listTreeDocuments(uriString, filterNonMusicFilesAndFolders)
+            .filter { entry ->
+                entry.name.substringAfterLast('.', "").lowercase() in playlistExtensions
             }
-
-            for (file in children) {
-                if (file.isDirectory) {
-                    scanDirectory(file)
-                } else if (file.isFile) {
-                    val name = file.name ?: continue
-                    val extension = name.substringAfterLast('.', "").lowercase()
-                    if (extension in playlistExtensions) {
-                        result.add(
-                            mapOf(
-                                "uri" to file.uri.toString(),
-                                "name" to name,
-                                "size" to file.length(),
-                                "lastModified" to file.lastModified(),
-                                "extension" to extension,
-                            )
-                        )
-                    }
-                }
+            .map { entry ->
+                val extension = entry.name.substringAfterLast('.', "").lowercase()
+                mapOf(
+                    "uri" to DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId).toString(),
+                    "name" to entry.name,
+                    "size" to entry.size,
+                    "lastModified" to entry.lastModified,
+                    "extension" to extension,
+                )
             }
-        }
-
-        scanDirectory(documentFile)
-        return result
     }
 
     // Phase 2: Metadata Extraction (Targeted)
@@ -1792,11 +1928,11 @@ class MainActivity: FlutterActivity() {
         return if (value > 0) value else null
     }
 
-    private fun queryMediaStoreAudio(folderPaths: List<String>): List<Map<String, Any?>> {
+    private fun queryMediaStoreAudio(folderPaths: List<String>, volumeName: String? = null): List<Map<String, Any?>> {
         val startedAt = System.nanoTime()
         val result = mutableListOf<Map<String, Any?>>()
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+            MediaStore.Audio.Media.getContentUri(volumeName ?: MediaStore.VOLUME_EXTERNAL)
         } else {
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         }
@@ -1890,14 +2026,14 @@ class MainActivity: FlutterActivity() {
         return result
     }
 
-    private fun queryMediaStoreNonAudio(folderPaths: List<String>): List<Map<String, Any?>> {
+    private fun queryMediaStoreNonAudio(folderPaths: List<String>, volumeName: String? = null): List<Map<String, Any?>> {
         val result = mutableListOf<Map<String, Any?>>()
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return result
         }
 
-        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        val collection = MediaStore.Files.getContentUri(volumeName ?: MediaStore.VOLUME_EXTERNAL)
 
         val projection = arrayOf(
             MediaStore.Files.FileColumns._ID,
@@ -1965,12 +2101,12 @@ class MainActivity: FlutterActivity() {
         return result
     }
 
-    private fun queryMediaStoreDeletions(filePaths: List<String>): List<String> {
+    private fun queryMediaStoreDeletions(filePaths: List<String>, volumeName: String? = null): List<String> {
         if (filePaths.isEmpty()) return emptyList()
 
         val existingPaths = mutableSetOf<String>()
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+            MediaStore.Audio.Media.getContentUri(volumeName ?: MediaStore.VOLUME_EXTERNAL)
         } else {
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         }

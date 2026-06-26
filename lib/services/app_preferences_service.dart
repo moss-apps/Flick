@@ -61,6 +61,7 @@ class AppPreferences {
   final bool btAbsoluteVolumeSync;
   final bool floatingPlayerEnabled;
   final bool autoFocusSearch;
+  final String searchPlaybackMode; // 'results', 'library', or 'queue'
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -123,6 +124,7 @@ class AppPreferences {
     this.btAbsoluteVolumeSync = false,
     this.floatingPlayerEnabled = false,
     this.autoFocusSearch = false,
+    this.searchPlaybackMode = 'results',
   });
 
   AppPreferences copyWith({
@@ -186,6 +188,7 @@ class AppPreferences {
     bool? btAbsoluteVolumeSync,
     bool? floatingPlayerEnabled,
     bool? autoFocusSearch,
+    String? searchPlaybackMode,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -274,6 +277,8 @@ class AppPreferences {
       floatingPlayerEnabled:
           floatingPlayerEnabled ?? this.floatingPlayerEnabled,
       autoFocusSearch: autoFocusSearch ?? this.autoFocusSearch,
+      searchPlaybackMode:
+          searchPlaybackMode ?? this.searchPlaybackMode,
     );
   }
 }
@@ -344,6 +349,7 @@ class AppPreferencesService {
   static const _btAbsoluteVolumeSyncKey = 'app_bt_absolute_volume_sync';
   static const _floatingPlayerEnabledKey = 'app_floating_player_enabled';
   static const _autoFocusSearchKey = 'app_auto_focus_search';
+  static const _searchPlaybackModeKey = 'app_search_playback_mode';
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
@@ -434,6 +440,8 @@ class AppPreferencesService {
       floatingPlayerEnabled:
           prefs.getBool(_floatingPlayerEnabledKey) ?? false,
       autoFocusSearch: prefs.getBool(_autoFocusSearchKey) ?? false,
+      searchPlaybackMode:
+          prefs.getString(_searchPlaybackModeKey) ?? 'results',
     );
   }
 
@@ -1019,5 +1027,15 @@ class AppPreferencesService {
   Future<void> setAutoFocusSearch(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_autoFocusSearchKey, value);
+  }
+
+  Future<String> getSearchPlaybackMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_searchPlaybackModeKey) ?? 'results';
+  }
+
+  Future<void> setSearchPlaybackMode(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_searchPlaybackModeKey, value);
   }
 }

@@ -29,8 +29,8 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
   late TextEditingController _trackNumberController;
   late TextEditingController _discNumberController;
 
+  late FocusNode _titleFocus;
   bool _isSaving = false;
-  bool _hasChanges = false;
   String? _error;
 
   bool get _isEditable =>
@@ -54,6 +54,8 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
     _discNumberController =
         TextEditingController(text: s.discNumber?.toString() ?? '');
 
+    _titleFocus = FocusNode();
+
     for (final c in [
       _titleController,
       _artistController,
@@ -65,18 +67,7 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
       _discNumberController,
     ]) {
       c.addListener(() {
-        final changed = _titleController.text != s.title ||
-            _artistController.text != s.artist ||
-            _albumController.text != (s.album ?? '') ||
-            _albumArtistController.text != (s.albumArtist ?? '') ||
-            _genreController.text != (s.genre ?? '') ||
-            _yearController.text != (s.year?.toString() ?? '') ||
-            _trackNumberController.text !=
-                (s.trackNumber?.toString() ?? '') ||
-            _discNumberController.text != (s.discNumber?.toString() ?? '');
-        if (changed != _hasChanges) {
-          setState(() => _hasChanges = changed);
-        }
+        if (mounted) setState(() {});
       });
     }
   }
@@ -91,11 +82,46 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
     _yearController.dispose();
     _trackNumberController.dispose();
     _discNumberController.dispose();
+    _titleFocus.dispose();
     super.dispose();
   }
 
+  bool get _hasChanges {
+    final s = widget.song;
+    return _titleController.text != s.title ||
+        _artistController.text != s.artist ||
+        _albumController.text != (s.album ?? '') ||
+        _albumArtistController.text != (s.albumArtist ?? '') ||
+        _genreController.text != (s.genre ?? '') ||
+        _yearController.text != (s.year?.toString() ?? '') ||
+        _trackNumberController.text != (s.trackNumber?.toString() ?? '') ||
+        _discNumberController.text != (s.discNumber?.toString() ?? '');
+  }
+
+  String? _yearError() {
+    final t = _yearController.text.trim();
+    if (t.isEmpty) return null;
+    final n = int.tryParse(t);
+    if (n == null || n < 1 || n > 9999) return 'Enter a year (1–9999)';
+    return null;
+  }
+
+  String? _trackError() => _positiveIntError(_trackNumberController, 'track');
+  String? _discError() => _positiveIntError(_discNumberController, 'disc');
+
+  String? _positiveIntError(TextEditingController c, String label) {
+    final t = c.text.trim();
+    if (t.isEmpty) return null;
+    final n = int.tryParse(t);
+    if (n == null || n < 0) return 'Enter a valid $label number';
+    return null;
+  }
+
+  bool get _hasInvalidFields =>
+      _yearError() != null || _trackError() != null || _discError() != null;
+
   Future<void> _save() async {
-    if (!_hasChanges || _isSaving) return;
+    if (!_hasChanges || _isSaving || _hasInvalidFields) return;
     setState(() {
       _isSaving = true;
       _error = null;
@@ -122,18 +148,36 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
       discNumber: int.tryParse(_discNumberController.text.trim()),
     );
 
-    final success =
+    final result =
         await MetadataEditorService.instance.writeTags(widget.song, fields);
 
     if (!mounted) return;
 
-    if (success) {
+    if (result.saved) {
+      final messenger = ScaffoldMessenger.of(context);
       ref.invalidate(songsProvider);
       Navigator.of(context).pop(true);
+      if (result.verified) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Saved and verified'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(result.message ?? 'Saved (verification pending)'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     } else {
       setState(() {
         _isSaving = false;
-        _error = 'Failed to save metadata.';
+        _error = result.message ?? 'Failed to save metadata.';
       });
     }
   }
@@ -141,6 +185,8 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final accent = context.adaptiveTextPrimary;
+    final canSave =
+        _isEditable && _hasChanges && !_isSaving && !_hasInvalidFields;
 
     return PopScope(
       canPop: !_isSaving,
@@ -173,124 +219,114 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
               color: accent,
             ),
           ),
-          actions: [
-            if (_isEditable)
-              Padding(
-                padding: const EdgeInsets.only(right: AppConstants.spacingSm),
-                child: TextButton(
-                  onPressed: _hasChanges && !_isSaving ? _save : null,
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(
-                          'Save',
-                          style: TextStyle(
-                            fontFamily: 'ProductSans',
-                            fontWeight: FontWeight.w600,
-                            color: _hasChanges
-                                ? AppColors.accent
-                                : AppColors.textTertiary,
-                          ),
-                        ),
-                ),
+        ),
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.translucent,
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
+              AppConstants.spacingLg,
+              AppConstants.spacingSm,
+              AppConstants.spacingLg,
+              AppConstants.spacingXl + AppConstants.spacingXxl,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!_isEditable) ...[
+                  _buildLockBanner(context),
+                  const SizedBox(height: AppConstants.spacingLg),
+                ],
+                if (_error != null) ...[
+                  _buildErrorBanner(context),
+                  const SizedBox(height: AppConstants.spacingMd),
+                ],
+                _buildField(context, 'Title', _titleController,
+                    focusNode: _titleFocus,
+                    enabled: _isEditable && !_isSaving),
+                _buildField(context, 'Artist', _artistController,
+                    enabled: _isEditable && !_isSaving),
+                _buildField(context, 'Album', _albumController,
+                    enabled: _isEditable && !_isSaving),
+                _buildField(context, 'Album Artist', _albumArtistController,
+                    enabled: _isEditable && !_isSaving),
+                _buildField(context, 'Genre', _genreController,
+                    enabled: _isEditable && !_isSaving),
+                _buildField(context, 'Year', _yearController,
+                    enabled: _isEditable && !_isSaving,
+                    keyboardType: TextInputType.number,
+                    errorText: _yearError()),
+                _buildField(context, 'Track #', _trackNumberController,
+                    enabled: _isEditable && !_isSaving,
+                    keyboardType: TextInputType.number,
+                    errorText: _trackError()),
+                _buildField(context, 'Disc #', _discNumberController,
+                    enabled: _isEditable && !_isSaving,
+                    keyboardType: TextInputType.number,
+                    errorText: _discError()),
+                const SizedBox(height: AppConstants.spacingXl),
+                _buildReadOnlyInfo(context),
+              ],
+            ),
+          ),
+        ),
+        bottomNavigationBar: _isEditable ? _buildSaveBar(context, canSave) : null,
+      ),
+    );
+  }
+
+  Widget _buildLockBanner(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.lock, size: 16, color: AppColors.textTertiary),
+          const SizedBox(width: AppConstants.spacingSm),
+          Expanded(
+            child: Text(
+              widget.song.isExternal
+                  ? 'External songs cannot be edited'
+                  : 'CUE sheet tracks cannot be edited',
+              style: TextStyle(
+                fontFamily: 'ProductSans',
+                fontSize: 13,
+                color: AppColors.textSecondary,
               ),
-          ],
-        ),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            AppConstants.spacingLg,
-            AppConstants.spacingSm,
-            AppConstants.spacingLg,
-            MediaQuery.of(context).padding.bottom + AppConstants.spacingXl,
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (!_isEditable) ...[
-                Container(
-                  padding:
-                      const EdgeInsets.all(AppConstants.spacingMd),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.radiusMd),
-                    border: Border.all(color: AppColors.glassBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(LucideIcons.lock, size: 16,
-                          color: AppColors.textTertiary),
-                      const SizedBox(width: AppConstants.spacingSm),
-                      Expanded(
-                        child: Text(
-                          widget.song.isExternal
-                              ? 'External songs cannot be edited'
-                              : 'CUE sheet tracks cannot be edited',
-                          style: TextStyle(
-                            fontFamily: 'ProductSans',
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppConstants.spacingLg),
-              ],
-              if (_error != null) ...[
-                Container(
-                  padding:
-                      const EdgeInsets.all(AppConstants.spacingMd),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent.withValues(alpha: 0.1),
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.radiusMd),
-                  ),
-                  child: Row(
-                    children: [
-Icon(LucideIcons.circleAlert,
-                           size: 16, color: Colors.redAccent),
-                      const SizedBox(width: AppConstants.spacingSm),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(
-                            fontFamily: 'ProductSans',
-                            fontSize: 13,
-                            color: Colors.redAccent,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppConstants.spacingMd),
-              ],
-              _buildField(context, 'Title', _titleController,
-                  enabled: _isEditable),
-              _buildField(context, 'Artist', _artistController,
-                  enabled: _isEditable),
-              _buildField(context, 'Album', _albumController,
-                  enabled: _isEditable),
-              _buildField(context, 'Album Artist', _albumArtistController,
-                  enabled: _isEditable),
-              _buildField(context, 'Genre', _genreController,
-                  enabled: _isEditable),
-              _buildField(context, 'Year', _yearController,
-                  enabled: _isEditable, keyboardType: TextInputType.number),
-              _buildField(context, 'Track #', _trackNumberController,
-                  enabled: _isEditable, keyboardType: TextInputType.number),
-              _buildField(context, 'Disc #', _discNumberController,
-                  enabled: _isEditable, keyboardType: TextInputType.number),
-              const SizedBox(height: AppConstants.spacingXl),
-              _buildReadOnlyInfo(context),
-            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingMd),
+      decoration: BoxDecoration(
+        color: Colors.redAccent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.circleAlert, size: 16, color: Colors.redAccent),
+          const SizedBox(width: AppConstants.spacingSm),
+          Expanded(
+            child: Text(
+              _error!,
+              style: const TextStyle(
+                fontFamily: 'ProductSans',
+                fontSize: 13,
+                color: Colors.redAccent,
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -299,8 +335,10 @@ Icon(LucideIcons.circleAlert,
     BuildContext context,
     String label,
     TextEditingController controller, {
+    FocusNode? focusNode,
     bool enabled = true,
     TextInputType keyboardType = TextInputType.text,
+    String? errorText,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppConstants.spacingMd),
@@ -319,8 +357,10 @@ Icon(LucideIcons.circleAlert,
           const SizedBox(height: 4),
           TextField(
             controller: controller,
+            focusNode: focusNode,
             enabled: enabled,
             keyboardType: keyboardType,
+            textInputAction: label == 'Title' ? TextInputAction.next : null,
             style: TextStyle(
               fontFamily: 'ProductSans',
               fontSize: 15,
@@ -338,19 +378,30 @@ Icon(LucideIcons.circleAlert,
                 vertical: AppConstants.spacingSm + 2,
               ),
               border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppConstants.radiusMd),
+                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppConstants.radiusMd),
+                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                 borderSide: BorderSide(color: AppColors.accent, width: 1.5),
               ),
               disabledBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppConstants.radiusMd),
+                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                 borderSide: BorderSide(color: AppColors.glassBorder),
+              ),
+              errorText: errorText,
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                borderSide: BorderSide(color: Colors.redAccent, width: 1.2),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                borderSide: BorderSide(color: Colors.redAccent, width: 1.5),
+              ),
+              errorStyle: const TextStyle(
+                fontFamily: 'ProductSans',
+                fontSize: 11,
+                color: Colors.redAccent,
               ),
             ),
           ),
@@ -416,6 +467,67 @@ Icon(LucideIcons.circleAlert,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSaveBar(BuildContext context, bool canSave) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(
+          AppConstants.spacingLg,
+          AppConstants.spacingSm,
+          AppConstants.spacingLg,
+          AppConstants.spacingSm,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          border: Border(
+            top: BorderSide(color: AppColors.glassBorder, width: 1),
+          ),
+        ),
+        child: AnimatedSize(
+          duration: AppConstants.animationFast,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton(
+              onPressed: canSave ? _save : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                disabledBackgroundColor:
+                    AppColors.surfaceLight.withValues(alpha: 0.6),
+                foregroundColor: AppColors.background,
+                disabledForegroundColor: AppColors.textTertiary,
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.radiusMd),
+                ),
+                padding: EdgeInsets.zero,
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(AppColors.background),
+                      ),
+                    )
+                  : Text(
+                      'Save Changes',
+                      style: TextStyle(
+                        fontFamily: 'ProductSans',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ),
+        ),
       ),
     );
   }

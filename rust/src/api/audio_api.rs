@@ -56,18 +56,44 @@ pub fn effective_dsd_output_mode_for_rate(
 ) -> DsdOutputMode {
     let is_dsd256_plus = dsd_rate.is_some_and(|r| matches!(r, DsdRate::Dsd256 | DsdRate::Dsd512));
 
+    // Capability of the registered UAC2 DAC, from its discovered alt settings.
+    // These are populated at registration (before the stream starts), so this
+    // avoids the chicken-and-egg with create_audio_engine (which only starts the
+    // stream AFTER the output mode is decided). This mirrors the capability
+    // checks in engine.rs so the DSD-engine output mode and the chosen USB
+    // transport always agree — preventing DSD-as-PCM corruption.
+    #[cfg(all(feature = "uac2", target_os = "android"))]
+    let (usb_native_capable, usb_dop_capable) = {
+        let debug = crate::uac2::android_direct_debug_state();
+        let carrier = dsd_rate.map(|r| r.dop_carrier_rate()).unwrap_or(0);
+        let native = debug.registered
+            && debug.available_alt_settings.iter().any(|alt| {
+                alt.format_tag == "DSD"
+                    && alt.subslot_size > 0
+                    && dsd_rate.is_some_and(|r| {
+                        let wire = r.sample_rate() / (8 * u32::from(alt.subslot_size));
+                        alt.sample_rates.is_empty()
+                            || wire <= alt.sample_rates.iter().copied().max().unwrap_or(0)
+                            || alt.sample_rates.iter().any(|&sr| sr == wire)
+                    })
+            });
+        let dop = debug.registered
+            && debug.available_alt_settings.iter().any(|alt| {
+                alt.format_tag == "PCM"
+                    && alt.bit_resolution >= 24
+                    && alt.sample_rates.iter().any(|&sr| sr == carrier)
+            });
+        (native, dop)
+    };
+    #[cfg(not(all(feature = "uac2", target_os = "android")))]
+    let (usb_native_capable, usb_dop_capable) = (false, false);
+
     match requested {
         DsdOutputMode::PcmDecimation => return DsdOutputMode::PcmDecimation,
         DsdOutputMode::Dop => {
-            if is_dsd256_plus {
-                #[cfg(all(feature = "uac2", target_os = "android"))]
-                {
-                    if crate::uac2::is_usb_session_active() {
-                        return DsdOutputMode::Dop;
-                    }
-                }
+            if is_dsd256_plus && !usb_dop_capable {
                 log_info!(
-                    "[AUDIO] DoP requested for DSD256+ but carrier rate too high; \
+                    "[AUDIO] DoP requested for DSD256+ but no UAC2 DoP-capable alt at carrier; \
                      falling back to PCM decimation"
                 );
                 return DsdOutputMode::PcmDecimation;
@@ -77,16 +103,18 @@ pub fn effective_dsd_output_mode_for_rate(
         DsdOutputMode::Native | DsdOutputMode::Auto => {}
     }
 
-    // Native/Auto DSD can be delivered in three ways:
-    // 1. UAC2 direct USB (raw DSD bitstream via isochronous transfers)
+    // Native/Auto DSD delivery routes:
+    // 1. UAC2 direct USB native DSD (raw DSD bitstream via isochronous transfers)
     // 2. Android AudioTrack with ENCODING_DSD (direct to internal DAC)
-    // 3. Fallback to DoP if neither is available
+    // 3. DoP fallback
 
     #[cfg(all(feature = "uac2", target_os = "android"))]
-    {
-        if crate::uac2::is_usb_session_active() {
-            return DsdOutputMode::Native;
-        }
+    if usb_native_capable {
+        log_info!(
+            "[AUDIO] {:?} DSD: registered UAC2 DAC exposes a native-DSD alt; using native USB",
+            requested
+        );
+        return DsdOutputMode::Native;
     }
 
     #[cfg(target_os = "android")]
@@ -109,16 +137,15 @@ pub fn effective_dsd_output_mode_for_rate(
         }
     }
 
-    // DSD256+ without UAC2: skip DoP, go straight to PCM
-    if is_dsd256_plus {
+    // DSD256+ without any native or UAC2 DoP path: go straight to PCM
+    if is_dsd256_plus && !usb_dop_capable {
         log_info!(
-            "[AUDIO] DSD256+ without UAC2 native path; falling back to PCM decimation \
-             (DoP carrier rate too high for internal DAC)"
+            "[AUDIO] DSD256+ with no native DSD or UAC2 DoP path; falling back to PCM decimation"
         );
         return DsdOutputMode::PcmDecimation;
     }
 
-    // For Auto on non-DSD-capable devices, try DoP before falling back to PCM
+    // Auto: prefer DoP over PCM decimation when a DoP-capable UAC2 alt exists
     if requested == DsdOutputMode::Auto {
         #[cfg(target_os = "android")]
         {
@@ -134,10 +161,11 @@ pub fn effective_dsd_output_mode_for_rate(
         }
 
         #[cfg(all(feature = "uac2", target_os = "android"))]
-        {
-            if crate::uac2::is_usb_session_active() {
-                return DsdOutputMode::Dop;
-            }
+        if usb_dop_capable {
+            log_info!(
+                "[AUDIO] Auto DSD: registered UAC2 DAC exposes a DoP-capable PCM alt; using DoP"
+            );
+            return DsdOutputMode::Dop;
         }
 
         log_info!(
@@ -699,6 +727,21 @@ pub fn audio_set_dsd_output_mode(mode: u8) {
 #[flutter_rust_bridge::frb(sync)]
 pub fn audio_set_dsd_bit_reverse_override(enabled: bool) {
     crate::audio::dsd_engine::output::set_dsd_bit_reverse_override(enabled);
+}
+
+/// Force the native-DSD wire byte order on the USB direct transport (DSD_U32
+/// packing). Pass `None` to defer to the device quirk (auto). Use to diagnose
+/// channel-swapped or noisy DSD from a wrong byte-order assumption.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_set_dsd_big_endian_override(value: Option<bool>) {
+    crate::audio::dsd_engine::output::set_dsd_big_endian_override(value);
+}
+
+/// Force the native-DSD subslot size (1=DSD_U8, 2=DSD_U16, 4=DSD_U32) on the
+/// USB direct transport. Pass `None` to defer to the descriptor / device quirk.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_set_dsd_subslot_override(value: Option<u8>) {
+    crate::audio::dsd_engine::output::set_dsd_subslot_override(value);
 }
 
 /// Update the current platform capability snapshot used for engine selection.

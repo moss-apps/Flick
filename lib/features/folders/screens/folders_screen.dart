@@ -747,7 +747,14 @@ class _RootFolderCardState extends State<_RootFolderCard>
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${widget.entry.songs.length} songs',
+                            [
+                              '${widget.entry.songs.length} songs',
+                              if (widget.entry.folder.isRemovable == true)
+                                (widget.entry.folder.volumeState != null &&
+                                        widget.entry.folder.volumeState != 'mounted')
+                                    ? 'USB not connected'
+                                    : 'External',
+                            ].join(' · '),
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall

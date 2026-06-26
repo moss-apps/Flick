@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flick/services/alac_converter_service.dart';
 import 'package:flick/core/utils/dev_log.dart';

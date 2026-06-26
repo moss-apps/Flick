@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/providers/onboarding_provider.dart';
 import 'package:flick/providers/tutorial_provider.dart';
 

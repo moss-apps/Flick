@@ -760,7 +760,14 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                   ),
                   if (Platform.isAndroid)
                     Text(
-                      effectiveDeepScan ? 'Deep scan on' : 'Deep scan off',
+                      [
+                        effectiveDeepScan ? 'Deep scan on' : 'Deep scan off',
+                        if (folder.isRemovable == true)
+                          (folder.volumeState != null &&
+                                  folder.volumeState != 'mounted')
+                              ? 'USB not connected'
+                              : 'External',
+                      ].join(' · '),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: context.adaptiveTextTertiary,
                       ),

@@ -51,6 +51,45 @@ class FolderRepository {
     });
   }
 
+  /// Update the mount state of a folder's volume (e.g. USB unplug/replug).
+  Future<void> updateFolderVolumeState(String uri, String state) async {
+    await _isar.writeTxn(() async {
+      final folder = await _isar.folderEntitys
+          .filter()
+          .uriEqualTo(uri)
+          .findFirst();
+
+      if (folder != null) {
+        folder.volumeState = state;
+        await _isar.folderEntitys.put(folder);
+      }
+    });
+  }
+
+  /// Backfill volume metadata (removable flag, MediaStore volume, state) for a
+  /// pre-feature folder. Lazy migration — only the first scan after upgrade.
+  Future<void> updateFolderVolumeInfo({
+    required String uri,
+    required bool? isRemovable,
+    required String? mediaStoreVolume,
+    required String state,
+  }) async {
+    await _isar.writeTxn(() async {
+      final folder = await _isar.folderEntitys
+          .filter()
+          .uriEqualTo(uri)
+          .findFirst();
+
+      if (folder != null) {
+        folder
+          ..isRemovable = isRemovable
+          ..mediaStoreVolume = mediaStoreVolume
+          ..volumeState = state;
+        await _isar.folderEntitys.put(folder);
+      }
+    });
+  }
+
   /// Delete a folder by URI.
   Future<void> deleteFolder(String uri) async {
     await _isar.writeTxn(() async {

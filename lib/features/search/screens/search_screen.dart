@@ -268,8 +268,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           onTap: () async {
             final notifier = ref.read(playerProvider.notifier);
-            final queueIndex = await notifier.addToQueue(song);
-            await notifier.playFromQueueIndex(queueIndex);
+            final mode = ref.read(appPreferencesProvider).searchPlaybackMode;
+            if (mode == 'queue' &&
+                ref.read(playerProvider).currentSong != null) {
+              final queueIndex = await notifier.addToQueue(song);
+              await notifier.playFromQueueIndex(queueIndex);
+            } else if (mode == 'library') {
+              final library = await _songRepository.getAllSongs();
+              if (!mounted) return;
+              await notifier.play(song, playlist: library);
+            } else {
+              await notifier.play(song, playlist: _results);
+            }
           },
           onLongPress: () {
             SongActionsBottomSheet.show(context, song);

@@ -214,6 +214,7 @@ class RustAudioService {
     }
 
     _syncDsdOutputMode();
+    _syncDsdTransportOverrides();
     await rust_audio.audioPlay(path: path);
     _currentPath = path;
     // Also sync from Rust engine to ensure accuracy
@@ -230,6 +231,7 @@ class RustAudioService {
 
     _nextPath = path;
     _syncDsdOutputMode();
+    _syncDsdTransportOverrides();
     await rust_audio.audioQueueNext(path: path);
   }
 
@@ -242,6 +244,23 @@ class RustAudioService {
       DsdOutputMode.native => 2,
     };
     rust_audio.audioSetDsdOutputMode(mode: rustMode);
+  }
+
+  /// Push native-DSD transport field-tuning overrides (byte order, subslot)
+  /// to the engine. These only affect the USB direct native DSD path and
+  /// default to auto (defer to device quirk).
+  void _syncDsdTransportOverrides() {
+    final byteOrder = Uac2PreferencesService.dsdByteOrderOverrideSync;
+    rust_audio.audioSetDsdBigEndianOverride(
+      value: switch (byteOrder) {
+        DsdByteOrderOverride.auto => null,
+        DsdByteOrderOverride.littleEndian => false,
+        DsdByteOrderOverride.bigEndian => true,
+      },
+    );
+    rust_audio.audioSetDsdSubslotOverride(
+      value: Uac2PreferencesService.dsdSubslotOverrideSync,
+    );
   }
 
   /// Pause playback.

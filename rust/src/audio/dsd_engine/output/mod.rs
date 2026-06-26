@@ -3,7 +3,7 @@ use super::dsd::DsdDecimationPipeline;
 use super::dsd::{DsdOutputMode, DsdRate};
 use super::format::DsdBitOrder;
 use anyhow::Result;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI8, AtomicU8, Ordering};
 
 static DSD_BIT_REVERSE_OVERRIDE: AtomicBool = AtomicBool::new(false);
 
@@ -17,6 +17,61 @@ pub fn set_dsd_bit_reverse_override(enabled: bool) {
 
 pub fn dsd_bit_reverse_override() -> bool {
     DSD_BIT_REVERSE_OVERRIDE.load(Ordering::Relaxed)
+}
+
+// Native-DSD wire byte order for the USB direct transport (DSD_U32 packing).
+// -1 = auto (defer to device quirk), 0 = force little-endian, 1 = force big-endian.
+static DSD_BIG_ENDIAN_OVERRIDE: AtomicI8 = AtomicI8::new(-1);
+
+pub fn set_dsd_big_endian_override(value: Option<bool>) {
+    let encoded = match value {
+        Some(true) => 1,
+        Some(false) => 0,
+        None => -1,
+    };
+    DSD_BIG_ENDIAN_OVERRIDE.store(encoded, Ordering::Relaxed);
+    log::info!(
+        "[DSD-TRANSPORT] Native DSD byte order override: {}",
+        match encoded {
+            1 => "FORCED big-endian",
+            0 => "FORCED little-endian",
+            _ => "auto (quirk)",
+        }
+    );
+}
+
+pub fn dsd_big_endian_override() -> Option<bool> {
+    match DSD_BIG_ENDIAN_OVERRIDE.load(Ordering::Relaxed) {
+        1 => Some(true),
+        0 => Some(false),
+        _ => None,
+    }
+}
+
+// Native-DSD subslot size for the USB direct transport.
+// 0 = auto (defer to descriptor / device quirk), else force (1=U8, 2=U16, 4=U32).
+static DSD_SUBSLOT_OVERRIDE: AtomicU8 = AtomicU8::new(0);
+
+pub fn set_dsd_subslot_override(value: Option<u8>) {
+    let encoded = value.unwrap_or(0);
+    DSD_SUBSLOT_OVERRIDE.store(encoded, Ordering::Relaxed);
+    log::info!(
+        "[DSD-TRANSPORT] Native DSD subslot override: {}",
+        if encoded == 0 {
+            "auto".to_string()
+        } else {
+            format!("U{}", encoded * 8)
+        }
+    );
+}
+
+pub fn dsd_subslot_override() -> Option<u8> {
+    let v = DSD_SUBSLOT_OVERRIDE.load(Ordering::Relaxed);
+    if v == 0 {
+        None
+    } else {
+        Some(v)
+    }
 }
 
 pub struct DsdOutputRouter {

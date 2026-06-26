@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/core/utils/uri_display_utils.dart';
@@ -14,7 +15,7 @@ String normalizeFolderIdentifier(String uri) {
     final treeSegments = parsed.pathSegments;
     final treeIndex = treeSegments.indexOf('tree');
     if (treeIndex >= 0 && treeIndex + 1 < treeSegments.length) {
-      final treeId = Uri.decodeComponent(
+      final treeId = decodeUriDisplayComponent(
         treeSegments[treeIndex + 1],
       ).replaceAll('\\', '/').replaceAll(RegExp(r'/+'), '/').toLowerCase();
       if (treeId == '/' || treeId.endsWith(':')) {
@@ -158,28 +159,70 @@ class PlaylistFileInfo {
 }
 
 /// Represents a watched music folder.
+/// Resolved storage-volume metadata for a folder URI.
+/// Drives scan routing: primary vs removable, MediaStore volume name, mount state.
+class StorageVolumeInfo {
+  final String? fsPath;
+  final String? mediaStoreVolume;
+  final bool isRemovable;
+  final bool isPrimary;
+  final String state;
+
+  const StorageVolumeInfo({
+    this.fsPath,
+    this.mediaStoreVolume,
+    this.isRemovable = false,
+    this.isPrimary = false,
+    this.state = 'unknown',
+  });
+
+  bool get isMounted => state == 'mounted';
+
+  factory StorageVolumeInfo.fromMap(Map<String, dynamic> map) {
+    return StorageVolumeInfo(
+      fsPath: map['fsPath'] as String?,
+      mediaStoreVolume: map['mediaStoreVolume'] as String?,
+      isRemovable: map['isRemovable'] as bool? ?? false,
+      isPrimary: map['isPrimary'] as bool? ?? false,
+      state: map['state'] as String? ?? 'unknown',
+    );
+  }
+}
+
 class MusicFolder {
   final String uri;
   final String displayName;
   final DateTime dateAdded;
+  final bool? isRemovable;
+  final String? mediaStoreVolume;
+  final String? volumeState;
 
   MusicFolder({
     required this.uri,
     required this.displayName,
     required this.dateAdded,
+    this.isRemovable,
+    this.mediaStoreVolume,
+    this.volumeState,
   });
 
   Map<String, dynamic> toJson() => {
-    'uri': uri,
-    'displayName': displayName,
-    'dateAdded': dateAdded.millisecondsSinceEpoch,
-  };
+        'uri': uri,
+        'displayName': displayName,
+        'dateAdded': dateAdded.millisecondsSinceEpoch,
+        if (isRemovable != null) 'isRemovable': isRemovable,
+        if (mediaStoreVolume != null) 'mediaStoreVolume': mediaStoreVolume,
+        if (volumeState != null) 'volumeState': volumeState,
+      };
 
   factory MusicFolder.fromJson(Map<String, dynamic> json) {
     return MusicFolder(
       uri: json['uri'] as String,
       displayName: decodeUriDisplayComponent(json['displayName'] as String),
       dateAdded: DateTime.fromMillisecondsSinceEpoch(json['dateAdded'] as int),
+      isRemovable: json['isRemovable'] as bool?,
+      mediaStoreVolume: json['mediaStoreVolume'] as String?,
+      volumeState: json['volumeState'] as String?,
     );
   }
 }
@@ -235,11 +278,17 @@ class MusicFolderService {
     // Get display name
     final displayName = await _getDisplayName(uri) ?? 'Unknown Folder';
 
+    // Resolve storage-volume info (path + MediaStore volume + removable flag).
+    final storageInfo = await resolveStorageInfo(uri);
+
     // Create folder object
     final folder = MusicFolder(
       uri: uri,
       displayName: displayName,
       dateAdded: DateTime.now(),
+      isRemovable: storageInfo.isRemovable,
+      mediaStoreVolume: storageInfo.mediaStoreVolume,
+      volumeState: storageInfo.state,
     );
 
     // Save to preferences AND database
@@ -264,11 +313,33 @@ class MusicFolderService {
     final prefs = await SharedPreferences.getInstance();
     final foldersJson = prefs.getStringList(_prefKey) ?? [];
 
+    // Overlay live volume state from the DB; prefs only captures add-time
+    // state, while the scanner updates isRemovable/volumeState in the entity.
+    final entities = {
+      for (final e in await FolderRepository().getAllFolders()) e.uri: e,
+    };
+
     final folders = <MusicFolder>[];
     for (final json in foldersJson) {
       try {
         final map = _parseJsonString(json);
-        folders.add(MusicFolder.fromJson(map));
+        final folder = MusicFolder.fromJson(map);
+        final entity = entities[folder.uri];
+        if (entity != null) {
+          folders.add(
+            MusicFolder(
+              uri: folder.uri,
+              displayName: folder.displayName,
+              dateAdded: folder.dateAdded,
+              isRemovable: entity.isRemovable ?? folder.isRemovable,
+              mediaStoreVolume:
+                  entity.mediaStoreVolume ?? folder.mediaStoreVolume,
+              volumeState: entity.volumeState ?? folder.volumeState,
+            ),
+          );
+        } else {
+          folders.add(folder);
+        }
       } catch (e) {
         // Skip invalid entries
       }
@@ -401,13 +472,37 @@ class MusicFolderService {
     }
   }
 
+  /// Resolves storage-volume metadata for a folder URI: filesystem path (if
+  /// readable), MediaStore volume name, and whether it's removable (USB/SD).
+  /// Used to route scans to the right strategy and target the correct
+  /// MediaStore volume for external drives.
+  Future<StorageVolumeInfo> resolveStorageInfo(String uri) async {
+    try {
+      if (!uri.startsWith('content://')) {
+        return StorageVolumeInfo(fsPath: uri, isPrimary: true, state: 'mounted');
+      }
+
+      final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        'resolveStorageInfo',
+        {'uri': uri},
+      );
+      if (result == null) {
+        return const StorageVolumeInfo();
+      }
+      return StorageVolumeInfo.fromMap(result.cast<String, dynamic>());
+    } catch (e) {
+      return const StorageVolumeInfo();
+    }
+  }
+
   Future<List<AudioFileInfo>> queryMediaStoreAudio(
-    List<String> folderPaths,
-  ) async {
+    List<String> folderPaths, {
+    String? volumeName,
+  }) async {
     try {
       final result = await _channel.invokeMethod<List<dynamic>>(
         'queryMediaStoreAudio',
-        {'folderPaths': folderPaths},
+        {'folderPaths': folderPaths, 'volumeName': volumeName},
       );
       if (result == null) return [];
       return result
@@ -420,12 +515,13 @@ class MusicFolderService {
   }
 
   Future<List<Map<String, dynamic>>> queryMediaStoreNonAudio(
-    List<String> folderPaths,
-  ) async {
+    List<String> folderPaths, {
+    String? volumeName,
+  }) async {
     try {
       final result = await _channel.invokeMethod<List<dynamic>>(
         'queryMediaStoreNonAudio',
-        {'folderPaths': folderPaths},
+        {'folderPaths': folderPaths, 'volumeName': volumeName},
       );
       if (result == null) return [];
       return result
@@ -438,12 +534,13 @@ class MusicFolderService {
   }
 
   Future<List<String>> queryMediaStoreDeletions(
-    List<String> filePaths,
-  ) async {
+    List<String> filePaths, {
+    String? volumeName,
+  }) async {
     try {
       final result = await _channel.invokeMethod<List<dynamic>>(
         'queryMediaStoreDeletions',
-        {'filePaths': filePaths},
+        {'filePaths': filePaths, 'volumeName': volumeName},
       );
       if (result == null) return [];
       return result.cast<String>();
@@ -499,39 +596,12 @@ class MusicFolderService {
     await prefs.setStringList(_prefKey, foldersJson);
   }
 
-  // Simple JSON encoding/decoding without importing dart:convert
-  String _toJsonString(Map<String, dynamic> map) {
-    final parts = map.entries.map((e) {
-      final value = e.value;
-      if (value is String) {
-        return '"${e.key}":"${value.replaceAll('"', '\\"')}"';
-      } else {
-        return '"${e.key}":$value';
-      }
-    });
-    return '{${parts.join(',')}}';
-  }
+  // dart:convert handles booleans, nullables, and proper backslash escaping
+  // (the prior hand-rolled code only escaped `"` and couldn't parse bool/null).
+  String _toJsonString(Map<String, dynamic> map) => jsonEncode(map);
 
-  Map<String, dynamic> _parseJsonString(String json) {
-    // Simple JSON parsing for our specific format
-    final content = json.substring(1, json.length - 1); // Remove { }
-    final result = <String, dynamic>{};
-
-    // Parse key-value pairs (handles our specific format)
-    final regex = RegExp(r'"(\w+)":((?:"[^"]*")|(?:\d+))');
-    for (final match in regex.allMatches(content)) {
-      final key = match.group(1)!;
-      var value = match.group(2)!;
-
-      if (value.startsWith('"') && value.endsWith('"')) {
-        result[key] = value.substring(1, value.length - 1);
-      } else {
-        result[key] = int.parse(value);
-      }
-    }
-
-    return result;
-  }
+  Map<String, dynamic> _parseJsonString(String json) =>
+      jsonDecode(json) as Map<String, dynamic>;
 
   Future<void> _saveFolderToDatabase(MusicFolder folder) async {
     final repository = FolderRepository();
@@ -539,7 +609,10 @@ class MusicFolderService {
       ..uri = folder.uri
       ..displayName = folder.displayName
       ..dateAdded = folder.dateAdded
-      ..songCount = 0;
+      ..songCount = 0
+      ..isRemovable = folder.isRemovable
+      ..mediaStoreVolume = folder.mediaStoreVolume
+      ..volumeState = folder.volumeState;
     await repository.upsertFolder(entity);
   }
 

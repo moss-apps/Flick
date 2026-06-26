@@ -72,6 +72,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+  test: ^1.25.0
   freezed: ^3.0.0
   integration_test:
     sdk: flutter
@@ -92,9 +93,6 @@ flutter_launcher_icons:
 dependency_overrides:
   analyzer: 8.1.1
   dart_style: 3.1.2
-  # Pin rive_native to a known‑good version to align with rive ^0.14.0 and
-  # avoid transitive version‑solving issues. Remove once upstream constraints are fixed.
-  rive_native: 0.1.4
 
 flutter:
   uses-material-design: true

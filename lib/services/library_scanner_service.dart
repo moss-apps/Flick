@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../core/utils/audio_metadata_utils.dart';
 import '../data/database.dart';
@@ -23,6 +22,7 @@ class ScanProgress {
   final String? currentFile;
   final String? currentFolder;
   final bool isComplete;
+  final bool unavailable;
 
   ScanProgress({
     required this.songsFound,
@@ -30,6 +30,7 @@ class ScanProgress {
     this.currentFile,
     this.currentFolder,
     this.isComplete = false,
+    this.unavailable = false,
   });
 }
 
@@ -66,6 +67,24 @@ class LibraryScannerService {
     _isCancelled = true;
   }
 
+  /// Backfill volume metadata onto a folder entity resolved before this
+  /// feature shipped. Best-effort: failure just leaves the folder unannotated.
+  Future<void> _backfillFolderStorageInfo(
+    FolderEntity entity,
+    StorageVolumeInfo storageInfo,
+  ) async {
+    try {
+      await _folderRepository.updateFolderVolumeInfo(
+        uri: entity.uri,
+        isRemovable: storageInfo.isRemovable,
+        mediaStoreVolume: storageInfo.mediaStoreVolume,
+        state: storageInfo.state,
+      );
+    } catch (e) {
+      devLog('Volume-info backfill failed for ${entity.displayName}: $e');
+    }
+  }
+
   /// Scan a single folder using appropriate method for platform.
   Stream<ScanProgress> scanFolder(String folderUri, String displayName) async* {
     final scanStopwatch = Stopwatch()..start();
@@ -80,14 +99,57 @@ class LibraryScannerService {
     _currentlyScanning.add(scanKey);
     try {
       if (Platform.isAndroid) {
-        final resolvedScanRoot = await _musicFolderService
-            .resolveFilesystemPath(folderUri);
+        final storageInfo = await _musicFolderService.resolveStorageInfo(
+          folderUri,
+        );
+        final resolvedScanRoot = storageInfo.fsPath;
 
         final folderEntity = await _folderRepository.getFolderByUri(folderUri);
-        final useDeepScan = folderEntity?.useDeepScan ?? scanPreferences.useDeepScan;
+        final useDeepScan =
+            folderEntity?.useDeepScan ?? scanPreferences.useDeepScan;
+
+        // Lazy migration: backfill volume metadata for pre-feature folders.
+        if (folderEntity != null && folderEntity.mediaStoreVolume == null) {
+          await _backfillFolderStorageInfo(folderEntity, storageInfo);
+        }
+
+        // Unplugged removable storage: retain songs, mark unavailable, skip scan.
+        if (storageInfo.isRemovable && !storageInfo.isMounted) {
+          devLog(
+            'Skipping scan for $displayName: removable storage not mounted '
+            '("${storageInfo.state}"), songs retained',
+          );
+          if (folderEntity != null) {
+            await _folderRepository.updateFolderVolumeState(
+              folderUri,
+              storageInfo.state,
+            );
+          }
+          _logScanTiming(
+            displayName,
+            'scan folder (unavailable: ${storageInfo.state})',
+            scanStopwatch.elapsed,
+          );
+          yield ScanProgress(
+            songsFound: 0,
+            totalFiles: 0,
+            currentFolder: displayName,
+            isComplete: true,
+            unavailable: true,
+          );
+          return;
+        }
 
         if (useDeepScan) {
-          if (resolvedScanRoot != null && resolvedScanRoot.isNotEmpty) {
+          // Rust can't read scoped raw paths on removable storage; use SAF
+          // (MediaMetadataRetriever) for full metadata there.
+          if (storageInfo.isRemovable) {
+            devLog(
+              'Deep scan requested for $displayName but it is on removable '
+              'storage; Rust cannot read scoped raw paths, using SAF',
+            );
+          } else if (resolvedScanRoot != null &&
+              resolvedScanRoot.isNotEmpty) {
             try {
               yield* _scanFolderRust(
                 resolvedScanRoot,
@@ -124,6 +186,7 @@ class LibraryScannerService {
                 folderUri,
                 displayName,
                 scanPreferences,
+                volumeName: storageInfo.mediaStoreVolume,
               );
               _logScanTiming(
                 displayName,
@@ -139,7 +202,12 @@ class LibraryScannerService {
             }
           }
 
-          yield* _scanFolderAndroid(folderUri, displayName, scanPreferences);
+          yield* _scanFolderAndroid(
+            folderUri,
+            displayName,
+            scanPreferences,
+            deferMetadata: true,
+          );
           _logScanTiming(displayName, 'scan folder (SAF)', scanStopwatch.elapsed);
         }
       } else {
@@ -164,8 +232,9 @@ class LibraryScannerService {
     String folderPath,
     String folderUri,
     String displayName,
-    LibraryScanPreferences scanPreferences,
-  ) async* {
+    LibraryScanPreferences scanPreferences, {
+    String? volumeName,
+  }) async* {
     _isCancelled = false;
     final totalStopwatch = Stopwatch()..start();
     yield ScanProgress(
@@ -180,7 +249,7 @@ class LibraryScannerService {
       final stopwatch = Stopwatch()..start();
       mediaStoreFiles = await _musicFolderService.queryMediaStoreAudio([
         folderPath,
-      ]);
+      ], volumeName: volumeName);
       _logScanTiming(displayName, 'MediaStore audio query', stopwatch.elapsed);
     } catch (e) {
       devLog("MediaStore audio query failed for $displayName: $e");
@@ -387,6 +456,7 @@ class LibraryScannerService {
         displayName: displayName,
         mediaStoreFiles: mediaStoreFiles,
         scanPreferences: scanPreferences,
+        volumeName: volumeName,
       ),
     );
     _runDetachedScanTask(
@@ -473,6 +543,7 @@ class LibraryScannerService {
     required String displayName,
     required List<AudioFileInfo> mediaStoreFiles,
     required LibraryScanPreferences scanPreferences,
+    String? volumeName,
   }) async {
     if (_isCancelled || mediaStoreFiles.isEmpty) return;
 
@@ -481,7 +552,7 @@ class LibraryScannerService {
       final stopwatch = Stopwatch()..start();
       nonAudioFiles = await _musicFolderService.queryMediaStoreNonAudio([
         folderPath,
-      ]);
+      ], volumeName: volumeName);
       _logScanTiming(
         displayName,
         'MediaStore non-audio query',
@@ -614,11 +685,203 @@ class LibraryScannerService {
     await _folderRepository.updateFolderScanInfo(folderUri, finalCount);
   }
 
+  /// Instant SAF path: surfaces new files immediately with filename-derived
+  /// metadata, then defers accurate retrieval to the background. Used for
+  /// non-deep scans where appearing fast matters more than perfect metadata.
+  // ponytail: CUE track splitting is deferred to deep scan; instant creates
+  // raw entities per audio file. Acceptable since CUE albums on USB are rare.
+  Stream<ScanProgress> _scanFolderAndroidInstant({
+    required String folderUri,
+    required String displayName,
+    required Map<String, AudioFileInfo> fastScanMap,
+    required Map<String, SongEntity> existingMap,
+    required List<String> urisToProcess,
+    required int initialSongCount,
+    required int totalFiles,
+    required Stopwatch totalStopwatch,
+    required LibraryScanPreferences scanPreferences,
+  }) async* {
+    final newBatch = <SongEntity>[];
+    for (final uri in urisToProcess) {
+      if (existingMap.containsKey(uri)) continue; // already visible
+      final basic = fastScanMap[uri];
+      if (basic == null) continue;
+      if (!_looksLikeSupportedAudioExtension(basic.extension)) continue;
+      if (_shouldIgnoreDiscoveredTrack(
+        fileSizeBytes: basic.size,
+        durationMs: null, // duration unknown until background enrichment
+        scanPreferences: scanPreferences,
+      )) {
+        continue;
+      }
+      newBatch.add(
+        SongEntity()
+          ..filePath = basic.uri
+          ..mediaStoreUri =
+              basic.uri.startsWith('content://') ? basic.uri : null
+          ..title = _extractTitleFromFilename(basic.name)
+          ..artist = 'Unknown Artist'
+          ..album = 'Unknown Album'
+          ..albumArtist = 'Unknown Artist'
+          ..trackNumber = 0
+          ..discNumber = 1
+          ..durationMs = 0
+          ..fileType = basic.extension.toUpperCase()
+          ..dateAdded = DateTime.now()
+          ..lastModified = DateTime.fromMillisecondsSinceEpoch(
+            basic.lastModified,
+          )
+          ..folderUri = folderUri
+          ..fileSize = basic.size
+          ..metadataComplete = false,
+      );
+    }
+
+    if (newBatch.isNotEmpty) {
+      await _songRepository.upsertSongs(newBatch);
+    }
+
+    yield ScanProgress(
+      songsFound: initialSongCount + newBatch.length,
+      totalFiles: totalFiles,
+      currentFolder: displayName,
+      isComplete: false,
+    );
+
+    _runDetachedScanTask(
+      displayName,
+      'deferred metadata',
+      () => _enrichSafMetadataInBackground(
+        uris: urisToProcess,
+        folderUri: folderUri,
+        displayName: displayName,
+        scanPreferences: scanPreferences,
+      ),
+    );
+
+    final finalCount = await _songRepository.countSongsInFolder(folderUri);
+    await _folderRepository.updateFolderScanInfo(folderUri, finalCount);
+
+    _runDetachedScanTask(
+      displayName,
+      'SAF playlist sync',
+      () => _syncPlaylistSourcesForFolder(folderUri, scanPreferences),
+    );
+
+    _logScanTiming(displayName, 'SAF scan total', totalStopwatch.elapsed);
+
+    yield ScanProgress(
+      songsFound: finalCount,
+      totalFiles: totalFiles,
+      currentFolder: displayName,
+      isComplete: true,
+    );
+  }
+
+  /// Background enrichment for the instant SAF path. Fetches real metadata
+  /// via MediaMetadataRetriever and fills the placeholder fields left by the
+  /// filename-derived basic entities.
+  Future<void> _enrichSafMetadataInBackground({
+    required List<String> uris,
+    required String folderUri,
+    required String displayName,
+    required LibraryScanPreferences scanPreferences,
+  }) async {
+    if (uris.isEmpty) return;
+
+    final metadataBatchSize = _recommendedMetadataBatchSize(uris.length);
+    final metadataChunks = _chunkList(uris, metadataBatchSize);
+
+    final songsByUri = await _songRepository.getSongEntitiesByFolder(folderUri);
+    final pathMap = <String, SongEntity>{};
+    for (final s in songsByUri) {
+      if (s.startOffsetMs == null) pathMap[s.filePath] = s;
+    }
+
+    for (final chunkUris in metadataChunks) {
+      if (_isCancelled) break;
+
+      final stopwatch = Stopwatch()..start();
+      final metadataList = await _fetchMetadataChunk(chunkUris);
+      _logScanTiming(
+        displayName,
+        'deferred metadata chunk ${chunkUris.length}',
+        stopwatch.elapsed,
+      );
+      if (metadataList == null) continue;
+
+      final metadataByUri = {for (final m in metadataList) m.uri: m};
+      final updateBatch = <SongEntity>[];
+      final idsToDelete = <int>[];
+
+      for (final uri in chunkUris) {
+        final meta = metadataByUri[uri];
+        if (meta == null) continue;
+        final existing = pathMap[uri];
+        if (existing == null) continue;
+
+        // Duration is now known: apply the full ignore filter.
+        if (_shouldIgnoreDiscoveredTrack(
+          fileSizeBytes: existing.fileSize,
+          durationMs: meta.duration,
+          scanPreferences: scanPreferences,
+        )) {
+          idsToDelete.add(existing.id);
+          continue;
+        }
+
+        // Technical fields are never user-edited; always refresh.
+        existing.durationMs = meta.duration ?? existing.durationMs;
+        existing.bitrate = meta.bitrate != null
+            ? AudioMetadataUtils.bitrateFromBitsPerSecond(
+                int.tryParse(meta.bitrate!),
+              )
+            : existing.bitrate;
+        existing.bitDepth = meta.bitDepth ?? existing.bitDepth;
+        existing.sampleRate = meta.sampleRate ?? existing.sampleRate;
+        existing.metadataComplete =
+            meta.sampleRate != null && meta.bitDepth != null;
+
+        // Text fields respect manual edits.
+        if (!existing.hasLocalEdits) {
+          if (meta.title?.trim().isNotEmpty ?? false) {
+            existing.title = meta.title!.trim();
+          }
+          if (meta.artist?.trim().isNotEmpty ?? false) {
+            existing.artist = meta.artist!.trim();
+          }
+          if (meta.album?.trim().isNotEmpty ?? false) {
+            existing.album = meta.album!.trim();
+          }
+          existing.albumArtist =
+              (meta.albumArtist?.trim().isNotEmpty ?? false)
+                  ? meta.albumArtist!.trim()
+                  : existing.artist;
+          existing.trackNumber = meta.trackNumber ?? existing.trackNumber;
+          existing.discNumber = meta.discNumber ?? existing.discNumber;
+        }
+
+        updateBatch.add(existing);
+      }
+
+      if (idsToDelete.isNotEmpty) {
+        await _songRepository.deleteSongsByIds(idsToDelete);
+      }
+      if (updateBatch.isNotEmpty) {
+        await _songRepository.upsertSongs(updateBatch);
+      }
+    }
+
+    final finalCount = await _songRepository.countSongsInFolder(folderUri);
+    await _folderRepository.updateFolderScanInfo(folderUri, finalCount);
+  }
+
   Stream<ScanProgress> _scanFolderAndroid(
     String folderUri,
     String displayName,
-    LibraryScanPreferences scanPreferences,
-  ) async* {
+    LibraryScanPreferences scanPreferences, {
+    bool deferMetadata = false,
+  }) async* {
     _isCancelled = false;
     final totalStopwatch = Stopwatch()..start();
     yield ScanProgress(
@@ -777,6 +1040,21 @@ class LibraryScannerService {
       currentFolder: displayName,
       isComplete: false,
     );
+
+    if (deferMetadata) {
+      yield* _scanFolderAndroidInstant(
+        folderUri: folderUri,
+        displayName: displayName,
+        fastScanMap: fastScanMap,
+        existingMap: existingMap,
+        urisToProcess: urisToProcess,
+        initialSongCount: initialSongCount,
+        totalFiles: totalFiles,
+        totalStopwatch: totalStopwatch,
+        scanPreferences: scanPreferences,
+      );
+      return;
+    }
 
     final metadataBatchSize = _recommendedMetadataBatchSize(
       urisToProcess.length,
@@ -946,9 +1224,11 @@ class LibraryScannerService {
     final finalCount = await _songRepository.countSongsInFolder(folderUri);
     await _folderRepository.updateFolderScanInfo(folderUri, finalCount);
 
-    final playlistStopwatch = Stopwatch()..start();
-    await _syncPlaylistSourcesForFolder(folderUri, scanPreferences);
-    _logScanTiming(displayName, 'SAF playlist sync', playlistStopwatch.elapsed);
+    _runDetachedScanTask(
+      displayName,
+      'SAF playlist sync',
+      () => _syncPlaylistSourcesForFolder(folderUri, scanPreferences),
+    );
 
     _logScanTiming(displayName, 'SAF scan total', totalStopwatch.elapsed);
 

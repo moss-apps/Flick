@@ -101,6 +101,48 @@ class InterfaceSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
+          const SettingsSectionHeader('Search Playback'),
+          SettingsCard(
+            children: [
+              SelectionSetting(
+                icon: LucideIcons.listMusic,
+                title: 'Search Results',
+                subtitle: 'Continue through the search results',
+                selected: appPreferences.searchPlaybackMode == 'results',
+                onTap: () {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setSearchPlaybackMode('results');
+                },
+              ),
+              const SettingsDivider(),
+              SelectionSetting(
+                icon: LucideIcons.library,
+                title: 'Full Library',
+                subtitle: 'Continue through your entire library',
+                selected: appPreferences.searchPlaybackMode == 'library',
+                onTap: () {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setSearchPlaybackMode('library');
+                },
+              ),
+              const SettingsDivider(),
+              SelectionSetting(
+                icon: LucideIcons.listPlus,
+                title: 'Active Queue',
+                subtitle:
+                    'Insert into the current queue, fall back to results',
+                selected: appPreferences.searchPlaybackMode == 'queue',
+                onTap: () {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setSearchPlaybackMode('queue');
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
           const SettingsSectionHeader('Favorite Removal'),
           SettingsCard(
             children: [

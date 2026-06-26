@@ -27,21 +27,36 @@ const FolderEntitySchema = CollectionSchema(
       name: r'displayName',
       type: IsarType.string,
     ),
-    r'lastScanned': PropertySchema(
+    r'isRemovable': PropertySchema(
       id: 2,
+      name: r'isRemovable',
+      type: IsarType.bool,
+    ),
+    r'lastScanned': PropertySchema(
+      id: 3,
       name: r'lastScanned',
       type: IsarType.dateTime,
     ),
+    r'mediaStoreVolume': PropertySchema(
+      id: 4,
+      name: r'mediaStoreVolume',
+      type: IsarType.string,
+    ),
     r'songCount': PropertySchema(
-      id: 3,
+      id: 5,
       name: r'songCount',
       type: IsarType.long,
     ),
-    r'uri': PropertySchema(id: 4, name: r'uri', type: IsarType.string),
+    r'uri': PropertySchema(id: 6, name: r'uri', type: IsarType.string),
     r'useDeepScan': PropertySchema(
-      id: 5,
+      id: 7,
       name: r'useDeepScan',
       type: IsarType.bool,
+    ),
+    r'volumeState': PropertySchema(
+      id: 8,
+      name: r'volumeState',
+      type: IsarType.string,
     ),
   },
 
@@ -81,7 +96,19 @@ int _folderEntityEstimateSize(
 ) {
   var bytesCount = offsets.last;
   bytesCount += 3 + object.displayName.length * 3;
+  {
+    final value = object.mediaStoreVolume;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.uri.length * 3;
+  {
+    final value = object.volumeState;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -93,10 +120,13 @@ void _folderEntitySerialize(
 ) {
   writer.writeDateTime(offsets[0], object.dateAdded);
   writer.writeString(offsets[1], object.displayName);
-  writer.writeDateTime(offsets[2], object.lastScanned);
-  writer.writeLong(offsets[3], object.songCount);
-  writer.writeString(offsets[4], object.uri);
-  writer.writeBool(offsets[5], object.useDeepScan);
+  writer.writeBool(offsets[2], object.isRemovable);
+  writer.writeDateTime(offsets[3], object.lastScanned);
+  writer.writeString(offsets[4], object.mediaStoreVolume);
+  writer.writeLong(offsets[5], object.songCount);
+  writer.writeString(offsets[6], object.uri);
+  writer.writeBool(offsets[7], object.useDeepScan);
+  writer.writeString(offsets[8], object.volumeState);
 }
 
 FolderEntity _folderEntityDeserialize(
@@ -109,10 +139,13 @@ FolderEntity _folderEntityDeserialize(
   object.dateAdded = reader.readDateTime(offsets[0]);
   object.displayName = reader.readString(offsets[1]);
   object.id = id;
-  object.lastScanned = reader.readDateTimeOrNull(offsets[2]);
-  object.songCount = reader.readLong(offsets[3]);
-  object.uri = reader.readString(offsets[4]);
-  object.useDeepScan = reader.readBoolOrNull(offsets[5]);
+  object.isRemovable = reader.readBoolOrNull(offsets[2]);
+  object.lastScanned = reader.readDateTimeOrNull(offsets[3]);
+  object.mediaStoreVolume = reader.readStringOrNull(offsets[4]);
+  object.songCount = reader.readLong(offsets[5]);
+  object.uri = reader.readString(offsets[6]);
+  object.useDeepScan = reader.readBoolOrNull(offsets[7]);
+  object.volumeState = reader.readStringOrNull(offsets[8]);
   return object;
 }
 
@@ -128,13 +161,19 @@ P _folderEntityDeserializeProp<P>(
     case 1:
       return (reader.readString(offset)) as P;
     case 2:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 3:
-      return (reader.readLong(offset)) as P;
-    case 4:
-      return (reader.readString(offset)) as P;
-    case 5:
       return (reader.readBoolOrNull(offset)) as P;
+    case 3:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 4:
+      return (reader.readStringOrNull(offset)) as P;
+    case 5:
+      return (reader.readLong(offset)) as P;
+    case 6:
+      return (reader.readString(offset)) as P;
+    case 7:
+      return (reader.readBoolOrNull(offset)) as P;
+    case 8:
+      return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -607,6 +646,33 @@ extension FolderEntityQueryFilter
   }
 
   QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  isRemovableIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'isRemovable'),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  isRemovableIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'isRemovable'),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  isRemovableEqualTo(bool? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'isRemovable', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
   lastScannedIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -675,6 +741,165 @@ extension FolderEntityQueryFilter
           upper: upper,
           includeUpper: includeUpper,
         ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'mediaStoreVolume'),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'mediaStoreVolume'),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeEqualTo(String? value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'mediaStoreVolume',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'mediaStoreVolume',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'mediaStoreVolume',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'mediaStoreVolume',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'mediaStoreVolume',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'mediaStoreVolume',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'mediaStoreVolume',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'mediaStoreVolume',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'mediaStoreVolume', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  mediaStoreVolumeIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'mediaStoreVolume', value: ''),
       );
     });
   }
@@ -908,6 +1133,165 @@ extension FolderEntityQueryFilter
       );
     });
   }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'volumeState'),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'volumeState'),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateEqualTo(String? value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'volumeState',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'volumeState',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'volumeState',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'volumeState',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'volumeState',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'volumeState',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'volumeState',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'volumeState',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'volumeState', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterFilterCondition>
+  volumeStateIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'volumeState', value: ''),
+      );
+    });
+  }
 }
 
 extension FolderEntityQueryObject
@@ -943,6 +1327,19 @@ extension FolderEntityQuerySortBy
     });
   }
 
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy> sortByIsRemovable() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRemovable', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy>
+  sortByIsRemovableDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRemovable', Sort.desc);
+    });
+  }
+
   QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy> sortByLastScanned() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastScanned', Sort.asc);
@@ -953,6 +1350,20 @@ extension FolderEntityQuerySortBy
   sortByLastScannedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastScanned', Sort.desc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy>
+  sortByMediaStoreVolume() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'mediaStoreVolume', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy>
+  sortByMediaStoreVolumeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'mediaStoreVolume', Sort.desc);
     });
   }
 
@@ -990,6 +1401,19 @@ extension FolderEntityQuerySortBy
   sortByUseDeepScanDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'useDeepScan', Sort.desc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy> sortByVolumeState() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'volumeState', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy>
+  sortByVolumeStateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'volumeState', Sort.desc);
     });
   }
 }
@@ -1033,6 +1457,19 @@ extension FolderEntityQuerySortThenBy
     });
   }
 
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy> thenByIsRemovable() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRemovable', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy>
+  thenByIsRemovableDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRemovable', Sort.desc);
+    });
+  }
+
   QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy> thenByLastScanned() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastScanned', Sort.asc);
@@ -1043,6 +1480,20 @@ extension FolderEntityQuerySortThenBy
   thenByLastScannedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastScanned', Sort.desc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy>
+  thenByMediaStoreVolume() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'mediaStoreVolume', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy>
+  thenByMediaStoreVolumeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'mediaStoreVolume', Sort.desc);
     });
   }
 
@@ -1082,6 +1533,19 @@ extension FolderEntityQuerySortThenBy
       return query.addSortBy(r'useDeepScan', Sort.desc);
     });
   }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy> thenByVolumeState() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'volumeState', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QAfterSortBy>
+  thenByVolumeStateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'volumeState', Sort.desc);
+    });
+  }
 }
 
 extension FolderEntityQueryWhereDistinct
@@ -1100,9 +1564,25 @@ extension FolderEntityQueryWhereDistinct
     });
   }
 
+  QueryBuilder<FolderEntity, FolderEntity, QDistinct> distinctByIsRemovable() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isRemovable');
+    });
+  }
+
   QueryBuilder<FolderEntity, FolderEntity, QDistinct> distinctByLastScanned() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'lastScanned');
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QDistinct>
+  distinctByMediaStoreVolume({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(
+        r'mediaStoreVolume',
+        caseSensitive: caseSensitive,
+      );
     });
   }
 
@@ -1123,6 +1603,14 @@ extension FolderEntityQueryWhereDistinct
   QueryBuilder<FolderEntity, FolderEntity, QDistinct> distinctByUseDeepScan() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'useDeepScan');
+    });
+  }
+
+  QueryBuilder<FolderEntity, FolderEntity, QDistinct> distinctByVolumeState({
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'volumeState', caseSensitive: caseSensitive);
     });
   }
 }
@@ -1147,10 +1635,23 @@ extension FolderEntityQueryProperty
     });
   }
 
+  QueryBuilder<FolderEntity, bool?, QQueryOperations> isRemovableProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isRemovable');
+    });
+  }
+
   QueryBuilder<FolderEntity, DateTime?, QQueryOperations>
   lastScannedProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'lastScanned');
+    });
+  }
+
+  QueryBuilder<FolderEntity, String?, QQueryOperations>
+  mediaStoreVolumeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'mediaStoreVolume');
     });
   }
 
@@ -1169,6 +1670,12 @@ extension FolderEntityQueryProperty
   QueryBuilder<FolderEntity, bool?, QQueryOperations> useDeepScanProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'useDeepScan');
+    });
+  }
+
+  QueryBuilder<FolderEntity, String?, QQueryOperations> volumeStateProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'volumeState');
     });
   }
 }
