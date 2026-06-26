@@ -20,6 +20,7 @@ import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/services/eq_preset_file_service.dart';
 import 'package:flick/services/eq_preset_service.dart';
+import 'package:flick/services/equalizer_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/widgets/common/rotary_knob.dart';
 
@@ -3641,6 +3642,142 @@ class _CreativeFxSection extends ConsumerWidget {
               ],
             ),
           ],
+        ),
+        const SizedBox(height: AppConstants.spacingLg),
+        const _ConvolverSection(),
+      ],
+    );
+  }
+}
+
+class _ConvolverSection extends ConsumerWidget {
+  const _ConvolverSection();
+
+  Future<void> _pickIr(BuildContext context, WidgetRef ref) async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['wav', 'flac', 'aiff', 'mp3', 'ogg'],
+    );
+    final picked = result?.files.singleOrNull;
+    if (picked == null) return;
+    final srcPath = picked.path;
+    final displayName = picked.name;
+    if (srcPath == null) return;
+    try {
+      final docs = await getApplicationDocumentsDirectory();
+      final dir = Directory('${docs.path}/irs');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      final ext = displayName.contains('.') ? '' : '.wav';
+      final storedName = '${stamp}_$displayName$ext';
+      final storedPath = '${dir.path}/$storedName';
+      await File(srcPath).copy(storedPath);
+      ref
+          .read(equalizerProvider.notifier)
+          .setConvolverIr(storedPath, displayName);
+      await loadConvolverIr(storedPath);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Loaded IR: $displayName')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load IR: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearIr(BuildContext context, WidgetRef ref) async {
+    ref.read(equalizerProvider.notifier).clearConvolverIr();
+    try {
+      await clearConvolverIr();
+    } catch (_) {}
+  }
+
+  String _percentLabel(double value) => '${(value * 100).round()}%';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(eqEnabledProvider);
+    final convolver = ref.watch(eqConvolverProvider);
+    final editable = enabled && convolver.enabled;
+    final hasIr = convolver.irPath != null && convolver.irPath!.isNotEmpty;
+
+    return _DynamicsCard(
+      icon: LucideIcons.audioWaveform,
+      title: 'Convolver / Impulse Response',
+      subtitle:
+          'Load an impulse response for room reverb, crossfeed, cabinet, or correction.',
+      active: editable,
+      toggleValue: convolver.enabled,
+      onToggleChanged: (value) =>
+          ref.read(equalizerProvider.notifier).setConvolverEnabled(value),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Impulse response',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: context.adaptiveTextTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    convolver.irDisplayName ?? 'None',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: hasIr
+                          ? context.adaptiveTextPrimary
+                          : context.adaptiveTextTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppConstants.spacingSm),
+            TextButton.icon(
+              onPressed: enabled
+                  ? () => _pickIr(context, ref)
+                  : null,
+              icon: const Icon(LucideIcons.folderOpen, size: 18),
+              label: const Text('Load IR'),
+              style: TextButton.styleFrom(
+                foregroundColor: context.adaptiveTextPrimary,
+              ),
+            ),
+            if (hasIr)
+              TextButton.icon(
+                onPressed: () => _clearIr(context, ref),
+                icon: const Icon(LucideIcons.trash2, size: 18),
+                label: const Text('Clear'),
+                style: TextButton.styleFrom(
+                  foregroundColor: context.adaptiveTextPrimary,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppConstants.spacingLg),
+        Center(
+          child: _LabeledKnob(
+            icon: LucideIcons.audioLines,
+            label: 'Mix',
+            valueLabel: _percentLabel(convolver.mix),
+            value: convolver.mix,
+            min: EqualizerNotifier.convolverMixMin,
+            max: EqualizerNotifier.convolverMixMax,
+            onChanged: editable
+                ? (value) =>
+                    ref.read(equalizerProvider.notifier).setConvolverMix(value)
+                : null,
+          ),
         ),
       ],
     );
