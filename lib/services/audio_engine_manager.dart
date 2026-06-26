@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flick/models/audio_engine_type.dart';
 import 'package:flick/models/playback_state.dart';
 import 'package:flick/models/song.dart';

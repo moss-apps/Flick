@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:flick/services/lastfm/lastfm_api_client.dart';

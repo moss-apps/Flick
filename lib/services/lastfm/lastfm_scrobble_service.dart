@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 
 import 'package:flick/services/lastfm/lastfm_api_client.dart';
 import 'package:flick/services/lastfm/lastfm_auth_service.dart';

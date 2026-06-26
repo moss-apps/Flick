@@ -363,7 +363,6 @@ class PlayerService {
   Future<void>? _rustCapabilityRefreshInFlight;
   Future<void>? _rustEnginePreparationInFlight;
   bool _suppressSequenceStateUpdates = false;
-  DateTime? _autoSyncGuardUntil;
   String? _autoSyncGuardSongId;
   String? _restoredSongId;
   Duration _restoredPosition = Duration.zero;
@@ -2027,34 +2026,6 @@ class PlayerService {
   String? _detectedDapBrand(Map<String, dynamic>? profile) {
     final kind = _mapValue(profile?['kind']);
     return _stringValue(kind?['Dap']);
-  }
-
-  void _syncCurrentSongFromIndex(int newIndex, {bool fromListener = false}) {
-    if (newIndex < 0 || newIndex >= _playlist.length) return;
-
-    final newSong = _playlist[newIndex];
-    if (fromListener && _shouldIgnoreAutoSyncedSong(newSong)) {
-      _debugLog(
-        'Ignoring transient auto-sync to ${newSong.title} during explicit play handoff',
-      );
-      return;
-    }
-
-    // Keep index and queue state synced even when _currentIndex was
-    // already moved by next()/previous() before stream events arrive.
-    if (newIndex != _currentIndex) {
-      _setCurrentIndex(newIndex);
-    }
-    _consumeQueueEntryAt(newIndex);
-
-    if (_autoSyncGuardSongId == newSong.id) {
-      _clearAutoSyncGuard();
-    }
-    if (newSong != currentSongNotifier.value) {
-      _debugLog(
-        'Track transition: ${currentSongNotifier.value?.title} -> ${newSong.title}',
-      );
-    }
   }
 
   void _startReplayTracking(
@@ -4526,36 +4497,12 @@ class PlayerService {
 
   bool get isSleepTimerActive => sleepTimerRemainingNotifier.value != null;
 
-  bool _shouldIgnoreAutoSyncedSong(Song song) {
-    final guardUntil = _autoSyncGuardUntil;
-    final guardedSongId = _autoSyncGuardSongId;
-    if (guardUntil == null || guardedSongId == null) {
-      return false;
-    }
-
-    if (DateTime.now().isAfter(guardUntil)) {
-      _clearAutoSyncGuard();
-      return false;
-    }
-
-    return song.id != guardedSongId;
-  }
-
   void _armAutoSyncGuard(Song song) {
     _autoSyncGuardSongId = song.id;
-    _autoSyncGuardUntil = DateTime.now().add(const Duration(seconds: 2));
-  }
-
-  void _updateAutoSyncGuardFromProgress(Duration position) {
-    if (_autoSyncGuardSongId == null) return;
-    if (position > const Duration(milliseconds: 250)) {
-      _clearAutoSyncGuard();
-    }
   }
 
   void _clearAutoSyncGuard() {
     _autoSyncGuardSongId = null;
-    _autoSyncGuardUntil = null;
   }
 
   void _checkPlaybackDesync(PlaybackState state) {
