@@ -1250,7 +1250,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                     opacity: animation,
                     child: SizeTransition(
                       sizeFactor: animation,
-                      axisAlignment: -1.0,
+                      alignment: const Alignment(-1.0, -1.0),
                       child: child,
                     ),
                   );
