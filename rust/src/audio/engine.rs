@@ -1188,11 +1188,13 @@ pub fn create_audio_engine(
                 alt.format_tag == "DSD"
                     && alt.subslot_size > 0
                     && dsd_rate.is_some_and(|r| {
-                        r.sample_rate() / (8 * u32::from(alt.subslot_size))
-                            <= alt.sample_rates.iter().copied().max().unwrap_or(0)
-                            || alt.sample_rates.iter().any(|&sr| {
-                                sr == r.sample_rate() / (8 * u32::from(alt.subslot_size))
-                            })
+                        let wire = r.sample_rate() / (8 * u32::from(alt.subslot_size));
+                        // UAC2 DSD alts don't carry rate ranges in the descriptor; the wire
+                        // rate may not be enumerable. A DSD alt's presence is itself the
+                        // capability signal — accept empty sample_rates rather than disqualify.
+                        alt.sample_rates.is_empty()
+                            || wire <= alt.sample_rates.iter().copied().max().unwrap_or(0)
+                            || alt.sample_rates.iter().any(|&sr| sr == wire)
                     })
             })
         };
@@ -1212,6 +1214,30 @@ pub fn create_audio_engine(
         };
         #[cfg(not(feature = "uac2"))]
         let (usb_dop_available, usb_max_carrier) = (false, 0u32);
+
+        #[cfg(feature = "uac2")]
+        {
+            let dbg = android_direct_debug_state();
+            let alt_summary: Vec<String> = dbg
+                .available_alt_settings
+                .iter()
+                .map(|a| {
+                    format!(
+                        "{}({}b,ss{},{:?})",
+                        a.format_tag, a.bit_resolution, a.subslot_size, a.sample_rates
+                    )
+                })
+                .collect();
+            log::info!(
+                "[DSD-STRATEGY] dsd_rate={:?} native_avail={} dop_avail={} carrier={} registered={} | alts=[{}]",
+                dsd_rate,
+                usb_dsd_native_available,
+                usb_dop_available,
+                usb_max_carrier,
+                dbg.registered,
+                alt_summary.join(", ")
+            );
+        }
 
         select_strategy_excluded(
             &track_info,
