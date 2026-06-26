@@ -84,6 +84,10 @@ Future<void> applyEqualizer(EqualizerState state) async {
         feedback: state.fx.feedback,
         width: state.fx.width,
       );
+      await rust_audio.audioSetConvolver(
+        enabled: false,
+        mix: state.convolver.mix,
+      );
       return;
     }
 
@@ -117,11 +121,39 @@ Future<void> applyEqualizer(EqualizerState state) async {
       feedback: state.fx.feedback,
       width: state.fx.width,
     );
+    await rust_audio.audioSetConvolver(
+      enabled: state.enabled && state.convolver.enabled,
+      mix: state.convolver.mix,
+    );
   } catch (_) {}
 }
 
 Future<void> reapplyEqualizer() async {
   await applyEqualizer(_lastRequestedState);
+  final ir = _lastRequestedState.convolver.irPath;
+  if (ir != null && ir.isNotEmpty) {
+    try {
+      await rust_audio.audioLoadIr(path: ir);
+    } catch (_) {}
+  }
+}
+
+/// Loads (decodes + resamples) an impulse response into the native convolver.
+Future<void> loadConvolverIr(String path) async {
+  if (!rust_audio.audioIsNativeAvailable() ||
+      !rust_audio.audioIsInitialized()) {
+    return;
+  }
+  await rust_audio.audioLoadIr(path: path);
+}
+
+/// Clears the loaded impulse response from the native convolver.
+Future<void> clearConvolverIr() async {
+  if (!rust_audio.audioIsNativeAvailable() ||
+      !rust_audio.audioIsInitialized()) {
+    return;
+  }
+  await rust_audio.audioClearIr();
 }
 
 /// Map parametric bands to 10-band gains for Rust engine (graphic-only).
@@ -145,6 +177,7 @@ EqualizerState _snapshotState(EqualizerState state) {
     compressor: state.compressor.copyWith(),
     limiter: state.limiter.copyWith(),
     fx: state.fx.copyWith(),
+    convolver: state.convolver.copyWith(),
   );
 }
 
