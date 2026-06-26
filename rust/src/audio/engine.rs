@@ -6,6 +6,7 @@
 use crate::dev_eprintln;
 
 use crate::audio::commands::{AudioCommand, AudioEvent, PlaybackProgress, PlaybackState};
+use crate::audio::convolver::Convolver;
 use crate::audio::crossfader::Crossfader;
 use crate::audio::decoder::DecoderThread;
 use crate::audio::decoder_handle::{detect_file_type, DecoderHandle, FileType};
@@ -118,6 +119,9 @@ pub struct AudioCallbackData {
     equalizer: Mutex<Equalizer>,
     /// Creative spatial/time FX.
     fx: Mutex<SpatialFx>,
+    /// Impulse-response convolver (room reverb, crossfeed, cabinet/correction
+    /// IRs). Loaded off-callback; runs only in Dsp mode like the other FX.
+    convolver: Mutex<Convolver>,
     /// Lightweight compressor + limiter chain.
     dynamics: Mutex<DynamicsChain>,
     /// Channel for sending finished tracks to command thread
@@ -179,6 +183,7 @@ impl AudioCallbackData {
             speed_frac_pos: Mutex::new(0.0),
             equalizer: Mutex::new(Equalizer::new()),
             fx: Mutex::new(SpatialFx::new(sample_rate)),
+            convolver: Mutex::new(Convolver::new(sample_rate)),
             dynamics: Mutex::new(DynamicsChain::new(sample_rate)),
             finished_tracks,
             tuning_432hz_enabled: AtomicBool::new(tuning_enabled),
@@ -308,6 +313,7 @@ impl AudioCallbackData {
         *self.speed_buffer.lock() = vec![0.0; speed_buffer_size];
         *self.speed_frac_pos.lock() = 0.0;
         self.fx.lock().reconfigure_sample_rate(sample_rate);
+        self.convolver.lock().reconfigure_sample_rate(sample_rate);
         *self.dynamics.lock() = DynamicsChain::new(sample_rate);
     }
 }
@@ -531,6 +537,22 @@ impl AudioEngineHandle {
             feedback,
             width,
         })
+    }
+
+    /// Enable/disable the impulse-response convolver and set its wet/dry mix.
+    pub fn set_convolver(&self, enabled: bool, mix: f32) -> Result<(), String> {
+        self.send_command(AudioCommand::SetConvolver { enabled, mix })
+    }
+
+    /// Load pre-decoded, pre-resampled IR coefficients into the convolver.
+    /// `coeffs` is 1 (mono) or 2 (stereo L/R) tap vectors.
+    pub fn set_convolver_ir(&self, coeffs: Vec<Vec<f32>>) -> Result<(), String> {
+        self.send_command(AudioCommand::SetConvolverIr { coeffs })
+    }
+
+    /// Remove the current IR; convolver becomes a no-op until a new IR loads.
+    pub fn clear_convolver_ir(&self) -> Result<(), String> {
+        self.send_command(AudioCommand::ClearConvolverIr)
     }
 
     /// Get the current playback speed.
@@ -2350,6 +2372,9 @@ pub(crate) fn audio_callback(
             if let Some(mut fx) = data.fx.try_lock() {
                 fx.process(output, channels);
             }
+            if let Some(mut convolver) = data.convolver.try_lock() {
+                convolver.process(output, channels);
+            }
             if let Some(mut dynamics) = data.dynamics.try_lock() {
                 dynamics.process(output, channels);
             }
@@ -2487,6 +2512,9 @@ pub(crate) fn audio_callback(
     }
     if let Some(mut fx) = data.fx.try_lock() {
         fx.process(output, channels);
+    }
+    if let Some(mut convolver) = data.convolver.try_lock() {
+        convolver.process(output, channels);
     }
     if let Some(mut dynamics) = data.dynamics.try_lock() {
         dynamics.process(output, channels);
@@ -2724,6 +2752,15 @@ fn command_processing_loop(
                             enabled, balance, tempo, damp, filter_hz, delay_ms, size, mix,
                             feedback, width,
                         );
+                    }
+                    AudioCommand::SetConvolver { enabled, mix } => {
+                        callback_data.convolver.lock().set(enabled, mix);
+                    }
+                    AudioCommand::SetConvolverIr { coeffs } => {
+                        callback_data.convolver.lock().load_ir(coeffs);
+                    }
+                    AudioCommand::ClearConvolverIr => {
+                        callback_data.convolver.lock().clear_ir();
                     }
                     AudioCommand::CrossfadeToNext | AudioCommand::SkipToNext => {
                         handle_skip_to_next(&callback_data, &state, &event_tx);
