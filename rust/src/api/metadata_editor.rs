@@ -151,6 +151,12 @@ pub fn write_tags_to_temp(
             .map_err(|e| format!("Failed to create temp directory: {e}"))?;
     }
 
+    // lofty's save_to_path opens the destination read+write WITHOUT create, so
+    // the file must already exist. Stage a byte-for-byte copy of the original
+    // and rewrite its tags in place.
+    std::fs::copy(&path, &temp_path)
+        .map_err(|e| format!("Failed to stage temp copy: {e}"))?;
+
     tagged_file
         .save_to_path(&temp_path, WriteOptions::default())
         .map_err(|e| format!("Failed to save tags to temp file: {e}"))?;
