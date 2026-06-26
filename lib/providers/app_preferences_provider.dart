@@ -115,6 +115,12 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setFavoriteRemovalMode(value);
   }
 
+  Future<void> setSearchPlaybackMode(String value) async {
+    if (state.searchPlaybackMode == value) return;
+    state = state.copyWith(searchPlaybackMode: value);
+    await ref.read(appPreferencesServiceProvider).setSearchPlaybackMode(value);
+  }
+
   Future<void> setFastIndexEnabled(bool value) async {
     if (state.fastIndexEnabled == value) return;
     state = state.copyWith(fastIndexEnabled: value);
