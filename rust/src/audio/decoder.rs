@@ -562,7 +562,7 @@ fn remix_interleaved_channels(
 }
 
 /// Convert an AudioBufferRef to interleaved f32 samples.
-fn convert_to_interleaved_f32(buffer: &AudioBufferRef, output: &mut Vec<f32>) {
+pub(crate) fn convert_to_interleaved_f32(buffer: &AudioBufferRef, output: &mut Vec<f32>) {
     use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
     static LOGGED_VARIANT: AtomicBool = AtomicBool::new(false);
     if !LOGGED_VARIANT.swap(true, AtomicOrdering::Relaxed) {

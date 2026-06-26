@@ -72,6 +72,13 @@ pub enum AudioCommand {
         feedback: f32,
         width: f32,
     },
+    /// Enable/disable the impulse-response convolver and set its wet/dry mix.
+    SetConvolver { enabled: bool, mix: f32 },
+    /// Load pre-decoded IR coefficients into the convolver (off-callback).
+    /// `coeffs` is 1 (mono) or 2 (stereo L/R) tap vectors.
+    SetConvolverIr { coeffs: Vec<Vec<f32>> },
+    /// Remove the current IR (frees taps; convolver becomes no-op).
+    ClearConvolverIr,
     /// Switch pipeline mode at runtime (e.g. when Bit-perfect (DAP Internal) is toggled).
     SetPipelineMode { passthrough: bool },
     /// Override pipeline to Dop for DoP DSD playback, or restore base mode.
