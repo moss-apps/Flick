@@ -2072,7 +2072,8 @@ class PlayerService {
     }
     // Defer the streak popup when a milestone unlocks so the celebration
     // dialog owns the moment; it will fire on the next launch.
-    if (milestone == null && streak >= 1 && streakPopupNotifier.value == null) {
+    final snoozed = await _milestoneService.isStreakPopupSnoozed();
+    if (milestone == null && !snoozed && streak >= 1 && streakPopupNotifier.value == null) {
       streakPopupNotifier.value = streak;
     }
   }
