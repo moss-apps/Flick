@@ -1075,6 +1075,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                     4 => _BrowseChip(
                                       icon: Icons.auto_graph_rounded,
                                       label: 'Flick Replay',
+                                      highlighted: true,
                                       onTap: () => _navigateTo(
                                         context,
                                         const ListeningRecapScreen(),
@@ -3014,11 +3015,13 @@ class _BrowseChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool highlighted;
 
   const _BrowseChip({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.highlighted = false,
   });
 
   @override
@@ -3035,19 +3038,31 @@ class _BrowseChip extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            color: AppColors.glassBackgroundStrong,
-            border: Border.all(color: AppColors.glassBorder),
+            color: highlighted
+                ? AppColors.glassBorderStrong
+                : AppColors.glassBackgroundStrong,
+            border: Border.all(
+              color: highlighted ? AppColors.accent : AppColors.glassBorder,
+              width: highlighted ? 1.5 : 1.0,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 16, color: context.adaptiveTextSecondary),
+              Icon(
+                icon,
+                size: 16,
+                color:
+                    highlighted ? AppColors.accentLight : context.adaptiveTextSecondary,
+              ),
               const SizedBox(width: AppConstants.spacingXs),
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.w600,
+                  color: highlighted
+                      ? AppColors.accentLight
+                      : context.adaptiveTextPrimary,
+                  fontWeight: highlighted ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
             ],
