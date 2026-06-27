@@ -44,6 +44,125 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
+    version: '0.20.0-beta.2',
+    date: '2026-06-21',
+    sections: [
+      ChangelogSection(
+        title: 'Compact Home Widget',
+        bullets: [
+          'New 2×2 compact widget with text and transport controls — add from your launcher\'s widget picker.',
+          'Compact-specific preferences with dedicated settings tab.',
+          'Widget settings screen gains swipe gesture between tabs and animated transitions.',
+          'Semi-transparent scrim overlay on mini player widget; visibility matches album art presence.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Milestone Streaks & New Tiers',
+        bullets: [
+          '**Day streak tracking** — consecutive days of listening, with motivational flame icon popup and snooze.',
+          '**Unique artist count milestone** — tracks distinct artists played over lifetime.',
+          '**Emerald tier** added for new milestone thresholds.',
+          'Streak popup with animated day-cell grid and motivational messages.',
+          'Milestones grouped by category with collapsible sections in the collection view.',
+          '`MilestoneService` refactored with category-based current-value tracking.',
+          'New tests for streak and unique-artist milestone logic.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Audio Convolver — Impulse Response Reverb',
+        bullets: [
+          '**Direct-time-domain convolver** processes impulse response (IR) files for convolution reverb.',
+          'Offline IR loader supports standard WAV IR files.',
+          'Full control API: enable/disable, dry/wet mix, load IR, clear.',
+          'Integrated into the equalizer service with persistent `ConvolverSettings`.',
+          'Convolver section added to the equalizer screen in Settings.',
+          'Rust public API (`convolver_enable`, `convolver_mix`, `convolver_load_ir`, `convolver_clear`).',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Crossfade Engine (Rust)',
+        bullets: [
+          'Crossfade between tracks in the Android audio engine — no more abrupt transitions.',
+          '`CrossfadeCurve` enum with configurable fade curves.',
+          'Pending crossfade configuration via atomics survives engine recreation.',
+          'Applied automatically on audio state update.',
+          'Dart FFI API for pending crossfade and DSD override options.',
+          'Crossfade tests for the Android audio engine.',
+          'Reliability note for non-standard engine paths.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'DSD Transport Overrides',
+        bullets: [
+          'Per-device DSD byte-order and subslot overrides for USB Direct transport.',
+          'Unified quirk database drives `sub_slot_size`, `bit_order`, and `byte_reverse` settings.',
+          'Override preferences synced to the Rust engine before playback starts.',
+          '24-bit DSD over USB DoP with corrected bits-per-frame calculation.',
+          'DSD ring rate fix and payload integrity checks.',
+          'UAC2 alt-settings probed for DSD/DoP capability before stream start.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Removable Storage & SAF Scanning',
+        bullets: [
+          '**Removable storage scanning** via Android SAF — SD cards and USB drives now scannable.',
+          'Per-volume MediaStore support with `mediaStoreVolume` on `FolderEntity`.',
+          '`FolderEntity` gains `isRemovable` and `volumeState` fields.',
+          'Volume info resolved when adding a music folder; external status label on root folder card.',
+          'USB/removable status displayed inline during deep scans.',
+          'Handles unmount events gracefully with instant SAF scan fallback.',
+          'SAF tree walk refactored to `contentResolver.query` per directory for faster traversal.',
+          'Tests for removable volume handling in `MusicFolderService`.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Bluetooth Management',
+        bullets: [
+          '**Bluetooth settings screen** with codec info (A2DP) and device management.',
+          'Bluetooth service layer with device and codec DTOs.',
+          'A2DP codec detection and battery level display for connected devices.',
+          '**Low-latency mode** preference — selects Rust Oboe engine for Bluetooth to minimize latency.',
+          '**Pause-on-disconnect** setting automatically pauses playback when Bluetooth drops.',
+          '**Reconnect resume** — playback resumes when the Bluetooth device reconnects.',
+          'Bluetooth connect permission added for Android 12+ compatibility.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Metadata Editor Improvements',
+        bullets: [
+          'Tag write verification with typed outcomes (success, permission-denied, format-unsupported, etc.).',
+          'Metadata validation before save with improved error reporting.',
+          'Original file copied to temp path before writing tags — safe rollback on failure.',
+          'SAF fallback for tag writes on Android scoped storage.',
+          'Write URI permission requested and persisted alongside read permission.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Albums & Search',
+        bullets: [
+          'Album list view mode with multi-selection actions.',
+          'Queue all songs button on album detail screen.',
+          'Search playback mode preference — control what happens when tapping a search result.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'UI Polish & Cleanup',
+        bullets: [
+          'Removed "Player" from app name — now simply "Flick". Google Play badge added to README.',
+          'Lyric font size increased to 34 and max lines to 4 for better readability.',
+          '"Flick Replay" browse chip highlighted with accent style.',
+          'Scan settings animation replaced with `AnimatedSize` and `AnimatedOpacity`.',
+          'Duplicate group card extracted into standalone stateful widget.',
+          '"Show in Files" action replaced with share functionality.',
+          'Flutter migrator properties added to Gradle config.',
+          'Unused imports, dead auto-sync guard code, and deprecated test file removed.',
+          '`SizeTransition` `axisAlignment` deprecation fixed.',
+          'Vendored and generated files excluded from static analysis.',
+        ],
+      ),
+    ],
+  ),
+  ChangelogEntry(
     version: '0.19.1-beta.2',
     date: '2026-06-18',
     sections: [
