@@ -297,6 +297,7 @@ class _MainShellState extends ConsumerState<MainShell>
       }
 
       _maybeShowWhatsNew();
+      unawaited(_playerService.recordActivityDayAndCheckMilestones());
     });
 
     _playerService.playbackDesyncedNotifier.addListener(
@@ -361,7 +362,7 @@ class _MainShellState extends ConsumerState<MainShell>
             ),
             child: MilestoneCard(
               milestone: milestone,
-              nextLabel: next.next?.shortLabel,
+              nextMilestone: next.next,
               nextRemaining: next.next == null ? null : next.remaining,
               onSupportTap: () {
                 Navigator.of(context).push(
