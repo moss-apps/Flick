@@ -1,5 +1,85 @@
 # Changelog
 
+## 0.20.0-beta.2 (2026-06-21)
+
+### Compact Home Widget
+- New 2×2 compact widget with text and transport controls.
+- Compact-specific preferences with dedicated settings tab.
+- Widget settings screen with swipe gesture between tabs and animated transitions.
+- Semi-transparent scrim overlay on mini player widget; visibility matches album art.
+
+### Milestone Streaks & New Tiers
+- **Day streak tracking** — consecutive listening days with flame icon popup and snooze.
+- **Unique artist count milestone** — tracks distinct artists played over lifetime.
+- **Emerald tier** added for new milestone thresholds.
+- Streak popup with animated day-cell grid and motivational messages.
+- Milestones grouped by category with collapsible sections.
+- `MilestoneService` refactored with category-based current-value tracking.
+- New tests for streak and unique-artist milestone logic.
+
+### Audio Convolver — Impulse Response Reverb
+- **Direct-time-domain convolver** processes impulse response files for convolution reverb.
+- Offline IR loader supports standard WAV IR files.
+- Full control API: enable/disable, dry/wet mix, load IR, clear.
+- Integrated into equalizer service with persistent `ConvolverSettings`.
+- Convolver section on the equalizer screen.
+- Rust public API (`convolver_enable`, `convolver_mix`, `convolver_load_ir`, `convolver_clear`).
+
+### Crossfade Engine (Rust)
+- Crossfade between tracks in the Android audio engine via `CrossfadeCurve`.
+- Pending crossfade configuration via atomics survives engine recreation.
+- Applied automatically on audio state update.
+- Dart FFI API for pending crossfade and DSD override options.
+- Crossfade tests for the Android audio engine.
+
+### DSD Transport Overrides
+- Per-device DSD byte-order and subslot overrides for USB Direct transport.
+- Unified quirk database drives subslot, bit order, and byte reversal settings.
+- Override preferences synced to Rust engine before playback.
+- 24-bit DSD over USB DoP with corrected bits-per-frame.
+- DSD ring rate fix and payload integrity checks.
+- UAC2 alt-settings probed for DSD/DoP capability before stream start.
+
+### Removable Storage & SAF Scanning
+- **Removable storage scanning** via Android SAF — SD cards and USB drives.
+- Per-volume MediaStore support with `mediaStoreVolume` on `FolderEntity`.
+- `FolderEntity` gains `isRemovable` and `volumeState` fields.
+- Volume info resolved when adding a music folder; external status label on folder card.
+- USB/removable status displayed inline during deep scans.
+- Handles unmount events gracefully with instant SAF scan fallback.
+- SAF tree walk refactored to `contentResolver.query` per directory.
+- Tests for removable volume handling.
+
+### Bluetooth Management
+- **Bluetooth settings screen** with codec info (A2DP) and device management.
+- Bluetooth service layer with device and codec DTOs.
+- A2DP codec detection and battery level display.
+- **Low-latency mode** preference — selects Rust Oboe for Bluetooth.
+- **Pause-on-disconnect** setting.
+- **Reconnect resume** — playback resumes on Bluetooth reconnect.
+- Bluetooth connect permission for Android 12+.
+
+### Metadata Editor Improvements
+- Tag write verification with typed outcomes.
+- Metadata validation before save with improved error reporting.
+- Original file copied to temp before writing — safe rollback.
+- SAF fallback for tag writes on scoped storage.
+- Write URI permission requested and persisted.
+
+### Albums & Search
+- Album list view mode with multi-selection actions.
+- Queue all songs button on album detail screen.
+- Search playback mode preference.
+
+### UI Polish & Cleanup
+- Removed "Player" from app name — now simply "Flick". Google Play badge added to README.
+- Lyric font size increased to 34, max lines to 4.
+- "Flick Replay" browse chip highlighted with accent style.
+- Scan settings animation replaced with `AnimatedSize`/`AnimatedOpacity`.
+- "Show in Files" replaced with share. `SizeTransition` deprecation fixed.
+- Unused imports, dead code, deprecated test file removed.
+- Vendored/generated files excluded from static analysis.
+
 ## 0.19.1-beta.2 (2026-06-18)
 
 ### Home Widgets Redesigned
