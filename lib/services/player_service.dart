@@ -2056,6 +2056,19 @@ class PlayerService {
     }
   }
 
+  /// Records that the user was active today (advancing the day-streak) and
+  /// checks for any milestone unlocked purely by opening the app — e.g. a
+  /// streak tier. Called once at startup after the milestone notifier is
+  /// wired so the celebration dialog can still fire.
+  Future<void> recordActivityDayAndCheckMilestones() async {
+    await _milestoneService.recordActivityDay();
+    final milestone = await _milestoneService.checkMilestones();
+    if (milestone != null) {
+      await _milestoneService.markMilestoneShown(milestone);
+      pendingMilestoneNotifier.value = milestone;
+    }
+  }
+
   void _trackReplayProgress(Duration position) {
     final song = currentSongNotifier.value;
     if (song == null) {
