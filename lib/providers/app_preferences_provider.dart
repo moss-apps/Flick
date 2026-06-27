@@ -319,6 +319,34 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setWidgetFlagshipShowArtist(value);
   }
 
+  Future<void> setWidgetCompactBgOpacity(int value) async {
+    if (state.widgetCompactBgOpacity == value) return;
+    state = state.copyWith(widgetCompactBgOpacity: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetCompactBgOpacity(value);
+  }
+
+  Future<void> setWidgetCompactShowAlbumArt(bool value) async {
+    if (state.widgetCompactShowAlbumArt == value) return;
+    state = state.copyWith(widgetCompactShowAlbumArt: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setWidgetCompactShowAlbumArt(value);
+  }
+
+  Future<void> setWidgetCompactShowArtist(bool value) async {
+    if (state.widgetCompactShowArtist == value) return;
+    state = state.copyWith(widgetCompactShowArtist: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setWidgetCompactShowArtist(value);
+  }
+
+  Future<void> setWidgetCompactAccent(String value) async {
+    if (state.widgetCompactAccent == value) return;
+    state = state.copyWith(widgetCompactAccent: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetCompactAccent(value);
+  }
+
   Future<void> setLyricsMatchAudioFilename(bool value) async {
     if (state.lyricsMatchAudioFilename == value) return;
     state = state.copyWith(lyricsMatchAudioFilename: value);
