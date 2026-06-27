@@ -46,9 +46,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   bool _showBatteryOptimizationNotice = false;
   bool _isXiaomiDevice = false;
   bool _scanSettingsExpanded = false;
+  bool _libraryExpanded = false;
 
-  late final AnimationController _scanSettingsController;
-  late final Animation<double> _scanSettingsRotation;
   late final AnimationController _vinylController;
 
   final ValueNotifier<ScanProgress?> _scanProgressNotifier = ValueNotifier(
@@ -59,13 +58,6 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   @override
   void initState() {
     super.initState();
-    _scanSettingsController = AnimationController(
-      duration: AppConstants.animationFast,
-      vsync: this,
-    );
-    _scanSettingsRotation = Tween<double>(begin: 0, end: 0.5).animate(
-      CurvedAnimation(parent: _scanSettingsController, curve: Curves.easeInOut),
-    );
     _vinylController = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: this,
@@ -78,7 +70,6 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   @override
   void dispose() {
     _scanProgressNotifier.dispose();
-    _scanSettingsController.dispose();
     _vinylController.dispose();
     _scanStopwatch.stop();
     super.dispose();
@@ -622,74 +613,63 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   Widget _buildLibraryInfo() {
-    return Padding(
-      padding: const EdgeInsets.all(AppConstants.spacingMd),
-      child: Row(
-        children: [
-          Container(
-            width: context.scaleSize(AppConstants.containerSizeSm),
-            height: context.scaleSize(AppConstants.containerSizeSm),
-            decoration: BoxDecoration(
-              color: AppColors.glassBackgroundStrong,
-              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-            ),
-            child: Icon(
-              LucideIcons.music,
-              color: AppColors.textSecondary,
-              size: context.responsiveIcon(AppConstants.iconSizeMd),
-            ),
-          ),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Library',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: context.adaptiveTextPrimary,
-                  ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _folders.isEmpty
+            ? null
+            : () => setState(() => _libraryExpanded = !_libraryExpanded),
+        child: Padding(
+          padding: const EdgeInsets.all(AppConstants.spacingMd),
+          child: Row(
+            children: [
+              Container(
+                width: context.scaleSize(AppConstants.containerSizeSm),
+                height: context.scaleSize(AppConstants.containerSizeSm),
+                decoration: BoxDecoration(
+                  color: AppColors.glassBackgroundStrong,
+                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '$_songCount songs in ${_folders.length} ${_folders.length == 1 ? 'folder' : 'folders'}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
+                child: Icon(
+                  LucideIcons.music,
+                  color: AppColors.textSecondary,
+                  size: context.responsiveIcon(AppConstants.iconSizeMd),
                 ),
-              ],
-            ),
-          ),
-          if (_folders.isNotEmpty)
-            PopupMenuButton<String>(
-              icon: Icon(
-                LucideIcons.chevronDown,
-                color: context.adaptiveTextSecondary,
-                size: 20,
               ),
-              tooltip: 'View scanned folders',
-              itemBuilder:
-                  (context) => _folders
-                      .map(
-                        (folder) => PopupMenuItem<String>(
-                          value: folder.uri,
-                          child: Row(
-                            children: [
-                              Icon(
-                                LucideIcons.folder,
-                                size: 18,
-                                color: context.adaptiveTextSecondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(folder.displayName),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
-              onSelected: (_) {},
-            ),
-        ],
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Library',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: context.adaptiveTextPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$_songCount songs in ${_folders.length} ${_folders.length == 1 ? 'folder' : 'folders'}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.adaptiveTextTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_folders.isNotEmpty)
+                AnimatedRotation(
+                  turns: _libraryExpanded ? 0.5 : 0,
+                  duration: AppConstants.animationNormal,
+                  child: Icon(
+                    LucideIcons.chevronDown,
+                    color: context.adaptiveTextSecondary,
+                    size: 20,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -815,14 +795,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {
-              setState(() => _scanSettingsExpanded = !_scanSettingsExpanded);
-              if (_scanSettingsExpanded) {
-                _scanSettingsController.forward();
-              } else {
-                _scanSettingsController.reverse();
-              }
-            },
+            onTap: () =>
+                setState(() => _scanSettingsExpanded = !_scanSettingsExpanded),
             child: Padding(
               padding: const EdgeInsets.all(AppConstants.spacingMd),
               child: Row(
@@ -861,8 +835,9 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       ],
                     ),
                   ),
-                  RotationTransition(
-                    turns: _scanSettingsRotation,
+                  AnimatedRotation(
+                    turns: _scanSettingsExpanded ? 0.5 : 0,
+                    duration: AppConstants.animationNormal,
                     child: Icon(
                       LucideIcons.chevronDown,
                       color: context.adaptiveTextTertiary,
@@ -874,76 +849,86 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             ),
           ),
         ),
-        SizeTransition(
-          sizeFactor: _scanSettingsController,
-          child: Column(
-            children: [
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.scanSearch,
-                title: 'Filter Non-Music Files & Folders',
-                subtitle:
-                    'Skip unsupported files and hidden .nomedia directories',
-                value: prefs.filterNonMusicFilesAndFolders,
-                onChanged: (value) {
-                  ref
-                      .read(libraryScanPreferencesProvider.notifier)
-                      .setFilterNonMusicFilesAndFolders(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.fileMinus,
-                title: 'Ignore Tracks Under 500 KB',
-                subtitle: 'Exclude tiny clips, previews, and accidental scraps',
-                value: prefs.ignoreTracksSmallerThan500Kb,
-                onChanged: (value) {
-                  ref
-                      .read(libraryScanPreferencesProvider.notifier)
-                      .setIgnoreTracksSmallerThan500Kb(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.timerOff,
-                title: 'Ignore Tracks Under 60 Seconds',
-                subtitle: 'Hide short stingers, ringtones, and voice fragments',
-                value: prefs.ignoreTracksShorterThan60Seconds,
-                onChanged: (value) {
-                  ref
-                      .read(libraryScanPreferencesProvider.notifier)
-                      .setIgnoreTracksShorterThan60Seconds(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.listMusic,
-                title: 'Import M3U/M3U8 Playlists',
-                subtitle:
-                    'Create or refresh playlists found inside scanned folders',
-                value: prefs.createPlaylistsFromM3uFiles,
-                onChanged: (value) {
-                  ref
-                      .read(libraryScanPreferencesProvider.notifier)
-                      .setCreatePlaylistsFromM3uFiles(value);
-                },
-              ),
-              if (Platform.isAndroid) ...[
-                const SettingsDivider(),
-                ToggleSetting(
-                  icon: LucideIcons.hardDrive,
-                  title: 'Deep Scan',
-                  subtitle:
-                      'Use filesystem-level scanning instead of MediaStore for full tag accuracy',
-                  value: prefs.useDeepScan,
-                  onChanged: (value) {
-                    ref
-                        .read(libraryScanPreferencesProvider.notifier)
-                        .setUseDeepScan(value);
-                  },
-                ),
-              ],
-            ],
+        AnimatedSize(
+          duration: AppConstants.animationNormal,
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: AnimatedOpacity(
+            duration: AppConstants.animationNormal,
+            opacity: _scanSettingsExpanded ? 1.0 : 0.0,
+            child: _scanSettingsExpanded
+                ? Column(
+                    children: [
+                      const SettingsDivider(),
+                      ToggleSetting(
+                        icon: LucideIcons.scanSearch,
+                        title: 'Filter Non-Music Files & Folders',
+                        subtitle:
+                            'Skip unsupported files and hidden .nomedia directories',
+                        value: prefs.filterNonMusicFilesAndFolders,
+                        onChanged: (value) {
+                          ref
+                              .read(libraryScanPreferencesProvider.notifier)
+                              .setFilterNonMusicFilesAndFolders(value);
+                        },
+                      ),
+                      const SettingsDivider(),
+                      ToggleSetting(
+                        icon: LucideIcons.fileMinus,
+                        title: 'Ignore Tracks Under 500 KB',
+                        subtitle:
+                            'Exclude tiny clips, previews, and accidental scraps',
+                        value: prefs.ignoreTracksSmallerThan500Kb,
+                        onChanged: (value) {
+                          ref
+                              .read(libraryScanPreferencesProvider.notifier)
+                              .setIgnoreTracksSmallerThan500Kb(value);
+                        },
+                      ),
+                      const SettingsDivider(),
+                      ToggleSetting(
+                        icon: LucideIcons.timerOff,
+                        title: 'Ignore Tracks Under 60 Seconds',
+                        subtitle:
+                            'Hide short stingers, ringtones, and voice fragments',
+                        value: prefs.ignoreTracksShorterThan60Seconds,
+                        onChanged: (value) {
+                          ref
+                              .read(libraryScanPreferencesProvider.notifier)
+                              .setIgnoreTracksShorterThan60Seconds(value);
+                        },
+                      ),
+                      const SettingsDivider(),
+                      ToggleSetting(
+                        icon: LucideIcons.listMusic,
+                        title: 'Import M3U/M3U8 Playlists',
+                        subtitle:
+                            'Create or refresh playlists found inside scanned folders',
+                        value: prefs.createPlaylistsFromM3uFiles,
+                        onChanged: (value) {
+                          ref
+                              .read(libraryScanPreferencesProvider.notifier)
+                              .setCreatePlaylistsFromM3uFiles(value);
+                        },
+                      ),
+                      if (Platform.isAndroid) ...[
+                        const SettingsDivider(),
+                        ToggleSetting(
+                          icon: LucideIcons.hardDrive,
+                          title: 'Deep Scan',
+                          subtitle:
+                              'Use filesystem-level scanning instead of MediaStore for full tag accuracy',
+                          value: prefs.useDeepScan,
+                          onChanged: (value) {
+                            ref
+                                .read(libraryScanPreferencesProvider.notifier)
+                                .setUseDeepScan(value);
+                          },
+                        ),
+                      ],
+                    ],
+                  )
+                : const SizedBox.shrink(),
           ),
         ),
       ],
@@ -1054,15 +1039,27 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 _buildScanningIndicator(),
                 const SettingsDivider(),
               ],
-              ..._folders.map(
-                (folder) => Column(
-                  children: [
-                    _buildFolderItem(folder),
-                    if (_folders.last != folder) const SettingsDivider(),
-                  ],
+              AnimatedSize(
+                duration: AppConstants.animationNormal,
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: AnimatedOpacity(
+                  duration: AppConstants.animationNormal,
+                  opacity: _libraryExpanded ? 1.0 : 0.0,
+                  child: _libraryExpanded && _folders.isNotEmpty
+                      ? Column(
+                          children: [
+                            for (final folder in _folders) ...[
+                              _buildFolderItem(folder),
+                              if (_folders.last != folder)
+                                const SettingsDivider(),
+                            ],
+                            const SettingsDivider(),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ),
-              if (_folders.isNotEmpty) const SettingsDivider(),
               ActionButton(
                 icon: LucideIcons.folderPlus,
                 title: 'Add Music Folder',
