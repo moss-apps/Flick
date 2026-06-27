@@ -16,4 +16,7 @@
 
     <string name="widget_flagship_name">Flick Player 4×3</string>
     <string name="widget_flagship_desc">Full player with album art and controls</string>
+
+    <string name="widget_compact_name">Flick Player 2×2</string>
+    <string name="widget_compact_desc">Title and artist with transport controls</string>
 </resources>
