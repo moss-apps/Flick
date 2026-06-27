@@ -30,9 +30,9 @@ class CompactWidgetProvider : AppWidgetProvider() {
             ?: context.getString(R.string.widget_nothing_playing)
         val artist = prefs.getString(WidgetPrefs.KEY_ARTIST, "") ?: ""
         val artPath = prefs.getString(WidgetPrefs.KEY_ALBUM_ART, "") ?: ""
-        val showArt = WidgetPrefs.getShowAlbumArt(context)
-        val showArtist = WidgetPrefs.getShowArtist(context)
-        val accentColor = WidgetPrefs.getAccentColor(context)
+        val showArt = WidgetPrefs.getCompactShowAlbumArt(context)
+        val showArtist = WidgetPrefs.getCompactShowArtist(context)
+        val accentColor = WidgetPrefs.getCompactAccentColor(context)
 
         val dm = context.resources.displayMetrics
 
@@ -102,7 +102,7 @@ class CompactWidgetProvider : AppWidgetProvider() {
     }
 
     private fun RemoteViews.applyBackground(context: Context) {
-        val bgRes = WidgetPrefs.getBackgroundDrawableRes(context)
+        val bgRes = WidgetPrefs.getCompactBackgroundDrawableRes(context)
         setInt(R.id.compact_root, "setBackgroundResource", bgRes)
     }
 
