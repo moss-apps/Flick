@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -9,6 +11,7 @@ import 'package:flick/services/milestone_service.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/milestone/widgets/milestone_card.dart';
+import 'package:flick/features/milestone/widgets/streak_popup.dart';
 
 /// Achievement-style collection view of every milestone tier. Unlocked tiles
 /// re-open the celebration card on tap; locked tiles show a small bottom
@@ -140,18 +143,53 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
         horizontal: AppConstants.spacingLg,
         vertical: AppConstants.spacingMd,
       ),
-      itemCount: cats.length,
+      itemCount: cats.length + 1,
       itemBuilder: (context, index) {
-        final cat = cats[index];
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppConstants.spacingMd),
+            child: _StreakBanner(
+              streak: _current[MilestoneCategory.dayStreak] ?? 0,
+              onTap: _showStreakDialog,
+            ),
+          );
+        }
+        final cat = cats[index - 1];
         return Padding(
           padding: EdgeInsets.only(
-            bottom: index < cats.length - 1 ? AppConstants.spacingMd : 0,
+            bottom: index - 1 < cats.length - 1 ? AppConstants.spacingMd : 0,
           ),
           child: _CategorySection(
             category: cat,
             records: _records,
             current: _current,
             onTileTap: _handleTileTap,
+          ),
+        );
+      },
+    );
+  }
+
+  void _showStreakDialog() {
+    final streak = _current[MilestoneCategory.dayStreak] ?? 0;
+    if (streak < 1) return;
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Day streak',
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.9, end: 1.0).animate(
+              CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
+            ),
+            child: StreakPopup(
+              streak: streak,
+              onSnooze: () => _service.snoozeStreakPopup(),
+            ),
           ),
         );
       },
@@ -599,4 +637,209 @@ class _LockedSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+class _StreakBanner extends StatefulWidget {
+  const _StreakBanner({required this.streak, this.onTap});
+
+  final int streak;
+  final VoidCallback? onTap;
+
+  @override
+  State<_StreakBanner> createState() => _StreakBannerState();
+}
+
+class _StreakBannerState extends State<_StreakBanner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _sweep;
+
+  @override
+  void initState() {
+    super.initState();
+    _sweep = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _sweep.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final streak = widget.streak;
+    final nextTier = MilestoneType.values
+        .where((t) =>
+            t.category == MilestoneCategory.dayStreak && t.threshold > streak)
+        .toList()
+      ..sort((a, b) => a.threshold.compareTo(b.threshold));
+    final next = nextTier.isEmpty ? null : nextTier.first;
+
+    return AnimatedBuilder(
+      animation: _sweep,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: _BorderSweepPainter(
+            progress: _sweep.value,
+            radius: AppConstants.radiusLg,
+            color: AppColors.accent,
+          ),
+          child: child,
+        );
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          child: Container(
+            padding: const EdgeInsets.all(AppConstants.spacingLg),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.surface.withValues(alpha: 0.8),
+                  AppColors.surfaceDark.withValues(alpha: 0.8),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+              border: Border.all(
+                color: AppColors.accent.withValues(alpha: 0.15),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.accent.withValues(alpha: 0.1),
+                    border: Border.all(
+                      color: AppColors.accent.withValues(alpha: 0.25),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    LucideIcons.flame,
+                    size: 26,
+                    color: AppColors.accent,
+                  ),
+                ),
+                const SizedBox(width: AppConstants.spacingLg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Current Streak',
+                        style:
+                            Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: context.adaptiveTextTertiary,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '$streak',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: context.adaptiveTextPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: AppConstants.spacingXs),
+                          Text(
+                            streak == 1 ? 'day' : 'days',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                              color: context.adaptiveTextTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (next != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '${next.threshold - streak} more to ${next.title}',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.adaptiveTextTertiary,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  LucideIcons.chevronRight,
+                  size: 18,
+                  color: context.adaptiveTextTertiary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BorderSweepPainter extends CustomPainter {
+  _BorderSweepPainter({
+    required this.progress,
+    required this.radius,
+    required this.color,
+  });
+
+  final double progress;
+  final double radius;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndRadius(
+      rect.deflate(0.75),
+      Radius.circular(radius),
+    );
+
+    final sweep = SweepGradient(
+      startAngle: 0,
+      endAngle: 2 * math.pi,
+      colors: [
+        color.withValues(alpha: 0),
+        color.withValues(alpha: 0),
+        color.withValues(alpha: 0.55),
+        color.withValues(alpha: 0),
+        color.withValues(alpha: 0),
+      ],
+      stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+      transform: GradientRotation(progress * 2 * math.pi),
+    );
+
+    final paint = Paint()
+      ..shader = sweep.createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    canvas.drawRRect(rrect, paint);
+  }
+
+  @override
+  bool shouldRepaint(_BorderSweepPainter old) => old.progress != progress;
 }
