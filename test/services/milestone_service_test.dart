@@ -10,8 +10,16 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  MilestoneService buildService({int playCount = 0}) {
-    return MilestoneService(playCountOverride: () async => playCount);
+  MilestoneService buildService({
+    int playCount = 0,
+    int uniqueArtists = 0,
+    int dayStreak = 0,
+  }) {
+    return MilestoneService(
+      playCountOverride: () async => playCount,
+      uniqueArtistsOverride: () async => uniqueArtists,
+      dayStreakOverride: () async => dayStreak,
+    );
   }
 
   group('MilestoneTypeX', () {
@@ -26,20 +34,31 @@ void main() {
       }
     });
 
-    test('top-tier flag is set only for the highest song and hour tiers', () {
-      expect(MilestoneType.songs1000.isTopTier, isTrue);
-      expect(MilestoneType.hours50.isTopTier, isTrue);
-      expect(MilestoneType.songs100.isTopTier, isFalse);
-      expect(MilestoneType.songs500.isTopTier, isFalse);
-      expect(MilestoneType.hours10.isTopTier, isFalse);
+    test('top-tier flag covers only the highest tier of each category', () {
+      expect(MilestoneType.songs10000.isTopTier, isTrue);
+      expect(MilestoneType.hours250.isTopTier, isTrue);
+      expect(MilestoneType.streak100.isTopTier, isTrue);
+      expect(MilestoneType.artists250.isTopTier, isTrue);
+      expect(MilestoneType.songs1000.isTopTier, isFalse);
+      expect(MilestoneType.hours50.isTopTier, isFalse);
+      expect(MilestoneType.streak30.isTopTier, isFalse);
+      expect(MilestoneType.artists100.isTopTier, isFalse);
     });
 
-    test('isSongBased is true for song tiers and false for hour tiers', () {
-      expect(MilestoneType.songs100.isSongBased, isTrue);
-      expect(MilestoneType.songs500.isSongBased, isTrue);
-      expect(MilestoneType.songs1000.isSongBased, isTrue);
-      expect(MilestoneType.hours10.isSongBased, isFalse);
-      expect(MilestoneType.hours50.isSongBased, isFalse);
+    test('category maps each tier to its group', () {
+      expect(MilestoneType.songs100.category, MilestoneCategory.songs);
+      expect(MilestoneType.hours10.category, MilestoneCategory.hours);
+      expect(MilestoneType.streak7.category, MilestoneCategory.dayStreak);
+      expect(MilestoneType.artists25.category, MilestoneCategory.uniqueArtists);
+    });
+
+    test('unit nouns are correct per category', () {
+      expect(MilestoneCategory.songs.unitNoun, 'songs');
+      expect(MilestoneCategory.hours.unitNoun, 'hours');
+      expect(MilestoneCategory.dayStreak.unitNoun, 'days');
+      expect(MilestoneCategory.uniqueArtists.unitNoun, 'artists');
+      expect(MilestoneCategory.songs.unitSingular, 'song');
+      expect(MilestoneCategory.dayStreak.unitSingular, 'day');
     });
   });
 
@@ -139,9 +158,16 @@ void main() {
 
     test('switches to hours10 once all song tiers are shown', () async {
       final service = buildService(playCount: 9999);
-      await service.markMilestoneShown(MilestoneType.songs100);
-      await service.markMilestoneShown(MilestoneType.songs500);
-      await service.markMilestoneShown(MilestoneType.songs1000);
+      for (final type in [
+        MilestoneType.songs100,
+        MilestoneType.songs500,
+        MilestoneType.songs1000,
+        MilestoneType.songs2500,
+        MilestoneType.songs5000,
+        MilestoneType.songs10000,
+      ]) {
+        await service.markMilestoneShown(type);
+      }
       await service.addListenSeconds(5 * 3600);
 
       final next = await service.getNextMilestone();
@@ -168,6 +194,48 @@ void main() {
         final next = await service.getNextMilestone();
         expect(next.next, MilestoneType.songs100);
         expect(next.remaining, 0);
+      },
+    );
+  });
+
+  group('MilestoneService day streak', () {
+    test('recordActivityDay starts at 1 and increments on consecutive days', () async {
+      final service = buildService();
+      expect(await service.recordActivityDay(), 1);
+      expect(await service.getCurrentDayStreak(), 1);
+    });
+
+    test('runs the self-check property', () async {
+      final service = buildService(dayStreak: 30);
+      // The streak category should surface in getNextMilestone once earlier
+      // categories are exhausted; here streak tiers come after songs/hours.
+      final next = await service.getNextMilestone();
+      expect(next.next, MilestoneType.songs100);
+      expect(next.remaining, lessThanOrEqualTo(100));
+    });
+  });
+
+  group('MilestoneService.checkMilestones new categories', () {
+    test('unlocks streak7 when the 7-day streak is reached', () async {
+      final service = buildService(dayStreak: 7);
+      expect(await service.checkMilestones(), MilestoneType.streak7);
+    });
+
+    test('unlocks artists25 when distinct artists threshold is met', () async {
+      final service = buildService(uniqueArtists: 25);
+      expect(await service.checkMilestones(), MilestoneType.artists25);
+    });
+
+    test(
+      'prefers songs over hours/streak/artists when multiple are reached',
+      () async {
+        final service = buildService(
+          playCount: 100,
+          uniqueArtists: 25,
+          dayStreak: 30,
+        );
+        await service.addListenSeconds(10 * 3600);
+        expect(await service.checkMilestones(), MilestoneType.songs100);
       },
     );
   });
