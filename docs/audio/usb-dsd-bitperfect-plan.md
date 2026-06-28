@@ -1,13 +1,8 @@
 # Bit-Perfect DSD / DoP / Native USB — Phased Plan
 
-Goal: make DSF / DFF / WavPack-DSD play **bit-perfectly** through the
-isochronous USB engine (the `USB_DAC_EXPERIMENTAL` path — the only route that
-bypasses the Android mixer). Scope: `rust/src/uac2/android_direct.rs` and the
-DSD engine in `rust/src/audio/dsd_engine/`.
+Goal: make DSF / DFF / WavPack-DSD play **bit-perfectly** through the isochronous USB engine (the `USB_DAC_EXPERIMENTAL` path — the only route that bypasses the Android mixer). Scope: `rust/src/uac2/android_direct.rs` and the DSD engine in `rust/src/audio/dsd_engine/`.
 
-Status of each phase is tracked below. **Conservative quirk policy**: ship the
-XMOS-standard `DSD_U32_BE` default + runtime overrides; no hardcoded
-unverified device entries (a wrong quirk must never break a working DAC).
+**Conservative quirk policy**: ship the XMOS-standard `DSD_U32_BE` default + runtime overrides; no hardcoded unverified device entries (a wrong quirk must never break a working DAC).
 
 ---
 
@@ -27,7 +22,7 @@ unverified device entries (a wrong quirk must never break a working DAC).
 
 | # | Gap | Severity | Location |
 |---|-----|----------|----------|
-| G1 | Native DSD bookkeeping in wire-rate (88.2k) not byte-rate (352.8k); priming/telemetry 4× off. Robustness, not integrity. | Med | 1201, 830, 4032, 875 |
+| G1 | Native DSD bookkeeping in wire-rate (88.2k) not byte-rate (352.8k); priming/telemetry 4× off. Telemetry error, not data corruption. | Med | 1201, 830, 4032, 875 |
 | G2 | DoP bit-depth hardcoded `24` → DSD512 (needs 32) drops 1 data byte. | High | engine.rs:1414 |
 | G3 | `bit_reverse` + `preferred_subslot` quirk knobs never read. | High | 124, 130, 6285 |
 | G4 | Unified `QUIRK_DATABASE` DSD variants not wired into encode (dead branch 167). | High | 154-174, quirk.rs |
@@ -58,7 +53,7 @@ native ss=4 (BE + LE + bit_reverse), `encode_dop_slots` ss=3 & ss=4, plus
   `DSD_BIT_REVERSE_OVERRIDE` in `output/mod.rs`) for per-device field tuning.
 - Surface in `uac2_preferences_service.dart`.
 
-### Phase 3 — Robustness  ✅ P3.1 complete · P3.2 (G5) deferred
+### Phase 3 — Wire-rate bookkeeping  ✅ P3.1 complete · P3.2 (G5) deferred
 
 - P3.1 (G1) ✅: Native path uses `effective_ring_rate(&playback_format)`
   (`= dsd_bit_rate/8`, byte domain) for `RuntimeStats::new` and render
@@ -85,12 +80,9 @@ native ss=4 (BE + LE + bit_reverse), `encode_dop_slots` ss=3 & ss=4, plus
 
 ## D. Execution order
 
-Phase 1 (P1.1 → P1.3 → P1.2a → P1.2b) → commit golden tests (P4.2 subset) →
-Phase 2 → Phase 3 → Phase 4.
+Phase 1 (P1.1 → P1.3 → P1.2a → P1.2b) → commit golden tests (P4.2 subset) → Phase 2 → Phase 3 → Phase 4.
 
-> All four phases implemented. Host `cargo check` ✓, Android
-> `cargo check --target aarch64-linux-android` ✓, test module compiles+links ✓
-> (on-device run = §E.3). Dart `flutter analyze` ✓. Not yet committed.
+> All four phases implemented. Host `cargo check` ✓, Android `cargo check --target aarch64-linux-android` ✓, test module compiles+links ✓ (on-device run = §E.3). Dart `flutter analyze` ✓. Not yet committed.
 
 ---
 

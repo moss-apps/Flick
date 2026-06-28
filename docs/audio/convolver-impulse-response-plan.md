@@ -1,39 +1,25 @@
 # Convolver / Impulse Response — Phased Plan
 
-Goal: let a user load an **impulse response (IR)** file and convolve
-playback with it — room/hall reverb, headphone crossfeed/speaker
-simulation, cabinet sims, and Oratory1990-style correction IRs. Scope:
-the realtime DSP chain in `rust/src/audio/` plus the FFI surface in
-`rust/src/api/audio_api.rs` and the Flutter EQ/provider layer.
+Load an **impulse response (IR)** file and convolve playback with it — room/hall reverb, headphone crossfeed/speaker simulation, cabinet sims, and correction IRs. Scope: the realtime DSP chain in `rust/src/audio/` plus the FFI surface in `rust/src/api/audio_api.rs` and the Flutter EQ/provider layer.
 
-The convolver slots into the existing FX chain as a sibling of
-`SpatialFx` (`fx.rs`), `Equalizer` (`equalizer.rs`), and `DynamicsChain`
-(`dynamics.rs`). It reuses the same lock-free `try_lock`-in-callback
-pattern and the same command/FFI/persistence shape — no new runtime
-dependencies for v1.
+The convolver slots into the FX chain as a sibling of `SpatialFx` (`fx.rs`), `Equalizer` (`equalizer.rs`), and `DynamicsChain` (`dynamics.rs`). It reuses the same lock-free `try_lock`-in-callback pattern and command/FFI/persistence shape — no new runtime dependencies for v1.
 
-Status tracked below. **Ponytail policy**: ship direct (time-domain)
-convolution with a tap cap in v1 — covers cabinet/crossfeed/correction
-and short-reverb IRs with zero new crates; add partitioned FFT
-convolution only if users load long hall tails and CPU shows it.
+**Ponytail policy**: ship direct (time-domain) convolution with a tap cap in v1 — covers cabinet/crossfeed/correction and short-reverb IRs with zero new crates; add partitioned FFT convolution only if users load long hall tails and CPU shows it.
 
 ---
 
-## A. What the user means by "convolver / impulse response"
+## A. What "convolver / impulse response" means
 
-An IR is the recorded acoustic signature of a space or device. Convolution
-with it makes playback sound as if it was played through that space/device.
-Common IR classes this must support:
+An IR is the recorded acoustic signature of a space or device. Convolution with it makes playback sound as if played through that space/device. IR classes to support:
 
 | Class | Typical IR length | Channels | Why |
 |-------|-------------------|----------|-----|
-| Room / hall reverb | 0.3–4 s (14k–192k taps @48k) | stereo | The headline ask — "make it sound like a concert hall". |
-| Headphone crossfeed / speaker sim | <50 ms (<2.4k taps) | stereo | Crossfeed correction, speaker-in-room emulation. |
-| Cabinet / amp sim | 0.5–20 ms (24–1k taps) | mono | Guitar/bass cabinet emulation. |
-| EQ / correction (Oratory1990, AutoEq IR) | <10 ms (<480 taps) | mono/stereo | Frequency-response correction turned into an FIR. |
+| Room / hall reverb | 0.3–4 s (14k–192k taps @48k) | stereo | "make it sound like a concert hall" |
+| Headphone crossfeed / speaker sim | <50 ms (<2.4k taps) | stereo | Crossfeed correction, speaker-in-room emulation |
+| Cabinet / amp sim | 0.5–20 ms (24–1k taps) | mono | Guitar/bass cabinet emulation |
+| EQ / correction (Oratory1990, AutoEq IR) | <10 ms (<480 taps) | mono/stereo | Frequency-response correction as FIR |
 
-A v1 that handles **mono and stereo IRs up to a tap cap** covers all but the
-longest hall reverbs; the cap is the ponytail ceiling we name explicitly.
+A v1 that handles **mono and stereo IRs up to the tap cap** covers all but the longest hall reverbs.
 
 ---
 
@@ -44,19 +30,13 @@ longest hall reverbs; the cap is the ponytail ceiling we name explicitly.
 | **Direct (time-domain) convolution** | O(M) MACs (M = IR taps) | ~8k–16k taps (~170–340 ms tail) | none | **v1.** Covers crossfeed, cabinet, correction, short reverb. Zero algorithmic latency. |
 | **Partitioned FFT (overlap-save)** | O(log M) amortised | seconds-long tails | `rustfft` (+ `realfft` for real-input optimisation) | Only if users load long hall/cathedral IRs and direct convolution xruns. |
 
-Direct convolution is a textbook FIR: `y[n] = Σ h[k]·x[n−k]`. The engine
-already runs biquad chains, dynamics, and a multi-tap delay network per
-sample with `try_lock` Mutexes; a capped direct convolver is the same
-complexity class. **Decision: direct convolution, cap = 16 384 taps**
-(≈341 ms at 48 kHz). The cap is enforced at IR load (truncate + warn),
-with a `// ponytail:` comment naming the FFT upgrade path.
+Direct convolution is a textbook FIR: `y[n] = Σ h[k]·x[n−k]`. The engine already runs biquad chains, dynamics, and a multi-tap delay network per sample with `try_lock` Mutexes; a capped direct convolver is the same complexity class. **Decision: direct convolution, cap = 16 384 taps** (≈341 ms at 48 kHz). The cap is enforced at IR load (truncate + warn), with a `// ponytail:` comment naming the FFT upgrade path.
 
 ---
 
 ## C. DSP chain placement
 
-Current DSP order (`engine.rs:2347-2355` and `2485-2493`, the two callback
-branches — straight path and crossfade/speed path):
+Current DSP order (`engine.rs:2347-2355` and `2485-2493`, the two callback branches):
 
 ```
 sources → crossfader/speed → EQ → FX → dynamics → volume
@@ -68,21 +48,13 @@ Convolver inserts **between FX and dynamics**:
 sources → crossfader/speed → EQ → FX → CONVOLVER → dynamics → volume
 ```
 
-Rationale: a convolver is a time/spatial effect (sits with FX family), and
-it must run **before dynamics** so the existing limiter catches reverb-tail
-peaks and prevents clipping. It runs **after EQ** so tonal shaping happens
-pre-reverb (the natural order; mirrors Web Audio `ConvolverNode` placement).
-
-Both callback branches (`audio_callback`) get the new `try_lock` call
-mirrored in lock-step, exactly like the existing EQ/FX/dynamics triple.
+Rationale: a convolver is a time/spatial effect (FX family), and must run **before dynamics** so the existing limiter catches reverb-tail peaks. It runs **after EQ** so tonal shaping happens pre-reverb (mirrors Web Audio `ConvolverNode` placement). Both callback branches get the new `try_lock` call mirrored in lock-step with EQ/FX/dynamics.
 
 ---
 
 ## D. IR loading pipeline (must never touch the realtime callback)
 
-IR decode is expensive and **must not allocate in the callback**. It runs on
-the command thread (`command_processing_loop`), mirroring how
-`SetEqualizer`/`SetFx` push into the callback via `Mutex`:
+IR decode is expensive and **must not allocate in the callback**. It runs on the command thread (`command_processing_loop`), mirroring how `SetEqualizer`/`SetFx` push into the callback via `Mutex`:
 
 1. **Pick + copy** — Dart copies the chosen IR into the app documents
    directory (same pattern as `album_art_import_service.dart:616`), stores a
@@ -216,7 +188,5 @@ file → graceful error, playback continues dry.
   mono/stereo routing, tap-cap truncation, disabled = passthrough, IR loader
   resample correctness (44.1k IR @ 48k engine). Golden-vector style like the
   existing `fx.rs:212` tests.
-- **Integration:** load IR during playback → no xrun (XRUN_COUNT flat),
-  no drop in the progress stream; toggle off → seamless dry resume.
-- **Manual:** room reverb IR (audible tail), cabinet sim (tone change),
-  crossfeed IR (narrowing on headphones); passthrough mode unaffected.
+- **Integration:** load IR during playback → no xrun (`XRUN_COUNT` flat), no progress-stream drop; toggle off → dry resume.
+- **Manual:** room reverb IR (audible tail), cabinet sim (tone change), crossfeed IR (narrowing on headphones); passthrough mode unaffected.

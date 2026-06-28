@@ -5,10 +5,7 @@
 
 ## Problem Statement
 
-DSD tracks (DSD64 .dsf/.dff) play correctly in **Force DoP** mode at 176,400 Hz / 24-bit.
-When switching to **PCM decimation** mode (Auto/PCM), the output is a brief "tic" followed by silence.
-This blocks the volume control fallback path: DoP cannot apply software gain (corrupts 0x05/0xFA markers),
-and hardware SET_CUR is ignored by the DAC during DSD mode.
+DSD64 `.dsf`/`.dff` plays correctly in **Force DoP** mode at 176,400 Hz / 24-bit. In **PCM decimation** mode (Auto/PCM), output is a brief "tic" then silence. This blocks the volume control fallback: DoP can't apply software gain (corrupts 0x05/0xFA markers), and hardware SET_CUR is ignored by the DAC during DSD mode.
 
 ## Hardware
 
@@ -18,7 +15,7 @@ and hardware SET_CUR is ignored by the DAC during DSD mode.
 
 ## Architecture Overview
 
-```
+```text
 DSD file → DsdDecoderThread → DsdOutputRouter
   ├── PcmDecimation: DsdDecimationPipeline (CIC + FIR) → f32 PCM samples
   └── Dop:           DopPacker (0x05/0xFA markers)      → f32 DoP frames
@@ -104,60 +101,19 @@ For DSD64 → 88,200 Hz:
 - **FIR:** 4x → 88,200 Hz
 - **Cutoff:** 0.125
 
-## Open Questions / Investigation Needed
+## Investigation Log
 
-1. **Is the pipeline actually producing non-zero samples?**
-   - Add logging to `DsdDecimationPipeline::process_bytes` to verify output is non-zero
-   - Check if CIC integrators are saturating or wrapping
+1. **Is the pipeline producing non-zero samples?** Add logging to `DsdDecimationPipeline::process_bytes` — check if CIC integrators are saturating/wrapping, if FIR coefficient sum is normalized.
+2. **Is the ring buffer being fed correctly?** Verify `write_to_ring_buffer` receives non-empty output; check if producer is blocked/stopped prematurely.
+3. **Is the callback consuming from the right source?** The "tic" suggests the first buffer makes it through, then nothing. Could be rate mismatch between `SourceInfo.output_sample_rate` (set to resolved PCM target) and engine callback rate.
+4. **Rate renegotiation with the USB DAC?** Switching from DoP (`transport=PCM/24/3`) to PCM decimation (`transport=PCM/32/4`) changes bit depth and channel count. The DAC may need re-initialization for the new format.
+5. **USB backend re-initialization?** The output signature may not change, so `ensure_rust_engine` might reuse the old engine (configured for DoP 24-bit/3 bytes per frame) instead of re-creating for PCM decimation (32-bit float/4 bytes). May need `reconfigure_sample_rate` or full engine recreation.
+6. **Engine prewarm rate conflict.** Transitioning from PCM (e.g. 44.1 kHz) to DSD, the engine prewarms at DSD target rate. If the previous track's decoder is still running, the callback may consume at the wrong rate. Error: `Unhandled Exception: Rust audio engine is not initialized`.
 
-2. **Is the ring buffer being fed correctly?**
-   - Verify `write_to_ring_buffer` receives non-empty output
-   - Check if the producer is being blocked/stopped prematurely
+## Next Steps
 
-3. **Is the engine callback consuming from the right source?**
-   - The "tic" suggests the first buffer makes it through but then nothing
-   - Could be a rate mismatch between source `output_sample_rate` and engine callback rate
-   - The `SourceInfo.output_sample_rate` is set to the resolved PCM target (176,400 or 88,200)
-   - The engine callback consumes at its own hardware rate
-
-4. **Is there a rate renegotiation issue with the USB DAC?**
-   - When switching from 176.4kHz/24bit (DoP) to 176.4kHz/32bit (PCM decimation), the transport format changes
-   - The DAC may need explicit re-initialization for the new format
-   - Log showed: `transport=PCM/32/4` for Auto vs `transport=PCM/24/3` for DoP
-   - The bit depth and channel count differ — this may require engine re-creation
-
-5. **Is the USB backend being re-initialized for the new format?**
-   - The output signature may not change, so `ensure_rust_engine` might reuse the old engine
-   - The old engine was configured for DoP (24-bit, 3 bytes/frame) but PCM decimation produces 32-bit float
-   - Need to verify if `reconfigure_sample_rate` or full engine recreation is needed
-
-6. **Engine prewarm rate conflict**
-   - When transitioning from a PCM track (e.g., 44.1kHz) to a DSD track, the engine prewarms at the DSD target rate
-   - But if the previous track's decoder is still running, the callback may consume at the wrong rate
-   - Error seen: `Unhandled Exception: Rust audio engine is not initialized` during track switch
-
-## Suggested Next Steps
-
-1. **Add diagnostic logging** to `DsdDecimationPipeline::process_bytes`:
-   - Log first few output sample values (are they zero?)
-   - Log CIC integrator values (are they saturating?)
-   - Log FIR coefficient sum (is the filter normalized?)
-
-2. **Verify ring buffer flow**:
-   - Log `output_buf.len()` after `process_dsd_bytes`
-   - Log `samples_written` in `write_to_ring_buffer`
-   - Check if the ring buffer is being consumed by the callback
-
-3. **Compare transport parameters** between working DoP and broken PCM:
-   - DoP: `transport=PCM/24/3` (24-bit, 3 bytes per frame per channel)
-   - PCM decimation: `transport=PCM/32/4` (32-bit float, 4 bytes per frame)
-   - The USB backend may need to be re-created when the transport format changes
-
-4. **Test with a minimal standalone pipeline**:
-   - Feed known DSD bytes to `DsdDecimationPipeline` in a unit test
-   - Verify output is non-zero and looks like valid PCM
-
-5. **Check if the USB direct backend needs format renegotiation**:
-   - The `android-uac2` backend opens with a specific format at engine creation time
-   - PCM decimation output (f32) vs DoP output (packed 24-bit) may need a different USB configuration
-   - May need to force engine recreation (new output signature) when switching DSD modes
+1. **Diagnostic logging** on `DsdDecimationPipeline::process_bytes`: first output sample values, CIC integrator values, FIR coefficient sum.
+2. **Ring buffer flow**: `output_buf.len()` after `process_dsd_bytes`, `samples_written` in `write_to_ring_buffer`.
+3. **Transport comparison** (DoP vs PCM): `PCM/24/3` vs `PCM/32/4` — USB backend may need re-creation when transport format changes.
+4. **Standalone pipeline test**: feed known DSD bytes to `DsdDecimationPipeline` in a unit test; verify non-zero PCM output.
+5. **USB direct backend format renegotiation**: force engine recreation (new output signature) when switching DSD modes.
