@@ -11,178 +11,161 @@
 </p>
 
 ---
-### Flick is a high-performance music player application built with Flutter and Rust, designed primarily for audiophiles who demand bit-perfect audio playback through external DACs and amplifiers.
+Flick is an Android music player built with Flutter and Rust. The Rust engine handles bit-perfect PCM, native DSD, and DoP output to USB DACs and the DAP internal audio path, with a DSP chain (EQ, convolution reverb, crossfade).
 
-> **GitHub Releases**: Download the latest builds from [GitHub Releases](https://github.com/anomalyco/opencode/releases) or the [Google Play Store](https://play.google.com/store/apps/details?id=com.mossapps.flick).
+> **GitHub Releases**: builds at [GitHub Releases](https://github.com/anomalyco/opencode/releases) or the [Google Play Store](https://play.google.com/store/apps/details?id=com.mossapps.flick).
 
 ## Key Features
 
 ### Audio Engine
-- **Primary**: Custom Rust audio engine with UAC 2.0 support for bit-perfect PCM and native DSD playback through USB DACs/AMPs. DSD bit order handling per source format (LSB/MSB) with quirk-based byte ordering for specific DACs. I32 integer stream support for DoP/DSD transport on DAP internal path.
-- **DAP Bit-Perfect**: High-resolution playback through device's internal DAC via Oboe/AAudio exclusive mode, with device qualification for confirmed bit-perfect DAPs. I32 (integer) stream support for DoP and native DSD transport without format conversion.
-- **Fallback**: `just_audio` for standard audio playback on devices without USB audio support
-- **Audio Processing**: Advanced EQ, dynamics, and spatial/time effects via JustAudioProcessingController on Android
-- **EQ Preset Management**: Import/export functionality for EQ presets in JSON and TXT formats with parametric band support
-- **31-Band Parametric EQ**: Full 1/3-octave ISO frequency equalizer (20 Hz–20 kHz) with horizontal band editors and detail panel
-- **Gapless Playback**: Seamless transitions between tracks without silence
-- **Crossfade Support**: Rust-engine crossfade between tracks with configurable `CrossfadeCurve`; pending configuration is held in atomics and survives engine recreation
-- **Convolver (IR Reverb)**: Direct-time-domain convolution reverb from impulse-response WAV files, with dry/wet mix, integrated into the equalizer (`convolver_enable`, `convolver_mix`, `convolver_load_ir`, `convolver_clear`)
-- **Bluetooth Management**: Dedicated Bluetooth settings screen with A2DP codec info and battery level, low-latency mode (Rust Oboe), pause-on-disconnect, reconnect resume, and Android 12+ connect permission
-- **DSD Playback** (experimental): Native DSD, DoP, and PCM decimation output modes for DSF, DFF, and WavPack DSD files via custom Rust engine. USB direct native DSD with quirk-based byte ordering and multi-byte interleaved payload packing. I32 stream passthrough for DAPs.
-- **Audio Engine Selector**: Manual engine selection from the main menu, with auto-detection fallback
+- Rust audio engine; UAC 2.0 USB DAC support for bit-perfect PCM and native DSD
+- DSD bit order per source format (LSB/MSB); per-DAC quirk overrides (byte order, bit reverse, subslot size) from a unified quirk DB
+- I32 integer AAudio streams for DoP/DSD on DAP internal paths — raw bit patterns, no format conversion
+- DAP bit-perfect via Oboe/AAudio exclusive mode on qualified devices (FiiO, iBasso, HiBy, Shanling, Astell&Kern, Cayin, Sony Walkman)
+- `just_audio` fallback where USB audio is unsupported
+- 31-band parametric EQ (20 Hz–20 kHz, 1/3-octave) with preamp; preset import/export (JSON/TXT)
+- Dynamics (compressor/limiter), spatial/time FX, playback speed (0.5×–2.0×)
+- Convolution reverb from impulse-response WAV files (`convolver_enable`/`convolver_mix`/`convolver_load_ir`/`convolver_clear`)
+- Crossfade between tracks with selectable `CrossfadeCurve`; pending config held in atomics, survives engine recreation
+- Gapless playback
+- Bluetooth: A2DP codec info + battery level, low-latency mode (Rust Oboe), pause-on-disconnect, reconnect resume, Android 12+ connect permission
+- DSD playback (experimental): Native, DoP, PCM decimation for DSF/DFF/WavPack DSD
+- Manual engine selector with auto-detection
 
 ### USB Audio Class 2.0 (UAC 2.0)
-- Custom Rust implementation for USB DAC/AMP detection and enumeration
-- Android-side detection with expanded keyword matching and AudioManager fallback
-- Descriptor parsing for Audio Control and Audio Streaming interfaces
-- Core isochronous transfer engine retained for direct USB access; standard playback routes through Android's native USB DAC handling
-- Hot-plug detection with toast notifications on device connect/stream
-- Bit-perfect PCM audio and native DSD bitstream delivery to external USB DACs
-- **USB Volume Control**: Dedicated volume popup with slider and mute for isochronous USB audio engines
-- **Scoring-Based Backend Selection**: Dynamic output strategy selection with compatibility scoring
-- **DAP Signature Registry**: Device detection via extensible signature registry (brand/models)
-- **Unified Quirk Database**: Per-device DSD transport overrides (byte order, bit order, byte reverse, subslot size) driven from a single quirk DB and synced to the Rust engine before playback (e.g., MOONDROP Dawn Pro). 24-bit USB DoP uses corrected bits-per-frame; UAC2 alt-settings are probed for DSD/DoP capability before stream start
-- **Enabled by Default**: UAC2 feature and multi-byte DSD slots active by default
+- Rust implementation for USB DAC/AMP detection and enumeration
+- Android-side detection with keyword matching and AudioManager fallback
+- Audio Control and Audio Streaming interface descriptor parsing
+- Isochronous transfer engine for direct USB access; standard playback routes through Android's native USB DAC handling
+- Hot-plug detection with toast notifications
+- Bit-perfect PCM and native DSD bitstream delivery to external USB DACs
+- USB volume popup (slider + mute) for isochronous USB engines
+- Scoring-based output strategy selection
+- DAP signature registry for device detection (brand/model)
+- Unified quirk DB: per-device DSD transport overrides (byte order, bit order, byte reverse, subslot size) synced to the Rust engine before playback (e.g. MOONDROP Dawn Pro). 24-bit USB DoP uses corrected bits-per-frame; UAC2 alt-settings probed for DSD/DoP capability before stream start
+- UAC2 feature and multi-byte DSD slots active by default
 
-### Advanced Equalizer & Audio Effects
-- 31-band parametric equalizer with preamp and controls
-- Real-time audio processing with EQ, dynamics, and spatial effects
-- Preset management with import/export functionality (JSON/TXT formats)
-- Spatial and time effects including balance, tempo, damp, filter, delay, size, mix, feedback, and width
-- **Convolution Reverb**: Direct-time-domain convolver loads impulse-response WAV files for IR reverb with dry/wet mix, exposed as a convolver section on the equalizer screen with persistent settings
-- Android-optimized audio processing via JustAudioProcessingController
-- **Visualizer Customization**: Five animation styles (Bars, Wave, Curved Wave, Mirrored, Dots), five frequency modes, three movement styles, and album-dominant-color preview in visualizer settings
+### Equalizer & Audio Effects
+- 31-band parametric EQ with preamp
+- Dynamics (compressor/limiter), spatial and time FX (balance, tempo, damp, filter, delay, size, mix, feedback, width)
+- Preset import/export (JSON/TXT)
+- Convolution reverb (IR WAV files) with dry/wet mix, on the equalizer screen
+- Android processing via `JustAudioProcessingController`
+- Visualizer: five animation styles (Bars, Wave, Curved Wave, Mirrored, Dots), five frequency modes, three movement styles, album-dominant-color preview
 
 ### Library Management
-- MediaStore-based scanning with differential database sync (~34x faster than filesystem walk)
-- **Removable Storage Scanning**: SD card and USB drive folders scannable via Android SAF, with per-volume MediaStore support; `FolderEntity` carries `isRemovable`, `mediaStoreVolume`, and `volumeState`, an external status label on the folder card, inline USB status during deep scans, and graceful unmount handling with an instant SAF scan fallback
-- Background metadata extraction and MediaStore change observer for live updates
-- Metadata extraction (ID3 tags, Vorbis comments) using `lofty` with dedicated DSD parsers (`dsf-meta`, `dff-meta`) for DSF, DFF, and WavPack DSD files
-- Fast library queries via Isar database
-- Browse by songs, albums, artists, folders, playlists, favorites, and recently played
-- **Album List View**: Album browsing list mode with multi-selection actions and a queue-all-songs button
-- **Album Art Import**: Search and import album art from MusicBrainz/Cover Art Archive, iTunes, and Deezer
-- **Delete Songs**: Remove songs from library or delete files entirely
-- **Content URI Support**: Android SAF content URIs are staged to local cache for playback (supports ALAC/AIFF/M4A via WAV conversion)
-- **Rip Log Metadata**: EAC-style rip log metadata (ripper, read mode, AccurateRip, CRCs) stored per track
-- **CUE Sheet Support**: Track offset support for CUE sheet-based files
-- **Duplicate Cleaner**: Built-in duplicate detection and cleanup
-- **Folder Grid View**: Paginated grid of folder cards with infinite scroll when browsing by folder
-- **Swipe Actions**: Swipe left to queue, right to favorite on song cards (toggleable)
-- **Multi-Select**: Long-press to enter batch selection with queue/favorite bulk actions
-- **Metadata Editor**: Full tag editing (title, artist, album, year, genre, track number) via Rust backend with SAF file writing. Tag writes are verified with typed outcomes, metadata is validated before save, the original file is copied to a temp path for safe rollback, and write URI permission is persisted alongside read permission
-- **Album & Folder Sorting**: Sort albums and folders by title, artist, duration, track count with persistent preferences
-- **Artist Detail Redesign**: Riverpod-based screen with dynamic color theming from album art, full-bleed artist image background, tinted app bar, and cached artist metadata via `ArtistEntity` Isar collection
-- **Playlist Detail Redesign**: Dynamic color theming extracted from most-played song's album art, info chips (track count, total duration, dates), "Other Playlists" section, and playlist metadata helpers
+- MediaStore-based scanning with differential DB sync (~34× faster than filesystem walk)
+- Removable storage (SD/USB) scanning via Android SAF with per-volume MediaStore support; `FolderEntity` carries `isRemovable`, `mediaStoreVolume`, `volumeState`; unmount events fall back to instant SAF scan
+- Background metadata extraction; `MediaStoreObserverService` for live updates
+- Metadata via `lofty` (ID3, Vorbis comments) with DSD parsers (`dsf-meta`, `dff-meta`) for DSF/DFF/WavPack DSD
+- Isar database for library queries
+- Browse by songs, albums, artists, folders, playlists, favorites, recently played
+- Album list view with multi-select and queue-all
+- Album art import from MusicBrainz/Cover Art Archive, iTunes, Deezer
+- Delete songs from library or delete files
+- Android SAF content URIs staged to cache for playback (ALAC/AIFF/M4A via WAV conversion)
+- EAC-style rip log metadata (ripper, read mode, AccurateRip, CRCs) per track
+- CUE sheet track offset support
+- Duplicate detection and cleanup
+- Folder grid view with pagination
+- Swipe actions on song cards (queue / favorite; toggleable)
+- Multi-select (long-press) with batch queue/favorite
+- Metadata editor (title, artist, album, year, genre, track) via Rust with SAF writes; verified writes, pre-save validation, temp-file rollback, persisted write URI permission
+- Album/folder sorting (title, artist, duration, track count) with persistent prefs
+- Artist detail: Riverpod, dynamic color theming from album art, full-bleed image, cached `ArtistEntity`
+- Playlist detail: color theming from most-played song's art, info chips, "Other Playlists" section
 
-### Playback Features
-- Shuffle and repeat modes (off, one, all)
-- Playback speed control (0.5x - 2.0x)
+### Playback
+- Shuffle and repeat (off / one / all)
+- Playback speed (0.5×–2.0×)
 - Sleep timer
-- Waveform seek bar for precise navigation
-- **Audio Visualizer**: Real-time FFT-based visualizer with customizable animation styles, frequency focus, and movement modes (real mode via Android Visualizer API + simulated fallback)
-- **Queue Management**: Now Playing / Up Next / Manual queue with multi-select, batch remove, drag to reorder, and swipe to dismiss
-- **Online Lyrics**: Search for synced (LRC) or plain-text lyrics from LRCLib.net
-- **Lyrics Sync Studio**: Built-in timestamp editor with Simple and Advanced modes, time-shift tools, and file import
-- **Immersive Full View**: Auto-hiding controls for full-bleed album art with customizable layout
-- **Vinyl Disc Morph**: Tap album art to morph into a spinning vinyl record with animated transition and radial-gradient disc rendering
-- **Star Ratings**: 1–5 star ratings on songs with animated overlay and persistent storage
-- **Song Sharing**: Share songs as album art, lyric, minimal, or solid color cards — save to gallery or share via apps
-- **Custom Player Action Buttons**: Configure left and right action button slots (rating, share, lyrics, shuffle, etc.)
-- **Milestone Tracking**: Achievement milestones for songs played (100/500/1000) and listening time (10/50 hours) with redesigned celebration cards (per-tier accent color, hero icon, "next milestone" hint) and an in-app collection view (Settings → Milestones) for re-viewing past achievements like a trophy case
-- **Day Streaks & New Tiers**: Consecutive-listening-day streak tracking with a flame-icon popup (and snooze), a unique-artist-count milestone, a new emerald tier, and category-grouped milestones with collapsible sections
+- Waveform seek bar
+- Audio visualizer: FFT-based, real mode via Android Visualizer API + simulated fallback
+- Queue management: Now Playing / Up Next / Manual, multi-select, batch remove, drag reorder, swipe dismiss
+- Online lyrics search (synced LRC or plain text) via LRCLib.net
+- Lyrics Sync Studio: timestamp editor, Simple and Advanced modes, time-shift, file import
+- Immersive full view: auto-hiding controls, full-bleed album art
+- Vinyl disc morph: tap album art to spin a radial-gradient vinyl
+- Star ratings (1–5) with animated overlay
+- Song sharing as album art / lyric / minimal / solid color cards
+- Custom player action buttons (left/right slots: rating, share, lyrics, shuffle, etc.)
+- Milestone tracking: songs played (100/500/1000), listen time (10/50h), per-tier accents, collection view (Settings → Milestones)
+- Day streaks with flame popup + snooze; unique-artist milestone; emerald tier; category-grouped milestones
 
 ### Home Screen Widget
-- **Mini Player Widget**: Native Android widget with album art, progress bar, and transport controls; semi-transparent scrim overlay whose visibility matches album art presence
-- **Compact Widget**: 2×2 `CompactWidgetProvider` widget with track text and transport controls, backed by its own compact-specific preferences tab
-- **Flagship Widget**: Larger card and split-layout widgets with theme support and customizable appearance
-- Works even when the app is killed
-- Customizable background opacity, accent color, and visible content via Settings > Widgets
-- Tabbed widget settings with swipe gestures between tabs and animated transitions
+- Mini player widget: album art, progress bar, transport controls; scrim overlay tracks album art presence
+- Compact 2×2 widget (`CompactWidgetProvider`) with its own preferences tab
+- Flagship widget: larger card and split-layout with theme support
+- Works when the app is killed
+- Customizable background opacity, accent, content visibility (Settings → Widgets)
+- Tabbed widget settings with swipe + animated transitions
 
 ### Flick Replay (Listening Recap)
-- Daily, weekly, monthly, and yearly listening recaps
-- Hero recap cards with total plays, top song, listen time, active days, peak hour
+- Daily, weekly, monthly, yearly recaps
+- Hero cards: total plays, top song, listen time, active days, peak hour
 - Ranked top songs and top artists posters
-- Custom poster backgrounds: default gradient with glowing orbs, blurred album art, or user's camera photos
-- Save recap images to gallery as PNG
+- Poster backgrounds: default gradient, blurred album art, camera photos
+- Save recaps to gallery as PNG
 
 ### Ecosystem Integration
-- **Moss Ecosystem**: Part of the Moss app ecosystem
-- **Latch Integration**: Flick can receive playback handoffs from Latch (another Moss app)
-- **Cross-app Playback**: Songs can be played from external sources via the Latch integration
-- **Shared Infrastructure**: Last.fm scrobbling, adaptive theming, and library scanning are shared across Moss apps
+- Part of the Moss app ecosystem
+- Latch integration: receives playback handoffs from Latch
+- Cross-app playback from external sources via Latch
+- Shared infrastructure: Last.fm scrobbling, adaptive theming, library scanning across Moss apps
 
 ### User Interface
-- Adaptive theme based on album artwork colors
-- Glassmorphism design elements
+- Adaptive theme from album artwork colors
+- Glassmorphism elements
 - Mini player and full player screens
-- Audio visualizer toggle in full player (replaces album art)
-- Support for high refresh rate displays (90Hz/120Hz)
-- Responsive layout for various screen sizes
-- **Immersive Full View**: Auto-hide controls with full-bleed album art
-- **Player Layout Customization**: Artwork card scale, text size, text placement, metadata visibility
-- **Dynamic Nav Bar**: Reorderable bottom navigation with show/hide per button
-- **Fast Index**: Collapsible alphabetical scroll overlay for long lists
-- **Swipe Actions**: Swipe to queue or favorite on song cards
+- Visualizer toggle in full player (replaces album art)
+- High refresh rate support (90 Hz/120 Hz)
+- Responsive layout
+- Immersive full view
+- Player layout customization (artwork scale, text size/placement, metadata visibility)
+- Reorderable bottom nav (show/hide per button)
+- Fast index: collapsible alphabetical scroll overlay
 
 ### In-App Updates
-- **Play Store Integration**: In-app updates via Google Play InAppUpdate API
-- **Automatic Checks**: Scans for Play Store updates when online
-- **Manual Updates**: Settings UI allows scanning for and installing updates
-- **Flexible Updates**: Download updates in the background while using the app
-- **Patch Notes**: Release notes fetched from GitHub Releases API
+- Google Play InAppUpdate API
+- Automatic update checks when online
+- Manual scan/install from settings
+- Flexible (background) updates
+- Patch notes from GitHub Releases API
 
 ### Support & Donations
-- **Support Flick Screen**: In-app donation screen explaining where contributions go (Play Store fees, audio testing equipment, DSD development)
-- **Ko-fi Integration**: Donate via Ko-fi directly from the app
-- **Pulsing Heart Icon**: Heart button in settings header linking to the support screen
+- In-app donation screen (Play Store fees, audio testing gear, DSD development)
+- Ko-fi donations
+- Heart button in settings header
 
 ## Moss Ecosystem
 
-Flick is part of the **Moss ecosystem**, a suite of interconnected apps that share infrastructure and capabilities.
+Flick is part of the **Moss ecosystem** — a suite of interconnected apps sharing infrastructure.
 
-### Apps in the Ecosystem
-- **Flick**: High-performance audiophile music player with UAC 2.0 support
-- **Latch**: [Part of the Moss ecosystem](https://github.com/moss-apps/Latch)
+### Apps
+- **Flick**: audiophile music player with UAC 2.0 support
+- **Latch**: [moss-apps/Latch](https://github.com/moss-apps/Latch)
 
 ### Cross-App Integration
-Flick integrates with other Moss apps through platform channels:
-- **Playback Handoff**: Flick can receive songs from Latch via `ExternalPlaybackService`
-- **Shared Audio Infrastructure**: Audio processing, EQ settings, and library scanning are designed to work consistently across the ecosystem
-- **Last.fm Integration**: Scrobbling works seamlessly regardless of which app initiated the playback
+Flick integrates with other Moss apps via platform channels:
+- **Playback handoff**: receives songs from Latch via `ExternalPlaybackService`
+- **Shared audio infrastructure**: audio processing, EQ, library scanning are shared across Moss apps
+- **Last.fm**: scrobbling continues regardless of which app initiated playback
 
 ### Using Flick with Latch
-When a song is playing in Latch and you want to switch to Flick's advanced audio engine (for EQ, effects, or UAC 2.0 DAC output):
-1. The playback intent is automatically routed to Flick
+To switch a song playing in Latch to Flick's audio engine (EQ, effects, UAC 2.0 DAC):
+1. The playback intent routes to Flick
 2. Flick handles metadata extraction and playback
-3. Last.fm scrobbling continues uninterrupted
+3. Last.fm scrobbling continues
 
-## Future Features
+## Roadmap
 
-- **DSD scanning**: DSF, DFF, and WavPack DSD (.wv) metadata scanning and artwork extraction (complete)
-- **DSD/DSF/DFF/WavPack playback**: engine-level native DSD decoding and playback with Native, DoP, and PCM decimation output modes (experimental)
-- **DSD bit order normalization**: Per-source LSB/MSB detection with global override (complete)
-- **Native DSD USB direct**: Quirk-based isochronous DSD bitstream delivery to external DACs (complete)
 - MQA support
-- Poweramp-style EQ filters, including low-pass
+- Poweramp-style EQ filters (incl. low-pass)
 - Android audio settings
-- Themes and broader UI customization options
-- ~~Album art improvements~~
-- ~~Lyric clickability and sync~~
-- ~~Scrobble settings~~
-- ~~Resampler enhancements~~
-- Advanced audio tweaks
-- ~~Visualizations~~
-- ~~Bluetooth audio settings~~
-- Internal Hi-Res audio settings
+- Internal hi-res audio settings
 - USB audio tweaks
+- Themes and broader UI customization
 - Further performance optimizations
-- ~~Home screen widget~~
-- ~~Online lyrics search~~
-- ~~Lyrics editor~~
-- ~~Queue management overhaul~~
-- ~~Immersive full view~~
 
 ## Technology Stack
 
@@ -204,7 +187,7 @@ When a song is playing in Latch and you want to switch to Flick's advanced audio
 
 ### Backend (Rust)
 | Crate | Purpose |
-|-------|---------|
+|-------|--------|
 | `symphonia` | Audio decoding (MP3, FLAC, WAV, OGG, M4A/ALAC, AIFF) |
 | `rusb` | USB device access (UAC 2.0) |
 | `lofty` | Audio metadata parsing (MP3, FLAC, WAV, OGG, M4A/ALAC, AIFF, WavPack) |
@@ -214,7 +197,7 @@ When a song is playing in Latch and you want to switch to Flick's advanced audio
 | `wavpack-sys` | WavPack DSD decoding (FFI to libwavpack) |
 | `cpal` | Cross-platform audio I/O (Oboe/AAudio on Android) |
 | `oboe` | Low-latency Android audio (CPAL backend) |
-| `rubato` | High-quality sample rate conversion |
+| `rubato` | Sample rate conversion |
 | `rayon` | Parallel processing |
 | `ringbuf` | Lock-free ring buffer |
 | `crossbeam-channel` | Multi-threaded message passing |
@@ -268,7 +251,7 @@ flick_player/
 │   │   ├── widget_sync_service.dart          # Home screen widget state sync
 │   │   ├── bluetooth_service.dart            # Bluetooth device/codec management
 │   │   └── widget_intent_handler.dart        # Widget action dispatch
-│   └── widgets/                 # Reusable widgets (including deprecated UAC2 widgets)
+│   └── widgets/                 # Reusable widgets
 ├── rust/                         # Rust backend
 │   └── src/
 │       ├── api/                  # FFI API bindings
@@ -312,113 +295,79 @@ flick_player/
 ## Getting Started
 
 ### Prerequisites
-
-- Flutter SDK 3.10 or higher
+- Flutter SDK 3.10+
 - Rust toolchain (stable)
 - Android SDK (minSdk 26 / Android 8.0+)
-- USB host support (OTG) for UAC 2.0 support
+- USB host (OTG) for UAC 2.0
 
 ### Installation
-
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd flick_player
-
-# Install Flutter dependencies
 flutter pub get
-
-# Ensure Rust dependencies are available
 cd rust && cargo fetch && cd ..
 ```
 
-### Running the Application
-
+### Running
 ```bash
-# Run in debug mode
-flutter run
-
-# Run on a specific device
-flutter run -d <device-id>
+flutter run                    # debug mode
+flutter run -d <device-id>     # specific device
 ```
 
 ### Building
-
 ```bash
-# Build for Android (debug)
 flutter build apk --debug
-
-# Build for Android (release)
 flutter build apk --release
 ```
 
 ## Platform-Specific Notes
 
 ### Android
+Flick is Android-only. The audio engine selects one of:
 
-Flick is designed exclusively for Android. The application uses a multi-strategy audio engine:
+- **USB Direct**: bit-perfect via the Rust UAC 2.0 isochronous engine through external USB DACs
+- **DAP Native**: hi-res through the internal DAC via Oboe/AAudio exclusive mode on qualified DAPs
+- **Mixer Bit-Perfect**: Android mixer with bit-perfect format matching (Android 14+)
+- **Mixer Matched / Resampled Fallback**: standard mixer paths when exact format matching isn't possible
+- **just_audio fallback**: standard playback where advanced audio is unsupported
 
-- **USB Direct**: Bit-perfect playback through external USB DACs via the custom Rust UAC 2.0 isochronous engine.
-- **DAP Native**: High-resolution playback through the device's internal DAC via Oboe/AAudio exclusive mode, with device qualification for confirmed bit-perfect DAPs.
-- **Mixer Bit-Perfect**: Android mixer path with bit-perfect format matching (Android 14+).
-- **Mixer Matched / Resampled Fallback**: Standard Android mixer paths when exact format matching isn't possible.
-- **just_audio Fallback**: For standard audio playback on devices without advanced audio support.
+UAC 2.0 DAC/AMP detection uses the USB Host API. The pipeline-info and transfer-stats widgets were removed when UAC2 routing shifted to Android's native USB DAC handling. The core UAC2 engine (discovery, descriptor parsing, isochronous transfers) remains in the Rust backend.
 
-UAC 2.0 DAC/AMP detection uses the USB Host API. The pipeline info and transfer stats widgets have been removed as the UAC2 subsystem has been partially deprecated in favor of Android's native audio routing for USB DACs. The core UAC2 engine (device discovery, descriptor parsing, isochronous transfers) remains in the Rust backend.
-
-- **Requirements**: Device must support USB host (OTG). The app declares `android.hardware.usb.host` as optional, so it installs on devices without USB host capability.
-- **Permissions**: When a USB Audio Class 2.0 device is attached, the app can list it and request access. The user must grant permission when prompted. Use `Uac2Service.instance.requestPermission(deviceName)` (on Android, `deviceName` is in `Uac2DeviceInfo.serial` when the device has no serial string).
-- **Device Filter**: Only USB Audio Class 2.0 devices (class 0x01, subclass 0x02, protocol 0x20) are listed.
+- **Requirements**: USB host (OTG). `android.hardware.usb.host` is declared optional, so the app installs on devices without it.
+- **Permissions**: on UAC 2.0 attach, the app lists the device and requests access. Grant when prompted. `Uac2Service.instance.requestPermission(deviceName)` — on Android, `deviceName` is in `Uac2DeviceInfo.serial` when the device has no serial string.
+- **Device filter**: only UAC 2.0 devices (class 0x01, subclass 0x02, protocol 0x20) are listed.
 
 ## Architecture
 
-Flick follows a feature-based architecture with clear separation of concerns:
+Feature-based with separation of concerns:
 
-- **Services Layer**: Business logic for audio playback, library management, and device communication
-- **Providers Layer**: Riverpod providers for reactive state management
-- **Feature Modules**: Self-contained feature implementations with their own screens, widgets, and logic
-- **Rust Backend**: High-performance native code for audio processing and USB device communication
+- **Services**: audio playback, library, device communication
+- **Providers**: Riverpod reactive state
+- **Feature modules**: self-contained screens, widgets, logic
+- **Rust backend**: audio processing and USB via `flutter_rust_bridge`
 
-The Rust backend communicates with Flutter via `flutter_rust_bridge`, providing:
-- Real-time audio engine control
-- Hardware-accelerated audio processing
-- Direct USB device access for UAC 2.0 support
+The Rust backend exposes real-time engine control, audio DSP, and direct USB device access for UAC 2.0.
 
 ## Documentation
 
-Documentation is available in the `docs/` directory:
-- `DOCUMENTATION.md`: Detailed architecture and design documentation
-- `CHANGELOG.md`: Consolidated changelog across all versions
-- `RELEASE_0.20.0-beta.2.md`: Release notes for 0.20.0-beta.2
-- `RELEASE_0.19.1-beta.2.md`: Release notes for 0.19.1-beta.2
-- `RELEASE_0.19.0-beta.1.md`: Release notes for 0.19.0-beta.1
-- `RELEASE_0.18.0-beta.1.md`: Release notes for 0.18.0-beta.1
-- `RELEASE_0.17.0-beta.1.md`: Release notes for 0.17.0-beta.1
-- `RELEASE_0.16.0-beta.1.md`: Release notes for 0.16.0-beta.1
-- `RELEASE_0.15.0-beta.1.md`: Release notes for 0.15.0-beta.1
-- `RELEASE_0.14.0-beta.1.md`: Release notes for 0.14.0-beta.1
-- `DSD_ARCHITECTURE.md`: DSD/DSF/DFF/WavPack playback architecture and engine design
-- `DSD_VOLUME_CONTROL_STATUS.md`: DSD volume control investigation and status
-- `DAC_EXTENSIBILITY.md`: DAC/DAP extensibility guide for developers
-- `UAC2_IMPLEMENTATION_CHECKLIST.md`: Implementation checklist for the UAC 2.0 subsystem
-- `DAP_BIT_PERFECT_OFF_ISSUES.md`: Bit-perfect DAP Internal OFF issues and fixes
-- `hardware_volume_control.md`: Three-tier hardware volume control implementation
-- `LIBRARY_SCAN_ARCHITECTURE.md`: MediaStore + two-phase + event-driven library scanning architecture
-- `scanning_benchmark05092026.md`: Library scanner benchmark results (34x improvement)
-- `ANDROID_7_CRASH.md`: Android 7 crash root cause and minSdk 26 fix
-- `ANDROID_NDK_SETUP.md`: Android NDK setup for Rust libraries
+Architecture and design notes live in [`docs/`](docs/). Release history is in [`CHANGELOG.md`](CHANGELOG.md). Key references:
+
+- [`docs/DSD_ARCHITECTURE.md`](docs/DSD_ARCHITECTURE.md) — DSD/DSF/DFF/WavPack engine
+- [`docs/LIBRARY_SCAN_ARCHITECTURE.md`](docs/LIBRARY_SCAN_ARCHITECTURE.md) — MediaStore + SAF scanner
+- [`docs/uac2/`](docs/uac2/) — USB Audio Class 2.0 subsystem
+- [`docs/hardware_volume_control.md`](docs/hardware_volume_control.md) — three-tier volume control
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
 
-Flick is purely open-source and free. There are no premium features, ads, or paid components.
+Open-source and free. No premium features, ads, or paid components.
 
 ## Contributors
 
-- [@Harleythetech](https://github.com/Harleythetech) (The first ever contributor of Flick)
-- [@MagosVox](https://github.com/MagosVox) (Special contributor - bit-perfect USB DAC expertise)
+- [@Harleythetech](https://github.com/Harleythetech)
+- [@MagosVox](https://github.com/MagosVox) — bit-perfect USB DAC expertise
 
 ## Contributing
 
-Contributions are welcome. Please ensure all changes pass linting and testing before submitting pull requests.
+Contributions welcome. Ensure changes pass linting and testing before opening pull requests.

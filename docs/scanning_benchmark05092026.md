@@ -37,7 +37,7 @@
 
 ## Notes
 
-The new scanner architecture minimizes filesystem traversal and metadata reparsing by leveraging:
+The new scanner architecture minimizes filesystem traversal and metadata reparsing via:
 
 * Android MediaStore indexing
 * Differential database synchronization

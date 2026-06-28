@@ -2,7 +2,7 @@
 
 ## Overview
 
-This checklist outlines the implementation of a custom USB Audio Class 2.0 (UAC 2.0) driver in Rust for the Flick Player music application. The implementation will follow DRY (Don't Repeat Yourself) and SOLID principles, enable DAC/AMP detection, and support bit-perfect audio playback.
+Custom USB Audio Class 2.0 (UAC 2.0) driver in Rust for Flick Player. Covers DAC/AMP detection, bit-perfect playback support, and isochronous USB streaming.
 
 ---
 
@@ -215,22 +215,14 @@ This checklist outlines the implementation of a custom USB Audio Class 2.0 (UAC 
 
 ### 7.1 Error Handling Architecture
 
-- [X] Implement comprehensive error types (`Uac2Error`)
+- [X] Implement error types covering USB permission, device busy, transfer failure, and descriptor parse errors (`Uac2Error`)
 - [X] Add error context and chain support
-- [X] Implement error recovery strategies
-- [X] Add automatic reconnection logic
-- [X] Handle device disconnection gracefully
-- [X] Implement fallback to default audio output
+- [X] Handle device permissions, busy/unavailable errors, disconnection, and fallback to default output
 
 ### 7.2 Logging & Debugging
 
-- [X] Add structured logging throughout UAC2 module
-- [X] Log device discovery events
-- [X] Log descriptor parsing details
-- [X] Log control request/response details
-- [X] Log audio streaming statistics
+- [X] Add structured logging throughout UAC2 module (device discovery, descriptor parsing, control requests, streaming stats)
 - [X] Add debug mode for verbose logging
-- [X] Create logging configuration
 
 ### 7.3 Testing & Validation
 
@@ -404,44 +396,7 @@ This checklist outlines the implementation of a custom USB Audio Class 2.0 (UAC 
 
 ---
 
-## Notes
-
-### Key Design Principles
-
-- **DRY (Don't Repeat Yourself)**: Extract common functionality, use traits and generics, create reusable utilities
-- **SOLID Principles**:
-  - **S**ingle Responsibility: Each module/struct has one clear purpose
-  - **O**pen/Closed: Extensible through traits and composition
-  - **L**iskov Substitution: Proper trait implementations
-  - **I**nterface Segregation: Small, focused traits
-  - **D**ependency Inversion: Depend on abstractions (traits), not concrete types
-
-### Bit-Perfect Requirements
-
-- No sample rate conversion unless absolutely necessary
-- No bit depth conversion unless absolutely necessary
-- No DSP processing (EQ, effects, etc.)
-- Direct passthrough of audio data when format matches
-- Minimal buffering (only for USB transfer requirements)
-
-### USB Audio Class 2.0 Resources
-
-- USB Audio Class 2.0 Specification (USB.org)
-- USB Device Class Definition for Audio Devices Release 2.0
-- USB 2.0 Specification for isochronous transfers
-- Platform-specific USB APIs documentation
-
----
-
-## Estimated Complexity
-
-- **High Complexity**: USB protocol implementation, descriptor parsing, isochronous transfers
-- **Medium Complexity**: Device detection, format negotiation, Flutter integration
-- **Low Complexity**: UI components, state management, documentation
-
----
-
 *Last Updated: 2026-05-09*
 
-> **Note:** The UAC2 pipeline info and transfer stats widgets (and their associated Rust API methods) were removed in commits `d51b784`/`f368367`. The `Uac2ConnectionManager` widget remains active and was updated in commit `d6041d4` to show snackbar toast notifications when a device connects or starts streaming. The core UAC2 engine (device discovery, descriptor parsing, isochronous transfers, hardware volume control) remains active in the Rust backend.
+> UAC2 pipeline info and transfer stats widgets (and their Rust API methods) were removed in commits `d51b784`/`f368367`. The `Uac2ConnectionManager` widget remains active (commit `d6041d4`, snackbar toast on device connect/stream start). Core UAC2 engine (discovery, descriptor parsing, isochronous transfers, hardware volume) remains active in Rust.
 

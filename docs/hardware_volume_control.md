@@ -70,11 +70,10 @@ UI slider → player_service.setVolume()
 ```
 
 Key details:
-- **Optimistic attempt**: No pre-check on `_uac2Service.currentDeviceStatus`. The first volume call on an unknown DAC attempts SET_CUR directly. A STALL or error returns in ~1ms on non-supporting DACs — deterministic and fast. The result is cached in `HwVolumeCapability` (`unknown` → `supported`/`unsupported`).
-- **Cache reset**: `_hwVolumeCap` resets to `unknown` when UAC2 status becomes null (device disconnect), so a new DAC is always probed.
-- Transient handle does **not** claim/release the AudioControl interface — control transfers on endpoint 0 don't need interface claims on Android, and claiming could conflict with the streaming handle.
-- Post-SET_CUR GET_CUR verification compares the readback normalized volume against the expected quantize-then-denormalize result. Tolerance is `(resolution_raw / span) * 0.6` with a 1e-6 floor.
-- Resolution-aware quantization ensures the written i16 value is the closest step to the requested f64 volume.
+- **Optimistic attempt**: No pre-check on `_uac2Service.currentDeviceStatus`. First volume call on an unknown DAC attempts SET_CUR directly. STALL/error returns in ~1ms on non-supporting DACs. Result cached in `HwVolumeCapability` (`unknown` → `supported`/`unsupported`).
+- **Cache reset**: `_hwVolumeCap` resets to `unknown` on UAC2 status null (disconnect) — new DAC always probed.
+- Transient handle does **not** claim/release the AudioControl interface — control transfers on endpoint 0 don't need claims on Android, and claiming could conflict with the streaming handle.
+- Post-SET_CUR GET_CUR verification: tolerance `(resolution_raw / span) * 0.6` with 1e-6 floor. Resolution-aware quantization writes the closest i16 step to the requested f64 volume.
 
 ### Tier 2: DAC lacks hardware volume / hardware SET_CUR failed
 
@@ -87,7 +86,7 @@ UI slider → player_service.setVolume()
   → audio_callback() applies *sample *= volume
 ```
 
-Bypasses EQ/dynamics/crossfade. Single f32 multiply on the output buffer. At f32 precision this is audibly transparent.
+Bypasses EQ/dynamics/crossfade. Single f32 multiply on the output buffer.
 
 ### Tier 3: Android system volume (shared mode)
 
@@ -123,21 +122,17 @@ Five state variables:
 | `_applyRustPlaybackProcessingPolicy()` | Mode switch | `_reconcileVolumeForTier(_determineCurrentTier())` sets correct engine volume |
 | `_handleEngineSwitch()` | Engine change | `await _reconcileVolumeForTier(_determineCurrentTier())` after backend change |
 
-This eliminates drift: each tier transition atomically updates `_activeTier` and sets the engine to the correct volume for that tier.
+This eliminates drift: each transition atomically updates `_activeTier` and sets the engine to the correct volume.
 
 ## Resolved Issues
 
 ### ~~1. `_hasBitPerfectUsbHardwareVolumeControl()` timing~~ — **FIXED**
 
-Replaced by optimistic Tier 1 attempt with `HwVolumeCapability` cache. The old gate checked `_uac2Service.currentDeviceStatus` which updates asynchronously — a stale/null status caused false routing to Tier 2. The new approach:
-- `_shouldAttemptHardwareVolume()` returns `true` for `unknown` and `supported`, `false` only for `unsupported`
-- `_onHwVolumeResult()` caches the result of each SET_CUR attempt
-- Cache resets to `unknown` on device disconnect (`_mirrorUsbHardwareVolumeFromUac2Status` receives null status)
-- No async status propagation in the critical path — SET_CUR itself fails deterministically (~1ms STALL) on non-supporting DACs
+Replaced by optimistic Tier 1 attempt with `HwVolumeCapability` cache. The old gate checked `_uac2Service.currentDeviceStatus` (async, could be stale/null → false routing to Tier 2). New approach: `_shouldAttemptHardwareVolume()` returns `true` for `unknown`/`supported`, `false` only for `unsupported`. Cache resets to `unknown` on disconnect. SET_CUR STALL on non-supporting DACs is deterministic (~1ms).
 
 ### ~~2. `_currentVolume` vs engine volume drift~~ — **FIXED**
 
-Replaced implicit "which tier am I on?" logic with explicit `VolumeTier` tracking and `_reconcileVolumeForTier()` as a single reconciliation point. Every tier transition (SET_CUR result, device disconnect, bit-perfect toggle, engine switch) flows through `_reconcileVolumeForTier()`, which atomically sets `_activeTier` and the engine volume. `_mirrorUsbHardwareVolumeFromUac2Status()` now checks `_activeTier` to decide whether to propagate DAC knob changes to the engine.
+Replaced implicit tier inference with explicit `VolumeTier` tracking + `_reconcileVolumeForTier()` single reconciliation point. `_mirrorUsbHardwareVolumeFromUac2Status()` checks `_activeTier` to decide whether to propagate DAC knob changes.
 
 ## Current Known Issues / Desynchronization Sources
 
@@ -216,8 +211,8 @@ if volume != 1.0 {
 
 ## Design History
 
-- **Transient handle claim/release removed** (commit `2781fc2`): `android_direct_set_hardware_volume` and `android_direct_set_hardware_mute` previously called `ensure_interface_claimed`/`release_claimed_interfaces` on the transient handle. Since both handles share the same Android USB FD, the release could tear down the AudioControl interface claim from under the streaming handle. Control transfers on endpoint 0 don't require interface claims on Android, so these calls were removed entirely.
-- **GET_CUR post-write verification** (commit `2781fc2`): After SET_CUR, a GET_CUR readback compares normalized volume to the expected value. Mismatch beyond resolution-aware tolerance returns an error, triggering Tier 2 software fallback.
-- **`Uac2VolumeMode.software`** (commit `9a8b053`): Added to distinguish DAC hardware volume from Rust engine software fallback in route status. When a direct USB DAC is registered but no hardware volume controls are reported, the route parser overrides to `software` mode with `hasVolumeControl=true` and `volumeControlWritable=true`, enabling the correct Dart-side routing.
-- **Optimistic Tier 1 with capability cache**: Replaced `_hasBitPerfectUsbHardwareVolumeControl()` (which checked async status that could be stale/null) with `HwVolumeCapability` cache (`unknown`/`supported`/`unsupported`). Default is `unknown` → always attempts SET_CUR on first call. Cache resets on device disconnect. SET_CUR STALL on non-supporting DACs is fast (~1ms) and deterministic. `_shouldAttemptHardwareVolume()` only returns `false` for `unsupported` (cached from a previous failed attempt), skipping the USB transfer entirely for known-unsupported DACs.
-- **VolumeTier state machine with reconciliation**: Replaced implicit tier routing (scattered `_hasBitPerfectUsbHardwareVolumeControl()` checks + `_currentVolume` drift) with explicit `VolumeTier` tracking and `_reconcileVolumeForTier()` as the single point that sets engine volume after any tier transition. `_determineCurrentTier()` fresh-evaluates from state. `_activeTier` tracks the current volume path. `_mirrorUsbHardwareVolumeFromUac2Status()` checks `_activeTier` to decide whether to propagate DAC knob changes to the engine.
+- **Transient handle claim/release removed** (`2781fc2`): both handles share the same Android USB FD; release could tear down the AudioControl interface claim from under the streaming handle. Control transfers on endpoint 0 don't require claims on Android.
+- **GET_CUR post-write verification** (`2781fc2`): after SET_CUR, GET_CUR readback compares normalized volume to expected value. Mismatch beyond resolution-aware tolerance → error → Tier 2 fallback.
+- **`Uac2VolumeMode.software`** (`9a8b053`): distinguishes DAC hardware volume from Rust engine software fallback in route status. Direct USB DAC without hardware volume controls → parser overrides to `software` with `hasVolumeControl=true`/`volumeControlWritable=true`.
+- **Optimistic Tier 1 with capability cache**: replaced `_hasBitPerfectUsbHardwareVolumeControl()` (async status, stale-prone) with `HwVolumeCapability` cache. Default `unknown` → always probes SET_CUR first. STALL on non-supporting DACs is ~1ms/deterministic. `_shouldAttemptHardwareVolume()` skips only for `unsupported` (cached from prior failure).
+- **VolumeTier state machine**: replaced implicit tier routing (scattered `_hasBitPerfectUsbHardwareVolumeControl()` checks + `_currentVolume` drift) with explicit `VolumeTier` tracking + `_reconcileVolumeForTier()` single point.
