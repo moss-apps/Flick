@@ -381,6 +381,7 @@ class _FloatingMiniVisualizer extends ConsumerWidget {
         animationStyle: appPrefs.visualizerAnimationStyle,
         frequencyMode: appPrefs.visualizerFrequencyMode,
         movementMode: appPrefs.visualizerMovementMode,
+        enabled: appPrefs.visualizerEnabled,
       ),
     );
   }

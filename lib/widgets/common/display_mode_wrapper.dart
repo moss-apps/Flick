@@ -1,7 +1,9 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/services/display_mode_service.dart';
 
-class DisplayModeWrapper extends StatefulWidget {
+class DisplayModeWrapper extends ConsumerStatefulWidget {
   final Widget child;
   final bool enableOnMount;
 
@@ -12,10 +14,11 @@ class DisplayModeWrapper extends StatefulWidget {
   });
 
   @override
-  State<DisplayModeWrapper> createState() => _DisplayModeWrapperState();
+  ConsumerState<DisplayModeWrapper> createState() =>
+      _DisplayModeWrapperState();
 }
 
-class _DisplayModeWrapperState extends State<DisplayModeWrapper>
+class _DisplayModeWrapperState extends ConsumerState<DisplayModeWrapper>
     with WidgetsBindingObserver {
   final DisplayModeService _displayModeService = DisplayModeService();
 
@@ -23,8 +26,10 @@ class _DisplayModeWrapperState extends State<DisplayModeWrapper>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ref.listenManual(appPreferencesProvider.select((p) => p.refreshRateMode),
+        (_, __) => _applyRefreshRate());
     if (widget.enableOnMount) {
-      _setHighRefreshRate();
+      _applyRefreshRate();
     }
   }
 
@@ -37,12 +42,20 @@ class _DisplayModeWrapperState extends State<DisplayModeWrapper>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _setHighRefreshRate();
+      _applyRefreshRate();
     }
   }
 
-  Future<void> _setHighRefreshRate() async {
-    await _displayModeService.setHighRefreshRate();
+  Future<void> _applyRefreshRate() async {
+    final mode = ref.read(appPreferencesProvider).refreshRateMode;
+    switch (mode) {
+      case 'standard':
+        await _displayModeService.setLowRefreshRate();
+      case 'adaptive':
+        break;
+      default:
+        await _displayModeService.setHighRefreshRate();
+    }
   }
 
   @override
