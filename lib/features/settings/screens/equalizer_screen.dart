@@ -21,6 +21,7 @@ import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/services/eq_preset_file_service.dart';
 import 'package:flick/services/eq_preset_service.dart';
 import 'package:flick/services/equalizer_service.dart';
+import 'package:flick/features/settings/screens/widgets/autoeq_search_sheet.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/widgets/common/rotary_knob.dart';
 
@@ -511,6 +512,23 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  Future<void> _openAutoEqSheet() async {
+    final entry = await showAutoEqSearchSheet(context);
+    if (entry == null) return;
+    ref.read(equalizerProvider.notifier).applyPreset(
+          presetName: entry.displayName,
+          enabled: true,
+          mode: EqMode.parametric,
+          preampDb: entry.preampDb,
+          graphicGainsDb: List<double>.filled(10, 0.0, growable: false),
+          parametricBands: entry.bands,
+        );
+    if (mounted) {
+      Navigator.of(context).pop();
+      _showMessage('Applied AutoEQ for ${entry.displayName}');
+    }
+  }
+
   Future<void> _saveNewPreset() async {
     final name = await _askForName(context);
     if (name == null) return;
@@ -786,6 +804,13 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
                 title: 'Export current preset',
                 subtitle: 'Save the current EQ as JSON or TXT',
                 onTap: _exportCurrentPreset,
+              ),
+              _Divider(),
+              _PresetActionRow(
+                icon: LucideIcons.headphones,
+                title: 'AutoEQ headphones',
+                subtitle: 'Match EQ to your headphone model',
+                onTap: _openAutoEqSheet,
               ),
             ],
           ),
