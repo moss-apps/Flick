@@ -2801,7 +2801,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 child: _AnimatedSongScene(
                   song: song,
                   lyricsMode: _isLyricsMode,
-                  visualizationMode: _isVisualizationMode,
+                  visualizationMode: _isVisualizationMode && appPrefs.visualizerEnabled,
                   immersiveFullView: _isImmersiveFullView,
                   playerScreenMode: _playerScreenMode,
                   albumColorMode: colorMode,
