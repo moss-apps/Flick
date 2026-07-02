@@ -479,6 +479,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setFloatingPlayerEnabled(value);
   }
 
+  Future<void> setFloatingIslandEnabled(bool value) async {
+    if (state.floatingIslandEnabled == value) return;
+    state = state.copyWith(floatingIslandEnabled: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setFloatingIslandEnabled(value);
+  }
+
   Future<void> setAutoFocusSearch(bool value) async {
     if (state.autoFocusSearch == value) return;
     state = state.copyWith(autoFocusSearch: value);
