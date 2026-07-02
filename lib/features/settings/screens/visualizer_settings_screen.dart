@@ -18,6 +18,20 @@ class VisualizerSettingsScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SettingsSectionHeader('Visualizer'),
+          SettingsCard(
+            children: [
+              ToggleSetting(
+                icon: LucideIcons.activity,
+                title: 'Visualizer',
+                subtitle: 'Show the audio visualizer (off saves battery)',
+                value: prefs.visualizerEnabled,
+                onChanged: (value) =>
+                    notifier.setVisualizerEnabled(value),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
           const SettingsSectionHeader('Animation Style'),
           SettingsCard(
             children: [
