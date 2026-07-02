@@ -1044,6 +1044,7 @@ class _EmbeddedMiniPlayerState extends ConsumerState<_EmbeddedMiniPlayer> {
         frequencyMode: appPrefs.visualizerFrequencyMode,
         movementMode: appPrefs.visualizerMovementMode,
         albumColor: albumColor,
+        enabled: appPrefs.visualizerEnabled,
       ),
     );
   }
