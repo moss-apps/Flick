@@ -55,6 +55,8 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
                   value,
                 ),
               ),
+              const SettingsDivider(),
+              _WrapAroundQueueTile(playerService: playerService),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
@@ -171,6 +173,31 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppConstants.navBarHeight + 40),
         ],
       ),
+    );
+  }
+}
+
+class _WrapAroundQueueTile extends StatelessWidget {
+  const _WrapAroundQueueTile({required this.playerService});
+
+  final PlayerService playerService;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: playerService.wrapAroundQueueNotifier,
+      builder: (context, _) {
+        final enabled = playerService.wrapAroundQueueNotifier.value;
+        return ToggleSetting(
+          icon: LucideIcons.refreshCw,
+          title: 'Wrap-around Queue',
+          subtitle: enabled
+              ? 'Songs before the tapped track queue at the end'
+              : 'Stop at the end of the current list',
+          value: enabled,
+          onChanged: (value) => playerService.setWrapAroundQueue(value),
+        );
+      },
     );
   }
 }
