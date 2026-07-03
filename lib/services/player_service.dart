@@ -420,6 +420,10 @@ class PlayerService {
   AdvanceListOrder _advanceListOrder = AdvanceListOrder.alphabetical;
   AdvanceListOrder get advanceListOrder => _advanceListOrder;
 
+  // Wrap-around queue: tapping a song mid-list queues preceding songs at the end.
+  final ValueNotifier<bool> wrapAroundQueueNotifier = ValueNotifier(true);
+  bool get wrapAroundQueue => wrapAroundQueueNotifier.value;
+
   // Category shuffle tracking
   final Set<String> _playedCategoryIds = {};
 
@@ -3445,6 +3449,12 @@ class PlayerService {
     return operation;
   }
 
+  List<Song> _wrapAroundPlaylist(List<Song> songs, Song current) {
+    final start = songs.indexWhere((s) => s.id == current.id);
+    if (start <= 0) return songs;
+    return [...songs.sublist(start), ...songs.sublist(0, start)];
+  }
+
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
     try {
@@ -3457,7 +3467,10 @@ class PlayerService {
       clearAbRepeat();
 
       if (playlist != null) {
-        _replacePlaybackContext(playlist);
+        final sourcePlaylist = wrapAroundQueueNotifier.value
+            ? _wrapAroundPlaylist(playlist, song)
+            : playlist;
+        _replacePlaybackContext(sourcePlaylist);
         _setCurrentIndex(_playlist.indexWhere((entry) => entry.id == song.id));
         if (isShuffleNotifier.value) {
           final shuffled = buildShufflePlaybackOrder(
@@ -3627,6 +3640,8 @@ class PlayerService {
     if (advanceIdx >= 0 && advanceIdx < AdvanceListOrder.values.length) {
       _advanceListOrder = AdvanceListOrder.values[advanceIdx];
     }
+    wrapAroundQueueNotifier.value =
+        await _appPreferencesService.getWrapAroundQueue();
   }
 
   Future<void> restoreLastPlayed() async {
@@ -4729,6 +4744,11 @@ class PlayerService {
   void setAdvanceListOrder(AdvanceListOrder order) {
     _advanceListOrder = order;
     unawaited(_appPreferencesService.setAdvanceListOrder(order.index));
+  }
+
+  void setWrapAroundQueue(bool value) {
+    wrapAroundQueueNotifier.value = value;
+    unawaited(_appPreferencesService.setWrapAroundQueue(value));
   }
 
   Future<void> _advanceForMode(LoopMode mode) async {
