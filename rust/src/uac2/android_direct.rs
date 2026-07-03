@@ -4670,15 +4670,7 @@ fn run_usb_output_loop(
         candidate.service_interval_us,
     );
     let transfer_slot_count = ANDROID_USB_TRANSFER_QUEUE_DEPTH.max(1);
-    let feedback_endpoint = candidate
-        .feedback_endpoint
-        .filter(|feedback| feedback.transfer_type == TransferType::Interrupt);
-    if candidate.feedback_endpoint.is_some() && feedback_endpoint.is_none() {
-        log_info!(
-            "[USB] Skipping live isochronous feedback polling on endpoint 0x{:02x} to keep the libusb event loop single-threaded",
-            candidate.feedback_endpoint.unwrap().address,
-        );
-    }
+    let feedback_endpoint = candidate.feedback_endpoint;
     runtime_stats
         .transfer_queue_depth
         .store(transfer_slot_count, Ordering::Relaxed);
@@ -5002,10 +4994,7 @@ fn read_feedback_report(
 ) -> Result<Option<AndroidUsbFeedbackReport>, String> {
     let raw_bytes = match feedback_endpoint.transfer_type {
         TransferType::Interrupt => read_interrupt_feedback_packet(handle, feedback_endpoint)?,
-        TransferType::Isochronous => {
-            let _ = context;
-            return Ok(None);
-        }
+        TransferType::Isochronous => read_iso_feedback_packet(context, handle, feedback_endpoint)?,
         other => {
             return Err(format!(
                 "Unsupported feedback transfer type {}",
@@ -6755,7 +6744,6 @@ fn submit_iso_transfer(
     }
 }
 
-#[allow(dead_code)]
 fn read_iso_feedback_packet(
     context: &Context,
     handle: &DeviceHandle<Context>,

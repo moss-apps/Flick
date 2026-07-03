@@ -15,6 +15,7 @@ import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/settings/screens/duplicate_cleaner_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/services/library_scan_preferences_service.dart';
 import 'package:flick/services/library_scanner_service.dart';
@@ -47,6 +48,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   bool _isXiaomiDevice = false;
   bool _scanSettingsExpanded = false;
   bool _libraryExpanded = false;
+  int _artworkCacheBytes = -1;
+  bool _isClearingCache = false;
 
   late final AnimationController _vinylController;
 
@@ -65,6 +68,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     _loadLibraryData();
     _syncFoldersToDatabase();
     _loadAndroidDeviceNotices();
+    _refreshCacheSize();
   }
 
   @override
@@ -165,6 +169,68 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     messenger.showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
+  }
+
+  Future<void> _refreshCacheSize() async {
+    final bytes = await AlbumArtService.instance.getCacheSize();
+    if (mounted) setState(() => _artworkCacheBytes = bytes);
+  }
+
+  String get _cacheSizeLabel {
+    if (_isClearingCache) return 'Clearing...';
+    if (_artworkCacheBytes < 0) return 'Calculating size...';
+    return 'Using ${_formatBytes(_artworkCacheBytes)}';
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) return '0 MB';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    var size = bytes.toDouble();
+    var unit = 0;
+    while (size >= 1024 && unit < units.length - 1) {
+      size /= 1024;
+      unit++;
+    }
+    return '${size.toStringAsFixed(size >= 100 || unit == 0 ? 0 : 1)} ${units[unit]}';
+  }
+
+  void _confirmClearArtworkCache() {
+    showDialog(
+      context: context,
+      builder: (context) => GlassDialog(
+        title: 'Clear Artwork Cache?',
+        content: Text(
+          'Cached album art (${_formatBytes(_artworkCacheBytes)}) will be removed. '
+          'Artwork reloads automatically as you browse.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _clearArtworkCache();
+            },
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _clearArtworkCache() async {
+    setState(() => _isClearingCache = true);
+    try {
+      await AlbumArtService.instance.clearCache();
+      await _refreshCacheSize();
+      if (mounted) _showToast('Artwork cache cleared');
+    } catch (e) {
+      if (mounted) _showToast('Failed to clear cache: $e');
+    } finally {
+      if (mounted) setState(() => _isClearingCache = false);
+    }
   }
 
   Future<void> _addFolder() async {
@@ -1084,6 +1150,18 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
               ],
               const SettingsDivider(),
               _buildExpandableScanSettings(libraryScanPreferences),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
+          const SettingsSectionHeader('Storage'),
+          SettingsCard(
+            children: [
+              ActionButton(
+                icon: LucideIcons.image,
+                title: 'Clear Artwork Cache',
+                subtitle: _cacheSizeLabel,
+                onTap: _isClearingCache ? null : _confirmClearArtworkCache,
+              ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),

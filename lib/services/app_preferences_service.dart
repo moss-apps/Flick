@@ -392,6 +392,7 @@ class AppPreferencesService {
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
+  static const _wrapAroundQueueKey = 'playback_wrap_around_queue';
 
   Future<AppPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1028,6 +1029,16 @@ class AppPreferencesService {
   Future<void> setAdvanceListOrder(int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_advanceListOrderKey, value);
+  }
+
+  Future<bool> getWrapAroundQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_wrapAroundQueueKey) ?? true;
+  }
+
+  Future<void> setWrapAroundQueue(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_wrapAroundQueueKey, value);
   }
 
   Future<bool> getKeepPlayingOnQuit() async {

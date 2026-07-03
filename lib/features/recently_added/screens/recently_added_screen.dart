@@ -358,11 +358,13 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
         return aIndex.compareTo(bIndex);
       });
 
-    var itemCount = 0;
+    final rows = <_RecentlyAddedRow>[];
     for (final section in sortedSections) {
-      itemCount += 1 + section.value.length;
+      rows.add(_RecentlyAddedRow.header(section.key, section.value.length));
+      for (final song in section.value) {
+        rows.add(_RecentlyAddedRow.song(song));
+      }
     }
-    if (_isLoadingMore) itemCount += 1;
 
     return ListView.builder(
       controller: _scrollController,
@@ -371,41 +373,31 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
         right: AppConstants.spacingMd,
         bottom: AppConstants.navBarHeight + 120,
       ),
-      itemCount: itemCount,
+      itemCount: rows.length + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
-        var currentIndex = 0;
-        for (final section in sortedSections) {
-          if (index == currentIndex) {
-            return _buildSectionHeader(section.key, section.value.length);
-          }
-          currentIndex++;
-
-          if (index < currentIndex + section.value.length) {
-            final song = section.value[index - currentIndex];
-            return _RecentlyAddedTile(
-              key: ValueKey(
-                'recently_added_${song.id}_${song.dateAdded?.millisecondsSinceEpoch ?? 0}',
-              ),
-              song: song,
-              onTap: () async {
-                await _playerService.play(song);
-                if (context.mounted) {
-                  await NavigationHelper.navigateToFullPlayer(
-                    context,
-                    heroTag: 'recently_added_${song.id}',
-                  );
-                }
-              },
-            );
-          }
-          currentIndex += section.value.length;
-        }
-
-        if (_isLoadingMore && index == currentIndex) {
+        if (index >= rows.length) {
           return _buildLoadMoreIndicator();
         }
-
-        return const SizedBox.shrink();
+        final row = rows[index];
+        if (row.isHeader) {
+          return _buildSectionHeader(row.title!, row.count);
+        }
+        final song = row.song!;
+        return _RecentlyAddedTile(
+          key: ValueKey(
+            'recently_added_${song.id}_${song.dateAdded?.millisecondsSinceEpoch ?? 0}',
+          ),
+          song: song,
+          onTap: () async {
+            await _playerService.play(song);
+            if (context.mounted) {
+              await NavigationHelper.navigateToFullPlayer(
+                context,
+                heroTag: 'recently_added_${song.id}',
+              );
+            }
+          },
+        );
       },
     );
   }
@@ -711,4 +703,16 @@ class _MetadataChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RecentlyAddedRow {
+  const _RecentlyAddedRow.header(this.title, this.count) : song = null;
+  const _RecentlyAddedRow.song(this.song)
+      : title = null,
+        count = 0;
+
+  final String? title;
+  final int count;
+  final Song? song;
+  bool get isHeader => song == null;
 }

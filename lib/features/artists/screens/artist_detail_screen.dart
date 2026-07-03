@@ -68,6 +68,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
     _artistArt = widget.artistArt;
     _artistArtSourcePath = widget.artistArtSourcePath;
     _scrollController.addListener(_onScroll);
+    _buildAlbumGroups();
     _loadExtras();
     _resolveAndSaveArtistArt();
     _extractArtistColor();
@@ -160,7 +161,9 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
     return Color.lerp(_darkBase, _artistColor!, blend)!;
   }
 
-  Map<String, List<Song>> get _albumGroups {
+  late final List<MapEntry<String, List<Song>>> _albumGroups;
+
+  void _buildAlbumGroups() {
     final groups = <String, List<Song>>{};
     for (final song in widget.songs) {
       final album = song.album ?? 'Unknown Album';
@@ -169,7 +172,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
     for (final entry in groups.entries) {
       entry.value.sort(_compareAlbumSongs);
     }
-    return groups;
+    _albumGroups = groups.entries.toList();
   }
 
   static int _compareAlbumSongs(Song a, Song b) {
@@ -293,7 +296,6 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final albumGroups = _albumGroups;
     final bgColor = _tintBackground(_backgroundBlend);
 
     return DisplayModeWrapper(
@@ -360,7 +362,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  '${albumGroups.length} albums • ${widget.songs.length} songs',
+                                  '${_albumGroups.length} albums • ${widget.songs.length} songs',
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall
@@ -410,7 +412,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                       background: _buildAppBarBackground(
                         context,
                         resolvedBg,
-                        albumGroups.length,
+                        _albumGroups.length,
                       ),
                     ),
                   ),
@@ -558,13 +560,13 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                     ),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
-                        final albumEntry = albumGroups.entries.toList()[index];
+                        final albumEntry = _albumGroups[index];
                         return _AlbumSection(
                           albumName: albumEntry.key,
                           songs: albumEntry.value,
                           onSongTap: _playSong,
                         );
-                      }, childCount: albumGroups.length),
+                      }, childCount: _albumGroups.length),
                     ),
                   ),
                 ],

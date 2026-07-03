@@ -1145,27 +1145,37 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   ) {
     return NotificationListener<ScrollNotification>(
       onNotification: (_) => true,
-      child: ListView(
-        padding: EdgeInsets.only(bottom: AppConstants.navBarHeight + 120),
-        children: [
-        if (subfolders.isNotEmpty) ...[
-          _buildSubfolderGrid(context, subfolders),
-          if (songs.isNotEmpty)
-            const SizedBox(height: AppConstants.spacingMd),
-        ],
-        for (final song in songs)
-          Padding(
-            key: ValueKey(song.id),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConstants.spacingLg,
-              vertical: AppConstants.spacingXxs,
+      child: CustomScrollView(
+        slivers: [
+          if (subfolders.isNotEmpty)
+            SliverToBoxAdapter(child: _buildSubfolderGrid(context, subfolders)),
+          if (subfolders.isNotEmpty && songs.isNotEmpty)
+            const SliverToBoxAdapter(
+              child: SizedBox(height: AppConstants.spacingMd),
             ),
-            child: _SongTile(
-              song: song,
-              onTap: () => _playSong(song, songs, subfolders),
+          SliverPadding(
+            padding: EdgeInsets.only(
+              bottom: AppConstants.navBarHeight + 120,
+            ),
+            sliver: SliverList.builder(
+              itemCount: songs.length,
+              itemBuilder: (context, index) {
+                final song = songs[index];
+                return Padding(
+                  key: ValueKey(song.id),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.spacingLg,
+                    vertical: AppConstants.spacingXxs,
+                  ),
+                  child: _SongTile(
+                    song: song,
+                    onTap: () => _playSong(song, songs, subfolders),
+                  ),
+                );
+              },
             ),
           ),
-      ],
+        ],
       ),
     );
   }

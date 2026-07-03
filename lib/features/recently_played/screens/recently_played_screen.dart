@@ -408,13 +408,13 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
         return aIndex.compareTo(bIndex);
       });
 
-    // Compute how many list items we need, including section headers and
-    // the optional bottom loading indicator.
-    var itemCount = 0;
+    final rows = <_RecentlyPlayedRow>[];
     for (final section in sortedSections) {
-      itemCount += 1 + section.value.length;
+      rows.add(_RecentlyPlayedRow.header(section.key, section.value.length));
+      for (final entry in section.value) {
+        rows.add(_RecentlyPlayedRow.entry(entry));
+      }
     }
-    if (_isLoadingMore) itemCount += 1;
 
     return ListView.builder(
       controller: _scrollController,
@@ -423,44 +423,32 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
         right: AppConstants.spacingMd,
         bottom: AppConstants.navBarHeight + 120,
       ),
-      itemCount: itemCount,
+      itemCount: rows.length + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
-        var currentIndex = 0;
-        for (final section in sortedSections) {
-          if (index == currentIndex) {
-            return _buildSectionHeader(section.key, section.value.length);
-          }
-          currentIndex++;
-
-          if (index < currentIndex + section.value.length) {
-            final entryIndex = index - currentIndex;
-            final entry = section.value[entryIndex];
-            return _RecentlyPlayedTile(
-              key: ValueKey(
-                'recent_${entry.song.id}_${entry.playedAt.millisecondsSinceEpoch}',
-              ),
-              song: entry.song,
-              playedAt: entry.playedAt,
-              onTap: () async {
-                await _playerService.play(entry.song);
-                if (context.mounted) {
-                  await NavigationHelper.navigateToFullPlayer(
-                    context,
-                    heroTag: 'recent_song_${entry.song.id}',
-                  );
-                }
-              },
-            );
-          }
-          currentIndex += section.value.length;
-        }
-
-        // Bottom loading indicator
-        if (_isLoadingMore && index == currentIndex) {
+        if (index >= rows.length) {
           return _buildLoadMoreIndicator();
         }
-
-        return const SizedBox.shrink();
+        final row = rows[index];
+        if (row.isHeader) {
+          return _buildSectionHeader(row.title!, row.count);
+        }
+        final entry = row.entry!;
+        return _RecentlyPlayedTile(
+          key: ValueKey(
+            'recent_${entry.song.id}_${entry.playedAt.millisecondsSinceEpoch}',
+          ),
+          song: entry.song,
+          playedAt: entry.playedAt,
+          onTap: () async {
+            await _playerService.play(entry.song);
+            if (context.mounted) {
+              await NavigationHelper.navigateToFullPlayer(
+                context,
+                heroTag: 'recent_song_${entry.song.id}',
+              );
+            }
+          },
+        );
       },
     );
   }
@@ -766,4 +754,16 @@ class _MetadataChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RecentlyPlayedRow {
+  const _RecentlyPlayedRow.header(this.title, this.count) : entry = null;
+  const _RecentlyPlayedRow.entry(this.entry)
+      : title = null,
+        count = 0;
+
+  final String? title;
+  final int count;
+  final RecentlyPlayedEntry? entry;
+  bool get isHeader => entry == null;
 }

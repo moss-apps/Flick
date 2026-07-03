@@ -308,6 +308,7 @@ class PlayerService {
   final AlbumColorModePreferenceService _albumColorModePreferenceService =
       AlbumColorModePreferenceService();
   bool _priorityAnchorActive = false;
+  bool _midStreamUsbFallbackActive = false;
   late final AudioSessionManager _sessionManager;
   late final AudioEngineManager _playbackManager;
   RustAudioEngine? _rustEngine;
@@ -419,6 +420,10 @@ class PlayerService {
   // Advance List Order
   AdvanceListOrder _advanceListOrder = AdvanceListOrder.alphabetical;
   AdvanceListOrder get advanceListOrder => _advanceListOrder;
+
+  // Wrap-around queue: tapping a song mid-list queues preceding songs at the end.
+  final ValueNotifier<bool> wrapAroundQueueNotifier = ValueNotifier(true);
+  bool get wrapAroundQueue => wrapAroundQueueNotifier.value;
 
   // Category shuffle tracking
   final Set<String> _playedCategoryIds = {};
@@ -2155,6 +2160,29 @@ class PlayerService {
     };
     _rustAudioService.onError = (message) {
       _debugLog('[PlayerService] Rust backend error: $message');
+      if (Platform.isAndroid &&
+          !_midStreamUsbFallbackActive &&
+          currentEngineType == AudioEngineType.usbDacExperimental &&
+          _isDirectUsbStartupRefusal(message)) {
+        _midStreamUsbFallbackActive = true;
+        final song = currentSongNotifier.value;
+        final position = _lastPlaybackState?.position ?? Duration.zero;
+        unawaited(() async {
+          try {
+            final fellBack = await _handleDirectUsbStartupRefusal(
+              message,
+              song: song,
+              initialPosition: position,
+            );
+            if (!fellBack) {
+              await _refreshAudioOutputDiagnostics(reason: 'Rust backend error');
+            }
+          } finally {
+            _midStreamUsbFallbackActive = false;
+          }
+        }());
+        return;
+      }
       unawaited(_refreshAudioOutputDiagnostics(reason: 'Rust backend error'));
     };
   }
@@ -3445,6 +3473,12 @@ class PlayerService {
     return operation;
   }
 
+  List<Song> _wrapAroundPlaylist(List<Song> songs, Song current) {
+    final start = songs.indexWhere((s) => s.id == current.id);
+    if (start <= 0) return songs;
+    return [...songs.sublist(start), ...songs.sublist(0, start)];
+  }
+
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
     try {
@@ -3457,7 +3491,10 @@ class PlayerService {
       clearAbRepeat();
 
       if (playlist != null) {
-        _replacePlaybackContext(playlist);
+        final sourcePlaylist = wrapAroundQueueNotifier.value
+            ? _wrapAroundPlaylist(playlist, song)
+            : playlist;
+        _replacePlaybackContext(sourcePlaylist);
         _setCurrentIndex(_playlist.indexWhere((entry) => entry.id == song.id));
         if (isShuffleNotifier.value) {
           final shuffled = buildShufflePlaybackOrder(
@@ -3627,6 +3664,8 @@ class PlayerService {
     if (advanceIdx >= 0 && advanceIdx < AdvanceListOrder.values.length) {
       _advanceListOrder = AdvanceListOrder.values[advanceIdx];
     }
+    wrapAroundQueueNotifier.value =
+        await _appPreferencesService.getWrapAroundQueue();
   }
 
   Future<void> restoreLastPlayed() async {
@@ -3773,6 +3812,7 @@ class PlayerService {
         normalized.contains('failed to set usb alt setting') ||
         normalized.contains('requires verified dac rate') ||
         normalized.contains('is not supported by clock') ||
+        normalized.contains('android usb direct') ||
         normalized.contains('usb dac disconnected') ||
         normalized.contains('usb session already active') ||
         normalized.contains('failed to claim usb interface');
@@ -4729,6 +4769,11 @@ class PlayerService {
   void setAdvanceListOrder(AdvanceListOrder order) {
     _advanceListOrder = order;
     unawaited(_appPreferencesService.setAdvanceListOrder(order.index));
+  }
+
+  void setWrapAroundQueue(bool value) {
+    wrapAroundQueueNotifier.value = value;
+    unawaited(_appPreferencesService.setWrapAroundQueue(value));
   }
 
   Future<void> _advanceForMode(LoopMode mode) async {
