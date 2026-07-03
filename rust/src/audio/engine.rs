@@ -11,7 +11,7 @@ use crate::audio::crossfader::Crossfader;
 use crate::audio::decoder::DecoderThread;
 use crate::audio::decoder_handle::{detect_file_type, DecoderHandle, FileType};
 #[cfg(target_os = "android")]
-use crate::audio::device::current_device_profile;
+use crate::audio::device::{android_supports_aaudio_exclusive, current_device_profile};
 use crate::audio::dsd_engine::DsdDecoderThread;
 use crate::audio::dynamics::DynamicsChain;
 use crate::audio::equalizer::Equalizer;
@@ -1628,7 +1628,8 @@ pub fn create_audio_engine(
         };
         managed_prefer_exclusive = dap_bit_perfect_enabled
             && device_profile.as_ref().is_some_and(|p| p.is_dap())
-            && !will_attempt_usb;
+            && !will_attempt_usb
+            && android_supports_aaudio_exclusive();
         let is_dsd_dop =
             dsd_rate.is_some() && matches!(desired_shared_strategy, OutputStrategy::DsdDoP);
         managed_use_integer = is_dsd_dop || desired_shared_strategy.is_dsd();
