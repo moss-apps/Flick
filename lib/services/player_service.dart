@@ -308,6 +308,7 @@ class PlayerService {
   final AlbumColorModePreferenceService _albumColorModePreferenceService =
       AlbumColorModePreferenceService();
   bool _priorityAnchorActive = false;
+  bool _midStreamUsbFallbackActive = false;
   late final AudioSessionManager _sessionManager;
   late final AudioEngineManager _playbackManager;
   RustAudioEngine? _rustEngine;
@@ -2159,6 +2160,29 @@ class PlayerService {
     };
     _rustAudioService.onError = (message) {
       _debugLog('[PlayerService] Rust backend error: $message');
+      if (Platform.isAndroid &&
+          !_midStreamUsbFallbackActive &&
+          currentEngineType == AudioEngineType.usbDacExperimental &&
+          _isDirectUsbStartupRefusal(message)) {
+        _midStreamUsbFallbackActive = true;
+        final song = currentSongNotifier.value;
+        final position = _lastPlaybackState?.position ?? Duration.zero;
+        unawaited(() async {
+          try {
+            final fellBack = await _handleDirectUsbStartupRefusal(
+              message,
+              song: song,
+              initialPosition: position,
+            );
+            if (!fellBack) {
+              await _refreshAudioOutputDiagnostics(reason: 'Rust backend error');
+            }
+          } finally {
+            _midStreamUsbFallbackActive = false;
+          }
+        }());
+        return;
+      }
       unawaited(_refreshAudioOutputDiagnostics(reason: 'Rust backend error'));
     };
   }
@@ -3788,6 +3812,7 @@ class PlayerService {
         normalized.contains('failed to set usb alt setting') ||
         normalized.contains('requires verified dac rate') ||
         normalized.contains('is not supported by clock') ||
+        normalized.contains('android usb direct') ||
         normalized.contains('usb dac disconnected') ||
         normalized.contains('usb session already active') ||
         normalized.contains('failed to claim usb interface');
