@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../data/repositories/song_repository.dart';
 import '../src/rust/api/scanner.dart' as rust_scanner;
@@ -15,7 +16,12 @@ class AlbumArtService {
   AlbumArtService._();
 
   static final AlbumArtService instance = AlbumArtService._();
-  static final DefaultCacheManager _cacheManager = DefaultCacheManager();
+  static const String _storeKey = 'flickArtworkCache';
+  static const Duration _cacheStalePeriod = Duration(days: 90);
+
+  static final CacheManager _cacheManager = CacheManager(
+    Config(_storeKey, stalePeriod: _cacheStalePeriod),
+  );
 
   final SongRepository _songRepository = SongRepository();
   final MusicFolderService _musicFolderService = MusicFolderService();
@@ -53,7 +59,6 @@ class AlbumArtService {
         cacheKey,
         bytes,
         fileExtension: extension,
-        maxAge: const Duration(days: 3650),
       );
 
       await _persistArtworkPath(audioSourcePath, file.path);
@@ -65,6 +70,44 @@ class AlbumArtService {
     } finally {
       _inFlightResolutions.remove(cacheKey);
     }
+  }
+
+  Future<int> getCacheSize() async {
+    var total = 0;
+    for (final dir in await _candidateCacheRoots()) {
+      for (final name in const [_storeKey, 'libCachedImageData']) {
+        final cacheDir = Directory('${dir.path}/$name');
+        if (!await cacheDir.exists()) continue;
+        try {
+          await for (final entity
+              in cacheDir.list(recursive: true, followLinks: false)) {
+            if (entity is File) total += await entity.length();
+          }
+        } catch (_) {}
+      }
+    }
+    return total;
+  }
+
+  Future<void> clearCache() async {
+    await _cacheManager.emptyCache();
+    // ponytail: also purge the legacy DefaultCacheManager store so existing
+    // users recover the multi-GB artwork build-up from before the hard cap.
+    await DefaultCacheManager().emptyCache();
+  }
+
+  Future<List<Directory>> _candidateCacheRoots() async {
+    final dirs = <Directory>[];
+    for (final future in [
+      getTemporaryDirectory(),
+      getApplicationCacheDirectory(),
+      getApplicationSupportDirectory(),
+    ]) {
+      try {
+        dirs.add(await future);
+      } catch (_) {}
+    }
+    return dirs;
   }
 
   Future<bool> _isUsableImagePath(String? path) async {
