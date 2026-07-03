@@ -230,6 +230,9 @@ pub fn classify_device(signals: DeviceSignals) -> DeviceProfile {
 static ANDROID_DEVICE_PROFILE: OnceLock<DeviceProfile> = OnceLock::new();
 
 #[cfg(target_os = "android")]
+static ANDROID_API_LEVEL: OnceLock<u32> = OnceLock::new();
+
+#[cfg(target_os = "android")]
 pub fn cache_android_device_profile(profile: DeviceProfile) {
     let _ = ANDROID_DEVICE_PROFILE.set(profile);
 }
@@ -246,6 +249,29 @@ pub fn current_device_profile() -> Option<DeviceProfile> {
     }
 }
 
+// ponytail: AAudio SharingMode::Exclusive emits clipped garbage on pre-Android-10
+// OEM HALs (e.g. Samsung Note 8 / API 26): the stream reports the requested rate so
+// bit-perfect verification passes, but the DAC receives near-full-scale noise.
+// Require API 29+. The isochronous USB path is unaffected — it bypasses the HAL.
+const AAUDIO_EXCLUSIVE_MIN_API: u32 = 29;
+
+pub fn current_android_api_level() -> Option<u32> {
+    #[cfg(target_os = "android")]
+    {
+        ANDROID_API_LEVEL.get().copied()
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        None
+    }
+}
+
+pub fn android_supports_aaudio_exclusive() -> bool {
+    current_android_api_level()
+        .map(|level| level >= AAUDIO_EXCLUSIVE_MIN_API)
+        .unwrap_or(false)
+}
+
 #[cfg(target_os = "android")]
 pub fn detect_android_device_profile<'local>(
     env: &mut JNIEnv<'local>,
@@ -254,6 +280,9 @@ pub fn detect_android_device_profile<'local>(
     let manufacturer = get_build_field(env, "MANUFACTURER")?;
     let model = get_build_field(env, "MODEL")?;
     let brand = get_build_field(env, "BRAND")?;
+    if let Ok(level) = get_sdk_int(env) {
+        let _ = ANDROID_API_LEVEL.set(level.max(0) as u32);
+    }
     let manufacturer_match =
         detect_dap(&manufacturer, &brand, &model).map(|sig| sig.label.to_string());
     let audio_caps = match probe_audio_capabilities(env, context) {
