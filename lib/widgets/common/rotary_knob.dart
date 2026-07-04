@@ -47,6 +47,13 @@ class _RotaryKnobState extends State<RotaryKnob>
   bool _isDragging = false;
   late AnimationController _animController;
 
+  Offset _lastGlobalPosition = Offset.zero;
+  double _lastAngle = 0.0;
+  // Full turns of arc drag for a full min->max sweep. Tuned for fine control.
+  static const double _fullSweepTurns = 1.5;
+  // Pixels of vertical drag (center fallback) for a full sweep.
+  static const double _fullSweepPixels = 360.0;
+
   @override
   void initState() {
     super.initState();
@@ -110,46 +117,68 @@ class _RotaryKnobState extends State<RotaryKnob>
     if (widget.onChanged == null) return;
     _animController.stop();
     _isDragging = true;
-    _updateValueFromPosition(globalPosition);
+    _lastGlobalPosition = globalPosition;
+    _lastAngle = _angleFromCenter(globalPosition);
+  }
+
+  double _angleFromCenter(Offset globalPosition) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return 0.0;
+    final localPos = box.globalToLocal(globalPosition);
+    final center = Offset(widget.size / 2, widget.size / 2);
+    return math.atan2(localPos.dy - center.dy, localPos.dx - center.dx);
+  }
+
+  double _radiusFromCenter(Offset globalPosition) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return 0.0;
+    final localPos = box.globalToLocal(globalPosition);
+    final center = Offset(widget.size / 2, widget.size / 2);
+    return (localPos - center).distance;
   }
 
   void _handleDragUpdate(Offset globalPosition) {
     if (widget.onChanged == null || !_isDragging) return;
-    _updateValueFromPosition(globalPosition);
+    final range = widget.max - widget.min;
+    final radius = _radiusFromCenter(globalPosition);
+
+    double valueDelta;
+    if (radius > widget.size * 0.15) {
+      final angle = _angleFromCenter(globalPosition);
+      var delta = angle - _lastAngle;
+      // Shortest signed delta, handling the ±π wraparound.
+      if (delta > math.pi) {
+        delta -= 2 * math.pi;
+      } else if (delta < -math.pi) {
+        delta += 2 * math.pi;
+      }
+      _lastAngle = angle;
+      // Clockwise (positive delta in screen coords) = increase.
+      valueDelta = delta / (_fullSweepTurns * 2 * math.pi) * range;
+    } else {
+      final dy = globalPosition.dy - _lastGlobalPosition.dy;
+      _lastAngle = _angleFromCenter(globalPosition);
+      valueDelta = -dy * range / _fullSweepPixels;
+    }
+
+    _lastGlobalPosition = globalPosition;
+
+    final newValue =
+        (_currentValue + valueDelta).clamp(widget.min, widget.max);
+    final snapped = (newValue * 10).round() / 10.0;
+
+    final diff = (snapped - _lastHapticValue).abs();
+    if (diff >= 0.5) {
+      AppHaptics.selection();
+      _lastHapticValue = snapped;
+    }
+
+    setState(() => _currentValue = snapped);
+    widget.onChanged!(_currentValue);
   }
 
   void _handleDragEnd() {
     _isDragging = false;
-  }
-
-  void _updateValueFromPosition(Offset globalPosition) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final localPos = box.globalToLocal(globalPosition);
-    final center = Offset(widget.size / 2, widget.size / 2);
-    final angle = math.atan2(localPos.dy - center.dy, localPos.dx - center.dx);
-
-    double normalized = (angle - math.pi * 0.75) / (1.5 * math.pi);
-    while (normalized < 0) {
-      normalized += 1.0;
-    }
-    while (normalized > 1) {
-      normalized -= 1.0;
-    }
-
-    final range = widget.max - widget.min;
-    final newValue = widget.min + normalized * range;
-    final snapped = (newValue * 10).round() / 10.0;
-    final clamped = snapped.clamp(widget.min, widget.max);
-
-    final diff = (clamped - _lastHapticValue).abs();
-    if (diff >= 0.5) {
-      AppHaptics.selection();
-      _lastHapticValue = clamped;
-    }
-
-    setState(() => _currentValue = clamped);
-    widget.onChanged!(_currentValue);
   }
 
   @override
