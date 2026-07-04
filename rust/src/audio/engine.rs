@@ -2049,10 +2049,6 @@ fn open_android_output_stream(
                     .set_usage(Usage::Media)
                     .set_content_type(ContentType::Music)
                     .set_channel_conversion_allowed(!bit_perfect_route)
-                    // ponytail: keep format conversion ON even in bit-perfect. Integer-only USB
-                    // DACs (e.g. Audiocular) open the actual stream as int PCM; with conversion
-                    // off, Oboe writes f32 samples into an int buffer and the DAC emits full-scale
-                    // hash. Format conversion only adapts the container, it doesn't resample.
                     .set_format_conversion_allowed(true)
                     .set_sample_rate_conversion_quality(if bit_perfect_route {
                         SampleRateConversionQuality::None
