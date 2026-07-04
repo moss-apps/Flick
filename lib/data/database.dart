@@ -47,6 +47,10 @@ class Database {
     } on IsarError catch (e) {
       if (e.message.contains('MDBX_INCOMPATIBLE')) {
         await _deleteDatabaseFiles(dir.path);
+        // ponytail: wipe the per-folder fingerprint cache too. If the DB had to
+        // be rebuilt empty, the cache's path->mtime entries are orphaned and
+        // would make the Rust scanner skip every file as "known".
+        await _clearFingerprintCache(dir.path);
         _instance = await Isar.open(
           schemas,
           directory: dir.path,
@@ -76,6 +80,15 @@ class Database {
     final legacyDirectory = Directory('$directory/$_databaseName.isar');
     if (await legacyDirectory.exists()) {
       await legacyDirectory.delete(recursive: true);
+    }
+  }
+
+  static const String _fingerprintCacheDirName = 'flick_fingerprints';
+
+  static Future<void> _clearFingerprintCache(String directory) async {
+    final cacheDir = Directory('$directory/$_fingerprintCacheDirName');
+    if (await cacheDir.exists()) {
+      await cacheDir.delete(recursive: true);
     }
   }
 
