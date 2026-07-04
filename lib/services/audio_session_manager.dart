@@ -251,10 +251,6 @@ class AudioSessionManager {
         info.hasUsbDac ||
         capabilityReportsUsb ||
         looksLikeUsbAudioRoute) {
-    // ponytail: selects the Rust engine for BT when low-latency pref is on.
-    // The real win (Oboe PerformanceMode::LowLatency on BT) needs frb codegen
-    // to thread a flag into open_android_output_stream — deferred. This at
-    // least routes through the Rust engine which auto-detects BT routes.
     if (info.isBluetoothRoute &&
         Uac2PreferencesService.isBtLowLatencyModeSync) {
       _debugLog(

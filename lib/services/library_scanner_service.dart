@@ -688,8 +688,6 @@ class LibraryScannerService {
   /// Instant SAF path: surfaces new files immediately with filename-derived
   /// metadata, then defers accurate retrieval to the background. Used for
   /// non-deep scans where appearing fast matters more than perfect metadata.
-  // ponytail: CUE track splitting is deferred to deep scan; instant creates
-  // raw entities per audio file. Acceptable since CUE albums on USB are rare.
   Stream<ScanProgress> _scanFolderAndroidInstant({
     required String folderUri,
     required String displayName,

@@ -89,7 +89,6 @@ class AutoEqCatalogService {
   static const _catalogAsset = 'assets/autoeq/autoeq_catalog.json';
   static const _brandsAsset = 'assets/autoeq/autoeq_brands.json';
 
-  // ponytail: process-lifetime cache; catalog is static, no invalidation needed.
   List<AutoEqEntry>? _entriesCache;
   List<String>? _brandsCache;
 
@@ -237,8 +236,6 @@ class AutoEqCatalogService {
       if (resp.statusCode != 200) return null;
       final body = jsonDecode(resp.body) as Map<String, dynamic>;
       if (body['truncated'] == true) {
-        // ponytail: truncated tree — long-tail discovery degrades but common
-        // models remain reachable. Acceptable for an opt-in fallback.
       }
       final tree = (body['tree'] as List).cast<Map<String, dynamic>>();
       final index = <String, String>{};

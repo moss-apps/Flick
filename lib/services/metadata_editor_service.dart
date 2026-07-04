@@ -210,8 +210,6 @@ class MetadataEditorService {
   /// Only fields with a concrete intent (non-null) are checked; null fields
   /// mean "leave untouched" and are skipped. String compares are normalized so
   /// cosmetic differences (case/whitespace) don't produce false mismatches.
-  // ponytail: case-insensitive compare keeps the guard honest without
-  // flagging format-specific normalization as corruption.
   bool _verifyReadback(
     rust_metadata.TagReadResult? read,
     rust_metadata.TagEditFields want,

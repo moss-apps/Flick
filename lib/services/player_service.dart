@@ -3349,20 +3349,44 @@ class PlayerService {
         await _releaseAndroidManagedAudioResources(
           reason: 'before direct USB initialization',
         );
-        final trackFormat = _deriveUac2FormatFromSong(song);
+
+        var trackFormat = _deriveUac2FormatFromSong(song);
         if (trackFormat == null) {
-          await _uac2Service.markAndroidDirectUsbFallback(
-            'track sample rate is unavailable before USB engine startup',
-          );
-          await _uac2Service.releaseAndroidDirectUsbRuntime();
-          await _rustAudioService.setHighResMode(false);
-          await _sessionManager.recordFallback(
-            requestedMode: normalizedEngine,
-            fallbackMode: AudioEngineType.normalAndroid,
-            reason:
-                'track sample rate is unavailable before USB engine startup',
-          );
-          return AudioEngineType.normalAndroid;
+          final resolvedPath = await _resolveRustPath(song);
+          if (resolvedPath != null && resolvedPath.isNotEmpty) {
+            try {
+              final probed = await rust_audio.audioProbeFormat(
+                path: resolvedPath,
+              );
+              final probedBitDepth = probed.bitsPerSample ?? 16;
+              _debugLog(
+                '[Engine] Metadata missing — probed format: '
+                '${probed.sampleRate}Hz/$probedBitDepth-bit/'
+                '${probed.channels}ch',
+              );
+              trackFormat = Uac2AudioFormat(
+                sampleRate: probed.sampleRate,
+                bitDepth: probedBitDepth,
+                channels: probed.channels,
+              );
+            } catch (e) {
+              _debugLog('[Engine] Format probe failed: $e');
+            }
+          }
+          if (trackFormat == null) {
+            await _uac2Service.markAndroidDirectUsbFallback(
+              'track sample rate is unavailable before USB engine startup',
+            );
+            await _uac2Service.releaseAndroidDirectUsbRuntime();
+            await _rustAudioService.setHighResMode(false);
+            await _sessionManager.recordFallback(
+              requestedMode: normalizedEngine,
+              fallbackMode: AudioEngineType.normalAndroid,
+              reason:
+                  'track sample rate is unavailable before USB engine startup',
+            );
+            return AudioEngineType.normalAndroid;
+          }
         }
 
         final alreadyInUsbMode =

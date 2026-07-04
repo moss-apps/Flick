@@ -91,8 +91,6 @@ class AlbumArtService {
 
   Future<void> clearCache() async {
     await _cacheManager.emptyCache();
-    // ponytail: also purge the legacy DefaultCacheManager store so existing
-    // users recover the multi-GB artwork build-up from before the hard cap.
     await DefaultCacheManager().emptyCache();
   }
 
