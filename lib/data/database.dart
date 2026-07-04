@@ -47,9 +47,6 @@ class Database {
     } on IsarError catch (e) {
       if (e.message.contains('MDBX_INCOMPATIBLE')) {
         await _deleteDatabaseFiles(dir.path);
-        // ponytail: wipe the per-folder fingerprint cache too. If the DB had to
-        // be rebuilt empty, the cache's path->mtime entries are orphaned and
-        // would make the Rust scanner skip every file as "known".
         await _clearFingerprintCache(dir.path);
         _instance = await Isar.open(
           schemas,
