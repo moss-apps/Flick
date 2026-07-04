@@ -5,6 +5,7 @@
 
 import 'api/alac_converter_api.dart';
 import 'api/audio_api.dart';
+import 'api/logging.dart';
 import 'api/metadata_editor.dart';
 import 'api/scanner.dart';
 import 'api/simple.dart';
@@ -32,6 +33,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Map<String, PlatformInt64> dco_decode_Map_String_i_64_None(dynamic raw);
 
   @protected
+  RustStreamSink<String> dco_decode_StreamSink_String_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<ScanChunk> dco_decode_StreamSink_scan_chunk_Sse(dynamic raw);
 
   @protected
@@ -51,6 +55,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AudioFileMetadata dco_decode_audio_file_metadata(dynamic raw);
+
+  @protected
+  AudioProbeFormat dco_decode_audio_probe_format(dynamic raw);
 
   @protected
   AudioProgress dco_decode_audio_progress(dynamic raw);
@@ -283,6 +290,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<String> sse_decode_StreamSink_String_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<ScanChunk> sse_decode_StreamSink_scan_chunk_Sse(
     SseDeserializer deserializer,
   );
@@ -312,6 +324,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AudioFileMetadata sse_decode_audio_file_metadata(
     SseDeserializer deserializer,
   );
+
+  @protected
+  AudioProbeFormat sse_decode_audio_probe_format(SseDeserializer deserializer);
 
   @protected
   AudioProgress sse_decode_audio_progress(SseDeserializer deserializer);
@@ -586,6 +601,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_String_Sse(
+    RustStreamSink<String> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_scan_chunk_Sse(
     RustStreamSink<ScanChunk> self,
     SseSerializer serializer,
@@ -621,6 +642,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_audio_file_metadata(
     AudioFileMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_audio_probe_format(
+    AudioProbeFormat self,
     SseSerializer serializer,
   );
 
