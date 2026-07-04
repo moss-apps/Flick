@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
@@ -10,7 +11,9 @@ import 'package:flick/data/database.dart';
 import 'package:flick/services/external_playback_service.dart';
 import 'package:flick/services/permission_service.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
+import 'package:flick/src/rust/api/logging.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +22,20 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
 
+  FlutterError.onError = (details) {
+    AppLog.instance.add(
+      '${details.exception}\n${details.stack}',
+      source: LogSource.crash,
+    );
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    AppLog.instance.add('$error\n$stack', source: LogSource.platform);
+    return true;
+  };
+
   await RustLib.init();
+  _subscribeRustLogs();
 
   await Database.init();
 
@@ -28,11 +44,23 @@ Future<void> main() async {
     await _restoreLastPlayedSong();
   }
 
-  runApp(const ProviderScope(child: FlickPlayerApp()));
+  runZonedGuarded(() {
+    runApp(const ProviderScope(child: FlickPlayerApp()));
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(_bootstrapAppAfterFirstFrame());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_bootstrapAppAfterFirstFrame());
+    });
+  }, (error, stack) {
+    AppLog.instance.add('$error\n$stack', source: LogSource.zone);
   });
+}
+
+void _subscribeRustLogs() {
+  registerLogSink().listen(
+    (msg) => AppLog.instance.add(msg, source: LogSource.rust),
+    onError: (Object e) =>
+        AppLog.instance.add('rust log stream error: $e', source: LogSource.rust),
+  );
 }
 
 Future<void> _bootstrapAppAfterFirstFrame() async {
