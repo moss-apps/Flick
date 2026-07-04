@@ -5788,6 +5788,8 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
   bool _isMetaCollapsed = false;
   bool _isScrollAnimating = false;
   double? _pendingScrollTarget;
+  Duration _lastTrackedPosition = Duration.zero;
+  static const int _seekBackThresholdMs = 500;
 
   @override
   void initState() {
@@ -5817,7 +5819,20 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
 
     final position = widget.playerService.positionNotifier.value;
     final newIndex = widget.lyricsService.findCurrentLineIndex(data, position);
-    if (newIndex == _activeLineIndex) return;
+    if (newIndex == _activeLineIndex) {
+      _lastTrackedPosition = position;
+      return;
+    }
+
+    // Forward playback only ever advances the active line. The audio engine
+    // occasionally reports a transiently lower position (post-seek/buffer dip,
+    // rounding), which would make the list scroll up then snap back. Treat a
+    // backward change as jitter unless the position dropped by a real amount.
+    final isSeekBack = position.inMilliseconds <
+        _lastTrackedPosition.inMilliseconds - _seekBackThresholdMs;
+    _lastTrackedPosition = position;
+
+    if (newIndex < _activeLineIndex && !isSeekBack) return;
 
     _activeLineIndex = newIndex;
     _scrollToActiveLine(newIndex);
@@ -5830,6 +5845,7 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
       _isLoading = true;
       _lyricsData = null;
       _activeLineIndex = -1;
+      _lastTrackedPosition = Duration.zero;
     });
 
     final loaded = await widget.lyricsService.loadLyricsForSong(
