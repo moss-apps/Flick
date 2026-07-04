@@ -14,6 +14,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
+import 'package:flick/features/settings/screens/logs_screen.dart';
 
 class Uac2PreferencesScreen extends ConsumerStatefulWidget {
   const Uac2PreferencesScreen({super.key});
@@ -317,6 +318,25 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
             ),
             loading: () => _buildLoadingTile(context),
             error: (_, _) => _buildErrorTile(context),
+          ),
+          ...developerModeAsync.maybeWhen(
+            data: (enabled) => enabled
+                ? [
+                    _buildDivider(),
+                    _buildNavigationTile(
+                      context,
+                      icon: LucideIcons.terminal,
+                      title: 'Logs',
+                      subtitle: 'Verbose Dart, Rust, and crash logs',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const LogsScreen(),
+                        ),
+                      ),
+                    ),
+                  ]
+                : [],
+            orElse: () => [],
           ),
           _buildDivider(),
           _buildModeStatusTile(context, diagnostics),

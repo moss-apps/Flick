@@ -93,8 +93,6 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
       _toast('Type a brand and model to search online.');
       return;
     }
-    // ponytail: crude split — assume first token (or two) is the brand if no
-    // chip selected. Good enough for a fallback lookup.
     String brand = _brand ?? '';
     String model = query;
     if (brand.isEmpty) {
