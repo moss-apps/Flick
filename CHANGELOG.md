@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.20.1-beta.2 (2026-06-24)
+
+### AutoEQ Headphone Matching
+- Browse and apply AutoEQ presets by headphone brand/model.
+- AutoEQ brand catalog with searchable bottom sheet.
+- Pre-bundled brand/model asset files.
+- `AutoEqCatalogService` for preset lookup and JSON parsing.
+- LSC/HSC band type codes mapped to low/high shelf filter types.
+
+### App Logging System
+- In-app log viewer screen (Settings → UAC2 → Developer → Logs).
+- Singleton `AppLog` with change notifications.
+- Log sink FFI bridging Rust debug output into Dart.
+- Default error handler writes uncaught exceptions to log.
+- Audio probe format via FFI for USB diagnostics.
+
+### Library Warmup
+- Background metadata extraction after first scan (album art, year, genre).
+- `BackgroundMetadataService` as shared Riverpod provider.
+- Snackbar notifications on warmup start/complete.
+- `countIncompleteMetadataSongs` for progress tracking.
+
+### Recently Added Screen
+- New "Recently Added" screen with paginated song list.
+- Accessible from Quick Access menu.
+- `getRecentlyAddedSongs` with cursor-based pagination.
+
+### Visualizer & Display Settings
+- Refresh rate mode (auto, 60/90/120Hz).
+- Visualizer on/off toggle with settings screen.
+- `DisplayModeWrapper` migrated to Riverpod with multi-mode support.
+- Disabled visualizer skips render pipeline.
+
+### Floating Island Toggle
+- Floating mini-player overlay can be toggled from Settings → Playback → Display.
+
+### Wrap-Around Queue Playback
+- Queue wraps from last track back to first.
+- Toggle in Settings → Playback.
+
+### Fingerprint Cache Reliability
+- Cache cleared on DB incompatibility, folder removal, and DB rebuild.
+- Orphaned entries filtered on reload.
+
+### Performance
+- Recently Played/Added screens pre-build row objects for ListView.
+- Folder list uses SliverList for smooth infinite scroll.
+- Album group computation memoized in artist detail screen.
+
+### USB Audio & Engine Fixes
+- Isochronous feedback polling enabled for USB output.
+- AAudio exclusive mode guarded by API level check.
+- Mid-stream USB fallback on Rust backend refusal.
+- Unknown USB speed inferred from sysfs/sample rates.
+- Custom CacheManager with configurable stale period for artwork.
+
+### Lyrics & Share Cards
+- Lyric share card with dynamic font sizing and font size controls.
+- False lyrics scroll jump on transient position dips fixed.
+
+### Polish & Cleanup
+- Rotary knob drag precision improved.
+- README rewritten with UAC 2.0 API docs and transparency section.
+- Stale comments removed across codebase.
+
 ## 0.20.0-beta.2 (2026-06-21)
 
 ### Compact Home Widget

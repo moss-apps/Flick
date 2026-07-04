@@ -44,16 +44,113 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
-    version: '0.21.0-beta.1',
-    date: '2026-07-02',
+    version: '0.20.1-beta.2',
+    date: '2026-06-24',
     sections: [
       ChangelogSection(
         title: 'AutoEQ Headphone Matching',
         bullets: [
-          '**Pick your headphone model** and Flick applies a measurement-based parametric EQ tuned to it.',
-          'Bundled catalog of **466 popular models** across 63 brands — works fully offline, including strong Chinese-IEM coverage (Moondrop, KZ, TRN, Simgot, 7Hz, Truthear and more).',
-          '**Online search** fetches parametric EQ for models not in the bundled catalog directly from the AutoEq project.',
-          'Open from the equalizer screen → Presets → AutoEQ headphones.',
+          'Browse and apply AutoEQ presets by headphone brand and model — find your headphones in the catalog and auto-tune the EQ.',
+          'AutoEQ brand catalog with searchable bottom sheet.',
+          'Pre-bundled AutoEQ brand/model asset files.',
+          'AutoEq catalog service handles preset lookup and JSON parsing.',
+          'Dev-only catalog generator for maintaining the AutoEQ database.',
+          'LSC and HSC band type codes correctly mapped to low/high shelf filter types.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'App Logging System',
+        bullets: [
+          'In-app log viewer screen (Settings → UAC2 → Developer → Logs) for real-time debugging.',
+          'Singleton `AppLog` with change notifications for reactive UI updates.',
+          'Log sink FFI bridging Rust `dev_eprintln!` output into the Dart log system.',
+          'Developer debug output forwarded to the logging sink.',
+          'Default error handler catches uncaught exceptions and writes them to the log.',
+          'Audio probe format exposed via FFI for USB device diagnostics in logs.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Library Warmup',
+        bullets: [
+          'Background metadata extraction runs after the first scan — populates missing album art, year, genre without blocking the UI.',
+          '`BackgroundMetadataService` extracted as a shared Riverpod provider.',
+          'Snackbar notifies when warmup starts and completes.',
+          '`countIncompleteMetadataSongs` on `SongRepository` tracks warmup progress.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Recently Added Screen',
+        bullets: [
+          'New "Recently Added" screen with paginated song list accessible from Quick Access.',
+          '`getRecentlyAddedSongs` on `SongRepository` with cursor-based pagination.',
+          'Quick access menu entry added.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Visualizer & Display Settings',
+        bullets: [
+          'Refresh rate mode setting — choose between auto, 60Hz, 90Hz, or 120Hz.',
+          'Visualizer on/off toggle with independent settings screen.',
+          '`DisplayModeWrapper` migrated to Riverpod with multi-mode support.',
+          'Visualizer state passed to mini player and full player; disabled visualizer skips the render pipeline.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Floating Island Toggle',
+        bullets: [
+          'Floating island (mini-player overlay) can now be toggled on/off from Settings → Playback → Display.',
+          'Preference check before showing the floating mini player.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Wrap-Around Queue Playback',
+        bullets: [
+          'Queue wraps around: when the last track in the queue finishes, playback jumps back to the first.',
+          'Toggle in Settings → Playback.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Fingerprint Cache Reliability',
+        bullets: [
+          'Fingerprint cache cleared on database incompatibility (Isar rebuild).',
+          'Cache cleaned up when a folder is removed from the library.',
+          'Orphaned cache entries filtered on reload.',
+          'Cache cleared on full database rebuild.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Performance Improvements',
+        bullets: [
+          'Recently Played screen refactored to pre-build row objects for `ListView`.',
+          'Recently Added screen builds rows list for sliver-based rendering.',
+          'Folder list converted to `SliverList` for smoother infinite scrolling.',
+          'Album group computation memoized in artist detail screen.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'USB Audio & Engine Fixes',
+        bullets: [
+          '**Isochronous feedback polling** enabled for Android USB output — improves clock sync with external DACs.',
+          'AAudio exclusive mode guarded by Android API level check (API 26+).',
+          'Mid-stream USB fallback handles Rust backend refusal gracefully.',
+          'Unknown USB speed inferred from sysfs and supported sample rates.',
+          'Custom `CacheManager` with configurable stale period for artwork.',
+          'Artwork cache management added to Library settings.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Lyrics & Share Cards',
+        bullets: [
+          'Lyric share card gains dynamic font sizing and dedicated font size controls.',
+          'False lyrics scroll jump on transient position dips fixed.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Polish & Cleanup',
+        bullets: [
+          'Rotary knob drag precision improved for smoother EQ adjustments.',
+          'README rewritten with concise overview, UAC 2.0 API docs, and transparency section.',
+          'Stale ponytail comments, outdated developer notes, and obsolete comments removed across the codebase.',
         ],
       ),
     ],
