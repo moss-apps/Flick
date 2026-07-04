@@ -37,7 +37,9 @@ static DEVELOPER_MODE: AtomicBool = AtomicBool::new(true);
 macro_rules! dev_eprintln {
     ($($arg:tt)*) => {
         if crate::DEVELOPER_MODE.load(std::sync::atomic::Ordering::Relaxed) {
-            eprintln!($($arg)*);
+            let __msg = format!($($arg)*);
+            eprintln!("{}", __msg);
+            crate::api::logging::forward_to_sink(__msg);
         }
     };
 }
