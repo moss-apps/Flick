@@ -158,8 +158,6 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
     final grouped = <String, List<Song>>{};
 
     for (final song in songs) {
-      // ponytail: dateAdded is late/non-null at the entity level; the model
-      // type is nullable, so coalesce unknowns into 'Earlier'.
       final added = song.dateAdded;
       final String groupKey;
       if (added == null) {
