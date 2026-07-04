@@ -158,7 +158,7 @@ Both share `_scanFolderAndroid`'s prefix: traverse → diff → compute new/modi
 
 **Accurate (`_scanFolderAndroid`, `deferMetadata: false`)** — deep scans: foreground `MediaMetadataRetriever` loop before returning, so CUE splitting and duration filtering complete up front.
 
-> ponytail: CUE splitting is deferred to deep scan. CUE sheets on USB are rare; users who need CUE splitting enable deep scan.
+
 
 ### Unplugged resilience
 

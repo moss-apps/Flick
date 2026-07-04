@@ -30,7 +30,7 @@ A v1 that handles **mono and stereo IRs up to the tap cap** covers all but the l
 | **Direct (time-domain) convolution** | O(M) MACs (M = IR taps) | ~8k–16k taps (~170–340 ms tail) | none | **v1.** Covers crossfeed, cabinet, correction, short reverb. Zero algorithmic latency. |
 | **Partitioned FFT (overlap-save)** | O(log M) amortised | seconds-long tails | `rustfft` (+ `realfft` for real-input optimisation) | Only if users load long hall/cathedral IRs and direct convolution xruns. |
 
-Direct convolution is a textbook FIR: `y[n] = Σ h[k]·x[n−k]`. The engine already runs biquad chains, dynamics, and a multi-tap delay network per sample with `try_lock` Mutexes; a capped direct convolver is the same complexity class. **Decision: direct convolution, cap = 16 384 taps** (≈341 ms at 48 kHz). The cap is enforced at IR load (truncate + warn), with a `// ponytail:` comment naming the FFT upgrade path.
+Direct convolution is a textbook FIR: `y[n] = Σ h[k]·x[n−k]`. The engine already runs biquad chains, dynamics, and a multi-tap delay network per sample with `try_lock` Mutexes; a capped direct convolver is the same complexity class. **Decision: direct convolution, cap = 16 384 taps** (≈341 ms at 48 kHz). The cap is enforced at IR load (truncate + warn).
 
 ---
 
@@ -74,7 +74,7 @@ IR decode is expensive and **must not allocate in the callback**. It runs on the
 
 Stereo handling: a **mono IR** is applied to both channels (L=IR, R=IR); a
 **stereo IR** applies L IR → L out, R IR → R out. True-stereo (4 IRs:
-LL/LR/RL/RR) is out of scope for v1 (`// ponytail:`).
+LL/LR/RL/RR) is out of scope for v1.
 
 ---
 
@@ -106,7 +106,7 @@ bit-perfect) and needs no new gate, just a comment.
 
 | Task | Gap | Change |
 |------|-----|--------|
-| P1.1 | G1 | New `rust/src/audio/convolver.rs`: `Convolver { ir_l, ir_r, hist_l, hist_r, write_pos, mix, enabled }`. `process(&mut [f32], channels)` does direct convolution per channel with a ring input-history buffer (no per-call alloc). `// ponytail: O(M) direct conv, partitioned FFT if IR > cap xruns`. |
+| P1.1 | G1 | New `rust/src/audio/convolver.rs`: `Convolver { ir_l, ir_r, hist_l, hist_r, write_pos, mix, enabled }`. `process(&mut [f32], channels)` does direct convolution per channel with a ring input-history buffer (no per-call alloc). |
 | P1.2 | G1 | Add `reconfigure_sample_rate()` + `reset_state()` mirroring `SpatialFx`. On rate change the history buffer is zeroed (IR stays; length is rate-independent in *taps*, but a new IR load is encouraged). |
 | P1.3 | G7 | New `rust/src/audio/ir_loader.rs`: `load_ir(path, target_rate, out_channels) -> IrData { taps, channels, samples }` using Symphonia decode + rubato resample. Cap = 16 384 taps, peak-normalise. |
 | P1.4 | G2 | engine.rs: add `convolver: Mutex<Convolver>` to `AudioCallbackData`; init in `new()` (`Convolver::new(sample_rate)`); reset in `reconfigure_sample_rate()` (line 310). |
