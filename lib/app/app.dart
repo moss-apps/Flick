@@ -306,6 +306,11 @@ class _MainShellState extends ConsumerState<MainShell>
       _onPlaybackDesyncChanged,
     );
 
+    ref.listenManual<AsyncValue<int>>(
+      libraryWarmupProvider,
+      _onWarmupChanged,
+    );
+
     ref.listenManual<AppPreferences>(appPreferencesProvider, (previous, next) {
       if (!mounted) return;
       // Restart idle timer whenever preferences change so that enabling
@@ -452,6 +457,38 @@ class _MainShellState extends ConsumerState<MainShell>
           label: 'Sync',
           onPressed: () {
             _playerService.syncNow();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _onWarmupChanged(AsyncValue<int>? previous, AsyncValue<int> next) {
+    if (!mounted) return;
+    final count = next.value ?? 0;
+    final prevCount = previous?.value ?? 0;
+    if (count == prevCount) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    if (count <= 0) {
+      if (prevCount > 0) {
+        messenger.clearSnackBars();
+      }
+      return;
+    }
+
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Finishing metadata for $count song${count == 1 ? '' : 's'}…',
+        ),
+        duration: const Duration(days: 1),
+        action: SnackBarAction(
+          label: 'Speed up',
+          onPressed: () {
+            final bg = ref.read(backgroundMetadataServiceProvider);
+            unawaited(bg?.extractPendingMetadata());
           },
         ),
       ),

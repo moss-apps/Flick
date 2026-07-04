@@ -267,6 +267,16 @@ class SongRepository {
         .findAll();
   }
 
+  /// Count songs still awaiting background metadata extraction.
+  /// Cheaper than [getIncompleteMetadataSongs] (no entity deserialization);
+  /// uses the metadataComplete index.
+  Future<int> countIncompleteMetadataSongs() async {
+    return await _isar.songEntitys
+        .where()
+        .metadataCompleteEqualTo(false)
+        .count();
+  }
+
   /// Delete all songs.
   Future<void> deleteAllSongs() async {
     await _isar.writeTxn(() async {

@@ -1660,7 +1660,6 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       ),
     );
 
-    // ponytail: per-song loop; swap to repository.deleteSongsByIds + batched file ops if deleting thousands.
     for (final song in songs) {
       final songId = int.tryParse(song.id);
       if (songId == null) continue;

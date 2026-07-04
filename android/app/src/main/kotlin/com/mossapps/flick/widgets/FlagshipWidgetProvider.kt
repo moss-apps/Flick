@@ -58,7 +58,6 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                     }
                     views.setViewVisibility(R.id.flagship_art, View.VISIBLE)
 
-                    // ponytail: RemoteViews ignores custom XML fonts on many devices, so render text to bitmaps
                     views.setImageViewBitmap(
                         R.id.flagship_title,
                         WidgetTextRenderer.createTextBitmap(
@@ -102,8 +101,6 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                     views.setViewVisibility(R.id.flagship_shuffle, View.VISIBLE)
                     views.setViewVisibility(R.id.flagship_repeat, View.VISIBLE)
 
-                    // ponytail: distinguish active from inactive via bg highlight + glyph swap,
-                    // not just tint (white accent makes tint-only changes invisible)
                     val inactiveTint = Color.argb(0x55, 0xFF, 0xFF, 0xFF)
                     val activeBg = R.drawable.widget_button_transport_active_bg
                     val inactiveBg = R.drawable.widget_button_transport_bg

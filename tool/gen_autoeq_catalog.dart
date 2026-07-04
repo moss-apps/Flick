@@ -6,9 +6,6 @@
 // ParametricEQ.txt, and writes minified assets into assets/autoeq/.
 // Stdlib only (no pub deps): dart:io HttpClient for API + raw fetches.
 //
-// ponytail: enumerates per-campaign subtrees (one API call each) to dodge the
-// truncated master-tree response. Fuzzy model match by normalized "ends-with"
-// so manifest strings needn't carry the brand prefix verbatim.
 
 import 'dart:convert';
 import 'dart:io';

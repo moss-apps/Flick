@@ -9,8 +9,6 @@ import android.view.View
 import android.widget.RemoteViews
 import com.mossapps.flick.R
 
-// ponytail: 2x2 text-only widget. Reuses the mini-player prefs
-// (bg opacity, artist toggle, accent) instead of adding its own settings.
 class CompactWidgetProvider : AppWidgetProvider() {
 
     companion object {

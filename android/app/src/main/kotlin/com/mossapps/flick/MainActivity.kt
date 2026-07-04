@@ -1360,7 +1360,6 @@ class MainActivity: FlutterActivity() {
 
     // Single source of truth for filesystem path + MediaStore-volume routing, including
     // removable (USB/SD) volumes which queryMediaStoreAudio must target by their own name.
-    // ponytail: removable per-volume MediaStore is API 29+; pre-29 returns null -> SAF fallback.
     private fun resolveStorageInfo(uriString: String): Map<String, Any?> {
         val unknown = mapOf<String, Any?>(
             "fsPath" to null,
@@ -1706,7 +1705,7 @@ class MainActivity: FlutterActivity() {
             DocumentsContract.Document.COLUMN_LAST_MODIFIED,
         )
         val result = mutableListOf<TreeDocEntry>()
-        val visited = HashSet<String>() // ponytail: cycle guard for misbehaving providers
+        val visited = HashSet<String>()
 
         fun scanDir(docId: String) {
             if (!visited.add(docId)) return
@@ -4154,7 +4153,6 @@ class MainActivity: FlutterActivity() {
     private fun bluetoothAdapter(): BluetoothAdapter? =
         (getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
-    // ponytail: async proxy; if not yet connected when Flutter queries, returns empty — UI retries.
     private fun ensureA2dpProxy() {
         if (a2dpProxy != null) return
         val adapter = bluetoothAdapter() ?: return
@@ -4241,7 +4239,6 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    // ponytail: hidden/@SystemApi; reflection returns false when OEM blocks. Best-effort.
     private fun setBluetoothCodecConfigNative(
         address: String, codecType: Int, sampleRate: Int, bitsPerSample: Int, channelMode: Int, ldacBitrate: Int
     ): Boolean {
@@ -4277,7 +4274,6 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    // ponytail: best-effort GATT battery; some devices refuse a second link → null. 4s timeout.
     private fun readBluetoothBatteryLevel(address: String, result: MethodChannel.Result) {
         val adapter = bluetoothAdapter()
         if (adapter == null) { result.success(null); return }
@@ -4322,7 +4318,6 @@ class MainActivity: FlutterActivity() {
         }, 4000)
     }
 
-    // ponytail: no public absolute-volume API; Settings.Global needs WRITE_SECURE_SETTINGS → fails on non-rooted.
     private fun setBluetoothAbsoluteVolume(address: String, enabled: Boolean): Boolean {
         return try {
             Settings.Global.putInt(contentResolver, "absolute_volume_enabled", if (enabled) 1 else 0)

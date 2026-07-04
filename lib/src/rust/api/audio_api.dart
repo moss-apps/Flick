@@ -145,6 +145,9 @@ Future<void> audioPrepareEngine({int? preferredSampleRate}) =>
       preferredSampleRate: preferredSampleRate,
     );
 
+Future<AudioProbeFormat> audioProbeFormat({required String path}) =>
+    RustLib.instance.api.crateApiAudioApiAudioProbeFormat(path: path);
+
 /// Play an audio file.
 Future<void> audioPlay({required String path}) =>
     RustLib.instance.api.crateApiAudioApiAudioPlay(path: path);
@@ -365,6 +368,34 @@ sealed class AudioEventType with _$AudioEventType {
       AudioEventType_Error;
   const factory AudioEventType.nextTrackReady({required String path}) =
       AudioEventType_NextTrackReady;
+}
+
+/// discover the actual sample rate before the USB engine is configured. Used by
+/// Dart when song metadata lacks sampleRate/bitDepth, to avoid falling back to
+/// just_audio and to avoid configuring the USB DAC clock at the wrong rate.
+class AudioProbeFormat {
+  final int sampleRate;
+  final int channels;
+  final int? bitsPerSample;
+
+  const AudioProbeFormat({
+    required this.sampleRate,
+    required this.channels,
+    this.bitsPerSample,
+  });
+
+  @override
+  int get hashCode =>
+      sampleRate.hashCode ^ channels.hashCode ^ bitsPerSample.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AudioProbeFormat &&
+          runtimeType == other.runtimeType &&
+          sampleRate == other.sampleRate &&
+          channels == other.channels &&
+          bitsPerSample == other.bitsPerSample;
 }
 
 /// Progress information returned to Dart.

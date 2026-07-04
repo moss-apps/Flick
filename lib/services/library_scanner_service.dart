@@ -688,8 +688,6 @@ class LibraryScannerService {
   /// Instant SAF path: surfaces new files immediately with filename-derived
   /// metadata, then defers accurate retrieval to the background. Used for
   /// non-deep scans where appearing fast matters more than perfect metadata.
-  // ponytail: CUE track splitting is deferred to deep scan; instant creates
-  // raw entities per audio file. Acceptable since CUE albums on USB are rare.
   Stream<ScanProgress> _scanFolderAndroidInstant({
     required String folderUri,
     required String displayName,
@@ -1284,10 +1282,16 @@ class LibraryScannerService {
       }
     }
 
-    // Merge fingerprint cache: cached timestamps take priority since they
-    // were recorded right after the last scan completed.
+    // Merge fingerprint cache: only entries that correspond to an existing DB
+    // song are trusted. An orphaned cache (e.g. restored after reinstall while
+    // the DB was wiped) must not mark files as "known", or the scanner skips
+    // every file and the library ends up empty.
     if (cachedFingerprints != null) {
-      knownFiles.addAll(cachedFingerprints);
+      for (final entry in cachedFingerprints.entries) {
+        if (existingMap.containsKey(entry.key)) {
+          knownFiles[entry.key] = entry.value;
+        }
+      }
     }
 
     // 2. Stream scan batches from Rust

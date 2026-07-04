@@ -28,10 +28,6 @@ static PENDING_VOLUME: AtomicU32 = AtomicU32::new(0);
 
 const PENDING_VOLUME_NONE: u32 = 0xFFFF_FFFF;
 
-// ponytail: crossfade state survives engine recreation (sample-rate / strategy
-// changes recreate the engine, wiping crossfade) via these pending atomics,
-// mirroring the PENDING_VOLUME pattern. Three separate atomics because enabled/
-// duration and curve are pushed through two distinct Dart calls.
 static PENDING_XF_ENABLED: AtomicU8 = AtomicU8::new(u8::MAX);
 static PENDING_XF_DURATION: AtomicU32 = AtomicU32::new(0xFFFF_FFFF);
 static PENDING_XF_CURVE: AtomicU8 = AtomicU8::new(u8::MAX);
@@ -844,6 +840,48 @@ pub fn audio_is_dac_available(preferred_sample_rate: Option<u32>) -> Result<bool
 /// Prepare the Rust audio engine for the requested output rate before playback starts.
 pub fn audio_prepare_engine(preferred_sample_rate: Option<u32>) -> Result<(), String> {
     ensure_audio_engine(resolve_requested_output_sample_rate(preferred_sample_rate)?)
+}
+
+/// discover the actual sample rate before the USB engine is configured. Used by
+/// Dart when song metadata lacks sampleRate/bitDepth, to avoid falling back to
+/// just_audio and to avoid configuring the USB DAC clock at the wrong rate.
+pub struct AudioProbeFormat {
+    pub sample_rate: u32,
+    pub channels: u16,
+    pub bits_per_sample: Option<u32>,
+}
+
+pub fn audio_probe_format(path: String) -> Result<AudioProbeFormat, String> {
+    use symphonia::core::codecs::CODEC_TYPE_NULL;
+    use symphonia::core::formats::FormatOptions;
+    use symphonia::core::io::MediaSourceStream;
+    use symphonia::core::meta::MetadataOptions;
+    use symphonia::core::probe::Hint;
+    use std::fs::File;
+    use std::path::Path;
+
+    let path_obj = Path::new(&path);
+    let file = File::open(path_obj).map_err(|e| format!("Failed to open file: {}", e))?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    let mut hint = Hint::new();
+    if let Some(ext) = path_obj.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+    let probed = symphonia::default::get_probe()
+        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+        .map_err(|e| format!("Failed to probe format: {}", e))?;
+    let track = probed
+        .format
+        .tracks()
+        .iter()
+        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+        .ok_or("No audio track found".to_string())?;
+    let cp = &track.codec_params;
+    Ok(AudioProbeFormat {
+        sample_rate: cp.sample_rate.unwrap_or(44100),
+        channels: cp.channels.map(|c| c.count() as u16).unwrap_or(2),
+        bits_per_sample: cp.bits_per_sample,
+    })
 }
 
 /// Play an audio file.

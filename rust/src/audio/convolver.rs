@@ -6,8 +6,6 @@
 //! The convolver only runs in `PipelineMode::Dsp` — passthrough/DoP branches
 //! return before reaching it (it would break bit-perfect delivery).
 //!
-//! ponytail: O(M) direct convolution with a tap cap. Switch to partitioned FFT
-//! overlap-save (rustfft + realfft) if users load long hall tails and
 //! `XRUN_COUNT` climbs.
 
 /// Maximum number of taps kept from an IR. Anything longer is truncated
@@ -128,7 +126,6 @@ impl Convolver {
                 // y = Σ h[k]·x[n-k], walking backwards through the ring in two
                 // contiguous segments to avoid a per-tap modulo.
                 let mut acc = 0.0f32;
-                // ponytail: O(M) MAC loop per sample; partitioned FFT if long IRs xrun.
                 for k in 0..=pos {
                     acc += ir[k] * hist[pos - k];
                 }

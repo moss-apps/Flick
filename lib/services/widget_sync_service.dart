@@ -65,8 +65,6 @@ class WidgetSyncService {
   void schedulePush(PlayerState state) {
     final songChanged = state.currentSong?.id != _lastPushedSongId;
     final playingChanged = state.isPlaying != _lastPushedIsPlaying;
-    // ponytail: shuffle/loop must push immediately, else a stale 2s debounce
-    // captured before the toggle reverts the widget after a tap
     final shuffleChanged = state.isShuffle != _lastPushedIsShuffle;
     final loopChanged = state.loopMode.index != _lastPushedLoopMode;
 
@@ -133,8 +131,6 @@ class WidgetSyncService {
   }
 
   Future<void> pushKilled() async {
-    // ponytail: keep last song visible when app is killed — only mark paused
-    // so the widget shows the last track with a play button; tapping play relaunches the app
     try {
       await _ensureInit();
       await HomeWidget.saveWidgetData<bool>(keyIsPlaying, false);

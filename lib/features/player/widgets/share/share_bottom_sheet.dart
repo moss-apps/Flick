@@ -36,6 +36,8 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
   final GlobalKey _cardKey = GlobalKey();
   String? _resolvedAlbumArt;
   String? _currentLyric;
+  bool _lyricAutoFit = true;
+  double _lyricFontSize = 34;
   static const double _cardWidth = 240;
 
   @override
@@ -87,7 +89,12 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
 
     switch (ShareTemplate.values[index]) {
       case ShareTemplate.lyric:
-        return LyricShareCard(song: song, lyricLine: _currentLyric, albumArtPath: _resolvedAlbumArt);
+        return LyricShareCard(
+          song: song,
+          lyricLine: _currentLyric,
+          albumArtPath: _resolvedAlbumArt,
+          fontSizeOverride: _lyricAutoFit ? null : _lyricFontSize,
+        );
       case ShareTemplate.solidColor:
         return SolidColorShareCard(song: song, dominantColor: dominantColor, albumArtPath: _resolvedAlbumArt);
       case ShareTemplate.minimal:
@@ -165,6 +172,42 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  Widget _buildLyricSizeControls() {
+    if (ShareTemplate.values[_selectedTemplate] != ShareTemplate.lyric) {
+      return const SizedBox.shrink();
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SizePill(
+          icon: LucideIcons.minus,
+          dimmed: _lyricAutoFit,
+          onTap: () => setState(() {
+            _lyricAutoFit = false;
+            _lyricFontSize =
+                (_lyricFontSize - 2).clamp(14.0, 34.0).toDouble();
+          }),
+        ),
+        const SizedBox(width: 6),
+        _SizePill(
+          label: 'Auto',
+          active: _lyricAutoFit,
+          onTap: () => setState(() => _lyricAutoFit = true),
+        ),
+        const SizedBox(width: 6),
+        _SizePill(
+          icon: LucideIcons.plus,
+          dimmed: _lyricAutoFit,
+          onTap: () => setState(() {
+            _lyricAutoFit = false;
+            _lyricFontSize =
+                (_lyricFontSize + 2).clamp(14.0, 34.0).toDouble();
+          }),
+        ),
+      ],
+    );
   }
 
   @override
@@ -248,6 +291,8 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
                   color: AppColors.textPrimary,
                 ),
               ),
+              const SizedBox(width: 12),
+              _buildLyricSizeControls(),
               const Spacer(),
               _ActionButton(
                 icon: LucideIcons.download,
@@ -315,6 +360,53 @@ class _ActionButton extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+      ),
+    );
+  }
+}
+
+class _SizePill extends StatelessWidget {
+  final IconData? icon;
+  final String? label;
+  final bool active;
+  final bool dimmed;
+  final VoidCallback onTap;
+
+  const _SizePill({
+    this.icon,
+    this.label,
+    this.active = false,
+    this.dimmed = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active
+        ? AppColors.accent
+        : (dimmed ? AppColors.textTertiary : AppColors.textPrimary);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.glassBackgroundStrong,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: active ? AppColors.accent : AppColors.glassBorder,
+          ),
+        ),
+        child: icon != null
+            ? Icon(icon, color: color, size: 16)
+            : Text(
+                label!,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
               ),
       ),
     );

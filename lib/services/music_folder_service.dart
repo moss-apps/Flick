@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/core/utils/uri_display_utils.dart';
 
 import 'permission_service.dart';
+import 'fingerprint_cache_service.dart';
 import '../data/repositories/folder_repository.dart';
 import '../data/entities/folder_entity.dart';
 import 'package:flick/core/utils/dev_log.dart';
@@ -242,6 +243,7 @@ class MusicFolderService {
   static const _prefKey = 'music_folders';
 
   final PermissionService _permissionService;
+  final FileFingerprintCache _fingerprintCache = FileFingerprintCache();
 
   MusicFolderService({PermissionService? permissionService})
     : _permissionService = permissionService ?? PermissionService();
@@ -302,6 +304,9 @@ class MusicFolderService {
   Future<void> removeFolder(String uri) async {
     // Release permission
     await _permissionService.releasePersistablePermission(uri);
+
+    // Drop the per-folder fingerprint cache so a later re-add does a full scan.
+    await _fingerprintCache.removeFolder(uri);
 
     // Remove from preferences AND database
     await _removeFolderFromPrefs(uri);
