@@ -999,10 +999,6 @@ fn samples_to_millis(samples: usize, sample_rate: u32, channels: usize) -> u32 {
     ((samples as u64 * 1_000) / (sample_rate as u64 * channels as u64)) as u32
 }
 
-// ponytail: Native DSD packs one DSD byte per i32, so the render ring flows at
-// the byte rate (dsd_bit_rate/8), not the UAC2 wire rate (dsd_bit_rate/32).
-// Buffer sizing, priming, and fill-ms telemetry must use the byte rate or they
-// read ~4x low. Upgrade path: if a future transport packs >1 byte/i32, extend here.
 fn effective_ring_rate(playback_format: &AndroidDirectUsbPlaybackFormat) -> u32 {
     if playback_format.dsd_transport == DsdTransportMode::Native && playback_format.dsd_bit_rate > 0
     {
@@ -1037,9 +1033,6 @@ static LAST_SET_HW_VOLUME: AtomicI16 = AtomicI16::new(0);
 /// Prevents "Resource busy" from concurrent or overlapping claim attempts.
 static USB_SESSION_ACTIVE: AtomicBool = AtomicBool::new(false);
 
-// ponytail: DoP/Native payload integrity, audited per encoded transfer by the
-// output loop (audit_dsd_payload). Read live by direct_path_is_bit_perfect so the
-// bit-perfect flag reflects current wire payload, not just rate/depth/clock.
 static USB_DSD_PAYLOAD_VERIFIED: AtomicBool = AtomicBool::new(false);
 
 fn usb_dsd_payload_verified() -> bool {
@@ -1673,7 +1666,7 @@ fn negotiate_android_direct_playback_format(
     let mut cleanup_interface: Option<u8> = None;
     let negotiated = (|| {
         let usb_device = claimed_handle.handle.device();
-        let speed = usb_device.speed();
+        let speed = resolve_device_speed(&usb_device);
         let capability_model =
             build_android_usb_capability_model(&usb_device, &claimed_handle.handle, speed).ok();
         set_capability_model(capability_model.clone());
@@ -3056,7 +3049,7 @@ fn inspect_android_usb_capabilities(
     let handle = unsafe { context.open_device_with_fd(device.fd) }
         .map_err(|error| format!("Failed to wrap Android USB file descriptor: {}", error))?;
     let inspected_device = handle.device();
-    build_android_usb_capability_model(&inspected_device, &handle, inspected_device.speed())
+    build_android_usb_capability_model(&inspected_device, &handle, resolve_device_speed(&inspected_device))
 }
 
 fn build_android_usb_capability_model(
@@ -3107,6 +3100,15 @@ fn build_android_usb_capability_model(
                 .clone();
             let sample_rates = representative_sample_rates_from_ranges(&sample_rate_ranges);
 
+            let speed = if speed == Speed::Unknown {
+                infer_high_speed_from_sample_rates(&sample_rate_ranges).unwrap_or(speed)
+            } else {
+                speed
+            };
+            dev_eprintln!(
+                "[USB] build_android_usb_capability_model using speed={:?}",
+                speed
+            );
             for endpoint in descriptor.endpoint_descriptors() {
                 if endpoint.direction() != Direction::Out
                     || endpoint.transfer_type() != TransferType::Isochronous
@@ -3354,7 +3356,7 @@ fn create_android_usb_backend_inner(
     })?;
     let requested_playback_format = state.requested_playback_format.unwrap_or(playback_format);
     let device = claimed_handle.handle.device();
-    let speed = device.speed();
+    let speed = resolve_device_speed(&device);
     let lock_requested = current_lock_requested_for_fd(state.device.fd);
     set_capability_model(
         build_android_usb_capability_model(&device, &claimed_handle.handle, speed).ok(),
@@ -3677,10 +3679,6 @@ fn create_android_usb_backend_inner(
         // clock "verification" is structurally impossible — a successful
         // SET_CUR is the strongest evidence available and is what the UAC1
         // spec defines as the rate-setting mechanism.
-        // ponytail: ceiling — a device that resets its rate when the streaming
-        // alt setting is switched on (after this SET_CUR) would need a
-        // post-alt re-SET_CUR; add that if a UAC1 dongle shows wrong-rate
-        // playback despite SET_CUR succeeding here.
         match set_uac1_sampling_frequency(
             &claimed_handle.handle,
             candidate.endpoint_address,
@@ -5187,6 +5185,17 @@ fn select_stream_candidate(
                     continue;
                 }
 
+                let speed = if speed == Speed::Unknown {
+                    infer_high_speed_from_sample_rates(&sample_rate_ranges).unwrap_or(speed)
+                } else {
+                    speed
+                };
+                dev_eprintln!(
+                    "[USB] select_stream_candidate using speed={:?} for interval={} → service={}us",
+                    speed,
+                    endpoint.interval(),
+                    service_interval_micros(speed, endpoint.interval())
+                );
                 let service_interval_us = service_interval_micros(speed, endpoint.interval());
                 let max_packet_bytes =
                     effective_iso_packet_bytes(endpoint.max_packet_size(), speed);
@@ -6063,6 +6072,90 @@ fn service_interval_micros(speed: Speed, interval: u8) -> u32 {
     }
 }
 
+fn resolve_device_speed(device: &Device<Context>) -> Speed {
+    let speed = device.speed();
+    if speed != Speed::Unknown {
+        return speed;
+    }
+    let bus = device.bus_number();
+    let addr = device.address();
+    if let Some(inferred) = infer_speed_from_sysfs(bus, addr) {
+        dev_eprintln!(
+            "[USB] libusb reported Unknown speed; inferred {:?} from sysfs (bus={}, addr={})",
+            inferred, bus, addr
+        );
+        return inferred;
+    }
+    dev_eprintln!(
+        "[USB] speed unknown: libusb=Unknown, sysfs lookup failed (bus={}, addr={})",
+        bus,
+        addr
+    );
+    Speed::Unknown
+}
+
+fn infer_speed_from_sysfs(bus: u8, addr: u8) -> Option<Speed> {
+    let entries = std::fs::read_dir("/sys/bus/usb/devices").ok()?;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        // Skip interface entries ("1-2:1.0") — only devices have speed/busnum/devnum
+        if name.contains(':') {
+            continue;
+        }
+        let dir = entry.path();
+        let busnum = std::fs::read_to_string(dir.join("busnum"))
+            .ok()
+            .and_then(|s| s.trim().parse::<u32>().ok());
+        let devnum = std::fs::read_to_string(dir.join("devnum"))
+            .ok()
+            .and_then(|s| s.trim().parse::<u32>().ok());
+        if busnum == Some(bus as u32) && devnum == Some(addr as u32) {
+            let raw = std::fs::read_to_string(dir.join("speed")).ok()?;
+            return parse_sysfs_speed(raw.trim());
+        }
+    }
+    None
+}
+
+fn parse_sysfs_speed(raw: &str) -> Option<Speed> {
+    // kernel writes Mbps as integer or "1.5" for low-speed
+    let mbps: u32 = if let Ok(v) = raw.parse::<u32>() {
+        v
+    } else if let Some(dot) = raw.find('.') {
+        raw[..dot].parse::<u32>().ok()?
+    } else {
+        return None;
+    };
+    match mbps {
+        1 | 2 => Some(Speed::Low),
+        12 => Some(Speed::Full),
+        480 => Some(Speed::High),
+        5000 => Some(Speed::Super),
+        10000 | 20000 | 24000 => Some(Speed::SuperPlus),
+        _ => None,
+    }
+}
+
+fn infer_high_speed_from_sample_rates(
+    ranges: &[SamplingFrequencySubrange],
+) -> Option<Speed> {
+    let max_rate = ranges.iter().map(|r| r.max).max().unwrap_or(0);
+    if max_rate > 48_000 {
+        dev_eprintln!(
+            "[USB] libusb speed Unknown; inferred high-speed from advertised sample rates (max={}>48000Hz)",
+            max_rate
+        );
+        Some(Speed::High)
+    } else {
+        dev_eprintln!(
+            "[USB] speed remains Unknown; max advertised rate={} (<=48kHz, no high-speed inference)",
+            max_rate
+        );
+        None
+    }
+}
+
 fn required_max_packet_bytes(
     sample_rate: u32,
     service_interval_us: u32,
@@ -6794,14 +6887,32 @@ fn read_iso_feedback_packet(
     }
 
     let completion = unsafe { &(*user_data_ptr).completion };
-    let status = loop {
-        if let Some(status) = *completion.status.lock().unwrap() {
-            break status;
+    const MAX_FEEDBACK_POLL_ITERATIONS: usize = 5;
+    let status = {
+        let mut iterations = 0usize;
+        loop {
+            if let Some(status) = *completion.status.lock().unwrap() {
+                break status;
+            }
+            if iterations >= MAX_FEEDBACK_POLL_ITERATIONS {
+                unsafe { libusb_cancel_transfer(transfer_ptr.as_ptr()) };
+                for _ in 0..MAX_FEEDBACK_POLL_ITERATIONS {
+                    if (*completion.status.lock().unwrap()).is_some() {
+                        break;
+                    }
+                    let _ = context.handle_events(Some(Duration::from_millis(10)));
+                }
+                unsafe {
+                    libusb_free_transfer(transfer_ptr.as_ptr());
+                    drop(Box::from_raw(user_data_ptr));
+                }
+                return Ok(None);
+            }
+            iterations += 1;
+            context
+                .handle_events(Some(Duration::from_millis(10)))
+                .map_err(|error| format!("libusb_handle_events failed: {}", error))?;
         }
-
-        context
-            .handle_events(Some(Duration::from_millis(10)))
-            .map_err(|error| format!("libusb_handle_events failed: {}", error))?;
     };
 
     let (actual_length, data) = unsafe {
