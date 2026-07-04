@@ -12,10 +12,7 @@ import android.util.TypedValue
 import androidx.annotation.FontRes
 import androidx.core.content.res.ResourcesCompat
 
-// ponytail: RemoteViews ignores custom XML fonts on many devices (launcher process
-// can't see app-bundled fonts), so render text to bitmaps via the app's own typeface.
-// Shared by MiniPlayerWidgetProvider (ALIGN_NORMAL, left column) and
-// FlagshipWidgetProvider (ALIGN_CENTER, centered panel).
+
 object WidgetTextRenderer {
 
     fun createTextBitmap(

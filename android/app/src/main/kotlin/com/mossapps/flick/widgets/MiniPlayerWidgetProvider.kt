@@ -13,9 +13,6 @@ import com.mossapps.flick.R
 class MiniPlayerWidgetProvider : AppWidgetProvider() {
 
     companion object {
-        // ponytail: horizontal chrome in dp — paddings + text margins + transport buttons.
-        // Art is now full-bleed background, not a thumbnail, so no art dp in the chrome sum.
-        // Subtract from widget width to size the text bitmap so Product Sans renders at intended sp.
         private const val CHROME_DP = 148f
         private const val ART_BG_PX = 512
     }
@@ -44,8 +41,6 @@ class MiniPlayerWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_mini_player)
             views.applyBackground(context)
 
-            // ponytail: album art as full-bleed background.
-            // showArt toggles it; default art fills in when no song or art not yet loaded.
             if (showArt) {
                 val art = if (hasSong) WidgetArtLoader.load(artPath, ART_BG_PX) else null
                 if (art != null) {
@@ -61,8 +56,6 @@ class MiniPlayerWidgetProvider : AppWidgetProvider() {
             }
             views.setOnClickPendingIntent(R.id.widget_art_bg, WidgetIntents.openApp(context, 10))
 
-            // ponytail: RemoteViews ignores XML fonts on many launchers; render text to bitmaps.
-            // Size the bitmap to the actual text column so sp isn't rescaled by fitStart.
             val options = appWidgetManager.getAppWidgetOptions(id)
             val widgetWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
             val widgetWidthPx =
@@ -102,9 +95,6 @@ class MiniPlayerWidgetProvider : AppWidgetProvider() {
                         R.id.widget_progress, 1000,
                         (positionMs * 1000L / durationMs).toInt().coerceIn(0, 1000), false,
                     )
-                    // ponytail: tint the white base drawable so the bar follows the accent color.
-                    // RemoteViews has no setProgressTintList helper, so route via setColorStateList
-                    // reflection action calling ProgressBar.setProgressTintList(ColorStateList).
                     views.setColorStateList(
                         R.id.widget_progress, "setProgressTintList",
                         ColorStateList.valueOf(accentColor),
