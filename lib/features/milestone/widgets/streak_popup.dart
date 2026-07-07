@@ -37,7 +37,6 @@ class _StreakPopupState extends State<StreakPopup>
   late final AnimationController _reveal;
   late final AnimationController _pulse;
   late final AnimationController _flame;
-  late final AnimationController _shimmer;
 
   @override
   void initState() {
@@ -54,16 +53,8 @@ class _StreakPopupState extends State<StreakPopup>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
-    // Shimmer sweeps faster as the streak climbs tiers.
-    _shimmer = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 2400 - 400 * _tierCount),
-    );
     _reveal.forward();
     _flame.repeat(reverse: true);
-    if (_tierCount > 0) {
-      _shimmer.repeat(reverse: true);
-    }
     // Only pulse once the today cell has revealed.
     Future<void>.delayed(const Duration(milliseconds: 900), () {
       if (mounted) _pulse.repeat(reverse: true);
@@ -75,7 +66,6 @@ class _StreakPopupState extends State<StreakPopup>
     _reveal.dispose();
     _pulse.dispose();
     _flame.dispose();
-    _shimmer.dispose();
     super.dispose();
   }
 
@@ -209,7 +199,16 @@ class _StreakPopupState extends State<StreakPopup>
           textBaseline: TextBaseline.alphabetic,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildShimmerNumber(context),
+            Text(
+              '${widget.streak}',
+              style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                // Highlight the count in the tier color once a streak tier
+                // is met; plain white below that.
+                color: _tierCount > 0 ? _tierColor : AppColors.textPrimary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
             const SizedBox(width: AppConstants.spacingSm),
             Text(
               'day streak',
@@ -220,44 +219,6 @@ class _StreakPopupState extends State<StreakPopup>
           ],
         ),
       ],
-    );
-  }
-
-  /// The streak count, with an animated tier-colored shimmer band sweeping
-  /// across it once a streak tier is met. Below tier 7 the number is plain.
-  Widget _buildShimmerNumber(BuildContext context) {
-    final number = Text(
-      '${widget.streak}',
-      style: Theme.of(context).textTheme.displayLarge?.copyWith(
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
-        fontFeatures: const [FontFeature.tabularFigures()],
-      ),
-    );
-    if (_tierCount == 0) return number;
-    return AnimatedBuilder(
-      animation: _shimmer,
-      builder: (context, child) {
-        final t = _shimmer.value;
-        return ShaderMask(
-          blendMode: BlendMode.srcIn,
-          shaderCallback: (rect) {
-            const span = 0.45;
-            final center = -1.0 + 2.0 * t;
-            return LinearGradient(
-              begin: Alignment(center - span, 0),
-              end: Alignment(center + span, 0),
-              colors: [
-                AppColors.textPrimary,
-                _tierColor,
-                AppColors.textPrimary,
-              ],
-            ).createShader(rect);
-          },
-          child: child,
-        );
-      },
-      child: number,
     );
   }
 
