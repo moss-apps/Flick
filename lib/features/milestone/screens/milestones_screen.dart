@@ -668,6 +668,12 @@ class _StreakBannerState extends State<_StreakBanner>
     super.dispose();
   }
 
+  Color get _tierColor =>
+      MilestoneCategory.dayStreak.tierColorFor(widget.streak) ?? AppColors.accent;
+
+  int get _tierCount =>
+      MilestoneCategory.dayStreak.tierCountFor(widget.streak);
+
   @override
   Widget build(BuildContext context) {
     final streak = widget.streak;
@@ -685,7 +691,8 @@ class _StreakBannerState extends State<_StreakBanner>
           painter: _BorderSweepPainter(
             progress: _sweep.value,
             radius: AppConstants.radiusLg,
-            color: AppColors.accent,
+            color: _tierColor,
+            peakAlpha: 0.55 + 0.1 * _tierCount,
           ),
           child: child,
         );
@@ -708,28 +715,49 @@ class _StreakBannerState extends State<_StreakBanner>
               ),
               borderRadius: BorderRadius.circular(AppConstants.radiusLg),
               border: Border.all(
-                color: AppColors.accent.withValues(alpha: 0.15),
+                color: _tierColor.withValues(alpha: 0.15 + 0.05 * _tierCount),
                 width: 1,
               ),
             ),
             child: Row(
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.accent.withValues(alpha: 0.1),
-                    border: Border.all(
-                      color: AppColors.accent.withValues(alpha: 0.25),
-                      width: 1,
-                    ),
-                  ),
-                  child: Icon(
-                    LucideIcons.flame,
-                    size: 26,
-                    color: AppColors.accent,
-                  ),
+                AnimatedBuilder(
+                  animation: _sweep,
+                  builder: (context, _) {
+                    // Derive a smooth pulse from the sweep controller so
+                    // no second ticker is needed.
+                    final pulse =
+                        (math.sin(_sweep.value * 2 * math.pi) + 1) / 2;
+                    final glow = _tierCount == 0
+                        ? 0.0
+                        : 0.15 + 0.15 * pulse * (_tierCount / 3);
+                    return Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _tierColor.withValues(alpha: 0.1),
+                        border: Border.all(
+                          color: _tierColor.withValues(alpha: 0.25),
+                          width: 1,
+                        ),
+                        boxShadow: glow > 0
+                            ? [
+                                BoxShadow(
+                                  color: _tierColor.withValues(alpha: glow),
+                                  blurRadius: 14 + 6 * pulse,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Icon(
+                        LucideIcons.flame,
+                        size: 26,
+                        color: _tierColor,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(width: AppConstants.spacingLg),
                 Expanded(
@@ -804,11 +832,13 @@ class _BorderSweepPainter extends CustomPainter {
     required this.progress,
     required this.radius,
     required this.color,
+    required this.peakAlpha,
   });
 
   final double progress;
   final double radius;
   final Color color;
+  final double peakAlpha;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -824,7 +854,7 @@ class _BorderSweepPainter extends CustomPainter {
       colors: [
         color.withValues(alpha: 0),
         color.withValues(alpha: 0),
-        color.withValues(alpha: 0.55),
+        color.withValues(alpha: peakAlpha),
         color.withValues(alpha: 0),
         color.withValues(alpha: 0),
       ],
@@ -841,5 +871,6 @@ class _BorderSweepPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_BorderSweepPainter old) => old.progress != progress;
+  bool shouldRepaint(_BorderSweepPainter old) =>
+      old.progress != progress || old.peakAlpha != peakAlpha;
 }
