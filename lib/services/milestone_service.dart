@@ -238,6 +238,26 @@ extension MilestoneCategoryX on MilestoneCategory {
       MilestoneCategory.uniqueArtists => 'artist',
     };
   }
+
+  /// Accent color of the highest tier in this category met by [value], or
+  /// null when no tier is reached (callers fall back to a neutral accent).
+  Color? tierColorFor(int value) {
+    Color? color;
+    for (final t in MilestoneType.values) {
+      if (t.category == this && value >= t.threshold) color = t.tierColor;
+    }
+    return color;
+  }
+
+  /// Number of tiers in this category met by [value]. Drives escalating
+  /// highlight intensity for things like long day streaks (0 = none).
+  int tierCountFor(int value) {
+    var count = 0;
+    for (final t in MilestoneType.values) {
+      if (t.category == this && value >= t.threshold) count++;
+    }
+    return count;
+  }
 }
 
 class MilestoneRecord {
