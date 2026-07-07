@@ -4095,6 +4095,12 @@ class PlayerService {
       return;
     }
 
+    if (wrapAroundQueue && _playlist.length > 1) {
+      _setCurrentIndex(_playlist.length - 1);
+      await _playSongAtCurrentIndex();
+      return;
+    }
+
     await seek(Duration.zero);
   }
 
