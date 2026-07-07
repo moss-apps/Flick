@@ -544,6 +544,7 @@ class PlayerService {
     unawaited(_loadCrossfadePreferences());
     unawaited(_loadFloatingPlayerPreference());
     _initBluetoothReconnectHandling();
+    unawaited(_applyBluetoothCodecPrefs());
   }
 
   void _initBluetoothReconnectHandling() {
@@ -555,9 +556,52 @@ class PlayerService {
               _bluetoothDisconnectedAt = DateTime.now();
             }
           } else if (type == 'connected') {
+            unawaited(_applyBluetoothCodecPrefs());
             _maybeResumeOnBluetoothReconnect();
           }
         });
+  }
+
+  /// Push the user's codec preference to the active A2DP device when codec
+  /// control is enabled. Best-effort: the hidden API no-ops on apps not
+  /// signed with the platform key, so the post-set verify loop in
+  /// [BluetoothService.setCodecConfig] logs the real outcome.
+  Future<void> _applyBluetoothCodecPrefs() async {
+    final enabled =
+        await _appPreferencesService.getBtEnableCodecControl();
+    if (!enabled) return;
+    final codecType = await _appPreferencesService.getBtPreferredCodec();
+    if (codecType < 0) return; // automatic; nothing to force
+    final devices = await BluetoothService.instance.getConnectedDevices();
+    final preferred = await _appPreferencesService.getPreferredBluetoothDevice();
+    final target = devices.isEmpty
+        ? null
+        : (preferred.isNotEmpty
+              ? devices.where((d) => d.address == preferred).firstOrNull
+              : null) ??
+            devices.where((d) => d.isA2dp).firstOrNull ??
+            devices.first;
+    if (target == null) return;
+    final sampleRate = await _appPreferencesService.getBtSampleRate();
+    final bits = codecType == BluetoothCodecType.ldac
+        ? await _appPreferencesService.getBtLdacBitsPerSample()
+        : 0;
+    final ldacBitrate = codecType == BluetoothCodecType.ldac
+        ? BtLdacBitrate.fromName(
+            await _appPreferencesService.getBtLdacBitrate(),
+          ).kbps
+        : 0;
+    _debugLog(
+      '[Bluetooth] Applying codec ${BluetoothCodecType.label(codecType)} '
+      '(sr=$sampleRate bits=$bits ldacKbps=$ldacBitrate) to ${target.name}',
+    );
+    await BluetoothService.instance.setCodecConfig(
+      address: target.address,
+      codecType: codecType,
+      sampleRate: sampleRate,
+      bitsPerSample: bits,
+      ldacBitrate: ldacBitrate,
+    );
   }
 
   Future<void> _maybeResumeOnBluetoothReconnect() async {
@@ -807,7 +851,8 @@ class PlayerService {
   bool get _isCrossfadeActive =>
       _usingRustBackend &&
       _rustAudioService.crossfadeEnabledNotifier.value &&
-      !isBitPerfectProcessingLocked;
+      !isBitPerfectProcessingLocked &&
+      loopModeNotifier.value != LoopMode.one;
 
   bool get _shouldQueueNextTrack =>
       _usingRustBackend &&
