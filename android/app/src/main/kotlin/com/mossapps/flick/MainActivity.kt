@@ -158,6 +158,7 @@ class MainActivity: FlutterActivity() {
     private var widgetChannel: MethodChannel? = null
     private val HOME_WIDGET_LAUNCH_ACTION = "com.mossapps.flick.WIDGET_LAUNCH"
     private var a2dpProxy: BluetoothA2dp? = null
+    private var developerMode: Boolean = false
     private var bluetoothEventSink: EventChannel.EventSink? = null
     private var aclReceiver: BroadcastReceiver? = null
 
@@ -905,6 +906,7 @@ class MainActivity: FlutterActivity() {
                 }
                 "setDeveloperMode" -> {
                     val enabled = call.argument<Boolean>("enabled") ?: false
+                    developerMode = enabled
                     nativeSetRustDeveloperMode(enabled)
                     result.success(true)
                 }
@@ -938,7 +940,8 @@ class MainActivity: FlutterActivity() {
         ensureA2dpProxy()
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BLUETOOTH_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "getConnectedDevices" -> result.success(getConnectedBluetoothDevices())
+                "getConnectedDevices" -> result.success(getBluetoothDevices(includeBonded = false))
+                "getBondedDevices" -> result.success(getBluetoothDevices(includeBonded = true))
                 "getCodecStatus" -> {
                     val address = call.argument<String>("address")
                     result.success(if (address != null) getBluetoothCodecStatus(address) else null)
@@ -961,6 +964,7 @@ class MainActivity: FlutterActivity() {
                     val enabled = call.argument<Boolean>("enabled") ?: true
                     result.success(setBluetoothAbsoluteVolume(address, enabled))
                 }
+                "openBluetoothCodecSettings" -> result.success(openDeveloperOptions())
                 else -> result.notImplemented()
             }
         }
@@ -4172,24 +4176,54 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    private fun getConnectedBluetoothDevices(): List<Map<String, Any?>> {
-        val a2dp = a2dpProxy ?: return emptyList()
-        return try {
-            a2dp.connectedDevices.map { device ->
-                mapOf(
-                    "address" to device.address,
-                    "name" to (device.name ?: "Unknown"),
-                    "isA2dp" to true
-                )
-            }
+    private fun getBluetoothDevices(includeBonded: Boolean): List<Map<String, Any?>> {
+        val a2dp = a2dpProxy
+        val connectedAddresses = try {
+            a2dp?.connectedDevices?.map { it.address }?.toSet() ?: emptySet()
         } catch (e: SecurityException) {
             Log.w("Bluetooth", "connectedDevices blocked: ${e.message}")
-            emptyList()
+            emptySet()
         }
+        val connectedDevices = a2dp?.connectedDevices ?: emptyList()
+        fun deviceMap(address: String, name: String): Map<String, Any?> = mapOf(
+            "address" to address,
+            "name" to name.ifBlank { "Unknown" },
+            "isA2dp" to true,
+            "isConnected" to (address in connectedAddresses)
+        )
+        val result = connectedDevices.map { deviceMap(it.address, it.name ?: "Unknown") }.toMutableList()
+        if (includeBonded) {
+            val adapter = bluetoothAdapter()
+            val bonded = try {
+                adapter?.bondedDevices ?: emptySet()
+            } catch (e: SecurityException) {
+                Log.w("Bluetooth", "bondedDevices blocked: ${e.message}")
+                emptySet()
+            }
+            val seen = result.map { it["address"] as String }.toMutableSet()
+            for (device in bonded) {
+                val address = try { device.address } catch (e: SecurityException) { continue }
+                if (address in seen) {
+                    // upgrade existing entry's connected flag
+                    val idx = result.indexOfFirst { it["address"] == address }
+                    if (idx >= 0) result[idx] = deviceMap(address, device.name ?: "Unknown")
+                    continue
+                }
+                val name = try { device.name ?: "Unknown" } catch (e: SecurityException) { "Unknown" }
+                result.add(deviceMap(address, name))
+                seen.add(address)
+            }
+        }
+        // connected first
+        return result.sortedByDescending { (it["isConnected"] as Boolean) }
     }
 
     private fun btCodecTypeLabel(t: Int): String = when (t) {
         0 -> "SBC"; 1 -> "AAC"; 2 -> "aptX"; 3 -> "aptX HD"; 4 -> "LDAC"; else -> "Codec $t"
+    }
+
+    private fun devLogD(msg: String) {
+        if (developerMode) Log.d("FlickBT", msg)
     }
     private fun btDecodeSampleRate(bits: Int): Int? = when {
         bits and 0x1 != 0 -> 44100
@@ -4215,9 +4249,19 @@ class MainActivity: FlutterActivity() {
 
     // Requires API 33+ (BluetoothA2dp.getCodecStatus is @SystemApi → reflection).
     private fun getBluetoothCodecStatus(address: String): Map<String, Any?>? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
-        val a2dp = a2dpProxy ?: return null
-        val device = a2dp.connectedDevices.firstOrNull { it.address == address } ?: return null
+        relaxHiddenApiPolicy()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            devLogD("getCodecStatus: skipped (API ${Build.VERSION.SDK_INT} < 33)")
+            return null
+        }
+        val a2dp = a2dpProxy ?: run {
+            devLogD("getCodecStatus: no a2dpProxy")
+            return null
+        }
+        val device = a2dp.connectedDevices.firstOrNull { it.address == address } ?: run {
+            devLogD("getCodecStatus: device $address not among ${a2dp.connectedDevices.size} connected")
+            return null
+        }
         return try {
             val status = a2dp.javaClass
                 .getMethod("getCodecStatus", BluetoothDevice::class.java)
@@ -4227,24 +4271,68 @@ class MainActivity: FlutterActivity() {
             val sampleRate = config.javaClass.getMethod("getSampleRate").invoke(config) as Int
             val bitsPerSample = config.javaClass.getMethod("getBitsPerSample").invoke(config) as Int
             val channelMode = config.javaClass.getMethod("getChannelMode").invoke(config) as Int
-            mapOf(
+            val statusMap = mapOf(
                 "codecName" to btCodecTypeLabel(codecType),
                 "sampleRate" to btDecodeSampleRate(sampleRate),
                 "bitsPerSample" to btDecodeBitsPerSample(bitsPerSample),
                 "channelMode" to btDecodeChannelMode(channelMode)
             )
+            devLogD("getCodecStatus: $address -> ${statusMap["codecName"]} ${statusMap["sampleRate"]}Hz ${statusMap["bitsPerSample"]}-bit")
+            statusMap
         } catch (e: Exception) {
+            devLogD("getCodecStatus: reflection failed: ${e.message}")
             Log.w("Bluetooth", "getCodecStatus failed: ${e.message}")
             null
         }
     }
 
+    private var hiddenApiRelaxed = false
+
+    /// Best-effort lift of the non-SDK API blocklist for this process so the
+    /// hidden Bluetooth codec methods (setCodecConfigPreference, getCodecStatus)
+    /// are reachable via reflection — same technique apps like UAPP use to
+    /// switch A2DP codecs on Android 8+. Device-dependent; no-op if blocked.
+    /// ponytail: process-global + idempotent; this is the known one-shot exemption.
+    private fun relaxHiddenApiPolicy() {
+        if (hiddenApiRelaxed) return
+        hiddenApiRelaxed = true
+        try {
+            val vmRuntimeClass = Class.forName("dalvik.system.VMRuntime")
+            // Meta-reflect through Class's own public getDeclaredMethod so the
+            // blocklist check on VMRuntime is bypassed.
+            val getDeclaredMethod = Class::class.java.getDeclaredMethod(
+                "getDeclaredMethod", String::class.java, arrayOf<Class<*>>()::class.java
+            )
+            val setExemptions = getDeclaredMethod.invoke(
+                vmRuntimeClass,
+                "setHiddenApiExemptions",
+                Array<String>::class.java,
+            ) as java.lang.reflect.Method
+            setExemptions.invoke(null, arrayOf<Any>(arrayOf("L")))
+            devLogD("relaxHiddenApiPolicy: hidden-API exemption applied")
+        } catch (e: Exception) {
+            devLogD("relaxHiddenApiPolicy: unavailable (${e.javaClass.simpleName}: ${e.message})")
+        }
+    }
+
     private fun setBluetoothCodecConfigNative(
         address: String, codecType: Int, sampleRate: Int, bitsPerSample: Int, channelMode: Int, ldacBitrate: Int
-    ): Boolean {
-        if (codecType < 0) return true // Automatic = let system decide
-        val a2dp = a2dpProxy ?: return false
-        val device = a2dp.connectedDevices.firstOrNull { it.address == address } ?: return false
+    ): Map<String, Any?> {
+        relaxHiddenApiPolicy()
+        if (codecType < 0) {
+            devLogD("setCodecConfig: codecType<0 (Automatic) — letting system decide")
+            return mapOf("ok" to true, "reason" to "automatic")
+        }
+        val a2dp = a2dpProxy ?: run {
+            devLogD("setCodecConfig: no a2dpProxy")
+            return mapOf("ok" to false, "reason" to "no a2dpProxy (BLUETOOTH_CONNECT not granted or profile proxy not ready)")
+        }
+        val device = a2dp.connectedDevices.firstOrNull { it.address == address } ?: run {
+            devLogD("setCodecConfig: device $address not among ${a2dp.connectedDevices.size} connected")
+            val connected = a2dp.connectedDevices.joinToString(",") { it.address }
+            return mapOf("ok" to false, "reason" to "device not in A2DP connected list (count=${a2dp.connectedDevices.size}; connected=[$connected])")
+        }
+        devLogD("setCodecConfig: requesting ${btCodecTypeLabel(codecType)} for $address (sr=$sampleRate bps=$bitsPerSample ch=$channelMode ldac=$ldacBitrate)")
         return try {
             val codecConfigClass = Class.forName("android.bluetooth.BluetoothCodecConfig")
             val constructor = codecConfigClass.getConstructor(
@@ -4255,22 +4343,43 @@ class MainActivity: FlutterActivity() {
                 Long::class.javaPrimitiveType, Long::class.javaPrimitiveType
             )
             val codecPriorityHighest = 1_000_000
-            val allCodecTypes = intArrayOf(0, 1, 2, 3, 5, 4) // SBC, AAC, aptX, aptX HD, aptX Adaptive, LDAC
-            val configs = java.lang.reflect.Array.newInstance(codecConfigClass, allCodecTypes.size)
-            for (i in allCodecTypes.indices) {
-                val ct = allCodecTypes[i]
-                val priority = if (ct == codecType) codecPriorityHighest else 0
-                val cs1 = if (ct == 4 && codecType == 4) ldacBitrate.toLong() else 0L
-                java.lang.reflect.Array.set(configs, i,
-                    constructor.newInstance(ct, priority, sampleRate, bitsPerSample, channelMode, cs1, 0L, 0L, 0L)
-                )
+            val cs1 = if (codecType == 4) ldacBitrate.toLong() else 0L
+            val config = constructor.newInstance(
+                codecType, codecPriorityHighest,
+                sampleRate, bitsPerSample, channelMode,
+                cs1, 0L, 0L, 0L
+            )
+            // ponytail: successor to the removed setCodecConfig(device, config[])
+            val setMethod = a2dp.javaClass.getMethod(
+                "setCodecConfigPreference",
+                BluetoothDevice::class.java, codecConfigClass
+            )
+            val ret = setMethod.invoke(a2dp, device, config)
+            // Returns void on newer mainline modules, Boolean on older ones.
+            // void + no exception = applied; Dart side verifies via getCodecStatus.
+            val ok = if (setMethod.returnType == Boolean::class.javaPrimitiveType) {
+                (ret as? Boolean) ?: false
+            } else {
+                true
             }
-            val arrayClass = java.lang.reflect.Array.newInstance(codecConfigClass, 0).javaClass
-            val setMethod = a2dp.javaClass.getMethod("setCodecConfig", BluetoothDevice::class.java, arrayClass)
-            (setMethod.invoke(a2dp, device, configs) as? Boolean) ?: false
+            devLogD("setCodecConfigPreference: ${btCodecTypeLabel(codecType)} returnType=${setMethod.returnType.simpleName} -> ok=$ok")
+            mapOf("ok" to ok, "reason" to if (ok) "invoke succeeded (setCodecConfigPreference)" else "setCodecConfigPreference.invoke returned false")
         } catch (e: Exception) {
-            Log.w("Bluetooth", "setCodecConfig failed (likely hidden/blocked): ${e.message}")
-            false
+            val verdict = if (e is NoSuchMethodException) {
+                val codecMethods = a2dp.javaClass.methods
+                    .filter { it.name.contains("Codec", ignoreCase = true) }
+                    .joinToString(", ") { m ->
+                        "${m.name}(${m.parameterTypes.joinToString(",") { p -> p.simpleName }})"
+                    }
+                "setCodecConfigPreference(BluetoothDevice, BluetoothCodecConfig) not present on this " +
+                    "device's BluetoothA2dp. Available codec methods: [$codecMethods]. " +
+                    "App cannot switch A2DP codec here — use Android Developer Options → Bluetooth Audio Codec."
+            } else {
+                "reflection failed: ${e.message}"
+            }
+            devLogD("setCodecConfigPreference: $verdict")
+            Log.w("Bluetooth", "setCodecConfigPreference failed: $verdict")
+            mapOf("ok" to false, "reason" to verdict)
         }
     }
 
@@ -4326,6 +4435,21 @@ class MainActivity: FlutterActivity() {
             false
         } catch (e: Exception) {
             Log.w("Bluetooth", "absolute volume failed: ${e.message}")
+            false
+        }
+    }
+
+    /// Opens Developer Options, where "Bluetooth Audio Codec" lives (the only
+    /// reliable in-system way to switch the A2DP codec on stock Android).
+    /// Returns false if Developer Options is disabled/unavailable.
+    private fun openDeveloperOptions(): Boolean {
+        return try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            true
+        } catch (e: Exception) {
+            Log.w("Bluetooth", "openDeveloperOptions failed: ${e.message}")
             false
         }
     }
