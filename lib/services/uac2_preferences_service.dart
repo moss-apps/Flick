@@ -51,6 +51,10 @@ class Uac2PreferencesService {
   static bool get isBtLowLatencyModeSync => btLowLatencyModeNotifier.value;
   static const _keyBtLowLatencyMode = 'bt_low_latency_mode';
 
+  static final ValueNotifier<bool> btHiResDirectNotifier = ValueNotifier(false);
+  static bool get isBtHiResDirectSync => btHiResDirectNotifier.value;
+  static const _keyBtHiResDirect = 'bt_hires_direct';
+
   Future<void> saveSelectedDevice(Uac2DeviceInfo device) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -410,6 +414,30 @@ class Uac2PreferencesService {
     }
   }
 
+  Future<void> setBtHiResDirect(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyBtHiResDirect, enabled);
+      btHiResDirectNotifier.value = enabled;
+    } catch (e) {
+      devLog('Failed to save BT hi-res direct setting: $e');
+    }
+  }
+
+  Future<bool> getBtHiResDirect() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool(_keyBtHiResDirect) ?? false;
+      if (btHiResDirectNotifier.value != enabled) {
+        btHiResDirectNotifier.value = enabled;
+      }
+      return enabled;
+    } catch (e) {
+      devLog('Failed to load BT hi-res direct setting: $e');
+      return false;
+    }
+  }
+
   Future<Uac2FormatPreference> getFormatPreference() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -548,6 +576,7 @@ class Uac2PreferencesService {
     await prefs.remove(_keyDsdOutputMode);
     await prefs.remove(_keyAutoSwitchDsdForVolume);
     await prefs.remove(_keyBtLowLatencyMode);
+    await prefs.remove(_keyBtHiResDirect);
     await prefs.remove(_keyDsdByteOrderOverride);
     await prefs.remove(_keyDsdSubslotOverride);
       dsdOutputModeNotifier.value = DsdOutputMode.auto;
@@ -557,6 +586,7 @@ class Uac2PreferencesService {
       killIsochronousUsbOnQuitNotifier.value = true;
       tuning432HzNotifier.value = false;
       btLowLatencyModeNotifier.value = false;
+      btHiResDirectNotifier.value = false;
     } catch (e) {
       devLog('Failed to clear preferences: $e');
     }
