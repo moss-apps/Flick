@@ -63,6 +63,9 @@ class AppPreferences {
   final int btPreferredCodec;
   final String btLdacBitrate;
   final bool btAbsoluteVolumeSync;
+  final bool btEnableCodecControl;
+  final int btSampleRate;
+  final int btLdacBitsPerSample;
   final bool floatingPlayerEnabled;
   final bool floatingIslandEnabled;
   final bool autoFocusSearch;
@@ -133,6 +136,9 @@ class AppPreferences {
     this.btPreferredCodec = -1,
     this.btLdacBitrate = 'adaptive',
     this.btAbsoluteVolumeSync = false,
+    this.btEnableCodecControl = false,
+    this.btSampleRate = 0,
+    this.btLdacBitsPerSample = 0,
     this.floatingPlayerEnabled = false,
     this.floatingIslandEnabled = true,
     this.autoFocusSearch = false,
@@ -204,6 +210,9 @@ class AppPreferences {
     int? btPreferredCodec,
     String? btLdacBitrate,
     bool? btAbsoluteVolumeSync,
+    bool? btEnableCodecControl,
+    int? btSampleRate,
+    int? btLdacBitsPerSample,
     bool? floatingPlayerEnabled,
     bool? floatingIslandEnabled,
     bool? autoFocusSearch,
@@ -302,6 +311,11 @@ class AppPreferences {
       btLdacBitrate: btLdacBitrate ?? this.btLdacBitrate,
       btAbsoluteVolumeSync:
           btAbsoluteVolumeSync ?? this.btAbsoluteVolumeSync,
+      btEnableCodecControl:
+          btEnableCodecControl ?? this.btEnableCodecControl,
+      btSampleRate: btSampleRate ?? this.btSampleRate,
+      btLdacBitsPerSample:
+          btLdacBitsPerSample ?? this.btLdacBitsPerSample,
       floatingPlayerEnabled:
           floatingPlayerEnabled ?? this.floatingPlayerEnabled,
       floatingIslandEnabled:
@@ -383,6 +397,9 @@ class AppPreferencesService {
   static const _btPreferredCodecKey = 'app_bt_preferred_codec';
   static const _btLdacBitrateKey = 'app_bt_ldac_bitrate';
   static const _btAbsoluteVolumeSyncKey = 'app_bt_absolute_volume_sync';
+  static const _btEnableCodecControlKey = 'app_bt_enable_codec_control';
+  static const _btSampleRateKey = 'app_bt_sample_rate';
+  static const _btLdacBitsPerSampleKey = 'app_bt_ldac_bits_per_sample';
   static const _floatingPlayerEnabledKey = 'app_floating_player_enabled';
   static const _floatingIslandEnabledKey = 'app_floating_island_enabled';
   static const _autoFocusSearchKey = 'app_auto_focus_search';
@@ -485,6 +502,10 @@ class AppPreferencesService {
       btLdacBitrate: prefs.getString(_btLdacBitrateKey) ?? 'adaptive',
       btAbsoluteVolumeSync:
           prefs.getBool(_btAbsoluteVolumeSyncKey) ?? false,
+      btEnableCodecControl:
+          prefs.getBool(_btEnableCodecControlKey) ?? false,
+      btSampleRate: prefs.getInt(_btSampleRateKey) ?? 0,
+      btLdacBitsPerSample: prefs.getInt(_btLdacBitsPerSampleKey) ?? 0,
       floatingPlayerEnabled:
           prefs.getBool(_floatingPlayerEnabledKey) ?? false,
       floatingIslandEnabled:
@@ -1109,6 +1130,36 @@ class AppPreferencesService {
   Future<void> setBtAbsoluteVolumeSync(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_btAbsoluteVolumeSyncKey, value);
+  }
+
+  Future<bool> getBtEnableCodecControl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_btEnableCodecControlKey) ?? false;
+  }
+
+  Future<void> setBtEnableCodecControl(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_btEnableCodecControlKey, value);
+  }
+
+  Future<int> getBtSampleRate() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_btSampleRateKey) ?? 0;
+  }
+
+  Future<void> setBtSampleRate(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_btSampleRateKey, value);
+  }
+
+  Future<int> getBtLdacBitsPerSample() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_btLdacBitsPerSampleKey) ?? 0;
+  }
+
+  Future<void> setBtLdacBitsPerSample(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_btLdacBitsPerSampleKey, value);
   }
 
   Future<bool> getFloatingPlayerEnabled() async {

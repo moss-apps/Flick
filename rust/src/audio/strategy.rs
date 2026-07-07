@@ -1,4 +1,5 @@
 use crate::audio::backend::BackendType;
+use crate::dev_eprintln;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -295,18 +296,60 @@ pub fn select_strategy_with_candidates_filtered(
     candidates: &[BackendCandidate],
     excluded: &[OutputStrategy],
 ) -> OutputStrategy {
+    dev_eprintln!(
+        "[STRATEGY] inputs: track={{sr:{}, ch:{}, is_dsd:{}, dsd_rate:{:?}}} \
+         device={{api:{:?}, dap_native:{}, mixer_bp:{}, req_rate:{}, usb_direct:{}/verified:{}, \
+         native_dsd:{}, dop:{}, max_carrier:{}, usb_native_dsd:{}}} excluded={:?}",
+        track.sample_rate,
+        track.channels,
+        track.is_dsd,
+        track.dsd_rate,
+        device.api_level,
+        device.confirmed_dap_native,
+        device.supports_mixer_bit_perfect,
+        device.supports_requested_rate,
+        device.direct_usb_available,
+        device.direct_usb_verified,
+        device.supports_native_dsd,
+        device.supports_dop,
+        device.max_dsd_carrier_rate,
+        device.usb_supports_native_dsd,
+        excluded,
+    );
+
     candidates
         .iter()
         .filter(|candidate| {
             let strategy: OutputStrategy = candidate.backend_type.into();
-            !excluded.contains(&strategy)
+            let allowed = !excluded.contains(&strategy);
+            if !allowed {
+                dev_eprintln!("[STRATEGY] {:?}: excluded", strategy);
+            }
+            allowed
         })
         .filter_map(|candidate| {
-            (candidate.scorer)(device, track).map(|score| (candidate.backend_type, score))
+            let strategy: OutputStrategy = candidate.backend_type.into();
+            match (candidate.scorer)(device, track) {
+                Some(score) => {
+                    dev_eprintln!("[STRATEGY] {:?}: score={}", strategy, score);
+                    Some((candidate.backend_type, score))
+                }
+                None => {
+                    dev_eprintln!("[STRATEGY] {:?}: no score", strategy);
+                    None
+                }
+            }
         })
         .max_by_key(|(_, score)| *score)
-        .map(|(backend_type, _)| backend_type.into())
-        .unwrap_or(OutputStrategy::ResampledFallback)
+        .map(|(backend_type, score)| {
+            let strategy: OutputStrategy = backend_type.into();
+            dev_eprintln!("[STRATEGY] selected {:?} (score={})", strategy, score);
+            strategy
+        })
+        .unwrap_or_else(|| {
+            dev_eprintln!("[STRATEGY] no candidate scored -> ResampledFallback");
+            OutputStrategy::ResampledFallback
+        })
 }
 
 #[cfg(test)]

@@ -247,20 +247,47 @@ class AudioSessionManager {
     );
     final looksLikeUsbAudioRoute = info.looksLikeUsbAudioRoute;
 
+    _debugLog(
+      '[Session] Resolve inputs: route=${info.routeLabel ?? info.routeType ?? 'unknown'} '
+      'attachedUac2=${info.hasAttachedUac2Device} audioManagerUsb=${info.hasUsbDac} '
+      'capabilityUsb=$capabilityReportsUsb routeLooksUsb=$looksLikeUsbAudioRoute '
+      'isBt=${info.isBluetoothRoute} btLowLatency=${Uac2PreferencesService.isBtLowLatencyModeSync} '
+      'btHiResDirect=${Uac2PreferencesService.isBtHiResDirectSync} '
+      'bitPerfect=$bitPerfectEnabled dapBitPerfect=$dapBitPerfectEnabled '
+      'enginePref=$audioEnginePreference '
+      'caps=${capabilityInfo.capabilities.map((c) => c.name).toList()} '
+      'detectedDap=${dapInfo.brand ?? 'none'}',
+    );
+
+    if (info.isBluetoothRoute) {
+      final btHiResDirect = await _preferencesService.getBtHiResDirect();
+      if (btHiResDirect) {
+        _debugLog(
+          '[Session] Selected DAP_INTERNAL_HIGH_RES for Bluetooth because '
+          'Hi-Res Direct is enabled '
+          '(${info.routeLabel ?? info.routeType ?? 'unknown'})',
+        );
+        return AudioEngineType.dapInternalHighRes;
+      }
+      if (Uac2PreferencesService.isBtLowLatencyModeSync) {
+        _debugLog(
+          '[Session] Selected RUST_OBOE for Bluetooth because Low-latency mode '
+          'is enabled (${info.routeLabel ?? info.routeType ?? 'unknown'})',
+        );
+        return AudioEngineType.rustOboe;
+      }
+      _debugLog(
+        '[Session] Keeping NORMAL_ANDROID for Bluetooth '
+        '(${info.routeLabel ?? info.routeType ?? 'unknown'})',
+      );
+      return AudioEngineType.normalAndroid;
+    }
+
     if (info.hasAttachedUac2Device ||
         info.hasUsbDac ||
         capabilityReportsUsb ||
         looksLikeUsbAudioRoute) {
-    if (info.isBluetoothRoute &&
-        Uac2PreferencesService.isBtLowLatencyModeSync) {
-      _debugLog(
-        '[Session] Selected RUST_OBOE for Bluetooth because Low-latency mode '
-        'is enabled (${info.routeLabel ?? info.routeType ?? 'unknown'})',
-      );
-      return AudioEngineType.rustOboe;
-    }
-
-    if (audioEnginePreference == AudioEnginePreference.rustOboe) {
+      if (audioEnginePreference == AudioEnginePreference.rustOboe) {
         _debugLog(
           '[Session] Selected RUST_OBOE because an external USB DAC is '
           'attached and the user prefers the Rust Android-managed engine '
@@ -346,6 +373,11 @@ class AudioSessionManager {
       return AudioEngineType.rustOboe;
     }
 
+    _debugLog(
+      '[Session] Defaulting to NORMAL_ANDROID: no USB/DAC/HiRes route '
+      'detected and user engine preference is $audioEnginePreference '
+      '(route=${info.routeLabel ?? info.routeType ?? 'unknown'})',
+    );
     return AudioEngineType.normalAndroid;
   }
 

@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../services/milestone_service.dart';
 
 /// Launch-day streak popup. Shows a rolling 7-day window of containers; the
 /// trailing [streak] days are "checked" and animate in with a staggered
@@ -67,6 +68,15 @@ class _StreakPopupState extends State<StreakPopup>
     _flame.dispose();
     super.dispose();
   }
+
+  /// Tier accent (bronze/silver/gold) once a streak tier is met, else the
+  /// neutral app accent — keeps short streaks monochrome.
+  Color get _tierColor =>
+      MilestoneCategory.dayStreak.tierColorFor(widget.streak) ?? AppColors.accent;
+
+  /// How many streak tiers are met (0–3). Scales highlight intensity.
+  int get _tierCount =>
+      MilestoneCategory.dayStreak.tierCountFor(widget.streak);
 
   /// Index in the 7-day window of the cell representing today (rightmost).
   int get _todayIndex => _window - 1;
@@ -145,8 +155,10 @@ class _StreakPopupState extends State<StreakPopup>
     return AnimatedBuilder(
       animation: _flame,
       builder: (context, child) {
-        final glow = 0.08 + 0.06 * _flame.value;
+        // Glow amplitude and spread climb with each met streak tier.
+        final glow = 0.08 + (0.04 + 0.05 * _tierCount) * _flame.value;
         final scale = 1.0 + 0.04 * _flame.value;
+        final blur = 20.0 + 10.0 * _tierCount;
         return Transform.scale(
           scale: scale,
           child: Container(
@@ -154,23 +166,23 @@ class _StreakPopupState extends State<StreakPopup>
             height: 64,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.accent.withValues(alpha: 0.08),
+              color: _tierColor.withValues(alpha: 0.08),
               border: Border.all(
-                color: AppColors.accent.withValues(alpha: 0.2),
+                color: _tierColor.withValues(alpha: 0.2),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.accent.withValues(alpha: glow),
-                  blurRadius: 20,
+                  color: _tierColor.withValues(alpha: glow),
+                  blurRadius: blur,
                   spreadRadius: 2,
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               LucideIcons.flame,
               size: 30,
-              color: AppColors.accent,
+              color: _tierColor,
             ),
           ),
         );
@@ -191,7 +203,9 @@ class _StreakPopupState extends State<StreakPopup>
               '${widget.streak}',
               style: Theme.of(context).textTheme.displayLarge?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                // Highlight the count in the tier color once a streak tier
+                // is met; plain white below that.
+                color: _tierCount > 0 ? _tierColor : AppColors.textPrimary,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -221,6 +235,8 @@ class _StreakPopupState extends State<StreakPopup>
           dayNumber: day.day,
           checked: checked,
           isToday: isToday,
+          color: _tierColor,
+          glowTier: _tierCount,
           reveal: _reveal,
           revealStart: _revealStartFor(i),
           pulse: isToday ? _pulse : null,
@@ -259,7 +275,7 @@ class _StreakPopupState extends State<StreakPopup>
           widget.onDismiss?.call();
         },
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.accent,
+          backgroundColor: _tierColor,
           foregroundColor: AppColors.background,
           padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingMd),
           shape: RoundedRectangleBorder(
@@ -305,6 +321,8 @@ class _DayCell extends StatelessWidget {
     required this.dayNumber,
     required this.checked,
     required this.isToday,
+    required this.color,
+    required this.glowTier,
     required this.reveal,
     required this.revealStart,
     this.pulse,
@@ -314,6 +332,8 @@ class _DayCell extends StatelessWidget {
   final int dayNumber;
   final bool checked;
   final bool isToday;
+  final Color color;
+  final int glowTier;
   final AnimationController reveal;
   final double revealStart;
   final AnimationController? pulse;
@@ -385,17 +405,17 @@ class _DayCell extends StatelessWidget {
           scale: scale,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: AppColors.accent,
+              color: color,
               borderRadius: BorderRadius.circular(AppConstants.radiusSm),
               border: Border.all(
-                color: AppColors.accentLight.withValues(alpha: 0.6),
+                color: Color.lerp(color, Colors.white, 0.25)!.withValues(alpha: 0.6),
                 width: 1,
               ),
               boxShadow: isToday
                   ? [
                       BoxShadow(
-                        color: AppColors.accent.withValues(alpha: 0.25),
-                        blurRadius: 12,
+                        color: color.withValues(alpha: 0.25 + 0.05 * glowTier),
+                        blurRadius: 12 + 2.0 * glowTier,
                         spreadRadius: 1,
                       ),
                     ]

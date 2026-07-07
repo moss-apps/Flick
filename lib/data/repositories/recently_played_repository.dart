@@ -214,17 +214,6 @@ class RecentlyPlayedRepository {
     if (id == null) return;
 
     await _isar.writeTxn(() async {
-      // Remove existing entries for this song to avoid duplicates
-      final existing = await _isar.recentlyPlayedEntitys
-          .where()
-          .songIdEqualTo(id)
-          .findAll();
-      if (existing.isNotEmpty) {
-        await _isar.recentlyPlayedEntitys.deleteAll(
-          existing.map((e) => e.id).toList(),
-        );
-      }
-
       final entity = RecentlyPlayedEntity()
         ..songId = id
         ..playedAt = DateTime.now();

@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/services/milestone_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -59,6 +60,24 @@ void main() {
       expect(MilestoneCategory.uniqueArtists.unitNoun, 'artists');
       expect(MilestoneCategory.songs.unitSingular, 'song');
       expect(MilestoneCategory.dayStreak.unitSingular, 'day');
+    });
+
+    test('tierColorFor/tierCountFor escalate with the day streak', () {
+      const cat = MilestoneCategory.dayStreak;
+      // Below the first tier: no color, zero tiers met.
+      expect(cat.tierColorFor(0), isNull);
+      expect(cat.tierColorFor(6), isNull);
+      expect(cat.tierCountFor(6), 0);
+      // 7-day: bronze.
+      expect(cat.tierColorFor(7), AppColors.milestoneBronze);
+      expect(cat.tierCountFor(7), 1);
+      // 30-day: silver (highest met wins over bronze).
+      expect(cat.tierColorFor(29), AppColors.milestoneBronze);
+      expect(cat.tierColorFor(30), AppColors.milestoneSilver);
+      expect(cat.tierCountFor(30), 2);
+      // 100-day: gold.
+      expect(cat.tierColorFor(100), AppColors.milestoneGold);
+      expect(cat.tierCountFor(250), 3);
     });
   });
 

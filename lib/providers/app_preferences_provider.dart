@@ -471,6 +471,28 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setBtAbsoluteVolumeSync(value);
   }
 
+  Future<void> setBtEnableCodecControl(bool value) async {
+    if (state.btEnableCodecControl == value) return;
+    state = state.copyWith(btEnableCodecControl: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setBtEnableCodecControl(value);
+  }
+
+  Future<void> setBtSampleRate(int value) async {
+    if (state.btSampleRate == value) return;
+    state = state.copyWith(btSampleRate: value);
+    await ref.read(appPreferencesServiceProvider).setBtSampleRate(value);
+  }
+
+  Future<void> setBtLdacBitsPerSample(int value) async {
+    if (state.btLdacBitsPerSample == value) return;
+    state = state.copyWith(btLdacBitsPerSample: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setBtLdacBitsPerSample(value);
+  }
+
   Future<void> setFloatingPlayerEnabled(bool value) async {
     if (state.floatingPlayerEnabled == value) return;
     state = state.copyWith(floatingPlayerEnabled: value);

@@ -564,6 +564,7 @@ struct AndroidDirectUsbClockApplyOutcome {
     rate_verified: bool,
     reported_sample_rate: Option<u32>,
     known_mismatch: bool,
+    set_cur_succeeded: bool,
     message: Option<String>,
 }
 
@@ -3588,6 +3589,24 @@ fn create_android_usb_backend_inner(
                     reported_sample_rate.unwrap_or(0),
                     clock_verification_passed,
                 );
+
+                if clock_outcome.set_cur_succeeded
+                    && !clock_verification_passed
+                    && !clock_outcome.known_mismatch
+                {
+                    clock_verification_passed = true;
+                    reported_sample_rate = Some(playback_format.sample_rate);
+                    set_clock_verification(
+                        clock_control_attempted,
+                        true,
+                        true,
+                        reported_sample_rate,
+                    );
+                    dev_eprintln!(
+                        "[USB] SET_CUR accepted {}Hz on clock {} but readback unavailable (write-only clock); trusting SET_CUR",
+                        playback_format.sample_rate, clock.clock_id,
+                    );
+                }
             }
             DacMode::FixedClock | DacMode::AdaptiveStreaming => {
                 reported_sample_rate = get_sampling_frequency(
@@ -3847,6 +3866,24 @@ fn create_android_usb_backend_inner(
                         clock_verification_passed,
                         retry.reported_sample_rate.unwrap_or(0),
                     );
+
+                    if retry.set_cur_succeeded
+                        && !clock_verification_passed
+                        && !retry.known_mismatch
+                    {
+                        clock_verification_passed = true;
+                        reported_sample_rate = Some(playback_format.sample_rate);
+                        set_clock_verification(
+                            clock_control_attempted,
+                            true,
+                            true,
+                            reported_sample_rate,
+                        );
+                        dev_eprintln!(
+                            "[USB] Re-SET_CUR accepted {}Hz on clock {} but readback unavailable (write-only clock); trusting SET_CUR",
+                            playback_format.sample_rate, clock.clock_id,
+                        );
+                    }
                 }
             }
             Err(error) => {
@@ -5913,6 +5950,7 @@ fn apply_sampling_frequency(
                 rate_verified: false,
                 reported_sample_rate: get_sampling_frequency(handle, interface_number, clock_id).ok(),
                 known_mismatch: true,
+                set_cur_succeeded: false,
                 message: Some(format!(
                     "Requested {} Hz is not supported by clock {} on interface {}; supported rates: {}",
                     sample_rate,
@@ -5946,6 +5984,7 @@ fn apply_sampling_frequency(
     let mut last_set_error = None;
     let mut last_readback_error = None;
     let mut last_reported_rate = None;
+    let mut set_cur_succeeded = false;
 
     for attempt in 1..=3 {
         log::info!(
@@ -5958,6 +5997,7 @@ fn apply_sampling_frequency(
         match set_sampling_frequency(handle, interface_number, clock_id, sample_rate) {
             Ok(()) => {
                 log::info!("[USB] SET_CUR attempt {}/3: succeeded", attempt);
+                set_cur_succeeded = true;
             }
             Err(error) => {
                 log::error!("[USB] SET_CUR attempt {}/3: failed: {}", attempt, error);
@@ -6006,6 +6046,7 @@ fn apply_sampling_frequency(
                         rate_verified: true,
                         reported_sample_rate: Some(reported_sample_rate),
                         known_mismatch: false,
+                        set_cur_succeeded,
                         message: None,
                     };
                 }
@@ -6023,6 +6064,7 @@ fn apply_sampling_frequency(
             rate_verified: false,
             reported_sample_rate: Some(reported_sample_rate),
             known_mismatch: true,
+            set_cur_succeeded,
             message: Some(format!(
                 "Requested {} Hz, DAC reports {} Hz after SET_CUR on clock {} / interface {}",
                 sample_rate, reported_sample_rate, clock_id, interface_number
@@ -6035,6 +6077,7 @@ fn apply_sampling_frequency(
         rate_verified: false,
         reported_sample_rate: None,
         known_mismatch: false,
+        set_cur_succeeded,
         message: Some(format!(
             "Failed to set USB clock {} on interface {} to {} Hz{}{}",
             clock_id,
