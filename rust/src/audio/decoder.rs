@@ -138,7 +138,16 @@ pub fn probe_file(path: &Path) -> Result<ProbeResult, DecoderError> {
     let total_samples = (duration_secs * sample_rate as f64 * channels as f64) as u64;
 
     let decoder_opts = DecoderOptions::default();
-    let decoder: Box<dyn Decoder> = if codec_params.codec == CODEC_TYPE_OPUS {
+    let is_opus = codec_params.codec == CODEC_TYPE_OPUS;
+    dev_eprintln!(
+        "[DECODER] codec={} sr={} ch={} dur={:.1}s -> {}",
+        codec_params.codec,
+        sample_rate,
+        channels,
+        duration_secs,
+        if is_opus { "OpusDecoder (custom)" } else { "symphonia default" },
+    );
+    let decoder: Box<dyn Decoder> = if is_opus {
         Box::new(
             opus_decoder::OpusDecoder::try_new(codec_params, &decoder_opts)
                 .map_err(|e| DecoderError::UnsupportedFormat(e.to_string()))?,
