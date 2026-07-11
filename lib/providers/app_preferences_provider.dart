@@ -375,6 +375,20 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setWelcomeCardDismissed(value);
   }
 
+  Future<void> setGlanceCardHidden(bool value) async {
+    if (state.glanceCardHidden == value) return;
+    state = state.copyWith(glanceCardHidden: value);
+    await ref.read(appPreferencesServiceProvider).setGlanceCardHidden(value);
+  }
+
+  Future<void> setGlanceCardMinimized(bool value) async {
+    if (state.glanceCardMinimized == value) return;
+    state = state.copyWith(glanceCardMinimized: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setGlanceCardMinimized(value);
+  }
+
   Future<void> setReplaceAlbumWithBitPerfectCapsule(bool value) async {
     if (state.replaceAlbumWithBitPerfectCapsule == value) return;
     state = state.copyWith(replaceAlbumWithBitPerfectCapsule: value);
