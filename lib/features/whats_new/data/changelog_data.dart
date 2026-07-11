@@ -44,6 +44,73 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
+    version: '0.20.2-beta.3',
+    date: '2026-06-27',
+    sections: [
+      ChangelogSection(
+        title: 'Bluetooth Codec Control',
+        bullets: [
+          '**Bluetooth Hi-Res Direct mode** — forces the highest-quality codec path for capable headphones.',
+          'Per-codec preference controls with persistence (AAC, aptX, LDAC, etc.).',
+          'Codec preferences applied on Bluetooth init and on device connect.',
+          'Device connection state tracking with codec configuration feedback.',
+          'Hi-Res Direct mode resolved before low-latency in audio route selection.',
+          'Bluetooth settings refactored with codec control, device filtering, and UI refinements.',
+          'Developer mode toggle in Bluetooth settings for advanced codec debugging.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Glance Cards & Albums',
+        bullets: [
+          'Glance card visibility toggle — show, hide, or minimize the Quick Access card on the menu screen.',
+          'Per-card hidden and minimized preferences persisted across sessions.',
+          '`AlbumsScreen` migrated to `ConsumerStatefulWidget` (Riverpod) with app preferences integration.',
+          'Single-art and empty-art edge cases handled; album year displayed on album cards.',
+          '`AlbumArtPickerBottomSheet.show()` returns change status for reactive UI updates.',
+          'Stale song provider prevented on in-place album art updates.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Streak & Milestone Polish',
+        bullets: [
+          'Animated shimmer streak number replaced with static tier-colored text for performance.',
+          'Dynamic tier colors and glow effects on the streak popup banner.',
+          'Tier-based shimmer effect on streak popup background.',
+          'Tier color and count helpers added to `MilestoneCategoryX`.',
+          'New tests for milestone tier colors and counts.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'USB Audio Fixes',
+        bullets: [
+          '**Write-only USB clocks** supported — trusts `SET_CUR` when readback is unavailable from the device.',
+          'USB permission `PendingIntent` fixed for devices that don\'t support explicit packages.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Artwork Cache Improvements',
+        bullets: [
+          'Embedded album art normalized before caching for consistent lookups.',
+          'Content-based cache keys replace path-based keys — same art from different files shares one cache entry.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Queue & Playback',
+        bullets: [
+          'Playlist restart from end when wrap-around queue is enabled.',
+          'Duplicate recently-played entry check removed — prevents missing play-count updates.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Debug & Developer',
+        bullets: [
+          'Debug logging added to audio strategy and decoder selection paths.',
+          'Feature requests tracking document added to docs.',
+        ],
+      ),
+    ],
+  ),
+  ChangelogEntry(
     version: '0.20.1-beta.2',
     date: '2026-06-24',
     sections: [

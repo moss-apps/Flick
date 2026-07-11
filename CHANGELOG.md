@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.20.2-beta.3 (2026-06-27)
+
+### Bluetooth Codec Control
+- **Bluetooth Hi-Res Direct mode** forces highest-quality codec path.
+- Per-codec preference controls with persistence (AAC, aptX, LDAC, etc.).
+- Codec preferences applied on Bluetooth init and connect.
+- Device connection state tracking with codec configuration feedback.
+- Hi-Res Direct mode resolved before low-latency in audio route selection.
+- Bluetooth settings refactored with codec control, device filtering, and UI refinements.
+- Developer mode toggle for advanced codec debugging.
+
+### Glance Cards & Albums
+- Glance card visibility toggle — show, hide, or minimize Quick Access cards.
+- Per-card hidden/minimized preferences persisted.
+- `AlbumsScreen` migrated to Riverpod with app preferences integration.
+- Single-art and empty-art edge cases handled; album year on cards.
+- `AlbumArtPickerBottomSheet` returns change status for reactive updates.
+- Stale song provider prevented on in-place art updates.
+
+### Streak & Milestone Polish
+- Animated shimmer replaced with static tier-colored text for performance.
+- Dynamic tier colors and glow effects on streak popup.
+- Tier-based shimmer effect on streak popup background.
+- Tier color/count helpers on `MilestoneCategoryX`.
+- New tests for tier colors and counts.
+
+### USB Audio Fixes
+- Write-only USB clocks supported — trusts `SET_CUR` when readback unavailable.
+- USB permission `PendingIntent` fixed for restrictive devices.
+
+### Artwork Cache Improvements
+- Embedded album art normalized before caching.
+- Content-based cache keys replace path-based keys.
+
+### Queue & Playback
+- Playlist restart from end when wrap-around is enabled.
+- Duplicate recently-played check removed.
+
+### Debug & Developer
+- Debug logging in audio strategy and decoder selection paths.
+- Feature requests document added.
+
 ## 0.20.1-beta.2 (2026-06-24)
 
 ### AutoEQ Headphone Matching

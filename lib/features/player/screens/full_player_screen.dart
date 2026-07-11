@@ -1432,12 +1432,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                     label: 'Set Album Art',
                     onTap: () {
                       Navigator.pop(sheetContext);
-                      unawaited(
-                        Future<void>.delayed(
-                          Duration.zero,
-                          () => AlbumArtPickerBottomSheet.show(context, activeSong),
-                        ),
-                      );
+                      Future.delayed(Duration.zero, () async {
+                        final changed = await AlbumArtPickerBottomSheet.show(
+                          context,
+                          activeSong,
+                        );
+                        if (changed && context.mounted) {
+                          ref.invalidate(songsProvider);
+                        }
+                      });
                     },
                   ),
                   if (activeSong.filePath != null &&

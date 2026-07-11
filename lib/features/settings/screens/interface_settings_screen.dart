@@ -73,6 +73,18 @@ class InterfaceSettingsScreen extends ConsumerWidget {
                 },
               ),
               const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.layoutGrid,
+                title: 'Library Glance Card',
+                subtitle: 'Show the "at a glance" summary on Artists/Albums',
+                value: !appPreferences.glanceCardHidden,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setGlanceCardHidden(!value);
+                },
+              ),
+              const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.navigation,
                 title: 'Bottom Bar',

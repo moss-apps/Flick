@@ -18,7 +18,7 @@ class AlbumArtPickerBottomSheet extends StatefulWidget {
 
   final Song song;
 
-  static Future<void> show(BuildContext context, Song song) async {
+  static Future<bool> show(BuildContext context, Song song) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final result = await showModalBottomSheet<_AlbumArtSheetResult>(
       context: context,
@@ -30,8 +30,9 @@ class AlbumArtPickerBottomSheet extends StatefulWidget {
       ),
     );
 
+    final changed = result != null;
     if (!context.mounted || messenger == null || result == null) {
-      return;
+      return changed;
     }
 
     messenger
@@ -42,6 +43,7 @@ class AlbumArtPickerBottomSheet extends StatefulWidget {
           behavior: SnackBarBehavior.floating,
         ),
       );
+    return changed;
   }
 
   @override

@@ -12,19 +12,20 @@ import 'package:flick/features/artists/screens/artist_detail_screen.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/providers/navigation_provider.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
 
 enum ArtistSortOption { name, songs, albums }
 
-class ArtistsScreen extends StatefulWidget {
+class ArtistsScreen extends ConsumerStatefulWidget {
   const ArtistsScreen({super.key});
 
   @override
-  State<ArtistsScreen> createState() => _ArtistsScreenState();
+  ConsumerState<ArtistsScreen> createState() => _ArtistsScreenState();
 }
 
-class _ArtistsScreenState extends State<ArtistsScreen> {
+class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
   final SongRepository _songRepository = SongRepository();
   final PlayerService _playerService = PlayerService();
   final TextEditingController _searchController = TextEditingController();
@@ -33,7 +34,6 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
   List<MapEntry<String, List<Song>>> _sortedArtists = [];
   String _searchQuery = '';
   bool _isLoading = true;
-  bool _isGlanceMinimized = false;
   ArtistSortOption _sortOption = ArtistSortOption.name;
   bool _visibilitySet = false;
 
@@ -312,19 +312,26 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
             ),
           ),
           const SizedBox(height: AppConstants.spacingMd),
-          GestureDetector(
-            onTap: () {
-              setState(() => _isGlanceMinimized = !_isGlanceMinimized);
-            },
-            child: AnimatedCrossFade(
-              firstChild: _buildGlanceCard(context, expanded: true),
-              secondChild: _buildGlanceCard(context, expanded: false),
-              crossFadeState: _isGlanceMinimized
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              duration: AppConstants.animationNormal,
+          if (!ref.watch(appPreferencesProvider).glanceCardHidden)
+            GestureDetector(
+              onTap: () {
+                ref
+                    .read(appPreferencesProvider.notifier)
+                    .setGlanceCardMinimized(
+                      !ref.read(appPreferencesProvider).glanceCardMinimized,
+                    );
+              },
+              child: AnimatedCrossFade(
+                firstChild: _buildGlanceCard(context, expanded: true),
+                secondChild: _buildGlanceCard(context, expanded: false),
+                crossFadeState: ref
+                        .watch(appPreferencesProvider)
+                        .glanceCardMinimized
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                duration: AppConstants.animationNormal,
+              ),
             ),
-          ),
         ],
       ),
     );

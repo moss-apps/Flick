@@ -50,6 +50,8 @@ class AppPreferences {
   final String leftActionButton;
   final String rightActionButton;
   final bool welcomeCardDismissed;
+  final bool glanceCardHidden;
+  final bool glanceCardMinimized;
   final bool replaceAlbumWithBitPerfectCapsule;
   final int folderGridPageSize;
   final String? lastSeenChangelogVersion;
@@ -123,6 +125,8 @@ class AppPreferences {
     this.leftActionButton = 'lyrics',
     this.rightActionButton = 'favorites',
     this.welcomeCardDismissed = false,
+    this.glanceCardHidden = false,
+    this.glanceCardMinimized = false,
     this.replaceAlbumWithBitPerfectCapsule = false,
     this.folderGridPageSize = 8,
     this.lastSeenChangelogVersion,
@@ -197,6 +201,8 @@ class AppPreferences {
     String? leftActionButton,
     String? rightActionButton,
     bool? welcomeCardDismissed,
+    bool? glanceCardHidden,
+    bool? glanceCardMinimized,
     bool? replaceAlbumWithBitPerfectCapsule,
     int? folderGridPageSize,
     String? lastSeenChangelogVersion,
@@ -288,6 +294,8 @@ class AppPreferences {
       leftActionButton: leftActionButton ?? this.leftActionButton,
       rightActionButton: rightActionButton ?? this.rightActionButton,
       welcomeCardDismissed: welcomeCardDismissed ?? this.welcomeCardDismissed,
+      glanceCardHidden: glanceCardHidden ?? this.glanceCardHidden,
+      glanceCardMinimized: glanceCardMinimized ?? this.glanceCardMinimized,
       replaceAlbumWithBitPerfectCapsule:
           replaceAlbumWithBitPerfectCapsule ??
           this.replaceAlbumWithBitPerfectCapsule,
@@ -379,6 +387,8 @@ class AppPreferencesService {
   static const _leftActionButtonKey = 'left_action_button';
   static const _rightActionButtonKey = 'right_action_button';
   static const _welcomeCardDismissedKey = 'welcome_card_dismissed';
+  static const _glanceCardHiddenKey = 'glance_card_hidden';
+  static const _glanceCardMinimizedKey = 'glance_card_minimized';
   static const _replaceAlbumWithBitPerfectCapsuleKey =
       'replace_album_with_bit_perfect_capsule';
   static const _folderGridPageSizeKey = 'folder_grid_page_size';
@@ -481,6 +491,8 @@ class AppPreferencesService {
       leftActionButton: prefs.getString(_leftActionButtonKey) ?? 'lyrics',
       rightActionButton: prefs.getString(_rightActionButtonKey) ?? 'favorites',
       welcomeCardDismissed: prefs.getBool(_welcomeCardDismissedKey) ?? false,
+      glanceCardHidden: prefs.getBool(_glanceCardHiddenKey) ?? false,
+      glanceCardMinimized: prefs.getBool(_glanceCardMinimizedKey) ?? false,
       replaceAlbumWithBitPerfectCapsule:
           prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false,
       folderGridPageSize: prefs.getInt(_folderGridPageSizeKey) ?? 8,
@@ -956,6 +968,26 @@ class AppPreferencesService {
   Future<void> setWelcomeCardDismissed(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_welcomeCardDismissedKey, value);
+  }
+
+  Future<bool> getGlanceCardHidden() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_glanceCardHiddenKey) ?? false;
+  }
+
+  Future<void> setGlanceCardHidden(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_glanceCardHiddenKey, value);
+  }
+
+  Future<bool> getGlanceCardMinimized() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_glanceCardMinimizedKey) ?? false;
+  }
+
+  Future<void> setGlanceCardMinimized(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_glanceCardMinimizedKey, value);
   }
 
   Future<bool> getReplaceAlbumWithBitPerfectCapsule() async {
