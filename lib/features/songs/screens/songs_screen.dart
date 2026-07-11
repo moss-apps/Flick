@@ -2610,11 +2610,20 @@ class _AlbumCardState extends State<_AlbumCard>
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  _buildArtGrid(
-                                    padded,
-                                    artworkTargetWidth,
-                                    context,
-                                  ),
+                                  if (artworks.length == 1)
+                                    _buildSingleArt(
+                                      artworks.first,
+                                      artworkTargetWidth,
+                                      context,
+                                    )
+                                  else if (artworks.isEmpty)
+                                    _buildGridPlaceholder(context)
+                                  else
+                                    _buildArtGrid(
+                                      padded,
+                                      artworkTargetWidth,
+                                      context,
+                                    ),
                                   Positioned.fill(
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
@@ -2744,6 +2753,23 @@ class _AlbumCardState extends State<_AlbumCard>
     );
   }
 
+  Widget _buildSingleArt(
+    _ArtEntry entry,
+    int targetWidth,
+    BuildContext context,
+  ) {
+    return CachedImageWidget(
+      imagePath: entry.art,
+      audioSourcePath: entry.source,
+      fit: BoxFit.cover,
+      useThumbnail: true,
+      thumbnailWidth: targetWidth,
+      thumbnailHeight: targetWidth,
+      placeholder: _buildGridPlaceholder(context),
+      errorWidget: _buildGridPlaceholder(context),
+    );
+  }
+
   Widget _buildGridPlaceholder(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
@@ -2777,6 +2803,13 @@ class _AlbumListTile extends StatelessWidget {
     final artPath = artSong?.albumArt;
     final sourcePath = artSong?.filePath ?? album.songs.first.filePath;
     final trackCount = album.songs.length;
+    int? albumYear;
+    for (final s in album.songs) {
+      if (s.year != null && s.year! > 0) {
+        albumYear = s.year;
+        break;
+      }
+    }
 
     return Material(
       color: Colors.transparent,
@@ -2864,6 +2897,17 @@ class _AlbumListTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppConstants.spacingSm),
+              if (albumYear != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: AppConstants.spacingSm),
+                  child: Text(
+                    albumYear.toString(),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.adaptiveTextSecondary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
               Icon(
                 LucideIcons.chevronRight,
                 color: context.adaptiveTextTertiary,
