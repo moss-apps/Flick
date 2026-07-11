@@ -119,12 +119,15 @@ class SongActionsBottomSheet extends ConsumerWidget {
             label: 'Set Album Art',
             onTap: () {
               Navigator.pop(context);
-              unawaited(
-                Future<void>.delayed(
-                  Duration.zero,
-                  () => AlbumArtPickerBottomSheet.show(rootContext, song),
-                ),
-              );
+              Future.delayed(Duration.zero, () async {
+                final changed = await AlbumArtPickerBottomSheet.show(
+                  rootContext,
+                  song,
+                );
+                if (changed && rootContext.mounted) {
+                  ref.invalidate(songsProvider);
+                }
+              });
             },
           ),
           if (song.filePath != null &&
