@@ -3106,7 +3106,7 @@ class MainActivity: FlutterActivity() {
             val permissionIntent = PendingIntent.getBroadcast(
                 this,
                 REQUEST_USB_PERMISSION,
-                Intent(ACTION_USB_PERMISSION),
+                Intent(ACTION_USB_PERMISSION).setPackage(packageName),
                 PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
             usbPermissionReceiver = object : BroadcastReceiver() {
