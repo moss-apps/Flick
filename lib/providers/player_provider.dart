@@ -488,9 +488,14 @@ final playerProvider = NotifierProvider<PlayerNotifier, PlayerState>(
 // Convenience selectors for granular rebuilds
 // ============================================================================
 
-/// Current song selector - only rebuilds when the song changes.
+/// Current song selector.
+///
+/// Watches `playerProvider` without `.select` so in-place updates that don't
+/// change `Song.id` (e.g. album-art rewrites via `syncAlbumArtPaths`) still
+/// re-emit. `Song.==` is by id, so `.select((s) => s.currentSong)` would mask
+/// those changes.
 final currentSongProvider = Provider<Song?>((ref) {
-  return ref.watch(playerProvider.select((state) => state.currentSong));
+  return ref.watch(playerProvider).currentSong;
 });
 
 /// Is playing selector.
