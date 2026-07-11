@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
 import '../data/repositories/song_repository.dart';
@@ -39,21 +39,22 @@ class AlbumArtService {
       return existingPath;
     }
 
-    final cacheKey = _cacheKey(audioSourcePath);
-    final cached = await _cacheManager.getFileFromCache(cacheKey);
-    final cachedPath = cached?.file.path;
-    if (await _isUsableImagePath(cachedPath)) {
-      unawaited(_persistArtworkPath(audioSourcePath, cachedPath));
-      return cachedPath;
-    }
-
-    final future = _inFlightResolutions.putIfAbsent(cacheKey, () async {
-      final bytes = await _loadArtworkBytes(audioSourcePath);
-      if (bytes == null || bytes.isEmpty) {
+    final future = _inFlightResolutions.putIfAbsent(audioSourcePath, () async {
+      final raw = await _loadArtworkBytes(audioSourcePath);
+      if (raw == null || raw.isEmpty) {
         await _persistArtworkPath(audioSourcePath, null);
         return null;
       }
 
+      final cacheKey = _cacheKey(raw);
+      final cached = await _cacheManager.getFileFromCache(cacheKey);
+      final cachedPath = cached?.file.path;
+      if (await _isUsableImagePath(cachedPath)) {
+        unawaited(_persistArtworkPath(audioSourcePath, cachedPath));
+        return cachedPath;
+      }
+
+      final bytes = await _normalizeArtworkBytes(raw);
       final extension = _detectFileExtension(bytes);
       final file = await _cacheManager.putFile(
         cacheKey,
@@ -68,7 +69,7 @@ class AlbumArtService {
     try {
       return await future;
     } finally {
-      _inFlightResolutions.remove(cacheKey);
+      _inFlightResolutions.remove(audioSourcePath);
     }
   }
 
@@ -128,6 +129,10 @@ class AlbumArtService {
     return rust_scanner.extractEmbeddedArtwork(path: audioSourcePath);
   }
 
+  Future<Uint8List> _normalizeArtworkBytes(Uint8List raw) {
+    return compute(_normalizeArtworkIsolate, raw);
+  }
+
   Future<void> _persistArtworkPath(
     String audioSourcePath,
     String? albumArtPath,
@@ -145,8 +150,8 @@ class AlbumArtService {
     }
   }
 
-  String _cacheKey(String audioSourcePath) {
-    final digest = md5.convert(utf8.encode(audioSourcePath));
+  String _cacheKey(Uint8List bytes) {
+    final digest = md5.convert(bytes);
     return 'embedded-artwork:${digest.toString()}';
   }
 
@@ -191,4 +196,34 @@ class AlbumArtService {
 
     return 'jpg';
   }
+}
+
+const int _artworkMaxDimension = 1000;
+const int _artworkPassthroughBytes = 512 * 1024;
+const int _artworkJpegQuality = 85;
+
+Uint8List _normalizeArtworkIsolate(Uint8List raw) {
+  if (raw.length < _artworkPassthroughBytes) {
+    return raw;
+  }
+
+  final decoded = img.decodeImage(raw);
+  if (decoded == null) {
+    return raw;
+  }
+
+  final img.Image target;
+  if (decoded.width >= decoded.height) {
+    target = decoded.width > _artworkMaxDimension
+        ? img.copyResize(decoded, width: _artworkMaxDimension)
+        : decoded;
+  } else {
+    target = decoded.height > _artworkMaxDimension
+        ? img.copyResize(decoded, height: _artworkMaxDimension)
+        : decoded;
+  }
+
+  return Uint8List.fromList(
+    img.encodeJpg(target, quality: _artworkJpegQuality),
+  );
 }
