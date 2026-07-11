@@ -47,6 +47,7 @@ dependencies:
   home_widget: ^0.7.0
   freezed_annotation: ^3.0.0
   http: ^1.2.0
+  image: ^4.8.0
   image_picker: ^1.1.2
   isar_community: ^3.3.2
   isar_community_flutter_libs: ^3.3.2
