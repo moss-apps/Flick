@@ -30,6 +30,7 @@
   - [ ] HRTF preset library
   - [ ] Optional HRTF scan upload
 - [ ] **MQA (Master Quality Authenticated)** — decode and play MQA content
+- [ ] **Pitch shifter** — adjust audio pitch independently of tempo (cf. JetAudio, Musicolet, Stellio, Omnia)
 
 ---
 
