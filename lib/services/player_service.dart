@@ -396,6 +396,14 @@ class PlayerService {
     Duration.zero,
   );
 
+  // ponytail: guards the engine's position write during interactive seek
+  // (vinyl spin). Local drag writes to positionNotifier stick; engine ticks
+  // get re-enabled on endInteractiveSeek(). Upgrade path: per-source locks if
+  // multiple interactive sources ever contend.
+  bool _suppressPositionUpdatesFromEngine = false;
+  void beginInteractiveSeek() => _suppressPositionUpdatesFromEngine = true;
+  void endInteractiveSeek() => _suppressPositionUpdatesFromEngine = false;
+
   // Playback Mode State
   final ValueNotifier<ShuffleMode> shuffleModeNotifier = ValueNotifier(
     ShuffleMode.off,
@@ -2255,7 +2263,7 @@ class PlayerService {
       if (isPlayingNotifier.value != state.isPlaying) {
         isPlayingNotifier.value = state.isPlaying;
       }
-      if (positionNotifier.value != state.position) {
+      if (!_suppressPositionUpdatesFromEngine && positionNotifier.value != state.position) {
         positionNotifier.value = state.position;
         if (isAbRepeatActive) {
           checkAbRepeatBoundary(state.position);

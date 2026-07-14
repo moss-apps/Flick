@@ -224,7 +224,8 @@ class SongRepository {
     });
   }
 
-  Future<void> updateSongMetadata(String filePath, {
+  Future<void> updateSongMetadata(
+    String filePath, {
     String? title,
     String? artist,
     String? album,
@@ -302,7 +303,7 @@ class SongRepository {
     final songs = await getAllSongs();
     final groupedSongs = <String, List<Song>>{};
     final albumNames = <String, String>{};
-    final albumArtists = <String, String>{};
+    final albumArtistsByKey = <String, Set<String>>{};
 
     for (final song in songs) {
       final albumName = _albumNameForSong(song);
@@ -311,15 +312,18 @@ class SongRepository {
 
       groupedSongs.putIfAbsent(key, () => []).add(song);
       albumNames[key] = albumName;
-      albumArtists[key] = albumArtist;
+      albumArtistsByKey.putIfAbsent(key, () => <String>{}).add(albumArtist);
     }
 
     final groups = groupedSongs.entries.map((entry) {
-      final songs = List<Song>.from(entry.value)..sort(SongRepository._compareAlbumSongs);
+      final songs = List<Song>.from(entry.value)
+        ..sort(SongRepository._compareAlbumSongs);
       return AlbumGroup(
         key: entry.key,
         albumName: albumNames[entry.key] ?? 'Unknown Album',
-        albumArtist: albumArtists[entry.key] ?? 'Unknown Artist',
+        albumArtist: resolveGroupArtist(
+          albumArtistsByKey[entry.key] ?? const {},
+        ),
         songs: songs,
       );
     }).toList();
@@ -471,6 +475,17 @@ class SongRepository {
 
     final artist = song.artist.trim();
     if (artist.isNotEmpty) return artist;
+    return 'Unknown Artist';
+  }
+
+  // ponytail: >1 distinct albumArtist ⇒ untagged compilation (scanner bakes
+  // per-track artist in when the tag's missing). Ceiling: a regular album
+  // with a few mistagged tracks mislabels as "Various Artists"; upgrade to
+  // grouping by MediaStore ALBUM_ID if that bites.
+  static String resolveGroupArtist(Set<String> artists) {
+    final distinct = artists.where((a) => a.trim().isNotEmpty).toSet();
+    if (distinct.length > 1) return 'Various Artists';
+    if (distinct.length == 1) return distinct.first;
     return 'Unknown Artist';
   }
 

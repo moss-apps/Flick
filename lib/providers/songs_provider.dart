@@ -292,7 +292,7 @@ class SongsState {
 
     final groupedSongs = <String, List<Song>>{};
     final albumNames = <String, String>{};
-    final albumArtists = <String, String>{};
+    final albumArtistsByKey = <String, Set<String>>{};
 
     for (final song in result) {
       final albumName = song.album?.trim().isNotEmpty == true
@@ -307,7 +307,7 @@ class SongsState {
 
       groupedSongs.putIfAbsent(key, () => []).add(song);
       albumNames[key] = albumName;
-      albumArtists[key] = albumArtist;
+      albumArtistsByKey.putIfAbsent(key, () => <String>{}).add(albumArtist);
     }
 
     final groups = groupedSongs.entries.map((entry) {
@@ -346,7 +346,9 @@ class SongsState {
       return AlbumGroup(
         key: entry.key,
         albumName: albumNames[entry.key] ?? 'Unknown Album',
-        albumArtist: albumArtists[entry.key] ?? 'Unknown Artist',
+        albumArtist: SongRepository.resolveGroupArtist(
+          albumArtistsByKey[entry.key] ?? const {},
+        ),
         songs: songsList,
       );
     }).toList();

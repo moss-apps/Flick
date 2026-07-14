@@ -70,3 +70,6 @@ android/local.properties
 
 # Node
 node_modules/
+
+# Graphify knowledge graph (regenerable via `graphify .`)
+graphify-out/
