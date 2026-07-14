@@ -440,7 +440,10 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
           song: entry.song,
           playedAt: entry.playedAt,
           onTap: () async {
-            await _playerService.play(entry.song);
+            await _playerService.play(
+              entry.song,
+              playlist: _entries.map((e) => e.song).toList(),
+            );
             if (context.mounted) {
               await NavigationHelper.navigateToFullPlayer(
                 context,
