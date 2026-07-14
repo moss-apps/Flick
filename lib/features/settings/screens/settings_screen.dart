@@ -8,6 +8,7 @@ import 'package:flick/features/settings/screens/bluetooth_settings_screen.dart';
 import 'package:flick/features/settings/screens/interface_settings_screen.dart';
 import 'package:flick/features/settings/screens/library_settings_screen.dart';
 import 'package:flick/features/settings/screens/playback_display_settings_screen.dart';
+import 'package:flick/features/settings/screens/queue_settings_screen.dart';
 import 'package:flick/features/settings/screens/ui_customization_settings_screen.dart';
 import 'package:flick/features/settings/screens/integrations_settings_screen.dart';
 import 'package:flick/features/settings/screens/lyrics_settings_screen.dart';
@@ -92,6 +93,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             context,
                             const PlaybackDisplaySettingsScreen(),
                           ),
+                        ),
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.listOrdered,
+                          iconBg: const Color(0xFF2D6F4A),
+                          iconFg: const Color(0xFF8BFFC4),
+                          title: 'Queue',
+                          subtitle: 'Wrap-around and queue behavior',
+                          onTap: () =>
+                              _navigate(context, const QueueSettingsScreen()),
                         ),
                         const SettingsDivider(),
                         _CategoryTile(
