@@ -482,8 +482,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                      ),
-                  ],
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
             ValueListenableBuilder<Duration?>(
@@ -640,11 +640,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                   appPrefs.artworkCardShowTitle,
                               artworkCardShowArtist:
                                   appPrefs.artworkCardShowArtist,
-                               artworkCardShowAlbum:
-                                   appPrefs.artworkCardShowAlbum,
-                               artworkCardShowFrame:
-                                   appPrefs.artworkCardShowFrame,
-                               immersiveTextScale: appPrefs.immersiveTextScale,
+                              artworkCardShowAlbum:
+                                  appPrefs.artworkCardShowAlbum,
+                              artworkCardShowFrame:
+                                  appPrefs.artworkCardShowFrame,
+                              immersiveTextScale: appPrefs.immersiveTextScale,
                               immersiveVerticalOffset:
                                   appPrefs.immersiveVerticalOffset,
                               immersiveFullViewScale:
@@ -755,8 +755,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                   valueLabel:
                                       '${(appPrefs.artworkCardArtworkScale * 100).round()}%',
                                   onChanged:
-                                      prefsNotifier
-                                          .setArtworkCardArtworkScale,
+                                      prefsNotifier.setArtworkCardArtworkScale,
                                 ),
                                 _PlayerCustomizationSlider(
                                   title: 'Text size',
@@ -778,9 +777,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                   valueLabel: _placementLabel(
                                     appPrefs.artworkCardVerticalOffset,
                                   ),
-                                  onChanged:
-                                      prefsNotifier
-                                          .setArtworkCardVerticalOffset,
+                                  onChanged: prefsNotifier
+                                      .setArtworkCardVerticalOffset,
                                 ),
                                 const SizedBox(height: 6),
                                 _PlayerCustomizationToggle(
@@ -841,8 +839,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                     appPrefs.immersiveVerticalOffset,
                                   ),
                                   onChanged:
-                                      prefsNotifier
-                                          .setImmersiveVerticalOffset,
+                                      prefsNotifier.setImmersiveVerticalOffset,
                                 ),
                                 _PlayerCustomizationSlider(
                                   title: 'Full-view card size',
@@ -859,7 +856,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                 _PlayerCustomizationToggle(
                                   title: 'Show title',
                                   value: appPrefs.immersiveShowTitle,
-                                  onChanged: prefsNotifier.setImmersiveShowTitle,
+                                  onChanged:
+                                      prefsNotifier.setImmersiveShowTitle,
                                 ),
                                 _PlayerCustomizationToggle(
                                   title: 'Show artist',
@@ -948,15 +946,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                     decoration: BoxDecoration(
                                       color: isSelected
                                           ? AppColors.accent.withValues(
-                                            alpha: 0.14,
-                                          )
+                                              alpha: 0.14,
+                                            )
                                           : AppColors.glassBackground,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: isSelected
                                             ? AppColors.accent.withValues(
-                                              alpha: 0.6,
-                                            )
+                                                alpha: 0.6,
+                                              )
                                             : AppColors.glassBorder,
                                         width: 1,
                                       ),
@@ -972,7 +970,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                         color: isSelected
                                             ? AppColors.textPrimary
                                             : sheetContext
-                                                .adaptiveTextSecondary,
+                                                  .adaptiveTextSecondary,
                                       ),
                                     ),
                                   ),
@@ -1016,29 +1014,23 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                           mode: _playerScreenMode,
                           artworkCardArtworkScale:
                               appPrefs.artworkCardArtworkScale,
-                          artworkCardTextScale:
-                              appPrefs.artworkCardTextScale,
+                          artworkCardTextScale: appPrefs.artworkCardTextScale,
                           artworkCardVerticalOffset:
                               appPrefs.artworkCardVerticalOffset,
-                          artworkCardShowTitle:
-                              appPrefs.artworkCardShowTitle,
-                          artworkCardShowArtist:
-                              appPrefs.artworkCardShowArtist,
-                           artworkCardShowAlbum:
-                               appPrefs.artworkCardShowAlbum,
-                           artworkCardShowFileInfo:
-                               appPrefs.artworkCardShowFileInfo,
-                           artworkCardShowFrame:
-                               appPrefs.artworkCardShowFrame,
-                           immersiveTextScale: appPrefs.immersiveTextScale,
+                          artworkCardShowTitle: appPrefs.artworkCardShowTitle,
+                          artworkCardShowArtist: appPrefs.artworkCardShowArtist,
+                          artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
+                          artworkCardShowFileInfo:
+                              appPrefs.artworkCardShowFileInfo,
+                          artworkCardShowFrame: appPrefs.artworkCardShowFrame,
+                          immersiveTextScale: appPrefs.immersiveTextScale,
                           immersiveVerticalOffset:
                               appPrefs.immersiveVerticalOffset,
                           immersiveFullViewScale:
                               appPrefs.immersiveFullViewScale,
                           immersiveShowTitle: appPrefs.immersiveShowTitle,
                           immersiveShowArtist: appPrefs.immersiveShowArtist,
-                          immersiveShowFileInfo:
-                              appPrefs.immersiveShowFileInfo,
+                          immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
                         ),
                       ),
                       Positioned(
@@ -1048,8 +1040,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                           child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Row(
                                 children: [
@@ -1059,9 +1050,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                         ? Icons.fit_screen_rounded
                                         : Icons.rounded_corner_rounded,
                                     size: 18,
-                                    color: Colors.white.withValues(
-                                      alpha: 0.6,
-                                    ),
+                                    color: Colors.white.withValues(alpha: 0.6),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
@@ -1082,17 +1071,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                 child: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(
-                                      alpha: 0.08,
-                                    ),
+                                    color: Colors.white.withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Icon(
                                     Icons.close_rounded,
                                     size: 20,
-                                    color: Colors.white.withValues(
-                                      alpha: 0.7,
-                                    ),
+                                    color: Colors.white.withValues(alpha: 0.7),
                                   ),
                                 ),
                               ),
@@ -1297,7 +1282,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               ),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
                 border: Border.all(color: AppColors.glassBorder),
               ),
               padding: EdgeInsets.fromLTRB(
@@ -1407,148 +1394,156 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                  if (!activeSong.isFromLocker)
-                    _buildSongActionTile(
-                      context: sheetContext,
-                      icon: LucideIcons.listPlus,
-                      label: 'Add to Queue',
-                      onTap: () async {
-                        Navigator.pop(sheetContext);
-                        await _queueSong(context, activeSong);
-                      },
-                    ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: LucideIcons.listMusic,
-                    label: 'Add to Playlist',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _showAddToPlaylistDialog(context, activeSong);
-                    },
-                  ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: LucideIcons.image,
-                    label: 'Set Album Art',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      Future.delayed(Duration.zero, () async {
-                        final changed = await AlbumArtPickerBottomSheet.show(
-                          context,
-                          activeSong,
-                        );
-                        if (changed && context.mounted) {
-                          ref.invalidate(songsProvider);
-                        }
-                      });
-                    },
-                  ),
-                  if (activeSong.filePath != null &&
-                      activeSong.startOffsetMs == null &&
-                      !activeSong.isExternal)
-                    _buildSongActionTile(
-                      context: sheetContext,
-                      icon: LucideIcons.pencil,
-                      label: 'Edit Metadata',
-                      onTap: () {
-                        Navigator.pop(sheetContext);
-                        Navigator.of(context).push<bool>(
-                          MaterialPageRoute(
-                            builder: (_) => MetadataEditorScreen(song: activeSong),
+                          if (!activeSong.isFromLocker)
+                            _buildSongActionTile(
+                              context: sheetContext,
+                              icon: LucideIcons.listPlus,
+                              label: 'Add to Queue',
+                              onTap: () async {
+                                Navigator.pop(sheetContext);
+                                await _queueSong(context, activeSong);
+                              },
+                            ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.listMusic,
+                            label: 'Add to Playlist',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              _showAddToPlaylistDialog(context, activeSong);
+                            },
                           ),
-                        ).then((saved) {
-                          if (saved == true) {
-                            ref.invalidate(songsProvider);
-                          }
-                        });
-                      },
-                    ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: LucideIcons.info,
-                    label: 'View Metadata',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _showSongMetadataBottomSheet(context, activeSong);
-                    },
-                  ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: LucideIcons.fileText,
-                    label: 'Lyrics',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _setLyricsMode(true);
-                    },
-                  ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: Icons.graphic_eq_rounded,
-                    label: _isVisualizationMode ? 'Hide Visualizer' : 'Visualizer',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _setVisualizationMode(!_isVisualizationMode);
-                    },
-                  ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: LucideIcons.user,
-                    label: 'Go to Artist',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _openArtistFromSong(context, activeSong);
-                    },
-                  ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: LucideIcons.disc,
-                    label: 'Go to Album',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _openAlbumFromSong(context, activeSong);
-                    },
-                  ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: Icons.dashboard_customize_rounded,
-                    label: 'Player Layout',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _showPlayerLayoutBottomSheet(context);
-                    },
-                  ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: LucideIcons.gauge,
-                    label: 'Playback Speed',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _showSpeedBottomSheet(context);
-                    },
-                  ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: LucideIcons.moonStar,
-                    label: 'Sleep Timer',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _showSleepTimerBottomSheet(context);
-                    },
-                  ),
-                  _buildSongActionTile(
-                    context: sheetContext,
-                    icon: LucideIcons.share2,
-                    label: 'Share',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      showModalBottomSheet(
-                        context: context,
-                        backgroundColor: Colors.transparent,
-                        isScrollControlled: true,
-                        builder: (_) => ShareBottomSheet(song: activeSong),
-                      );
-                    },
-                  ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.image,
+                            label: 'Set Album Art',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              Future.delayed(Duration.zero, () async {
+                                final changed =
+                                    await AlbumArtPickerBottomSheet.show(
+                                      context,
+                                      activeSong,
+                                    );
+                                if (changed && context.mounted) {
+                                  ref.invalidate(songsProvider);
+                                }
+                              });
+                            },
+                          ),
+                          if (activeSong.filePath != null &&
+                              activeSong.startOffsetMs == null &&
+                              !activeSong.isExternal)
+                            _buildSongActionTile(
+                              context: sheetContext,
+                              icon: LucideIcons.pencil,
+                              label: 'Edit Metadata',
+                              onTap: () {
+                                Navigator.pop(sheetContext);
+                                Navigator.of(context)
+                                    .push<bool>(
+                                      MaterialPageRoute(
+                                        builder: (_) => MetadataEditorScreen(
+                                          song: activeSong,
+                                        ),
+                                      ),
+                                    )
+                                    .then((saved) {
+                                      if (saved == true) {
+                                        ref.invalidate(songsProvider);
+                                      }
+                                    });
+                              },
+                            ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.info,
+                            label: 'View Metadata',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              _showSongMetadataBottomSheet(context, activeSong);
+                            },
+                          ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.fileText,
+                            label: 'Lyrics',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              _setLyricsMode(true);
+                            },
+                          ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: Icons.graphic_eq_rounded,
+                            label: _isVisualizationMode
+                                ? 'Hide Visualizer'
+                                : 'Visualizer',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              _setVisualizationMode(!_isVisualizationMode);
+                            },
+                          ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.user,
+                            label: 'Go to Artist',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              _openArtistFromSong(context, activeSong);
+                            },
+                          ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.disc,
+                            label: 'Go to Album',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              _openAlbumFromSong(context, activeSong);
+                            },
+                          ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: Icons.dashboard_customize_rounded,
+                            label: 'Player Layout',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              _showPlayerLayoutBottomSheet(context);
+                            },
+                          ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.gauge,
+                            label: 'Playback Speed',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              _showSpeedBottomSheet(context);
+                            },
+                          ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.moonStar,
+                            label: 'Sleep Timer',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              _showSleepTimerBottomSheet(context);
+                            },
+                          ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.share2,
+                            label: 'Share',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              showModalBottomSheet(
+                                context: context,
+                                backgroundColor: Colors.transparent,
+                                isScrollControlled: true,
+                                builder: (_) =>
+                                    ShareBottomSheet(song: activeSong),
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -1687,20 +1682,34 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             _buildMetadataRow(
               sheetContext,
               'Format',
-              song.isDsd ? '${song.fileType.toUpperCase()} (${song.dsdRateLabel})' : song.fileType.toUpperCase(),
+              song.isDsd
+                  ? '${song.fileType.toUpperCase()} (${song.dsdRateLabel})'
+                  : song.fileType.toUpperCase(),
             ),
             if (song.resolution != null && !song.isDsd)
               _buildMetadataRow(sheetContext, 'Resolution', song.resolution!),
             if (song.albumArtist != null)
-              _buildMetadataRow(sheetContext, 'Album Artist', song.albumArtist!),
+              _buildMetadataRow(
+                sheetContext,
+                'Album Artist',
+                song.albumArtist!,
+              ),
             if (song.genre != null)
               _buildMetadataRow(sheetContext, 'Genre', song.genre!),
             if (song.year != null)
               _buildMetadataRow(sheetContext, 'Year', song.year!.toString()),
             if (song.trackNumber != null)
-              _buildMetadataRow(sheetContext, 'Track', song.trackNumber!.toString()),
+              _buildMetadataRow(
+                sheetContext,
+                'Track',
+                song.trackNumber!.toString(),
+              ),
             if (song.discNumber != null)
-              _buildMetadataRow(sheetContext, 'Disc', song.discNumber!.toString()),
+              _buildMetadataRow(
+                sheetContext,
+                'Disc',
+                song.discNumber!.toString(),
+              ),
             if (song.filePath != null)
               _buildMetadataRow(sheetContext, 'File Path', song.filePath!),
           ],
@@ -1788,6 +1797,39 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     }
 
     await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AlbumDetailScreen(
+          albumName: albumGroup.albumName,
+          albumArtist: albumGroup.albumArtist,
+          songs: albumGroup.songs,
+          albumArt: _firstArt(albumGroup.songs),
+          albumArtSourcePath: _firstSourcePath(albumGroup.songs),
+          playerService: _playerService,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _closeToAlbum() async {
+    final song = _playerService.currentSongNotifier.value;
+    if (song == null) {
+      Navigator.of(context).pop();
+      return;
+    }
+    if (song.isFromLocker) {
+      final returned = await _externalPlaybackService.returnToLocker();
+      if (!returned && mounted) {
+        Navigator.of(context).pop();
+      }
+      return;
+    }
+    final albumGroup = await _songRepository.getAlbumGroupForSong(song);
+    if (!mounted) return;
+    if (albumGroup == null || albumGroup.songs.isEmpty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    await Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => AlbumDetailScreen(
           albumName: albumGroup.albumName,
@@ -2171,18 +2213,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         final isFavorite = snapshot.data ?? false;
         return GestureDetector(
           onTap: () async {
-            final newState = await _favoritesService.toggleFavorite(
-              song.id,
-            );
+            final newState = await _favoritesService.toggleFavorite(song.id);
             setState(() {});
             _playerService.refreshNotificationState();
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    newState
-                        ? 'Added to favorites'
-                        : 'Removed from favorites',
+                    newState ? 'Added to favorites' : 'Removed from favorites',
                   ),
                   duration: const Duration(seconds: 1),
                 ),
@@ -2425,7 +2463,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         key: _usbVolumeButtonKey,
         onTap: () {
           _dismissVolumePopup?.call();
-          _dismissVolumePopup = showIsoVolumePopup(context, _usbVolumeButtonKey);
+          _dismissVolumePopup = showIsoVolumePopup(
+            context,
+            _usbVolumeButtonKey,
+          );
         },
         child: Container(
           padding: actionPadding,
@@ -2462,24 +2503,24 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   const EqualizerScreen(),
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) {
-                if (AppConstants.animationNormal == Duration.zero) {
-                  return child;
-                }
-                final curvedAnimation = CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                );
-                return SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0.12, 0.0),
-                    end: Offset.zero,
-                  ).animate(curvedAnimation),
-                  child: FadeTransition(
-                    opacity: curvedAnimation,
-                    child: child,
-                  ),
-                );
-              },
+                    if (AppConstants.animationNormal == Duration.zero) {
+                      return child;
+                    }
+                    final curvedAnimation = CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    );
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.12, 0.0),
+                        end: Offset.zero,
+                      ).animate(curvedAnimation),
+                      child: FadeTransition(
+                        opacity: curvedAnimation,
+                        child: child,
+                      ),
+                    );
+                  },
               transitionDuration: AppConstants.animationNormal,
             ),
           );
@@ -2542,7 +2583,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           return Container(
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               border: Border.all(color: AppColors.glassBorder),
             ),
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -2605,7 +2648,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                           await _playerService.setVolume(value);
                         },
                         activeColor: AppColors.accent,
-                        inactiveColor: AppColors.textTertiary.withValues(alpha: 0.3),
+                        inactiveColor: AppColors.textTertiary.withValues(
+                          alpha: 0.3,
+                        ),
                       ),
                     ),
                     Icon(
@@ -2725,162 +2770,184 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         ? dominantColor
         : null;
 
-    return DisplayModeWrapper(
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: ValueListenableBuilder<Song?>(
-          valueListenable: _playerService.currentSongNotifier,
-          builder: (context, song, _) {
-            if (song == null) {
-              // Should usually close the screen if song becomes null or error
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.of(context).pop();
-              });
-              return const SizedBox.shrink();
-            }
-
-            return GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _handleImmersiveSceneTap,
-              onVerticalDragStart: (_) {
-                if (_isVinylRotationActive) return;
-                _dragController.stop();
-              },
-              onVerticalDragUpdate: (details) {
-                if (_isVinylRotationActive) return;
-                // Only track downward drag
-                if (details.delta.dy > 0) {
-                  // Throttle updates to every 16ms (~60fps) to avoid excessive updates
-                  final now = DateTime.now();
-                  if (now.difference(_lastDragUpdate).inMilliseconds < 16) {
-                    return;
-                  }
-                  _lastDragUpdate = now;
-
-                  // Update drag offset directly (no setState)
-                  _dragOffset = (_dragOffset + details.delta.dy).clamp(
-                    0.0,
-                    1000.0,
-                  );
-                  // Update controller value for AnimatedBuilder
-                  _dragController.value = _dragOffset;
-                }
-              },
-              onVerticalDragEnd: (details) {
-                if (_isVinylRotationActive) return;
-                // If dragged down enough or with enough velocity, dismiss
-                if (_dragOffset > 100 || details.primaryVelocity! > 500) {
-                  _dismissVolumePopup?.call();
-                  _dismissVolumePopup = null;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _closeToAlbum();
+      },
+      child: DisplayModeWrapper(
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          body: ValueListenableBuilder<Song?>(
+            valueListenable: _playerService.currentSongNotifier,
+            builder: (context, song, _) {
+              if (song == null) {
+                // Should usually close the screen if song becomes null or error
+                WidgetsBinding.instance.addPostFrameCallback((_) {
                   Navigator.of(context).pop();
-                  return;
-                }
+                });
+                return const SizedBox.shrink();
+              }
 
-                // Animate back to 0
-                _dragOffset = 0.0;
-                _dragController.animateTo(0.0);
-              },
-              onHorizontalDragEnd: (details) {
-                if (_isVinylRotationActive) return;
-                if (details.primaryVelocity! < -500) {
-                  // Swipe Left -> Next
-                  _animateToNextSong();
-                } else if (details.primaryVelocity! > 500) {
-                  // Swipe Right -> Previous
-                  _animateToPreviousSong();
-                }
-              },
-              child: AnimatedBuilder(
-                animation: _dragController,
-                builder: (context, child) {
-                  // Use Transform.translate during drag (lightweight)
-                  // Only use animation when releasing
-                  final offset = _dragController.value * 0.5;
-                  return Transform.translate(
-                    offset: Offset(0, offset),
-                    child: child!,
-                  );
+              return GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _handleImmersiveSceneTap,
+                onVerticalDragStart: (_) {
+                  if (_isVinylRotationActive) return;
+                  _dragController.stop();
                 },
-                child: _AnimatedSongScene(
-                  song: song,
-                  lyricsMode: _isLyricsMode,
-                  visualizationMode: _isVisualizationMode && appPrefs.visualizerEnabled,
-                  immersiveFullView: _isImmersiveFullView,
-                  playerScreenMode: _playerScreenMode,
-                  albumColorMode: colorMode,
-                  albumColor: albumColor,
-                  transitionDirection: _songTransitionDirection,
-                  topBarTextFontFamily: _topBarTextFontFamily,
-                  topBarTextFontWeight: _topBarTextFontWeight,
-                  cachedTopBarTextWidth: _cachedTopBarTextWidth,
-                  playerService: _playerService,
-                  lyricsService: _lyricsService,
-                  throttledPositionNotifier: _throttledPositionNotifier,
-                  formatDuration: _formatDuration,
-                  onClose: () {
+                onVerticalDragUpdate: (details) {
+                  if (_isVinylRotationActive) return;
+                  // Only track downward drag
+                  if (details.delta.dy > 0) {
+                    // Throttle updates to every 16ms (~60fps) to avoid excessive updates
+                    final now = DateTime.now();
+                    if (now.difference(_lastDragUpdate).inMilliseconds < 16) {
+                      return;
+                    }
+                    _lastDragUpdate = now;
+
+                    // Update drag offset directly (no setState)
+                    _dragOffset = (_dragOffset + details.delta.dy).clamp(
+                      0.0,
+                      1000.0,
+                    );
+                    // Update controller value for AnimatedBuilder
+                    _dragController.value = _dragOffset;
+                  }
+                },
+                onVerticalDragEnd: (details) {
+                  if (_isVinylRotationActive) return;
+                  // If dragged down enough or with enough velocity, dismiss
+                  if (_dragOffset > 100 || details.primaryVelocity! > 500) {
                     _dismissVolumePopup?.call();
                     _dismissVolumePopup = null;
-                    Navigator.of(context).pop();
+                    _closeToAlbum();
+                    return;
+                  }
+
+                  // Animate back to 0
+                  _dragOffset = 0.0;
+                  _dragController.animateTo(0.0);
+                },
+                onHorizontalDragEnd: (details) {
+                  if (_isVinylRotationActive) return;
+                  if (details.primaryVelocity! < -500) {
+                    // Swipe Left -> Next
+                    _animateToNextSong();
+                  } else if (details.primaryVelocity! > 500) {
+                    // Swipe Right -> Previous
+                    _animateToPreviousSong();
+                  }
+                },
+                child: AnimatedBuilder(
+                  animation: _dragController,
+                  builder: (context, child) {
+                    // Use Transform.translate during drag (lightweight)
+                    // Only use animation when releasing
+                    final offset = _dragController.value * 0.5;
+                    return Transform.translate(
+                      offset: Offset(0, offset),
+                      child: child!,
+                    );
                   },
-                  onOpenQueue: () => _openQueue(context),
-                  onToggleLyrics: () => _setLyricsMode(!_isLyricsMode),
-                  onQueueSwipe: () => _queueSong(context, song),
-                  onReturnToLocker: () async {
-                    final returned = await _externalPlaybackService
-                        .returnToLocker();
-                    if (!returned && context.mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  onShowSongActions: () =>
-                      _showSongActionsBottomSheet(context, song),
-                  onPrevious: _animateToPreviousSong,
-                  onNext: _animateToNextSong,
-                  onNavigateToArtistDetail: (song) => _openArtistFromSong(context, song),
-                  onNavigateToAlbumDetail: (song) => _openAlbumFromSong(context, song),
-                  buildFileInfoRow: (song, lyricsMode, mode) =>
-                      _buildFileInfoRow(
-                        context,
-                        song,
-                        lyricsMode: lyricsMode,
-                        playerScreenMode: mode,
-                        albumColor: albumColor,
-                        albumColorMode: colorMode,
-                        leftAction: PlayerActionButtonX.fromStorageValue(appPrefs.leftActionButton),
-                        rightAction: PlayerActionButtonX.fromStorageValue(appPrefs.rightActionButton),
-                      ),
-                  buildDirectoryInfo: (song) =>
-                      _buildDirectoryInfo(context, song, compact: false),
-                  visualizerAnimationStyle: visStyle,
-                  visualizerFrequencyMode: visFreq,
-                  visualizerMovementMode: visMove,
-                  artworkCardArtworkScale: appPrefs.artworkCardArtworkScale,
-                  artworkCardTextScale: appPrefs.artworkCardTextScale,
-                  artworkCardVerticalOffset: appPrefs.artworkCardVerticalOffset,
-                  artworkCardShowTitle: appPrefs.artworkCardShowTitle,
-                  artworkCardShowArtist: appPrefs.artworkCardShowArtist,
-                  artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
-                  artworkCardShowFileInfo: appPrefs.artworkCardShowFileInfo,
-                  artworkCardShowFrame: appPrefs.artworkCardShowFrame,
-                  immersiveTextScale: appPrefs.immersiveTextScale,
-                  immersiveVerticalOffset: appPrefs.immersiveVerticalOffset,
-                  immersiveFullViewScale: appPrefs.immersiveFullViewScale,
-                  immersiveShowTitle: appPrefs.immersiveShowTitle,
-                  immersiveShowArtist: appPrefs.immersiveShowArtist,
-                  immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
-                  hideQueueBadge: PlayerActionButtonX.fromStorageValue(appPrefs.leftActionButton) == PlayerActionButton.queue ||
-                      PlayerActionButtonX.fromStorageValue(appPrefs.rightActionButton) == PlayerActionButton.queue,
-                   onRotationEnabledChanged: (enabled) {
-                    _isVinylRotationActive = enabled;
-                  },
-                   vinylMode: _isVinylMode,
-                   onVinylChanged: (vinyl) {
-                     _isVinylMode = vinyl;
-                   },
-                 ),
-              ),
-            );
-          },
+                  child: _AnimatedSongScene(
+                    song: song,
+                    lyricsMode: _isLyricsMode,
+                    visualizationMode:
+                        _isVisualizationMode && appPrefs.visualizerEnabled,
+                    immersiveFullView: _isImmersiveFullView,
+                    playerScreenMode: _playerScreenMode,
+                    albumColorMode: colorMode,
+                    albumColor: albumColor,
+                    transitionDirection: _songTransitionDirection,
+                    topBarTextFontFamily: _topBarTextFontFamily,
+                    topBarTextFontWeight: _topBarTextFontWeight,
+                    cachedTopBarTextWidth: _cachedTopBarTextWidth,
+                    playerService: _playerService,
+                    lyricsService: _lyricsService,
+                    throttledPositionNotifier: _throttledPositionNotifier,
+                    formatDuration: _formatDuration,
+                    onClose: () {
+                      _dismissVolumePopup?.call();
+                      _dismissVolumePopup = null;
+                      _closeToAlbum();
+                    },
+                    onOpenQueue: () => _openQueue(context),
+                    onToggleLyrics: () => _setLyricsMode(!_isLyricsMode),
+                    onQueueSwipe: () => _queueSong(context, song),
+                    onReturnToLocker: () async {
+                      final returned = await _externalPlaybackService
+                          .returnToLocker();
+                      if (!returned && context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    onShowSongActions: () =>
+                        _showSongActionsBottomSheet(context, song),
+                    onPrevious: _animateToPreviousSong,
+                    onNext: _animateToNextSong,
+                    onNavigateToArtistDetail: (song) =>
+                        _openArtistFromSong(context, song),
+                    onNavigateToAlbumDetail: (song) =>
+                        _openAlbumFromSong(context, song),
+                    buildFileInfoRow: (song, lyricsMode, mode) =>
+                        _buildFileInfoRow(
+                          context,
+                          song,
+                          lyricsMode: lyricsMode,
+                          playerScreenMode: mode,
+                          albumColor: albumColor,
+                          albumColorMode: colorMode,
+                          leftAction: PlayerActionButtonX.fromStorageValue(
+                            appPrefs.leftActionButton,
+                          ),
+                          rightAction: PlayerActionButtonX.fromStorageValue(
+                            appPrefs.rightActionButton,
+                          ),
+                        ),
+                    buildDirectoryInfo: (song) =>
+                        _buildDirectoryInfo(context, song, compact: false),
+                    visualizerAnimationStyle: visStyle,
+                    visualizerFrequencyMode: visFreq,
+                    visualizerMovementMode: visMove,
+                    artworkCardArtworkScale: appPrefs.artworkCardArtworkScale,
+                    artworkCardTextScale: appPrefs.artworkCardTextScale,
+                    artworkCardVerticalOffset:
+                        appPrefs.artworkCardVerticalOffset,
+                    artworkCardShowTitle: appPrefs.artworkCardShowTitle,
+                    artworkCardShowArtist: appPrefs.artworkCardShowArtist,
+                    artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
+                    artworkCardShowFileInfo: appPrefs.artworkCardShowFileInfo,
+                    artworkCardShowFrame: appPrefs.artworkCardShowFrame,
+                    immersiveTextScale: appPrefs.immersiveTextScale,
+                    immersiveVerticalOffset: appPrefs.immersiveVerticalOffset,
+                    immersiveFullViewScale: appPrefs.immersiveFullViewScale,
+                    immersiveShowTitle: appPrefs.immersiveShowTitle,
+                    immersiveShowArtist: appPrefs.immersiveShowArtist,
+                    immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
+                    hideQueueBadge:
+                        PlayerActionButtonX.fromStorageValue(
+                              appPrefs.leftActionButton,
+                            ) ==
+                            PlayerActionButton.queue ||
+                        PlayerActionButtonX.fromStorageValue(
+                              appPrefs.rightActionButton,
+                            ) ==
+                            PlayerActionButton.queue,
+                    onRotationEnabledChanged: (enabled) {
+                      _isVinylRotationActive = enabled;
+                    },
+                    vinylMode: _isVinylMode,
+                    onVinylChanged: (vinyl) {
+                      _isVinylMode = vinyl;
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -3569,62 +3636,85 @@ class _AnimatedSongScene extends StatelessWidget {
                         child: _buildImmersiveSongHeader(context),
                       ),
                       if (immersiveShowFileInfo) ...[
-                        Builder(builder: (context) {
-                          final diagnostics =
-                              ProviderScope.containerOf(context)
-                                  .read(audioOutputDiagnosticsProvider);
-                          final appPrefs = ProviderScope.containerOf(context)
-                              .read(appPreferencesProvider);
-                          return Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (diagnostics != null &&
-                                  appPrefs.replaceAlbumWithBitPerfectCapsule) ...[
+                        Builder(
+                          builder: (context) {
+                            final diagnostics = ProviderScope.containerOf(
+                              context,
+                            ).read(audioOutputDiagnosticsProvider);
+                            final appPrefs = ProviderScope.containerOf(
+                              context,
+                            ).read(appPreferencesProvider);
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (diagnostics != null &&
+                                    appPrefs
+                                        .replaceAlbumWithBitPerfectCapsule) ...[
+                                  SizedBox(
+                                    height: context.responsive(6.0, 8.0, 10.0),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: context.responsive(
+                                        12.0,
+                                        16.0,
+                                        20.0,
+                                      ),
+                                    ),
+                                    child: BitPerfectCapsule(
+                                      diagnostics: diagnostics,
+                                      horizontalPadding: context.responsive(
+                                        12.0,
+                                        14.0,
+                                        16.0,
+                                      ),
+                                      verticalPadding: context.responsive(
+                                        4.0,
+                                        5.0,
+                                        6.0,
+                                      ),
+                                      fontSize: context.responsive(
+                                        11.0,
+                                        12.0,
+                                        13.0,
+                                      ),
+                                      onTap: () {
+                                        final deviceStatus =
+                                            ProviderScope.containerOf(
+                                              context,
+                                            ).read(uac2DeviceStatusProvider);
+                                        BitPerfectIndicator.showInfoSheet(
+                                          context,
+                                          song: song,
+                                          diagnostics: diagnostics,
+                                          deviceStatus: deviceStatus,
+                                          playerService: playerService,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
                                 SizedBox(
-                                    height: context.responsive(6.0, 8.0, 10.0)),
+                                  height: context.responsive(10.0, 12.0, 14.0),
+                                ),
                                 Padding(
                                   padding: EdgeInsets.symmetric(
-                                      horizontal: context.responsive(
-                                          12.0, 16.0, 20.0)),
-                                  child: BitPerfectCapsule(
-                                    diagnostics: diagnostics,
-                                    horizontalPadding:
-                                        context.responsive(12.0, 14.0, 16.0),
-                                    verticalPadding:
-                                        context.responsive(4.0, 5.0, 6.0),
-                                    fontSize:
-                                        context.responsive(11.0, 12.0, 13.0),
-                                    onTap: () {
-                                      final deviceStatus =
-                                          ProviderScope.containerOf(context)
-                                              .read(uac2DeviceStatusProvider);
-                                      BitPerfectIndicator.showInfoSheet(
-                                        context,
-                                        song: song,
-                                        diagnostics: diagnostics,
-                                        deviceStatus: deviceStatus,
-                                        playerService: playerService,
-                                      );
-                                    },
+                                    horizontal: context.responsive(
+                                      12.0,
+                                      16.0,
+                                      20.0,
+                                    ),
+                                  ),
+                                  child: buildFileInfoRow(
+                                    song,
+                                    lyricsMode,
+                                    playerScreenMode,
                                   ),
                                 ),
                               ],
-                              SizedBox(
-                                  height: context.responsive(10.0, 12.0, 14.0)),
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal:
-                                      context.responsive(12.0, 16.0, 20.0),
-                                ),
-                                child: buildFileInfoRow(
-                                  song,
-                                  lyricsMode,
-                                  playerScreenMode,
-                                ),
-                              ),
-                            ],
-                          );
-                        }),
+                            );
+                          },
+                        ),
                       ],
                     ],
                   ),
@@ -3852,10 +3942,7 @@ class _AnimatedSongScene extends StatelessWidget {
             .clamp(isVeryShortHeight ? 160.0 : 180.0, maxArtworkSize)
             .toDouble();
         final artworkSize = (baseArtworkSize * artworkCardArtworkScale)
-            .clamp(
-              isVeryShortHeight ? 140.0 : 160.0,
-              constraints.maxWidth,
-            )
+            .clamp(isVeryShortHeight ? 140.0 : 160.0, constraints.maxWidth)
             .toDouble();
         final artworkSpacing = isVeryShortHeight
             ? 12.0
@@ -3897,24 +3984,25 @@ class _AnimatedSongScene extends StatelessWidget {
                       fit: StackFit.expand,
                       children: [
                         ...previousChildren,
-                        ...?currentChild == null
-                            ? null
-                            : [currentChild],
+                        ...?currentChild == null ? null : [currentChild],
                       ],
                     );
                   },
                   transitionBuilder: (child, animation) {
                     final isLyrics =
                         child.key == const ValueKey('artwork-lyrics');
-                    final slide = Tween<Offset>(
-                      begin: isLyrics
-                          ? const Offset(0, -0.06)
-                          : const Offset(0, 0.06),
-                      end: Offset.zero,
-                    ).animate(CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOutCubic,
-                    ));
+                    final slide =
+                        Tween<Offset>(
+                          begin: isLyrics
+                              ? const Offset(0, -0.06)
+                              : const Offset(0, 0.06),
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          ),
+                        );
                     return FadeTransition(
                       opacity: CurvedAnimation(
                         parent: animation,
@@ -3966,7 +4054,8 @@ class _AnimatedSongScene extends StatelessWidget {
                                               song: song,
                                               size: artworkSize,
                                               playerService: playerService,
-                                              onRotationEnabledChanged: onRotationEnabledChanged,
+                                              onRotationEnabledChanged:
+                                                  onRotationEnabledChanged,
                                               initialVinyl: vinylMode,
                                               onVinylChanged: onVinylChanged,
                                               showFrame: artworkCardShowFrame,
@@ -3977,8 +4066,7 @@ class _AnimatedSongScene extends StatelessWidget {
                                 SizedBox(height: artworkSpacing),
                                 Padding(
                                   padding: EdgeInsets.symmetric(
-                                    horizontal:
-                                        isVeryShortHeight ? 8.0 : 0.0,
+                                    horizontal: isVeryShortHeight ? 8.0 : 0.0,
                                   ),
                                   child: _buildSongIdentity(
                                     context,
@@ -3995,8 +4083,7 @@ class _AnimatedSongScene extends StatelessWidget {
               ),
               if (artworkCardShowFileInfo)
                 buildFileInfoRow(song, lyricsMode, playerScreenMode),
-              if (artworkCardShowFileInfo)
-                SizedBox(height: playbackSpacing),
+              if (artworkCardShowFileInfo) SizedBox(height: playbackSpacing),
               _buildPlaybackStack(context),
               SizedBox(height: directorySpacing),
             ],
@@ -4045,18 +4132,19 @@ class _AnimatedSongScene extends StatelessWidget {
             : context.responsive(11.0, 12.0, 13.0)) *
         artworkCardTextScale;
 
-    final diagnostics =
-        ProviderScope.containerOf(context).read(audioOutputDiagnosticsProvider);
-    final appPrefs =
-        ProviderScope.containerOf(context).read(appPreferencesProvider);
+    final diagnostics = ProviderScope.containerOf(
+      context,
+    ).read(audioOutputDiagnosticsProvider);
+    final appPrefs = ProviderScope.containerOf(
+      context,
+    ).read(appPreferencesProvider);
     final isBitPerfectVerified =
         diagnostics?.capabilityFlags.supportsVerifiedBitPerfect == true;
     final showBitPerfectCapsule =
         appPrefs.replaceAlbumWithBitPerfectCapsule &&
-            diagnostics != null &&
-            isBitPerfectVerified;
-    final hasAlbum =
-        song.album != null && song.album!.trim().isNotEmpty;
+        diagnostics != null &&
+        isBitPerfectVerified;
+    final hasAlbum = song.album != null && song.album!.trim().isNotEmpty;
 
     return Column(
       children: [
@@ -4096,8 +4184,7 @@ class _AnimatedSongScene extends StatelessWidget {
             (artworkCardShowTitle || artworkCardShowArtist) &&
             (hasAlbum || showBitPerfectCapsule)) ...[
           SizedBox(height: artistToAlbumSpacing),
-          if (diagnostics != null &&
-              appPrefs.replaceAlbumWithBitPerfectCapsule)
+          if (diagnostics != null && appPrefs.replaceAlbumWithBitPerfectCapsule)
             Stack(
               alignment: Alignment.center,
               children: [
@@ -4114,7 +4201,8 @@ class _AnimatedSongScene extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.1)),
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
                       ),
                       child: GestureDetector(
                         onTap: () => onNavigateToAlbumDetail(song),
@@ -4137,9 +4225,9 @@ class _AnimatedSongScene extends StatelessWidget {
                   verticalPadding: albumVerticalPadding,
                   fontSize: albumFontSize,
                   onTap: () {
-                    final deviceStatus =
-                        ProviderScope.containerOf(context)
-                            .read(uac2DeviceStatusProvider);
+                    final deviceStatus = ProviderScope.containerOf(
+                      context,
+                    ).read(uac2DeviceStatusProvider);
                     BitPerfectIndicator.showInfoSheet(
                       context,
                       song: song,
@@ -4162,8 +4250,9 @@ class _AnimatedSongScene extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(999),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Text(
                   song.album!,
@@ -4242,8 +4331,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
     with TickerProviderStateMixin {
   static const double _labelRatio = 0.44;
   static const Duration _spinDuration = Duration(seconds: 4);
-  static const Duration _seekAnimationDuration =
-      Duration(milliseconds: 450);
+  static const Duration _seekAnimationDuration = Duration(milliseconds: 450);
   static const int _msPerSeekRevolution = 1500;
   static const int _maxSeekRevolutions = 5;
   static const int _minSeekRevolutions = 1;
@@ -4265,8 +4353,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
   late final TapGestureRecognizer _singleTapRecognizer;
   late final _RotationSeekRecognizer _rotationRecognizer;
 
-  bool get _isPlaying =>
-      widget.playerService?.isPlayingNotifier.value ?? false;
+  bool get _isPlaying => widget.playerService?.isPlayingNotifier.value ?? false;
 
   @override
   void initState() {
@@ -4275,10 +4362,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _spinController = AnimationController(
-      vsync: this,
-      duration: _spinDuration,
-    );
+    _spinController = AnimationController(vsync: this, duration: _spinDuration);
     _seekAngleController = AnimationController(
       vsync: this,
       duration: _seekAnimationDuration,
@@ -4299,7 +4383,8 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
     });
     _morphController.addStatusListener(_handleMorphStatus);
     _doubleTapRecognizer = DoubleTapGestureRecognizer()..onDoubleTap = _toggle;
-    _singleTapRecognizer = TapGestureRecognizer()..onTap = _handleVinylSingleTap;
+    _singleTapRecognizer = TapGestureRecognizer()
+      ..onTap = _handleVinylSingleTap;
     _rotationRecognizer = _RotationSeekRecognizer(
       onStart: _onRotationStart,
       onUpdate: _onRotationUpdate,
@@ -4341,10 +4426,12 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
       }
     }
     if (oldWidget.playerService != widget.playerService) {
-      oldWidget.playerService?.positionNotifier
-          .removeListener(_onPositionChanged);
-      oldWidget.playerService?.isPlayingNotifier
-          .removeListener(_onPlayingChanged);
+      oldWidget.playerService?.positionNotifier.removeListener(
+        _onPositionChanged,
+      );
+      oldWidget.playerService?.isPlayingNotifier.removeListener(
+        _onPlayingChanged,
+      );
       final service = widget.playerService;
       if (service != null) {
         _lastObservedPosition = service.positionNotifier.value;
@@ -4445,8 +4532,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
       AppHaptics.tap();
     }
 
-    final msPerRadian =
-        (_secondsPerVinylRotation * 1000) / (2 * math.pi);
+    final msPerRadian = (_secondsPerVinylRotation * 1000) / (2 * math.pi);
     final seekMsDelta = (delta * msPerRadian).round();
     if (seekMsDelta != 0) {
       final current = service.positionNotifier.value;
@@ -4525,9 +4611,10 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
   Widget build(BuildContext context) {
     final double resolvedSize =
         widget.size ?? context.responsive(280.0, 320.0, 360.0);
-    
+
     // Update the disc center for rotation detection
-    _rotationRecognizer.discCenter = () => Offset(resolvedSize / 2, resolvedSize / 2);
+    _rotationRecognizer.discCenter = () =>
+        Offset(resolvedSize / 2, resolvedSize / 2);
 
     final framePadding = resolvedSize < 220 ? 5.0 : 7.0;
     final outerRadius = resolvedSize < 220 ? 28.0 : 34.0;
@@ -4544,20 +4631,20 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
         gestures: {
           DoubleTapGestureRecognizer:
               GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
-            () => _doubleTapRecognizer,
-            (_) {},
-          ),
+                () => _doubleTapRecognizer,
+                (_) {},
+              ),
           TapGestureRecognizer:
               GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-            () => _singleTapRecognizer,
-            (_) {},
-          ),
+                () => _singleTapRecognizer,
+                (_) {},
+              ),
           if (_isRotationEnabled)
             _RotationSeekRecognizer:
                 GestureRecognizerFactoryWithHandlers<_RotationSeekRecognizer>(
-              () => _rotationRecognizer,
-              (_) {},
-            ),
+                  () => _rotationRecognizer,
+                  (_) {},
+                ),
         },
         child: SizedBox(
           width: resolvedSize,
@@ -4571,11 +4658,13 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
               _userRotationOffset,
             ]),
             builder: (context, _) {
-              final rawT = Curves.easeInOutCubic
-                  .transform(_morphController.value);
+              final rawT = Curves.easeInOutCubic.transform(
+                _morphController.value,
+              );
               final t = rawT.isFinite ? rawT.clamp(0.0, 1.0) : 0.0;
               final glass = (1.0 - t).clamp(0.0, 1.0);
-              final rawAngle = _spinController.value * 2 * math.pi * t +
+              final rawAngle =
+                  _spinController.value * 2 * math.pi * t +
                   _seekAngleController.value +
                   _userRotationOffset.value;
               final spinAngle = rawAngle.isFinite ? rawAngle : 0.0;
@@ -4599,9 +4688,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
                           width: resolvedSize,
                           height: resolvedSize,
                           child: CustomPaint(
-                            painter: _VinylDiscPainter(
-                              labelRatio: _labelRatio,
-                            ),
+                            painter: _VinylDiscPainter(labelRatio: _labelRatio),
                           ),
                         ),
                       ),
@@ -4611,29 +4698,33 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
                             height: artSize,
                             padding: EdgeInsets.all(artFramePadding),
                             decoration: BoxDecoration(
-                              borderRadius:
-                                  BorderRadius.circular(artOuterRadius),
+                              borderRadius: BorderRadius.circular(
+                                artOuterRadius,
+                              ),
                               gradient: glass > 0.01
                                   ? LinearGradient(
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                       colors: [
-                                        Colors.white
-                                            .withValues(alpha: 0.16 * glass),
-                                        Colors.white
-                                            .withValues(alpha: 0.06 * glass),
-                                        Colors.white
-                                            .withValues(alpha: 0.02 * glass),
+                                        Colors.white.withValues(
+                                          alpha: 0.16 * glass,
+                                        ),
+                                        Colors.white.withValues(
+                                          alpha: 0.06 * glass,
+                                        ),
+                                        Colors.white.withValues(
+                                          alpha: 0.02 * glass,
+                                        ),
                                       ],
                                       stops: const [0.0, 0.4, 1.0],
                                     )
                                   : null,
                               border: Border.all(
                                 color: glass > 0.5
-                                    ? Colors.white
-                                        .withValues(alpha: 0.12 * glass)
-                                    : Colors.black
-                                        .withValues(alpha: 0.28 * t),
+                                    ? Colors.white.withValues(
+                                        alpha: 0.12 * glass,
+                                      )
+                                    : Colors.black.withValues(alpha: 0.28 * t),
                                 width: 1,
                               ),
                               boxShadow: [
@@ -4659,8 +4750,9 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
                               ],
                             ),
                             child: ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(artInnerRadius),
+                              borderRadius: BorderRadius.circular(
+                                artInnerRadius,
+                              ),
                               child: CachedImageWidget(
                                 imagePath: widget.song.albumArt,
                                 audioSourcePath: widget.song.filePath,
@@ -4670,8 +4762,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
                                   child: Icon(
                                     LucideIcons.music,
                                     size: iconSize * (1 - t * 0.5),
-                                    color:
-                                        Colors.white.withValues(alpha: 0.48),
+                                    color: Colors.white.withValues(alpha: 0.48),
                                   ),
                                 ),
                                 errorWidget: Container(
@@ -4679,16 +4770,14 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
                                   child: Icon(
                                     LucideIcons.music,
                                     size: iconSize * (1 - t * 0.5),
-                                    color:
-                                        Colors.white.withValues(alpha: 0.48),
+                                    color: Colors.white.withValues(alpha: 0.48),
                                   ),
                                 ),
                               ),
                             ),
                           )
                         : ClipRRect(
-                            borderRadius:
-                                BorderRadius.circular(artOuterRadius),
+                            borderRadius: BorderRadius.circular(artOuterRadius),
                             child: SizedBox(
                               width: artSize,
                               height: artSize,
@@ -4701,8 +4790,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
                                   child: Icon(
                                     LucideIcons.music,
                                     size: iconSize * (1 - t * 0.5),
-                                    color:
-                                        Colors.white.withValues(alpha: 0.48),
+                                    color: Colors.white.withValues(alpha: 0.48),
                                   ),
                                 ),
                                 errorWidget: Container(
@@ -4710,8 +4798,7 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
                                   child: Icon(
                                     LucideIcons.music,
                                     size: iconSize * (1 - t * 0.5),
-                                    color:
-                                        Colors.white.withValues(alpha: 0.48),
+                                    color: Colors.white.withValues(alpha: 0.48),
                                   ),
                                 ),
                               ),
@@ -4724,12 +4811,10 @@ class _AlbumArtBoxState extends State<_AlbumArtBox>
                           height: resolvedSize * 0.045,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFF050505)
-                                .withValues(alpha: t),
+                            color: const Color(0xFF050505).withValues(alpha: t),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black
-                                    .withValues(alpha: 0.55 * t),
+                                color: Colors.black.withValues(alpha: 0.55 * t),
                                 blurRadius: 2,
                                 offset: const Offset(0, 0.5),
                               ),
@@ -4810,13 +4895,16 @@ class _RotationSeekRecognizer extends OneSequenceGestureRecognizer {
       final radiusDx = _startPos!.dx - center.dx;
       final radiusDy = _startPos!.dy - center.dy;
       final radiusLength = math.sqrt(radiusDx * radiusDx + radiusDy * radiusDy);
-      
+
       if (radiusLength < 10) return; // Too close to center
 
       final dotProduct = motionDx * radiusDx + motionDy * radiusDy;
       final motionLength = math.sqrt(motionDx * motionDx + motionDy * motionDy);
-      final cosAngle = (dotProduct / (motionLength * radiusLength)).clamp(-1.0, 1.0);
-      
+      final cosAngle = (dotProduct / (motionLength * radiusLength)).clamp(
+        -1.0,
+        1.0,
+      );
+
       // If motion is mostly radial (cosAngle close to ±1), it's a swipe
       // If motion is mostly tangential (cosAngle close to 0), it's rotation
       if (cosAngle.abs() > 0.8) {
@@ -5598,8 +5686,8 @@ class _FullScreenPreview extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
-        final artSize = (maxWidth * 0.68).clamp(180.0, 380.0) *
-            artworkCardArtworkScale;
+        final artSize =
+            (maxWidth * 0.68).clamp(180.0, 380.0) * artworkCardArtworkScale;
         return Transform.translate(
           offset: Offset(0, artworkCardVerticalOffset * 1.0),
           child: Column(
@@ -5831,7 +5919,8 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
     // occasionally reports a transiently lower position (post-seek/buffer dip,
     // rounding), which would make the list scroll up then snap back. Treat a
     // backward change as jitter unless the position dropped by a real amount.
-    final isSeekBack = position.inMilliseconds <
+    final isSeekBack =
+        position.inMilliseconds <
         _lastTrackedPosition.inMilliseconds - _seekBackThresholdMs;
     _lastTrackedPosition = position;
 
@@ -6096,11 +6185,7 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 14,
-              color: accent ? AppColors.accent : textColor,
-            ),
+            Icon(icon, size: 14, color: accent ? AppColors.accent : textColor),
             const SizedBox(width: 6),
             Text(
               label,
@@ -6128,7 +6213,9 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 chip(
-                  lyrics.isSynchronized ? LucideIcons.clock3 : LucideIcons.fileText,
+                  lyrics.isSynchronized
+                      ? LucideIcons.clock3
+                      : LucideIcons.fileText,
                   lyrics.isSynchronized ? 'Synced' : 'Plain',
                   accent: lyrics.isSynchronized,
                 ),
@@ -6174,10 +6261,7 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
                           ? 'Tap any line to seek'
                           : 'Static lyrics — no timestamps',
                     ),
-                    chip(
-                      LucideIcons.pencilLine,
-                      'Edit & Sync Studio',
-                    ),
+                    chip(LucideIcons.pencilLine, 'Edit & Sync Studio'),
                     if (lyrics.lines.isNotEmpty)
                       chip(
                         Icons.format_align_left,
@@ -6257,7 +6341,8 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
         builder: (context, constraints) {
           final centerPadding = constraints.maxHeight * _centerFactor;
           return ListView.builder(
-            scrollCacheExtent: ScrollCacheExtent.pixels(_lineHeight * 8), controller: _scrollController,
+            scrollCacheExtent: ScrollCacheExtent.pixels(_lineHeight * 8),
+            controller: _scrollController,
             padding: EdgeInsets.fromLTRB(10, centerPadding, 10, centerPadding),
             itemCount: lyrics.lines.length,
             itemExtent: _lineHeight,
@@ -6382,19 +6467,19 @@ class _InlineLyricsPanelState extends State<_InlineLyricsPanel> {
                   fontWeight: FontWeight.w700,
                   color: Colors.white.withValues(alpha: 0.9),
                 ),
-),
-               const SizedBox(height: 8),
-               Text(
-                 'Search online, create your own synced lyrics, or import an existing file.',
-                 textAlign: TextAlign.center,
-                 style: TextStyle(
-                   fontFamily: 'ProductSans',
-                   fontSize: 13,
-                   height: 1.5,
-                   color: Colors.white.withValues(alpha: 0.56),
-                 ),
-               ),
-               _buildActionButtons(),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Search online, create your own synced lyrics, or import an existing file.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: Colors.white.withValues(alpha: 0.56),
+                ),
+              ),
+              _buildActionButtons(),
             ],
           ),
         ),
@@ -6599,14 +6684,17 @@ class _PlayerControls extends StatelessWidget {
                             onTap: () {
                               AppHaptics.tap();
                               playerService.toggleShuffle();
-                              final next = playerService.shuffleModeNotifier.value;
+                              final next =
+                                  playerService.shuffleModeNotifier.value;
                               ScaffoldMessenger.of(context)
                                 ..hideCurrentSnackBar()
-                                ..showSnackBar(SnackBar(
-                                  content: Text('Shuffle: ${next.label}'),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: const Duration(seconds: 1),
-                                ));
+                                ..showSnackBar(
+                                  SnackBar(
+                                    content: Text('Shuffle: ${next.label}'),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
                             },
                             onLongPress: () {
                               AppHaptics.tap();
@@ -6705,11 +6793,13 @@ class _PlayerControls extends StatelessWidget {
                               final next = playerService.loopModeNotifier.value;
                               ScaffoldMessenger.of(context)
                                 ..hideCurrentSnackBar()
-                                ..showSnackBar(SnackBar(
-                                  content: Text('Repeat: ${next.label}'),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: const Duration(seconds: 1),
-                                ));
+                                ..showSnackBar(
+                                  SnackBar(
+                                    content: Text('Repeat: ${next.label}'),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
                             },
                             onLongPress: () {
                               AppHaptics.tap();
@@ -7055,7 +7145,10 @@ class _PlayerActionButtonSelector extends StatelessWidget {
               onTap: () => onChanged(action),
               child: AnimatedContainer(
                 duration: AppConstants.animationFast,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.accent.withValues(alpha: 0.18)
@@ -7083,7 +7176,9 @@ class _PlayerActionButtonSelector extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: 'ProductSans',
                         fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                         color: isSelected
                             ? AppColors.textPrimary
                             : context.adaptiveTextSecondary,
