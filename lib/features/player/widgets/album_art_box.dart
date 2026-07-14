@@ -150,6 +150,9 @@ class _AlbumArtBoxState extends State<AlbumArtBox>
 
   @override
   void dispose() {
+    if (_isUserDragging) {
+      widget.playerService?.endInteractiveSeek();
+    }
     _morphController.removeStatusListener(_handleMorphStatus);
     widget.playerService?.positionNotifier.removeListener(_onPositionChanged);
     widget.playerService?.isPlayingNotifier.removeListener(_onPlayingChanged);
@@ -218,6 +221,7 @@ class _AlbumArtBoxState extends State<AlbumArtBox>
     if (service == null) return;
     _isUserDragging = true;
     _rotationHapticAccumulator = 0.0;
+    service.beginInteractiveSeek();
     _spinController.stop();
     _seekAngleController.stop();
     _seekAngleController.value = 0;
@@ -257,6 +261,7 @@ class _AlbumArtBoxState extends State<AlbumArtBox>
 
   void _onRotationEnd() {
     _isUserDragging = false;
+    widget.playerService?.endInteractiveSeek();
     _rotationHapticAccumulator = 0.0;
     if (_isVinyl && _isPlaying) {
       _spinController.repeat();
