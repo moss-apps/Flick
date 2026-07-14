@@ -387,7 +387,7 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
           ),
           song: song,
           onTap: () async {
-            await _playerService.play(song);
+            await _playerService.play(song, playlist: _songs);
             if (context.mounted) {
               await NavigationHelper.navigateToFullPlayer(
                 context,
