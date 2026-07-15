@@ -44,6 +44,65 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
+    version: '0.20.3-beta.4',
+    date: '2026-06-30',
+    sections: [
+      ChangelogSection(
+        title: 'Full Player Refactor & Widgets',
+        bullets: [
+          '`FullPlayerScreen` refactored into composable widgets: `PlayerControls`, `PlayerActionButtonRow`, `AnimatedSongScene`, `AnimatedAlbumArt`.',
+          'Multi-layout player support — the scene widget adapts to different player configurations.',
+          'Vinyl morph and rotation seek extracted into `AnimatedAlbumArt` for reuse.',
+          'Player action bottom sheets: song actions (queue, favorite, playlist add, share, delete), volume control, playback speed, sleep timer, player layout customization.',
+          '`PlayerNavigation` class centralizes queue and navigation actions.',
+          '`VisualizerArtBox` widget with frame and shadow styling.',
+          'Duration formatting utility shared across the player.',
+          'Interactive seek lifecycle fix — suppresses engine position writes during drag, cleans up on widget dispose.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Lyrics Panel & Waveform',
+        bullets: [
+          '**Inline lyrics panel** with synced and plain lyrics views — sing along without leaving the player.',
+          'Lyrics mode waveform strip with swipe gesture for switching to lyrics view.',
+          'Animated arrow indicator for the lyrics swipe affordance.',
+          'Waveform layer extracted for reusable progress bar styling.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Multi-Artist Album Grouping',
+        bullets: [
+          'Album grouping refactored to support multi-artist compilations — tracks from the same album with different artists now group correctly.',
+          'Album filtering narrowed to match only `albumArtist` field.',
+          'Unit tests for `SongRepository.resolveGroupArtist` covering compilation edge cases.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Artwork Performance',
+        bullets: [
+          'Artwork extraction paused during scroll to prevent scroll jank.',
+          'Debounced extraction pause — waits for scroll momentum to settle before resuming.',
+          'Always decode at 2× art size to prevent OOM on fast fling through large libraries.',
+          'Path existence checks memoized to avoid redundant filesystem I/O.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Widget Sync Fix',
+        bullets: [
+          'Widget playback state synced when the audio service is killed and restarted.',
+          '`updateAllWidgets` helper on `WidgetPrefs` for batch widget refresh.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Queue Settings & Playlist Context',
+        bullets: [
+          'Dedicated **Queue Settings** screen with wrap-around toggle — moved from Playback settings.',
+          'Playlist context passed when tapping a recently played or recently added song — scrobbling and shuffle now scoped correctly.',
+        ],
+      ),
+    ],
+  ),
+  ChangelogEntry(
     version: '0.20.2-beta.3',
     date: '2026-06-27',
     sections: [

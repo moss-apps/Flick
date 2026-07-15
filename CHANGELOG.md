@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.20.3-beta.4 (2026-06-30)
+
+### Full Player Refactor & Widgets
+- `FullPlayerScreen` refactored into composable widgets: `PlayerControls`, `PlayerActionButtonRow`, `AnimatedSongScene`, `AnimatedAlbumArt`.
+- Multi-layout player support via the scene widget.
+- Vinyl morph and rotation seek extracted into reusable `AnimatedAlbumArt`.
+- Player action bottom sheets: song actions, volume control, playback speed, sleep timer, layout customization.
+- `PlayerNavigation` class centralizes queue and navigation.
+- `VisualizerArtBox` widget with frame and shadow styling.
+- Shared duration formatting utility.
+- Interactive seek lifecycle fix — suppresses writes during drag, cleans up on dispose.
+
+### Lyrics Panel & Waveform
+- **Inline lyrics panel** with synced and plain views — sing along without leaving the player.
+- Lyrics mode waveform strip with swipe gesture and animated arrow.
+- Waveform layer extracted for reusable progress bar styling.
+
+### Multi-Artist Album Grouping
+- Album grouping handles compilations with multiple artists per key.
+- Album filtering narrowed to `albumArtist` field only.
+- Unit tests for `SongRepository.resolveGroupArtist`.
+
+### Artwork Performance
+- Artwork extraction paused during scroll (debounced).
+- Always decode at 2× art size to prevent OOM on fast fling.
+- Path existence checks memoized.
+
+### Widget Sync Fix
+- Widget state synced when audio service is killed.
+- `updateAllWidgets` helper for batch widget refresh.
+
+### Queue Settings & Playlist Context
+- Dedicated Queue Settings screen with wrap-around toggle.
+- Playlist context passed from recently played and recently added songs.
+
 ## 0.20.2-beta.3 (2026-06-27)
 
 ### Bluetooth Codec Control
