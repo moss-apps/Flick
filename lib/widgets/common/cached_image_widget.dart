@@ -82,8 +82,28 @@ class CachedImageWidget extends StatefulWidget {
   State<CachedImageWidget> createState() => _CachedImageWidgetState();
 }
 
+// ponytail: gate heavy first-time artwork extraction during fast orbit fling;
+// batch deferred work and flush on settle.
+bool _artworkExtractionPaused = false;
+final List<VoidCallback> _pendingArtworkResolvers = <VoidCallback>[];
+
+void pauseArtworkExtraction(bool paused) {
+  if (paused == _artworkExtractionPaused) return;
+  _artworkExtractionPaused = paused;
+  if (!paused) {
+    final resolvers = List<VoidCallback>.of(_pendingArtworkResolvers);
+    _pendingArtworkResolvers.clear();
+    for (final r in resolvers) {
+      r();
+    }
+  }
+}
+
 class _CachedImageWidgetState extends State<CachedImageWidget> {
+  static final Map<String, bool> _pathExistsCache = {};
+
   String? _resolvedImagePath;
+  bool _hasPendingResolve = false;
 
   @override
   void initState() {
@@ -143,6 +163,11 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
       return;
     }
 
+    if (_artworkExtractionPaused) {
+      _enqueueDeferredResolution(audioSourcePath);
+      return;
+    }
+
     final resolvedPath = await AlbumArtService.instance.resolveArtworkPath(
       existingPath: widget.imagePath,
       audioSourcePath: audioSourcePath,
@@ -160,6 +185,21 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
     }
   }
 
+  void _enqueueDeferredResolution(String audioSourcePath) {
+    if (_hasPendingResolve) return;
+    _hasPendingResolve = true;
+    final imagePath = widget.imagePath;
+    _pendingArtworkResolvers.add(() {
+      _hasPendingResolve = false;
+      if (!mounted ||
+          widget.audioSourcePath != audioSourcePath ||
+          widget.imagePath != imagePath) {
+        return;
+      }
+      _resolveEmbeddedArtwork();
+    });
+  }
+
   String? _usablePath(String? path) {
     if (path == null || path.isEmpty) {
       return null;
@@ -169,7 +209,14 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
       return path;
     }
 
-    return File(path).existsSync() ? path : null;
+    // ponytail: memoize stat() so repeated existence checks during fast scroll
+    // stay O(1); first encounter per path still does one disk hit. Stale entries
+    // are safe — Image.file's errorBuilder handles a since-deleted file.
+    final exists = _pathExistsCache.putIfAbsent(
+      path,
+      () => File(path).existsSync(),
+    );
+    return exists ? path : null;
   }
 
   Widget _buildFileImage(String imagePath) {

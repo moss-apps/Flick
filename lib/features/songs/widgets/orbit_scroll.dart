@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/features/songs/widgets/song_card.dart';
+import 'package:flick/widgets/common/cached_image_widget.dart';
 
 class OrbitScrollController {
   void Function(int index, bool animate)? _jumpToIndex;
@@ -84,6 +86,9 @@ class _OrbitScrollState extends State<OrbitScroll>
 
   // Track if we're actively scrolling to reduce visible range when idle
   bool _isScrolling = false;
+
+  // Debounce timer that flushes deferred artwork extraction after a fling settles.
+  Timer? _artworkGateTimer;
   DateTime _lastScrollTime = DateTime.now();
   int _lastReportedIndex = 0;
 
@@ -135,6 +140,8 @@ class _OrbitScrollState extends State<OrbitScroll>
     widget.controller?._detach();
     _controller.dispose();
     _scrollOffset.dispose();
+    _artworkGateTimer?.cancel();
+    pauseArtworkExtraction(false);
     super.dispose();
   }
 
@@ -164,6 +171,7 @@ class _OrbitScrollState extends State<OrbitScroll>
       final newOffset = _controller.value;
       if ((newOffset - _scrollOffset.value).abs() > 0.001) {
         _scrollOffset.value = newOffset;
+        _markScrollActive();
         if (!_isScrolling) {
           setState(() {
             _isScrolling = true;
@@ -184,6 +192,14 @@ class _OrbitScrollState extends State<OrbitScroll>
   }
 
   // --- Gesture Handling ---
+
+  void _markScrollActive() {
+    pauseArtworkExtraction(true);
+    _artworkGateTimer?.cancel();
+    _artworkGateTimer = Timer(const Duration(milliseconds: 150), () {
+      pauseArtworkExtraction(false);
+    });
+  }
 
   void _onVerticalDragStart(DragStartDetails details) {
     _controller.stop();

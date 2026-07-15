@@ -21,6 +21,7 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat as MediaNotificationCompat
+import com.mossapps.flick.widgets.WidgetPrefs
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.MethodChannel
 
@@ -250,6 +251,14 @@ class MusicNotificationService : Service() {
     }
 
     private fun shutdownForTaskRemoval() {
+        // Playback dies with the process; mirror that on home-screen widgets so the
+        // play/pause icon can't stay stuck on "playing" after the app is killed.
+        try {
+            WidgetPrefs.get(this).edit().putBoolean(WidgetPrefs.KEY_IS_PLAYING, false).apply()
+            WidgetPrefs.updateAllWidgets(this)
+        } catch (_: Exception) {
+        }
+
         try {
             if (isForegroundServiceStarted) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
