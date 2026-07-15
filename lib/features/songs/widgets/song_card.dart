@@ -348,7 +348,9 @@ class _SongCardState extends State<SongCard> {
     BoxFit fit = BoxFit.cover,
     required double artSize,
   }) {
-    final isThumbnail = artSize <= AppConstants.songCardArtSize;
+    // ponytail: cap decode at 2x artSize. Selected card used to decode full-res,
+    // OOM'ing during fast orbit fling. Soft on >2x DPR — scale by devicePixelRatio if it shows.
+    final decodeDim = (artSize * 2).toInt();
 
     return CachedImageWidget(
       imagePath: path,
@@ -356,13 +358,9 @@ class _SongCardState extends State<SongCard> {
       fit: fit,
       placeholder: _buildPlaceholderArt(),
       errorWidget: _buildPlaceholderArt(),
-      useThumbnail: isThumbnail,
-      thumbnailWidth: isThumbnail
-          ? (AppConstants.songCardArtSize * 2).toInt()
-          : null,
-      thumbnailHeight: isThumbnail
-          ? (AppConstants.songCardArtSize * 2).toInt()
-          : null,
+      useThumbnail: true,
+      thumbnailWidth: decodeDim,
+      thumbnailHeight: decodeDim,
     );
   }
 
