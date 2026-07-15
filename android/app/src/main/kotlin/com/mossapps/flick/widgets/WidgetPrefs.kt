@@ -1,5 +1,8 @@
 package com.mossapps.flick.widgets
 
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.SharedPreferences
 import com.mossapps.flick.R
@@ -30,6 +33,22 @@ internal object WidgetPrefs {
 
     fun get(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    // ponytail: rebuild all three home widgets from current prefs; used when the
+    // app process is about to die so the play/pause state can't drift stale.
+    fun updateAllWidgets(context: Context) {
+        val mgr = AppWidgetManager.getInstance(context)
+        listOf(
+            MiniPlayerWidgetProvider::class.java,
+            FlagshipWidgetProvider::class.java,
+            CompactWidgetProvider::class.java,
+        ).forEach { cls ->
+            val ids = mgr.getAppWidgetIds(ComponentName(context, cls))
+            if (ids.isNotEmpty()) {
+                cls.getDeclaredConstructor().newInstance().onUpdate(context, mgr, ids)
+            }
+        }
+    }
 
     fun getBgOpacityAlpha(context: Context): Int {
         val level = get(context).getInt(KEY_BG_OPACITY, 3)
