@@ -74,6 +74,18 @@ class AppPreferences {
   final String searchPlaybackMode; // 'results', 'library', or 'queue'
   final String refreshRateMode; // 'high', 'standard', 'adaptive'
   final bool visualizerEnabled;
+  final double orbitRadiusRatio;
+  final double orbitCenterOffsetRatio;
+  final double orbitCenterYRatio;
+  final double orbitItemSpacing;
+  final double orbitSelectedScale;
+  final double orbitDepth;
+  final int orbitVisibleItems;
+  final double orbitCardArtSize;
+  final double orbitCardWidthRatio;
+  final double orbitArtResolutionMultiplier;
+  final bool orbitShowPath;
+  final bool orbitShowGlow;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -149,6 +161,18 @@ class AppPreferences {
     this.searchPlaybackMode = 'results',
     this.refreshRateMode = 'high',
     this.visualizerEnabled = true,
+    this.orbitRadiusRatio = 1.0,
+    this.orbitCenterOffsetRatio = -0.5,
+    this.orbitCenterYRatio = 0.42,
+    this.orbitItemSpacing = 0.28,
+    this.orbitSelectedScale = 1.25,
+    this.orbitDepth = 0.75,
+    this.orbitVisibleItems = 5,
+    this.orbitCardArtSize = 64.0,
+    this.orbitCardWidthRatio = 0.68,
+    this.orbitArtResolutionMultiplier = 2.0,
+    this.orbitShowPath = true,
+    this.orbitShowGlow = true,
   });
 
   AppPreferences copyWith({
@@ -225,6 +249,18 @@ class AppPreferences {
     String? searchPlaybackMode,
     String? refreshRateMode,
     bool? visualizerEnabled,
+    double? orbitRadiusRatio,
+    double? orbitCenterOffsetRatio,
+    double? orbitCenterYRatio,
+    double? orbitItemSpacing,
+    double? orbitSelectedScale,
+    double? orbitDepth,
+    int? orbitVisibleItems,
+    double? orbitCardArtSize,
+    double? orbitCardWidthRatio,
+    double? orbitArtResolutionMultiplier,
+    bool? orbitShowPath,
+    bool? orbitShowGlow,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -333,6 +369,20 @@ class AppPreferences {
           searchPlaybackMode ?? this.searchPlaybackMode,
       refreshRateMode: refreshRateMode ?? this.refreshRateMode,
       visualizerEnabled: visualizerEnabled ?? this.visualizerEnabled,
+      orbitRadiusRatio: orbitRadiusRatio ?? this.orbitRadiusRatio,
+      orbitCenterOffsetRatio:
+          orbitCenterOffsetRatio ?? this.orbitCenterOffsetRatio,
+      orbitCenterYRatio: orbitCenterYRatio ?? this.orbitCenterYRatio,
+      orbitItemSpacing: orbitItemSpacing ?? this.orbitItemSpacing,
+      orbitSelectedScale: orbitSelectedScale ?? this.orbitSelectedScale,
+      orbitDepth: orbitDepth ?? this.orbitDepth,
+      orbitVisibleItems: orbitVisibleItems ?? this.orbitVisibleItems,
+      orbitCardArtSize: orbitCardArtSize ?? this.orbitCardArtSize,
+      orbitCardWidthRatio: orbitCardWidthRatio ?? this.orbitCardWidthRatio,
+      orbitArtResolutionMultiplier:
+          orbitArtResolutionMultiplier ?? this.orbitArtResolutionMultiplier,
+      orbitShowPath: orbitShowPath ?? this.orbitShowPath,
+      orbitShowGlow: orbitShowGlow ?? this.orbitShowGlow,
     );
   }
 }
@@ -416,6 +466,19 @@ class AppPreferencesService {
   static const _searchPlaybackModeKey = 'app_search_playback_mode';
   static const _refreshRateModeKey = 'app_refresh_rate_mode';
   static const _visualizerEnabledKey = 'visualizer_enabled';
+  static const _orbitRadiusRatioKey = 'orbit_radius_ratio';
+  static const _orbitCenterOffsetRatioKey = 'orbit_center_offset_ratio';
+  static const _orbitCenterYRatioKey = 'orbit_center_y_ratio';
+  static const _orbitItemSpacingKey = 'orbit_item_spacing';
+  static const _orbitSelectedScaleKey = 'orbit_selected_scale';
+  static const _orbitDepthKey = 'orbit_depth';
+  static const _orbitVisibleItemsKey = 'orbit_visible_items';
+  static const _orbitCardArtSizeKey = 'orbit_card_art_size';
+  static const _orbitCardWidthRatioKey = 'orbit_card_width_ratio';
+  static const _orbitArtResolutionMultiplierKey =
+      'orbit_art_resolution_multiplier';
+  static const _orbitShowPathKey = 'orbit_show_path';
+  static const _orbitShowGlowKey = 'orbit_show_glow';
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
@@ -527,6 +590,20 @@ class AppPreferencesService {
           prefs.getString(_searchPlaybackModeKey) ?? 'results',
       refreshRateMode: prefs.getString(_refreshRateModeKey) ?? 'high',
       visualizerEnabled: prefs.getBool(_visualizerEnabledKey) ?? true,
+      orbitRadiusRatio: prefs.getDouble(_orbitRadiusRatioKey) ?? 1.0,
+      orbitCenterOffsetRatio:
+          prefs.getDouble(_orbitCenterOffsetRatioKey) ?? -0.5,
+      orbitCenterYRatio: prefs.getDouble(_orbitCenterYRatioKey) ?? 0.42,
+      orbitItemSpacing: prefs.getDouble(_orbitItemSpacingKey) ?? 0.28,
+      orbitSelectedScale: prefs.getDouble(_orbitSelectedScaleKey) ?? 1.25,
+      orbitDepth: prefs.getDouble(_orbitDepthKey) ?? 0.75,
+      orbitVisibleItems: prefs.getInt(_orbitVisibleItemsKey) ?? 5,
+      orbitCardArtSize: prefs.getDouble(_orbitCardArtSizeKey) ?? 64.0,
+      orbitCardWidthRatio: prefs.getDouble(_orbitCardWidthRatioKey) ?? 0.68,
+      orbitArtResolutionMultiplier:
+          prefs.getDouble(_orbitArtResolutionMultiplierKey) ?? 2.0,
+      orbitShowPath: prefs.getBool(_orbitShowPathKey) ?? true,
+      orbitShowGlow: prefs.getBool(_orbitShowGlowKey) ?? true,
     );
   }
 
@@ -1252,5 +1329,81 @@ class AppPreferencesService {
   Future<void> setVisualizerEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_visualizerEnabledKey, value);
+  }
+
+  Future<void> setOrbitRadiusRatio(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitRadiusRatioKey, value);
+  }
+
+  Future<void> setOrbitCenterOffsetRatio(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitCenterOffsetRatioKey, value);
+  }
+
+  Future<void> setOrbitCenterYRatio(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitCenterYRatioKey, value);
+  }
+
+  Future<void> setOrbitItemSpacing(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitItemSpacingKey, value);
+  }
+
+  Future<void> setOrbitSelectedScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitSelectedScaleKey, value);
+  }
+
+  Future<void> setOrbitDepth(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitDepthKey, value);
+  }
+
+  Future<void> setOrbitVisibleItems(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_orbitVisibleItemsKey, value);
+  }
+
+  Future<void> setOrbitCardArtSize(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitCardArtSizeKey, value);
+  }
+
+  Future<void> setOrbitCardWidthRatio(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitCardWidthRatioKey, value);
+  }
+
+  Future<void> setOrbitArtResolutionMultiplier(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitArtResolutionMultiplierKey, value);
+  }
+
+  Future<void> setOrbitShowPath(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_orbitShowPathKey, value);
+  }
+
+  Future<void> setOrbitShowGlow(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_orbitShowGlowKey, value);
+  }
+
+  Future<void> clearOrbitSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_orbitRadiusRatioKey);
+    await prefs.remove(_orbitCenterOffsetRatioKey);
+    await prefs.remove(_orbitCenterYRatioKey);
+    await prefs.remove(_orbitItemSpacingKey);
+    await prefs.remove(_orbitSelectedScaleKey);
+    await prefs.remove(_orbitDepthKey);
+    await prefs.remove(_orbitVisibleItemsKey);
+    await prefs.remove(_orbitCardArtSizeKey);
+    await prefs.remove(_orbitCardWidthRatioKey);
+    await prefs.remove(_orbitArtResolutionMultiplierKey);
+    await prefs.remove(_orbitShowPathKey);
+    await prefs.remove(_orbitShowGlowKey);
   }
 }
