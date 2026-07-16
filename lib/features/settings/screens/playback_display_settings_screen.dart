@@ -6,6 +6,7 @@ import 'package:flick/models/song_view_mode.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
+import 'package:flick/features/settings/screens/orbit_settings_screen.dart';
 
 class PlaybackDisplaySettingsScreen extends ConsumerWidget {
   const PlaybackDisplaySettingsScreen({super.key});
@@ -84,6 +85,21 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
                       .setMode(SongViewMode.list);
                 },
               ),
+              if (songsViewMode == SongViewMode.orbit) ...[
+                const SettingsDivider(),
+                NavigationSetting(
+                  icon: LucideIcons.slidersHorizontal,
+                  title: 'Customize Orbital',
+                  subtitle: 'Curvature, sizing, depth, and visuals',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const OrbitSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.panelBottom,

@@ -423,6 +423,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
   }
 
   Widget _buildOrbitView(List<Song> songs, bool swipeActionsEnabled) {
+    final orbit = ref.watch(appPreferencesProvider);
     return GestureDetector(
       onLongPress: () {
         if (_selectionMode) return;
@@ -441,6 +442,18 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         swipeActionsEnabled: swipeActionsEnabled && !_selectionMode,
         isSelectionMode: _selectionMode,
         selectedIds: _selectedIds,
+        radiusRatio: orbit.orbitRadiusRatio,
+        centerOffsetRatio: orbit.orbitCenterOffsetRatio,
+        centerYRatio: orbit.orbitCenterYRatio,
+        itemSpacing: orbit.orbitItemSpacing,
+        selectedScale: orbit.orbitSelectedScale,
+        depth: orbit.orbitDepth,
+        visibleItems: orbit.orbitVisibleItems,
+        cardArtSize: orbit.orbitCardArtSize,
+        cardWidthRatio: orbit.orbitCardWidthRatio,
+        artResolutionMultiplier: orbit.orbitArtResolutionMultiplier,
+        showPath: orbit.orbitShowPath,
+        showGlow: orbit.orbitShowGlow,
         onSelectedIndexChanged: (index) {
           if (!mounted) return;
           _showFastIndexOverlay();

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/features/songs/widgets/song_card.dart';
@@ -59,6 +58,19 @@ class OrbitScroll extends StatefulWidget {
   /// Controller for external jump-to-index actions.
   final OrbitScrollController? controller;
 
+  final double radiusRatio;
+  final double centerOffsetRatio;
+  final double centerYRatio;
+  final double itemSpacing;
+  final double selectedScale;
+  final double depth;
+  final int visibleItems;
+  final double cardArtSize;
+  final double cardWidthRatio;
+  final double artResolutionMultiplier;
+  final bool showPath;
+  final bool showGlow;
+
   const OrbitScroll({
     super.key,
     required this.songs,
@@ -71,6 +83,18 @@ class OrbitScroll extends StatefulWidget {
     this.isSelectionMode = false,
     this.selectedIds = const {},
     this.controller,
+    this.radiusRatio = 1.0,
+    this.centerOffsetRatio = -0.5,
+    this.centerYRatio = 0.42,
+    this.itemSpacing = 0.28,
+    this.selectedScale = 1.25,
+    this.depth = 0.75,
+    this.visibleItems = 5,
+    this.cardArtSize = 64.0,
+    this.cardWidthRatio = 0.68,
+    this.artResolutionMultiplier = 2.0,
+    this.showPath = true,
+    this.showGlow = true,
   });
 
   @override
@@ -97,14 +121,17 @@ class _OrbitScrollState extends State<OrbitScroll>
   final Map<int, _ItemTransform> _transformCache = {};
   static const int _maxCacheSize = 120;
 
-  static final List<int> _orderedIndices = (() {
-    final visibleRange = AppConstants.orbitVisibleItems ~/ 2;
+  // ponytail: recompute each build (~9 ints). Was a static final keyed on
+  // AppConstants.orbitVisibleItems; now derives from widget.visibleItems so the
+  // user-tunable count takes effect. Upgrade to a memo if this ever shows in a profile.
+  List<int> get _orderedIndices {
+    final visibleRange = widget.visibleItems ~/ 2;
     return List.generate(
           visibleRange * 2 + 1,
           (i) => i - visibleRange,
         )
       ..sort((a, b) => b.abs().compareTo(a.abs()));
-  })();
+  }
 
   @override
   void initState() {
@@ -125,6 +152,21 @@ class _OrbitScrollState extends State<OrbitScroll>
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?._detach();
       widget.controller?._attach(_jumpToIndex);
+    }
+    // ponytail: invalidate transform/position caches when geometry changes.
+    // Caches are keyed by relative index only, so any layout-affecting pref
+    // (spacing, scales, depth, sizes) must flush them or stale transforms render.
+    if (oldWidget.itemSpacing != widget.itemSpacing ||
+        oldWidget.selectedScale != widget.selectedScale ||
+        oldWidget.depth != widget.depth ||
+        oldWidget.visibleItems != widget.visibleItems ||
+        oldWidget.radiusRatio != widget.radiusRatio ||
+        oldWidget.centerOffsetRatio != widget.centerOffsetRatio ||
+        oldWidget.centerYRatio != widget.centerYRatio ||
+        oldWidget.cardArtSize != widget.cardArtSize ||
+        oldWidget.cardWidthRatio != widget.cardWidthRatio) {
+      _transformCache.clear();
+      _positionCache.clear();
     }
     if (widget.selectedIndex != oldWidget.selectedIndex) {
       _lastReportedIndex = widget.selectedIndex;
@@ -336,10 +378,9 @@ class _OrbitScrollState extends State<OrbitScroll>
     final size = MediaQuery.of(context).size;
 
     // Calculate orbit parameters
-    final orbitRadius = size.width * AppConstants.orbitRadiusRatio;
-    final orbitCenterX = size.width * AppConstants.orbitCenterOffsetRatio;
-    final orbitCenterY =
-        size.height * 0.42; // Higher on screen for better visibility
+    final orbitRadius = size.width * widget.radiusRatio;
+    final orbitCenterX = size.width * widget.centerOffsetRatio;
+    final orbitCenterY = size.height * widget.centerYRatio;
 
     return GestureDetector(
       onVerticalDragStart: _onVerticalDragStart,
@@ -354,10 +395,12 @@ class _OrbitScrollState extends State<OrbitScroll>
           clipBehavior: Clip.none,
           children: [
             // Background glow
-            _buildSelectionGlow(orbitCenterX, orbitCenterY, orbitRadius),
+            if (widget.showGlow)
+              _buildSelectionGlow(orbitCenterX, orbitCenterY, orbitRadius),
 
             // Path
-            _buildOrbitPath(orbitCenterX, orbitCenterY, orbitRadius),
+            if (widget.showPath)
+              _buildOrbitPath(orbitCenterX, orbitCenterY, orbitRadius),
 
             // Songs — only rebuilds when scroll offset changes
             ValueListenableBuilder<double>(
@@ -420,6 +463,12 @@ class _OrbitScrollState extends State<OrbitScroll>
 
     final centerIndex = _scrollOffset.value.round();
 
+    // ponytail: adjacent/distant shrink derived from one Depth slider.
+    // adjacent = 1 - 0.6*depth, distant = 1 - 0.8*depth. At default depth 0.75
+    // this reproduces the old 0.55/0.35. Split into two sliders if finer control is needed.
+    final adjacentScale = 1.0 - 0.6 * widget.depth;
+    final distantScale = 1.0 - 0.8 * widget.depth;
+
     for (final relativeIndex in _orderedIndices) {
       final actualIndex = centerIndex + relativeIndex;
 
@@ -436,15 +485,15 @@ class _OrbitScrollState extends State<OrbitScroll>
 
         double scale;
         if (distanceFromCenter < 1.0) {
-          scale = AppConstants.orbitSelectedScale -
-              (AppConstants.orbitSelectedScale - AppConstants.orbitAdjacentScale) *
+          scale = widget.selectedScale -
+              (widget.selectedScale - adjacentScale) *
                   distanceFromCenter;
         } else if (distanceFromCenter < 2.0) {
-          scale = AppConstants.orbitAdjacentScale -
-              (AppConstants.orbitAdjacentScale - AppConstants.orbitDistantScale) *
+          scale = adjacentScale -
+              (adjacentScale - distantScale) *
                   (distanceFromCenter - 1.0);
         } else {
-          scale = AppConstants.orbitDistantScale -
+          scale = distantScale -
               (distanceFromCenter - 2.0) * 0.12;
         }
         scale = scale.clamp(0.0, 1.25);
@@ -478,6 +527,10 @@ class _OrbitScrollState extends State<OrbitScroll>
               swipeActionsEnabled: widget.swipeActionsEnabled,
               isSelectionMode: widget.isSelectionMode,
               isMultiSelected: widget.selectedIds.contains(widget.songs[actualIndex].id),
+              artSizeBase: widget.cardArtSize,
+              artSizeLarge: widget.cardArtSize * 1.5625,
+              cardWidthRatio: widget.cardWidthRatio,
+              artResolutionMultiplier: widget.artResolutionMultiplier,
               onTap: () {
                 AppHaptics.tap();
                 _animateTo(actualIndex.toDouble());
@@ -514,7 +567,7 @@ class _OrbitScrollState extends State<OrbitScroll>
     adjustedIndex +=
         relativeIndex.sign * splitAmount * math.min(relativeIndex.abs(), 1.0);
 
-    final angle = adjustedIndex * AppConstants.orbitItemSpacing;
+    final angle = adjustedIndex * widget.itemSpacing;
     final x = centerX + radius * math.cos(angle);
     final y = centerY + radius * math.sin(angle);
 

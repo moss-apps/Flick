@@ -540,6 +540,102 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     state = state.copyWith(visualizerEnabled: value);
     await ref.read(appPreferencesServiceProvider).setVisualizerEnabled(value);
   }
+
+  Future<void> setOrbitRadiusRatio(double value) async {
+    if (state.orbitRadiusRatio == value) return;
+    state = state.copyWith(orbitRadiusRatio: value);
+    await ref.read(appPreferencesServiceProvider).setOrbitRadiusRatio(value);
+  }
+
+  Future<void> setOrbitCenterOffsetRatio(double value) async {
+    if (state.orbitCenterOffsetRatio == value) return;
+    state = state.copyWith(orbitCenterOffsetRatio: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setOrbitCenterOffsetRatio(value);
+  }
+
+  Future<void> setOrbitCenterYRatio(double value) async {
+    if (state.orbitCenterYRatio == value) return;
+    state = state.copyWith(orbitCenterYRatio: value);
+    await ref.read(appPreferencesServiceProvider).setOrbitCenterYRatio(value);
+  }
+
+  Future<void> setOrbitItemSpacing(double value) async {
+    if (state.orbitItemSpacing == value) return;
+    state = state.copyWith(orbitItemSpacing: value);
+    await ref.read(appPreferencesServiceProvider).setOrbitItemSpacing(value);
+  }
+
+  Future<void> setOrbitSelectedScale(double value) async {
+    if (state.orbitSelectedScale == value) return;
+    state = state.copyWith(orbitSelectedScale: value);
+    await ref.read(appPreferencesServiceProvider).setOrbitSelectedScale(value);
+  }
+
+  Future<void> setOrbitDepth(double value) async {
+    if (state.orbitDepth == value) return;
+    state = state.copyWith(orbitDepth: value);
+    await ref.read(appPreferencesServiceProvider).setOrbitDepth(value);
+  }
+
+  Future<void> setOrbitVisibleItems(int value) async {
+    if (state.orbitVisibleItems == value) return;
+    state = state.copyWith(orbitVisibleItems: value);
+    await ref.read(appPreferencesServiceProvider).setOrbitVisibleItems(value);
+  }
+
+  Future<void> setOrbitCardArtSize(double value) async {
+    if (state.orbitCardArtSize == value) return;
+    state = state.copyWith(orbitCardArtSize: value);
+    await ref.read(appPreferencesServiceProvider).setOrbitCardArtSize(value);
+  }
+
+  Future<void> setOrbitCardWidthRatio(double value) async {
+    if (state.orbitCardWidthRatio == value) return;
+    state = state.copyWith(orbitCardWidthRatio: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setOrbitCardWidthRatio(value);
+  }
+
+  Future<void> setOrbitArtResolutionMultiplier(double value) async {
+    if (state.orbitArtResolutionMultiplier == value) return;
+    state = state.copyWith(orbitArtResolutionMultiplier: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setOrbitArtResolutionMultiplier(value);
+  }
+
+  Future<void> setOrbitShowPath(bool value) async {
+    if (state.orbitShowPath == value) return;
+    state = state.copyWith(orbitShowPath: value);
+    await ref.read(appPreferencesServiceProvider).setOrbitShowPath(value);
+  }
+
+  Future<void> setOrbitShowGlow(bool value) async {
+    if (state.orbitShowGlow == value) return;
+    state = state.copyWith(orbitShowGlow: value);
+    await ref.read(appPreferencesServiceProvider).setOrbitShowGlow(value);
+  }
+
+  Future<void> resetOrbitSettings() async {
+    state = state.copyWith(
+      orbitRadiusRatio: 1.0,
+      orbitCenterOffsetRatio: -0.5,
+      orbitCenterYRatio: 0.42,
+      orbitItemSpacing: 0.28,
+      orbitSelectedScale: 1.25,
+      orbitDepth: 0.75,
+      orbitVisibleItems: 5,
+      orbitCardArtSize: 64.0,
+      orbitCardWidthRatio: 0.68,
+      orbitArtResolutionMultiplier: 2.0,
+      orbitShowPath: true,
+      orbitShowGlow: true,
+    );
+    await ref.read(appPreferencesServiceProvider).clearOrbitSettings();
+  }
 }
 
 final appPreferencesProvider =
