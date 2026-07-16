@@ -32,6 +32,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
+import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 
 /// Music-home menu screen inspired by streaming app landing pages.
 class MenuScreen extends ConsumerStatefulWidget {
@@ -54,7 +55,6 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   List<RecentlyPlayedEntry> _recentEntries = const [];
   Map<ListeningRecapPeriod, ListeningRecap> _recaps = const {};
   bool _isHistoryLoading = true;
-  bool _showEngineCard = true;
   bool _showUpdateNotice = true;
   Color? _heroDominantColor;
   String? _heroColorArtPath;
@@ -359,205 +359,148 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
 
   Widget _buildEngineSelector(
     BuildContext context,
-    AudioEnginePreference engine,
-  ) {
-    final (title, subtitle, icon) = switch (engine) {
+    AudioEnginePreference engine, {
+    Color? dominantColor,
+  }) {
+    final (title, icon) = switch (engine) {
       AudioEnginePreference.exoPlayer => (
         'Standard Engine',
-        'Default Android player. Plays everything reliably — the safest pick for everyday listening.',
         LucideIcons.smartphone,
       ),
       AudioEnginePreference.rustOboe => (
         'High Quality Engine',
-        'Cleaner audio with smoother playback. Our recommended choice for daily listening.',
         LucideIcons.audioLines,
       ),
       AudioEnginePreference.isochronousUsb => (
         'Bit-perfect (USB DAC)',
-        'Studio-grade output for external DACs and headphone amps. Bypasses all processing for pure, untouched sound.',
         LucideIcons.usb,
       ),
     };
 
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingLg),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackgroundStrong,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: context.adaptiveTextPrimary, size: 18),
-              ),
-              const SizedBox(width: AppConstants.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: AppConstants.spacingXxs),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() => _showEngineCard = false);
-                  ScaffoldMessenger.of(context)
-                    ..removeCurrentSnackBar()
-                    ..showSnackBar(
-                      SnackBar(
-                        content: const Text(
-                          'Engine selector hidden. Re-enable in Settings > UI Customization > Engine Selector.',
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 4),
-                        action: SnackBarAction(
-                          label: 'Undo',
-                          onPressed: () => setState(() => _showEngineCard = true),
-                        ),
-                      ),
-                    );
-                },
-                icon: Icon(
-                  LucideIcons.x,
-                  size: 18,
-                  color: context.adaptiveTextTertiary,
-                ),
-                visualDensity: VisualDensity.compact,
-              ),
-            ],
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _showEnginePickerSheet(context, engine),
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: _heroGradientColors(dominantColor),
+              stops: const [0.0, 0.56, 1.0],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          const SizedBox(height: AppConstants.spacingMd),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => _showEnginePickerDialog(context, engine),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.glassBorder),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConstants.spacingMd,
+              vertical: AppConstants.spacingSm,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 16),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.spacingMd,
-                  vertical: AppConstants.spacingSm,
+                const SizedBox(width: AppConstants.spacingMd),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-                backgroundColor: AppColors.glassBackgroundStrong,
-              ),
-              child: Text(
-                'Change engine',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: context.adaptiveTextPrimary,
+                Icon(
+                  LucideIcons.chevronDown,
+                  size: 18,
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
-              ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Future<void> _showEnginePickerDialog(
+  Future<void> _showEnginePickerSheet(
     BuildContext context,
     AudioEnginePreference current,
   ) async {
     final service = ref.read(uac2PreferencesServiceProvider);
 
-    await showDialog<void>(
+    await GlassBottomSheet.show<void>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+      title: 'Choose Audio Engine',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'The audio engine determines how your music is played back. Each option balances reliability, quality, and compatibility differently.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.adaptiveTextTertiary,
+              height: 1.45,
+            ),
           ),
-          title: Text(
-            'Choose Audio Engine',
-            style: TextStyle(color: context.adaptiveTextPrimary),
+          const SizedBox(height: AppConstants.spacingMd),
+          _buildEngineOption(
+            context,
+            title: 'Standard',
+            subtitle:
+                'Default Android player — plays everything reliably. The safest choice for most listeners.',
+            icon: LucideIcons.smartphone,
+            selected: current == AudioEnginePreference.exoPlayer,
+            onTap: () => _selectEngine(
+              context,
+              service,
+              AudioEnginePreference.exoPlayer,
+              current,
+            ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'The audio engine determines how your music is played back. Each option balances reliability, quality, and compatibility differently.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.adaptiveTextTertiary,
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingMd),
-              _buildEngineOption(
-                dialogContext,
-                title: 'Standard',
-                subtitle:
-                    'Default Android player — plays everything reliably. The safest choice for most listeners.',
-                icon: LucideIcons.smartphone,
-                selected: current == AudioEnginePreference.exoPlayer,
-                onTap: () => _selectEngine(
-                  dialogContext,
-                  service,
-                  AudioEnginePreference.exoPlayer,
-                  current,
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              _buildEngineOption(
-                dialogContext,
-                title: 'High Quality',
-                subtitle:
-                    'Our Rust-powered engine. Cleaner sound and smoother playback — recommended for daily listening.',
-                icon: LucideIcons.audioLines,
-                selected: current == AudioEnginePreference.rustOboe,
-                onTap: () => _selectEngine(
-                  dialogContext,
-                  service,
-                  AudioEnginePreference.rustOboe,
-                  current,
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              _buildEngineOption(
-                dialogContext,
-                title: 'Bit-perfect (USB DAC)',
-                subtitle:
-                    'Studio-grade output for external DACs and headphone amps. Bypasses Android\'s audio processing for pure sound.',
-                icon: LucideIcons.usb,
-                selected: current == AudioEnginePreference.isochronousUsb,
-                onTap: () => _selectEngine(
-                  dialogContext,
-                  service,
-                  AudioEnginePreference.isochronousUsb,
-                  current,
-                ),
-              ),
-            ],
+          const SizedBox(height: AppConstants.spacingSm),
+          _buildEngineOption(
+            context,
+            title: 'High Quality',
+            subtitle:
+                'Our Rust-powered engine. Cleaner sound and smoother playback — recommended for daily listening.',
+            icon: LucideIcons.audioLines,
+            selected: current == AudioEnginePreference.rustOboe,
+            onTap: () => _selectEngine(
+              context,
+              service,
+              AudioEnginePreference.rustOboe,
+              current,
+            ),
           ),
-        );
-      },
+          const SizedBox(height: AppConstants.spacingSm),
+          _buildEngineOption(
+            context,
+            title: 'Bit-perfect (USB DAC)',
+            subtitle:
+                'Studio-grade output for external DACs and headphone amps. Bypasses Android\'s audio processing for pure sound.',
+            icon: LucideIcons.usb,
+            selected: current == AudioEnginePreference.isochronousUsb,
+            onTap: () => _selectEngine(
+              context,
+              service,
+              AudioEnginePreference.isochronousUsb,
+              current,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -732,8 +675,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                           curve: Curves.easeInOut,
                           alignment: Alignment.topCenter,
                           child:
-                              _showEngineCard &&
-                                      appPreferences.showEngineSelector &&
+                              appPreferences.showEngineSelector &&
                                       enginePreferenceAsync.hasValue
                                   ? Padding(
                                       padding: const EdgeInsets.fromLTRB(
@@ -745,6 +687,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                       child: _buildEngineSelector(
                                         context,
                                         enginePreferenceAsync.value!,
+                                        dominantColor: _heroDominantColor,
                                       ),
                                     )
                                   : const SizedBox.shrink(),
@@ -1896,6 +1839,32 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   }
 }
 
+const List<Color> _heroGradientFallback = [
+  Color(0xFF194B68),
+  Color(0xFF0C1624),
+  Color(0xFF1D2A19),
+];
+
+List<Color> _heroGradientColors(Color? dominant) {
+  final dc = dominant;
+  if (dc == null) return _heroGradientFallback;
+
+  final darkened = Color.lerp(dc, const Color(0xFF000000), 0.55)!;
+  final darker = Color.lerp(dc, const Color(0xFF000000), 0.68)!;
+  final shifted = Color.lerp(
+    Color.fromARGB(
+      255,
+      (dc.g * 255.0).round().clamp(0, 255),
+      (dc.b * 255.0).round().clamp(0, 255),
+      (dc.r * 255.0).round().clamp(0, 255),
+    ),
+    const Color(0xFF000000),
+    0.60,
+  )!;
+
+  return [darkened, darker, shifted];
+}
+
 class _HeroCardWithBlobs extends StatefulWidget {
   final Color? dominantColor;
   final Song? featuredSong;
@@ -1924,12 +1893,6 @@ class _HeroCardWithBlobs extends StatefulWidget {
 class _HeroCardWithBlobsState extends State<_HeroCardWithBlobs>
     with SingleTickerProviderStateMixin {
   late final AnimationController _blobController;
-
-  static const _defaultGradientColors = [
-    Color(0xFF194B68),
-    Color(0xFF0C1624),
-    Color(0xFF1D2A19),
-  ];
 
   static const _defaultBlobColors = [
     Color(0xFF61B8FF),
@@ -1962,25 +1925,8 @@ class _HeroCardWithBlobsState extends State<_HeroCardWithBlobs>
     super.dispose();
   }
 
-  List<Color> _adaptiveGradientColors() {
-    final dc = widget.dominantColor;
-    if (dc == null) return _defaultGradientColors;
-
-    final darkened = Color.lerp(dc, const Color(0xFF000000), 0.55)!;
-    final darker = Color.lerp(dc, const Color(0xFF000000), 0.68)!;
-    final shifted = Color.lerp(
-      Color.fromARGB(
-        255,
-        (dc.g * 255.0).round().clamp(0, 255),
-        (dc.b * 255.0).round().clamp(0, 255),
-        (dc.r * 255.0).round().clamp(0, 255),
-      ),
-      const Color(0xFF000000),
-      0.60,
-    )!;
-
-    return [darkened, darker, shifted];
-  }
+  List<Color> _adaptiveGradientColors() =>
+      _heroGradientColors(widget.dominantColor);
 
   List<Color> _adaptiveBlobColors() {
     final dc = widget.dominantColor;
