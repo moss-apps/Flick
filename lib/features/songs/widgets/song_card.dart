@@ -40,6 +40,18 @@ class SongCard extends StatefulWidget {
   /// Whether this song is selected in multiselect mode.
   final bool isMultiSelected;
 
+  /// Base album-art size for non-selected cards (overrides default).
+  final double artSizeBase;
+
+  /// Album-art size for the selected card (overrides default).
+  final double artSizeLarge;
+
+  /// Card width as a fraction of screen width (overrides default).
+  final double cardWidthRatio;
+
+  /// Decode-resolution multiplier applied to art size (higher = sharper, heavier).
+  final double artResolutionMultiplier;
+
   const SongCard({
     super.key,
     required this.song,
@@ -52,6 +64,10 @@ class SongCard extends StatefulWidget {
     this.swipeActionsEnabled = false,
     this.isSelectionMode = false,
     this.isMultiSelected = false,
+    this.artSizeBase = AppConstants.songCardArtSize,
+    this.artSizeLarge = AppConstants.songCardArtSizeLarge,
+    this.cardWidthRatio = 0.68,
+    this.artResolutionMultiplier = 2.0,
   });
 
   @override
@@ -62,16 +78,13 @@ class _SongCardState extends State<SongCard> {
   double _dragDx = 0;
   bool _queuedFlash = false;
   bool _favoriteFlash = false;
-  double? _cachedCardWidth;
 
   @override
   Widget build(BuildContext context) {
-    final artSize = widget.isSelected
-        ? AppConstants.songCardArtSizeLarge
-        : AppConstants.songCardArtSize;
+    final artSize =
+        widget.isSelected ? widget.artSizeLarge : widget.artSizeBase;
 
-    _cachedCardWidth ??= MediaQuery.of(context).size.width * 0.68;
-    final cardWidth = _cachedCardWidth!;
+    final cardWidth = MediaQuery.of(context).size.width * widget.cardWidthRatio;
     const cardHeight = 130.0;
 
     final isSwiping = _dragDx.abs() > 0.001;
@@ -348,9 +361,10 @@ class _SongCardState extends State<SongCard> {
     BoxFit fit = BoxFit.cover,
     required double artSize,
   }) {
-    // ponytail: cap decode at 2x artSize. Selected card used to decode full-res,
-    // OOM'ing during fast orbit fling. Soft on >2x DPR — scale by devicePixelRatio if it shows.
-    final decodeDim = (artSize * 2).toInt();
+    // ponytail: cap decode at artSize * multiplier. Selected card used to decode
+    // full-res, OOM'ing during fast orbit fling. Multiplier is now user-tunable;
+    // default 2x stays soft on >2x DPR — scale up if it shows.
+    final decodeDim = (artSize * widget.artResolutionMultiplier).toInt();
 
     return CachedImageWidget(
       imagePath: path,
