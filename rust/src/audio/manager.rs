@@ -1,5 +1,6 @@
 use crate::audio::engine::{
-    create_audio_engine, desired_output_signature, AudioEngineHandle, TUNING_432HZ_ENABLED,
+    create_audio_engine, desired_output_signature, AudioApiPreference, AudioEngineHandle,
+    TUNING_432HZ_ENABLED,
 };
 use crate::audio::strategy::OutputStrategy;
 use parking_lot::Mutex;
@@ -94,6 +95,7 @@ struct EngineManagerState {
     rust_handle: Option<AudioEngineHandle>,
     high_res_mode: bool,
     dap_bit_perfect_enabled: bool,
+    audio_api_preference: AudioApiPreference,
     capability_snapshot: AudioCapabilitySnapshot,
 }
 
@@ -104,6 +106,7 @@ impl Default for EngineManagerState {
             rust_handle: None,
             high_res_mode: false,
             dap_bit_perfect_enabled: true,
+            audio_api_preference: AudioApiPreference::Auto,
             capability_snapshot: AudioCapabilitySnapshot::default(),
         }
     }
@@ -160,6 +163,18 @@ impl EngineManager {
 
     pub fn get_dap_bit_perfect_enabled(&self) -> bool {
         self.state.lock().dap_bit_perfect_enabled
+    }
+
+    /// Set the preferred Android audio API (AAudio / OpenSL ES / Auto). The
+    /// running engine is NOT restarted eagerly; the change applies on the next
+    /// `ensure_rust_engine`, where the preference is compared against the value
+    /// the live engine was built with to decide whether to reopen the stream.
+    pub fn set_audio_api_preference(&self, preference: AudioApiPreference) {
+        self.state.lock().audio_api_preference = preference;
+    }
+
+    pub fn get_audio_api_preference(&self) -> AudioApiPreference {
+        self.state.lock().audio_api_preference
     }
 
     pub fn set_432hz_tuning_enabled(&self, enabled: bool) {
@@ -275,6 +290,7 @@ impl EngineManager {
 
         let allow_dap_native = selection.high_res_mode;
         let dap_bit_perfect_enabled = self.state.lock().dap_bit_perfect_enabled;
+        let audio_api_preference = self.state.lock().audio_api_preference;
         let desired_signature = desired_output_signature(preferred_sample_rate);
         {
             let mut state = self.state.lock();
@@ -290,7 +306,8 @@ impl EngineManager {
                     return handle.output_signature().starts_with("android-shared:")
                         && handle.sample_rate() == requested_rate
                         && (allow_dap_native || strategy != "dap_native")
-                        && dap_bit_perfect_enabled == (strategy == "dap_native");
+                        && dap_bit_perfect_enabled == (strategy == "dap_native")
+                        && handle.audio_api_pref() == audio_api_preference;
                 }
 
                 #[allow(unreachable_code)]
@@ -324,6 +341,7 @@ impl EngineManager {
                 allow_dap_native,
                 dap_bit_perfect_enabled,
                 excluded_strategies,
+                audio_api_preference,
             )
         })
         .await
