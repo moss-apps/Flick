@@ -7,6 +7,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/data/repositories/recently_played_repository.dart';
@@ -223,23 +224,23 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
   Widget build(BuildContext context) {
     return DisplayModeWrapper(
       child: Scaffold(
-        // Opaque background improves compositor performance (no need to blend
-        // everything with what's behind this route during scroll).
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: _isLoading
-                    ? _buildLoadingState()
-                    : _groupedHistory.isEmpty
-                    ? _buildEmptyState()
-                    : _buildHistoryList(),
-              ),
-            ],
+        backgroundColor: Colors.transparent,
+        body: BlurredSongBackground(
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context),
+                Expanded(
+                  child: _isLoading
+                      ? _buildLoadingState()
+                      : _groupedHistory.isEmpty
+                      ? _buildEmptyState()
+                      : _buildHistoryList(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
