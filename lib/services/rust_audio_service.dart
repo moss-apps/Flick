@@ -37,6 +37,7 @@ class RustAudioService {
   final ValueNotifier<bool> crossfadeEnabledNotifier = ValueNotifier(false);
   final ValueNotifier<double> crossfadeDurationNotifier = ValueNotifier(3.0);
   final ValueNotifier<double> playbackSpeedNotifier = ValueNotifier(1.0);
+  final ValueNotifier<double> pitchSemitonesNotifier = ValueNotifier(0.0);
 
   // Throttled notifier for text labels (updates slower than progress bar)
   // Prevents unnecessary rebuilds of time labels while still providing smooth progress bar
@@ -364,6 +365,14 @@ class RustAudioService {
     final clampedSpeed = speed.clamp(0.5, 2.0);
     playbackSpeedNotifier.value = clampedSpeed;
     await rust_audio.audioSetPlaybackSpeed(speed: clampedSpeed);
+  }
+
+  /// Set pitch shift in semitones (tempo preserved). 0 = bypass.
+  Future<void> setPitchShiftSemitones(double semitones) async {
+    if (!_initialized) return;
+    final clamped = semitones.clamp(-12.0, 12.0);
+    pitchSemitonesNotifier.value = clamped;
+    await rust_audio.audioSetPitchShiftSemitones(semitones: clamped);
   }
 
   /// Get the current playback speed.
