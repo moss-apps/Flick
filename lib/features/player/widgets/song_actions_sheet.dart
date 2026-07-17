@@ -15,6 +15,7 @@ import 'package:flick/features/player/widgets/share/share_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/song_metadata_sheet.dart';
 import 'package:flick/features/player/widgets/add_to_playlist_sheet.dart';
 import 'package:flick/features/player/widgets/speed_bottom_sheet.dart';
+import 'package:flick/features/player/widgets/pitch_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 
 class SongActionsSheet extends ConsumerWidget {
@@ -317,6 +318,15 @@ class SongActionsSheet extends ConsumerWidget {
                             onTap: () {
                               Navigator.pop(sheetContext);
                               SpeedBottomSheet.show(context, playerService);
+                            },
+                          ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.music,
+                            label: 'Pitch',
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              PitchBottomSheet.show(context, playerService);
                             },
                           ),
                           _buildSongActionTile(
