@@ -84,6 +84,49 @@ class OnlineLyricsResult {
 
 class OnlineLyricsService {
   static const String _baseUrl = 'https://lrclib.net/api';
+  static const Duration _requestTimeout = Duration(seconds: 8);
+  static const int _maxCacheEntries = 50;
+
+  // Static so state survives per-sheet instance recreation — same singleton
+  // idiom as album_art_import_service.
+  static final http.Client _client = http.Client();
+  static final Map<String, OnlineLyricsResult?> _exactCache = {};
+  static final Map<String, List<OnlineLyricsResult>> _searchCache = {};
+
+  static String _norm(String? s) =>
+      (s ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
+  String _exactCacheKey({
+    required String artist,
+    required String title,
+    String? album,
+    Duration? duration,
+  }) {
+    return 'exact|${_norm(artist)}|${_norm(title)}|${_norm(album)}|'
+        '${duration?.inSeconds ?? 0}';
+  }
+
+  String _searchCacheKey({
+    String? query,
+    String? artist,
+    String? title,
+    String? album,
+  }) {
+    final parts = <String>['search'];
+    if (query != null && query.isNotEmpty) parts.add('q=${_norm(query)}');
+    if (artist != null && artist.isNotEmpty) parts.add('a=${_norm(artist)}');
+    if (title != null && title.isNotEmpty) parts.add('t=${_norm(title)}');
+    if (album != null && album.isNotEmpty) parts.add('al=${_norm(album)}');
+    return parts.join('|');
+  }
+
+  void _put<T>(Map<String, T> cache, String key, T value) {
+    cache[key] = value;
+    // ponytail: FIFO eviction, not true LRU — fine at this volume.
+    while (cache.length > _maxCacheEntries) {
+      cache.remove(cache.keys.first);
+    }
+  }
 
   Future<OnlineLyricsResult?> fetchExact({
     required String artist,
@@ -91,6 +134,14 @@ class OnlineLyricsService {
     String? album,
     Duration? duration,
   }) async {
+    final cacheKey = _exactCacheKey(
+      artist: artist,
+      title: title,
+      album: album,
+      duration: duration,
+    );
+    if (_exactCache.containsKey(cacheKey)) return _exactCache[cacheKey];
+
     final queryParams = <String, String>{
       'track_name': title,
       'artist_name': artist,
@@ -105,13 +156,19 @@ class OnlineLyricsService {
     final uri =
         Uri.parse('$_baseUrl/get').replace(queryParameters: queryParams);
     try {
-      final response = await http.get(uri);
+      final response = await _client.get(uri).timeout(_requestTimeout);
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
-        return OnlineLyricsResult.fromJson(json);
+        final result = OnlineLyricsResult.fromJson(json);
+        _put(_exactCache, cacheKey, result);
+        return result;
+      }
+      // Definitive miss (e.g. 404) — cache it. 5xx is transient, skip caching.
+      if (response.statusCode < 500) {
+        _put(_exactCache, cacheKey, null);
       }
     } catch (_) {
-      // Network error — fall through to null.
+      // Network/timeout error — do not cache.
     }
     return null;
   }
@@ -122,6 +179,14 @@ class OnlineLyricsService {
     String? title,
     String? album,
   }) async {
+    final cacheKey = _searchCacheKey(
+      query: query,
+      artist: artist,
+      title: title,
+      album: album,
+    );
+    if (_searchCache.containsKey(cacheKey)) return _searchCache[cacheKey]!;
+
     final queryParams = <String, String>{};
     if (query != null && query.isNotEmpty) {
       queryParams['q'] = query;
@@ -139,18 +204,23 @@ class OnlineLyricsService {
     final uri =
         Uri.parse('$_baseUrl/search').replace(queryParameters: queryParams);
     try {
-      final response = await http.get(uri);
+      final response = await _client.get(uri).timeout(_requestTimeout);
       if (response.statusCode == 200) {
         final list = jsonDecode(response.body) as List<dynamic>;
-        return list
+        final results = list
             .map(
               (e) =>
                   OnlineLyricsResult.fromJson(e as Map<String, dynamic>),
             )
             .toList();
+        _put(_searchCache, cacheKey, results);
+        return results;
+      }
+      if (response.statusCode < 500) {
+        _put(_searchCache, cacheKey, const []);
       }
     } catch (_) {
-      // Network error — fall through to empty list.
+      // Network/timeout error — do not cache.
     }
     return [];
   }
