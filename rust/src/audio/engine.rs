@@ -16,6 +16,7 @@ use crate::audio::dsd_engine::DsdDecoderThread;
 use crate::audio::dynamics::DynamicsChain;
 use crate::audio::equalizer::Equalizer;
 use crate::audio::fx::SpatialFx;
+use crate::audio::pitch_shifter::PitchShifter;
 use crate::audio::source::{AudioSource, SourceProvider};
 use crate::audio::strategy::OutputStrategy;
 #[cfg(target_os = "android")]
@@ -155,6 +156,13 @@ pub struct AudioCallbackData {
     convolver: Mutex<Convolver>,
     /// Lightweight compressor + limiter chain.
     dynamics: Mutex<DynamicsChain>,
+    /// Pitch shifter (semitone offset, tempo preserved). Runs at the head of
+    /// the DSP chain. try_lock in callback to avoid blocking.
+    pitch_shifter: Mutex<PitchShifter>,
+    /// Lock-free mirror of `pitch_shifter.semitones() != 0`. Forces the
+    /// callback out of passthrough so shifting runs even on a verified
+    /// bit-perfect output (same trick as crossfade_forces_dsp).
+    pitch_shift_forces_dsp: AtomicBool,
     /// Channel for sending finished tracks to command thread
     finished_tracks: Sender<AudioSource>,
     /// Experimental 432 Hz tuning override. When enabled the callback leaves
@@ -216,6 +224,8 @@ impl AudioCallbackData {
             fx: Mutex::new(SpatialFx::new(sample_rate)),
             convolver: Mutex::new(Convolver::new(sample_rate)),
             dynamics: Mutex::new(DynamicsChain::new(sample_rate)),
+            pitch_shifter: Mutex::new(PitchShifter::new(sample_rate, channels)),
+            pitch_shift_forces_dsp: AtomicBool::new(false),
             finished_tracks,
             tuning_432hz_enabled: AtomicBool::new(tuning_enabled),
             crossfade_forces_dsp: AtomicBool::new(false),
@@ -310,7 +320,8 @@ impl AudioCallbackData {
         let mode = self.pipeline_mode.load(Ordering::Relaxed);
         let tuning = self.tuning_432hz_enabled.load(Ordering::Relaxed);
         let crossfade = self.crossfade_forces_dsp.load(Ordering::Relaxed);
-        mode == PipelineMode::Passthrough as u8 && !tuning && !crossfade
+        let pitch = self.pitch_shift_forces_dsp.load(Ordering::Relaxed);
+        mode == PipelineMode::Passthrough as u8 && !tuning && !crossfade && !pitch
     }
 
     /// Whether crossfade may run. Crossfade requires the DSP path (not
@@ -346,6 +357,10 @@ impl AudioCallbackData {
         self.fx.lock().reconfigure_sample_rate(sample_rate);
         self.convolver.lock().reconfigure_sample_rate(sample_rate);
         *self.dynamics.lock() = DynamicsChain::new(sample_rate);
+        let semitones = self.pitch_shifter.lock().semitones();
+        let mut shifter = PitchShifter::new(sample_rate, self.channels);
+        shifter.set_semitones(semitones);
+        *self.pitch_shifter.lock() = shifter;
     }
 }
 
@@ -506,6 +521,11 @@ impl AudioEngineHandle {
     /// Set graphic EQ: enabled and 10 band gains in dB (order matches EqualizerState.defaultGraphicFrequenciesHz).
     pub fn set_equalizer(&self, enabled: bool, gains_db: [f32; 10]) -> Result<(), String> {
         self.send_command(AudioCommand::SetEqualizer { enabled, gains_db })
+    }
+
+    /// Set pitch shift in semitones (tempo preserved). 0 = bypass.
+    pub fn set_pitch_shift(&self, semitones: f32) -> Result<(), String> {
+        self.send_command(AudioCommand::SetPitchShift { semitones })
     }
 
     /// Configure compressor settings.
@@ -2442,6 +2462,9 @@ pub(crate) fn audio_callback(
             if read < output.len() {
                 output[read..].fill(0.0);
             }
+            if let Some(mut pitch) = data.pitch_shifter.try_lock() {
+                pitch.process(output, channels);
+            }
             if let Some(mut eq) = data.equalizer.try_lock() {
                 eq.process(output, channels);
             }
@@ -2583,6 +2606,9 @@ pub(crate) fn audio_callback(
         }
     }
 
+    if let Some(mut pitch) = data.pitch_shifter.try_lock() {
+        pitch.process(output, channels);
+    }
     if let Some(mut eq) = data.equalizer.try_lock() {
         eq.process(output, channels);
     }
@@ -2707,6 +2733,7 @@ fn command_processing_loop(
                     AudioCommand::Stop => {
                         callback_data.sources.lock().stop();
                         callback_data.crossfader.lock().reset();
+                        callback_data.pitch_shifter.lock().reset();
                         callback_data.crossfade_active.store(false, Ordering::Relaxed);
                         state.store(PlaybackState::Stopped as u8, Ordering::Relaxed);
                         let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Stopped));
@@ -2720,6 +2747,8 @@ fn command_processing_loop(
                             &event_tx,
                             sample_rate,
                         );
+                        // Drop pre-seek audio still sitting in the shifter.
+                        callback_data.pitch_shifter.lock().reset();
                     }
                     AudioCommand::SetVolume { volume } => {
                         callback_data.set_volume(volume.clamp(0.0, 1.0));
@@ -2760,6 +2789,18 @@ fn command_processing_loop(
                         if let Some(mut eq) = callback_data.equalizer.try_lock() {
                             eq.set(enabled, &gains_db, sample_rate);
                         }
+                    }
+                    AudioCommand::SetPitchShift { semitones } => {
+                        log::info!("[PITCH] command handler: SetPitchShift({semitones})");
+                        callback_data
+                            .pitch_shifter
+                            .lock()
+                            .set_semitones(semitones);
+                        // Pitch shift needs the DSP path (see crossfade).
+                        callback_data
+                            .pitch_shift_forces_dsp
+                            .store(semitones != 0.0, Ordering::Relaxed);
+                        log::info!("[PITCH] forces_dsp = {}", semitones != 0.0);
                     }
                     AudioCommand::SetCompressor {
                         enabled,
