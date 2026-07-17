@@ -142,4 +142,34 @@ class NavigationHelper {
       ),
     );
   }
+
+  /// Fade-only push for screens that share the persistent blurred background.
+  /// A slide would drag the opaque ambient background with the route and look
+  /// like the artwork is panning; a fade keeps the background visually static.
+  static Future<T?> pushFade<T>(
+    BuildContext context,
+    WidgetBuilder builder, {
+    RouteSettings? settings,
+  }) {
+    return Navigator.of(context).push<T>(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            builder(context),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          if (AppConstants.animationNormal == Duration.zero) {
+            return child;
+          }
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+          return FadeTransition(opacity: curved, child: child);
+        },
+        transitionDuration: AppConstants.animationNormal,
+        reverseTransitionDuration: AppConstants.animationFast,
+        settings: settings,
+      ),
+    );
+  }
 }
