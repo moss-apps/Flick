@@ -56,6 +56,36 @@ pub static XRUN_COUNT: AtomicU64 = AtomicU64::new(0);
 pub static TUNING_432HZ_ENABLED: AtomicBool = AtomicBool::new(false);
 const TUNING_432HZ_RATIO: f32 = 432.0 / 440.0;
 
+/// User-facing preference for the Android low-level audio API that Oboe wraps.
+/// `Auto` lets Oboe choose (AAudio then OpenSL ES); the explicit variants force
+/// that API first, with `Unspecified` as a safety net so audio still plays if the
+/// chosen API is unavailable (e.g. AAudio on API 26). Bluetooth always defers to
+/// Oboe's default since exclusive mode is wrong for the mixer path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AudioApiPreference {
+    Auto,
+    AAudio,
+    OpenSLES,
+}
+
+impl AudioApiPreference {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::AAudio => "aaudio",
+            Self::OpenSLES => "opensles",
+        }
+    }
+
+    pub fn from_str(value: &str) -> Self {
+        match value {
+            "aaudio" => Self::AAudio,
+            "opensles" => Self::OpenSLES,
+            _ => Self::Auto,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct AudioOutputRuntimeState {
     pub strategy: String,
@@ -70,6 +100,7 @@ pub struct AudioOutputRuntimeState {
     pub dsd_effective_mode: Option<String>,
     pub dsd_wire_rate: Option<u32>,
     pub dsd_transport: Option<String>,
+    pub active_audio_api: Option<String>,
 }
 
 /// Pipeline mode: set once at engine creation time, never toggled at runtime.
@@ -338,6 +369,9 @@ pub struct AudioEngineHandle {
     output_signature: String,
     /// Runtime output state after strategy selection and verification.
     output_runtime: AudioOutputRuntimeState,
+    /// The Android audio-API preference the engine was built with. Used to
+    /// detect when a preference change must force a stream reopen.
+    audio_api_pref: AudioApiPreference,
     /// Active decoder threads (kept alive for the duration of playback)
     #[allow(dead_code)]
     decoders: Arc<Mutex<Vec<DecoderHandle>>>,
@@ -613,6 +647,10 @@ impl AudioEngineHandle {
         &self.output_runtime
     }
 
+    pub fn audio_api_pref(&self) -> AudioApiPreference {
+        self.audio_api_pref
+    }
+
     /// Shutdown the engine.
     pub fn shutdown(&self) -> Result<(), String> {
         self.shutdown.store(true, Ordering::Release);
@@ -658,6 +696,7 @@ pub fn create_audio_engine(
     _allow_dap_native: bool,
     _dap_bit_perfect_enabled: bool,
     _excluded_strategies: Vec<OutputStrategy>,
+    audio_api_pref: AudioApiPreference,
 ) -> Result<AudioEngineHandle, String> {
     // Get the default audio device
     let host = cpal::default_host();
@@ -790,7 +829,9 @@ pub fn create_audio_engine(
             dsd_effective_mode: None,
             dsd_wire_rate: None,
             dsd_transport: None,
+            active_audio_api: None,
         },
+        audio_api_pref,
         decoders,
         shutdown,
         _audio_thread: parking_lot::Mutex::new(Some(audio_thread)),
@@ -968,6 +1009,7 @@ fn build_output_runtime_state(
         dsd_effective_mode,
         dsd_wire_rate,
         dsd_transport,
+        active_audio_api: None,
     }
 }
 
@@ -981,6 +1023,7 @@ enum AndroidManagedStreamKind {
 struct AndroidManagedStream {
     kind: AndroidManagedStreamKind,
     actual_sample_rate: u32,
+    active_audio_api: &'static str,
 }
 
 #[cfg(target_os = "android")]
@@ -1013,6 +1056,7 @@ struct ManagedStreamSupervisor {
     target_sample_rate: u32,
     prefer_exclusive: bool,
     use_integer: bool,
+    audio_api_pref: AudioApiPreference,
     reopen_failures: u32,
     next_retry: Option<std::time::Instant>,
 }
@@ -1026,6 +1070,7 @@ impl ManagedStreamSupervisor {
         target_sample_rate: u32,
         prefer_exclusive: bool,
         use_integer: bool,
+        audio_api_pref: AudioApiPreference,
     ) -> Self {
         Self {
             stream: Some(stream),
@@ -1034,6 +1079,7 @@ impl ManagedStreamSupervisor {
             target_sample_rate,
             prefer_exclusive,
             use_integer,
+            audio_api_pref,
             reopen_failures: 0,
             next_retry: None,
         }
@@ -1082,6 +1128,7 @@ impl ManagedStreamSupervisor {
             self.target_sample_rate,
             self.prefer_exclusive,
             self.use_integer,
+            self.audio_api_pref,
         ) {
             Ok(mut new_stream) => match new_stream.start() {
                 Ok(()) => {
@@ -1130,6 +1177,7 @@ pub fn create_audio_engine(
     allow_dap_native: bool,
     dap_bit_perfect_enabled: bool,
     excluded_strategies: Vec<OutputStrategy>,
+    audio_api_pref: AudioApiPreference,
 ) -> Result<AudioEngineHandle, String> {
     let device_profile = current_device_profile();
 
@@ -1638,6 +1686,7 @@ pub fn create_audio_engine(
             requested_sample_rate,
             managed_prefer_exclusive,
             managed_use_integer,
+            audio_api_pref,
         )?;
         let verification = OutputVerification::verify(
             requested_sample_rate,
@@ -1658,20 +1707,23 @@ pub fn create_audio_engine(
         }
         output_runtime =
             build_output_runtime_state(desired_shared_strategy, verification, false, false);
+        output_runtime.active_audio_api = Some(managed.active_audio_api.to_string());
         output_signature =
             android_output_signature_for_strategy(resolved_shared_strategy, requested_sample_rate);
         managed_stream = Some(managed);
     }
 
     log::info!(
-        "[ENGINE] requested_rate_hz={} actual_rate_hz={} strategy={} resampler_active={} passthrough_allowed={} channels={} dap_profile={:?}",
+        "[ENGINE] requested_rate_hz={} actual_rate_hz={} strategy={} resampler_active={} passthrough_allowed={} channels={} dap_profile={:?} audio_api_pref={} active_audio_api={:?}",
         requested_sample_rate,
         final_sample_rate,
         output_runtime.strategy,
         output_runtime.resampler_active,
         output_runtime.passthrough_allowed,
         channels,
-        device_profile.as_ref().map(|profile| &profile.kind)
+        device_profile.as_ref().map(|profile| &profile.kind),
+        audio_api_pref.as_str(),
+        output_runtime.active_audio_api,
     );
 
     // Spawn the audio thread (which owns the Oboe stream)
@@ -1733,6 +1785,7 @@ pub fn create_audio_engine(
                     final_sample_rate,
                     managed_prefer_exclusive,
                     managed_use_integer,
+                    audio_api_pref,
                 ),
                 None => {
                     let _ = event_tx.try_send(AudioEvent::Error {
@@ -1779,6 +1832,7 @@ pub fn create_audio_engine(
         channels,
         output_signature,
         output_runtime,
+        audio_api_pref,
         decoders,
         shutdown,
         _audio_thread: parking_lot::Mutex::new(Some(audio_thread)),
@@ -1960,6 +2014,7 @@ fn open_android_output_stream(
     target_sample_rate: u32,
     prefer_exclusive: bool,
     use_integer_format: bool,
+    audio_api_pref: AudioApiPreference,
 ) -> Result<AndroidManagedStream, String> {
     let selected_device = select_android_output_device(target_sample_rate)?;
     let is_bluetooth = matches!(
@@ -1982,11 +2037,7 @@ fn open_android_output_stream(
     } else {
         &[SharingMode::Shared]
     };
-    let attempts: &[AudioApi] = if is_bluetooth {
-        &[AudioApi::Unspecified]
-    } else {
-        &[AudioApi::AAudio, AudioApi::Unspecified]
-    };
+    let attempts: Vec<AudioApi> = audio_api_attempts(audio_api_pref, is_bluetooth);
     let performance_mode = if is_bluetooth {
         PerformanceMode::None
     } else {
@@ -1996,9 +2047,10 @@ fn open_android_output_stream(
     let mut last_error = None;
     let mut fallback_kind = None;
     let mut fallback_rate = 0u32;
+    let mut fallback_api: Option<&'static str> = None;
 
     for &sharing_mode in sharing_modes {
-        for &audio_api in attempts {
+        for &audio_api in &attempts {
             let result: Result<AndroidManagedStreamKind, String> = if use_integer_format {
                 let builder = oboe::AudioStreamBuilder::default()
                     .set_stereo()
@@ -2126,6 +2178,7 @@ fn open_android_output_stream(
                         if fallback_kind.is_none() {
                             fallback_kind = Some(kind);
                             fallback_rate = actual_rate.max(1) as u32;
+                            fallback_api = Some(audio_api_label(actual_api));
                         }
                         continue;
                     }
@@ -2133,6 +2186,7 @@ fn open_android_output_stream(
                     return Ok(AndroidManagedStream {
                         kind,
                         actual_sample_rate: actual_rate.max(1) as u32,
+                        active_audio_api: audio_api_label(actual_api),
                     });
                 }
                 Err(error) => {
@@ -2147,6 +2201,7 @@ fn open_android_output_stream(
         return Ok(AndroidManagedStream {
             kind,
             actual_sample_rate: fallback_rate.max(1),
+            active_audio_api: fallback_api.unwrap_or("Unspecified"),
         });
     }
 
@@ -2256,6 +2311,27 @@ fn audio_api_label(audio_api: AudioApi) -> &'static str {
         AudioApi::AAudio => "AAudio",
         AudioApi::OpenSLES => "OpenSLES",
         AudioApi::Unspecified => "Unspecified",
+    }
+}
+
+/// Resolve a user audio-API preference into the ordered list of Oboe `AudioApi`
+/// candidates to try when opening the managed output stream.
+///
+/// Bluetooth always defers to Oboe's default (`Unspecified`): exclusive mode is
+/// wrong for the AudioFlinger mixer path, and AAudio/OpenSL selection there has
+/// no benefit. For wired/USB/Internal outputs the explicit preference is tried
+/// first, with `Unspecified` appended as a safety net so audio still plays when
+/// the chosen API is unavailable (e.g. AAudio on API 26, the project minSdk).
+#[cfg(target_os = "android")]
+fn audio_api_attempts(pref: AudioApiPreference, is_bluetooth: bool) -> Vec<AudioApi> {
+    if is_bluetooth {
+        return vec![AudioApi::Unspecified];
+    }
+    match pref {
+        AudioApiPreference::Auto | AudioApiPreference::AAudio => {
+            vec![AudioApi::AAudio, AudioApi::Unspecified]
+        }
+        AudioApiPreference::OpenSLES => vec![AudioApi::OpenSLES, AudioApi::Unspecified],
     }
 }
 
@@ -3282,5 +3358,50 @@ mod tests {
         let gain = volume_to_gain(0.5);
         let expected: Vec<f32> = input.iter().map(|s| s * gain).collect();
         assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn audio_api_preference_str_round_trip() {
+        for pref in [
+            AudioApiPreference::Auto,
+            AudioApiPreference::AAudio,
+            AudioApiPreference::OpenSLES,
+        ] {
+            assert_eq!(AudioApiPreference::from_str(pref.as_str()), pref);
+        }
+        assert_eq!(AudioApiPreference::from_str("garbage"), AudioApiPreference::Auto);
+    }
+
+    #[cfg(target_os = "android")]
+    #[test]
+    fn audio_api_attempts_bluetooth_defers_to_oboe() {
+        for pref in [
+            AudioApiPreference::Auto,
+            AudioApiPreference::AAudio,
+            AudioApiPreference::OpenSLES,
+        ] {
+            assert_eq!(
+                audio_api_attempts(pref, true),
+                vec![AudioApi::Unspecified],
+                "bluetooth must always use the Oboe default regardless of preference"
+            );
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    #[test]
+    fn audio_api_attempts_wired_puts_preference_first() {
+        assert_eq!(
+            audio_api_attempts(AudioApiPreference::Auto, false),
+            vec![AudioApi::AAudio, AudioApi::Unspecified]
+        );
+        assert_eq!(
+            audio_api_attempts(AudioApiPreference::AAudio, false),
+            vec![AudioApi::AAudio, AudioApi::Unspecified]
+        );
+        assert_eq!(
+            audio_api_attempts(AudioApiPreference::OpenSLES, false),
+            vec![AudioApi::OpenSLES, AudioApi::Unspecified]
+        );
     }
 }
