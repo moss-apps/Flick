@@ -1198,6 +1198,13 @@ pub fn audio_set_equalizer(enabled: bool, gains_db: Vec<f32>) -> Result<(), Stri
     with_audio_engine(|handle| handle.set_equalizer(enabled, arr))
 }
 
+/// Set pitch shift in semitones for the native audio engine (tempo preserved).
+/// 0 = bypass. Range is clamped internally to ±12 semitones.
+pub fn audio_set_pitch_shift_semitones(semitones: f32) -> Result<(), String> {
+    log::info!("[PITCH] FFI audio_set_pitch_shift_semitones({semitones})");
+    with_audio_engine(|handle| handle.set_pitch_shift(semitones))
+}
+
 /// Configure compressor settings for the native audio engine.
 pub fn audio_set_compressor(
     enabled: bool,
