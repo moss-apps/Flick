@@ -6,10 +6,12 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/artists/screens/artist_detail_screen.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
@@ -166,15 +168,14 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
   }
 
   void _openArtistDetail(String artistName, List<Song> songs) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ArtistDetailScreen(
-          artistName: artistName,
-          songs: songs,
-          artistArt: _getArtistArt(songs),
-          artistArtSourcePath: _getArtworkSourcePath(songs),
-          playerService: _playerService,
-        ),
+    NavigationHelper.pushFade(
+      context,
+      (_) => ArtistDetailScreen(
+        artistName: artistName,
+        songs: songs,
+        artistArt: _getArtistArt(songs),
+        artistArtSourcePath: _getArtworkSourcePath(songs),
+        playerService: _playerService,
       ),
     );
   }
@@ -194,20 +195,22 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: _isLoading
-                    ? _buildLoadingState()
-                    : _artists.isEmpty
-                    ? _buildEmptyState()
-                    : _buildArtistsList(),
-              ),
-            ],
+        body: BlurredSongBackground(
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context),
+                Expanded(
+                  child: _isLoading
+                      ? _buildLoadingState()
+                      : _artists.isEmpty
+                      ? _buildEmptyState()
+                      : _buildArtistsList(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
