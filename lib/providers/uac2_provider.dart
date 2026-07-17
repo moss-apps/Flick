@@ -4,6 +4,7 @@ import 'package:flick/models/audio_output_diagnostics.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/providers/player_provider.dart';
+import 'package:flick/src/rust/audio/engine.dart' show AudioApiPreference;
 
 final uac2ServiceProvider = Provider<Uac2Service>((ref) {
   return Uac2Service.instance;
@@ -186,6 +187,11 @@ final audioEnginePreferenceProvider = FutureProvider<AudioEnginePreference>((
 ) async {
   final service = ref.watch(uac2PreferencesServiceProvider);
   return service.getAudioEnginePreference();
+});
+
+final androidAudioApiProvider = FutureProvider<AudioApiPreference>((ref) async {
+  final service = ref.watch(uac2PreferencesServiceProvider);
+  return service.getAndroidAudioApi();
 });
 
 final developerModeEnabledProvider = FutureProvider<bool>((ref) async {
