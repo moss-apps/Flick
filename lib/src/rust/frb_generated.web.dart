@@ -15,6 +15,7 @@ import 'api/simple.dart';
 import 'api/uac2_api.dart';
 import 'audio/crossfader.dart';
 import 'audio/dsd_engine/dsd.dart';
+import 'audio/engine.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -45,6 +46,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AlacAudioMetadata dco_decode_alac_audio_metadata(dynamic raw);
+
+  @protected
+  AudioApiPreference dco_decode_audio_api_preference(dynamic raw);
 
   @protected
   AudioCapabilityInfo dco_decode_audio_capability_info(dynamic raw);
@@ -306,6 +310,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AlacAudioMetadata sse_decode_alac_audio_metadata(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AudioApiPreference sse_decode_audio_api_preference(
     SseDeserializer deserializer,
   );
 
@@ -620,6 +629,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_alac_audio_metadata(
     AlacAudioMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_audio_api_preference(
+    AudioApiPreference self,
     SseSerializer serializer,
   );
 
