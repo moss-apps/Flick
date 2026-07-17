@@ -14,6 +14,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 
@@ -201,12 +202,11 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
   }
 
   void _openRootFolder(MusicFolder folder) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => FolderBrowserScreen(
-          folderUri: folder.uri,
-          displayName: folder.displayName,
-        ),
+    NavigationHelper.pushFade(
+      context,
+      (_) => FolderBrowserScreen(
+        folderUri: folder.uri,
+        displayName: folder.displayName,
       ),
     );
   }
@@ -216,26 +216,28 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.textSecondary,
-                        ),
-                      )
-                    : _folders.isEmpty
-                        ? _buildEmptyState()
-                        : _viewMode == FolderViewMode.tree
-                            ? _buildFoldersTree()
-                            : _buildRootFoldersGrid(),
-              ),
-            ],
+        body: BlurredSongBackground(
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.textSecondary,
+                          ),
+                        )
+                      : _folders.isEmpty
+                          ? _buildEmptyState()
+                          : _viewMode == FolderViewMode.tree
+                              ? _buildFoldersTree()
+                              : _buildRootFoldersGrid(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -515,13 +517,12 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
         dateAdded: DateTime.now(),
       ),
     );
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => FolderBrowserScreen(
-          folderUri: folder.uri,
-          displayName: folder.displayName,
-          prefix: node.key,
-        ),
+    NavigationHelper.pushFade(
+      context,
+      (_) => FolderBrowserScreen(
+        folderUri: folder.uri,
+        displayName: folder.displayName,
+        prefix: node.key,
       ),
     );
   }
@@ -936,19 +937,21 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context, 0),
-              const Expanded(
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.textSecondary,
+        backgroundColor: Colors.transparent,
+        body: BlurredSongBackground(
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(context, 0),
+                const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
@@ -1011,19 +1014,21 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     return Stack(
       children: [
         Scaffold(
-          backgroundColor: AppColors.background,
-          body: SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context, totalCount),
-                Expanded(
-                  child: subfolders.isEmpty && songs.isEmpty
-                      ? _buildEmptyState(context)
-                      : _buildContent(context, subfolders, songs),
-                ),
-              ],
+          backgroundColor: Colors.transparent,
+          body: BlurredSongBackground(
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, totalCount),
+                  Expanded(
+                    child: subfolders.isEmpty && songs.isEmpty
+                        ? _buildEmptyState(context)
+                        : _buildContent(context, subfolders, songs),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1209,13 +1214,12 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   }
 
   void _openSubfolder(BuildContext context, FolderGroup folder) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => FolderBrowserScreen(
-          folderUri: widget.folderUri,
-          displayName: widget.displayName,
-          prefix: folder.key,
-        ),
+    NavigationHelper.pushFade(
+      context,
+      (_) => FolderBrowserScreen(
+        folderUri: widget.folderUri,
+        displayName: widget.displayName,
+        prefix: folder.key,
       ),
     );
   }
