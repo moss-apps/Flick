@@ -36,10 +36,10 @@
 
 ## Audio Output Engines
 
-- [ ] **OpenSL ES Output** — OpenSL ES audio backend
-- [ ] **AudioTrack Output** — Android AudioTrack backend
-- [ ] **Hi-Res Output** — high-resolution audio output path
-- [ ] **AAudio Output** — AAudio backend (Android 8.1+)
+- [x] **OpenSL ES Output** — OpenSL ES audio backend — Exposed as a selectable option in the "Android Audio API" settings dialog (UAC2 Preferences → Advanced), behind the `AudioApiPreference` enum threaded through the Rust engine and Oboe's `set_audio_api()`.
+- [ ] **AudioTrack Output** — Android AudioTrack backend — Not built as a standalone engine; the `normalAndroid` (ExoPlayer/just_audio) path already drives Android `AudioTrack` under the hood, and the Rust `DsdNativeBackend` uses `AudioTrack` directly for ENCODING_DSD. A general PCM AudioTrack engine within the Rust DSP chain remains a future option.
+- [x] **Hi-Res Output** — high-resolution audio output path — Covered by existing hi-res machinery: the "Hi-Res Direct" Bluetooth toggle, the "Bit-perfect (DAP Internal)" Oboe exclusive-mode path, and the `MixerBitPerfect`/`DapNative`/`UsbDirect` output strategies (24/32-bit, no resampling).
+- [x] **AAudio Output** — AAudio backend (Android 8.1+) — Exposed as a selectable option in the "Android Audio API" settings dialog (UAC2 Preferences → Advanced), behind the `AudioApiPreference` enum threaded through the Rust engine and Oboe's `set_audio_api()`.
 
 ---
 
