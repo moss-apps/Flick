@@ -12,6 +12,7 @@ import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
+import 'package:flick/src/rust/audio/engine.dart' show AudioApiPreference;
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/features/settings/screens/logs_screen.dart';
@@ -35,6 +36,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                     final dapBitPerfectAsync = ref.watch(uac2DapBitPerfectEnabledProvider);
                     final tuning432HzAsync = ref.watch(uac2432HzTuningEnabledProvider);
                     final audioEngineAsync = ref.watch(audioEnginePreferenceProvider);
+                    final androidAudioApiAsync = ref.watch(androidAudioApiProvider);
                     final developerModeAsync = ref.watch(developerModeEnabledProvider);
                     final diagnostics = ref.watch(audioOutputDiagnosticsProvider);
                     final killIsochronousUsbOnQuitAsync = ref.watch(killIsochronousUsbOnQuitProvider);
@@ -86,6 +88,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                         context,
                         preferencesService,
                         audioEngineAsync,
+                        androidAudioApiAsync,
                         developerModeAsync,
                         bitPerfectAsync,
                         dapBitPerfectAsync,
@@ -267,6 +270,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
     BuildContext context,
     Uac2PreferencesService service,
     AsyncValue<AudioEnginePreference> audioEngineAsync,
+    AsyncValue<AudioApiPreference> androidAudioApiAsync,
     AsyncValue<bool> developerModeAsync,
     AsyncValue<bool> bitPerfectAsync,
     AsyncValue<bool> dapBitPerfectAsync,
@@ -302,6 +306,24 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
             loading: () => _buildLoadingTile(context),
             error: (_, _) => _buildErrorTile(context),
           ),
+          if (audioEngineAsync.when(
+            data: (e) => e == AudioEnginePreference.rustOboe,
+            loading: () => false,
+            error: (_, _) => false,
+          )) ...[
+            _buildDivider(),
+            androidAudioApiAsync.when(
+              data: (pref) => _buildNavigationTile(
+                context,
+                icon: LucideIcons.circuitBoard,
+                title: 'Android Audio API',
+                subtitle: _androidAudioApiSubtitle(pref),
+                onTap: () => _showAndroidAudioApiDialog(context, service, pref),
+              ),
+              loading: () => _buildLoadingTile(context),
+              error: (_, _) => _buildErrorTile(context),
+            ),
+          ],
           _buildDivider(),
           developerModeAsync.when(
             data: (enabled) => _buildSwitchTile(
@@ -512,6 +534,101 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       AudioEnginePreference.rustOboe => 'Rust via Oboe',
       AudioEnginePreference.isochronousUsb => 'Isochronous USB',
     };
+  }
+
+  String _androidAudioApiSubtitle(AudioApiPreference pref) {
+    return switch (pref) {
+      AudioApiPreference.auto => 'AAudio with OpenSL ES fallback (default)',
+      AudioApiPreference.aAudio => 'AAudio (Android 8.1+)',
+      AudioApiPreference.openSles => 'OpenSL ES (legacy)',
+    };
+  }
+
+  Future<void> _showAndroidAudioApiDialog(
+    BuildContext context,
+    Uac2PreferencesService service,
+    AudioApiPreference current,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          ),
+          title: Text(
+            'Android Audio API',
+            style: TextStyle(color: context.adaptiveTextPrimary),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildAudioEngineOption(
+                dialogContext,
+                title: 'Auto',
+                subtitle:
+                    'Let Oboe pick the best API. AAudio first, then OpenSL ES fallback.',
+                selected: current == AudioApiPreference.auto,
+                onTap: () async {
+                  final changed = current != AudioApiPreference.auto;
+                  await service.setAndroidAudioApi(AudioApiPreference.auto);
+                  rust_audio.audioSetAudioApi(preference: AudioApiPreference.auto);
+                  ref.invalidate(androidAudioApiProvider);
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                  if (changed && context.mounted) {
+                    _showRestartRequiredToast(context);
+                  }
+                },
+              ),
+              const SizedBox(height: AppConstants.spacingSm),
+              _buildAudioEngineOption(
+                dialogContext,
+                title: 'AAudio',
+                subtitle:
+                    'Use AAudio directly. Lowest latency on Android 8.1 and newer.',
+                selected: current == AudioApiPreference.aAudio,
+                onTap: () async {
+                  final changed = current != AudioApiPreference.aAudio;
+                  await service.setAndroidAudioApi(AudioApiPreference.aAudio);
+                  rust_audio.audioSetAudioApi(preference: AudioApiPreference.aAudio);
+                  ref.invalidate(androidAudioApiProvider);
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                  if (changed && context.mounted) {
+                    _showRestartRequiredToast(context);
+                  }
+                },
+              ),
+              const SizedBox(height: AppConstants.spacingSm),
+              _buildAudioEngineOption(
+                dialogContext,
+                title: 'OpenSL ES',
+                subtitle:
+                    'Use the legacy OpenSL ES backend. Troubleshooting fallback for older or problematic devices.',
+                selected: current == AudioApiPreference.openSles,
+                onTap: () async {
+                  final changed = current != AudioApiPreference.openSles;
+                  await service.setAndroidAudioApi(AudioApiPreference.openSles);
+                  rust_audio.audioSetAudioApi(preference: AudioApiPreference.openSles);
+                  ref.invalidate(androidAudioApiProvider);
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                  if (changed && context.mounted) {
+                    _showRestartRequiredToast(context);
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _showAudioEngineDialog(
