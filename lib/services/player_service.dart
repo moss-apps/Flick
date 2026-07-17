@@ -438,6 +438,7 @@ class PlayerService {
 
   // Playback Speed
   final ValueNotifier<double> playbackSpeedNotifier = ValueNotifier(1.0);
+  final ValueNotifier<double> pitchSemitonesNotifier = ValueNotifier(0.0);
 
   // Queue State
   final ValueNotifier<List<Song>> queueNotifier = ValueNotifier(const []);
@@ -3073,9 +3074,11 @@ class PlayerService {
     if (isBitPerfectModeEnabled) {
       await _reconcileVolumeForTier(_determineCurrentTier());
       await _rustAudioService.setPlaybackSpeed(1.0);
+      await _rustAudioService.setPitchShiftSemitones(0.0);
     } else if (playbackMode == AudioEngineType.usbDacExperimental) {
       await _rustAudioService.setVolume(_currentVolume);
       await _rustAudioService.setPlaybackSpeed(1.0);
+      await _rustAudioService.setPitchShiftSemitones(0.0);
       await _rustAudioService.setCrossfade(
         enabled: false,
         durationSecs: _rustAudioService.crossfadeDurationNotifier.value,
@@ -3108,6 +3111,7 @@ class PlayerService {
     }
 
     await reapplyEqualizer();
+    await _rustAudioService.setPitchShiftSemitones(pitchSemitonesNotifier.value);
     _updatePriorityAnchor();
   }
 
@@ -4609,6 +4613,32 @@ class PlayerService {
     await setPlaybackSpeed(speeds[nextIndex]);
   }
 
+  // ==================== Pitch Shift ====================
+
+  Future<void> setPitchSemitones(double semitones) async {
+    final clamped = semitones.clamp(-12.0, 12.0).toDouble();
+    debugPrint(
+      '[PITCH] setPitchSemitones($semitones) -> clamped=$clamped, '
+      'usingRustBackend=$_usingRustBackend, '
+      'bitPerfectLocked=$isBitPerfectProcessingLocked',
+    );
+    if (isBitPerfectProcessingLocked) {
+      _debugLog(
+        '[Playback] Ignoring pitch-shift change while Bit-perfect (USB DAC) is enabled',
+      );
+      if (_usingRustBackend) {
+        await _rustAudioService.setPitchShiftSemitones(0.0);
+      }
+      return;
+    }
+    pitchSemitonesNotifier.value = clamped;
+    if (_usingRustBackend) {
+      await _rustAudioService.setPitchShiftSemitones(clamped);
+    } else {
+      debugPrint('[PITCH] NOT routed: not using Rust backend (just_audio has no pitch support)');
+    }
+  }
+
   // ==================== Sleep Timer ====================
 
   void setSleepTimer(Duration duration) {
@@ -4802,6 +4832,7 @@ class PlayerService {
     durationNotifier.dispose();
     bufferedPositionNotifier.dispose();
     playbackSpeedNotifier.dispose();
+    pitchSemitonesNotifier.dispose();
     sleepTimerRemainingNotifier.dispose();
 
     for (final stagedPath in _stagedPlaybackPathCache.values) {
