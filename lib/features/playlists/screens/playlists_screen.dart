@@ -4,11 +4,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/playlist.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
+import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
 
@@ -24,22 +26,24 @@ class PlaylistsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, ref),
-            Expanded(
-              child: playlistsAsync.when(
-                loading: () => _buildLoadingState(context),
-                error: (e, _) => _buildErrorState(context, e.toString()),
-                data: (state) => state.playlists.isEmpty
-                    ? _buildEmptyState(context)
-                    : _buildPlaylistsList(context, ref, state.playlists),
+      body: BlurredSongBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context, ref),
+              Expanded(
+                child: playlistsAsync.when(
+                  loading: () => _buildLoadingState(context),
+                  error: (e, _) => _buildErrorState(context, e.toString()),
+                  data: (state) => state.playlists.isEmpty
+                      ? _buildEmptyState(context)
+                      : _buildPlaylistsList(context, ref, state.playlists),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
 
@@ -279,10 +283,9 @@ class PlaylistsScreen extends ConsumerWidget {
           key: ValueKey(playlist.id),
           playlist: playlist,
           onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => PlaylistDetailScreen(playlist: playlist),
-              ),
+            NavigationHelper.pushFade(
+              context,
+              (context) => PlaylistDetailScreen(playlist: playlist),
             );
           },
           onDelete: () async {
