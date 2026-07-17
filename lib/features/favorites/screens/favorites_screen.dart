@@ -6,6 +6,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/favorites_service.dart';
@@ -199,23 +200,25 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_selectionMode)
-                _buildSelectionHeader(context)
-              else
-                _buildHeader(context),
-              Expanded(
-                child: _isLoading
-                    ? _buildLoadingState()
-                    : _favorites.isEmpty
-                        ? _buildEmptyState()
-                        : _buildFavoritesList(removalMode),
-              ),
-            ],
+        body: BlurredSongBackground(
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_selectionMode)
+                  _buildSelectionHeader(context)
+                else
+                  _buildHeader(context),
+                Expanded(
+                  child: _isLoading
+                      ? _buildLoadingState()
+                      : _favorites.isEmpty
+                          ? _buildEmptyState()
+                          : _buildFavoritesList(removalMode),
+                ),
+              ],
+            ),
           ),
         ),
       ),
