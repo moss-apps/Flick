@@ -5,6 +5,7 @@
 
 import '../audio/crossfader.dart';
 import '../audio/dsd_engine/dsd.dart';
+import '../audio/engine.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
@@ -83,6 +84,22 @@ void audioSetDapBitPerfectEnabled({required bool enabled}) => RustLib
     .instance
     .api
     .crateApiAudioApiAudioSetDapBitPerfectEnabled(enabled: enabled);
+
+/// Sync the preferred Android audio API (AAudio / OpenSL ES / Auto) from Dart.
+/// The change is staged on the engine manager and applied on the next engine
+/// (re)initialization — the live stream is reopened when the preference no
+/// longer matches the value the running engine was built with. On non-Android
+/// targets this is a no-op (cpal has no AudioApi selection).
+void audioSetAudioApi({required AudioApiPreference preference}) => RustLib
+    .instance
+    .api
+    .crateApiAudioApiAudioSetAudioApi(preference: preference);
+
+/// Read the currently-staged Android audio-API preference. Returns the string
+/// key ("auto" / "aaudio" / "opensles") so Dart can mirror UI selection without
+/// importing the generated enum mirror.
+String audioGetAudioApi() =>
+    RustLib.instance.api.crateApiAudioApiAudioGetAudioApi();
 
 /// Toggle experimental 432 Hz tuning. When enabled the engine leaves bit-perfect
 /// passthrough, runs the DSP path, and pins playback speed at 432/440.
@@ -182,6 +199,13 @@ Future<void> audioSetEqualizer({
   enabled: enabled,
   gainsDb: gainsDb,
 );
+
+/// Set pitch shift in semitones for the native audio engine (tempo preserved).
+/// 0 = bypass. Range is clamped internally to ±12 semitones.
+Future<void> audioSetPitchShiftSemitones({required double semitones}) => RustLib
+    .instance
+    .api
+    .crateApiAudioApiAudioSetPitchShiftSemitones(semitones: semitones);
 
 /// Configure compressor settings for the native audio engine.
 Future<void> audioSetCompressor({
@@ -447,6 +471,7 @@ class AudioRuntimeDebugJsonState {
   final String? dsdEffectiveMode;
   final int? dsdWireRate;
   final String? dsdTransport;
+  final String? activeAudioApi;
 
   const AudioRuntimeDebugJsonState({
     required this.managerEngine,
@@ -466,6 +491,7 @@ class AudioRuntimeDebugJsonState {
     this.dsdEffectiveMode,
     this.dsdWireRate,
     this.dsdTransport,
+    this.activeAudioApi,
   });
 
   @override
@@ -486,7 +512,8 @@ class AudioRuntimeDebugJsonState {
       dsdSourceRate.hashCode ^
       dsdEffectiveMode.hashCode ^
       dsdWireRate.hashCode ^
-      dsdTransport.hashCode;
+      dsdTransport.hashCode ^
+      activeAudioApi.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -509,7 +536,8 @@ class AudioRuntimeDebugJsonState {
           dsdSourceRate == other.dsdSourceRate &&
           dsdEffectiveMode == other.dsdEffectiveMode &&
           dsdWireRate == other.dsdWireRate &&
-          dsdTransport == other.dsdTransport;
+          dsdTransport == other.dsdTransport &&
+          activeAudioApi == other.activeAudioApi;
 }
 
 class AudioRuntimeDebugState {

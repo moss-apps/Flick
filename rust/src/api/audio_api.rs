@@ -11,6 +11,7 @@ use crate::audio::device::current_device_profile;
 use crate::audio::dsd_engine::dsd::{resolve_dsd_pcm_sample_rate, DsdOutputMode, DsdRate};
 use crate::audio::dsd_engine::format::open_dsd_decoder;
 use crate::audio::dsd_engine::DsdDecoderThread;
+use crate::audio::engine::AudioApiPreference;
 use crate::audio::manager::{AudioCapability, AudioCapabilitySnapshot, AudioEngine, EngineManager};
 use crate::audio::strategy::OutputStrategy;
 use crate::audio::wavpack_thread::WavpackDecoderThread;
@@ -617,6 +618,7 @@ pub struct AudioRuntimeDebugJsonState {
     pub dsd_effective_mode: Option<String>,
     pub dsd_wire_rate: Option<u32>,
     pub dsd_transport: Option<String>,
+    pub active_audio_api: Option<String>,
 }
 
 impl From<AudioCapabilitySnapshot> for AudioCapabilityInfo {
@@ -702,6 +704,24 @@ pub fn audio_set_dap_bit_perfect_enabled(enabled: bool) {
     }
     #[cfg(not(target_os = "android"))]
     let _ = enabled;
+}
+
+/// Sync the preferred Android audio API (AAudio / OpenSL ES / Auto) from Dart.
+/// The change is staged on the engine manager and applied on the next engine
+/// (re)initialization — the live stream is reopened when the preference no
+/// longer matches the value the running engine was built with. On non-Android
+/// targets this is a no-op (cpal has no AudioApi selection).
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_set_audio_api(preference: AudioApiPreference) {
+    ENGINE_MANAGER.set_audio_api_preference(preference);
+}
+
+/// Read the currently-staged Android audio-API preference. Returns the string
+/// key ("auto" / "aaudio" / "opensles") so Dart can mirror UI selection without
+/// importing the generated enum mirror.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_get_audio_api() -> String {
+    ENGINE_MANAGER.get_audio_api_preference().as_str().to_string()
 }
 
 /// Toggle experimental 432 Hz tuning. When enabled the engine leaves bit-perfect
@@ -829,6 +849,9 @@ pub fn audio_get_runtime_debug_json_state() -> AudioRuntimeDebugJsonState {
         dsd_transport: output_runtime
             .as_ref()
             .and_then(|state| state.dsd_transport.clone()),
+        active_audio_api: output_runtime
+            .as_ref()
+            .and_then(|state| state.active_audio_api.clone()),
     }
 }
 
@@ -1173,6 +1196,13 @@ pub fn audio_set_equalizer(enabled: bool, gains_db: Vec<f32>) -> Result<(), Stri
     let mut arr = [0.0f32; 10];
     arr.copy_from_slice(&gains_db[..10]);
     with_audio_engine(|handle| handle.set_equalizer(enabled, arr))
+}
+
+/// Set pitch shift in semitones for the native audio engine (tempo preserved).
+/// 0 = bypass. Range is clamped internally to ±12 semitones.
+pub fn audio_set_pitch_shift_semitones(semitones: f32) -> Result<(), String> {
+    log::info!("[PITCH] FFI audio_set_pitch_shift_semitones({semitones})");
+    with_audio_engine(|handle| handle.set_pitch_shift(semitones))
 }
 
 /// Configure compressor settings for the native audio engine.

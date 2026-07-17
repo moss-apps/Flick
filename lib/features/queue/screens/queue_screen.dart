@@ -6,6 +6,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 
 class QueueScreen extends ConsumerStatefulWidget {
@@ -92,10 +93,11 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
     final currentSong = ref.watch(currentSongProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
+      backgroundColor: Colors.transparent,
+      body: BlurredSongBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Column(
           children: [
             if (_selectionMode)
               _buildSelectionHeader(upNext.length + queue.length)
@@ -305,6 +307,7 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

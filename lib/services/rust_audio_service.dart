@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
+import 'package:flick/src/rust/audio/engine.dart' show AudioApiPreference;
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
@@ -36,6 +37,7 @@ class RustAudioService {
   final ValueNotifier<bool> crossfadeEnabledNotifier = ValueNotifier(false);
   final ValueNotifier<double> crossfadeDurationNotifier = ValueNotifier(3.0);
   final ValueNotifier<double> playbackSpeedNotifier = ValueNotifier(1.0);
+  final ValueNotifier<double> pitchSemitonesNotifier = ValueNotifier(0.0);
 
   // Throttled notifier for text labels (updates slower than progress bar)
   // Prevents unnecessary rebuilds of time labels while still providing smooth progress bar
@@ -77,6 +79,15 @@ class RustAudioService {
     try {
       rust_audio.audioInit();
       rust_audio.audioSetHighResMode(enabled: _highResModeEnabled);
+      // Restore the persisted Android audio-API preference so the Rust engine
+      // manager picks it up before the first engine init (survives app restarts).
+      try {
+        final pref = await Uac2PreferencesService().getAndroidAudioApi();
+        rust_audio.audioSetAudioApi(preference: pref);
+        devLog('Restored Android audio API preference: ${pref.name}');
+      } catch (e) {
+        devLog('Failed to restore Android audio API preference: $e');
+      }
       _initialized = true;
       devLog('Rust audio engine manager initialized');
 
@@ -102,6 +113,18 @@ class RustAudioService {
   Future<void> setHighResMode(bool enabled) async {
     _highResModeEnabled = enabled;
     rust_audio.audioSetHighResMode(enabled: enabled);
+  }
+
+  /// Stage the Android audio-API preference (Auto / AAudio / OpenSL ES) on the
+  /// Rust engine manager. The next engine re-init reopens the Oboe stream with
+  /// the chosen API. On non-Android targets this is a no-op.
+  void setAndroidAudioApi(AudioApiPreference preference) {
+    try {
+      rust_audio.audioSetAudioApi(preference: preference);
+      devLog('Android audio API preference set: ${preference.name}');
+    } catch (e) {
+      devLog('Failed to set Android audio API preference: $e');
+    }
   }
 
   /// Detect whether a DAC is available for the requested output rate.
@@ -342,6 +365,14 @@ class RustAudioService {
     final clampedSpeed = speed.clamp(0.5, 2.0);
     playbackSpeedNotifier.value = clampedSpeed;
     await rust_audio.audioSetPlaybackSpeed(speed: clampedSpeed);
+  }
+
+  /// Set pitch shift in semitones (tempo preserved). 0 = bypass.
+  Future<void> setPitchShiftSemitones(double semitones) async {
+    if (!_initialized) return;
+    final clamped = semitones.clamp(-12.0, 12.0);
+    pitchSemitonesNotifier.value = clamped;
+    await rust_audio.audioSetPitchShiftSemitones(semitones: clamped);
   }
 
   /// Get the current playback speed.

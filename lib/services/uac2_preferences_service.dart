@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/core/utils/dev_log.dart';
+import 'package:flick/src/rust/audio/engine.dart' show AudioApiPreference;
 
 enum Uac2FormatPreference { highestQuality, compatibility, custom }
 
@@ -28,6 +29,7 @@ class Uac2PreferencesService {
   static const _key432HzTuningEnabled = 'uac2_432hz_tuning_enabled';
   static const _keyExclusiveDacModeEnabled = 'uac2_exclusive_dac_mode_enabled';
   static const _keyAudioEnginePreference = 'audio_engine_preference';
+  static const _keyAndroidAudioApi = 'android_audio_api';
   static const _keyDeveloperModeEnabled = 'developer_mode_enabled';
   static const _keyAudioFormatEnabled = 'uac2_audio_format_enabled';
   static const _keyUsbSoftwareVolume = 'uac2_usb_software_volume';
@@ -247,6 +249,30 @@ class Uac2PreferencesService {
     } catch (e) {
       devLog('Failed to load audio engine preference: $e');
       return AudioEnginePreference.exoPlayer;
+    }
+  }
+
+  Future<void> setAndroidAudioApi(AudioApiPreference preference) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyAndroidAudioApi, preference.name);
+    } catch (e) {
+      devLog('Failed to save Android audio API preference: $e');
+    }
+  }
+
+  Future<AudioApiPreference> getAndroidAudioApi() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final value = prefs.getString(_keyAndroidAudioApi);
+      if (value == null) return AudioApiPreference.auto;
+      return AudioApiPreference.values.firstWhere(
+        (api) => api.name == value,
+        orElse: () => AudioApiPreference.auto,
+      );
+    } catch (e) {
+      devLog('Failed to load Android audio API preference: $e');
+      return AudioApiPreference.auto;
     }
   }
 
@@ -567,8 +593,9 @@ class Uac2PreferencesService {
       await prefs.remove(_keyDapBitPerfectEnabled);
       await prefs.remove(_key432HzTuningEnabled);
       await prefs.remove(_keyExclusiveDacModeEnabled);
-      await prefs.remove(_keyAudioEnginePreference);
-      await prefs.remove(_keyDeveloperModeEnabled);
+await prefs.remove(_keyAudioEnginePreference);
+    await prefs.remove(_keyAndroidAudioApi);
+    await prefs.remove(_keyDeveloperModeEnabled);
       await prefs.remove(_keyAudioFormatEnabled);
       await prefs.remove(_keyUsbSoftwareVolume);
     await prefs.remove(_keyKillIsochronousUsbOnQuit);

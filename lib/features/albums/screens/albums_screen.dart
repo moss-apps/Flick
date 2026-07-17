@@ -6,10 +6,12 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/screens/album_detail_screen.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/providers/navigation_provider.dart';
@@ -131,16 +133,15 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
       _albums.fold(0, (count, album) => count + album.songs.length);
 
   void _openAlbumDetail(AlbumGroup album) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AlbumDetailScreen(
-          albumName: album.albumName,
-          albumArtist: album.albumArtist,
-          songs: album.songs,
-          albumArt: _getAlbumArt(album.songs),
-          albumArtSourcePath: _getArtworkSourcePath(album.songs),
-          playerService: _playerService,
-        ),
+    NavigationHelper.pushFade(
+      context,
+      (_) => AlbumDetailScreen(
+        albumName: album.albumName,
+        albumArtist: album.albumArtist,
+        songs: album.songs,
+        albumArt: _getAlbumArt(album.songs),
+        albumArtSourcePath: _getArtworkSourcePath(album.songs),
+        playerService: _playerService,
       ),
     );
   }
@@ -160,20 +161,22 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: _isLoading
-                    ? _buildLoadingState()
-                    : _sortedAlbums.isEmpty
-                    ? _buildEmptyState()
-                    : _buildAlbumsGrid(),
-              ),
-            ],
+        body: BlurredSongBackground(
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context),
+                Expanded(
+                  child: _isLoading
+                      ? _buildLoadingState()
+                      : _sortedAlbums.isEmpty
+                      ? _buildEmptyState()
+                      : _buildAlbumsGrid(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -592,8 +595,8 @@ class _AlbumCardState extends State<_AlbumCard>
                           width: double.infinity,
                           decoration: BoxDecoration(
                             color: AppColors.surfaceLight,
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(AppConstants.radiusLg),
+                            borderRadius: BorderRadius.circular(
+                              AppConstants.radiusLg,
                             ),
                             boxShadow: [
                               BoxShadow(
@@ -607,8 +610,8 @@ class _AlbumCardState extends State<_AlbumCard>
                             fit: StackFit.expand,
                             children: [
                               ClipRRect(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(AppConstants.radiusLg),
+                                borderRadius: BorderRadius.circular(
+                                  AppConstants.radiusLg,
                                 ),
                                 child: CachedImageWidget(
                                   imagePath: widget.albumArt,

@@ -43,6 +43,8 @@ pub enum AudioCommand {
     SetPlaybackSpeed { speed: f32 },
     /// Set graphic EQ: enabled and 10 band gains in dB.
     SetEqualizer { enabled: bool, gains_db: [f32; 10] },
+    /// Set pitch shift in semitones (tempo preserved). 0 = bypass.
+    SetPitchShift { semitones: f32 },
     /// Configure compressor settings.
     SetCompressor {
         enabled: bool,

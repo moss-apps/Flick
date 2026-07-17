@@ -58,6 +58,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
   List<OnlineLyricsResult> _filteredResults = [];
   String? _errorMessage;
   bool _fuzzySearchDone = false;
+  int _searchGeneration = 0;
 
   // Preview state
   OnlineLyricsResult? _previewResult;
@@ -74,7 +75,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
   void initState() {
     super.initState();
     _searchController.text = '${widget.song.artist} ${widget.song.title}';
-    _doExactSearch();
+    _doInitialSearch();
     _searchController.addListener(() => setState(() {}));
 
     _staggerController = AnimationController(
@@ -112,9 +113,11 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
     _triggerStagger();
   }
 
-  Future<void> _doExactSearch() async {
+  Future<void> _doInitialSearch() async {
+    final gen = ++_searchGeneration;
     setState(() {
       _isInitialLoading = true;
+      _isSearching = true;
       _errorMessage = null;
       _exactMatch = null;
       _fuzzySearchDone = false;
@@ -123,60 +126,54 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
       _previewResult = null;
     });
 
-    final result = await _onlineService.fetchExact(
-      artist: widget.song.artist,
-      title: widget.song.title,
-      album: widget.song.album,
-      duration: widget.song.duration,
-    );
-
-    if (!mounted) return;
-
-    if (result != null && (result.hasSyncedLyrics || result.hasPlainLyrics)) {
+    // Run exact + fuzzy in parallel — both hit LRCLib independently, so the
+    // initial wait is one round trip (the slower of the two), not two in series.
+    final exactFuture = _onlineService
+        .fetchExact(
+          artist: widget.song.artist,
+          title: widget.song.title,
+          album: widget.song.album,
+          duration: widget.song.duration,
+        )
+        .then((result) {
+      if (gen != _searchGeneration || !mounted) return;
       setState(() {
-        _exactMatch = result;
+        _exactMatch = (result != null &&
+                (result.hasSyncedLyrics || result.hasPlainLyrics))
+            ? result
+            : null;
         _isInitialLoading = false;
       });
-      _doFuzzySearch();
-      return;
-    }
-
-    setState(() {
-      _exactMatch = null;
-      _isInitialLoading = false;
-    });
-    _doFuzzySearch();
-  }
-
-  Future<void> _doFuzzySearch() async {
-    setState(() {
-      _isSearching = true;
     });
 
-    final results = await _onlineService.search(
-      query: _searchController.text,
-      artist: widget.song.artist,
-      title: widget.song.title,
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      _rawResults = results;
-      _isSearching = false;
-      _fuzzySearchDone = true;
-    });
-    _applyFilters();
-    if (_rawResults.isEmpty) {
+    final fuzzyFuture = _onlineService
+        .search(
+          query: _searchController.text,
+          artist: widget.song.artist,
+          title: widget.song.title,
+        )
+        .then((results) {
+      if (gen != _searchGeneration || !mounted) return;
       setState(() {
-        _errorMessage = 'No lyrics found online for this song.';
+        _rawResults = results;
+        _isSearching = false;
+        _fuzzySearchDone = true;
       });
-    }
+      _applyFilters();
+      if (results.isEmpty) {
+        setState(() {
+          _errorMessage = 'No lyrics found online for this song.';
+        });
+      }
+    });
+
+    await Future.wait([exactFuture, fuzzyFuture]);
   }
 
   Future<void> _doCustomSearch(String query) async {
     if (query.trim().isEmpty) return;
 
+    final gen = ++_searchGeneration;
     setState(() {
       _isSearching = true;
       _errorMessage = null;
@@ -185,7 +182,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
 
     final results = await _onlineService.search(query: query);
 
-    if (!mounted) return;
+    if (gen != _searchGeneration || !mounted) return;
 
     setState(() {
       _rawResults = results;

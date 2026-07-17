@@ -31,6 +31,7 @@ pub mod fx;
 pub mod ir_loader;
 pub mod manager;
 pub mod opus_decoder;
+pub mod pitch_shifter;
 pub mod resampler;
 pub mod source;
 pub mod strategy;
