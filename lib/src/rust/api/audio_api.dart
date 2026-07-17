@@ -200,6 +200,13 @@ Future<void> audioSetEqualizer({
   gainsDb: gainsDb,
 );
 
+/// Set pitch shift in semitones for the native audio engine (tempo preserved).
+/// 0 = bypass. Range is clamped internally to ±12 semitones.
+Future<void> audioSetPitchShiftSemitones({required double semitones}) => RustLib
+    .instance
+    .api
+    .crateApiAudioApiAudioSetPitchShiftSemitones(semitones: semitones);
+
 /// Configure compressor settings for the native audio engine.
 Future<void> audioSetCompressor({
   required bool enabled,
