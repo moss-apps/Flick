@@ -52,6 +52,10 @@ Or `flutter build apk --release`.
 
 MIT. No ads, no premium features, no tracking.
 
+## Contributing
+
+Contributions are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). Start by running `git pull` on `main`.
+
 ## Contributors
 
 - [@Harleythetech](https://github.com/Harleythetech)
