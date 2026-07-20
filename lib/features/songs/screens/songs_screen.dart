@@ -666,6 +666,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                             scale: 1.0 + pinchDelta * 0.04,
                             child: _AlbumCard(
                               album: album,
+                              stretchArtwork: ref
+                                  .watch(appPreferencesProvider)
+                                  .albumsStretchArtwork,
                               onTap: () => _openAlbumDetail(album),
                             ),
                           ),
@@ -706,9 +709,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
 
   Widget _buildAlbumListView(List<AlbumGroup> albums) {
     final visibleCount = min(_visibleAlbumCount, albums.length);
-    final visibleAlbums = albums
-        .take(visibleCount)
-        .toList(growable: false);
+    final visibleAlbums = albums.take(visibleCount).toList(growable: false);
     final hasMore = visibleCount < albums.length;
 
     return ListView.builder(
@@ -741,6 +742,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
           padding: const EdgeInsets.only(bottom: AppConstants.spacingSm),
           child: _AlbumListTile(
             album: album,
+            stretchArtwork: ref
+                .watch(appPreferencesProvider)
+                .albumsStretchArtwork,
             onTap: () => _openAlbumDetail(album),
           ),
         );
@@ -1534,7 +1538,8 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
   }
 
   Future<void> _showMoreActions() async {
-    final allSelected = _selectedIds.length == _cachedDisplaySongs.length &&
+    final allSelected =
+        _selectedIds.length == _cachedDisplaySongs.length &&
         _cachedDisplaySongs.isNotEmpty;
     if (!mounted) return;
 
@@ -1575,8 +1580,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                 shrinkWrap: true,
                 children: [
                   _selectionSheetTile(
-                    icon:
-                        allSelected ? LucideIcons.x : LucideIcons.checkCheck,
+                    icon: allSelected ? LucideIcons.x : LucideIcons.checkCheck,
                     label: allSelected ? 'Deselect all' : 'Select all',
                     onTap: () {
                       Navigator.pop(sheetContext);
@@ -1936,8 +1940,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                       ],
                     ),
                     borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                    border:
-                        Border.all(color: AppColors.glassBorder, width: 1),
+                    border: Border.all(color: AppColors.glassBorder, width: 1),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.2),
@@ -2493,9 +2496,14 @@ class _QueueSwipeListItemState extends State<_QueueSwipeListItem> {
 
 class _AlbumCard extends StatefulWidget {
   final AlbumGroup album;
+  final bool stretchArtwork;
   final VoidCallback onTap;
 
-  const _AlbumCard({required this.album, required this.onTap});
+  const _AlbumCard({
+    required this.album,
+    required this.stretchArtwork,
+    required this.onTap,
+  });
 
   @override
   State<_AlbumCard> createState() => _AlbumCardState();
@@ -2506,7 +2514,6 @@ class _AlbumCardState extends State<_AlbumCard>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _tiltAnimation;
-  List<_ArtEntry> _cachedArtworks = const [];
 
   @override
   void initState() {
@@ -2523,15 +2530,6 @@ class _AlbumCardState extends State<_AlbumCard>
       begin: 0.0,
       end: 0.02,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _cachedArtworks = _computeArtworks(widget.album.songs);
-  }
-
-  @override
-  void didUpdateWidget(covariant _AlbumCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.album.songs, widget.album.songs)) {
-      _cachedArtworks = _computeArtworks(widget.album.songs);
-    }
   }
 
   @override
@@ -2540,27 +2538,18 @@ class _AlbumCardState extends State<_AlbumCard>
     super.dispose();
   }
 
-  static List<_ArtEntry> _computeArtworks(List<Song> songs) {
-    final seen = <String>{};
-    final result = <_ArtEntry>[];
-    for (final song in songs) {
-      final art = song.albumArt;
-      if (art != null && art.isNotEmpty && seen.add(art)) {
-        result.add(_ArtEntry(art, song.filePath));
-      }
-      if (result.length >= 4) break;
-    }
-    return result;
-  }
-
   @override
   Widget build(BuildContext context) {
     final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final artworks = _cachedArtworks;
-    final padded = List<_ArtEntry>.from(artworks);
-    while (padded.length < 4) {
-      padded.add(const _ArtEntry(null, null));
+    Song? artSong;
+    for (final s in widget.album.songs) {
+      if (s.albumArt != null && s.albumArt!.isNotEmpty) {
+        artSong = s;
+        break;
+      }
     }
+    final artPath = artSong?.albumArt;
+    final sourcePath = artSong?.filePath ?? widget.album.songs.first.filePath;
 
     return GestureDetector(
       onTapDown: (_) => _controller.forward(),
@@ -2623,20 +2612,18 @@ class _AlbumCardState extends State<_AlbumCard>
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  if (artworks.length == 1)
-                                    _buildSingleArt(
-                                      artworks.first,
-                                      artworkTargetWidth,
-                                      context,
-                                    )
-                                  else if (artworks.isEmpty)
-                                    _buildGridPlaceholder(context)
-                                  else
-                                    _buildArtGrid(
-                                      padded,
-                                      artworkTargetWidth,
-                                      context,
-                                    ),
+                                  CachedImageWidget(
+                                    imagePath: artPath,
+                                    audioSourcePath: sourcePath,
+                                    fit: BoxFit.cover,
+                                    useThumbnail: true,
+                                    thumbnailWidth: artworkTargetWidth,
+                                    thumbnailHeight: widget.stretchArtwork
+                                        ? artworkTargetWidth
+                                        : null,
+                                    placeholder: _buildPlaceholder(context),
+                                    errorWidget: _buildPlaceholder(context),
+                                  ),
                                   Positioned.fill(
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
@@ -2735,64 +2722,12 @@ class _AlbumCardState extends State<_AlbumCard>
     );
   }
 
-  Widget _buildArtGrid(
-    List<_ArtEntry> artworks,
-    int targetWidth,
-    BuildContext context,
-  ) {
-    final cellSize = targetWidth ~/ 2;
-    final cellRadius = AppConstants.radiusSm;
-    return GridView.count(
-      crossAxisCount: 2,
-      physics: const NeverScrollableScrollPhysics(),
-      children: artworks.map((entry) {
-        if (entry.art != null && entry.art!.isNotEmpty) {
-          return ClipRRect(
-            borderRadius: BorderRadius.all(Radius.circular(cellRadius)),
-            child: CachedImageWidget(
-              imagePath: entry.art,
-              audioSourcePath: entry.source,
-              fit: BoxFit.cover,
-              useThumbnail: true,
-              thumbnailWidth: cellSize,
-              thumbnailHeight: cellSize,
-              placeholder: _buildGridPlaceholder(context),
-              errorWidget: _buildGridPlaceholder(context),
-            ),
-          );
-        }
-        return _buildGridPlaceholder(context);
-      }).toList(),
-    );
-  }
-
-  Widget _buildSingleArt(
-    _ArtEntry entry,
-    int targetWidth,
-    BuildContext context,
-  ) {
-    return CachedImageWidget(
-      imagePath: entry.art,
-      audioSourcePath: entry.source,
-      fit: BoxFit.cover,
-      useThumbnail: true,
-      thumbnailWidth: targetWidth,
-      thumbnailHeight: targetWidth,
-      placeholder: _buildGridPlaceholder(context),
-      errorWidget: _buildGridPlaceholder(context),
-    );
-  }
-
-  Widget _buildGridPlaceholder(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
-      child: Container(
-        color: AppColors.surfaceLight,
-        child: const Icon(
-          LucideIcons.music,
-          color: AppColors.textTertiary,
-          size: 18,
-        ),
+  Widget _buildPlaceholder(BuildContext context) {
+    return Center(
+      child: Icon(
+        LucideIcons.disc,
+        size: context.responsiveIcon(AppConstants.containerSizeSm),
+        color: context.adaptiveTextTertiary.withValues(alpha: 0.5),
       ),
     );
   }
@@ -2800,9 +2735,14 @@ class _AlbumCardState extends State<_AlbumCard>
 
 class _AlbumListTile extends StatelessWidget {
   final AlbumGroup album;
+  final bool stretchArtwork;
   final VoidCallback onTap;
 
-  const _AlbumListTile({required this.album, required this.onTap});
+  const _AlbumListTile({
+    required this.album,
+    required this.stretchArtwork,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2862,7 +2802,7 @@ class _AlbumListTile extends StatelessWidget {
                     fit: BoxFit.cover,
                     useThumbnail: true,
                     thumbnailWidth: 104,
-                    thumbnailHeight: 104,
+                    thumbnailHeight: stretchArtwork ? 104 : null,
                     placeholder: const ColoredBox(
                       color: AppColors.surface,
                       child: Icon(
@@ -2932,13 +2872,6 @@ class _AlbumListTile extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ArtEntry {
-  final String? art;
-  final String? source;
-
-  const _ArtEntry(this.art, this.source);
 }
 
 class _AlbumFilterSheet extends StatefulWidget {
