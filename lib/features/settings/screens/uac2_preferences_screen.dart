@@ -16,6 +16,7 @@ import 'package:flick/src/rust/audio/engine.dart' show AudioApiPreference;
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/features/settings/screens/logs_screen.dart';
+import 'package:flick/features/player/widgets/ambient_background.dart';
 
 class Uac2PreferencesScreen extends ConsumerStatefulWidget {
   const Uac2PreferencesScreen({super.key});
@@ -41,76 +42,89 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                     final diagnostics = ref.watch(audioOutputDiagnosticsProvider);
                     final killIsochronousUsbOnQuitAsync = ref.watch(killIsochronousUsbOnQuitProvider);
                     final dsdOutputModeAsync = ref.watch(dsdOutputModeProvider);
+                    final currentSong = ref.watch(currentSongProvider);
 
     return DisplayModeWrapper(
       child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              const SizedBox(height: AppConstants.spacingMd),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppConstants.spacingMd,
-                  ),
-                    child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionHeader(context, 'Audio Format'),
-                      _buildFormatPreferences(
-                        context,
-                        preferencesService,
-                        formatPrefAsync,
-                        preferredFormatAsync,
-                        audioFormatAsync,
-                      ),
-                      const SizedBox(height: AppConstants.spacingLg),
-                      _buildSectionHeader(context, 'Experimental'),
-                      _buildExperimentalWarning(context),
-                      _buildDsdOptions(
-                        context,
-                        preferencesService,
-                        dsdOutputModeAsync,
-                      ),
-                      const SizedBox(height: AppConstants.spacingSm),
-                      _build432HzTuningTile(
-                        context,
-                        preferencesService,
-                        tuning432HzAsync,
-                      ),
-                      const SizedBox(height: AppConstants.spacingLg),
-                      _buildSectionHeader(context, 'Advanced'),
-                      _buildAdvancedOptions(
-                        context,
-                        preferencesService,
-                        audioEngineAsync,
-                        androidAudioApiAsync,
-                        developerModeAsync,
-                        bitPerfectAsync,
-                        dapBitPerfectAsync,
-                        killIsochronousUsbOnQuitAsync,
-                        diagnostics,
-                      ),
-                      if (audioEngineAsync.when(
-                        data: (e) => e == AudioEnginePreference.isochronousUsb,
-                        loading: () => false,
-                        error: (_, _) => false,
-                      )) ...[
-                        const SizedBox(height: AppConstants.spacingLg),
-                        _buildSectionHeader(context, 'Volume'),
-                        const Uac2VolumeControl(),
-                      ],
-                      const SizedBox(height: AppConstants.navBarHeight + 120),
-                    ],
-                  ),
-                ),
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: AppColors.backgroundGradient,
               ),
-            ],
-          ),
+            ),
+            Positioned.fill(
+              child: AmbientBackground(song: currentSong),
+            ),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context),
+                  const SizedBox(height: AppConstants.spacingMd),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppConstants.spacingMd,
+                      ),
+                        child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader(context, 'Audio Format'),
+                          _buildFormatPreferences(
+                            context,
+                            preferencesService,
+                            formatPrefAsync,
+                            preferredFormatAsync,
+                            audioFormatAsync,
+                          ),
+                          const SizedBox(height: AppConstants.spacingLg),
+                          _buildSectionHeader(context, 'Experimental'),
+                          _buildExperimentalWarning(context),
+                          _buildDsdOptions(
+                            context,
+                            preferencesService,
+                            dsdOutputModeAsync,
+                          ),
+                          const SizedBox(height: AppConstants.spacingSm),
+                          _build432HzTuningTile(
+                            context,
+                            preferencesService,
+                            tuning432HzAsync,
+                          ),
+                          const SizedBox(height: AppConstants.spacingLg),
+                          _buildSectionHeader(context, 'Advanced'),
+                          _buildAdvancedOptions(
+                            context,
+                            preferencesService,
+                            audioEngineAsync,
+                            androidAudioApiAsync,
+                            developerModeAsync,
+                            bitPerfectAsync,
+                            dapBitPerfectAsync,
+                            killIsochronousUsbOnQuitAsync,
+                            diagnostics,
+                          ),
+                          if (audioEngineAsync.when(
+                            data: (e) => e == AudioEnginePreference.isochronousUsb,
+                            loading: () => false,
+                            error: (_, _) => false,
+                          )) ...[
+                            const SizedBox(height: AppConstants.spacingLg),
+                            _buildSectionHeader(context, 'Volume'),
+                            const Uac2VolumeControl(),
+                          ],
+                          const SizedBox(height: AppConstants.navBarHeight + 120),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
