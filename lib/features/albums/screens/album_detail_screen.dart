@@ -119,7 +119,15 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
     return null;
   }
 
+  // ponytail: pick the source path of the SAME song whose albumArt we'd use,
+  // so CachedImageWidget's embedded-art fallback targets the matching track.
   String? _getSourcePath(List<Song> songs) {
+    for (final song in songs) {
+      if (song.albumArt != null && song.albumArt!.isNotEmpty) {
+        final fp = song.filePath;
+        if (fp != null && fp.isNotEmpty) return fp;
+      }
+    }
     for (final song in songs) {
       if (song.filePath != null && song.filePath!.isNotEmpty) {
         return song.filePath;
@@ -917,6 +925,12 @@ class _ArtistCard extends StatelessWidget {
   }
 
   String? _getSourcePath() {
+    for (final song in songs) {
+      if (song.albumArt != null && song.albumArt!.isNotEmpty) {
+        final fp = song.filePath;
+        if (fp != null && fp.isNotEmpty) return fp;
+      }
+    }
     for (final song in songs) {
       if (song.filePath != null && song.filePath!.isNotEmpty) {
         return song.filePath;
