@@ -134,6 +134,19 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                       .setShowMoreArtists(value);
                 },
               ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.sparkles,
+                title: 'Animated Album Art',
+                subtitle:
+                    'Pan/zoom, ambient glow and smooth fade on album, artist and playlist heroes',
+                value: appPreferences.animatedAlbumArt,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setAnimatedAlbumArt(value);
+                },
+              ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
