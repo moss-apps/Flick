@@ -4,7 +4,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/utils/duration_format.dart';
 import 'package:flick/services/player_service.dart';
 
-class SleepTimerBottomSheet extends StatelessWidget {
+class SleepTimerBottomSheet extends StatefulWidget {
   final PlayerService playerService;
   const SleepTimerBottomSheet({super.key, required this.playerService});
 
@@ -17,14 +17,17 @@ class SleepTimerBottomSheet extends StatelessWidget {
   }
 
   @override
+  State<SleepTimerBottomSheet> createState() => _SleepTimerBottomSheetState();
+}
+
+class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
+  static const _min = 5.0;
+  static const _max = 120.0;
+  static const _step = 5.0;
+  double _value = 30.0;
+
+  @override
   Widget build(BuildContext context) {
-    final timerOptions = [
-      (const Duration(minutes: 15), '15 min'),
-      (const Duration(minutes: 30), '30 min'),
-      (const Duration(minutes: 45), '45 min'),
-      (const Duration(hours: 1), '1 hour'),
-      (const Duration(hours: 2), '2 hours'),
-    ];
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -58,10 +61,10 @@ class SleepTimerBottomSheet extends StatelessWidget {
                   ),
                 ],
               ),
-              if (playerService.isSleepTimerActive)
+              if (widget.playerService.isSleepTimerActive)
                 TextButton(
                   onPressed: () {
-                    playerService.cancelSleepTimer();
+                    widget.playerService.cancelSleepTimer();
                     Navigator.pop(context);
                   },
                   child: const Text(
@@ -77,7 +80,7 @@ class SleepTimerBottomSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ValueListenableBuilder<Duration?>(
-            valueListenable: playerService.sleepTimerRemainingNotifier,
+            valueListenable: widget.playerService.sleepTimerRemainingNotifier,
             builder: (context, remaining, _) {
               if (remaining != null) {
                 return Padding(
@@ -120,39 +123,59 @@ class SleepTimerBottomSheet extends StatelessWidget {
               return const SizedBox.shrink();
             },
           ),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: timerOptions.map((option) {
-              return GestureDetector(
-                onTap: () {
-                  playerService.setSleepTimer(option.$1);
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.glassBackground,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.glassBorder,
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    option.$2,
-                    style: const TextStyle(
-                      fontFamily: 'ProductSans',
-                      fontSize: 16,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+          Row(
+            children: [
+              const SizedBox(width: 4),
+              Text(
+                '${_min.round()}m',
+                style: const TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
                 ),
-              );
-            }).toList(),
+              ),
+              Expanded(
+                child: Slider(
+                  value: _value,
+                  min: _min,
+                  max: _max,
+                  divisions: ((_max - _min) / _step).round(),
+                  activeColor: AppColors.accent,
+                  inactiveColor: AppColors.glassBorder,
+                  onChanged: (v) {
+                    setState(() {
+                      _value = (v / _step).round() * _step;
+                    });
+                  },
+                  onChangeEnd: (v) {
+                    final minutes = (v / _step).round() * _step;
+                    widget.playerService
+                        .setSleepTimer(Duration(minutes: minutes.toInt()));
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+              Text(
+                '${_max.round()}m',
+                style: const TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
+          Center(
+            child: Text(
+              '${_value.round()} min',
+              style: const TextStyle(
+                fontFamily: 'ProductSans',
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.accent,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
         ],
