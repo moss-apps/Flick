@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.20.4-beta.5 (2026-07-03)
+
+### Pitch Shifter (SoundTouch)
+- Real-time pitch shifting via SoundTouch DSP library with lock-free bypass.
+- Pitch shift semitones API with FFI bridge and notifier.
+- Pitch control bottom sheet with semitone slider; option on song actions sheet.
+- Pitch resets to 1.0× on playback stop.
+
+### Android Audio API Preference
+- Choose AAudio, OpenSL ES, or Auto for Android audio output.
+- Persisted preference with instant apply.
+- Exposed in UAC2 settings and Rust debug state.
+
+### Blurred Backgrounds Everywhere
+- `BlurredSongBackground` wraps all library screens for consistent glass look.
+- Fade-only route transition keeps background stable between screens.
+
+### Orbit Customization
+- Dedicated orbital settings screen — geometry, sizing, depth, art resolution, visual toggles.
+- `SongCard` sizing fully configurable; unused constants removed.
+
+### Album Artwork Stretch
+- Album artwork stretches to fill card — toggle in Library settings.
+
+### Lyrics Performance
+- In-memory cache with timeout; shared HTTP client.
+- Exact and fuzzy searches run in parallel — first match wins.
+
+### Streaks & Preference Controls
+- Streaks can be disabled with reset; day streak hidden when disabled.
+- "More from Artist" / "More Artists" toggles on album detail.
+- Display preferences on artist sort sheet.
+
+### Artwork Reliability
+- Only cache confirmed-existing paths; prefer embedded art for fallback.
+
+### UI Polish & Fixes
+- Engine selector: glass bottom sheet with hero gradients.
+- Responsive songs header, edge-drag guard, sort sheet margin fix.
+- Docs: audio preload scan plan, scan details revamp.
+
 ## 0.20.3-beta.4 (2026-06-30)
 
 ### Full Player Refactor & Widgets
