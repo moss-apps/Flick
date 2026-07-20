@@ -1004,6 +1004,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   @override
   Widget build(BuildContext context) {
     final libraryScanPreferences = ref.watch(libraryScanPreferencesProvider);
+    final appPreferences = ref.watch(appPreferencesProvider);
 
     return SettingsScaffold(
       title: 'Library',
@@ -1161,6 +1162,24 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 title: 'Clear Artwork Cache',
                 subtitle: _cacheSizeLabel,
                 onTap: _isClearingCache ? null : _confirmClearArtworkCache,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
+          const SettingsSectionHeader('Album Artwork'),
+          SettingsCard(
+            children: [
+              ToggleSetting(
+                icon: LucideIcons.crop,
+                title: 'Stretch Non-Square Art',
+                subtitle:
+                    'Off crops to fill the square; on stretches the artwork edge-to-edge',
+                value: appPreferences.albumsStretchArtwork,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setAlbumsStretchArtwork(value);
+                },
               ),
             ],
           ),
