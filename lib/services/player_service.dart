@@ -2123,6 +2123,7 @@ class PlayerService {
   /// streak tier. Called once at startup after the milestone notifier is
   /// wired so the celebration dialog can still fire.
   Future<void> recordActivityDayAndCheckMilestones() async {
+    if (!await _appPreferencesService.getStreaksEnabled()) return;
     final streak = await _milestoneService.recordActivityDay();
     final milestone = await _milestoneService.checkMilestones();
     if (milestone != null) {

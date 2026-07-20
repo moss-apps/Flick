@@ -87,6 +87,9 @@ class AppPreferences {
   final double orbitArtResolutionMultiplier;
   final bool orbitShowPath;
   final bool orbitShowGlow;
+  final bool streaksEnabled;
+  final bool showMoreFromArtist;
+  final bool showMoreArtists;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -175,6 +178,9 @@ class AppPreferences {
     this.orbitArtResolutionMultiplier = 2.0,
     this.orbitShowPath = true,
     this.orbitShowGlow = true,
+    this.streaksEnabled = true,
+    this.showMoreFromArtist = true,
+    this.showMoreArtists = true,
   });
 
   AppPreferences copyWith({
@@ -264,6 +270,9 @@ class AppPreferences {
     double? orbitArtResolutionMultiplier,
     bool? orbitShowPath,
     bool? orbitShowGlow,
+    bool? streaksEnabled,
+    bool? showMoreFromArtist,
+    bool? showMoreArtists,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -388,6 +397,9 @@ class AppPreferences {
           orbitArtResolutionMultiplier ?? this.orbitArtResolutionMultiplier,
       orbitShowPath: orbitShowPath ?? this.orbitShowPath,
       orbitShowGlow: orbitShowGlow ?? this.orbitShowGlow,
+      streaksEnabled: streaksEnabled ?? this.streaksEnabled,
+      showMoreFromArtist: showMoreFromArtist ?? this.showMoreFromArtist,
+      showMoreArtists: showMoreArtists ?? this.showMoreArtists,
     );
   }
 }
@@ -485,6 +497,9 @@ class AppPreferencesService {
       'orbit_art_resolution_multiplier';
   static const _orbitShowPathKey = 'orbit_show_path';
   static const _orbitShowGlowKey = 'orbit_show_glow';
+  static const _streaksEnabledKey = 'streaks_enabled';
+  static const _showMoreFromArtistKey = 'album_show_more_from_artist';
+  static const _showMoreArtistsKey = 'album_show_more_artists';
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
@@ -612,6 +627,9 @@ class AppPreferencesService {
           prefs.getDouble(_orbitArtResolutionMultiplierKey) ?? 2.0,
       orbitShowPath: prefs.getBool(_orbitShowPathKey) ?? true,
       orbitShowGlow: prefs.getBool(_orbitShowGlowKey) ?? true,
+      streaksEnabled: prefs.getBool(_streaksEnabledKey) ?? true,
+      showMoreFromArtist: prefs.getBool(_showMoreFromArtistKey) ?? true,
+      showMoreArtists: prefs.getBool(_showMoreArtistsKey) ?? true,
     );
   }
 
@@ -1407,6 +1425,36 @@ class AppPreferencesService {
   Future<void> setOrbitShowGlow(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_orbitShowGlowKey, value);
+  }
+
+  Future<bool> getStreaksEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_streaksEnabledKey) ?? true;
+  }
+
+  Future<void> setStreaksEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_streaksEnabledKey, value);
+  }
+
+  Future<bool> getShowMoreFromArtist() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showMoreFromArtistKey) ?? true;
+  }
+
+  Future<void> setShowMoreFromArtist(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showMoreFromArtistKey, value);
+  }
+
+  Future<bool> getShowMoreArtists() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showMoreArtistsKey) ?? true;
+  }
+
+  Future<void> setShowMoreArtists(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showMoreArtistsKey, value);
   }
 
   Future<void> clearOrbitSettings() async {
