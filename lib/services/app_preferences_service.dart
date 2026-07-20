@@ -53,6 +53,7 @@ class AppPreferences {
   final bool glanceCardHidden;
   final bool glanceCardMinimized;
   final bool replaceAlbumWithBitPerfectCapsule;
+  final bool albumsStretchArtwork;
   final int folderGridPageSize;
   final String? lastSeenChangelogVersion;
   final bool bottomBarAutoCollapseEnabled;
@@ -140,6 +141,7 @@ class AppPreferences {
     this.glanceCardHidden = false,
     this.glanceCardMinimized = false,
     this.replaceAlbumWithBitPerfectCapsule = false,
+    this.albumsStretchArtwork = false,
     this.folderGridPageSize = 8,
     this.lastSeenChangelogVersion,
     this.bottomBarAutoCollapseEnabled = false,
@@ -228,6 +230,7 @@ class AppPreferences {
     bool? glanceCardHidden,
     bool? glanceCardMinimized,
     bool? replaceAlbumWithBitPerfectCapsule,
+    bool? albumsStretchArtwork,
     int? folderGridPageSize,
     String? lastSeenChangelogVersion,
     bool? bottomBarAutoCollapseEnabled,
@@ -335,6 +338,8 @@ class AppPreferences {
       replaceAlbumWithBitPerfectCapsule:
           replaceAlbumWithBitPerfectCapsule ??
           this.replaceAlbumWithBitPerfectCapsule,
+      albumsStretchArtwork:
+          albumsStretchArtwork ?? this.albumsStretchArtwork,
       folderGridPageSize: folderGridPageSize ?? this.folderGridPageSize,
       lastSeenChangelogVersion:
           lastSeenChangelogVersion ?? this.lastSeenChangelogVersion,
@@ -441,6 +446,7 @@ class AppPreferencesService {
   static const _glanceCardMinimizedKey = 'glance_card_minimized';
   static const _replaceAlbumWithBitPerfectCapsuleKey =
       'replace_album_with_bit_perfect_capsule';
+  static const _albumsStretchArtworkKey = 'albums_stretch_artwork';
   static const _folderGridPageSizeKey = 'folder_grid_page_size';
   static const _lastSeenChangelogVersionKey = 'last_seen_changelog_version';
   static const _bottomBarAutoCollapseEnabledKey =
@@ -558,6 +564,8 @@ class AppPreferencesService {
       glanceCardMinimized: prefs.getBool(_glanceCardMinimizedKey) ?? false,
       replaceAlbumWithBitPerfectCapsule:
           prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false,
+      albumsStretchArtwork:
+          prefs.getBool(_albumsStretchArtworkKey) ?? false,
       folderGridPageSize: prefs.getInt(_folderGridPageSizeKey) ?? 8,
       lastSeenChangelogVersion: prefs.getString(_lastSeenChangelogVersionKey),
       bottomBarAutoCollapseEnabled:
@@ -1075,6 +1083,16 @@ class AppPreferencesService {
   Future<void> setReplaceAlbumWithBitPerfectCapsule(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_replaceAlbumWithBitPerfectCapsuleKey, value);
+  }
+
+  Future<bool> getAlbumsStretchArtwork() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_albumsStretchArtworkKey) ?? false;
+  }
+
+  Future<void> setAlbumsStretchArtwork(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_albumsStretchArtworkKey, value);
   }
 
   Future<int> getFolderGridPageSize() async {
