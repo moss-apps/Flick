@@ -2220,10 +2220,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          widget.onSelected(option);
-          Navigator.of(context).pop();
-        },
+        onTap: () => widget.onSelected(option),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
@@ -2382,10 +2379,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          onSelected(option);
-          Navigator.of(context).pop();
-        },
+        onTap: () => onSelected(option),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
