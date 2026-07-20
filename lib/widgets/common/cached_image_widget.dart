@@ -100,7 +100,11 @@ void pauseArtworkExtraction(bool paused) {
 }
 
 class _CachedImageWidgetState extends State<CachedImageWidget> {
-  static final Map<String, bool> _pathExistsCache = {};
+  // ponytail: cache only confirmed-existing paths to keep fast-scroll stat()
+  // O(1). Misses are NOT cached so async extraction can populate the path
+  // later — caching false would permanently hide art whose file appears
+  // after the first check.
+  static final Set<String> _knownExistingPaths = {};
 
   String? _resolvedImagePath;
   bool _hasPendingResolve = false;
@@ -209,14 +213,16 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
       return path;
     }
 
-    // ponytail: memoize stat() so repeated existence checks during fast scroll
-    // stay O(1); first encounter per path still does one disk hit. Stale entries
-    // are safe — Image.file's errorBuilder handles a since-deleted file.
-    final exists = _pathExistsCache.putIfAbsent(
-      path,
-      () => File(path).existsSync(),
-    );
-    return exists ? path : null;
+    if (_knownExistingPaths.contains(path)) {
+      return path;
+    }
+
+    if (File(path).existsSync()) {
+      _knownExistingPaths.add(path);
+      return path;
+    }
+
+    return null;
   }
 
   Widget _buildFileImage(String imagePath) {
