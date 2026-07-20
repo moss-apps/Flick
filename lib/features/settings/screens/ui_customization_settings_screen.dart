@@ -108,7 +108,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          const SettingsSectionHeader('Album Detail'),
+          const SettingsSectionHeader('Detail Screens'),
           SettingsCard(
             children: [
               ToggleSetting(
@@ -145,6 +145,31 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                   ref
                       .read(appPreferencesProvider.notifier)
                       .setAnimatedAlbumArt(value);
+                },
+              ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.image,
+                title: 'Expanded Header Art',
+                subtitle:
+                    'Show more album art by fading only the bottom of the header',
+                value: appPreferences.detailHeaderArtExpanded,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setDetailHeaderArtExpanded(value);
+                },
+              ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.alignCenter,
+                title: 'Centered Header Title',
+                subtitle: 'Center the title and info in the detail header',
+                value: appPreferences.detailHeaderCenteredTitle,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setDetailHeaderCenteredTitle(value);
                 },
               ),
             ],
