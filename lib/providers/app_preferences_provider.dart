@@ -397,6 +397,12 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setReplaceAlbumWithBitPerfectCapsule(value);
   }
 
+  Future<void> setAlbumsStretchArtwork(bool value) async {
+    if (state.albumsStretchArtwork == value) return;
+    state = state.copyWith(albumsStretchArtwork: value);
+    await ref.read(appPreferencesServiceProvider).setAlbumsStretchArtwork(value);
+  }
+
   Future<void> setFolderGridPageSize(int value) async {
     if (state.folderGridPageSize == value) return;
     state = state.copyWith(folderGridPageSize: value);
