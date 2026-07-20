@@ -721,7 +721,7 @@ class _ArtistCardState extends State<_ArtistCard>
   }
 }
 
-class _ArtistSortSheet extends StatelessWidget {
+class _ArtistSortSheet extends ConsumerWidget {
   final ArtistSortOption currentOption;
   final ValueChanged<ArtistSortOption> onSelected;
 
@@ -731,7 +731,8 @@ class _ArtistSortSheet extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(appPreferencesProvider);
     return SafeArea(
       top: false,
       child: Container(
@@ -754,6 +755,29 @@ class _ArtistSortSheet extends StatelessWidget {
               const SizedBox(height: 8),
               ...ArtistSortOption.values.map(
                 (option) => _buildSortTile(context, option),
+              ),
+              const SizedBox(height: 16),
+              _buildSectionHeader(context, 'DISPLAY'),
+              const SizedBox(height: 8),
+              _buildToggleTile(
+                context,
+                icon: LucideIcons.disc3,
+                label: 'More from artist',
+                subtitle: 'Show related albums on album pages',
+                value: prefs.showMoreFromArtist,
+                onChanged: ref
+                    .read(appPreferencesProvider.notifier)
+                    .setShowMoreFromArtist,
+              ),
+              _buildToggleTile(
+                context,
+                icon: LucideIcons.users,
+                label: 'More artists',
+                subtitle: 'Show other artists on album pages',
+                value: prefs.showMoreArtists,
+                onChanged: ref
+                    .read(appPreferencesProvider.notifier)
+                    .setShowMoreArtists,
               ),
             ],
           ),
@@ -866,5 +890,58 @@ class _ArtistSortSheet extends StatelessWidget {
       case ArtistSortOption.albums:
         return 'Album Count';
     }
+  }
+
+  Widget _buildToggleTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => onChanged(!value),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: context.adaptiveTextSecondary),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: context.adaptiveTextPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.adaptiveTextTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: value,
+                activeThumbColor: AppColors.accent,
+                onChanged: onChanged,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
