@@ -14,6 +14,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/src/rust/audio/engine.dart' show AudioApiPreference;
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
+import 'package:flick/widgets/common/engine_restart_notice.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/features/settings/screens/logs_screen.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
@@ -27,6 +28,8 @@ class Uac2PreferencesScreen extends ConsumerStatefulWidget {
 }
 
 class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
+  bool _pendingEngineRestart = false;
+
   @override
   Widget build(BuildContext context) {
                     final preferencesService = ref.watch(uac2PreferencesServiceProvider);
@@ -72,6 +75,10 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                         child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (_pendingEngineRestart) ...[
+                            const EngineRestartNotice(),
+                            const SizedBox(height: AppConstants.spacingLg),
+                          ],
                           _buildSectionHeader(context, 'Audio Format'),
                           _buildFormatPreferences(
                             context,
@@ -716,7 +723,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                         }
                         if ((engineChanged || wasBitPerfectEnabled) &&
                             context.mounted) {
-                          _showRestartRequiredToast(context);
+                          setState(() => _pendingEngineRestart = true);
                         }
                       },
               ),
@@ -751,7 +758,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                   }
                   if ((engineChanged || wasBitPerfectEnabled) &&
                       context.mounted) {
-                    _showRestartRequiredToast(context);
+                    setState(() => _pendingEngineRestart = true);
                   }
                 },
               ),
@@ -773,7 +780,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                     Navigator.of(dialogContext).pop();
                   }
                   if (changed && context.mounted) {
-                    _showRestartRequiredToast(context);
+                    setState(() => _pendingEngineRestart = true);
                   }
                 },
               ),
