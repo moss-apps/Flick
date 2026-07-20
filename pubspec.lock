@@ -1087,6 +1087,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
+  restart_app:
+    dependency: "direct main"
+    description:
+      name: restart_app
+      sha256: "400dd401b77b599e2defef55fd4c22af3ff80af48616a82f01c2a07070e3e368"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.8.3"
   rive:
     dependency: "direct main"
     description:
