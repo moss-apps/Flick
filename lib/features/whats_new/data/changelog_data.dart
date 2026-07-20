@@ -127,6 +127,35 @@ const List<ChangelogEntry> kChangelogEntries = [
           'Docs: audio preload scan plan, scan details revamp, audio analysis feature requests.',
         ],
       ),
+      ChangelogSection(
+        title: 'Animated Album Art & Scroll Fade',
+        bullets: [
+          '**Apple Music-style animated album art** on album, artist, and playlist detail screens.',
+          '`ScrollFadeWrapper` fades the hero artwork behind the pinned app bar as you scroll down.',
+          'Album art layer extracted into `AnimatedAlbumArt` variant with scroll-aware fade.',
+          'Toggle in Settings → Interface → UI Customization.',
+          'Tests for `ScrollFadeWrapper` and `AnimatedAlbumArt`.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Engine Restart Overlay',
+        bullets: [
+          '**Full-screen restart overlay** with animated gradient progress — replaces snackbar/toast prompts.',
+          'Inline `EngineRestartNotice` widget shown when UAC2 settings require an engine restart.',
+          'Shared restart notice widget restyled alongside the update notice.',
+          'Smooth transition from the settings screen into the restart animation.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'USB DAC Disconnect & UAC2 Redesign',
+        bullets: [
+          '**USB DAC disconnect handling** — playback pauses automatically when the DAC is unplugged.',
+          '`DeviceDetachedEvent` stream notifies the UI of DAC removal events.',
+          'Pause-on-disconnect toggle in Settings → Audio → Bluetooth.',
+          '**UAC2 settings screen redesigned** with gradient background and ambient album artwork.',
+          'UAC2 preferences screen background refreshed with gradient styling.',
+        ],
+      ),
     ],
   ),
   ChangelogEntry(

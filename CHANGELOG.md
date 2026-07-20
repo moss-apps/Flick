@@ -41,6 +41,24 @@
 - Responsive songs header, edge-drag guard, sort sheet margin fix.
 - Docs: audio preload scan plan, scan details revamp.
 
+### Animated Album Art & Scroll Fade
+- Apple Music-style animated album art on album, artist, and playlist detail screens.
+- `ScrollFadeWrapper` fades hero artwork behind the pinned app bar on scroll.
+- Album art layer extracted into `AnimatedAlbumArt` with scroll-aware fade.
+- Toggle in Settings → Interface → UI Customization.
+- Tests for `ScrollFadeWrapper` and `AnimatedAlbumArt`.
+
+### Engine Restart Overlay
+- Full-screen restart overlay with animated gradient progress.
+- Inline `EngineRestartNotice` widget replaces snackbar/toast prompts.
+- Shared restart notice restyled alongside update notice.
+
+### USB DAC Disconnect & UAC2 Redesign
+- USB DAC disconnect pauses playback automatically.
+- `DeviceDetachedEvent` stream for UI notifications.
+- Pause-on-disconnect toggle in Settings → Audio → Bluetooth.
+- UAC2 settings screen redesigned with gradient background and ambient artwork.
+
 ## 0.20.3-beta.4 (2026-06-30)
 
 ### Full Player Refactor & Widgets

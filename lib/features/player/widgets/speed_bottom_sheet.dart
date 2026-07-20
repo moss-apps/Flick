@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/services/player_service.dart';
 
 class SpeedBottomSheet extends StatelessWidget {
@@ -18,7 +17,9 @@ class SpeedBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    const min = 0.5;
+    const max = 2.0;
+    const step = 0.25;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -53,50 +54,51 @@ class SpeedBottomSheet extends StatelessWidget {
           ValueListenableBuilder<double>(
             valueListenable: playerService.playbackSpeedNotifier,
             builder: (context, currentSpeed, _) {
-              return Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: speeds.map((speed) {
-                  final isSelected = speed == currentSpeed;
-                  return GestureDetector(
-                    onTap: () {
-                      playerService.setPlaybackSpeed(speed);
-                      Navigator.pop(context);
-                    },
-                    child: AnimatedContainer(
-                      duration: AppConstants.animationFast,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.accent
-                            : AppColors.glassBackground,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.accent
-                              : AppColors.glassBorder,
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        '${speed}x',
-                        style: TextStyle(
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      const SizedBox(width: 4),
+                      Text(
+                        '${min}x',
+                        style: const TextStyle(
                           fontFamily: 'ProductSans',
-                          fontSize: 16,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: isSelected
-                              ? Colors.white
-                              : AppColors.textPrimary,
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
                         ),
                       ),
+                      Expanded(
+                        child: Slider(
+                          value: currentSpeed,
+                          min: min,
+                          max: max,
+                          divisions: ((max - min) / step).round(),
+                          activeColor: AppColors.accent,
+                          inactiveColor: AppColors.glassBorder,
+                          onChanged: playerService.setPlaybackSpeed,
+                        ),
+                      ),
+                      Text(
+                        '${max}x',
+                        style: const TextStyle(
+                          fontFamily: 'ProductSans',
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                  ),
+                  Text(
+                    '${currentSpeed}x',
+                    style: const TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.accent,
                     ),
-                  );
-                }).toList(),
+                  ),
+                ],
               );
             },
           ),
