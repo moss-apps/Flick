@@ -116,12 +116,20 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     return null;
   }
 
+  // ponytail: pick the source path of the SAME song whose albumArt we'd use,
+  // so CachedImageWidget's embedded-art fallback targets the matching track
+  // instead of an unrelated one. Falls back to first non-empty filePath only
+  // when no song has albumArt.
   String? _getArtworkSourcePath(List<Song> songs) {
     for (final song in songs) {
-      final filePath = song.filePath;
-      if (filePath != null && filePath.isNotEmpty) {
-        return filePath;
+      if (song.albumArt != null && song.albumArt!.isNotEmpty) {
+        final fp = song.filePath;
+        if (fp != null && fp.isNotEmpty) return fp;
       }
+    }
+    for (final song in songs) {
+      final fp = song.filePath;
+      if (fp != null && fp.isNotEmpty) return fp;
     }
     return null;
   }
