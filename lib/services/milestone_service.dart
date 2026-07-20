@@ -404,6 +404,19 @@ class MilestoneService {
     await prefs.setInt(_streakPopupSnoozedUntilKey, _dayKey(DateTime.now()));
   }
 
+  /// Clears all streak-related state: counter, last-active day, popup snooze,
+  /// and any shown streak milestones. Used when the user disables streaks.
+  Future<void> clearStreakData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_streakCurrentKey);
+    await prefs.remove(_streakLastActiveDayKey);
+    await prefs.remove(_streakPopupSnoozedUntilKey);
+    final shown = await getShownMilestones();
+    final filtered = shown.where((r) => r.type.category != MilestoneCategory.dayStreak).toList();
+    final raw = jsonEncode(filtered.map((r) => r.toJson()).toList());
+    await prefs.setString(_shownMilestonesKey, raw);
+  }
+
   Future<List<MilestoneRecord>> getShownMilestones() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_shownMilestonesKey);
