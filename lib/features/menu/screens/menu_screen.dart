@@ -17,6 +17,7 @@ import 'package:flick/features/artists/screens/artist_detail_screen.dart';
 import 'package:flick/features/artists/screens/artists_screen.dart';
 import 'package:flick/features/favorites/screens/favorites_screen.dart';
 import 'package:flick/features/folders/screens/folders_screen.dart';
+import 'package:flick/features/menu/screens/restarting_screen.dart';
 import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
 import 'package:flick/features/playlists/screens/playlists_screen.dart';
 import 'package:flick/features/queue/screens/queue_screen.dart';
@@ -56,6 +57,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   Map<ListeningRecapPeriod, ListeningRecap> _recaps = const {};
   bool _isHistoryLoading = true;
   bool _showUpdateNotice = true;
+  bool _pendingEngineRestart = false;
   Color? _heroDominantColor;
   String? _heroColorArtPath;
   late final AnimationController _welcomeCardController;
@@ -434,6 +436,87 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
     );
   }
 
+  Widget _buildRestartNotice(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingMd),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              LucideIcons.refreshCcw,
+              color: context.adaptiveTextPrimary,
+              size: 17,
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingMd),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Restart required',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: context.adaptiveTextPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingXxs),
+                Text(
+                  'Your new audio engine is ready. Restart Flick to apply it.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.adaptiveTextSecondary,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingSm),
+          FilledButton(
+            onPressed: _showRestartingScreen,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: AppColors.background,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingMd,
+                vertical: AppConstants.spacingSm,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Restart'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRestartingScreen() {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: true,
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: Duration.zero,
+        pageBuilder: (_, _, _) => const RestartingScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
   Future<void> _showEnginePickerSheet(
     BuildContext context,
     AudioEnginePreference current,
@@ -602,15 +685,8 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
 
     if (dialogContext.mounted) Navigator.of(dialogContext).pop();
 
-    if (context.mounted) {
-      final messenger = ScaffoldMessenger.of(context);
-      messenger.removeCurrentSnackBar();
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Restart the app to apply playback changes.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    if (mounted) {
+      setState(() => _pendingEngineRestart = true);
     }
   }
 
@@ -691,6 +767,24 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                       ),
                                     )
                                   : const SizedBox.shrink(),
+                        ),
+                      ),
+                    if (_pendingEngineRestart &&
+                        appPreferences.showEngineSelector)
+                      SliverToBoxAdapter(
+                        child: AnimatedSize(
+                          duration: AppConstants.animationNormal,
+                          curve: Curves.easeInOut,
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppConstants.spacingLg,
+                              0,
+                              AppConstants.spacingLg,
+                              AppConstants.spacingMd,
+                            ),
+                            child: _buildRestartNotice(context),
+                          ),
                         ),
                       ),
                     if (updateState.updateAvailable && _showUpdateNotice)
