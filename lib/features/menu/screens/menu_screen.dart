@@ -2326,11 +2326,15 @@ class _HeroActionButton extends StatelessWidget {
                 color: isPrimary ? AppColors.background : Colors.white,
               ),
               const SizedBox(width: AppConstants.spacingXs),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: isPrimary ? AppColors.background : Colors.white,
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: isPrimary ? AppColors.background : Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
