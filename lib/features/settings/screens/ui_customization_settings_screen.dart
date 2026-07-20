@@ -108,6 +108,35 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
+          const SettingsSectionHeader('Album Detail'),
+          SettingsCard(
+            children: [
+              ToggleSetting(
+                icon: LucideIcons.disc3,
+                title: 'More from Artist',
+                subtitle: 'Show related albums on album pages',
+                value: appPreferences.showMoreFromArtist,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setShowMoreFromArtist(value);
+                },
+              ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.users,
+                title: 'More Artists',
+                subtitle: 'Show other artists on album pages',
+                value: appPreferences.showMoreArtists,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setShowMoreArtists(value);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
           const SettingsSectionHeader('Progress Bar'),
           SettingsCard(
             children: [
