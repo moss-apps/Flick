@@ -15,6 +15,8 @@ import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/animated_album_art.dart';
+import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 
@@ -560,31 +562,43 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
     );
   }
 
+  Widget _buildArtLayer(BuildContext context) {
+    final prefs = ref.watch(appPreferencesProvider);
+    final animated = prefs.animatedAlbumArt && prefs.animationsEnabled;
+    final fallback = Container(
+      color: AppColors.surface,
+      child: Icon(
+        LucideIcons.disc,
+        size: 80,
+        color: context.adaptiveTextTertiary,
+      ),
+    );
+    if (!animated) {
+      return CachedImageWidget(
+        imagePath: widget.albumArt,
+        audioSourcePath: widget.albumArtSourcePath,
+        fit: BoxFit.cover,
+        placeholder: fallback,
+        errorWidget: fallback,
+      );
+    }
+    return ScrollFadeWrapper(
+      scrollController: _scrollController,
+      child: AnimatedAlbumArt(
+        imagePath: widget.albumArt,
+        audioSourcePath: widget.albumArtSourcePath,
+        dominantColor: _albumColor,
+        placeholder: fallback,
+        errorWidget: fallback,
+      ),
+    );
+  }
+
   Widget _buildAppBarBackground(BuildContext context, Color fadeTo) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        CachedImageWidget(
-          imagePath: widget.albumArt,
-          audioSourcePath: widget.albumArtSourcePath,
-          fit: BoxFit.cover,
-          placeholder: Container(
-            color: AppColors.surface,
-            child: Icon(
-              LucideIcons.disc,
-              size: 80,
-              color: context.adaptiveTextTertiary,
-            ),
-          ),
-          errorWidget: Container(
-            color: AppColors.surface,
-            child: Icon(
-              LucideIcons.disc,
-              size: 80,
-              color: context.adaptiveTextTertiary,
-            ),
-          ),
-        ),
+        _buildArtLayer(context),
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(

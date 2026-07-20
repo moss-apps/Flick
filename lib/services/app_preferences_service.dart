@@ -54,6 +54,7 @@ class AppPreferences {
   final bool glanceCardMinimized;
   final bool replaceAlbumWithBitPerfectCapsule;
   final bool albumsStretchArtwork;
+  final bool animatedAlbumArt;
   final int folderGridPageSize;
   final String? lastSeenChangelogVersion;
   final bool bottomBarAutoCollapseEnabled;
@@ -62,6 +63,7 @@ class AppPreferences {
   final bool keepPlayingOnQuit;
   final bool pauseOnBluetoothDisconnect;
   final bool resumeOnBluetoothReconnect;
+  final bool pauseOnUsbDacDisconnect;
   final String preferredBluetoothDevice;
   final int btPreferredCodec;
   final String btLdacBitrate;
@@ -145,6 +147,7 @@ class AppPreferences {
     this.glanceCardMinimized = false,
     this.replaceAlbumWithBitPerfectCapsule = false,
     this.albumsStretchArtwork = false,
+    this.animatedAlbumArt = true,
     this.folderGridPageSize = 8,
     this.lastSeenChangelogVersion,
     this.bottomBarAutoCollapseEnabled = false,
@@ -153,6 +156,7 @@ class AppPreferences {
     this.keepPlayingOnQuit = false,
     this.pauseOnBluetoothDisconnect = true,
     this.resumeOnBluetoothReconnect = false,
+    this.pauseOnUsbDacDisconnect = true,
     this.preferredBluetoothDevice = '',
     this.btPreferredCodec = -1,
     this.btLdacBitrate = 'adaptive',
@@ -237,6 +241,7 @@ class AppPreferences {
     bool? glanceCardMinimized,
     bool? replaceAlbumWithBitPerfectCapsule,
     bool? albumsStretchArtwork,
+    bool? animatedAlbumArt,
     int? folderGridPageSize,
     String? lastSeenChangelogVersion,
     bool? bottomBarAutoCollapseEnabled,
@@ -245,6 +250,7 @@ class AppPreferences {
     bool? keepPlayingOnQuit,
     bool? pauseOnBluetoothDisconnect,
     bool? resumeOnBluetoothReconnect,
+    bool? pauseOnUsbDacDisconnect,
     String? preferredBluetoothDevice,
     int? btPreferredCodec,
     String? btLdacBitrate,
@@ -349,6 +355,7 @@ class AppPreferences {
           this.replaceAlbumWithBitPerfectCapsule,
       albumsStretchArtwork:
           albumsStretchArtwork ?? this.albumsStretchArtwork,
+      animatedAlbumArt: animatedAlbumArt ?? this.animatedAlbumArt,
       folderGridPageSize: folderGridPageSize ?? this.folderGridPageSize,
       lastSeenChangelogVersion:
           lastSeenChangelogVersion ?? this.lastSeenChangelogVersion,
@@ -363,6 +370,8 @@ class AppPreferences {
           pauseOnBluetoothDisconnect ?? this.pauseOnBluetoothDisconnect,
       resumeOnBluetoothReconnect:
           resumeOnBluetoothReconnect ?? this.resumeOnBluetoothReconnect,
+      pauseOnUsbDacDisconnect:
+          pauseOnUsbDacDisconnect ?? this.pauseOnUsbDacDisconnect,
       preferredBluetoothDevice:
           preferredBluetoothDevice ?? this.preferredBluetoothDevice,
       btPreferredCodec: btPreferredCodec ?? this.btPreferredCodec,
@@ -459,6 +468,7 @@ class AppPreferencesService {
   static const _replaceAlbumWithBitPerfectCapsuleKey =
       'replace_album_with_bit_perfect_capsule';
   static const _albumsStretchArtworkKey = 'albums_stretch_artwork';
+  static const _animatedAlbumArtKey = 'album_animated_art';
   static const _folderGridPageSizeKey = 'folder_grid_page_size';
   static const _lastSeenChangelogVersionKey = 'last_seen_changelog_version';
   static const _bottomBarAutoCollapseEnabledKey =
@@ -471,6 +481,7 @@ class AppPreferencesService {
       'app_pause_on_bluetooth_disconnect';
   static const _resumeOnBluetoothReconnectKey =
       'app_resume_on_bluetooth_reconnect';
+  static const _pauseOnUsbDacDisconnectKey = 'app_pause_on_usb_dac_disconnect';
   static const _preferredBluetoothDeviceKey = 'app_preferred_bluetooth_device';
   static const _btPreferredCodecKey = 'app_bt_preferred_codec';
   static const _btLdacBitrateKey = 'app_bt_ldac_bitrate';
@@ -581,6 +592,7 @@ class AppPreferencesService {
           prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false,
       albumsStretchArtwork:
           prefs.getBool(_albumsStretchArtworkKey) ?? false,
+      animatedAlbumArt: prefs.getBool(_animatedAlbumArtKey) ?? true,
       folderGridPageSize: prefs.getInt(_folderGridPageSizeKey) ?? 8,
       lastSeenChangelogVersion: prefs.getString(_lastSeenChangelogVersionKey),
       bottomBarAutoCollapseEnabled:
@@ -594,6 +606,8 @@ class AppPreferencesService {
           prefs.getBool(_pauseOnBluetoothDisconnectKey) ?? true,
       resumeOnBluetoothReconnect:
           prefs.getBool(_resumeOnBluetoothReconnectKey) ?? false,
+      pauseOnUsbDacDisconnect:
+          prefs.getBool(_pauseOnUsbDacDisconnectKey) ?? true,
       preferredBluetoothDevice:
           prefs.getString(_preferredBluetoothDeviceKey) ?? '',
       btPreferredCodec: prefs.getInt(_btPreferredCodecKey) ?? -1,
@@ -1113,6 +1127,16 @@ class AppPreferencesService {
     await prefs.setBool(_albumsStretchArtworkKey, value);
   }
 
+  Future<bool> getAnimatedAlbumArt() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_animatedAlbumArtKey) ?? true;
+  }
+
+  Future<void> setAnimatedAlbumArt(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_animatedAlbumArtKey, value);
+  }
+
   Future<int> getFolderGridPageSize() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_folderGridPageSizeKey) ?? 8;
@@ -1225,6 +1249,16 @@ class AppPreferencesService {
   Future<void> setPauseOnBluetoothDisconnect(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_pauseOnBluetoothDisconnectKey, value);
+  }
+
+  Future<bool> getPauseOnUsbDacDisconnect() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_pauseOnUsbDacDisconnectKey) ?? true;
+  }
+
+  Future<void> setPauseOnUsbDacDisconnect(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_pauseOnUsbDacDisconnectKey, value);
   }
 
   Future<bool> getResumeOnBluetoothReconnect() async {

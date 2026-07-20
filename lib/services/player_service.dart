@@ -357,6 +357,7 @@ class PlayerService {
   VoidCallback? _rustDurationListener;
   StreamSubscription<AudioInterruptionEvent>? _audioFocusSubscription;
   StreamSubscription<Map<Object?, Object?>>? _bluetoothDeviceEventSubscription;
+  StreamSubscription<void>? _usbDacDetachSubscription;
   DateTime? _bluetoothDisconnectedAt;
   static const Duration _bluetoothReconnectWindow = Duration(seconds: 30);
   bool _audioInitialized = false;
@@ -553,6 +554,7 @@ class PlayerService {
     unawaited(_loadCrossfadePreferences());
     unawaited(_loadFloatingPlayerPreference());
     _initBluetoothReconnectHandling();
+    _initUsbDacDisconnectHandling();
     unawaited(_applyBluetoothCodecPrefs());
   }
 
@@ -569,6 +571,14 @@ class PlayerService {
             _maybeResumeOnBluetoothReconnect();
           }
         });
+  }
+
+  void _initUsbDacDisconnectHandling() {
+    _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((_) async {
+      if (!isPlayingNotifier.value) return;
+      final enabled = await _appPreferencesService.getPauseOnUsbDacDisconnect();
+      if (enabled) pause();
+    });
   }
 
   /// Push the user's codec preference to the active A2DP device when codec
@@ -4797,6 +4807,7 @@ class PlayerService {
     _stopHwVolumeHealthTimer();
     unawaited(_audioFocusSubscription?.cancel());
     unawaited(_bluetoothDeviceEventSubscription?.cancel());
+    unawaited(_usbDacDetachSubscription?.cancel());
     cancelSleepTimer();
     _notificationService.hideNotification();
     _floatingPlayerService.hide();

@@ -266,6 +266,17 @@ class _BluetoothSettingsScreenState
                     .read(appPreferencesProvider.notifier)
                     .setResumeOnBluetoothReconnect(v),
               ),
+              ToggleSetting(
+                icon: LucideIcons.usb,
+                title: 'Pause on USB DAC Detach',
+                subtitle: appPrefs.pauseOnUsbDacDisconnect
+                    ? 'Playback pauses when a USB DAC is physically unplugged'
+                    : 'Playback continues when a USB DAC is unplugged',
+                value: appPrefs.pauseOnUsbDacDisconnect,
+                onChanged: (v) => ref
+                    .read(appPreferencesProvider.notifier)
+                    .setPauseOnUsbDacDisconnect(v),
+              ),
             ]),
           ),
           const SizedBox(height: AppConstants.spacingLg),

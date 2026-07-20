@@ -19,7 +19,10 @@ import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/animated_album_art.dart';
+import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
 
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final Playlist playlist;
@@ -629,40 +632,41 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   }
 
   Widget _buildCollageBackground() {
+    final fallback = Container(
+      color: AppColors.surface,
+      child: Icon(
+        LucideIcons.listMusic,
+        size: 80,
+        color: context.adaptiveTextTertiary,
+      ),
+    );
     if (_songs.isEmpty) {
-      return Container(
-        color: AppColors.surface,
-        child: Icon(
-          LucideIcons.listMusic,
-          size: 80,
-          color: context.adaptiveTextTertiary,
-        ),
-      );
+      return fallback;
     }
 
     final firstArt = _getArt(_songs);
     final firstSource = _getSourcePath(_songs);
     if (firstArt != null) {
+      final prefs = ref.watch(appPreferencesProvider);
+      final animated = prefs.animatedAlbumArt && prefs.animationsEnabled;
+      if (animated) {
+        return ScrollFadeWrapper(
+          scrollController: _scrollController,
+          child: AnimatedAlbumArt(
+            imagePath: firstArt,
+            audioSourcePath: firstSource,
+            dominantColor: _playlistColor,
+            placeholder: fallback,
+            errorWidget: fallback,
+          ),
+        );
+      }
       return CachedImageWidget(
         imagePath: firstArt,
         audioSourcePath: firstSource,
         fit: BoxFit.cover,
-        placeholder: Container(
-          color: AppColors.surface,
-          child: Icon(
-            LucideIcons.listMusic,
-            size: 80,
-            color: context.adaptiveTextTertiary,
-          ),
-        ),
-        errorWidget: Container(
-          color: AppColors.surface,
-          child: Icon(
-            LucideIcons.listMusic,
-            size: 80,
-            color: context.adaptiveTextTertiary,
-          ),
-        ),
+        placeholder: fallback,
+        errorWidget: fallback,
       );
     }
 

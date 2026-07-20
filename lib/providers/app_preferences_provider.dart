@@ -403,6 +403,12 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setAlbumsStretchArtwork(value);
   }
 
+  Future<void> setAnimatedAlbumArt(bool value) async {
+    if (state.animatedAlbumArt == value) return;
+    state = state.copyWith(animatedAlbumArt: value);
+    await ref.read(appPreferencesServiceProvider).setAnimatedAlbumArt(value);
+  }
+
   Future<void> setFolderGridPageSize(int value) async {
     if (state.folderGridPageSize == value) return;
     state = state.copyWith(folderGridPageSize: value);
@@ -453,6 +459,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref
         .read(appPreferencesServiceProvider)
         .setPauseOnBluetoothDisconnect(value);
+  }
+
+  Future<void> setPauseOnUsbDacDisconnect(bool value) async {
+    if (state.pauseOnUsbDacDisconnect == value) return;
+    state = state.copyWith(pauseOnUsbDacDisconnect: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setPauseOnUsbDacDisconnect(value);
   }
 
   Future<void> setResumeOnBluetoothReconnect(bool value) async {
