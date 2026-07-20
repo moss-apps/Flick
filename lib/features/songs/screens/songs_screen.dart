@@ -666,6 +666,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                             scale: 1.0 + pinchDelta * 0.04,
                             child: _AlbumCard(
                               album: album,
+                              stretchArtwork: ref
+                                  .watch(appPreferencesProvider)
+                                  .albumsStretchArtwork,
                               onTap: () => _openAlbumDetail(album),
                             ),
                           ),
@@ -706,9 +709,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
 
   Widget _buildAlbumListView(List<AlbumGroup> albums) {
     final visibleCount = min(_visibleAlbumCount, albums.length);
-    final visibleAlbums = albums
-        .take(visibleCount)
-        .toList(growable: false);
+    final visibleAlbums = albums.take(visibleCount).toList(growable: false);
     final hasMore = visibleCount < albums.length;
 
     return ListView.builder(
@@ -741,6 +742,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
           padding: const EdgeInsets.only(bottom: AppConstants.spacingSm),
           child: _AlbumListTile(
             album: album,
+            stretchArtwork: ref
+                .watch(appPreferencesProvider)
+                .albumsStretchArtwork,
             onTap: () => _openAlbumDetail(album),
           ),
         );
@@ -1534,7 +1538,8 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
   }
 
   Future<void> _showMoreActions() async {
-    final allSelected = _selectedIds.length == _cachedDisplaySongs.length &&
+    final allSelected =
+        _selectedIds.length == _cachedDisplaySongs.length &&
         _cachedDisplaySongs.isNotEmpty;
     if (!mounted) return;
 
@@ -1575,8 +1580,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                 shrinkWrap: true,
                 children: [
                   _selectionSheetTile(
-                    icon:
-                        allSelected ? LucideIcons.x : LucideIcons.checkCheck,
+                    icon: allSelected ? LucideIcons.x : LucideIcons.checkCheck,
                     label: allSelected ? 'Deselect all' : 'Select all',
                     onTap: () {
                       Navigator.pop(sheetContext);
@@ -1865,6 +1869,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final currentFilter =
         songsAsync.value?.fileTypeFilter ?? SongFileTypeFilter.all;
     final isAlbumMode = currentSort == SongSortOption.album;
+    final buttonGap = context.isCompact
+        ? AppConstants.spacingXxs
+        : AppConstants.spacingSm;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -1874,27 +1881,29 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Your Library',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: context.adaptiveTextPrimary,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your Library',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: context.adaptiveTextPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppConstants.spacingXxs),
-              Text(
-                '$songCount songs',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.adaptiveTextSecondary,
+                const SizedBox(height: AppConstants.spacingXxs),
+                Text(
+                  '$songCount songs',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.adaptiveTextSecondary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               if (isAlbumMode) ...[
                 _buildHeaderIconButton(
@@ -1904,7 +1913,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                       : LucideIcons.list,
                   onTap: () => _setAlbumViewMode(!_albumIsListView),
                 ),
-                const SizedBox(width: AppConstants.spacingSm),
+                SizedBox(width: buttonGap),
                 _buildHeaderIconButton(
                   context: context,
                   icon: LucideIcons.listFilter,
@@ -1916,69 +1925,43 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                   icon: LucideIcons.checkCheck,
                   onTap: () => _enterSelectionMode(null),
                 ),
-              const SizedBox(width: AppConstants.spacingSm),
+              SizedBox(width: buttonGap),
               _buildHeaderIconButton(
                 context: context,
                 icon: LucideIcons.shuffle,
                 onTap: () => _shufflePlayFromLibrary(songsAsync),
               ),
-              const SizedBox(width: AppConstants.spacingSm),
+              SizedBox(width: buttonGap),
               TutorialTargetAnchor(
                 target: TutorialTarget.songsSortButton,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.surfaceLight.withValues(alpha: 0.75),
-                        AppColors.surface.withValues(alpha: 0.85),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                    border:
-                        Border.all(color: AppColors.glassBorder, width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 12,
-                        spreadRadius: 1,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    onPressed: () {
-                      SortFilterBottomSheet.show(
-                        context,
-                        currentSort: currentSort,
-                        currentFilter: currentFilter,
-                        onSortChanged: (option) {
-                          ref
-                              .read(songsProvider.notifier)
-                              .setSortOption(option);
-                          setState(() {
-                            _selectedIndex = 0;
-                            _lastSyncedSong = null;
-                          });
-                        },
-                        onFilterChanged: (filter) {
-                          ref
-                              .read(songsProvider.notifier)
-                              .setFileTypeFilter(filter);
-                          setState(() {
-                            _selectedIndex = 0;
-                            _lastSyncedSong = null;
-                          });
-                        },
-                      );
-                    },
-                    icon: Icon(
-                      Icons.sort_rounded,
-                      color: context.adaptiveTextSecondary,
-                      size: context.responsiveIcon(AppConstants.iconSizeMd),
-                    ),
-                  ),
+                child: _buildHeaderIconButton(
+                  context: context,
+                  icon: Icons.sort_rounded,
+                  onTap: () {
+                    SortFilterBottomSheet.show(
+                      context,
+                      currentSort: currentSort,
+                      currentFilter: currentFilter,
+                      onSortChanged: (option) {
+                        ref
+                            .read(songsProvider.notifier)
+                            .setSortOption(option);
+                        setState(() {
+                          _selectedIndex = 0;
+                          _lastSyncedSong = null;
+                        });
+                      },
+                      onFilterChanged: (filter) {
+                        ref
+                            .read(songsProvider.notifier)
+                            .setFileTypeFilter(filter);
+                        setState(() {
+                          _selectedIndex = 0;
+                          _lastSyncedSong = null;
+                        });
+                      },
+                    );
+                  },
                 ),
               ),
             ],
@@ -2056,6 +2039,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     required IconData icon,
     required VoidCallback onTap,
   }) {
+    final isCompact = context.isCompact;
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -2079,6 +2063,15 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       ),
       child: IconButton(
         onPressed: onTap,
+        visualDensity: isCompact
+            ? VisualDensity.compact
+            : VisualDensity.standard,
+        constraints: isCompact
+            ? const BoxConstraints(minWidth: 36, minHeight: 36)
+            : const BoxConstraints(minWidth: 44, minHeight: 44),
+        padding: isCompact
+            ? const EdgeInsets.all(4)
+            : const EdgeInsets.all(8),
         icon: Icon(
           icon,
           color: context.adaptiveTextSecondary,
@@ -2493,9 +2486,14 @@ class _QueueSwipeListItemState extends State<_QueueSwipeListItem> {
 
 class _AlbumCard extends StatefulWidget {
   final AlbumGroup album;
+  final bool stretchArtwork;
   final VoidCallback onTap;
 
-  const _AlbumCard({required this.album, required this.onTap});
+  const _AlbumCard({
+    required this.album,
+    required this.stretchArtwork,
+    required this.onTap,
+  });
 
   @override
   State<_AlbumCard> createState() => _AlbumCardState();
@@ -2506,7 +2504,6 @@ class _AlbumCardState extends State<_AlbumCard>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _tiltAnimation;
-  List<_ArtEntry> _cachedArtworks = const [];
 
   @override
   void initState() {
@@ -2523,15 +2520,6 @@ class _AlbumCardState extends State<_AlbumCard>
       begin: 0.0,
       end: 0.02,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _cachedArtworks = _computeArtworks(widget.album.songs);
-  }
-
-  @override
-  void didUpdateWidget(covariant _AlbumCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.album.songs, widget.album.songs)) {
-      _cachedArtworks = _computeArtworks(widget.album.songs);
-    }
   }
 
   @override
@@ -2540,27 +2528,18 @@ class _AlbumCardState extends State<_AlbumCard>
     super.dispose();
   }
 
-  static List<_ArtEntry> _computeArtworks(List<Song> songs) {
-    final seen = <String>{};
-    final result = <_ArtEntry>[];
-    for (final song in songs) {
-      final art = song.albumArt;
-      if (art != null && art.isNotEmpty && seen.add(art)) {
-        result.add(_ArtEntry(art, song.filePath));
-      }
-      if (result.length >= 4) break;
-    }
-    return result;
-  }
-
   @override
   Widget build(BuildContext context) {
     final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final artworks = _cachedArtworks;
-    final padded = List<_ArtEntry>.from(artworks);
-    while (padded.length < 4) {
-      padded.add(const _ArtEntry(null, null));
+    Song? artSong;
+    for (final s in widget.album.songs) {
+      if (s.albumArt != null && s.albumArt!.isNotEmpty) {
+        artSong = s;
+        break;
+      }
     }
+    final artPath = artSong?.albumArt;
+    final sourcePath = artSong?.filePath ?? widget.album.songs.first.filePath;
 
     return GestureDetector(
       onTapDown: (_) => _controller.forward(),
@@ -2623,20 +2602,18 @@ class _AlbumCardState extends State<_AlbumCard>
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  if (artworks.length == 1)
-                                    _buildSingleArt(
-                                      artworks.first,
-                                      artworkTargetWidth,
-                                      context,
-                                    )
-                                  else if (artworks.isEmpty)
-                                    _buildGridPlaceholder(context)
-                                  else
-                                    _buildArtGrid(
-                                      padded,
-                                      artworkTargetWidth,
-                                      context,
-                                    ),
+                                  CachedImageWidget(
+                                    imagePath: artPath,
+                                    audioSourcePath: sourcePath,
+                                    fit: BoxFit.cover,
+                                    useThumbnail: true,
+                                    thumbnailWidth: artworkTargetWidth,
+                                    thumbnailHeight: widget.stretchArtwork
+                                        ? artworkTargetWidth
+                                        : null,
+                                    placeholder: _buildPlaceholder(context),
+                                    errorWidget: _buildPlaceholder(context),
+                                  ),
                                   Positioned.fill(
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
@@ -2735,64 +2712,12 @@ class _AlbumCardState extends State<_AlbumCard>
     );
   }
 
-  Widget _buildArtGrid(
-    List<_ArtEntry> artworks,
-    int targetWidth,
-    BuildContext context,
-  ) {
-    final cellSize = targetWidth ~/ 2;
-    final cellRadius = AppConstants.radiusSm;
-    return GridView.count(
-      crossAxisCount: 2,
-      physics: const NeverScrollableScrollPhysics(),
-      children: artworks.map((entry) {
-        if (entry.art != null && entry.art!.isNotEmpty) {
-          return ClipRRect(
-            borderRadius: BorderRadius.all(Radius.circular(cellRadius)),
-            child: CachedImageWidget(
-              imagePath: entry.art,
-              audioSourcePath: entry.source,
-              fit: BoxFit.cover,
-              useThumbnail: true,
-              thumbnailWidth: cellSize,
-              thumbnailHeight: cellSize,
-              placeholder: _buildGridPlaceholder(context),
-              errorWidget: _buildGridPlaceholder(context),
-            ),
-          );
-        }
-        return _buildGridPlaceholder(context);
-      }).toList(),
-    );
-  }
-
-  Widget _buildSingleArt(
-    _ArtEntry entry,
-    int targetWidth,
-    BuildContext context,
-  ) {
-    return CachedImageWidget(
-      imagePath: entry.art,
-      audioSourcePath: entry.source,
-      fit: BoxFit.cover,
-      useThumbnail: true,
-      thumbnailWidth: targetWidth,
-      thumbnailHeight: targetWidth,
-      placeholder: _buildGridPlaceholder(context),
-      errorWidget: _buildGridPlaceholder(context),
-    );
-  }
-
-  Widget _buildGridPlaceholder(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
-      child: Container(
-        color: AppColors.surfaceLight,
-        child: const Icon(
-          LucideIcons.music,
-          color: AppColors.textTertiary,
-          size: 18,
-        ),
+  Widget _buildPlaceholder(BuildContext context) {
+    return Center(
+      child: Icon(
+        LucideIcons.disc,
+        size: context.responsiveIcon(AppConstants.containerSizeSm),
+        color: context.adaptiveTextTertiary.withValues(alpha: 0.5),
       ),
     );
   }
@@ -2800,9 +2725,14 @@ class _AlbumCardState extends State<_AlbumCard>
 
 class _AlbumListTile extends StatelessWidget {
   final AlbumGroup album;
+  final bool stretchArtwork;
   final VoidCallback onTap;
 
-  const _AlbumListTile({required this.album, required this.onTap});
+  const _AlbumListTile({
+    required this.album,
+    required this.stretchArtwork,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2862,7 +2792,7 @@ class _AlbumListTile extends StatelessWidget {
                     fit: BoxFit.cover,
                     useThumbnail: true,
                     thumbnailWidth: 104,
-                    thumbnailHeight: 104,
+                    thumbnailHeight: stretchArtwork ? 104 : null,
                     placeholder: const ColoredBox(
                       color: AppColors.surface,
                       child: Icon(
@@ -2932,13 +2862,6 @@ class _AlbumListTile extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ArtEntry {
-  final String? art;
-  final String? source;
-
-  const _ArtEntry(this.art, this.source);
 }
 
 class _AlbumFilterSheet extends StatefulWidget {

@@ -2123,6 +2123,7 @@ class PlayerService {
   /// streak tier. Called once at startup after the milestone notifier is
   /// wired so the celebration dialog can still fire.
   Future<void> recordActivityDayAndCheckMilestones() async {
+    if (!await _appPreferencesService.getStreaksEnabled()) return;
     final streak = await _milestoneService.recordActivityDay();
     final milestone = await _milestoneService.checkMilestones();
     if (milestone != null) {
@@ -4628,6 +4629,11 @@ class PlayerService {
       );
       if (_usingRustBackend) {
         await _rustAudioService.setPitchShiftSemitones(0.0);
+      } else {
+        final player = _justAudioPlayer;
+        if (player != null) {
+          await player.setPitch(1.0);
+        }
       }
       return;
     }
@@ -4635,7 +4641,12 @@ class PlayerService {
     if (_usingRustBackend) {
       await _rustAudioService.setPitchShiftSemitones(clamped);
     } else {
-      debugPrint('[PITCH] NOT routed: not using Rust backend (just_audio has no pitch support)');
+      final player = _justAudioPlayer;
+      if (player != null) {
+        // ponytail: just_audio setPitch takes a frequency ratio (1.0 = no shift).
+        final ratio = math.pow(2, clamped / 12).toDouble();
+        await player.setPitch(ratio);
+      }
     }
   }
 

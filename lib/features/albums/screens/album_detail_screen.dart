@@ -16,6 +16,7 @@ import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/providers/navigation_provider.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
 
 /// Album detail screen showing songs, album info, and more from the artist.
 class AlbumDetailScreen extends ConsumerStatefulWidget {
@@ -119,7 +120,15 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
     return null;
   }
 
+  // ponytail: pick the source path of the SAME song whose albumArt we'd use,
+  // so CachedImageWidget's embedded-art fallback targets the matching track.
   String? _getSourcePath(List<Song> songs) {
+    for (final song in songs) {
+      if (song.albumArt != null && song.albumArt!.isNotEmpty) {
+        final fp = song.filePath;
+        if (fp != null && fp.isNotEmpty) return fp;
+      }
+    }
     for (final song in songs) {
       if (song.filePath != null && song.filePath!.isNotEmpty) {
         return song.filePath;
@@ -473,7 +482,8 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                     }, childCount: widget.songs.length),
                   ),
                 ),
-                if (_moreAlbums.isNotEmpty) ...[
+                if (_moreAlbums.isNotEmpty &&
+                    ref.watch(appPreferencesProvider).showMoreFromArtist) ...[
                   _buildSectionTitle(
                     context,
                     'More from ${widget.albumArtist}',
@@ -505,7 +515,8 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                     ),
                   ),
                 ],
-                if (_moreArtists.isNotEmpty) ...[
+                if (_moreArtists.isNotEmpty &&
+                    ref.watch(appPreferencesProvider).showMoreArtists) ...[
                   const SliverToBoxAdapter(
                     child: SizedBox(height: AppConstants.spacingLg),
                   ),
@@ -917,6 +928,12 @@ class _ArtistCard extends StatelessWidget {
   }
 
   String? _getSourcePath() {
+    for (final song in songs) {
+      if (song.albumArt != null && song.albumArt!.isNotEmpty) {
+        final fp = song.filePath;
+        if (fp != null && fp.isNotEmpty) return fp;
+      }
+    }
     for (final song in songs) {
       if (song.filePath != null && song.filePath!.isNotEmpty) {
         return song.filePath;

@@ -44,6 +44,92 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
+    version: '0.20.4-beta.5',
+    date: '2026-07-03',
+    sections: [
+      ChangelogSection(
+        title: 'Pitch Shifter (SoundTouch)',
+        bullets: [
+          'Real-time pitch shifting via the **SoundTouch** audio processing library, integrated into the DSP chain.',
+          'Lock-free bypass flag — zero-cost when pitch is at 1.0×.',
+          'Pitch shift semitones API with FFI bridge and notifier.',
+          'Pitch control bottom sheet with semitone slider.',
+          'Pitch control option added to the song actions sheet.',
+          'Pitch resets automatically to 1.0× when playback stops.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Android Audio API Preference',
+        bullets: [
+          'Choose your Android audio API: **AAudio** (recommended, Android 8+), **OpenSL ES** (legacy), or **Auto**.',
+          'Preference persisted across sessions with instant apply on change.',
+          'Exposed in UAC2 settings and Rust debug state.',
+          '`AudioApiPreference` enum with FFI getter/setter and Dart bridge.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Blurred Backgrounds Everywhere',
+        bullets: [
+          '`BlurredSongBackground` widget wraps all library screens for a consistent glass look.',
+          'Fade-only route transition keeps the background stable between screens.',
+          'Applied to songs, recently played, recently added, queue, favorites, playlists, folders, artists, and albums.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Orbit Customization',
+        bullets: [
+          'Dedicated orbital settings screen — tune geometry, sizing, depth, art resolution, and visual toggles.',
+          'Orbit parameters live in `AppPreferences` with setters and reset.',
+          '`SongCard` sizing is now fully configurable.',
+          'Orbit config passed into `OrbitView` as widget fields; unused constants removed.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Album Artwork Stretch',
+        bullets: [
+          'Album artwork can now stretch to fill the card — toggle from Library settings.',
+          'Single-image album display with stretch support.',
+          '`albumsStretchArtwork` preference.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Lyrics Performance',
+        bullets: [
+          'In-memory cache with timeout reduces redundant API calls on repeated lyrics searches.',
+          'Shared HTTP client prevents connection pool exhaustion.',
+          'Exact and fuzzy lyrics searches now run in parallel — first match wins.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Streaks & Preference Controls',
+        bullets: [
+          'Streaks can be disabled entirely with a reset option — clears all streak data.',
+          'Day streak milestone hidden when streaks are disabled.',
+          '"More from Artist" and "More Artists" sections on album detail screens can be toggled independently.',
+          'Display preferences added to artist sort sheet.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Artwork Reliability',
+        bullets: [
+          'Only cache confirmed-existing artwork paths — prevents phantom thumbnails.',
+          'Prefer songs with embedded album art for source path fallback.',
+          'Artwork source path picks the song whose art matches the album art.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'UI Polish & Fixes',
+        bullets: [
+          'Engine selector refactored to use glass bottom sheet with hero gradient styling.',
+          'Songs screen header now responsive with `Flexible` labels.',
+          'Drag near screen edge no longer accidentally triggers song navigation.',
+          'Sort sheet dismiss margin fixed; redundant `Navigator.pop` calls removed.',
+          'Docs: audio preload scan plan, scan details revamp, audio analysis feature requests.',
+        ],
+      ),
+    ],
+  ),
+  ChangelogEntry(
     version: '0.20.3-beta.4',
     date: '2026-06-30',
     sections: [

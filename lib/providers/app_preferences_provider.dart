@@ -397,6 +397,12 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setReplaceAlbumWithBitPerfectCapsule(value);
   }
 
+  Future<void> setAlbumsStretchArtwork(bool value) async {
+    if (state.albumsStretchArtwork == value) return;
+    state = state.copyWith(albumsStretchArtwork: value);
+    await ref.read(appPreferencesServiceProvider).setAlbumsStretchArtwork(value);
+  }
+
   Future<void> setFolderGridPageSize(int value) async {
     if (state.folderGridPageSize == value) return;
     state = state.copyWith(folderGridPageSize: value);
@@ -617,6 +623,24 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     if (state.orbitShowGlow == value) return;
     state = state.copyWith(orbitShowGlow: value);
     await ref.read(appPreferencesServiceProvider).setOrbitShowGlow(value);
+  }
+
+  Future<void> setStreaksEnabled(bool value) async {
+    if (state.streaksEnabled == value) return;
+    state = state.copyWith(streaksEnabled: value);
+    await ref.read(appPreferencesServiceProvider).setStreaksEnabled(value);
+  }
+
+  Future<void> setShowMoreFromArtist(bool value) async {
+    if (state.showMoreFromArtist == value) return;
+    state = state.copyWith(showMoreFromArtist: value);
+    await ref.read(appPreferencesServiceProvider).setShowMoreFromArtist(value);
+  }
+
+  Future<void> setShowMoreArtists(bool value) async {
+    if (state.showMoreArtists == value) return;
+    state = state.copyWith(showMoreArtists: value);
+    await ref.read(appPreferencesServiceProvider).setShowMoreArtists(value);
   }
 
   Future<void> resetOrbitSettings() async {

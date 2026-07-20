@@ -69,6 +69,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   // Last drag update time for throttling
   DateTime _lastDragUpdate = DateTime.now();
 
+  // ponytail: 24dp edge zone matches Android's predictive back gesture origin
+  static const double _backGestureEdgeWidth = 24.0;
+  double _horizontalDragStartX = double.infinity;
+
   // Notifier for throttled position – only _WaveformLayer listens, so no setState needed.
   late final ValueNotifier<Duration> _throttledPositionNotifier;
   Timer? _positionThrottleTimer;
@@ -390,8 +394,19 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   _dragOffset = 0.0;
                   _dragController.animateTo(0.0);
                 },
+                onHorizontalDragStart: (details) {
+                  _horizontalDragStartX = details.globalPosition.dx;
+                },
                 onHorizontalDragEnd: (details) {
                   if (_isVinylRotationActive) return;
+                  // Skip song navigation if drag started at screen edge so the
+                  // native Android back gesture takes priority.
+                  final screenWidth = MediaQuery.sizeOf(context).width;
+                  final nearLeftEdge = _horizontalDragStartX <= _backGestureEdgeWidth;
+                  final nearRightEdge =
+                      _horizontalDragStartX >= screenWidth - _backGestureEdgeWidth;
+                  if (nearLeftEdge || nearRightEdge) return;
+
                   if (details.primaryVelocity! < -500) {
                     // Swipe Left -> Next
                     _animateToNextSong();

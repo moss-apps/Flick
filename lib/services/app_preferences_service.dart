@@ -53,6 +53,7 @@ class AppPreferences {
   final bool glanceCardHidden;
   final bool glanceCardMinimized;
   final bool replaceAlbumWithBitPerfectCapsule;
+  final bool albumsStretchArtwork;
   final int folderGridPageSize;
   final String? lastSeenChangelogVersion;
   final bool bottomBarAutoCollapseEnabled;
@@ -86,6 +87,9 @@ class AppPreferences {
   final double orbitArtResolutionMultiplier;
   final bool orbitShowPath;
   final bool orbitShowGlow;
+  final bool streaksEnabled;
+  final bool showMoreFromArtist;
+  final bool showMoreArtists;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -140,6 +144,7 @@ class AppPreferences {
     this.glanceCardHidden = false,
     this.glanceCardMinimized = false,
     this.replaceAlbumWithBitPerfectCapsule = false,
+    this.albumsStretchArtwork = false,
     this.folderGridPageSize = 8,
     this.lastSeenChangelogVersion,
     this.bottomBarAutoCollapseEnabled = false,
@@ -173,6 +178,9 @@ class AppPreferences {
     this.orbitArtResolutionMultiplier = 2.0,
     this.orbitShowPath = true,
     this.orbitShowGlow = true,
+    this.streaksEnabled = true,
+    this.showMoreFromArtist = true,
+    this.showMoreArtists = true,
   });
 
   AppPreferences copyWith({
@@ -228,6 +236,7 @@ class AppPreferences {
     bool? glanceCardHidden,
     bool? glanceCardMinimized,
     bool? replaceAlbumWithBitPerfectCapsule,
+    bool? albumsStretchArtwork,
     int? folderGridPageSize,
     String? lastSeenChangelogVersion,
     bool? bottomBarAutoCollapseEnabled,
@@ -261,6 +270,9 @@ class AppPreferences {
     double? orbitArtResolutionMultiplier,
     bool? orbitShowPath,
     bool? orbitShowGlow,
+    bool? streaksEnabled,
+    bool? showMoreFromArtist,
+    bool? showMoreArtists,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -335,6 +347,8 @@ class AppPreferences {
       replaceAlbumWithBitPerfectCapsule:
           replaceAlbumWithBitPerfectCapsule ??
           this.replaceAlbumWithBitPerfectCapsule,
+      albumsStretchArtwork:
+          albumsStretchArtwork ?? this.albumsStretchArtwork,
       folderGridPageSize: folderGridPageSize ?? this.folderGridPageSize,
       lastSeenChangelogVersion:
           lastSeenChangelogVersion ?? this.lastSeenChangelogVersion,
@@ -383,6 +397,9 @@ class AppPreferences {
           orbitArtResolutionMultiplier ?? this.orbitArtResolutionMultiplier,
       orbitShowPath: orbitShowPath ?? this.orbitShowPath,
       orbitShowGlow: orbitShowGlow ?? this.orbitShowGlow,
+      streaksEnabled: streaksEnabled ?? this.streaksEnabled,
+      showMoreFromArtist: showMoreFromArtist ?? this.showMoreFromArtist,
+      showMoreArtists: showMoreArtists ?? this.showMoreArtists,
     );
   }
 }
@@ -441,6 +458,7 @@ class AppPreferencesService {
   static const _glanceCardMinimizedKey = 'glance_card_minimized';
   static const _replaceAlbumWithBitPerfectCapsuleKey =
       'replace_album_with_bit_perfect_capsule';
+  static const _albumsStretchArtworkKey = 'albums_stretch_artwork';
   static const _folderGridPageSizeKey = 'folder_grid_page_size';
   static const _lastSeenChangelogVersionKey = 'last_seen_changelog_version';
   static const _bottomBarAutoCollapseEnabledKey =
@@ -479,6 +497,9 @@ class AppPreferencesService {
       'orbit_art_resolution_multiplier';
   static const _orbitShowPathKey = 'orbit_show_path';
   static const _orbitShowGlowKey = 'orbit_show_glow';
+  static const _streaksEnabledKey = 'streaks_enabled';
+  static const _showMoreFromArtistKey = 'album_show_more_from_artist';
+  static const _showMoreArtistsKey = 'album_show_more_artists';
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
@@ -558,6 +579,8 @@ class AppPreferencesService {
       glanceCardMinimized: prefs.getBool(_glanceCardMinimizedKey) ?? false,
       replaceAlbumWithBitPerfectCapsule:
           prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false,
+      albumsStretchArtwork:
+          prefs.getBool(_albumsStretchArtworkKey) ?? false,
       folderGridPageSize: prefs.getInt(_folderGridPageSizeKey) ?? 8,
       lastSeenChangelogVersion: prefs.getString(_lastSeenChangelogVersionKey),
       bottomBarAutoCollapseEnabled:
@@ -604,6 +627,9 @@ class AppPreferencesService {
           prefs.getDouble(_orbitArtResolutionMultiplierKey) ?? 2.0,
       orbitShowPath: prefs.getBool(_orbitShowPathKey) ?? true,
       orbitShowGlow: prefs.getBool(_orbitShowGlowKey) ?? true,
+      streaksEnabled: prefs.getBool(_streaksEnabledKey) ?? true,
+      showMoreFromArtist: prefs.getBool(_showMoreFromArtistKey) ?? true,
+      showMoreArtists: prefs.getBool(_showMoreArtistsKey) ?? true,
     );
   }
 
@@ -1077,6 +1103,16 @@ class AppPreferencesService {
     await prefs.setBool(_replaceAlbumWithBitPerfectCapsuleKey, value);
   }
 
+  Future<bool> getAlbumsStretchArtwork() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_albumsStretchArtworkKey) ?? false;
+  }
+
+  Future<void> setAlbumsStretchArtwork(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_albumsStretchArtworkKey, value);
+  }
+
   Future<int> getFolderGridPageSize() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_folderGridPageSizeKey) ?? 8;
@@ -1389,6 +1425,36 @@ class AppPreferencesService {
   Future<void> setOrbitShowGlow(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_orbitShowGlowKey, value);
+  }
+
+  Future<bool> getStreaksEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_streaksEnabledKey) ?? true;
+  }
+
+  Future<void> setStreaksEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_streaksEnabledKey, value);
+  }
+
+  Future<bool> getShowMoreFromArtist() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showMoreFromArtistKey) ?? true;
+  }
+
+  Future<void> setShowMoreFromArtist(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showMoreFromArtistKey, value);
+  }
+
+  Future<bool> getShowMoreArtists() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showMoreArtistsKey) ?? true;
+  }
+
+  Future<void> setShowMoreArtists(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showMoreArtistsKey, value);
   }
 
   Future<void> clearOrbitSettings() async {

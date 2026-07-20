@@ -4,12 +4,38 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/services/milestone_service.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/settings/screens/bottom_bar_settings_screen.dart';
 import 'package:flick/features/settings/screens/visualizer_settings_screen.dart';
 
 class InterfaceSettingsScreen extends ConsumerWidget {
   const InterfaceSettingsScreen({super.key});
+
+  Future<void> _confirmResetStreak(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset streak data?'),
+        content: const Text(
+          'This clears your current day streak and any unlocked streak milestones. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await MilestoneService().clearStreakData();
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -83,6 +109,25 @@ class InterfaceSettingsScreen extends ConsumerWidget {
                       .read(appPreferencesProvider.notifier)
                       .setGlanceCardHidden(!value);
                 },
+              ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.flame,
+                title: 'Day Streaks',
+                subtitle: 'Track consecutive listening days and show the popup',
+                value: appPreferences.streaksEnabled,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setStreaksEnabled(value);
+                },
+              ),
+              const SettingsDivider(),
+              ActionButton(
+                icon: LucideIcons.trash2,
+                title: 'Reset Streak Data',
+                subtitle: 'Clear the counter and any unlocked streak milestones',
+                onTap: () => _confirmResetStreak(context),
               ),
               const SettingsDivider(),
               NavigationSetting(

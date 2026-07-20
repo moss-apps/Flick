@@ -26,6 +26,7 @@ class MilestonesScreen extends ConsumerStatefulWidget {
 class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   final _service = MilestoneService();
   bool _loading = true;
+  bool _streaksEnabled = true;
   Map<MilestoneType, MilestoneRecord> _records = {};
   Map<MilestoneCategory, int> _current = const {};
 
@@ -42,9 +43,11 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
     final listenSeconds = await _service.getAccumulatedListenSeconds();
     final streak = await _service.getCurrentDayStreak();
     final artists = await _service.getUniqueArtistCount();
+    final streaksEnabled = ref.read(appPreferencesProvider).streaksEnabled;
     if (!mounted) return;
     setState(() {
       _records = {for (final r in records) r.type: r};
+      _streaksEnabled = streaksEnabled;
       _current = {
         MilestoneCategory.songs: playCount,
         MilestoneCategory.hours: listenSeconds ~/ 3600,
@@ -137,15 +140,20 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   }
 
   Widget _buildGrid(BuildContext context) {
-    final cats = MilestoneCategory.values;
+    final cats = _streaksEnabled
+        ? MilestoneCategory.values
+        : MilestoneCategory.values
+            .where((c) => c != MilestoneCategory.dayStreak)
+            .toList();
+    final bannerSlots = _streaksEnabled ? 1 : 0;
     return ListView.builder(
       padding: const EdgeInsets.symmetric(
         horizontal: AppConstants.spacingLg,
         vertical: AppConstants.spacingMd,
       ),
-      itemCount: cats.length + 1,
+      itemCount: cats.length + bannerSlots,
       itemBuilder: (context, index) {
-        if (index == 0) {
+        if (index < bannerSlots) {
           return Padding(
             padding: const EdgeInsets.only(bottom: AppConstants.spacingMd),
             child: _StreakBanner(
@@ -154,10 +162,12 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
             ),
           );
         }
-        final cat = cats[index - 1];
+        final cat = cats[index - bannerSlots];
         return Padding(
           padding: EdgeInsets.only(
-            bottom: index - 1 < cats.length - 1 ? AppConstants.spacingMd : 0,
+            bottom: index - bannerSlots < cats.length - 1
+                ? AppConstants.spacingMd
+                : 0,
           ),
           child: _CategorySection(
             category: cat,
