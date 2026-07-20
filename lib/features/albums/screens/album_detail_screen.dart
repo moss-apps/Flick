@@ -16,6 +16,7 @@ import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/providers/navigation_provider.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
 
 /// Album detail screen showing songs, album info, and more from the artist.
 class AlbumDetailScreen extends ConsumerStatefulWidget {
@@ -481,7 +482,8 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                     }, childCount: widget.songs.length),
                   ),
                 ),
-                if (_moreAlbums.isNotEmpty) ...[
+                if (_moreAlbums.isNotEmpty &&
+                    ref.watch(appPreferencesProvider).showMoreFromArtist) ...[
                   _buildSectionTitle(
                     context,
                     'More from ${widget.albumArtist}',
@@ -513,7 +515,8 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                     ),
                   ),
                 ],
-                if (_moreArtists.isNotEmpty) ...[
+                if (_moreArtists.isNotEmpty &&
+                    ref.watch(appPreferencesProvider).showMoreArtists) ...[
                   const SliverToBoxAdapter(
                     child: SizedBox(height: AppConstants.spacingLg),
                   ),
