@@ -269,7 +269,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 controller: _scrollController,
               slivers: [
                 SliverAppBar(
-                  expandedHeight: 280,
+                  expandedHeight:
+                      ref.watch(appPreferencesProvider).detailHeaderArtExpanded
+                          ? 360
+                          : 280,
                   pinned: true,
                   backgroundColor: animatedAppBar,
                   leading: AnimatedOpacity(
@@ -599,7 +602,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
               end: Alignment.bottomCenter,
               colors: gradientColors,
               stops: prefs.detailHeaderArtExpanded
-                  ? const [0.0, 0.5, 0.8, 1.0]
+                  ? const [0.0, 0.7, 0.92, 1.0]
                   : null,
             ),
           ),

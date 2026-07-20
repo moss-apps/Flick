@@ -152,7 +152,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                 icon: LucideIcons.image,
                 title: 'Expanded Header Art',
                 subtitle:
-                    'Show more album art by fading only the bottom of the header',
+                    'Show more art by fading only the bottom of the header and lowering body content',
                 value: appPreferences.detailHeaderArtExpanded,
                 onChanged: (value) {
                   ref
