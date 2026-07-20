@@ -657,6 +657,22 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setShowMoreArtists(value);
   }
 
+  Future<void> setDetailHeaderArtExpanded(bool value) async {
+    if (state.detailHeaderArtExpanded == value) return;
+    state = state.copyWith(detailHeaderArtExpanded: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setDetailHeaderArtExpanded(value);
+  }
+
+  Future<void> setDetailHeaderCenteredTitle(bool value) async {
+    if (state.detailHeaderCenteredTitle == value) return;
+    state = state.copyWith(detailHeaderCenteredTitle: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setDetailHeaderCenteredTitle(value);
+  }
+
   Future<void> resetOrbitSettings() async {
     state = state.copyWith(
       orbitRadiusRatio: 1.0,

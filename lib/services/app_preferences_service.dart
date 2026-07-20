@@ -92,6 +92,8 @@ class AppPreferences {
   final bool streaksEnabled;
   final bool showMoreFromArtist;
   final bool showMoreArtists;
+  final bool detailHeaderArtExpanded;
+  final bool detailHeaderCenteredTitle;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -185,6 +187,8 @@ class AppPreferences {
     this.streaksEnabled = true,
     this.showMoreFromArtist = true,
     this.showMoreArtists = true,
+    this.detailHeaderArtExpanded = true,
+    this.detailHeaderCenteredTitle = false,
   });
 
   AppPreferences copyWith({
@@ -279,6 +283,8 @@ class AppPreferences {
     bool? streaksEnabled,
     bool? showMoreFromArtist,
     bool? showMoreArtists,
+    bool? detailHeaderArtExpanded,
+    bool? detailHeaderCenteredTitle,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -409,6 +415,10 @@ class AppPreferences {
       streaksEnabled: streaksEnabled ?? this.streaksEnabled,
       showMoreFromArtist: showMoreFromArtist ?? this.showMoreFromArtist,
       showMoreArtists: showMoreArtists ?? this.showMoreArtists,
+      detailHeaderArtExpanded:
+          detailHeaderArtExpanded ?? this.detailHeaderArtExpanded,
+      detailHeaderCenteredTitle:
+          detailHeaderCenteredTitle ?? this.detailHeaderCenteredTitle,
     );
   }
 }
@@ -511,6 +521,8 @@ class AppPreferencesService {
   static const _streaksEnabledKey = 'streaks_enabled';
   static const _showMoreFromArtistKey = 'album_show_more_from_artist';
   static const _showMoreArtistsKey = 'album_show_more_artists';
+  static const _detailHeaderArtExpandedKey = 'detail_header_art_expanded';
+  static const _detailHeaderCenteredTitleKey = 'detail_header_centered_title';
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
@@ -644,6 +656,10 @@ class AppPreferencesService {
       streaksEnabled: prefs.getBool(_streaksEnabledKey) ?? true,
       showMoreFromArtist: prefs.getBool(_showMoreFromArtistKey) ?? true,
       showMoreArtists: prefs.getBool(_showMoreArtistsKey) ?? true,
+      detailHeaderArtExpanded:
+          prefs.getBool(_detailHeaderArtExpandedKey) ?? true,
+      detailHeaderCenteredTitle:
+          prefs.getBool(_detailHeaderCenteredTitleKey) ?? false,
     );
   }
 
@@ -1489,6 +1505,26 @@ class AppPreferencesService {
   Future<void> setShowMoreArtists(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_showMoreArtistsKey, value);
+  }
+
+  Future<bool> getDetailHeaderArtExpanded() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_detailHeaderArtExpandedKey) ?? true;
+  }
+
+  Future<void> setDetailHeaderArtExpanded(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_detailHeaderArtExpandedKey, value);
+  }
+
+  Future<bool> getDetailHeaderCenteredTitle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_detailHeaderCenteredTitleKey) ?? false;
+  }
+
+  Future<void> setDetailHeaderCenteredTitle(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_detailHeaderCenteredTitleKey, value);
   }
 
   Future<void> clearOrbitSettings() async {

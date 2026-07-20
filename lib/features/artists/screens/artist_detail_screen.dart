@@ -336,7 +336,10 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                       controller: _scrollController,
                       slivers: [
                         SliverAppBar(
-                          expandedHeight: 280,
+                          expandedHeight:
+                              ref.watch(appPreferencesProvider).detailHeaderArtExpanded
+                                  ? 360
+                                  : 280,
                           pinned: true,
                           backgroundColor: animatedAppBar,
                           leading: AnimatedOpacity(
@@ -644,6 +647,19 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
     Color fadeTo,
     int albumCount,
   ) {
+    final prefs = ref.watch(appPreferencesProvider);
+    final gradientColors = prefs.detailHeaderArtExpanded
+        ? [
+            Colors.transparent,
+            Colors.transparent,
+            fadeTo.withValues(alpha: 0.9),
+            fadeTo,
+          ]
+        : [
+            Colors.transparent,
+            fadeTo.withValues(alpha: 0.8),
+            fadeTo,
+          ];
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -653,11 +669,10 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                fadeTo.withValues(alpha: 0.8),
-                fadeTo,
-              ],
+              colors: gradientColors,
+              stops: prefs.detailHeaderArtExpanded
+                  ? const [0.0, 0.7, 0.92, 1.0]
+                  : null,
             ),
           ),
         ),
@@ -677,7 +692,9 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
           right: AppConstants.spacingLg,
           bottom: 4,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: prefs.detailHeaderCenteredTitle
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
             children: [
               Text(
                 widget.artistName,

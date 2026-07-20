@@ -269,7 +269,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 controller: _scrollController,
               slivers: [
                 SliverAppBar(
-                  expandedHeight: 280,
+                  expandedHeight:
+                      ref.watch(appPreferencesProvider).detailHeaderArtExpanded
+                          ? 360
+                          : 280,
                   pinned: true,
                   backgroundColor: animatedAppBar,
                   leading: AnimatedOpacity(
@@ -575,6 +578,19 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     Playlist playlist,
     Color fadeTo,
   ) {
+    final prefs = ref.watch(appPreferencesProvider);
+    final gradientColors = prefs.detailHeaderArtExpanded
+        ? [
+            Colors.transparent,
+            Colors.transparent,
+            fadeTo.withValues(alpha: 0.9),
+            fadeTo,
+          ]
+        : [
+            Colors.transparent,
+            fadeTo.withValues(alpha: 0.8),
+            fadeTo,
+          ];
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -584,11 +600,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                fadeTo.withValues(alpha: 0.8),
-                fadeTo,
-              ],
+              colors: gradientColors,
+              stops: prefs.detailHeaderArtExpanded
+                  ? const [0.0, 0.7, 0.92, 1.0]
+                  : null,
             ),
           ),
         ),
@@ -608,7 +623,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
           right: AppConstants.spacingLg,
           bottom: 4,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: prefs.detailHeaderCenteredTitle
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
             children: [
               Text(
                 playlist.name,
