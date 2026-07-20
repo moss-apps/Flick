@@ -1869,6 +1869,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final currentFilter =
         songsAsync.value?.fileTypeFilter ?? SongFileTypeFilter.all;
     final isAlbumMode = currentSort == SongSortOption.album;
+    final buttonGap = context.isCompact
+        ? AppConstants.spacingXxs
+        : AppConstants.spacingSm;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -1878,27 +1881,29 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Your Library',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: context.adaptiveTextPrimary,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your Library',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: context.adaptiveTextPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppConstants.spacingXxs),
-              Text(
-                '$songCount songs',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.adaptiveTextSecondary,
+                const SizedBox(height: AppConstants.spacingXxs),
+                Text(
+                  '$songCount songs',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.adaptiveTextSecondary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               if (isAlbumMode) ...[
                 _buildHeaderIconButton(
@@ -1908,7 +1913,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                       : LucideIcons.list,
                   onTap: () => _setAlbumViewMode(!_albumIsListView),
                 ),
-                const SizedBox(width: AppConstants.spacingSm),
+                SizedBox(width: buttonGap),
                 _buildHeaderIconButton(
                   context: context,
                   icon: LucideIcons.listFilter,
@@ -1920,68 +1925,43 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                   icon: LucideIcons.checkCheck,
                   onTap: () => _enterSelectionMode(null),
                 ),
-              const SizedBox(width: AppConstants.spacingSm),
+              SizedBox(width: buttonGap),
               _buildHeaderIconButton(
                 context: context,
                 icon: LucideIcons.shuffle,
                 onTap: () => _shufflePlayFromLibrary(songsAsync),
               ),
-              const SizedBox(width: AppConstants.spacingSm),
+              SizedBox(width: buttonGap),
               TutorialTargetAnchor(
                 target: TutorialTarget.songsSortButton,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.surfaceLight.withValues(alpha: 0.75),
-                        AppColors.surface.withValues(alpha: 0.85),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                    border: Border.all(color: AppColors.glassBorder, width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 12,
-                        spreadRadius: 1,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    onPressed: () {
-                      SortFilterBottomSheet.show(
-                        context,
-                        currentSort: currentSort,
-                        currentFilter: currentFilter,
-                        onSortChanged: (option) {
-                          ref
-                              .read(songsProvider.notifier)
-                              .setSortOption(option);
-                          setState(() {
-                            _selectedIndex = 0;
-                            _lastSyncedSong = null;
-                          });
-                        },
-                        onFilterChanged: (filter) {
-                          ref
-                              .read(songsProvider.notifier)
-                              .setFileTypeFilter(filter);
-                          setState(() {
-                            _selectedIndex = 0;
-                            _lastSyncedSong = null;
-                          });
-                        },
-                      );
-                    },
-                    icon: Icon(
-                      Icons.sort_rounded,
-                      color: context.adaptiveTextSecondary,
-                      size: context.responsiveIcon(AppConstants.iconSizeMd),
-                    ),
-                  ),
+                child: _buildHeaderIconButton(
+                  context: context,
+                  icon: Icons.sort_rounded,
+                  onTap: () {
+                    SortFilterBottomSheet.show(
+                      context,
+                      currentSort: currentSort,
+                      currentFilter: currentFilter,
+                      onSortChanged: (option) {
+                        ref
+                            .read(songsProvider.notifier)
+                            .setSortOption(option);
+                        setState(() {
+                          _selectedIndex = 0;
+                          _lastSyncedSong = null;
+                        });
+                      },
+                      onFilterChanged: (filter) {
+                        ref
+                            .read(songsProvider.notifier)
+                            .setFileTypeFilter(filter);
+                        setState(() {
+                          _selectedIndex = 0;
+                          _lastSyncedSong = null;
+                        });
+                      },
+                    );
+                  },
                 ),
               ),
             ],
@@ -2059,6 +2039,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     required IconData icon,
     required VoidCallback onTap,
   }) {
+    final isCompact = context.isCompact;
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -2082,6 +2063,15 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       ),
       child: IconButton(
         onPressed: onTap,
+        visualDensity: isCompact
+            ? VisualDensity.compact
+            : VisualDensity.standard,
+        constraints: isCompact
+            ? const BoxConstraints(minWidth: 36, minHeight: 36)
+            : const BoxConstraints(minWidth: 44, minHeight: 44),
+        padding: isCompact
+            ? const EdgeInsets.all(4)
+            : const EdgeInsets.all(8),
         icon: Icon(
           icon,
           color: context.adaptiveTextSecondary,
