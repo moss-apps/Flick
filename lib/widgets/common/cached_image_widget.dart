@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -96,6 +97,39 @@ void pauseArtworkExtraction(bool paused) {
     for (final r in resolvers) {
       r();
     }
+  }
+}
+
+/// Mix this onto a screen's [State] and route its [ScrollNotification]s to
+/// [onScrollNotification] to keep embedded-artwork extraction paused during
+/// flings. Call [disposeArtworkGate] from [State.dispose].
+// ponytail: matches the gate already used by orbit_scroll; one shared helper
+// beats triplicating the timer logic across album/artist/playlist screens.
+mixin ArtworkExtractionScrollGate {
+  static const Duration _settleDelay = Duration(milliseconds: 150);
+
+  Timer? _artworkGate;
+
+  bool onScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollEndNotification) {
+      _artworkGate?.cancel();
+      _artworkGate = null;
+      pauseArtworkExtraction(false);
+    } else if (notification is ScrollUpdateNotification ||
+        notification is UserScrollNotification ||
+        notification is OverscrollNotification) {
+      pauseArtworkExtraction(true);
+      _artworkGate?.cancel();
+      _artworkGate = Timer(_settleDelay, () => pauseArtworkExtraction(false));
+    }
+    return true;
+  }
+
+  void disposeArtworkGate() {
+    _artworkGate?.cancel();
+    // Release the global pause so extraction isn't left frozen when the
+    // route is popped mid-scroll.
+    pauseArtworkExtraction(false);
   }
 }
 

@@ -79,3 +79,6 @@ soundtouch-sys = { path = "vendor/soundtouch-sys" }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
 notify = "6.1"
+
+[dev-dependencies]
+hound = "3.5"

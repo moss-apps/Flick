@@ -520,4 +520,53 @@ class SongRepository {
     }
     return khz.toStringAsFixed(1);
   }
+
+  // --- Audio cache (preload scan) ---
+
+  Future<SongAudioCacheEntity?> getAudioCache(int songId) async {
+    return await _isar.songAudioCacheEntitys
+        .where()
+        .songIdEqualTo(songId)
+        .findFirst();
+  }
+
+  Future<Map<int, SongAudioCacheEntity>> getAudioCacheMap(
+    Iterable<int> songIds,
+  ) async {
+    final ids = songIds.toSet();
+    if (ids.isEmpty) return {};
+    final rows = await _isar.songAudioCacheEntitys
+        .where()
+        .anyOf(ids.toList(), (q, id) => q.songIdEqualTo(id))
+        .findAll();
+    return {for (final r in rows) r.songId: r};
+  }
+
+  Future<void> upsertAudioCache(SongAudioCacheEntity entity) async {
+    await _isar.writeTxn(() async {
+      await _isar.songAudioCacheEntitys.put(entity);
+    });
+  }
+
+  Future<void> upsertAudioCacheBatch(
+    List<SongAudioCacheEntity> entities,
+  ) async {
+    if (entities.isEmpty) return;
+    await _isar.writeTxn(() async {
+      await _isar.songAudioCacheEntitys.putAll(entities);
+    });
+  }
+
+  Future<void> deleteAudioCacheBySongIds(List<int> songIds) async {
+    if (songIds.isEmpty) return;
+    await _isar.writeTxn(() async {
+      await _isar.songAudioCacheEntitys.deleteAll(songIds);
+    });
+  }
+
+  Future<void> clearAllAudioCache() async {
+    await _isar.writeTxn(() async {
+      await _isar.songAudioCacheEntitys.clear();
+    });
+  }
 }

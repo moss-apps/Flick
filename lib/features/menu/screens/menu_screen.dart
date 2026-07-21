@@ -615,7 +615,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
     }
 
     final wasBitPerfectEnabled = await service.getBitPerfectEnabled();
-    await service.setAudioEnginePreference(target);
+    await _playerService.setAudioEnginePreference(target);
     if (wasBitPerfectEnabled && target != AudioEnginePreference.isochronousUsb) {
       await ref.read(uac2ServiceProvider).setBitPerfectEnabled(false);
       ref.invalidate(uac2BitPerfectEnabledProvider);

@@ -2886,6 +2886,7 @@ class _AlbumFilterSheet extends StatefulWidget {
 }
 
 class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
+  late _AlbumGridSortOption _selectedSort;
   late SongFileTypeFilter _selectedFilter;
   late double _pageSize;
 
@@ -2895,6 +2896,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
   @override
   void initState() {
     super.initState();
+    _selectedSort = widget.currentSort;
     _selectedFilter = widget.currentFilter;
     _pageSize = widget.albumGridPageSize.toDouble();
   }
@@ -3069,7 +3071,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
     BuildContext context,
     _AlbumGridSortOption option,
   ) {
-    final isSelected = widget.currentSort == option;
+    final isSelected = _selectedSort == option;
     final icon = _albumSortIcon(option);
     final label = _albumSortLabel(option);
 
@@ -3078,6 +3080,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
+          setState(() => _selectedSort = option);
           widget.onSortChanged(option);
         },
         child: Container(

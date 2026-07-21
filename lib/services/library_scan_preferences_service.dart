@@ -9,6 +9,7 @@ class LibraryScanPreferences {
   final bool ignoreTracksShorterThan60Seconds;
   final bool createPlaylistsFromM3uFiles;
   final bool useDeepScan;
+  final bool preloadAudioData;
 
   const LibraryScanPreferences({
     this.filterNonMusicFilesAndFolders = true,
@@ -16,6 +17,7 @@ class LibraryScanPreferences {
     this.ignoreTracksShorterThan60Seconds = false,
     this.createPlaylistsFromM3uFiles = false,
     this.useDeepScan = false,
+    this.preloadAudioData = false,
   });
 
   LibraryScanPreferences copyWith({
@@ -24,6 +26,7 @@ class LibraryScanPreferences {
     bool? ignoreTracksShorterThan60Seconds,
     bool? createPlaylistsFromM3uFiles,
     bool? useDeepScan,
+    bool? preloadAudioData,
   }) {
     return LibraryScanPreferences(
       filterNonMusicFilesAndFolders:
@@ -36,6 +39,7 @@ class LibraryScanPreferences {
       createPlaylistsFromM3uFiles:
           createPlaylistsFromM3uFiles ?? this.createPlaylistsFromM3uFiles,
       useDeepScan: useDeepScan ?? this.useDeepScan,
+      preloadAudioData: preloadAudioData ?? this.preloadAudioData,
     );
   }
 }
@@ -46,6 +50,7 @@ class LibraryScanPreferencesService {
   static const _ignoreShortTracksKey = 'library_scan_ignore_short_tracks';
   static const _createPlaylistsKey = 'library_scan_create_m3u_playlists';
   static const _useDeepScanKey = 'library_scan_use_deep_scan';
+  static const _preloadAudioDataKey = 'library_scan_preload_audio_data';
 
   Future<LibraryScanPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -57,6 +62,7 @@ class LibraryScanPreferencesService {
           prefs.getBool(_ignoreShortTracksKey) ?? false,
       createPlaylistsFromM3uFiles: prefs.getBool(_createPlaylistsKey) ?? false,
       useDeepScan: prefs.getBool(_useDeepScanKey) ?? false,
+      preloadAudioData: prefs.getBool(_preloadAudioDataKey) ?? false,
     );
   }
 
@@ -83,5 +89,10 @@ class LibraryScanPreferencesService {
   Future<void> setUseDeepScan(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_useDeepScanKey, value);
+  }
+
+  Future<void> setPreloadAudioData(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_preloadAudioDataKey, value);
   }
 }

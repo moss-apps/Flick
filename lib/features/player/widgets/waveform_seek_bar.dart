@@ -9,6 +9,7 @@ class WaveformSeekBar extends StatefulWidget {
   final ValueChanged<Duration> onChanged;
   final ValueChanged<Duration>? onChangeEnd;
   final double appearProgress;
+  final List<double>? cachedPeaks;
 
   const WaveformSeekBar({
     super.key,
@@ -18,6 +19,7 @@ class WaveformSeekBar extends StatefulWidget {
     this.onChangeEnd,
     this.barCount = 60,
     this.appearProgress = 1.0,
+    this.cachedPeaks,
   });
 
   final int barCount;
@@ -48,15 +50,28 @@ class _WaveformSeekBarState extends State<WaveformSeekBar> {
   @override
   void didUpdateWidget(WaveformSeekBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if ((widget.duration != oldWidget.duration ||
-            widget.barCount != oldWidget.barCount) &&
+    final peaksChanged = widget.cachedPeaks != oldWidget.cachedPeaks;
+    final durationChanged = widget.duration != oldWidget.duration ||
+        widget.barCount != oldWidget.barCount;
+    if ((durationChanged || peaksChanged) &&
         widget.duration.inMilliseconds > 0) {
       _generateWaveform();
     }
   }
 
   void _generateWaveform() {
-    // Generate pseudo-random bar heights based on duration to be deterministic for the same song
+    final peaks = widget.cachedPeaks;
+    if (peaks != null && peaks.isNotEmpty) {
+      // Resample cached peaks to barCount-sized array
+      final target = max(widget.barCount, _cachedSampleCount);
+      _waveformData = List.generate(target, (i) {
+        final t = i / (target - 1);
+        final idx = (t * (peaks.length - 1)).round();
+        return peaks[idx].clamp(0.0, 1.0) * 0.9 + 0.1;
+      });
+      return;
+    }
+    // Fallback: deterministic pseudo-random bar heights
     final random = Random(widget.duration.inMilliseconds);
     _waveformData = List.generate(
       max(widget.barCount, _cachedSampleCount),

@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/alac_converter_api.dart';
+import 'api/audio_analysis.dart';
 import 'api/audio_api.dart';
 import 'api/logging.dart';
 import 'api/metadata_editor.dart';
@@ -46,6 +47,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AlacAudioMetadata dco_decode_alac_audio_metadata(dynamic raw);
 
   @protected
+  AudioAnalysisResult dco_decode_audio_analysis_result(dynamic raw);
+
+  @protected
   AudioApiPreference dco_decode_audio_api_preference(dynamic raw);
 
   @protected
@@ -76,6 +80,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  AudioAnalysisResult dco_decode_box_autoadd_audio_analysis_result(dynamic raw);
 
   @protected
   AudioCapabilityInfo dco_decode_box_autoadd_audio_capability_info(dynamic raw);
@@ -185,6 +192,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  AudioAnalysisResult? dco_decode_opt_box_autoadd_audio_analysis_result(
+    dynamic raw,
+  );
 
   @protected
   AudioEventType? dco_decode_opt_box_autoadd_audio_event_type(dynamic raw);
@@ -312,6 +324,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AudioAnalysisResult sse_decode_audio_analysis_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   AudioApiPreference sse_decode_audio_api_preference(
     SseDeserializer deserializer,
   );
@@ -352,6 +369,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  AudioAnalysisResult sse_decode_box_autoadd_audio_analysis_result(
+    SseDeserializer deserializer,
+  );
 
   @protected
   AudioCapabilityInfo sse_decode_box_autoadd_audio_capability_info(
@@ -485,6 +507,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  AudioAnalysisResult? sse_decode_opt_box_autoadd_audio_analysis_result(
+    SseDeserializer deserializer,
+  );
 
   @protected
   AudioEventType? sse_decode_opt_box_autoadd_audio_event_type(
@@ -631,6 +658,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_audio_analysis_result(
+    AudioAnalysisResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_audio_api_preference(
     AudioApiPreference self,
     SseSerializer serializer,
@@ -683,6 +716,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_audio_analysis_result(
+    AudioAnalysisResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_audio_capability_info(
@@ -848,6 +887,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_audio_analysis_result(
+    AudioAnalysisResult? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_audio_event_type(

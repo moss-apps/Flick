@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/core/theme/adaptive_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
@@ -44,10 +45,10 @@ class ArtistDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<ArtistDetailScreen> createState() => _ArtistDetailScreenState();
 }
 
-class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
+class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
+    with ArtworkExtractionScrollGate {
   static const Color _darkBase = Color(0xFF121212);
   static const double _backgroundBlend = 0.22;
-  static const double _appBarBlend = 0.30;
 
   final SongRepository _songRepository = SongRepository();
   final RecentlyPlayedRepository _recentlyPlayedRepository =
@@ -83,6 +84,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    disposeArtworkGate();
     super.dispose();
   }
 
@@ -287,6 +289,23 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
     NavigationHelper.navigateToFullPlayer(context, heroTag: 'artist_shuffle');
   }
 
+  Future<void> _queueAll() async {
+    if (widget.songs.isEmpty) return;
+    for (final song in widget.songs) {
+      await widget.playerService.addToQueue(song);
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Queued ${widget.songs.length} songs'),
+        action: SnackBarAction(
+          label: 'View queue',
+          onPressed: () => NavigationHelper.navigateToQueue(context),
+        ),
+      ),
+    );
+  }
+
   int? get _artistYear {
     int? earliest;
     for (final song in widget.songs) {
@@ -309,6 +328,17 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
     return null;
   }
 
+  bool get _hasLossless {
+    const losslessTypes = {'FLAC', 'WAV', 'ALAC', 'AIFF', 'APE', 'WV'};
+    for (final song in widget.songs) {
+      if (song.isDsd) return true;
+      if (losslessTypes.contains(song.fileType.toUpperCase())) return true;
+      if ((song.bitDepth ?? 0) >= 24) return true;
+      if ((song.sampleRate ?? 0) >= 88200) return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final bgColor = _tintBackground(_backgroundBlend);
@@ -319,10 +349,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
         duration: AppConstants.animationSlow,
         curve: Curves.easeOut,
         builder: (context, animatedBg, _) {
-          final animatedAppBar = _artistColor == null
-              ? AppColors.surface
-              : Color.lerp(_darkBase, _artistColor!, _appBarBlend)!;
-          final resolvedBg = animatedBg ?? AppColors.background;
+        final resolvedBg = animatedBg ?? AppColors.background;
           return Stack(
             children: [
               Scaffold(
@@ -331,7 +358,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                   backgroundColor: resolvedBg,
                   albumDominantColor: _artistColor,
                   child: NotificationListener<ScrollNotification>(
-                    onNotification: (_) => true,
+                    onNotification: onScrollNotification,
                     child: CustomScrollView(
                       controller: _scrollController,
                       slivers: [
@@ -341,7 +368,8 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                                   ? 360
                                   : 280,
                           pinned: true,
-                          backgroundColor: animatedAppBar,
+                          backgroundColor: resolvedBg,
+                          surfaceTintColor: Colors.transparent,
                           leading: AnimatedOpacity(
                             duration: AppConstants.animationFast,
                             opacity: _showAppBarActions ? 1.0 : 0.0,
@@ -441,51 +469,12 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                           child: SizedBox(height: AppConstants.spacingMd),
                         ),
                         SliverToBoxAdapter(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: resolvedBg,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(AppConstants.radiusXl),
-                                topRight: Radius.circular(
-                                  AppConstants.radiusXl,
-                                ),
-                              ),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppConstants.spacingLg,
-                              vertical: AppConstants.spacingMd,
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: _ActionButton(
-                                    icon: LucideIcons.play,
-                                    label: 'Play All',
-                                    onTap: _playAll,
-                                    backgroundColor: AppColors.accent,
-                                  ),
-                                ),
-                                const SizedBox(width: AppConstants.spacingMd),
-                                Expanded(
-                                  child: _ActionButton(
-                                    icon: LucideIcons.shuffle,
-                                    label: 'Shuffle',
-                                    onTap: _shuffleAll,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: AppConstants.spacingLg),
-                        ),
-                        SliverToBoxAdapter(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: AppConstants.spacingLg,
                             ),
                             child: Wrap(
+                              alignment: WrapAlignment.center,
                               spacing: AppConstants.spacingSm,
                               runSpacing: AppConstants.spacingSm,
                               children: [
@@ -507,6 +496,47 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                                     icon: LucideIcons.tags,
                                     label: _artistGenre!,
                                   ),
+                                if (_hasLossless)
+                                  _InfoChip(
+                                    icon: LucideIcons.audioWaveform,
+                                    label: 'Lossless',
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: AppConstants.spacingLg),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppConstants.spacingLg,
+                              vertical: AppConstants.spacingXxs,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _ActionButton(
+                                  icon: LucideIcons.shuffle,
+                                  tooltip: 'Shuffle',
+                                  onTap: _shuffleAll,
+                                ),
+                                const SizedBox(width: AppConstants.spacingXl),
+                                _ActionButton(
+                                  icon: LucideIcons.play,
+                                  tooltip: 'Play',
+                                  onTap: _playAll,
+                                  isPrimary: true,
+                                  label: 'Play',
+                                  primaryColor: _artistColor,
+                                ),
+                                const SizedBox(width: AppConstants.spacingXl),
+                                _ActionButton(
+                                  icon: LucideIcons.listMusic,
+                                  tooltip: 'Queue',
+                                  onTap: _queueAll,
+                                ),
                               ],
                             ),
                           ),
@@ -740,46 +770,117 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
 
 class _ActionButton extends StatelessWidget {
   final IconData icon;
-  final String label;
+  final String tooltip;
   final VoidCallback onTap;
-  final Color? backgroundColor;
+  final bool isPrimary;
+  final String? label;
+  final Color? primaryColor;
 
   const _ActionButton({
     required this.icon,
-    required this.label,
+    required this.tooltip,
     required this.onTap,
-    this.backgroundColor,
+    this.isPrimary = false,
+    this.label,
+    this.primaryColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bg = backgroundColor ?? AppColors.glassBackgroundStrong;
-    final fg = backgroundColor != null
-        ? AppColors.background
-        : context.adaptiveTextPrimary;
-
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingMd),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: fg, size: 18),
-              const SizedBox(width: AppConstants.spacingSm),
-              Text(
-                label,
-                style: TextStyle(
-                  color: fg,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
+    if (!isPrimary) {
+      return Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(23),
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.glassBackgroundStrong,
+                border: Border.all(color: AppColors.glassBorder),
               ),
-            ],
+              child: Icon(
+                icon,
+                color: context.adaptiveTextPrimary,
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final color = primaryColor ?? AppColors.accent;
+    final fg = AdaptiveColors.textPrimaryOn(color);
+    final decoration = BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color.lerp(color, Colors.white, 0.18)!, color],
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: color.withValues(alpha: 0.45),
+          blurRadius: 20,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    );
+
+    if (label != null) {
+      return Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(26),
+            child: Container(
+              height: 52,
+              padding: const EdgeInsets.symmetric(horizontal: 26),
+              decoration: decoration.copyWith(
+                borderRadius: BorderRadius.circular(26),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, color: fg, size: 20),
+                  const SizedBox(width: 10),
+                  Text(
+                    label!,
+                    style: TextStyle(
+                      color: fg,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(30),
+          child: Container(
+            width: 60,
+            height: 60,
+            decoration: decoration.copyWith(
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: fg, size: 26),
           ),
         ),
       ),
@@ -795,31 +896,20 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingMd,
-        vertical: AppConstants.spacingSm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: context.adaptiveTextSecondary),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: context.adaptiveTextSecondary,
-              fontWeight: FontWeight.w500,
-            ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: context.adaptiveTextSecondary),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: context.adaptiveTextSecondary,
+            fontWeight: FontWeight.w500,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
