@@ -412,7 +412,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
         ),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: context.gridColumns(compact: 2, phone: 2, tablet: 3),
-        childAspectRatio: 0.78,
+        childAspectRatio: 0.70,
         crossAxisSpacing: AppConstants.spacingMd,
         mainAxisSpacing: AppConstants.spacingLg,
       ),
@@ -1198,7 +1198,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
       ),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: context.gridColumns(compact: 2, phone: 2, tablet: 3),
-        childAspectRatio: 0.78,
+        childAspectRatio: 0.70,
         crossAxisSpacing: AppConstants.spacingMd,
         mainAxisSpacing: AppConstants.spacingLg,
       ),
