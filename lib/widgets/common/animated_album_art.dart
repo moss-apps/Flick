@@ -63,10 +63,7 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
             children: [
               Transform.scale(
                 scale: 1.0 + 0.12 * t,
-                child: FractionalTranslation(
-                  translation: Offset(0.03 * t, -0.02 * t),
-                  child: child,
-                ),
+                child: child,
               ),
               if (glow != null)
                 IgnorePointer(
