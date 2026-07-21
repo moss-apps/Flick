@@ -6,11 +6,13 @@ import 'package:path_provider/path_provider.dart';
 import 'entities/artist_entity.dart';
 import 'entities/folder_entity.dart';
 import 'entities/recently_played_entity.dart';
+import 'entities/song_audio_cache_entity.dart';
 import 'entities/song_entity.dart';
 
 export 'entities/artist_entity.dart';
 export 'entities/folder_entity.dart';
 export 'entities/recently_played_entity.dart';
+export 'entities/song_audio_cache_entity.dart';
 export 'entities/song_entity.dart';
 
 /// Database singleton for Isar operations.
@@ -36,6 +38,7 @@ class Database {
       FolderEntitySchema,
       RecentlyPlayedEntitySchema,
       ArtistEntitySchema,
+      SongAudioCacheEntitySchema,
     ];
 
     try {
@@ -107,4 +110,8 @@ class Database {
 
   /// Get the artists collection.
   static IsarCollection<ArtistEntity> get artists => _instance!.artistEntitys;
+
+  /// Get the song audio cache collection.
+  static IsarCollection<SongAudioCacheEntity> get songAudioCache =>
+      _instance!.songAudioCacheEntitys;
 }
