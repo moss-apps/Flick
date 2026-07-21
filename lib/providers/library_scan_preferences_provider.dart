@@ -67,6 +67,14 @@ class LibraryScanPreferencesNotifier extends Notifier<LibraryScanPreferences> {
         .read(libraryScanPreferencesServiceProvider)
         .setUseDeepScan(value);
   }
+
+  Future<void> setPreloadAudioData(bool value) async {
+    if (state.preloadAudioData == value) return;
+    state = state.copyWith(preloadAudioData: value);
+    await ref
+        .read(libraryScanPreferencesServiceProvider)
+        .setPreloadAudioData(value);
+  }
 }
 
 final libraryScanPreferencesProvider =
