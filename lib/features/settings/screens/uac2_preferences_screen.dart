@@ -666,7 +666,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             ? AudioEnginePreference.rustOboe
             : current;
     if (dapBothOff && current == AudioEnginePreference.exoPlayer) {
-      await service.setAudioEnginePreference(AudioEnginePreference.rustOboe);
+      await PlayerService().setAudioEnginePreference(AudioEnginePreference.rustOboe);
       ref.invalidate(audioEnginePreferenceProvider);
     }
 
@@ -702,11 +702,9 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                 onTap: dapBothOff
                     ? null
                     : () async {
-                        final engineChanged =
-                            current != AudioEnginePreference.exoPlayer;
                         final wasBitPerfectEnabled =
                             await service.getBitPerfectEnabled();
-                        await service.setAudioEnginePreference(
+                        await PlayerService().setAudioEnginePreference(
                           AudioEnginePreference.exoPlayer,
                         );
                         if (wasBitPerfectEnabled) {
@@ -721,7 +719,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                         if (dialogContext.mounted) {
                           Navigator.of(dialogContext).pop();
                         }
-                        if ((engineChanged || wasBitPerfectEnabled) &&
+                        if (current != AudioEnginePreference.exoPlayer &&
                             context.mounted) {
                           setState(() => _pendingEngineRestart = true);
                         }
@@ -738,10 +736,9 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                 badgeText:
                     (dapBothOff && effective != current) ? 'Active' : null,
                 onTap: () async {
-                  final engineChanged = current != AudioEnginePreference.rustOboe;
                   final wasBitPerfectEnabled =
                       await service.getBitPerfectEnabled();
-                  await service.setAudioEnginePreference(
+                  await PlayerService().setAudioEnginePreference(
                     AudioEnginePreference.rustOboe,
                   );
                   if (wasBitPerfectEnabled) {
@@ -756,7 +753,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                   if (dialogContext.mounted) {
                     Navigator.of(dialogContext).pop();
                   }
-                  if ((engineChanged || wasBitPerfectEnabled) &&
+                  if (current != AudioEnginePreference.rustOboe &&
                       context.mounted) {
                     setState(() => _pendingEngineRestart = true);
                   }
@@ -770,16 +767,15 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                     'Direct libusb isochronous USB engine. Best paired with Bit-perfect (USB DAC) for verified external DAC playback.',
                 selected: effective == AudioEnginePreference.isochronousUsb,
                 onTap: () async {
-                  final changed =
-                      current != AudioEnginePreference.isochronousUsb;
-                  await service.setAudioEnginePreference(
+                  await PlayerService().setAudioEnginePreference(
                     AudioEnginePreference.isochronousUsb,
                   );
                   ref.invalidate(audioEnginePreferenceProvider);
                   if (dialogContext.mounted) {
                     Navigator.of(dialogContext).pop();
                   }
-                  if (changed && context.mounted) {
+                  if (current != AudioEnginePreference.isochronousUsb &&
+                      context.mounted) {
                     setState(() => _pendingEngineRestart = true);
                   }
                 },

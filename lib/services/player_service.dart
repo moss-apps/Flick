@@ -1176,6 +1176,14 @@ class PlayerService {
     );
   }
 
+  Future<void> setAudioEnginePreference(AudioEnginePreference preference) async {
+    await _preferencesService.setAudioEnginePreference(preference);
+    await initAudio();
+    await _sessionManager.syncRouteSelection(
+      reason: 'audio engine preference changed',
+    );
+  }
+
   Future<bool> isHiFiModeEnabled() async {
     await initAudio();
     return _sessionManager.isHiFiModeEnabled();
