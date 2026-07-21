@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:restart_app/restart_app.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -25,9 +25,10 @@ class RestartingScreen extends StatefulWidget {
 }
 
 class _RestartingScreenState extends State<RestartingScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _fadeController;
   late final Animation<double> _fade;
+  late final AnimationController _sweepController;
   late final Timer _exitTimer;
   late final Timer _messageTimer;
   int _messageIndex = 0;
@@ -43,6 +44,10 @@ class _RestartingScreenState extends State<RestartingScreen>
       parent: _fadeController,
       curve: Curves.easeOutCubic,
     );
+    _sweepController = AnimationController(
+      duration: const Duration(milliseconds: 1600),
+      vsync: this,
+    )..repeat();
     _messageTimer = Timer.periodic(const Duration(milliseconds: 850), (_) {
       if (!mounted) return;
       setState(() {
@@ -65,6 +70,7 @@ class _RestartingScreenState extends State<RestartingScreen>
     _messageTimer.cancel();
     _exitTimer.cancel();
     _fadeController.dispose();
+    _sweepController.dispose();
     super.dispose();
   }
 
@@ -81,26 +87,38 @@ class _RestartingScreenState extends State<RestartingScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(
-                    width: 84,
-                    height: 84,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        const SizedBox(
-                          width: 84,
-                          height: 84,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.6,
-                            color: AppColors.accent,
-                          ),
-                        ),
-                        Icon(
-                          LucideIcons.refreshCcw,
-                          color: AppColors.accent,
-                          size: 30,
-                        ),
-                      ],
+                  AnimatedBuilder(
+                    animation: _sweepController,
+                    builder: (context, child) {
+                      return ShaderMask(
+                        blendMode: BlendMode.srcIn,
+                        shaderCallback: (bounds) {
+                          final t = _sweepController.value;
+                          return LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: const [
+                              AppColors.accentDim,
+                              AppColors.accentLight,
+                              Colors.white,
+                              AppColors.accentLight,
+                              AppColors.accentDim,
+                            ],
+                            stops: [
+                              0.0,
+                              (t - 0.15).clamp(0.0, 1.0),
+                              t,
+                              (t + 0.15).clamp(0.0, 1.0),
+                              1.0,
+                            ],
+                          ).createShader(bounds);
+                        },
+                        child: child!,
+                      );
+                    },
+                    child: SvgPicture.asset(
+                      'assets/icons/flicklogo_svg.svg',
+                      width: 130,
                     ),
                   ),
                   const SizedBox(height: AppConstants.spacingLg),
