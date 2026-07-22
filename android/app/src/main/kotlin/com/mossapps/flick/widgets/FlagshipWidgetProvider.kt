@@ -33,6 +33,7 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
             val artPath = prefs.getString(WidgetPrefs.KEY_ALBUM_ART, "") ?: ""
             val showArtist = WidgetPrefs.getFlagshipShowArtist(context)
             val accentColor = WidgetPrefs.getFlagshipAccentColor(context)
+            val textScale = WidgetPrefs.getFlagshipTextScale(context)
             val isShuffle = prefs.getBoolean(WidgetPrefs.KEY_IS_SHUFFLE, false)
             val loopMode = prefs.getInt(WidgetPrefs.KEY_LOOP_MODE, 0)
             Log.d(TAG, "hasSong=$hasSong, isPlaying=$isPlaying, title=$title, idsCount=${appWidgetIds.size}")
@@ -48,6 +49,8 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                 val widgetWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
                 val widgetWidthPx = if (widgetWidthDp > 0) (widgetWidthDp * dm.density).toInt() else dm.widthPixels
                 val textWidthPx = (widgetWidthPx - marginPadDp * dm.density).toInt().coerceAtLeast(100)
+                val titleSp = WidgetPrefs.scaledSp(15, widgetWidthDp, 400f, textScale)
+                val artistSp = WidgetPrefs.scaledSp(12, widgetWidthDp, 400f, textScale)
 
                 if (hasSong) {
                     val art = WidgetArtLoader.load(artPath, ART_MAX_PX)
@@ -64,7 +67,7 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                             context,
                             title,
                             R.font.product_sans_bold,
-                            15,
+                            titleSp,
                             Color.WHITE,
                             textWidthPx,
                             Layout.Alignment.ALIGN_CENTER,
@@ -79,7 +82,7 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                                 context,
                                 artist,
                                 R.font.product_sans_regular,
-                                12,
+                                artistSp,
                                 accentColor,
                                 textWidthPx,
                                 Layout.Alignment.ALIGN_CENTER,
@@ -173,7 +176,7 @@ class FlagshipWidgetProvider : AppWidgetProvider() {
                             context,
                             tapText,
                             R.font.product_sans_bold,
-                            15,
+                            titleSp,
                             Color.WHITE,
                             textWidthPx,
                             Layout.Alignment.ALIGN_CENTER,
