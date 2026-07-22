@@ -25,6 +25,9 @@ class WidgetSyncService {
   static const String keyCompactShowAlbumArt = 'flick_widget_compact_show_album_art';
   static const String keyCompactShowArtist = 'flick_widget_compact_show_artist';
   static const String keyCompactAccent = 'flick_widget_compact_accent';
+  static const String keyMiniTextScale = 'flick_widget_text_scale';
+  static const String keyFlagshipTextScale = 'flick_widget_flagship_text_scale';
+  static const String keyCompactTextScale = 'flick_widget_compact_text_scale';
 
   static const String keySongId = 'flick_widget_song_id';
   static const String keyTitle = 'flick_widget_title';
@@ -156,6 +159,10 @@ class WidgetSyncService {
         keyAccentColor,
         prefs.widgetAccentColor,
       );
+      await HomeWidget.saveWidgetData<double>(
+        keyMiniTextScale,
+        prefs.widgetTextScale,
+      );
 
       // Flagship widget customization
       await HomeWidget.saveWidgetData<String>(
@@ -165,6 +172,10 @@ class WidgetSyncService {
       await HomeWidget.saveWidgetData<bool>(
         keyFlagshipShowArtist,
         prefs.widgetFlagshipShowArtist,
+      );
+      await HomeWidget.saveWidgetData<double>(
+        keyFlagshipTextScale,
+        prefs.widgetFlagshipTextScale,
       );
 
       // Compact widget customization
@@ -183,6 +194,10 @@ class WidgetSyncService {
       await HomeWidget.saveWidgetData<String>(
         keyCompactAccent,
         prefs.widgetCompactAccent,
+      );
+      await HomeWidget.saveWidgetData<double>(
+        keyCompactTextScale,
+        prefs.widgetCompactTextScale,
       );
 
       await _updateAll();
