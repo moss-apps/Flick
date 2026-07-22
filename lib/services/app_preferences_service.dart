@@ -46,6 +46,9 @@ class AppPreferences {
   final bool widgetCompactShowAlbumArt;
   final bool widgetCompactShowArtist;
   final String widgetCompactAccent;
+  final double widgetTextScale;
+  final double widgetFlagshipTextScale;
+  final double widgetCompactTextScale;
   final bool lyricsMatchAudioFilename;
   final String leftActionButton;
   final String rightActionButton;
@@ -141,6 +144,9 @@ class AppPreferences {
     this.widgetCompactShowAlbumArt = true,
     this.widgetCompactShowArtist = true,
     this.widgetCompactAccent = 'white',
+    this.widgetTextScale = 1.0,
+    this.widgetFlagshipTextScale = 1.0,
+    this.widgetCompactTextScale = 1.0,
     this.lyricsMatchAudioFilename = false,
     this.leftActionButton = 'lyrics',
     this.rightActionButton = 'favorites',
@@ -237,6 +243,9 @@ class AppPreferences {
     bool? widgetCompactShowAlbumArt,
     bool? widgetCompactShowArtist,
     String? widgetCompactAccent,
+    double? widgetTextScale,
+    double? widgetFlagshipTextScale,
+    double? widgetCompactTextScale,
     bool? lyricsMatchAudioFilename,
     String? leftActionButton,
     String? rightActionButton,
@@ -349,6 +358,11 @@ class AppPreferences {
       widgetCompactShowArtist:
           widgetCompactShowArtist ?? this.widgetCompactShowArtist,
       widgetCompactAccent: widgetCompactAccent ?? this.widgetCompactAccent,
+      widgetTextScale: widgetTextScale ?? this.widgetTextScale,
+      widgetFlagshipTextScale:
+          widgetFlagshipTextScale ?? this.widgetFlagshipTextScale,
+      widgetCompactTextScale:
+          widgetCompactTextScale ?? this.widgetCompactTextScale,
       lyricsMatchAudioFilename:
           lyricsMatchAudioFilename ?? this.lyricsMatchAudioFilename,
       leftActionButton: leftActionButton ?? this.leftActionButton,
@@ -469,6 +483,9 @@ class AppPreferencesService {
   static const _widgetCompactShowAlbumArtKey = 'widget_compact_show_album_art';
   static const _widgetCompactShowArtistKey = 'widget_compact_show_artist';
   static const _widgetCompactAccentKey = 'widget_compact_accent';
+  static const _widgetTextScaleKey = 'widget_text_scale';
+  static const _widgetFlagshipTextScaleKey = 'widget_flagship_text_scale';
+  static const _widgetCompactTextScaleKey = 'widget_compact_text_scale';
   static const _lyricsMatchAudioFilenameKey = 'lyrics_match_audio_filename';
   static const _leftActionButtonKey = 'left_action_button';
   static const _rightActionButtonKey = 'right_action_button';
@@ -593,6 +610,11 @@ class AppPreferencesService {
           prefs.getBool(_widgetCompactShowArtistKey) ?? true,
       widgetCompactAccent:
           prefs.getString(_widgetCompactAccentKey) ?? 'white',
+      widgetTextScale: prefs.getDouble(_widgetTextScaleKey) ?? 1.0,
+      widgetFlagshipTextScale:
+          prefs.getDouble(_widgetFlagshipTextScaleKey) ?? 1.0,
+      widgetCompactTextScale:
+          prefs.getDouble(_widgetCompactTextScaleKey) ?? 1.0,
       lyricsMatchAudioFilename:
           prefs.getBool(_lyricsMatchAudioFilenameKey) ?? false,
       leftActionButton: prefs.getString(_leftActionButtonKey) ?? 'lyrics',
@@ -1061,6 +1083,21 @@ class AppPreferencesService {
   Future<void> setWidgetCompactAccent(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_widgetCompactAccentKey, value);
+  }
+
+  Future<void> setWidgetTextScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_widgetTextScaleKey, value);
+  }
+
+  Future<void> setWidgetFlagshipTextScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_widgetFlagshipTextScaleKey, value);
+  }
+
+  Future<void> setWidgetCompactTextScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_widgetCompactTextScaleKey, value);
   }
 
   Future<bool> getLyricsMatchAudioFilename() async {

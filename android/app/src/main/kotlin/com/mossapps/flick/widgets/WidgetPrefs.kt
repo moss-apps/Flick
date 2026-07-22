@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.SharedPreferences
 import com.mossapps.flick.R
+import kotlin.math.roundToInt
 
 internal object WidgetPrefs {
     private const val PREFS_NAME = "HomeWidgetPreferences"
@@ -23,6 +24,7 @@ internal object WidgetPrefs {
     const val KEY_SHOW_ALBUM_ART = "flick_widget_show_album_art"
     const val KEY_SHOW_ARTIST = "flick_widget_show_artist"
     const val KEY_ACCENT_COLOR = "flick_widget_accent_color"
+    const val KEY_TEXT_SCALE = "flick_widget_text_scale"
     const val KEY_POSITION_MS = "flick_widget_position_ms"
     const val KEY_DURATION_MS = "flick_widget_duration_ms"
     const val KEY_QUEUE_COUNT = "flick_widget_queue_count"
@@ -30,6 +32,18 @@ internal object WidgetPrefs {
     private val BG_OPACITY_MAP = mapOf(
         0 to 0x00, 1 to 0x40, 2 to 0x80, 3 to 0xC0, 4 to 0xFF
     )
+
+    // home_widget encodes Dart doubles as Long bits with a companion flag;
+    // decode that here instead of a raw getFloat which would ClassCast.
+    private const val DOUBLE_PREFIX = "home_widget.double."
+    private fun getWidgetDouble(context: Context, key: String, default: Float): Float {
+        val prefs = get(context)
+        return if (prefs.getBoolean("$DOUBLE_PREFIX$key", false)) {
+            Double.fromBits(prefs.getLong(key, default.toDouble().toBits())).toFloat()
+        } else {
+            default
+        }
+    }
 
     fun get(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -63,6 +77,16 @@ internal object WidgetPrefs {
 
     fun getAccentName(context: Context): String =
         get(context).getString(KEY_ACCENT_COLOR, "white") ?: "white"
+
+    fun getMiniTextScale(context: Context): Float =
+        getWidgetDouble(context, KEY_TEXT_SCALE, 1.0f)
+
+    // ponytail: clamp bounds keep text sane across dp sizes; baseline per-widget
+    fun scaledSp(baseSp: Int, widgetWidthDp: Int, baselineDp: Float, manualScale: Float): Int {
+        val widthDp = if (widgetWidthDp > 0) widgetWidthDp else baselineDp.toInt()
+        val auto = (widthDp / baselineDp).coerceIn(0.85f, 1.3f)
+        return (baseSp * auto * manualScale).roundToInt().coerceIn(9, 22)
+    }
 
     fun getAccentColor(context: Context): Int {
         return when (getAccentName(context)) {
@@ -99,12 +123,16 @@ internal object WidgetPrefs {
 
     private const val KEY_FLAGSHIP_ACCENT = "flick_widget_flagship_accent"
     private const val KEY_FLAGSHIP_SHOW_ARTIST = "flick_widget_flagship_show_artist"
+    private const val KEY_FLAGSHIP_TEXT_SCALE = "flick_widget_flagship_text_scale"
 
     fun getFlagshipShowArtist(context: Context): Boolean =
         get(context).getBoolean(KEY_FLAGSHIP_SHOW_ARTIST, true)
 
     fun getFlagshipAccentName(context: Context): String =
         get(context).getString(KEY_FLAGSHIP_ACCENT, "white") ?: "white"
+
+    fun getFlagshipTextScale(context: Context): Float =
+        getWidgetDouble(context, KEY_FLAGSHIP_TEXT_SCALE, 1.0f)
 
     fun getFlagshipAccentColor(context: Context): Int {
         return when (getFlagshipAccentName(context)) {
@@ -122,6 +150,7 @@ internal object WidgetPrefs {
     private const val KEY_COMPACT_SHOW_ALBUM_ART = "flick_widget_compact_show_album_art"
     private const val KEY_COMPACT_SHOW_ARTIST = "flick_widget_compact_show_artist"
     private const val KEY_COMPACT_ACCENT = "flick_widget_compact_accent"
+    private const val KEY_COMPACT_TEXT_SCALE = "flick_widget_compact_text_scale"
 
     fun getCompactBgOpacityAlpha(context: Context): Int {
         val level = get(context).getInt(KEY_COMPACT_BG_OPACITY, 3)
@@ -147,6 +176,9 @@ internal object WidgetPrefs {
 
     fun getCompactAccentName(context: Context): String =
         get(context).getString(KEY_COMPACT_ACCENT, "white") ?: "white"
+
+    fun getCompactTextScale(context: Context): Float =
+        getWidgetDouble(context, KEY_COMPACT_TEXT_SCALE, 1.0f)
 
     fun getCompactAccentColor(context: Context): Int {
         return when (getCompactAccentName(context)) {

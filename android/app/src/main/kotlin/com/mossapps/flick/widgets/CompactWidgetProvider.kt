@@ -31,6 +31,7 @@ class CompactWidgetProvider : AppWidgetProvider() {
         val showArt = WidgetPrefs.getCompactShowAlbumArt(context)
         val showArtist = WidgetPrefs.getCompactShowArtist(context)
         val accentColor = WidgetPrefs.getCompactAccentColor(context)
+        val textScale = WidgetPrefs.getCompactTextScale(context)
 
         val dm = context.resources.displayMetrics
 
@@ -44,12 +45,14 @@ class CompactWidgetProvider : AppWidgetProvider() {
             val widgetWidthPx =
                 if (widgetWidthDp > 0) (widgetWidthDp * dm.density).toInt() else dm.widthPixels
             val textWidthPx = (widgetWidthPx - MARGIN_PAD_DP * dm.density).toInt().coerceAtLeast(100)
+            val titleSp = WidgetPrefs.scaledSp(15, widgetWidthDp, 200f, textScale)
+            val artistSp = WidgetPrefs.scaledSp(12, widgetWidthDp, 200f, textScale)
 
             if (hasSong) {
                 views.setImageViewBitmap(
                     R.id.compact_title,
                     WidgetTextRenderer.createTextBitmap(
-                        context, title, R.font.product_sans_bold, 15, Color.WHITE,
+                        context, title, R.font.product_sans_bold, titleSp, Color.WHITE,
                         textWidthPx, Layout.Alignment.ALIGN_CENTER,
                     ),
                 )
@@ -59,8 +62,8 @@ class CompactWidgetProvider : AppWidgetProvider() {
                     views.setImageViewBitmap(
                         R.id.compact_artist,
                         WidgetTextRenderer.createTextBitmap(
-                            context, artist, R.font.product_sans_regular, 12, accentColor,
-                            textWidthPx, Layout.Alignment.ALIGN_CENTER,
+                        context, artist, R.font.product_sans_regular, artistSp, accentColor,
+                        textWidthPx, Layout.Alignment.ALIGN_CENTER,
                         ),
                     )
                     views.setContentDescription(R.id.compact_artist, artist)
@@ -85,7 +88,7 @@ class CompactWidgetProvider : AppWidgetProvider() {
                 views.setImageViewBitmap(
                     R.id.compact_title,
                     WidgetTextRenderer.createTextBitmap(
-                        context, tapText, R.font.product_sans_bold, 15, Color.WHITE,
+                        context, tapText, R.font.product_sans_bold, titleSp, Color.WHITE,
                         textWidthPx, Layout.Alignment.ALIGN_CENTER,
                     ),
                 )

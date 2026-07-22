@@ -34,6 +34,7 @@ class MiniPlayerWidgetProvider : AppWidgetProvider() {
         val showArt = WidgetPrefs.getShowAlbumArt(context)
         val showArtist = WidgetPrefs.getShowArtist(context)
         val accentColor = WidgetPrefs.getAccentColor(context)
+        val textScale = WidgetPrefs.getMiniTextScale(context)
 
         val dm = context.resources.displayMetrics
 
@@ -61,12 +62,14 @@ class MiniPlayerWidgetProvider : AppWidgetProvider() {
             val widgetWidthPx =
                 if (widgetWidthDp > 0) (widgetWidthDp * dm.density).toInt() else dm.widthPixels
             val textWidthPx = (widgetWidthPx - CHROME_DP * dm.density).toInt().coerceAtLeast(80)
+            val titleSp = WidgetPrefs.scaledSp(13, widgetWidthDp, 360f, textScale)
+            val artistSp = WidgetPrefs.scaledSp(11, widgetWidthDp, 360f, textScale)
 
             if (hasSong) {
                 views.setImageViewBitmap(
                     R.id.widget_title,
                     WidgetTextRenderer.createTextBitmap(
-                        context, title, R.font.product_sans_bold, 13, Color.WHITE, textWidthPx,
+                        context, title, R.font.product_sans_bold, titleSp, Color.WHITE, textWidthPx,
                     ),
                 )
                 views.setContentDescription(R.id.widget_title, title)
@@ -75,7 +78,7 @@ class MiniPlayerWidgetProvider : AppWidgetProvider() {
                     views.setImageViewBitmap(
                         R.id.widget_artist,
                         WidgetTextRenderer.createTextBitmap(
-                            context, artist, R.font.product_sans_regular, 11, accentColor, textWidthPx,
+                            context, artist, R.font.product_sans_regular, artistSp, accentColor, textWidthPx,
                         ),
                     )
                     views.setContentDescription(R.id.widget_artist, artist)
@@ -121,7 +124,7 @@ class MiniPlayerWidgetProvider : AppWidgetProvider() {
                 views.setImageViewBitmap(
                     R.id.widget_title,
                     WidgetTextRenderer.createTextBitmap(
-                        context, tapText, R.font.product_sans_bold, 13, Color.WHITE, textWidthPx,
+                        context, tapText, R.font.product_sans_bold, titleSp, Color.WHITE, textWidthPx,
                     ),
                 )
                 views.setContentDescription(R.id.widget_title, tapText)

@@ -347,6 +347,28 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setWidgetCompactAccent(value);
   }
 
+  Future<void> setWidgetTextScale(double value) async {
+    if (state.widgetTextScale == value) return;
+    state = state.copyWith(widgetTextScale: value);
+    await ref.read(appPreferencesServiceProvider).setWidgetTextScale(value);
+  }
+
+  Future<void> setWidgetFlagshipTextScale(double value) async {
+    if (state.widgetFlagshipTextScale == value) return;
+    state = state.copyWith(widgetFlagshipTextScale: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setWidgetFlagshipTextScale(value);
+  }
+
+  Future<void> setWidgetCompactTextScale(double value) async {
+    if (state.widgetCompactTextScale == value) return;
+    state = state.copyWith(widgetCompactTextScale: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setWidgetCompactTextScale(value);
+  }
+
   Future<void> setLyricsMatchAudioFilename(bool value) async {
     if (state.lyricsMatchAudioFilename == value) return;
     state = state.copyWith(lyricsMatchAudioFilename: value);

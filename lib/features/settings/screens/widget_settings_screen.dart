@@ -226,6 +226,32 @@ class _MiniPlayerTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
+        const SettingsSectionHeader('Text Size'),
+        SettingsCard(
+          children: [
+            SliderSetting(
+              icon: LucideIcons.type,
+              title: 'Font Scale',
+              subtitle: 'Scales with widget size automatically',
+              value: prefs.widgetTextScale,
+              displayValue: '${(prefs.widgetTextScale * 100).round()}%',
+              min: 0.8,
+              max: 1.5,
+              divisions: 14,
+              onChanged: (v) => _updateTextScale(ref, v),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppConstants.spacingSm),
+        _WidgetTextPreview(
+          titleBaseSp: 13,
+          artistBaseSp: 11,
+          baselineDp: 360,
+          manualScale: prefs.widgetTextScale,
+          accentColor: _resolveAccentColor(prefs.widgetAccentColor),
+          centered: false,
+        ),
+        const SizedBox(height: AppConstants.spacingLg),
         const SettingsSectionHeader('Accent Color'),
         SettingsCard(
           children: [
@@ -289,6 +315,14 @@ class _MiniPlayerTab extends ConsumerWidget {
       prefs.copyWith(widgetAccentColor: value),
     );
   }
+
+  void _updateTextScale(WidgetRef ref, double value) {
+    ref.read(appPreferencesProvider.notifier).setWidgetTextScale(value);
+    final prefs = ref.read(appPreferencesProvider);
+    WidgetSyncService.instance.pushCustomization(
+      prefs.copyWith(widgetTextScale: value),
+    );
+  }
 }
 
 class _FlagshipTab extends ConsumerWidget {
@@ -318,6 +352,33 @@ class _FlagshipTab extends ConsumerWidget {
               },
             ),
           ],
+        ),
+        const SizedBox(height: AppConstants.spacingLg),
+        const SettingsSectionHeader('Text Size'),
+        SettingsCard(
+          children: [
+            SliderSetting(
+              icon: LucideIcons.type,
+              title: 'Font Scale',
+              subtitle: 'Scales with widget size automatically',
+              value: prefs.widgetFlagshipTextScale,
+              displayValue:
+                  '${(prefs.widgetFlagshipTextScale * 100).round()}%',
+              min: 0.8,
+              max: 1.5,
+              divisions: 14,
+              onChanged: (v) => _updateFlagshipTextScale(ref, v),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppConstants.spacingSm),
+        _WidgetTextPreview(
+          titleBaseSp: 15,
+          artistBaseSp: 12,
+          baselineDp: 400,
+          manualScale: prefs.widgetFlagshipTextScale,
+          accentColor: _resolveAccentColor(prefs.widgetFlagshipAccent),
+          centered: true,
         ),
         const SizedBox(height: AppConstants.spacingLg),
         const SettingsSectionHeader('Accent Color'),
@@ -373,6 +434,14 @@ class _FlagshipTab extends ConsumerWidget {
     final prefs = ref.read(appPreferencesProvider);
     WidgetSyncService.instance.pushCustomization(
       prefs.copyWith(widgetFlagshipAccent: value),
+    );
+  }
+
+  void _updateFlagshipTextScale(WidgetRef ref, double value) {
+    ref.read(appPreferencesProvider.notifier).setWidgetFlagshipTextScale(value);
+    final prefs = ref.read(appPreferencesProvider);
+    WidgetSyncService.instance.pushCustomization(
+      prefs.copyWith(widgetFlagshipTextScale: value),
     );
   }
 }
@@ -461,6 +530,33 @@ class _CompactTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
+        const SettingsSectionHeader('Text Size'),
+        SettingsCard(
+          children: [
+            SliderSetting(
+              icon: LucideIcons.type,
+              title: 'Font Scale',
+              subtitle: 'Scales with widget size automatically',
+              value: prefs.widgetCompactTextScale,
+              displayValue:
+                  '${(prefs.widgetCompactTextScale * 100).round()}%',
+              min: 0.8,
+              max: 1.5,
+              divisions: 14,
+              onChanged: (v) => _updateCompactTextScale(ref, v),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppConstants.spacingSm),
+        _WidgetTextPreview(
+          titleBaseSp: 15,
+          artistBaseSp: 12,
+          baselineDp: 200,
+          manualScale: prefs.widgetCompactTextScale,
+          accentColor: _resolveAccentColor(prefs.widgetCompactAccent),
+          centered: true,
+        ),
+        const SizedBox(height: AppConstants.spacingLg),
         const SettingsSectionHeader('Accent Color'),
         SettingsCard(
           children: [
@@ -526,6 +622,14 @@ class _CompactTab extends ConsumerWidget {
       prefs.copyWith(widgetCompactAccent: value),
     );
   }
+
+  void _updateCompactTextScale(WidgetRef ref, double value) {
+    ref.read(appPreferencesProvider.notifier).setWidgetCompactTextScale(value);
+    final prefs = ref.read(appPreferencesProvider);
+    WidgetSyncService.instance.pushCustomization(
+      prefs.copyWith(widgetCompactTextScale: value),
+    );
+  }
 }
 
 class _OpacityOption extends StatelessWidget {
@@ -589,6 +693,157 @@ class _OpacityOption extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+Color _resolveAccentColor(String name) {
+  return switch (name) {
+    'amber' => const Color(0xFFFFB300),
+    'blue' => const Color(0xFF64B5F6),
+    'green' => const Color(0xFF81C784),
+    'purple' => const Color(0xFFCE93D8),
+    _ => Colors.white,
+  };
+}
+
+class _WidgetTextPreview extends StatefulWidget {
+  const _WidgetTextPreview({
+    required this.titleBaseSp,
+    required this.artistBaseSp,
+    required this.baselineDp,
+    required this.manualScale,
+    required this.accentColor,
+    required this.centered,
+  });
+
+  final int titleBaseSp;
+  final int artistBaseSp;
+  final double baselineDp;
+  final double manualScale;
+  final Color accentColor;
+  final bool centered;
+
+  @override
+  State<_WidgetTextPreview> createState() => _WidgetTextPreviewState();
+}
+
+class _WidgetTextPreviewState extends State<_WidgetTextPreview> {
+  int _sizeIndex = 1;
+
+  static const _autoFactors = [0.85, 1.0, 1.3];
+  static const _sizeLabels = ['S', 'M', 'L'];
+
+  @override
+  Widget build(BuildContext context) {
+    final auto = _autoFactors[_sizeIndex];
+    double clampSp(int base) =>
+        (base * auto * widget.manualScale).round().clamp(9, 22).toDouble();
+    final titleSp = clampSp(widget.titleBaseSp);
+    final artistSp = clampSp(widget.artistBaseSp);
+    final cross = widget.centered
+        ? CrossAxisAlignment.center
+        : CrossAxisAlignment.start;
+
+    return SettingsCard(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppConstants.spacingLg,
+            AppConstants.spacingMd,
+            AppConstants.spacingLg,
+            AppConstants.spacingSm,
+          ),
+          child: Row(
+            children: [
+              Text(
+                'Preview',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: context.adaptiveTextTertiary,
+                    ),
+              ),
+              const Spacer(),
+              ...List.generate(3, (i) {
+                final selected = i == _sizeIndex;
+                return Padding(
+                  padding: const EdgeInsets.only(left: AppConstants.spacingXs),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _sizeIndex = i),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? AppColors.surface.withValues(alpha: 0.8)
+                            : Colors.transparent,
+                        borderRadius:
+                            BorderRadius.circular(AppConstants.radiusSm),
+                        border: selected
+                            ? Border.all(color: AppColors.glassBorder)
+                            : null,
+                      ),
+                      child: Text(
+                        _sizeLabels[i],
+                        style: TextStyle(
+                          fontFamily: 'ProductSans',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: selected
+                              ? context.adaptiveTextPrimary
+                              : context.adaptiveTextTertiary,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.fromLTRB(
+            AppConstants.spacingLg,
+            0,
+            AppConstants.spacingLg,
+            AppConstants.spacingLg,
+          ),
+          padding: const EdgeInsets.all(AppConstants.spacingLg),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.75),
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+          ),
+          child: Column(
+            crossAxisAlignment: cross,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Midnight City Dreams',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontWeight: FontWeight.w700,
+                  fontSize: titleSp,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Neon Skyline',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: artistSp,
+                  color: widget.accentColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
