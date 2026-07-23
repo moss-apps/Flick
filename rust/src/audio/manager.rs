@@ -301,8 +301,19 @@ impl EngineManager {
 
                 #[cfg(target_os = "android")]
                 {
-                    let requested_rate = preferred_sample_rate.unwrap_or(48_000);
+                    // Don't reuse across DSD mode changes: DoP needs PipelineMode::Dop,
+                    // native needs a different backend. A dap-native engine serving a
+                    // DoP track (or vice versa) corrupts the bitstream.
                     let strategy = handle.output_runtime().strategy.as_str();
+                    let desired_dsd_dop = desired_signature.contains(":dsd-dop:");
+                    let desired_dsd_native = desired_signature.contains(":dsd-native:");
+                    if (desired_dsd_dop && strategy != "dsd_dop")
+                        || (desired_dsd_native && strategy != "dsd_native")
+                    {
+                        return false;
+                    }
+
+                    let requested_rate = preferred_sample_rate.unwrap_or(48_000);
                     return handle.output_signature().starts_with("android-shared:")
                         && handle.sample_rate() == requested_rate
                         && (allow_dap_native || strategy != "dap_native")
