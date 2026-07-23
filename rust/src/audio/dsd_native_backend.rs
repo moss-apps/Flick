@@ -14,35 +14,26 @@ pub struct DsdNativeBackend {
 }
 
 impl DsdNativeBackend {
-    // sample_rate is the DSD byte rate (bit_rate / 8).
-    // Common byte rates: 352 800 (DSD64), 705 600 (DSD128), 1 411 200 (DSD256).
+    /// Opens native DSD output via direct ALSA ioctl (bypasses AudioTrack
+    /// and AudioFlinger entirely).  `sample_rate` is the DSD byte rate
+    /// (352 800 for DSD64, 705 600 for DSD128).
     pub fn start(
         callback_data: Arc<AudioCallbackData>,
         event_tx: Sender<AudioEvent>,
         sample_rate: u32,
         channels: usize,
     ) -> Result<Self, String> {
-        let dsd_sample_rate = sample_rate * 8;
-
         log::info!(
-            "[DSD-NATIVE] Creating AudioTrack: byte_rate={} Hz, bit_rate={} Hz, ch={}",
+            "[DSD-NATIVE] Opening ALSA direct DSD output: byte_rate={} Hz, ch={}",
             sample_rate,
-            dsd_sample_rate,
             channels,
         );
 
-        super::dsd_native_jni::dsd_track_create(dsd_sample_rate, channels)
-            .then(|| ())
-            .ok_or_else(|| {
-                format!(
-                    "Failed to create DSD AudioTrack (bit_rate={}, byte_rate={}, ch={})",
-                    dsd_sample_rate, sample_rate, channels
-                )
-            })?;
-
-        if !super::dsd_native_jni::dsd_track_play() {
-            super::dsd_native_jni::dsd_track_stop();
-            return Err("Failed to start DSD AudioTrack playback".to_string());
+        if !super::dsd_alsa_direct::dsd_alsa_open(sample_rate, channels) {
+            return Err(format!(
+                "ALSA DSD output unavailable at byte_rate={} ch={}",
+                sample_rate, channels
+            ));
         }
 
         let stop = Arc::new(AtomicBool::new(false));
@@ -52,7 +43,7 @@ impl DsdNativeBackend {
             .name("dsd-native-render".to_string())
             .spawn(move || {
                 dsd_native_render_loop(callback_data, event_tx, sample_rate, channels, stop_clone);
-                super::dsd_native_jni::dsd_track_stop();
+                super::dsd_alsa_direct::dsd_alsa_close();
             })
             .map_err(|e| format!("Failed to spawn DSD render thread: {}", e))?;
 
@@ -68,6 +59,10 @@ impl DsdNativeBackend {
             let _ = handle.join();
         }
     }
+
+    pub fn is_alsa(&self) -> bool {
+        true
+    }
 }
 
 fn dsd_native_render_loop(
@@ -77,12 +72,10 @@ fn dsd_native_render_loop(
     channels: usize,
     stop: Arc<AtomicBool>,
 ) {
-    // sample_rate must be a DSD byte rate (bit_rate / 8).
     let valid_byte_rates = [352_800, 705_600, 1_411_200, 2_822_400];
     if !valid_byte_rates.contains(&sample_rate) {
         log::error!(
-            "[DSD-NATIVE] Unexpected byte_rate={} — expected one of {:?}. \
-             The engine may have been created at the wrong rate.",
+            "[DSD-NATIVE] Unexpected byte_rate={} — expected one of {:?}",
             sample_rate,
             valid_byte_rates,
         );
@@ -94,8 +87,11 @@ fn dsd_native_render_loop(
     let mut dsd_bytes = vec![0u8; chunk_samples];
 
     log::info!(
-        "[DSD-NATIVE] Render loop started: dsd_rate={} Hz, byte_rate={} Hz, ch={}, chunk={} frames ({}ms)",
-        sample_rate * 8, sample_rate, channels, chunk_frames, DSD_NATIVE_CHUNK_MS
+        "[DSD-NATIVE] ALSA render loop started: byte_rate={} Hz, ch={}, chunk={} frames ({}ms)",
+        sample_rate,
+        channels,
+        chunk_frames,
+        DSD_NATIVE_CHUNK_MS
     );
 
     while !stop.load(Ordering::Acquire) {
@@ -105,12 +101,12 @@ fn dsd_native_render_loop(
             dsd_bytes[i] = (sample.to_bits() & 0xFF) as u8;
         }
 
-        let written = super::dsd_native_jni::dsd_track_write(&dsd_bytes);
+        let written = super::dsd_alsa_direct::dsd_alsa_write(&dsd_bytes);
         if written < 0 {
-            log::error!("[DSD-NATIVE] AudioTrack write failed, stopping render loop");
+            log::error!("[DSD-NATIVE] ALSA write failed, stopping render loop");
             break;
         }
     }
 
-    log::info!("[DSD-NATIVE] Render loop ended");
+    log::info!("[DSD-NATIVE] ALSA render loop ended");
 }
