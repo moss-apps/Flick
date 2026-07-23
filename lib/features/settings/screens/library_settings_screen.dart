@@ -268,7 +268,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     } on FolderAlreadyExistsException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), duration: const Duration(seconds: 3)),
+          SnackBar(
+            content: Text(e.message),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     } catch (e) {
@@ -512,151 +515,161 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         horizontal: AppConstants.spacingXl,
         vertical: AppConstants.spacingLg,
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 200,
-            height: 200,
-            child: Stack(
-              alignment: Alignment.center,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                CustomPaint(
-                  size: const Size(200, 200),
-                  painter: _ProgressRingPainter(fraction: displayFraction),
+                SizedBox(
+                  width: 200,
+                  height: 200,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CustomPaint(
+                        size: const Size(200, 200),
+                        painter: _ProgressRingPainter(
+                          fraction: displayFraction,
+                        ),
+                      ),
+                      AnimatedBuilder(
+                        animation: _vinylController,
+                        builder: (context, child) {
+                          return Transform.rotate(
+                            angle: _vinylController.value * 2 * pi,
+                            child: child,
+                          );
+                        },
+                        child: const VinylRecord(size: 120),
+                      ),
+                    ],
+                  ),
                 ),
-                AnimatedBuilder(
-                  animation: _vinylController,
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: _vinylController.value * 2 * pi,
-                      child: child,
-                    );
+                const SizedBox(height: AppConstants.spacingXl),
+                Text(
+                  progress?.currentFolder ?? folderName,
+                  style: const TextStyle(
+                    fontFamily: 'ProductSans',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppConstants.spacingSm),
+                _buildPhaseRow(progress?.phase, bgRunning),
+                const SizedBox(height: AppConstants.spacingLg),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+                  child: LinearProgressIndicator(
+                    value: totalFiles > 0 ? displayFraction : null,
+                    backgroundColor: AppColors.glassBackground,
+                    valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                    minHeight: 6,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingXs),
+                Text(
+                  totalFiles > 0
+                      ? '${progress?.filesProcessed ?? 0} / $totalFiles files'
+                      : 'Counting files…',
+                  style: const TextStyle(
+                    fontFamily: 'ProductSans',
+                    fontSize: 12,
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingLg),
+                _buildStatRow([
+                  _buildScanStat(
+                    'New',
+                    '${progress?.newSongs ?? 0}',
+                    LucideIcons.plus,
+                  ),
+                  _buildScanStat(
+                    'Mod',
+                    '${progress?.modifiedSongs ?? 0}',
+                    LucideIcons.refreshCw,
+                  ),
+                  _buildScanStat(
+                    'Del',
+                    '${progress?.deletedSongs ?? 0}',
+                    LucideIcons.trash2,
+                  ),
+                ]),
+                const SizedBox(height: AppConstants.spacingMd),
+                ValueListenableBuilder<Duration>(
+                  valueListenable: _elapsedNotifier,
+                  builder: (context, elapsed, _) {
+                    return _buildStatRow([
+                      _buildScanStat(
+                        'Time',
+                        _formatDuration(elapsed),
+                        LucideIcons.timer,
+                      ),
+                      _buildScanStat(
+                        'Rate',
+                        _formatRate(progress?.filesProcessed ?? 0, elapsed),
+                        LucideIcons.gauge,
+                      ),
+                      _buildScanStat(
+                        'Engine',
+                        progress?.scanEngine ?? '—',
+                        LucideIcons.cpu,
+                      ),
+                    ]);
                   },
-                  child: const VinylRecord(size: 120),
+                ),
+                if (progress?.foldersTotal != null &&
+                    progress!.foldersTotal! > 1) ...[
+                  const SizedBox(height: AppConstants.spacingMd),
+                  Text(
+                    'Folder ${progress.foldersCompleted ?? 0} of ${progress.foldersTotal}',
+                    style: const TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppConstants.spacingXl),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () {
+                      _scannerService.cancelScan();
+                      _vinylController.stop();
+                      _scanStopwatch.stop();
+                      _elapsedTimer?.cancel();
+                      _elapsedTimer = null;
+                      Navigator.of(context).pop();
+                      _scanProgressNotifier.value = null;
+                      setState(() {
+                        _isScanning = false;
+                        _scanProgress = null;
+                      });
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontFamily: 'ProductSans',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: AppConstants.spacingXl),
-          Text(
-            progress?.currentFolder ?? folderName,
-            style: const TextStyle(
-              fontFamily: 'ProductSans',
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppConstants.spacingSm),
-          _buildPhaseRow(progress?.phase, bgRunning),
-          const SizedBox(height: AppConstants.spacingLg),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-            child: LinearProgressIndicator(
-              value: totalFiles > 0 ? displayFraction : null,
-              backgroundColor: AppColors.glassBackground,
-              valueColor: const AlwaysStoppedAnimation(AppColors.accent),
-              minHeight: 6,
-            ),
-          ),
-          const SizedBox(height: AppConstants.spacingXs),
-          Text(
-            totalFiles > 0
-                ? '${progress?.filesProcessed ?? 0} / $totalFiles files'
-                : 'Counting files…',
-            style: const TextStyle(
-              fontFamily: 'ProductSans',
-              fontSize: 12,
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          _buildStatRow([
-            _buildScanStat(
-              'New',
-              '${progress?.newSongs ?? 0}',
-              LucideIcons.plus,
-            ),
-            _buildScanStat(
-              'Mod',
-              '${progress?.modifiedSongs ?? 0}',
-              LucideIcons.refreshCw,
-            ),
-            _buildScanStat(
-              'Del',
-              '${progress?.deletedSongs ?? 0}',
-              LucideIcons.trash2,
-            ),
-          ]),
-          const SizedBox(height: AppConstants.spacingMd),
-          ValueListenableBuilder<Duration>(
-            valueListenable: _elapsedNotifier,
-            builder: (context, elapsed, _) {
-              return _buildStatRow([
-                _buildScanStat(
-                  'Time',
-                  _formatDuration(elapsed),
-                  LucideIcons.timer,
-                ),
-                _buildScanStat(
-                  'Rate',
-                  _formatRate(progress?.filesProcessed ?? 0, elapsed),
-                  LucideIcons.gauge,
-                ),
-                _buildScanStat(
-                  'Engine',
-                  progress?.scanEngine ?? '—',
-                  LucideIcons.cpu,
-                ),
-              ]);
-            },
-          ),
-          if (progress?.foldersTotal != null &&
-              progress!.foldersTotal! > 1) ...[
-            const SizedBox(height: AppConstants.spacingMd),
-            Text(
-              'Folder ${progress.foldersCompleted ?? 0} of ${progress.foldersTotal}',
-              style: const TextStyle(
-                fontFamily: 'ProductSans',
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-          const SizedBox(height: AppConstants.spacingXl),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: () {
-                _scannerService.cancelScan();
-                _vinylController.stop();
-                _scanStopwatch.stop();
-                _elapsedTimer?.cancel();
-                _elapsedTimer = null;
-                Navigator.of(context).pop();
-                _scanProgressNotifier.value = null;
-                setState(() {
-                  _isScanning = false;
-                  _scanProgress = null;
-                });
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.textSecondary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -933,9 +946,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     final secs = elapsed.inSeconds;
     if (secs < 1) return '—';
     final rate = count / secs;
-    return rate < 10
-        ? '${rate.toStringAsFixed(1)}/s'
-        : '${rate.round()}/s';
+    return rate < 10 ? '${rate.toStringAsFixed(1)}/s' : '${rate.round()}/s';
   }
 
   Widget _buildScanStat(String label, String value, IconData icon) {
@@ -1053,7 +1064,9 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   Widget _buildFolderItem(MusicFolder folder) {
-    final globalDeepScan = ref.watch(libraryScanPreferencesProvider).useDeepScan;
+    final globalDeepScan = ref
+        .watch(libraryScanPreferencesProvider)
+        .useDeepScan;
     final entity = _folderEntities[folder.uri];
     final effectiveDeepScan = entity?.useDeepScan ?? globalDeepScan;
 
@@ -1358,9 +1371,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                                   _isXiaomiDevice
                                       ? 'Disable Battery Optimization (Recommended)'
                                       : 'Disable Battery Optimization',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
+                                  style: Theme.of(context).textTheme.titleSmall
                                       ?.copyWith(
                                         color: context.adaptiveTextPrimary,
                                       ),
@@ -1370,9 +1381,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                                   _isXiaomiDevice
                                       ? 'Required on many Xiaomi, Redmi, and POCO devices so rescans and background features keep working'
                                       : 'Allow Flick to run without aggressive background limits so rescans and background features keep working',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
+                                  style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
                                         color: context.adaptiveTextTertiary,
                                       ),
