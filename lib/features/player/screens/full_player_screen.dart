@@ -69,8 +69,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   // Last drag update time for throttling
   DateTime _lastDragUpdate = DateTime.now();
 
-  // ponytail: 24dp edge zone matches Android's predictive back gesture origin
-  static const double _backGestureEdgeWidth = 24.0;
+  // ponytail: edge zone wide enough to let Android's predictive back/home gestures win
+  static const double _backGestureEdgeWidth = 32.0;
   double _horizontalDragStartX = double.infinity;
 
   // Notifier for throttled position – only _WaveformLayer listens, so no setState needed.
@@ -358,8 +358,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               return GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTap: _handleImmersiveSceneTap,
-                onVerticalDragStart: (_) {
+                onVerticalDragStart: (details) {
                   if (_isVinylRotationActive) return;
+                  final screenHeight = MediaQuery.sizeOf(context).height;
+                  if (details.globalPosition.dy >= screenHeight - _backGestureEdgeWidth) {
+                    _dragOffset = 0.0;
+                    return;
+                  }
                   _dragController.stop();
                 },
                 onVerticalDragUpdate: (details) {
