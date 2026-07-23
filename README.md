@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://play.google.com/store/apps/details?id=com.mossapps.flick">
-    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="55">
   </a>
   <a href="https://trendshift.io/repositories/64676?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-64676" target="_blank" rel="noopener noreferrer">
     <img src="https://trendshift.io/api/badge/trendshift/repositories/64676/daily?language=Dart" alt="moss-apps%2FFlick | Trendshift" width="250" height="55">
