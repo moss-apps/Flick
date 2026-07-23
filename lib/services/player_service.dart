@@ -1733,6 +1733,12 @@ class PlayerService {
     final enginePassthroughAllowed =
         engineState?['passthrough_allowed'] == true ||
         engineState?['passthroughAllowed'] == true;
+    final dsdEffectiveMode = _stringValue(
+      engineState?['dsd_effective_mode'] ?? engineState?['dsdEffectiveMode'],
+    );
+    final dsdTransport = _stringValue(
+      engineState?['dsd_transport'] ?? engineState?['dsdTransport'],
+    );
     final engineVerificationReason = _stringValue(
       engineState?['verification_reason'] ?? engineState?['verificationReason'],
     );
@@ -1816,6 +1822,13 @@ class PlayerService {
     final passthroughAllowed =
         usesRustDiagnostics &&
         (enginePassthroughAllowed || directUsbBitPerfectVerified);
+    // bitPerfect on USB paths comes from direct USB verification; on internal
+    // DAP paths it means passthrough (no DSP) with no resampling — the DSD
+    // bitstream or PCM stream reaches the DAC intact.
+    final effectiveBitPerfect = (outputStrategy == 'usb_direct' ||
+            outputStrategy == 'usb_dsd_native')
+        ? directUsbBitPerfectVerified
+        : (usesRustDiagnostics && passthroughAllowed && !resamplerActive);
     final verificationReason =
         (!usesRustDiagnostics ? null : engineVerificationReason) ??
         (pathManagement == AudioPathManagement.directUsbExperimental
@@ -2065,7 +2078,7 @@ class PlayerService {
       'refresh=${activeRefresh ?? -1}, '
       'clockOk=$effectiveClockOk, rateVerified=$effectiveRateVerified, '
       'dacPolicy=${effectiveDirectUsbDacClockPolicy ?? 'none'}, '
-      'bitPerfect=$directUsbBitPerfectVerified, '
+      'bitPerfect=$effectiveBitPerfect, '
       'serviceUs=${activeServiceIntervalUs ?? -1}, maxPacket=${activeMaxPacketBytes ?? -1}, '
       'bufferMs=${bufferFillMs ?? -1}/${bufferTargetMs ?? -1}/${bufferCapacityMs ?? -1}, '
       'framesPerPacket=${framesPerPacket ?? -1}, underruns=${underrunCount ?? -1}, '
@@ -2076,7 +2089,9 @@ class PlayerService {
       '${transportSubslot ?? -1}, refusal=${directUsbRefusalReason ?? 'none'}, '
       'verifyReason=${verificationReason ?? 'none'}, '
       'lastError=${directUsbLastError ?? 'none'}, '
-      'fallback=${_sessionManager.fallbackReason ?? 'none'}',
+      'fallback=${_sessionManager.fallbackReason ?? 'none'}, '
+      'dsdMode=${dsdEffectiveMode ?? 'none'}, '
+      'dsdTransport=${dsdTransport ?? 'none'}',
     );
   }
 
