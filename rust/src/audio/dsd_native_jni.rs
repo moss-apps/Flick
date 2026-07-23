@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(target_os = "android")]
 use std::sync::atomic::AtomicPtr;
 
-static DSD_TRACK_ACTIVE: AtomicBool = AtomicBool::new(false);
 static DSD_ENCODING_AVAILABLE: AtomicBool = AtomicBool::new(false);
 
 #[cfg(target_os = "android")]
@@ -135,118 +134,6 @@ pub fn set_dsd_encoding_available(available: bool) {
 
 pub fn is_dsd_encoding_cached_available() -> bool {
     DSD_ENCODING_AVAILABLE.load(Ordering::Acquire)
-}
-
-pub fn dsd_track_create(sample_rate: u32, channels: usize) -> bool {
-    #[cfg(target_os = "android")]
-    {
-        let result = with_jni_env(|env| {
-            let class = find_dsd_class(env)?;
-            let result = env.call_static_method(
-                &class,
-                "nativeCreate",
-                "(II)Z",
-                &[
-                    jni::objects::JValue::Int(sample_rate as i32),
-                    jni::objects::JValue::Int(channels as i32),
-                ],
-            )?;
-            let created = result.z()?;
-            Ok(created)
-        });
-        match result {
-            Ok(true) => {
-                DSD_TRACK_ACTIVE.store(true, Ordering::Release);
-                log::info!(
-                    "[DSD-NATIVE] AudioTrack created: rate={} Hz, ch={}",
-                    sample_rate,
-                    channels
-                );
-                true
-            }
-            Ok(false) => {
-                log::warn!("[DSD-NATIVE] AudioTrack creation returned false");
-                false
-            }
-            Err(e) => {
-                log::error!("[DSD-NATIVE] AudioTrack create JNI error: {}", e);
-                false
-            }
-        }
-    }
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = (sample_rate, channels);
-        false
-    }
-}
-
-pub fn dsd_track_play() -> bool {
-    #[cfg(target_os = "android")]
-    {
-        with_jni_env(|env| {
-            let class = find_dsd_class(env)?;
-            let result = env.call_static_method(&class, "nativePlay", "()Z", &[])?;
-            Ok(result.z()?)
-        })
-        .unwrap_or_else(|e| {
-            log::error!("[DSD-NATIVE] AudioTrack play JNI error: {}", e);
-            false
-        })
-    }
-    #[cfg(not(target_os = "android"))]
-    {
-        false
-    }
-}
-
-pub fn dsd_track_write(data: &[u8]) -> i32 {
-    #[cfg(target_os = "android")]
-    {
-        with_jni_env(|env| {
-            let byte_array = env.new_byte_array(data.len() as i32)?;
-            unsafe {
-                env.set_byte_array_region(
-                    &byte_array,
-                    0,
-                    std::mem::transmute::<&[u8], &[i8]>(data),
-                )?;
-            }
-            let class = find_dsd_class(env)?;
-            let result = env.call_static_method(
-                &class,
-                "nativeWrite",
-                "([B)I",
-                &[jni::objects::JValue::Object(&byte_array.into())],
-            )?;
-            Ok(result.i()?)
-        })
-        .unwrap_or_else(|e| {
-            log::error!("[DSD-NATIVE] AudioTrack write JNI error: {}", e);
-            -1
-        })
-    }
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = data;
-        -1
-    }
-}
-
-pub fn dsd_track_stop() {
-    DSD_TRACK_ACTIVE.store(false, Ordering::Release);
-    #[cfg(target_os = "android")]
-    {
-        let _ = with_jni_env(|env| {
-            let class = find_dsd_class(env)?;
-            env.call_static_method(&class, "nativeStop", "()V", &[])?;
-            Ok(())
-        });
-    }
-}
-
-pub fn is_dsd_track_active() -> bool {
-    DSD_TRACK_ACTIVE.load(Ordering::Acquire)
 }
 
 #[cfg(target_os = "android")]
