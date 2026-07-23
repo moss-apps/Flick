@@ -1729,7 +1729,9 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             _buildDsdOptionTile(
               dialogContext,
               title: 'Native DSD (Experimental)',
-              subtitle: 'Raw DSD stream to DAC. May be buggy — not recommended for normal use.',
+              subtitle:
+                  'Raw DSD stream to DAC. Requires ENCODING_DSD hardware support; '
+                  'otherwise falls back to DoP or PCM automatically.',
               selected: current == DsdOutputMode.native,
               onTap: () async {
                 await service.setDsdOutputMode(DsdOutputMode.native);

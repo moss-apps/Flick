@@ -217,12 +217,23 @@ pub fn classify_device(signals: DeviceSignals) -> DeviceProfile {
     } else {
         false
     };
+    // ALSA direct path: DAPs whose HAL doesn't expose ENCODING_DSD may still
+    // have a kernel ALSA driver that supports DSD natively. This is what pro
+    // players (UAPP, Neutron) use to bypass AudioFlinger entirely.
+    let native_dsd_from_alsa =
+        is_dap && !native_dsd_from_caps && !native_dsd_from_runtime && {
+            let probe = crate::audio::dsd_alsa_direct::dsd_alsa_probe();
+            if probe {
+                log::info!("[DSD-NATIVE] ALSA direct DSD path available for {:?}", kind);
+            }
+            probe
+        };
     DeviceProfile {
         confirmed_bit_perfect: is_dap,
         kind,
         max_sample_rate: signals.audio_caps.max_sample_rate,
         has_balanced_output: signals.audio_caps.has_balanced_output,
-        supports_native_dsd: is_dap || native_dsd_from_caps || native_dsd_from_runtime,
+        supports_native_dsd: native_dsd_from_caps || native_dsd_from_runtime || native_dsd_from_alsa,
     }
 }
 
@@ -281,6 +292,18 @@ pub fn detect_android_device_profile<'local>(
     } else {
         false
     };
+
+    // Populate the ENCODING_DSD runtime cache for DAPs that don't advertise it in
+    // AudioDeviceInfo encodings. The Kotlin probe validates field existence +
+    // getMinBufferSize at DSD64, so only real hardware reports true.
+    if manufacturer_match.is_some() && !audio_caps.supports_native_dsd {
+        let probe = crate::audio::dsd_native_jni::dsd_track_class_available();
+        log::info!(
+            "[DSD-NATIVE] ENCODING_DSD probe for {:?}: supported={}",
+            manufacturer_match,
+            probe
+        );
+    }
 
     Ok(classify_device(DeviceSignals {
         manufacturer,

@@ -200,13 +200,36 @@ class LibraryScannerService {
         }
 
         if (useDeepScan) {
-          // Rust can't read scoped raw paths on removable storage; use SAF
-          // (MediaMetadataRetriever) for full metadata there.
+          // Rust can't open scoped removable paths. MediaStore indexes the
+          // volume and works; SAF DocumentsContract tree walk often returns 0
+          // files on SD/USB, so prefer MediaStore there before SAF fallback.
           if (storageInfo.isRemovable) {
-            devLog(
-              'Deep scan requested for $displayName but it is on removable '
-              'storage; Rust cannot read scoped raw paths, using SAF',
-            );
+            if (resolvedScanRoot != null && resolvedScanRoot.isNotEmpty) {
+              try {
+                yield* _scanFolderMediaStore(
+                  resolvedScanRoot,
+                  folderUri,
+                  displayName,
+                  scanPreferences,
+                  volumeName: storageInfo.mediaStoreVolume,
+                );
+                _logScanTiming(
+                  displayName,
+                  'scan folder (MediaStore, removable deep)',
+                  scanStopwatch.elapsed,
+                );
+                return;
+              } catch (e) {
+                devLog(
+                  'MediaStore scan failed for removable $displayName at '
+                  '$resolvedScanRoot: $e, falling back to SAF',
+                );
+              }
+            } else {
+              devLog(
+                'Deep scan on removable $displayName: no fs path, using SAF',
+              );
+            }
           } else if (resolvedScanRoot != null &&
               resolvedScanRoot.isNotEmpty) {
             try {
@@ -558,23 +581,6 @@ class LibraryScannerService {
       totalStopwatch.elapsed,
     );
 
-    if (detachedTasks.isNotEmpty) {
-      yield ScanProgress(
-        songsFound: finalCount,
-        totalFiles: mediaStoreFiles.length,
-        filesProcessed: mediaStoreFiles.length,
-        currentFolder: displayName,
-        scanEngine: scanEngine,
-        phase: 'Finishing metadata enrichment',
-        newSongs: newSongs,
-        modifiedSongs: modifiedSongs,
-        deletedSongs: deletedSongs,
-        backgroundTasksRunning: true,
-        isComplete: false,
-      );
-      await Future.wait(detachedTasks);
-    }
-
     yield ScanProgress(
       songsFound: finalCount,
       totalFiles: mediaStoreFiles.length,
@@ -890,19 +896,6 @@ class LibraryScannerService {
       filesProcessed: totalFiles,
       currentFolder: displayName,
       scanEngine: scanEngine,
-      phase: 'Finishing metadata enrichment',
-      newSongs: newSongs,
-      backgroundTasksRunning: true,
-      isComplete: false,
-    );
-    await Future.wait(detachedTasks);
-
-    yield ScanProgress(
-      songsFound: finalCount,
-      totalFiles: totalFiles,
-      filesProcessed: totalFiles,
-      currentFolder: displayName,
-      scanEngine: scanEngine,
       newSongs: newSongs,
       isComplete: true,
     );
@@ -1036,7 +1029,7 @@ class LibraryScannerService {
         filterNonMusicFilesAndFolders:
             scanPreferences.filterNonMusicFilesAndFolders,
       );
-      _logScanTiming(displayName, 'SAF fast scan', stopwatch.elapsed);
+      _logScanTiming(displayName, 'SAF fast scan (${fastScanFiles.length} files)', stopwatch.elapsed);
     } catch (e) {
       devLog("Error scanning Android folder: $e");
       return;
@@ -1319,8 +1312,10 @@ class LibraryScannerService {
           ..ripper = ripLog?.ripper
           ..readMode = ripLog?.readMode
           ..accurateRip = ripLog?.accurateRipEnabled
-          ..metadataComplete =
-              meta?.sampleRate != null && meta?.bitDepth != null;
+          // ponytail: mark complete on any successful parse. sampleRate/bitDepth
+          // are API 31+ only, so requiring them kept this false on older devices
+          // and forced a full re-extract every rescan.
+          ..metadataComplete = (meta?.duration ?? 0) > 0;
 
         if (existing != null) {
           song.id = existing.id;
@@ -1384,23 +1379,6 @@ class LibraryScannerService {
     );
 
     _logScanTiming(displayName, 'SAF scan total', totalStopwatch.elapsed);
-
-    if (detachedTasks.isNotEmpty) {
-      yield ScanProgress(
-        songsFound: finalCount,
-        totalFiles: totalFiles,
-        filesProcessed: processed,
-        currentFolder: displayName,
-        scanEngine: scanEngine,
-        phase: 'Finishing metadata enrichment',
-        newSongs: newSongs,
-        modifiedSongs: modifiedSongs,
-        deletedSongs: deletedSongs,
-        backgroundTasksRunning: true,
-        isComplete: false,
-      );
-      await Future.wait(detachedTasks);
-    }
 
     yield ScanProgress(
       songsFound: finalCount,
@@ -1805,8 +1783,10 @@ class LibraryScannerService {
 
     _logScanTiming(displayName, 'Rust scan total', totalStopwatch.elapsed);
 
-    // Spawn audio preload for newly added/modified songs when enabled.
-    if (scanPreferences.preloadAudioData &&
+    // Re-read the pref at spawn time so a mid-scan toggle is honored instead
+    // of using the snapshot captured at scan start.
+    final currentPrefs = await _scanPreferencesService.getPreferences();
+    if (currentPrefs.preloadAudioData &&
         preloadCandidates.isNotEmpty &&
         !_isCancelled) {
       _runDetachedScanTask(
@@ -2187,7 +2167,7 @@ class LibraryScannerService {
   }
 
   int _recommendedMetadataBatchSize(int pendingFiles) {
-    return pendingFiles <= 0 ? 100 : 500;
+    return 100;
   }
 
   List<List<T>> _chunkList<T>(List<T> items, int chunkSize) {

@@ -1364,6 +1364,28 @@ pub fn create_audio_engine(
         )
     };
 
+    // When the effective DSD output mode is DoP, force DsdDoP on the internal path.
+    // DoP is carrier-rate PCM (24-bit) — a DAP can carry it if it plays the carrier
+    // rate, regardless of ENCODING_DSD. The strategy scorer ties DoP capability to
+    // supports_native_dsd, which incorrectly excludes DAPs that lack ENCODING_DSD
+    // but can still pass DoP markers through their HAL/DAC.
+    let effective_dsd_mode = crate::api::audio_api::effective_dsd_output_mode(
+        crate::api::audio_api::current_dsd_output_mode(),
+    );
+    let desired_strategy = if dsd_rate.is_some()
+        && !will_attempt_usb
+        && effective_dsd_mode == crate::audio::dsd_engine::dsd::DsdOutputMode::Dop
+        && !excluded_strategies.contains(&OutputStrategy::DsdDoP)
+    {
+        log::info!(
+            "[DSD-STRATEGY] Effective DSD mode is DoP; forcing DsdDoP over {:?}",
+            desired_strategy
+        );
+        OutputStrategy::DsdDoP
+    } else {
+        desired_strategy
+    };
+
     // Override the sample rate for DSD strategies: the DSD Native
     // backend needs the byte rate (e.g. 705 600 Hz for DSD128),
     // DSD DoP needs the carrier rate (e.g. 352 800 Hz for DSD128),
@@ -1624,55 +1646,51 @@ pub fn create_audio_engine(
         }
     }
 
-    // DSD Native AudioTrack: for DAPs with ENCODING_DSD support, bypass Oboe
-    // entirely and use a dedicated AudioTrack with ENCODING_DSD encoding.
+    // DSD Native output: ALSA direct only (raw SNDRV_PCM ioctls on /dev/snd,
+    // bypasses AudioTrack/AudioFlinger entirely). No AudioTrack fallback; on
+    // failure DsdNativeBackend returns DSD_NATIVE_FALLBACK, which the strategy
+    // layer maps to DoP (see api/audio_api.rs).
     #[cfg(target_os = "android")]
     if desired_strategy == OutputStrategy::DsdNative && direct_usb_backend.is_none() {
-        if supports_native_dsd {
-            match crate::audio::dsd_native_backend::DsdNativeBackend::start(
-                Arc::clone(&callback_data_clone),
-                event_tx_clone.clone(),
-                requested_sample_rate,
-                channels,
-            ) {
-                Ok(backend) => {
-                    log::info!(
-                        "[ENGINE] DSD Native AudioTrack backend created at {} Hz",
-                        requested_sample_rate
-                    );
-                    final_sample_rate = requested_sample_rate;
-                    callback_data.reconfigure_sample_rate(final_sample_rate);
-                    callback_data.set_pipeline_mode(PipelineMode::Dop);
-                    output_runtime = build_output_runtime_state(
-                        OutputStrategy::DsdNative,
-                        OutputVerification::verify(
-                            requested_sample_rate,
-                            requested_sample_rate,
-                            true,
-                            true,
-                        ),
-                        false,
-                        false,
-                    );
-                    output_signature = android_output_signature_for_strategy(
-                        OutputStrategy::DsdNative,
+        match crate::audio::dsd_native_backend::DsdNativeBackend::start(
+            Arc::clone(&callback_data_clone),
+            event_tx_clone.clone(),
+            requested_sample_rate,
+            channels,
+        ) {
+            Ok(backend) => {
+                log::info!(
+                    "[ENGINE] DSD Native backend created at {} Hz (via {})",
+                    requested_sample_rate,
+                    if backend.is_alsa() { "ALSA direct" } else { "ENCODING_DSD" }
+                );
+                final_sample_rate = requested_sample_rate;
+                callback_data.reconfigure_sample_rate(final_sample_rate);
+                callback_data.set_pipeline_mode(PipelineMode::Dop);
+                output_runtime = build_output_runtime_state(
+                    OutputStrategy::DsdNative,
+                    OutputVerification::verify(
                         requested_sample_rate,
-                    );
-                    dsd_native_backend = Some(backend);
-                }
-                Err(error) => {
-                    log::warn!(
-                        "[ENGINE] DSD Native AudioTrack init failed: {}. Will fall back to DoP/PCM.",
-                        error
-                    );
-                    return Err(format!("DSD_NATIVE_FALLBACK:{}", error));
-                }
+                        requested_sample_rate,
+                        true,
+                        true,
+                    ),
+                    false,
+                    false,
+                );
+                output_signature = android_output_signature_for_strategy(
+                    OutputStrategy::DsdNative,
+                    requested_sample_rate,
+                );
+                dsd_native_backend = Some(backend);
             }
-        } else {
-            log::warn!(
-                "[ENGINE] DSD Native strategy selected but device does not support ENCODING_DSD"
-            );
-            return Err("DSD_NATIVE_FALLBACK:Device does not support ENCODING_DSD".to_string());
+            Err(error) => {
+                log::warn!(
+                    "[ENGINE] DSD Native init failed (ALSA + ENCODING_DSD): {}. Will fall back to DoP/PCM.",
+                    error
+                );
+                return Err(format!("DSD_NATIVE_FALLBACK:{}", error));
+            }
         }
     }
 
@@ -1728,6 +1746,15 @@ pub fn create_audio_engine(
         output_runtime =
             build_output_runtime_state(desired_shared_strategy, verification, false, false);
         output_runtime.active_audio_api = Some(managed.active_audio_api.to_string());
+        if dsd_rate.is_some()
+            && effective_dsd_mode == crate::audio::dsd_engine::dsd::DsdOutputMode::Dop
+            && dsd_native_backend.is_none()
+        {
+            output_runtime.verification_reason = Some(
+                "DoP active (bit-perfect DSD). Native DSD unavailable on this device."
+                    .to_string(),
+            );
+        }
         output_signature =
             android_output_signature_for_strategy(resolved_shared_strategy, requested_sample_rate);
         managed_stream = Some(managed);

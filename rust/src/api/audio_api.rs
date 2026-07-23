@@ -117,18 +117,12 @@ pub fn effective_dsd_output_mode_for_rate(
     #[cfg(target_os = "android")]
     {
         let profile = crate::audio::device::current_device_profile();
-        let is_dap = profile.as_ref().is_some_and(|p| p.is_dap());
         let supports_dsd = profile.as_ref().is_some_and(|p| p.supports_native_dsd);
-        if supports_dsd || is_dap {
+        if supports_dsd {
             log_info!(
-                "[AUDIO] {:?} DSD requested; device {} ENCODING_DSD, \
+                "[AUDIO] {:?} DSD requested; device supports ENCODING_DSD, \
                  using Android DSD AudioTrack",
-                requested,
-                if supports_dsd {
-                    "supports"
-                } else {
-                    "is DAP, assuming"
-                }
+                requested
             );
             return DsdOutputMode::Native;
         }

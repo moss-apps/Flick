@@ -1710,9 +1710,11 @@ class MainActivity: FlutterActivity() {
         )
         val result = mutableListOf<TreeDocEntry>()
         val visited = HashSet<String>()
+        var dirCount = 0
 
         fun scanDir(docId: String) {
             if (!visited.add(docId)) return
+            dirCount++
             val childrenUri = try {
                 DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
             } catch (e: Exception) {
@@ -1721,7 +1723,11 @@ class MainActivity: FlutterActivity() {
             val entries = mutableListOf<TreeDocEntry>()
             var hasNomedia = false
             try {
-                contentResolver.query(childrenUri, projection, null, null, null)?.use { c ->
+                val cursor = contentResolver.query(childrenUri, projection, null, null, null)
+                if (cursor == null) {
+                    Log.w("MainActivity", "SAF query null cursor: $childrenUri")
+                }
+                cursor?.use { c ->
                     val idIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
                     val nameIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
                     val mimeIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
@@ -1758,6 +1764,7 @@ class MainActivity: FlutterActivity() {
         }
 
         scanDir(rootDocId)
+        Log.d("MainActivity", "SAF tree walk '$uriString' rootDocId=$rootDocId dirs=$dirCount files=${result.size}")
         return result
     }
 
@@ -1817,10 +1824,11 @@ class MainActivity: FlutterActivity() {
         if (uris.size == 1) return listOf(extractSingleMetadata(uris[0]))
 
         val cores = Runtime.getRuntime().availableProcessors()
-        val chunkCount = kotlin.math.min(cores * 2, uris.size).coerceAtLeast(1)
+        val chunkCount = min(cores * 2, uris.size).coerceAtLeast(1)
         val chunkSize = (uris.size + chunkCount - 1) / chunkCount
 
         val chunks = uris.chunked(chunkSize)
+        Log.d("MainActivity", "SAF metadata: files=${uris.size} parallelism=$chunkCount (cores=$cores)")
 
         return coroutineScope {
             chunks.map { chunk ->
@@ -1846,17 +1854,23 @@ class MainActivity: FlutterActivity() {
     private fun extractMetadataChunk(uriStrings: List<String>): List<Map<String, Any?>> {
         val retriever = MediaMetadataRetriever()
         val results = mutableListOf<Map<String, Any?>>()
+        var perFileMs = 0L
 
         for (uriString in uriStrings) {
+            val t0 = System.currentTimeMillis()
             try {
                 retriever.setDataSource(context, Uri.parse(uriString))
                 results.add(readMetadataFields(retriever, uriString))
             } catch (e: Exception) {
                 results.add(mapOf("uri" to uriString))
             }
+            perFileMs += System.currentTimeMillis() - t0
         }
 
         try { retriever.release() } catch (_: Exception) {}
+        if (uriStrings.isNotEmpty()) {
+            Log.d("MainActivity", "SAF metadata chunk: files=${uriStrings.size} perFileAvg=${perFileMs / uriStrings.size}ms")
+        }
         return results
     }
 
