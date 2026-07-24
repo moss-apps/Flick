@@ -82,7 +82,19 @@ No verified bit-perfect claim should be made for Android playback:
 - The direct USB path avoids Android's shared mixer, but verified bit-perfect still depends on alternate setting, transport format, clock programming, and device-specific behavior.
 - Metadata gaps can force fallback before direct USB is attempted.
 
-`supportsVerifiedBitPerfect` remains `false` on Android.
+`supportsVerifiedBitPerfect` is now `true` for the `USB_DAC_EXPERIMENTAL` path when the
+transport-layer audit holds (see below); `false` for `NORMAL_ANDROID` and
+`DAP_INTERNAL_HIGH_RES`.
+
+> PCM wire audit (Phase B): `audit_pcm_payload` runs on every isochronous transfer in
+> `prepare_iso_transfer_payload`, mirroring `audit_dsd_payload`. It decodes channel-0
+> samples at the negotiated subslot width (little-endian signed, UAC2 Type I PCM) and
+> requires at least two distinct values across the buffer — a gross guard against a
+> stuck/dead pipeline (all-zero or constant DC). The result gates
+> `direct_path_is_bit_perfect` via `usb_pcm_payload_verified`, the same way
+> `USB_DSD_PAYLOAD_VERIFIED` gates the DSD path. Evidence: the one-shot devLog line
+> `[USB-BITPERFECT] verified: <bits>/<rate> Hz <ch>ch pcm direct on "<device>"` fires
+> the first time all conditions hold per stream.
 
 ## Runtime Capability Rules
 
@@ -92,7 +104,7 @@ Computed from runtime mode + diagnostics, not optimistic route labels:
 |------|-----------|
 | `supportsExclusiveUsbOwnership` | Direct USB experimental path active + USB interfaces claimed |
 | `supportsDirectSampleRateSwitching` | Direct USB active + reported output rate matches requested track rate |
-| `supportsVerifiedBitPerfect` | `false` on Android in current codebase |
+| `supportsVerifiedBitPerfect` | Direct USB active + format/rate match + clock verified + PCM/DSD wire payload audit passed (`AndroidDirectUsbDebugState.bit_perfect_verified`) |
 | `supportsAndroidManagedHighResOnly` | `DAP_INTERNAL_HIGH_RES` active |
 | `supportsInternalDapPathOnly` | `DAP_INTERNAL_HIGH_RES` without attached USB DAC |
 
@@ -117,6 +129,6 @@ The chooser dialog ("Use this app for the connected USB device") is not guarante
 - `lib/services/player_service.dart`
 - `lib/services/audio_session_manager.dart`
 - `lib/services/uac2_service.dart`
-- `android/app/src/main/kotlin/com/ultraelectronica/flick/MainActivity.kt`
+- `android/app/src/main/kotlin/com/mossapps/flick/MainActivity.kt`
 - `rust/src/audio/engine.rs`
 - `rust/src/uac2/android_direct.rs`
