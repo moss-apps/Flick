@@ -30,11 +30,22 @@ impl DsdNativeBackend {
         );
 
         if !super::dsd_alsa_direct::dsd_alsa_open(sample_rate, channels) {
+            crate::dev_eprintln!(
+                "[DSD-NATIVE] ALSA DSD output unavailable at byte_rate={} ch={} — will fall back to DoP/PCM",
+                sample_rate,
+                channels,
+            );
             return Err(format!(
                 "ALSA DSD output unavailable at byte_rate={} ch={}",
                 sample_rate, channels
             ));
         }
+
+        crate::dev_eprintln!(
+            "[DSD-NATIVE] ALSA direct output opened at {} Hz ch={} — AudioFlinger bypassed, launching render thread",
+            sample_rate,
+            channels,
+        );
 
         let stop = Arc::new(AtomicBool::new(false));
         let stop_clone = Arc::clone(&stop);

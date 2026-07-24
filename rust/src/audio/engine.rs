@@ -981,7 +981,7 @@ fn build_output_runtime_state(
     let (dsd_wire_rate, dsd_transport) = if dsd_source_rate.is_some() {
         let wire_rate = verification.actual_rate;
         let transport = match strategy {
-            OutputStrategy::DsdNative => "dap-native-encoding".to_string(),
+            OutputStrategy::DsdNative => "dap-native-alsa".to_string(),
             OutputStrategy::UsbDsdNative => {
                 #[cfg(feature = "uac2")]
                 {
