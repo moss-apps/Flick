@@ -1318,7 +1318,7 @@ pub fn create_audio_engine(
                     )
                 })
                 .collect();
-            log::info!(
+            dev_eprintln!(
                 "[DSD-STRATEGY] dsd_rate={:?} native_avail={} dop_avail={} carrier={} registered={} | alts=[{}]",
                 dsd_rate,
                 usb_dsd_native_available,
