@@ -72,6 +72,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   // ponytail: edge zone wide enough to let Android's predictive back/home gestures win
   static const double _backGestureEdgeWidth = 32.0;
   double _horizontalDragStartX = double.infinity;
+  double _horizontalDragStartY = double.infinity;
 
   // Notifier for throttled position – only _WaveformLayer listens, so no setState needed.
   late final ValueNotifier<Duration> _throttledPositionNotifier;
@@ -401,16 +402,20 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 },
                 onHorizontalDragStart: (details) {
                   _horizontalDragStartX = details.globalPosition.dx;
+                  _horizontalDragStartY = details.globalPosition.dy;
                 },
                 onHorizontalDragEnd: (details) {
                   if (_isVinylRotationActive) return;
                   // Skip song navigation if drag started at screen edge so the
                   // native Android back gesture takes priority.
                   final screenWidth = MediaQuery.sizeOf(context).width;
+                  final screenHeight = MediaQuery.sizeOf(context).height;
+                  final nearBottomEdge =
+                      _horizontalDragStartY >= screenHeight - _backGestureEdgeWidth;
                   final nearLeftEdge = _horizontalDragStartX <= _backGestureEdgeWidth;
                   final nearRightEdge =
                       _horizontalDragStartX >= screenWidth - _backGestureEdgeWidth;
-                  if (nearLeftEdge || nearRightEdge) return;
+                  if (nearLeftEdge || nearRightEdge || nearBottomEdge) return;
 
                   if (details.primaryVelocity! < -500) {
                     // Swipe Left -> Next
