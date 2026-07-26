@@ -21,6 +21,7 @@ enum NavBarButton {
 
 class NavBarConfig {
   final List<NavBarButton> enabledButtons;
+  final Set<NavBarButton> hidden;
   final double barSizeFactor;
   final double buttonSpacingFactor;
   final double iconSizeFactor;
@@ -34,6 +35,7 @@ class NavBarConfig {
 
   const NavBarConfig({
     this.enabledButtons = allButtons,
+    this.hidden = const {},
     this.barSizeFactor = 1.0,
     this.buttonSpacingFactor = 1.0,
     this.iconSizeFactor = 1.0,
@@ -51,7 +53,9 @@ class NavBarConfig {
 
   List<NavBarButton> get missingEssentials {
     const essential = {NavBarButton.menu, NavBarButton.songs, NavBarButton.settings};
-    return essential.where((b) => !enabledButtons.contains(b)).toList()
+    return essential
+        .where((b) => !enabledButtons.contains(b) && !hidden.contains(b))
+        .toList()
       ..sort((a, b) => a.pageIndex.compareTo(b.pageIndex));
   }
 
@@ -65,6 +69,7 @@ class NavBarConfig {
 
   NavBarConfig copyWith({
     List<NavBarButton>? enabledButtons,
+    Set<NavBarButton>? hidden,
     double? barSizeFactor,
     double? buttonSpacingFactor,
     double? iconSizeFactor,
@@ -72,6 +77,7 @@ class NavBarConfig {
   }) {
     return NavBarConfig(
       enabledButtons: enabledButtons ?? this.enabledButtons,
+      hidden: hidden ?? this.hidden,
       barSizeFactor: barSizeFactor ?? this.barSizeFactor,
       buttonSpacingFactor: buttonSpacingFactor ?? this.buttonSpacingFactor,
       iconSizeFactor: iconSizeFactor ?? this.iconSizeFactor,
