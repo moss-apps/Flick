@@ -726,14 +726,14 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
               children: [
                 Text(
                   'Last.fm',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: context.adaptiveTextPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Loading session...',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: context.adaptiveTextTertiary,
                   ),
                 ),
@@ -1022,14 +1022,14 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: context.adaptiveTextPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: context.adaptiveTextTertiary,
                       ),
                     ),
@@ -1053,8 +1053,8 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
 
   Widget _buildLeadingIcon(BuildContext context, IconData icon) {
     return Container(
-      width: context.scaleSize(AppConstants.containerSizeSm),
-      height: context.scaleSize(AppConstants.containerSizeSm),
+      width: context.scaleSize(AppConstants.containerSizeMd),
+      height: context.scaleSize(AppConstants.containerSizeMd),
       decoration: BoxDecoration(
         color: AppColors.glassBackgroundStrong,
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
