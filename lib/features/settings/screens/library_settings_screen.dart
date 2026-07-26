@@ -988,8 +988,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
           child: Row(
             children: [
               Container(
-                width: context.scaleSize(AppConstants.containerSizeSm),
-                height: context.scaleSize(AppConstants.containerSizeSm),
+                width: context.scaleSize(AppConstants.containerSizeMd),
+                height: context.scaleSize(AppConstants.containerSizeMd),
                 decoration: BoxDecoration(
                   color: AppColors.glassBackgroundStrong,
                   borderRadius: BorderRadius.circular(AppConstants.radiusSm),
@@ -1005,19 +1005,19 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Library',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: context.adaptiveTextPrimary,
+                      Text(
+                        'Library',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: context.adaptiveTextPrimary,
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 2),
-                    Text(
-                      '$_songCount songs in ${_folders.length} ${_folders.length == 1 ? 'folder' : 'folders'}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
-                    ),
+                     Text(
+                       '$_songCount songs in ${_folders.length} ${_folders.length == 1 ? 'folder' : 'folders'}',
+                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                         color: context.adaptiveTextTertiary,
+                       ),
+                     ),
                   ],
                 ),
               ),
@@ -1168,8 +1168,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
               child: Row(
                 children: [
                   Container(
-                    width: context.scaleSize(AppConstants.containerSizeSm),
-                    height: context.scaleSize(AppConstants.containerSizeSm),
+                    width: context.scaleSize(AppConstants.containerSizeMd),
+                    height: context.scaleSize(AppConstants.containerSizeMd),
                     decoration: BoxDecoration(
                       color: AppColors.glassBackgroundStrong,
                       borderRadius: BorderRadius.circular(
@@ -1189,14 +1189,14 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       children: [
                         Text(
                           'Scanning Settings',
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(color: context.adaptiveTextPrimary),
+                          style: Theme.of(context).textTheme.titleMedium
+                               ?.copyWith(color: context.adaptiveTextPrimary),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Filter files, size limits, and playlist import options',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: context.adaptiveTextTertiary),
+                          style: Theme.of(context).textTheme.bodyMedium
+                               ?.copyWith(color: context.adaptiveTextTertiary),
                         ),
                       ],
                     ),
@@ -1367,25 +1367,25 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  _isXiaomiDevice
-                                      ? 'Disable Battery Optimization (Recommended)'
-                                      : 'Disable Battery Optimization',
-                                  style: Theme.of(context).textTheme.titleSmall
-                                      ?.copyWith(
-                                        color: context.adaptiveTextPrimary,
-                                      ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _isXiaomiDevice
-                                      ? 'Required on many Xiaomi, Redmi, and POCO devices so rescans and background features keep working'
-                                      : 'Allow Flick to run without aggressive background limits so rescans and background features keep working',
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        color: context.adaptiveTextTertiary,
-                                      ),
-                                ),
+                                 Text(
+                                   _isXiaomiDevice
+                                       ? 'Disable Battery Optimization (Recommended)'
+                                       : 'Disable Battery Optimization',
+                                   style: Theme.of(context).textTheme.titleMedium
+                                       ?.copyWith(
+                                         color: context.adaptiveTextPrimary,
+                                       ),
+                                 ),
+                                 const SizedBox(height: 2),
+                                 Text(
+                                   _isXiaomiDevice
+                                       ? 'Required on many Xiaomi, Redmi, and POCO devices so rescans and background features keep working'
+                                       : 'Allow Flick to run without aggressive background limits so rescans and background features keep working',
+                                   style: Theme.of(context).textTheme.bodyMedium
+                                       ?.copyWith(
+                                         color: context.adaptiveTextTertiary,
+                                       ),
+                                 ),
                               ],
                             ),
                           ),

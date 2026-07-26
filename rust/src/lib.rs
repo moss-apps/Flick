@@ -39,6 +39,9 @@ macro_rules! dev_eprintln {
         if crate::DEVELOPER_MODE.load(std::sync::atomic::Ordering::Relaxed) {
             let __msg = format!($($arg)*);
             eprintln!("{}", __msg);
+            // ponytail: route through android_logger (tag "RustUSB") so devLogs
+            // reach `adb logcat`. Raw eprintln/stderr is invisible on Android.
+            log::info!("{}", __msg);
             crate::api::logging::forward_to_sink(__msg);
         }
     };

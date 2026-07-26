@@ -981,7 +981,7 @@ fn build_output_runtime_state(
     let (dsd_wire_rate, dsd_transport) = if dsd_source_rate.is_some() {
         let wire_rate = verification.actual_rate;
         let transport = match strategy {
-            OutputStrategy::DsdNative => "dap-native-encoding".to_string(),
+            OutputStrategy::DsdNative => "dap-native-alsa".to_string(),
             OutputStrategy::UsbDsdNative => {
                 #[cfg(feature = "uac2")]
                 {
@@ -1318,7 +1318,7 @@ pub fn create_audio_engine(
                     )
                 })
                 .collect();
-            log::info!(
+            dev_eprintln!(
                 "[DSD-STRATEGY] dsd_rate={:?} native_avail={} dop_avail={} carrier={} registered={} | alts=[{}]",
                 dsd_rate,
                 usb_dsd_native_available,

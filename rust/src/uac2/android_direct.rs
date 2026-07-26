@@ -1034,10 +1034,70 @@ static LAST_SET_HW_VOLUME: AtomicI16 = AtomicI16::new(0);
 /// Prevents "Resource busy" from concurrent or overlapping claim attempts.
 static USB_SESSION_ACTIVE: AtomicBool = AtomicBool::new(false);
 
+// ponytail: module-level stop signal. `clear_android_usb_device()` has no handle
+// to the backend's local `stop` Arc, so without this the transfer loop keeps
+// running until the engine drops the backend or the USB fd dies. Set from the
+// deferred-clear path; reset at session start. Ceiling: a second clear() during
+// teardown is harmless (idempotent store).
+static USB_STOP_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+/// Combined stop predicate for the render/output loops: bail when either the
+/// backend's local `stop` Arc or the global clear-requested flag is set.
+fn usb_stop_requested(stop: &AtomicBool) -> bool {
+    stop.load(Ordering::Acquire) || USB_STOP_REQUESTED.load(Ordering::Acquire)
+}
+
 static USB_DSD_PAYLOAD_VERIFIED: AtomicBool = AtomicBool::new(false);
 
 fn usb_dsd_payload_verified() -> bool {
     USB_DSD_PAYLOAD_VERIFIED.load(Ordering::SeqCst)
+}
+
+static USB_PCM_PAYLOAD_VERIFIED: AtomicBool = AtomicBool::new(false);
+
+fn usb_pcm_payload_verified() -> bool {
+    USB_PCM_PAYLOAD_VERIFIED.load(Ordering::SeqCst)
+}
+
+static LAST_PCM_PAYLOAD_LOGGED: AtomicBool = AtomicBool::new(false);
+
+fn log_pcm_payload_transition(ok: bool) {
+    let prev = LAST_PCM_PAYLOAD_LOGGED.swap(ok, Ordering::Relaxed);
+    if ok && !prev {
+        crate::dev_eprintln!(
+            "[USB-PCM] wire payload verified: real audio flowing, not a stuck/dead pipeline"
+        );
+    }
+}
+
+static LAST_BIT_PERFECT_LOGGED: AtomicBool = AtomicBool::new(false);
+
+/// One-shot devLog evidence line: emitted the first time per stream that all
+/// bit-perfect conditions hold (format match + verified clock + payload audit).
+fn log_bit_perfect_transition(verified: bool, state: &AndroidDirectUsbState) {
+    let prev = LAST_BIT_PERFECT_LOGGED.swap(verified, Ordering::Relaxed);
+    if !verified {
+        return;
+    }
+    if prev {
+        return;
+    }
+    let Some(effective) = state.playback_format else {
+        return;
+    };
+    let transport = match effective.dsd_transport {
+        DsdTransportMode::DoP => "dop",
+        DsdTransportMode::Native => "dsd-native",
+        DsdTransportMode::None => "pcm",
+    };
+    crate::dev_eprintln!(
+        "[USB-BITPERFECT] verified: {} bit/{} Hz {}ch {} direct on \"{}\" — no mixer, no resample, no DSP",
+        effective.bit_depth,
+        effective.sample_rate,
+        effective.channels,
+        transport,
+        state.device.product_name
+    );
 }
 
 /// Verify the just-encoded wire payload looks like real DSD transport data.
@@ -1083,6 +1143,45 @@ fn audit_dsd_payload(
         DsdTransportMode::Native => buffer.iter().any(|&b| b != 0),
         DsdTransportMode::None => true,
     }
+}
+
+/// Verify the just-encoded PCM wire payload looks like real audio, not a stuck
+/// or dead pipeline. Mirrors audit_dsd_payload's gross-guard philosophy: decode
+/// channel-0 samples at the negotiated subslot width (little-endian signed, per
+/// UAC2 Type I PCM) and require at least two distinct values across the buffer.
+/// A real music transfer is effectively never sample-constant; a dead pipeline
+/// emits a constant (often all-zero or a fixed DC value).
+// ponytail: statistical guard, not a bit-exact hash. Upgrade path: per-frame
+// hash comparison against decoded source bytes if a stronger claim is needed.
+fn audit_pcm_payload(buffer: &[u8], subslot_size: u8, channels: u16) -> bool {
+    if buffer.is_empty() || subslot_size == 0 {
+        return false;
+    }
+    let ss = subslot_size as usize;
+    let ch = channels.max(1) as usize;
+    let stride = ss * ch;
+    if stride == 0 || buffer.len() < stride * 2 {
+        return false;
+    }
+    let bits = ss * 8;
+    let sign_extend = |v: i64| -> i64 {
+        if v & (1 << (bits - 1)) != 0 {
+            v | (-1i64 << bits)
+        } else {
+            v
+        }
+    };
+    let decode = |i: usize| -> i64 {
+        let off = i * stride;
+        let mut v: i64 = 0;
+        for b in 0..ss {
+            v |= (buffer[off + b] as i64) << (8 * b);
+        }
+        sign_extend(v)
+    };
+    let limit = (buffer.len() / stride).min(1024);
+    let first = decode(0);
+    (1..limit).any(|i| decode(i) != first)
 }
 
 pub fn set_android_direct_usb_enabled(enabled: bool) {
@@ -1364,7 +1463,12 @@ pub fn set_android_usb_lock_enabled(enabled: bool) -> Result<(), String> {
 pub fn clear_android_usb_device() {
     USB_SESSION_CLEAR_PENDING.store(true, Ordering::SeqCst);
     if USB_SESSION_ACTIVE.load(Ordering::SeqCst) {
-        dev_eprintln!("Android USB direct: deferring clear until the active session stops");
+        // Signal the running transfer loop to drain and exit. Without this the
+        // Kotlin-side wait_for_stop times out and force-closes the fd.
+        USB_STOP_REQUESTED.store(true, Ordering::SeqCst);
+        dev_eprintln!(
+            "Android USB direct: clear requested while session active; signaling transfer loop to stop"
+        );
         return;
     }
 
@@ -1456,6 +1560,7 @@ pub fn android_direct_debug_state() -> AndroidDirectUsbDebugState {
     let capability_model = state.capability_model.as_ref();
     // Compute live (before the struct literal moves String fields out of state).
     let bit_perfect_verified = direct_path_is_bit_perfect(&state);
+    log_bit_perfect_transition(bit_perfect_verified, &state);
 
     AndroidDirectUsbDebugState {
         registered: true,
@@ -2249,7 +2354,7 @@ fn direct_path_is_bit_perfect(state: &AndroidDirectUsbState) -> bool {
     // passed the DoP-marker / native-byte audit (USB_DSD_PAYLOAD_VERIFIED).
     let payload_ok = match effective.dsd_transport {
         DsdTransportMode::DoP | DsdTransportMode::Native => usb_dsd_payload_verified(),
-        DsdTransportMode::None => true,
+        DsdTransportMode::None => usb_pcm_payload_verified(),
     };
     requested.sample_rate == effective.sample_rate
         && requested.bit_depth == effective.bit_depth
@@ -3253,6 +3358,9 @@ pub fn create_android_usb_backend(
         thread::sleep(Duration::from_millis(100));
     }
 
+    // Fresh session: clear any stop signal left by a prior teardown.
+    USB_STOP_REQUESTED.store(false, Ordering::SeqCst);
+
     if USB_SESSION_ACTIVE.swap(true, Ordering::SeqCst) {
         dev_eprintln!("Android USB direct: force-releasing stale USB session guard");
         force_release_usb_session();
@@ -4207,7 +4315,7 @@ fn run_usb_render_loop(
     let mut logged_render_preview = false;
     let chunk_deadline = Duration::from_millis(ANDROID_USB_RENDER_CHUNK_MS as u64);
 
-    while !stop.load(Ordering::Acquire) {
+    while !usb_stop_requested(&stop) {
         let cycle_start = Instant::now();
         let buffered_samples = {
             let guard = pcm_buffer.lock();
@@ -4456,6 +4564,14 @@ fn prepare_iso_transfer_payload(
             ),
             Ordering::SeqCst,
         );
+    } else {
+        let ok = audit_pcm_payload(
+            &transfer_buffer,
+            candidate.subslot_size,
+            candidate.channels,
+        );
+        USB_PCM_PAYLOAD_VERIFIED.store(ok, Ordering::SeqCst);
+        log_pcm_payload_transition(ok);
     }
 
     Ok(Some(IsoTransferPayload {
@@ -4651,6 +4767,9 @@ fn run_usb_output_loop(
     } = claimed_handle;
     let playback_format = state.playback_format.unwrap();
     USB_DSD_PAYLOAD_VERIFIED.store(false, Ordering::SeqCst);
+    USB_PCM_PAYLOAD_VERIFIED.store(false, Ordering::SeqCst);
+    LAST_PCM_PAYLOAD_LOGGED.store(false, Ordering::Relaxed);
+    LAST_BIT_PERFECT_LOGGED.store(false, Ordering::Relaxed);
     let dsd_quirk = resolve_dsd_quirk(
         state.device.vendor_id,
         state.device.product_id,
@@ -4729,7 +4848,7 @@ fn run_usb_output_loop(
         "[USB] Waiting for stream prime: buffered_samples must reach buffer_target_samples={} before isochronous submit",
         priming_target,
     );
-    while !stop.load(Ordering::Acquire) {
+    while !usb_stop_requested(&stop) {
         let buffered = runtime_stats.buffered_samples.load(Ordering::Relaxed);
         if buffered >= priming_target {
             log_info!(
@@ -4801,7 +4920,7 @@ fn run_usb_output_loop(
         }
     }
 
-    while fatal_error.is_none() && (!stop.load(Ordering::Acquire) || active_slots > 0) {
+    while fatal_error.is_none() && (!usb_stop_requested(&stop) || active_slots > 0) {
         if active_slots == 0 {
             break;
         }
@@ -4878,7 +4997,7 @@ fn run_usb_output_loop(
             }
 
             let mut submit_gap_us = 0u64;
-            if !stop.load(Ordering::Acquire) {
+            if !usb_stop_requested(&stop) {
                 let completion_detected_at = Instant::now();
                 match prepare_iso_transfer_payload(
                     &mut scheduler,
@@ -5009,7 +5128,7 @@ fn run_usb_output_loop(
     set_usb_stream_stable(false);
     USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
     complete_pending_android_usb_clear_if_idle();
-    if stop.load(Ordering::Acquire) {
+    if usb_stop_requested(&stop) {
         set_android_usb_engine_state(AndroidDirectUsbEngineState::Idle, None);
     }
 }
@@ -7175,6 +7294,49 @@ mod dsd_bitperfect_tests {
         assert!(audit_dsd_payload(&[0x00, 0x55, 0x00], DsdTransportMode::Native, 1, 2));
         assert!(!audit_dsd_payload(&[0, 0, 0, 0], DsdTransportMode::Native, 1, 2));
         assert!(!audit_dsd_payload(&[], DsdTransportMode::Native, 1, 2));
+    }
+
+    #[test]
+    fn audit_pcm_accepts_varying_16bit_stereo() {
+        // stride = ss(2) * ch(2) = 4; channel-0 words at 0 and 4 differ.
+        let buf: [u8; 8] = [
+            0x00, 0x00, 0x00, 0x00, // L0 = 0
+            0x01, 0x00, 0x00, 0x00, // L1 = 1
+        ];
+        assert!(audit_pcm_payload(&buf, 2, 2));
+    }
+
+    #[test]
+    fn audit_pcm_rejects_dead_pipeline_all_zero() {
+        let buf = [0u8; 64];
+        assert!(!audit_pcm_payload(&buf, 2, 2));
+    }
+
+    #[test]
+    fn audit_pcm_rejects_stuck_constant_dc() {
+        // every 16-bit sample = 0x0100 (DC); channel-0 never varies.
+        let buf: [u8; 16] = [
+            0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01,
+            0x00, 0x01,
+        ];
+        assert!(!audit_pcm_payload(&buf, 2, 2));
+    }
+
+    #[test]
+    fn audit_pcm_accepts_24bit_packed_subslot() {
+        // ss=3 stereo, stride=6; channel-0 samples differ.
+        let buf: [u8; 12] = [
+            0x00, 0x00, 0x01, 0x00, 0x00, 0x02, // L0
+            0xFF, 0xFF, 0x7F, 0x00, 0x00, 0x03, // L1
+        ];
+        assert!(audit_pcm_payload(&buf, 3, 2));
+    }
+
+    #[test]
+    fn audit_pcm_rejects_empty_and_short() {
+        assert!(!audit_pcm_payload(&[], 2, 2));
+        assert!(!audit_pcm_payload(&[0, 0], 2, 2)); // < 2 frames
+        assert!(!audit_pcm_payload(&[1, 2, 3, 4], 0, 2)); // zero subslot
     }
 
     #[test]

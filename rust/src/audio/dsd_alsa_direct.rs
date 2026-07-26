@@ -107,6 +107,15 @@ mod internal {
         i.flags = 1; // integer
     }
 
+    fn fmt_name(fmt: usize) -> &'static str {
+        match fmt {
+            FMT_DSD_U8 => "DSD_U8",
+            FMT_DSD_U16_LE => "DSD_U16_LE",
+            FMT_DSD_U32_LE => "DSD_U32_LE",
+            _ => "DSD_?",
+        }
+    }
+
     // ── State ─────────────────────────────────────────────────────────────
 
     static FD: AtomicI32 = AtomicI32::new(-1);
@@ -115,7 +124,7 @@ mod internal {
 
     // ── Device discovery ──────────────────────────────────────────────────
 
-    fn parse_pcm_device(name: &str) -> Option<(u32, u32)> {
+    pub(crate) fn parse_pcm_device(name: &str) -> Option<(u32, u32)> {
         let inner = name.strip_prefix("pcmC")?;
         let p = inner.strip_suffix('p')?;
         let mut parts = p.split('D');
@@ -167,6 +176,12 @@ mod internal {
                         card,
                         dev
                     );
+                    crate::dev_eprintln!(
+                        "[DSD-ALSA] {} accessible (card {} dev {}) — AudioFlinger bypass path available",
+                        path,
+                        card,
+                        dev
+                    );
                     return true;
                 } else {
                     let err = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
@@ -179,6 +194,7 @@ mod internal {
             }
         }
         log::info!("[DSD-ALSA] No /dev/snd playback devices found");
+        crate::dev_eprintln!("[DSD-ALSA] No /dev/snd playback devices found — cannot bypass AudioFlinger");
         false
     }
 
@@ -268,7 +284,7 @@ mod internal {
 
         let fmt = match chosen_fmt {
             Some(f) => {
-                log::info!("[DSD-ALSA] Driver supports DSD format bit {}", f);
+                log::info!("[DSD-ALSA] Driver supports DSD format {}", fmt_name(f));
                 f
             }
             None => {
@@ -336,6 +352,14 @@ mod internal {
                 err.raw_os_error().unwrap_or(0)
             ));
         }
+
+        crate::dev_eprintln!(
+            "[DSD-ALSA] AudioFlinger bypassed: direct /dev/snd ioctl path active on {} ({} rate={} ch={})",
+            path,
+            fmt_name(fmt),
+            byte_rate,
+            channels
+        );
 
         Ok(fd)
     }
