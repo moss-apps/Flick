@@ -70,7 +70,8 @@ class AlacConverterService {
       await probeMetadata(filePath);
       _wavConversionSupportCache[filePath] = true;
       return true;
-    } catch (_) {
+    } catch (e) {
+      devLog('[WAV-conv] Symphonia probe FAILED for $filePath: $e');
       _wavConversionSupportCache[filePath] = false;
       return false;
     }
