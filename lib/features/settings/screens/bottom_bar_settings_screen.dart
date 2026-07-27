@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
@@ -18,7 +19,9 @@ class BottomBarSettingsScreen extends ConsumerWidget {
     final appPreferences = ref.watch(appPreferencesProvider);
     final enabled = config.enabledButtons;
     final enabledCount = enabled.length;
-    final disabled = NavBarButton.values.where((b) => !enabled.contains(b)).toList();
+    final hidden = config.hidden;
+    final disabledVisible = NavBarButton.values.where((b) => !enabled.contains(b) && !hidden.contains(b)).toList();
+    final hiddenButtons = NavBarButton.values.where((b) => hidden.contains(b)).toList();
 
     return SettingsScaffold(
       title: 'Bottom Bar',
@@ -165,24 +168,38 @@ class BottomBarSettingsScreen extends ConsumerWidget {
               },
             ),
           ),
-          if (disabled.isNotEmpty) ...[
+          if (disabledVisible.isNotEmpty) ...[
             const SizedBox(height: AppConstants.spacingLg),
             const SettingsSectionHeader('Disabled'),
             SettingsCard(
               children: [
-                for (int i = 0; i < disabled.length; i++) ...[
+                for (int i = 0; i < disabledVisible.length; i++) ...[
                   if (i > 0) const SettingsDivider(),
-                  ToggleSetting(
-                    icon: disabled[i].icon,
-                    title: disabled[i].label,
-                    subtitle:
-                    'Enable to show the ${disabled[i].label} tab in the bottom bar',
-                    value: false,
-                    onChanged: (_) {
-                      ref
-                          .read(navBarConfigProvider.notifier)
-                          .toggleButton(disabled[i]);
+                  _DisabledNavItem(
+                    button: disabledVisible[i],
+                    isHidden: false,
+                    onEnable: () => ref.read(navBarConfigProvider.notifier).toggleButton(disabledVisible[i]),
+                    onToggleHide: () => ref.read(navBarConfigProvider.notifier).toggleHidden(disabledVisible[i]),
+                  ),
+                ],
+              ],
+            ),
+          ],
+          if (hiddenButtons.isNotEmpty) ...[
+            const SizedBox(height: AppConstants.spacingLg),
+            const SettingsSectionHeader('Hidden'),
+            SettingsCard(
+              children: [
+                for (int i = 0; i < hiddenButtons.length; i++) ...[
+                  if (i > 0) const SettingsDivider(),
+                  _DisabledNavItem(
+                    button: hiddenButtons[i],
+                    isHidden: true,
+                    onEnable: () {
+                      ref.read(navBarConfigProvider.notifier).toggleButton(hiddenButtons[i]);
+                      ref.read(navBarConfigProvider.notifier).toggleHidden(hiddenButtons[i]);
                     },
+                    onToggleHide: () => ref.read(navBarConfigProvider.notifier).toggleHidden(hiddenButtons[i]),
                   ),
                 ],
               ],
@@ -306,5 +323,83 @@ class BottomBarSettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
+class _DisabledNavItem extends StatelessWidget {
+  final NavBarButton button;
+  final bool isHidden;
+  final VoidCallback onEnable;
+  final VoidCallback onToggleHide;
+
+  const _DisabledNavItem({
+    required this.button,
+    required this.isHidden,
+    required this.onEnable,
+    required this.onToggleHide,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          AppHaptics.tap();
+          onEnable();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(AppConstants.spacingLg),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.glassBackgroundStrong,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  button.icon,
+                  color: context.adaptiveTextSecondary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      button.label,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: context.adaptiveTextPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isHidden
+                          ? 'Completely hidden from the bottom bar'
+                          : 'Appears in the overflow menu',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.adaptiveTextTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  isHidden ? LucideIcons.eye : LucideIcons.eyeOff,
+                  size: 20,
+                  color: context.adaptiveTextTertiary,
+                ),
+                onPressed: onToggleHide,
+              ),
+              CustomSwitch(value: false, onChanged: (_) => onEnable()),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

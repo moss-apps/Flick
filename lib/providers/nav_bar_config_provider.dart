@@ -5,6 +5,7 @@ import 'package:flick/models/nav_bar_config.dart';
 
 class NavBarConfigNotifier extends Notifier<NavBarConfig> {
   static const _buttonsKey = 'nav_bar_buttons';
+  static const _hiddenKey = 'nav_bar_hidden';
   static const _sizeKey = 'nav_bar_size';
   static const _spacingKey = 'nav_bar_spacing';
   static const _iconSizeKey = 'nav_bar_icon_size';
@@ -30,8 +31,14 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
         ? _parseButtons(buttonsStr)
         : NavBarConfig.allButtons;
 
+    final hiddenStr = prefs.getString(_hiddenKey);
+    final hidden = hiddenStr != null
+        ? _parseButtonSet(hiddenStr)
+        : <NavBarButton>{};
+
     state = NavBarConfig(
       enabledButtons: buttons.isEmpty ? NavBarConfig.allButtons : buttons,
+      hidden: hidden,
       barSizeFactor: prefs.getDouble(_sizeKey) ?? 1.0,
       buttonSpacingFactor: prefs.getDouble(_spacingKey) ?? 1.0,
       iconSizeFactor: prefs.getDouble(_iconSizeKey) ?? 1.0,
@@ -51,13 +58,30 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
     return result;
   }
 
+  Set<NavBarButton> _parseButtonSet(String raw) {
+    final result = <NavBarButton>{};
+    for (final name in raw.split(',')) {
+      final trimmed = name.trim();
+      if (trimmed.isEmpty) continue;
+      try {
+        result.add(NavBarButton.values.byName(trimmed));
+      } catch (_) {}
+    }
+    return result;
+  }
+
   String _serializeButtons(List<NavBarButton> buttons) {
+    return buttons.map((b) => b.name).join(',');
+  }
+
+  String _serializeButtonSet(Set<NavBarButton> buttons) {
     return buttons.map((b) => b.name).join(',');
   }
 
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_buttonsKey, _serializeButtons(state.enabledButtons));
+    await prefs.setString(_hiddenKey, _serializeButtonSet(state.hidden));
     await prefs.setDouble(_sizeKey, state.barSizeFactor);
     await prefs.setDouble(_spacingKey, state.buttonSpacingFactor);
     await prefs.setDouble(_iconSizeKey, state.iconSizeFactor);
@@ -80,6 +104,17 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
       updated.add(button);
     }
     state = state.copyWith(enabledButtons: updated);
+    await _persist();
+  }
+
+  Future<void> toggleHidden(NavBarButton button) async {
+    final updated = Set<NavBarButton>.from(state.hidden);
+    if (updated.contains(button)) {
+      updated.remove(button);
+    } else {
+      updated.add(button);
+    }
+    state = state.copyWith(hidden: updated);
     await _persist();
   }
 
