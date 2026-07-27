@@ -28,6 +28,8 @@ pub struct AudioMetadata {
     pub bit_depth: u16,
     pub duration_samples: u64,
     pub duration_seconds: f64,
+    /// true → WAV format code 3 (IEEE float); false → 1 (PCM int)
+    pub is_float: bool,
 }
 
 /// Conversion session for streaming decode
@@ -41,7 +43,7 @@ pub struct ConversionSession {
 impl ConversionSession {
     /// Create a new conversion session from file bytes
     pub fn new(file_bytes: Vec<u8>) -> Result<Self> {
-        let format_reader = probe_format_reader(&file_bytes)?;
+        let mut format_reader = probe_format_reader(&file_bytes)?;
 
         // Find the first audio track
         let track = format_reader
@@ -53,12 +55,47 @@ impl ConversionSession {
         let track_id = track.id;
         let codec_params = &track.codec_params;
 
-        // Extract metadata
-        let sample_rate = codec_params.sample_rate.context("No sample rate")?;
-        let channels = codec_params.channels.context("No channel info")?.count() as u16;
-        let bit_depth = codec_params.bits_per_sample.unwrap_or(16) as u16;
+        // codec_params often lies for ALAC/AAC-in-M4A: channels may be None, and
+        // bits_per_sample rarely matches the decoder's actual buffer type (e.g.
+        // 24-bit ALAC → S32, AAC → F32). Peek one packet for the real layout.
+        let sample_rate_hint = codec_params.sample_rate.context("No sample rate")?;
         let duration_samples = codec_params.n_frames.unwrap_or(0);
-        let duration_seconds = duration_samples as f64 / sample_rate as f64;
+
+        let mut decoder = symphonia::default::get_codecs()
+            .make(codec_params, &DecoderOptions::default())
+            .context("Failed to create decoder")?;
+
+        // ponytail: always peek first packet for rate/channels/bit_depth/is_float, then rewind.
+        let packet = format_reader
+            .next_packet()
+            .context("No first packet for format peek")?;
+        let decoded = decoder
+            .decode(&packet)
+            .context("Failed to decode peek packet")?;
+        let sample_rate = if decoded.spec().rate > 0 {
+            decoded.spec().rate
+        } else {
+            sample_rate_hint
+        };
+        let channels = decoded.spec().channels.count() as u16;
+        let (bit_depth, is_float) = sample_format_from_buffer(&decoded);
+        decoder.reset();
+        format_reader
+            .seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time: symphonia::core::units::Time::new(0, 0.0),
+                    track_id: Some(track_id),
+                },
+            )
+            .context("Rewind after format peek failed")?;
+        decoder.reset();
+
+        let duration_seconds = if sample_rate > 0 {
+            duration_samples as f64 / sample_rate as f64
+        } else {
+            0.0
+        };
 
         let metadata = AudioMetadata {
             sample_rate,
@@ -66,12 +103,8 @@ impl ConversionSession {
             bit_depth,
             duration_samples,
             duration_seconds,
+            is_float,
         };
-
-        // Create decoder using symphonia's codec registry
-        let decoder = symphonia::default::get_codecs()
-            .make(codec_params, &DecoderOptions::default())
-            .context("Failed to create decoder")?;
 
         Ok(Self {
             format_reader,
@@ -125,9 +158,12 @@ impl ConversionSession {
 
     /// Seek to a specific time position
     pub fn seek(&mut self, time_seconds: f64) -> Result<()> {
-        let sample_pos = (time_seconds * self.metadata.sample_rate as f64) as u64;
+        let sr = self.metadata.sample_rate as u64;
+        let sample_pos = (time_seconds * sr as f64) as u64;
+        let secs = sample_pos / sr;
+        let frac = (sample_pos % sr) as f64 / sr as f64;
         let seek_to = SeekTo::Time {
-            time: symphonia::core::units::Time::new(sample_pos, self.metadata.sample_rate as f64),
+            time: symphonia::core::units::Time::new(secs, frac),
             track_id: Some(self.track_id),
         };
 
@@ -177,6 +213,18 @@ fn probe_format_reader(file_bytes: &[u8]) -> Result<Box<dyn FormatReader>> {
     }
 
     Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Failed to probe audio format")))
+}
+
+/// Bit depth + float flag matching how we pack samples into the WAV body.
+fn sample_format_from_buffer(buffer: &AudioBufferRef<'_>) -> (u16, bool) {
+    match buffer {
+        AudioBufferRef::S8(_) | AudioBufferRef::U8(_) => (8, false),
+        AudioBufferRef::S16(_) | AudioBufferRef::U16(_) => (16, false),
+        AudioBufferRef::S24(_) | AudioBufferRef::U24(_) => (24, false),
+        AudioBufferRef::S32(_) | AudioBufferRef::U32(_) => (32, false),
+        AudioBufferRef::F32(_) => (32, true),
+        AudioBufferRef::F64(_) => (64, true),
+    }
 }
 
 /// Convert AudioBufferRef to interleaved PCM bytes preserving bit depth
@@ -339,6 +387,8 @@ fn generate_wav_header(metadata: &AudioMetadata) -> Vec<u8> {
         metadata.sample_rate * metadata.channels as u32 * (metadata.bit_depth / 8) as u32;
     let block_align = metadata.channels * (metadata.bit_depth / 8);
     let data_size = metadata.duration_samples * block_align as u64;
+    // 1 = PCM integer, 3 = IEEE float
+    let audio_format: u16 = if metadata.is_float { 3 } else { 1 };
 
     // RIFF header
     header.extend_from_slice(b"RIFF");
@@ -348,7 +398,7 @@ fn generate_wav_header(metadata: &AudioMetadata) -> Vec<u8> {
     // fmt chunk
     header.extend_from_slice(b"fmt ");
     header.extend_from_slice(&16u32.to_le_bytes()); // fmt chunk size
-    header.extend_from_slice(&1u16.to_le_bytes()); // Audio format (1 = PCM)
+    header.extend_from_slice(&audio_format.to_le_bytes());
     header.extend_from_slice(&metadata.channels.to_le_bytes());
     header.extend_from_slice(&metadata.sample_rate.to_le_bytes());
     header.extend_from_slice(&byte_rate.to_le_bytes());
@@ -390,6 +440,7 @@ mod tests {
             bit_depth: 16,
             duration_samples: 44100,
             duration_seconds: 1.0,
+            is_float: false,
         };
 
         let header = generate_wav_header(&metadata);
