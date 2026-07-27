@@ -1,4 +1,4 @@
-# Audio Preload Scan — Phased Plan
+# Audio Preload Scan — Implemented
 
 A new optional scan mode that, after the normal library scan discovers files,
 **preloads cover art + missing sparse metadata** and **decodes each song once
@@ -15,6 +15,8 @@ loudness (no new crates), waveform peaks as ~240 floats, metrics as a handful
 of scalars. Peaks + metrics live in a sibling Isar entity (not columns on the
 hot `songs` row). Cover art reuses the existing `albumArtPath` flow verbatim.
 No PCM cache, no per-format decoder duplication.
+
+**Status**: **Implemented in v0.20.4-beta.5+** (AudioPreloadService, SongAudioCacheEntity, Rust analysis bridge, UI controls, waveform consumer, full scanner integration)
 
 ---
 

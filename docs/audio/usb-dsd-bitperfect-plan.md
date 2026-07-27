@@ -82,7 +82,7 @@ native ss=4 (BE + LE + bit_reverse), `encode_dop_slots` ss=3 & ss=4, plus
 
 Phase 1 (P1.1 → P1.3 → P1.2a → P1.2b) → commit golden tests (P4.2 subset) → Phase 2 → Phase 3 → Phase 4.
 
-> All four phases implemented. Host `cargo check` ✓, Android `cargo check --target aarch64-linux-android` ✓, test module compiles+links ✓ (on-device run = §E.3). Dart `flutter analyze` ✓. Not yet committed.
+> All four phases implemented. Host `cargo check` ✓, Android `cargo check --target aarch64-linux-android` ✓, test module compiles+links ✓ (on-device run = §E.3). Dart `flutter analyze` ✓. Committed in v0.20.4-beta.5+.
 
 ---
 
