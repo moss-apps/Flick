@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/manual/data/manual_data.dart';
+import 'package:flick/features/player/widgets/ambient_background.dart';
+import 'package:flick/providers/providers.dart';
 
-class ManualScreen extends StatefulWidget {
+class ManualScreen extends ConsumerStatefulWidget {
   final String? initialSection;
 
   const ManualScreen({super.key, this.initialSection});
 
   @override
-  State<ManualScreen> createState() => _ManualScreenState();
+  ConsumerState<ManualScreen> createState() => _ManualScreenState();
 }
 
-class _ManualScreenState extends State<ManualScreen> {
+class _ManualScreenState extends ConsumerState<ManualScreen> {
   final ScrollController _scrollController = ScrollController();
   final Map<String, GlobalKey> _sectionKeys = {};
   final TextEditingController _searchController = TextEditingController();
@@ -70,57 +73,95 @@ class _ManualScreenState extends State<ManualScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentSong = ref.watch(currentSongProvider);
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        title: _searching
-            ? _SearchField(
-                controller: _searchController,
-                onChanged: (v) => setState(() => _query = v),
-                onClose: () => setState(() {
-                  _searching = false;
-                  _query = '';
-                  _searchController.clear();
-                }),
-              )
-            : const Text(
-                'Manual',
-                style: TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontWeight: FontWeight.w600,
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+          ),
+          Positioned.fill(child: AmbientBackground(song: currentSong)),
+          SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: _query.isNotEmpty
+                      ? _buildSearchResults()
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppConstants.spacingMd,
+                            vertical: AppConstants.spacingMd,
+                          ),
+                          itemCount: kManualSections.length,
+                          itemBuilder: (context, i) {
+                            final section = kManualSections[i];
+                            final initiallyExpanded =
+                                widget.initialSection == section.id;
+                            return _ManualSectionCard(
+                              key: _sectionKeys[section.id],
+                              section: section,
+                              initiallyExpanded: initiallyExpanded,
+                            );
+                          },
+                        ),
                 ),
-              ),
-        actions: [
-          if (!_searching)
-            IconButton(
-              icon: const Icon(LucideIcons.search, size: 20),
-              onPressed: () => setState(() => _searching = true),
+              ],
             ),
+          ),
         ],
       ),
-      body: SafeArea(
-        child: _query.isNotEmpty
-            ? _buildSearchResults()
-            : ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.spacingMd,
-                  vertical: AppConstants.spacingMd,
-                ),
-                itemCount: kManualSections.length,
-                itemBuilder: (context, i) {
-                  final section = kManualSections[i];
-                  final initiallyExpanded = widget.initialSection == section.id;
-                  return _ManualSectionCard(
-                    key: _sectionKeys[section.id],
-                    section: section,
-                    initiallyExpanded: initiallyExpanded,
-                  );
-                },
-              ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppConstants.spacingMd,
+        vertical: AppConstants.spacingSm,
       ),
+      child: _searching
+          ? _SearchField(
+              controller: _searchController,
+              onChanged: (v) => setState(() => _query = v),
+              onClose: () => setState(() {
+                _searching = false;
+                _query = '';
+                _searchController.clear();
+              }),
+            )
+          : Stack(
+              alignment: Alignment.center,
+              children: [
+                const Center(
+                  child: Text(
+                    'Manual',
+                    style: TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(LucideIcons.chevronLeft, size: 22),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    icon: const Icon(LucideIcons.search, size: 20),
+                    onPressed: () => setState(() => _searching = true),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
@@ -246,7 +287,7 @@ class _ManualSectionCardState extends State<_ManualSectionCard> {
     return Container(
       margin: const EdgeInsets.only(bottom: AppConstants.spacingMd),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight.withValues(alpha: 0.6),
+        color: AppColors.surface.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(AppConstants.radiusLg),
         border: Border.all(color: AppColors.glassBorder),
       ),
@@ -341,7 +382,7 @@ class _ManualEntryCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong,
+        color: AppColors.surface.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
         border: Border.all(color: AppColors.glassBorder),
       ),
