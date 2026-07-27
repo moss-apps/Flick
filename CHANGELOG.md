@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.20.5-beta.6 (2026-07-06)
+
+### Audio Preload & Analysis
+- Single-pass audio analysis during library scan — BS.1770 loudness (integrated, short-term, momentary) and waveform peaks.
+- `SongAudioCacheEntity` (Isar) stores cached waveform peaks and audio metrics.
+- Audio preload service runs in background; FFI bindings for `analyze_audio_file`.
+- Preload toggle in Library scan preferences with progress tracking.
+
+### DSD ALSA Direct Output
+- DSD bypasses AudioFlinger entirely via ALSA direct output on DAP devices.
+- ALSA direct and JNI runtime DSD probes for capability detection.
+- PCM payload audit, global stop signal, forced DsdDoP on mode switch.
+- DSD format name helpers and improved debug logging.
+
+### Detail Screen Art & Title Preferences
+- Expanded header art and centered title options for album/playlist/artist detail screens.
+- Configurable header art heights and gradient stops.
+- Settings in Interface → UI Customization.
+
+### Detail Screen Redesigns
+- Playlist detail: redesigned action buttons with lossless indicator.
+- Artist detail: redesigned layout and actions.
+- Album detail: refactored layout with improved artwork extraction.
+
+### Nav Bar Button Customization
+- Hide/show individual bottom nav buttons from Settings → Interface → Bottom Bar.
+- `NavBarConfig` with persisted hidden buttons set.
+
+### Widget Text Scaling
+- Configurable font scale for mini, flagship, and compact widgets.
+- Compact widget text scales with widget width for responsive layouts.
+
+### Pause on Connect
+- USB DAC attach handler and Bluetooth connect pause.
+- Device attached event stream with per-toggle preferences.
+
+### Artwork Extraction Gate & Cache
+- Refcounted artwork pause during preload/scroll with dedicated gate service.
+- Cache staleness reduced to 30 days with 500-entry LRU cap.
+
+### UI Polish & Fixes
+- Speed control and sleep timer migrated to sliders.
+- Back gesture edge width increased; drag handling improved.
+- Milestone back button icon changed to chevron.
+- Manual screen: ConsumerStatefulWidget with ambient background.
+- Folder grid aspect ratio 0.70; AlbumFilterSheet sort state initialized.
+- Impeller config moved to API 31 resource folder.
+- MediaStore prioritized for removable deep scans before SAF.
+- Text styles/icon sizes updated in scrobbling and library settings.
+- Docs: network sources plan, CONTRIBUTING.md.
+
 ## 0.20.4-beta.5 (2026-07-03)
 
 ### Pitch Shifter (SoundTouch)
