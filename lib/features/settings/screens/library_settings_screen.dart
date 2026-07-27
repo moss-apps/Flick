@@ -416,6 +416,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         _scanProgressNotifier.value = ScanProgress(
           songsFound: progress.completed,
           totalFiles: progress.total,
+          filesProcessed: progress.completed,
           currentFile: progress.currentFile,
           currentFolder: 'Preloading Audio',
           phase: 'Analyzing audio',
