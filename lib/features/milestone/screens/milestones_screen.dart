@@ -109,7 +109,7 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(LucideIcons.arrowLeft),
+            icon: const Icon(LucideIcons.chevronLeft),
             visualDensity: VisualDensity.compact,
           ),
           const SizedBox(width: AppConstants.spacingXs),

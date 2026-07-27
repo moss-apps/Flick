@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ponytail: Impeller needs Vulkan 1.1, only CTS-mandated from API 31.
+         Enabling it on API 26-30 (e.g. Nexus 5X/Adreno 4xx custom-ROM Android 10)
+         gives a black FlutterView with no rasterized frames. Skia GL on those APIs. -->
+    <bool name="enable_impeller">true</bool>
+</resources>

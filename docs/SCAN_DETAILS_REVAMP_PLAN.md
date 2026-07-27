@@ -1,6 +1,6 @@
 # Scan Details Revamp Plan
 
-Status: **Planned** (not yet implemented)
+Status: **Implemented in v0.20.4-beta.5+**
 Last updated: 2026-07-20
 
 ## Goal

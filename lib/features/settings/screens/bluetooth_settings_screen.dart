@@ -241,7 +241,7 @@ class _BluetoothSettingsScreenState
             ),
             const SizedBox(height: AppConstants.spacingLg),
           ],
-          const SettingsSectionHeader('Disconnect Behavior'),
+          const SettingsSectionHeader('Connection Behavior'),
           SettingsCard(
             children: _withDividers([
               ToggleSetting(
@@ -256,6 +256,17 @@ class _BluetoothSettingsScreenState
                     .setPauseOnBluetoothDisconnect(v),
               ),
               ToggleSetting(
+                icon: LucideIcons.bluetoothConnected,
+                title: 'Pause on Bluetooth Connect',
+                subtitle: appPrefs.pauseOnBluetoothConnect
+                    ? 'Playback pauses when a Bluetooth audio device connects'
+                    : 'Playback continues when a Bluetooth device connects',
+                value: appPrefs.pauseOnBluetoothConnect,
+                onChanged: (v) => ref
+                    .read(appPreferencesProvider.notifier)
+                    .setPauseOnBluetoothConnect(v),
+              ),
+              ToggleSetting(
                 icon: LucideIcons.play,
                 title: 'Resume on Reconnect',
                 subtitle: appPrefs.resumeOnBluetoothReconnect
@@ -265,6 +276,17 @@ class _BluetoothSettingsScreenState
                 onChanged: (v) => ref
                     .read(appPreferencesProvider.notifier)
                     .setResumeOnBluetoothReconnect(v),
+              ),
+              ToggleSetting(
+                icon: LucideIcons.usb,
+                title: 'Pause on USB DAC Attach',
+                subtitle: appPrefs.pauseOnUsbDacConnect
+                    ? 'Playback pauses when a USB DAC is plugged in'
+                    : 'Playback continues when a USB DAC is plugged in',
+                value: appPrefs.pauseOnUsbDacConnect,
+                onChanged: (v) => ref
+                    .read(appPreferencesProvider.notifier)
+                    .setPauseOnUsbDacConnect(v),
               ),
               ToggleSetting(
                 icon: LucideIcons.usb,

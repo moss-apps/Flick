@@ -499,6 +499,22 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setResumeOnBluetoothReconnect(value);
   }
 
+  Future<void> setPauseOnBluetoothConnect(bool value) async {
+    if (state.pauseOnBluetoothConnect == value) return;
+    state = state.copyWith(pauseOnBluetoothConnect: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setPauseOnBluetoothConnect(value);
+  }
+
+  Future<void> setPauseOnUsbDacConnect(bool value) async {
+    if (state.pauseOnUsbDacConnect == value) return;
+    state = state.copyWith(pauseOnUsbDacConnect: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setPauseOnUsbDacConnect(value);
+  }
+
   Future<void> setPreferredBluetoothDevice(String value) async {
     if (state.preferredBluetoothDevice == value) return;
     state = state.copyWith(preferredBluetoothDevice: value);

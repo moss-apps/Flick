@@ -269,6 +269,19 @@ class AndroidAudioEngine implements AudioEngine {
         }
       }),
     );
+
+    _subscriptions.add(
+      player.errorStream.listen((error) {
+        if (!identical(player, _player)) return;
+        devLog(
+          '[Playback] Android player error: '
+          'code=${error.code} message=${error.message} index=${error.index} '
+          'trackId=${_loadedTrack?.id} '
+          'trackFileType=${_loadedTrack?.fileType} '
+          'trackTitle=${_loadedTrack?.title}',
+        );
+      }),
+    );
   }
 
   void _syncTrackFromIndex(int? index) {

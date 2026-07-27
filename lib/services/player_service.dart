@@ -358,6 +358,7 @@ class PlayerService {
   StreamSubscription<AudioInterruptionEvent>? _audioFocusSubscription;
   StreamSubscription<Map<Object?, Object?>>? _bluetoothDeviceEventSubscription;
   StreamSubscription<void>? _usbDacDetachSubscription;
+  StreamSubscription<void>? _usbDacAttachSubscription;
   DateTime? _bluetoothDisconnectedAt;
   static const Duration _bluetoothReconnectWindow = Duration(seconds: 30);
   bool _audioInitialized = false;
@@ -555,6 +556,7 @@ class PlayerService {
     unawaited(_loadFloatingPlayerPreference());
     _initBluetoothReconnectHandling();
     _initUsbDacDisconnectHandling();
+    _initUsbDacAttachHandling();
     unawaited(_applyBluetoothCodecPrefs());
   }
 
@@ -568,7 +570,7 @@ class PlayerService {
             }
           } else if (type == 'connected') {
             unawaited(_applyBluetoothCodecPrefs());
-            _maybeResumeOnBluetoothReconnect();
+            unawaited(_maybePauseOnBluetoothConnect());
           }
         });
   }
@@ -577,6 +579,14 @@ class PlayerService {
     _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((_) async {
       if (!isPlayingNotifier.value) return;
       final enabled = await _appPreferencesService.getPauseOnUsbDacDisconnect();
+      if (enabled) pause();
+    });
+  }
+
+  void _initUsbDacAttachHandling() {
+    _usbDacAttachSubscription = _uac2Service.deviceAttachedEvents.listen((_) async {
+      if (!isPlayingNotifier.value) return;
+      final enabled = await _appPreferencesService.getPauseOnUsbDacConnect();
       if (enabled) pause();
     });
   }
@@ -640,6 +650,20 @@ class PlayerService {
       'resuming playback',
     );
     unawaited(resume());
+  }
+
+  // On Bluetooth connect: pause if opted in (overrides resume-on-reconnect);
+  // otherwise fall back to the resume-on-reconnect behaviour.
+  Future<void> _maybePauseOnBluetoothConnect() async {
+    final pauseOnConnect =
+        await _appPreferencesService.getPauseOnBluetoothConnect();
+    if (pauseOnConnect && isPlayingNotifier.value) {
+      _bluetoothDisconnectedAt = null;
+      _debugLog('[Bluetooth] Connected; pausing due to pause-on-connect pref');
+      pause();
+      return;
+    }
+    _maybeResumeOnBluetoothReconnect();
   }
 
   Future<void> _loadCrossfadePreferences() async {
@@ -2671,13 +2695,19 @@ class PlayerService {
         defaultTargetPlatform == TargetPlatform.android &&
         parsed?.scheme == 'content';
 
-    // SAF-backed URIs for ALAC/AIFF/M4A can fail format detection in some
-    // decoder paths. Stage them to a local temp file with a stable extension.
+    final normalizedType = _playbackFileType(song);
+    _debugLog(
+      '[WAV-conv] resolve path: file=${song.title} '
+      'normType=$normalizedType engine=$currentEngineType '
+      'isContentUri=$isAndroidContentUri shouldConvert=${_shouldConvertToWav(song)}',
+    );
+
     if (isAndroidContentUri && _shouldStageContentUriForPlayback(song)) {
       final stagedPath = await _stageContentUriForPlayback(
         filePath,
         extensionHint: _preferredExtension(song),
       );
+      _debugLog('[WAV-conv] staged: ${stagedPath ?? "null"}');
       if (stagedPath != null) {
         resolvedPath = stagedPath;
       }
@@ -2688,11 +2718,13 @@ class PlayerService {
         sourceKey: sourceKey,
         sourcePath: resolvedPath,
       );
+      _debugLog('[WAV-conv] converted: ${convertedPath ?? "null (fallback to native)"}');
       if (convertedPath != null) {
         resolvedPath = convertedPath;
       }
     }
 
+    _debugLog('[WAV-conv] final resolved path: $resolvedPath');
     return resolvedPath;
   }
 
@@ -2762,7 +2794,10 @@ class PlayerService {
   }
 
   bool _shouldConvertToWav(Song song) {
-    if (currentEngineType == AudioEngineType.normalAndroid) return false;
+    // ponytail: standard engine also routes ALAC/AIFF via the Rust converter.
+    // AAC-in-M4A fails the Symphonia probe (no default AAC), lands in
+    // _unsupportedWavConversionSources, and falls back to the staged M4A
+    // path so ExoPlayer plays it natively. Probe, not extension, decides A/B.
     final normalized = _playbackFileType(song);
     return normalized == 'm4a' || normalized == 'aiff';
   }
@@ -2785,7 +2820,12 @@ class PlayerService {
     }
 
     final playbackUri = _toPlaybackUri(sourcePath);
+    _debugLog(
+      '[WAV-conv] convert check: sourceScheme=${playbackUri.scheme} '
+      'sourcePath=$sourcePath',
+    );
     if (playbackUri.scheme != 'file') {
+      _debugLog('[WAV-conv] skipping: not a file: scheme');
       return null;
     }
 
@@ -2793,6 +2833,7 @@ class PlayerService {
     final canConvert = await AlacConverterService.canConvertToWavFile(
       localPath,
     );
+    _debugLog('[WAV-conv] canConvert=$canConvert localPath=$localPath');
     if (!canConvert) {
       _unsupportedWavConversionSources.add(sourceKey);
       return null;
@@ -2804,6 +2845,7 @@ class PlayerService {
       );
       _convertedPlaybackPathCache[sourceKey] = convertedPath;
       _unsupportedWavConversionSources.remove(sourceKey);
+      _debugLog('[WAV-conv] success: $convertedPath');
       return convertedPath;
     } catch (e) {
       _unsupportedWavConversionSources.add(sourceKey);
@@ -4831,6 +4873,7 @@ class PlayerService {
     unawaited(_audioFocusSubscription?.cancel());
     unawaited(_bluetoothDeviceEventSubscription?.cancel());
     unawaited(_usbDacDetachSubscription?.cancel());
+    unawaited(_usbDacAttachSubscription?.cancel());
     cancelSleepTimer();
     _notificationService.hideNotification();
     _floatingPlayerService.hide();

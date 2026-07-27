@@ -17,10 +17,18 @@ class AlbumArtService {
 
   static final AlbumArtService instance = AlbumArtService._();
   static const String _storeKey = 'flickArtworkCache';
-  static const Duration _cacheStalePeriod = Duration(days: 90);
+  // ponytail: 30-day staleness + 500-entry LRU cap bounds on-disk storage to
+  // ~roughly the size of a large library's most-listened artwork. Bump the
+  // cap (or drop the stale period) only if getCacheSize() reports pressure.
+  static const Duration _cacheStalePeriod = Duration(days: 30);
+  static const int _cacheMaxEntries = 500;
 
   static final CacheManager _cacheManager = CacheManager(
-    Config(_storeKey, stalePeriod: _cacheStalePeriod),
+    Config(
+      _storeKey,
+      stalePeriod: _cacheStalePeriod,
+      maxNrOfCacheObjects: _cacheMaxEntries,
+    ),
   );
 
   final SongRepository _songRepository = SongRepository();

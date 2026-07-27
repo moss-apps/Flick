@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/services/album_art_service.dart';
+import 'package:flick/services/artwork_gate.dart';
+
+export 'package:flick/services/artwork_gate.dart';
 
 /// A cached image widget that handles both file and network images with caching,
 /// placeholders, and optional thumbnail support.
@@ -83,55 +86,7 @@ class CachedImageWidget extends StatefulWidget {
   State<CachedImageWidget> createState() => _CachedImageWidgetState();
 }
 
-// ponytail: gate heavy first-time artwork extraction during fast orbit fling;
-// batch deferred work and flush on settle.
-bool _artworkExtractionPaused = false;
-final List<VoidCallback> _pendingArtworkResolvers = <VoidCallback>[];
 
-void pauseArtworkExtraction(bool paused) {
-  if (paused == _artworkExtractionPaused) return;
-  _artworkExtractionPaused = paused;
-  if (!paused) {
-    final resolvers = List<VoidCallback>.of(_pendingArtworkResolvers);
-    _pendingArtworkResolvers.clear();
-    for (final r in resolvers) {
-      r();
-    }
-  }
-}
-
-/// Mix this onto a screen's [State] and route its [ScrollNotification]s to
-/// [onScrollNotification] to keep embedded-artwork extraction paused during
-/// flings. Call [disposeArtworkGate] from [State.dispose].
-// ponytail: matches the gate already used by orbit_scroll; one shared helper
-// beats triplicating the timer logic across album/artist/playlist screens.
-mixin ArtworkExtractionScrollGate {
-  static const Duration _settleDelay = Duration(milliseconds: 150);
-
-  Timer? _artworkGate;
-
-  bool onScrollNotification(ScrollNotification notification) {
-    if (notification is ScrollEndNotification) {
-      _artworkGate?.cancel();
-      _artworkGate = null;
-      pauseArtworkExtraction(false);
-    } else if (notification is ScrollUpdateNotification ||
-        notification is UserScrollNotification ||
-        notification is OverscrollNotification) {
-      pauseArtworkExtraction(true);
-      _artworkGate?.cancel();
-      _artworkGate = Timer(_settleDelay, () => pauseArtworkExtraction(false));
-    }
-    return true;
-  }
-
-  void disposeArtworkGate() {
-    _artworkGate?.cancel();
-    // Release the global pause so extraction isn't left frozen when the
-    // route is popped mid-scroll.
-    pauseArtworkExtraction(false);
-  }
-}
 
 class _CachedImageWidgetState extends State<CachedImageWidget> {
   // ponytail: cache only confirmed-existing paths to keep fast-scroll stat()
@@ -201,7 +156,7 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
       return;
     }
 
-    if (_artworkExtractionPaused) {
+    if (artworkExtractionPaused) {
       _enqueueDeferredResolution(audioSourcePath);
       return;
     }
@@ -227,7 +182,7 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
     if (_hasPendingResolve) return;
     _hasPendingResolve = true;
     final imagePath = widget.imagePath;
-    _pendingArtworkResolvers.add(() {
+    enqueueArtworkResolver(() {
       _hasPendingResolve = false;
       if (!mounted ||
           widget.audioSourcePath != audioSourcePath ||
