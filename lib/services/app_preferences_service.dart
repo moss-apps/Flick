@@ -67,6 +67,8 @@ class AppPreferences {
   final bool pauseOnBluetoothDisconnect;
   final bool resumeOnBluetoothReconnect;
   final bool pauseOnUsbDacDisconnect;
+  final bool pauseOnBluetoothConnect;
+  final bool pauseOnUsbDacConnect;
   final String preferredBluetoothDevice;
   final int btPreferredCodec;
   final String btLdacBitrate;
@@ -165,6 +167,8 @@ class AppPreferences {
     this.pauseOnBluetoothDisconnect = true,
     this.resumeOnBluetoothReconnect = false,
     this.pauseOnUsbDacDisconnect = true,
+    this.pauseOnBluetoothConnect = false,
+    this.pauseOnUsbDacConnect = false,
     this.preferredBluetoothDevice = '',
     this.btPreferredCodec = -1,
     this.btLdacBitrate = 'adaptive',
@@ -264,6 +268,8 @@ class AppPreferences {
     bool? pauseOnBluetoothDisconnect,
     bool? resumeOnBluetoothReconnect,
     bool? pauseOnUsbDacDisconnect,
+    bool? pauseOnBluetoothConnect,
+    bool? pauseOnUsbDacConnect,
     String? preferredBluetoothDevice,
     int? btPreferredCodec,
     String? btLdacBitrate,
@@ -392,6 +398,10 @@ class AppPreferences {
           resumeOnBluetoothReconnect ?? this.resumeOnBluetoothReconnect,
       pauseOnUsbDacDisconnect:
           pauseOnUsbDacDisconnect ?? this.pauseOnUsbDacDisconnect,
+      pauseOnBluetoothConnect:
+          pauseOnBluetoothConnect ?? this.pauseOnBluetoothConnect,
+      pauseOnUsbDacConnect:
+          pauseOnUsbDacConnect ?? this.pauseOnUsbDacConnect,
       preferredBluetoothDevice:
           preferredBluetoothDevice ?? this.preferredBluetoothDevice,
       btPreferredCodec: btPreferredCodec ?? this.btPreferredCodec,
@@ -509,6 +519,8 @@ class AppPreferencesService {
   static const _resumeOnBluetoothReconnectKey =
       'app_resume_on_bluetooth_reconnect';
   static const _pauseOnUsbDacDisconnectKey = 'app_pause_on_usb_dac_disconnect';
+  static const _pauseOnBluetoothConnectKey = 'app_pause_on_bluetooth_connect';
+  static const _pauseOnUsbDacConnectKey = 'app_pause_on_usb_dac_connect';
   static const _preferredBluetoothDeviceKey = 'app_preferred_bluetooth_device';
   static const _btPreferredCodecKey = 'app_bt_preferred_codec';
   static const _btLdacBitrateKey = 'app_bt_ldac_bitrate';
@@ -642,6 +654,10 @@ class AppPreferencesService {
           prefs.getBool(_resumeOnBluetoothReconnectKey) ?? false,
       pauseOnUsbDacDisconnect:
           prefs.getBool(_pauseOnUsbDacDisconnectKey) ?? true,
+      pauseOnBluetoothConnect:
+          prefs.getBool(_pauseOnBluetoothConnectKey) ?? false,
+      pauseOnUsbDacConnect:
+          prefs.getBool(_pauseOnUsbDacConnectKey) ?? false,
       preferredBluetoothDevice:
           prefs.getString(_preferredBluetoothDeviceKey) ?? '',
       btPreferredCodec: prefs.getInt(_btPreferredCodecKey) ?? -1,
@@ -1312,6 +1328,26 @@ class AppPreferencesService {
   Future<void> setPauseOnUsbDacDisconnect(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_pauseOnUsbDacDisconnectKey, value);
+  }
+
+  Future<bool> getPauseOnBluetoothConnect() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_pauseOnBluetoothConnectKey) ?? false;
+  }
+
+  Future<void> setPauseOnBluetoothConnect(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_pauseOnBluetoothConnectKey, value);
+  }
+
+  Future<bool> getPauseOnUsbDacConnect() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_pauseOnUsbDacConnectKey) ?? false;
+  }
+
+  Future<void> setPauseOnUsbDacConnect(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_pauseOnUsbDacConnectKey, value);
   }
 
   Future<bool> getResumeOnBluetoothReconnect() async {
