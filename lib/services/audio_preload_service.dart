@@ -5,6 +5,7 @@ import '../data/entities/song_audio_cache_entity.dart';
 import '../data/repositories/song_repository.dart';
 import '../src/rust/api/audio_analysis.dart';
 import 'album_art_service.dart';
+import 'artwork_gate.dart';
 
 class PreloadProgress {
   final int completed;
@@ -60,65 +61,75 @@ class AudioPreloadService {
       return;
     }
 
-    final songIds = songs.map((s) => s.id).toList();
-    final cacheMap = await _songRepository.getAudioCacheMap(songIds);
+    // ponytail: hold the artwork gate for the whole pass so scroll-side
+    // extraction steps aside. Preload owns the shared compute() isolate
+    // until done; tiles refresh via watchSongs() -> invalidateSelf when each
+    // path is persisted, so art appears as preload reaches it. Refcounted,
+    // so a concurrent fling gate won't clobber this on its settle timer.
+    pauseArtworkExtraction(true);
+    try {
+      final songIds = songs.map((s) => s.id).toList();
+      final cacheMap = await _songRepository.getAudioCacheMap(songIds);
 
-    final toProcess = <SongEntity>[];
-    var skipped = 0;
+      final toProcess = <SongEntity>[];
+      var skipped = 0;
 
-    for (final song in songs) {
-      if (_isCancelled) break;
+      for (final song in songs) {
+        if (_isCancelled) break;
 
-      final cache = cacheMap[song.id];
-      if (!forceAll && cache != null && _isCacheFresh(cache, song)) {
-        skipped++;
-        continue;
+        final cache = cacheMap[song.id];
+        if (!forceAll && cache != null && _isCacheFresh(cache, song)) {
+          skipped++;
+          continue;
+        }
+        toProcess.add(song);
       }
-      toProcess.add(song);
-    }
 
-    var completed = skipped;
-    var failed = 0;
-
-    yield PreloadProgress(
-      completed: completed,
-      total: songs.length,
-      skipped: skipped,
-      failed: failed,
-    );
-
-    // ponytail: chunked concurrency — simple, correct, good enough for v1.
-    // Uneven decode times leave a worker idle at chunk boundaries; upgrade to
-    // a shared-queue worker pool if that matters.
-    for (var i = 0; i < toProcess.length; i += _concurrency) {
-      if (_isCancelled) break;
-
-      final end = (i + _concurrency).clamp(0, toProcess.length);
-      final chunk = toProcess.sublist(i, end);
-
-      final results = await Future.wait(
-        chunk.map((s) => _processSong(s).then((_) => true).catchError((_) => false)),
-      );
-
-      completed += results.where((r) => r).length;
-      failed += results.where((r) => !r).length;
+      var completed = skipped;
+      var failed = 0;
 
       yield PreloadProgress(
         completed: completed,
         total: songs.length,
         skipped: skipped,
         failed: failed,
-        currentFile: chunk.last.title,
       );
-    }
 
-    yield PreloadProgress(
-      completed: songs.length,
-      total: songs.length,
-      skipped: skipped,
-      failed: failed,
-      isComplete: true,
-    );
+      // ponytail: chunked concurrency — simple, correct, good enough for v1.
+      // Uneven decode times leave a worker idle at chunk boundaries; upgrade
+      // a shared-queue worker pool if that matters.
+      for (var i = 0; i < toProcess.length; i += _concurrency) {
+        if (_isCancelled) break;
+
+        final end = (i + _concurrency).clamp(0, toProcess.length);
+        final chunk = toProcess.sublist(i, end);
+
+        final results = await Future.wait(
+          chunk.map((s) => _processSong(s).then((_) => true).catchError((_) => false)),
+        );
+
+        completed += results.where((r) => r).length;
+        failed += results.where((r) => !r).length;
+
+        yield PreloadProgress(
+          completed: completed,
+          total: songs.length,
+          skipped: skipped,
+          failed: failed,
+          currentFile: chunk.last.title,
+        );
+      }
+
+      yield PreloadProgress(
+        completed: songs.length,
+        total: songs.length,
+        skipped: skipped,
+        failed: failed,
+        isComplete: true,
+      );
+    } finally {
+      pauseArtworkExtraction(false);
+    }
   }
 
   bool _isCacheFresh(SongAudioCacheEntity cache, SongEntity song) {
