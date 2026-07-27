@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rust-checks:
+    name: Rust (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-linux-android
+          - armv7-linux-androideabi
+          - x86_64-linux-android
+          - i686-linux-android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          components: clippy, rustfmt
+          targets: ${{ matrix.target }}
+
+      - name: Install cargo-ndk
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-ndk
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r26d
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+          key: ${{ matrix.target }}
+
+      # arm64 alone runs clippy; the matrix is a smoke per-target build above.
+      # Full per-target clippy is slow; we cross-compile-check all targets via
+      # cargo ndk build below, and run clippy once on arm64.
+      # rustfmt is run by Trunk (rustfmt@1.65.0 pinned in .trunk/trunk.yaml),
+      # not here — current stable rustfmt's edition-2024 style diverges from the
+      # existing codebase, so running it here would fail on unrelated churn.
+      - name: clippy (arm64)
+        if: matrix.target == 'aarch64-linux-android'
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: cargo ndk --target aarch64-linux-android clippy --manifest-path rust/Cargo.toml -- -D warnings
+
+      - name: build (cross)
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: cargo ndk --target ${{ matrix.target }} build --manifest-path rust/Cargo.toml
+
+  rust-test:
+    name: Rust tests (host)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+
+      - name: Install native deps (cpal/symphonia vendor build needs ALSA + libusb)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libusb-1.0-0-dev pkg-config
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+          key: host-test
+
+      - name: cargo test --lib
+        # ponytail: integration tests in rust/tests/ reference the lib crate by
+        # name, but Cargo.toml's crate-type is ["cdylib","staticlib"] (no rlib),
+        # so those binaries can't link. Run only lib unit tests; the two
+        # non-#[ignore] integration tests just construct structs (no behavior
+        # coverage). Add "rlib" to crate-type if integration tests are needed.
+        run: cargo test --lib --manifest-path rust/Cargo.toml
+
+  dart-checks:
+    name: Flutter analyze + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Rust toolchain (flutter_rust_bridge codegen may invoke rustc)
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+
+      - name: pub get
+        run: flutter pub get
+
+      - name: build_runner
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: flutter analyze
+        # ponytail: newer runner flutter flags `onReorder` as deprecated (info).
+        # Don't fail CI on infos; upgrade the 4 call sites when convenient.
+        run: flutter analyze --no-fatal-infos
+
+      - name: flutter test
+        run: flutter test
+
+  trunk:
+    name: Trunk Linters
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: trunk-io/trunk-action@v1

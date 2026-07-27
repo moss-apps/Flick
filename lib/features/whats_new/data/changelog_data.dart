@@ -44,6 +44,98 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
+    version: '0.20.5-beta.6',
+    date: '2026-07-06',
+    sections: [
+      ChangelogSection(
+        title: 'Audio Preload & Analysis',
+        bullets: [
+          '**Single-pass audio analysis** during library scan — BS.1770 loudness (integrated, short-term, momentary) and waveform peak data.',
+          '`SongAudioCacheEntity` (Isar) stores cached waveform peaks and audio metrics per song.',
+          '**Audio preload service** manages the analysis run in the background, caching results for instant waveform rendering.',
+          'FFI bindings for the audio analysis API (`analyze_audio_file`, `AudioAnalysisResult`).',
+          'Preload toggle in Library scan preferences with progress tracking.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'DSD ALSA Direct Output',
+        bullets: [
+          'DSD playback now bypasses Android\'s AudioFlinger entirely via **ALSA direct output** on DAP devices.',
+          'ALSA direct and JNI runtime DSD probes for detecting DAP capabilities.',
+          '`dsd-native-alsa` transport label with debug logging for open/fail status.',
+          'PCM payload audit and global stop signal for USB clear on mode changes.',
+          'Engine prevention across DSD mode changes — forces DsdDoP strategy when effective mode is DoP.',
+          'DSD format name helpers and improved debug logging throughout the DSD pipeline.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Detail Screen Art & Title Preferences',
+        bullets: [
+          '**Expanded header art**: choose between normal and expanded album/playlist/artist art on detail screens.',
+          '**Centered title**: toggle title alignment between default and centered on detail screens.',
+          'Header art heights and gradient stops adjustable via preferences.',
+          'Settings accessible from Settings → Interface → UI Customization.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Detail Screen Redesigns',
+        bullets: [
+          '**Playlist detail screen**: redesigned action buttons with lossless indicator, updated spacing and styling.',
+          '**Artist detail screen**: redesigned layout and actions with improved visual hierarchy.',
+          '**Album detail screen**: refactored layout with artwork extraction improvements.',
+          'Scroll-induced translation removed from album art; artwork extraction scroll gate added for performance.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Nav Bar Button Customization',
+        bullets: [
+          'Hide or show individual bottom nav bar buttons from Settings → Interface → Bottom Bar.',
+          '`NavBarConfig` with hidden buttons set, persisted via SharedPreferences.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Widget Text Scaling',
+        bullets: [
+          'Configurable font scale for mini, flagship, and compact widgets.',
+          'Text scale preferences persisted and applied per-widget type.',
+          'Compact widget text scales with widget width for responsive layouts.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Pause on Connect',
+        bullets: [
+          '**USB DAC attach handler** — pauses playback when a USB DAC is connected.',
+          '**Pause-on-Bluetooth-connect** — pauses playback when a Bluetooth device connects.',
+          'Device attached event stream for UI notifications.',
+          'Per-toggle preferences in Bluetooth settings.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Artwork Extraction Gate & Cache',
+        bullets: [
+          'Artwork extraction pauses during audio preload and scroll for consistent performance.',
+          'Refcounted pause with scroll gate mixin and dedicated artwork gate service.',
+          'Artwork cache staleness reduced to 30 days with a 500-entry LRU eviction cap.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'UI Polish & Fixes',
+        bullets: [
+          'Speed control and sleep timer migrated from button presets to sliders.',
+          'Back gesture edge width increased and drag handling improved.',
+          'Milestone back button icon replaced arrow with chevron.',
+          'Manual screen converted to `ConsumerStatefulWidget` with ambient background.',
+          'Folder grid item aspect ratio adjusted to 0.70.',
+          '`AlbumFilterSheet` sort state initialized on open.',
+          'Impeller configuration moved to API 31 resource folder.',
+          'MediaStore prioritized for deep scans on removable storage before SAF fallback.',
+          'Text styles and icon sizes updated across Last.fm, ListenBrainz, and library settings.',
+          'Documentation: network sources plan, CONTRIBUTING.md with bit-perfect/DAC notes.',
+        ],
+      ),
+    ],
+  ),
+  ChangelogEntry(
     version: '0.20.4-beta.5',
     date: '2026-07-03',
     sections: [
