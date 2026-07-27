@@ -186,6 +186,9 @@ class Uac2Service {
   final StreamController<void> _deviceDetachedController =
       StreamController<void>.broadcast();
   Stream<void> get deviceDetachedEvents => _deviceDetachedController.stream;
+  final StreamController<void> _deviceAttachedController =
+      StreamController<void>.broadcast();
+  Stream<void> get deviceAttachedEvents => _deviceAttachedController.stream;
   bool _androidChannelConfigured = false;
   Future<void>? _initializeInFlight;
   Uac2AudioFormat? _lastKnownFormat;
@@ -280,6 +283,7 @@ class Uac2Service {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'onDeviceAttached':
+          _deviceAttachedController.add(null);
           _scheduleAndroidRouteRefresh();
           return;
         case 'onDeviceDetached':
