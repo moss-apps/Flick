@@ -362,103 +362,13 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
                     child: CustomScrollView(
                       controller: _scrollController,
                       slivers: [
-                        SliverAppBar(
-                          expandedHeight:
-                              ref.watch(appPreferencesProvider).detailHeaderArtExpanded
-                                  ? 360
-                                  : 280,
-                          pinned: true,
-                          backgroundColor: resolvedBg,
-                          surfaceTintColor: Colors.transparent,
-                          leading: AnimatedOpacity(
-                            duration: AppConstants.animationFast,
-                            opacity: _showAppBarActions ? 1.0 : 0.0,
-                            child: IgnorePointer(
-                              ignoring: !_showAppBarActions,
-                              child: IconButton(
-                                icon: Icon(
-                                  LucideIcons.arrowLeft,
-                                  color: context.adaptiveTextPrimary,
-                                ),
-                                onPressed: () => Navigator.of(context).pop(),
-                              ),
-                            ),
-                          ),
-                          titleSpacing: 0,
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: AnimatedOpacity(
-                                  duration: AppConstants.animationFast,
-                                  opacity: _showAppBarActions ? 1.0 : 0.0,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        widget.artistName,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall
-                                            ?.copyWith(
-                                              color:
-                                                  context.adaptiveTextPrimary,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        '${_albumGroups.length} albums • ${widget.songs.length} songs',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color:
-                                                  context.adaptiveTextSecondary,
-                                            ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              AnimatedOpacity(
-                                duration: AppConstants.animationFast,
-                                opacity: _showAppBarActions ? 1.0 : 0.0,
-                                child: IgnorePointer(
-                                  ignoring: !_showAppBarActions,
-                                  child: IconButton(
-                                    icon: Icon(
-                                      LucideIcons.play,
-                                      color: context.adaptiveTextPrimary,
-                                      size: 20,
-                                    ),
-                                    onPressed: _playAll,
-                                  ),
-                                ),
-                              ),
-                              AnimatedOpacity(
-                                duration: AppConstants.animationFast,
-                                opacity: _showAppBarActions ? 1.0 : 0.0,
-                                child: IgnorePointer(
-                                  ignoring: !_showAppBarActions,
-                                  child: IconButton(
-                                    icon: Icon(
-                                      LucideIcons.shuffle,
-                                      color: context.adaptiveTextPrimary,
-                                      size: 20,
-                                    ),
-                                    onPressed: _shuffleAll,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          flexibleSpace: FlexibleSpaceBar(
-                            background: _buildAppBarBackground(
+                        SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: ref.watch(appPreferencesProvider)
+                                    .detailHeaderArtExpanded
+                                ? 360
+                                : 280,
+                            child: _buildAppBarBackground(
                               context,
                               resolvedBg,
                               _albumGroups.length,
@@ -632,10 +542,88 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
                   ),
                 ),
               ),
+              _buildOverlayTopBar(context, resolvedBg),
               const FloatingMiniPlayer(),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildOverlayTopBar(BuildContext context, Color bg) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: AnimatedOpacity(
+        duration: AppConstants.animationFast,
+        opacity: _showAppBarActions ? 1.0 : 0.0,
+        child: IgnorePointer(
+          ignoring: !_showAppBarActions,
+          child: Container(
+            color: bg,
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    LucideIcons.arrowLeft,
+                    color: context.adaptiveTextPrimary,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.artistName,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(
+                              color: context.adaptiveTextPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        '${_albumGroups.length} albums • ${widget.songs.length} songs',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                              color: context.adaptiveTextSecondary,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    LucideIcons.play,
+                    color: context.adaptiveTextPrimary,
+                    size: 20,
+                  ),
+                  onPressed: _playAll,
+                ),
+                IconButton(
+                  icon: Icon(
+                    LucideIcons.shuffle,
+                    color: context.adaptiveTextPrimary,
+                    size: 20,
+                  ),
+                  onPressed: _shuffleAll,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -690,11 +678,14 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
             fadeTo.withValues(alpha: 0.8),
             fadeTo,
           ];
+    // ponytail: solid base + 1px overlap seal; same-color adjacent paints hairline otherwise
     return Stack(
       fit: StackFit.expand,
+      clipBehavior: Clip.none,
       children: [
+        ColoredBox(color: fadeTo),
         _buildArtLayer(context),
-        Container(
+        DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -702,9 +693,16 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
               colors: gradientColors,
               stops: prefs.detailHeaderArtExpanded
                   ? const [0.0, 0.7, 0.92, 1.0]
-                  : null,
+                  : const [0.0, 0.5, 1.0],
             ),
           ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: -1,
+          height: 3,
+          child: ColoredBox(color: fadeTo),
         ),
         Positioned(
           top: MediaQuery.of(context).padding.top + 20,
