@@ -236,9 +236,16 @@ class _MiniPlayerTab extends ConsumerWidget {
               value: prefs.widgetTextScale,
               displayValue: '${(prefs.widgetTextScale * 100).round()}%',
               min: 0.8,
-              max: 1.5,
-              divisions: 14,
+              max: 2.5,
+              divisions: 34,
               onChanged: (v) => _updateTextScale(ref, v),
+              onDisplayTap: () => _showManualScaleDialog(
+                context,
+                value: prefs.widgetTextScale,
+                min: 0.8,
+                max: 2.5,
+                onChanged: (v) => _updateTextScale(ref, v),
+              ),
             ),
           ],
         ),
@@ -365,9 +372,16 @@ class _FlagshipTab extends ConsumerWidget {
               displayValue:
                   '${(prefs.widgetFlagshipTextScale * 100).round()}%',
               min: 0.8,
-              max: 1.5,
-              divisions: 14,
+              max: 2.5,
+              divisions: 34,
               onChanged: (v) => _updateFlagshipTextScale(ref, v),
+              onDisplayTap: () => _showManualScaleDialog(
+                context,
+                value: prefs.widgetFlagshipTextScale,
+                min: 0.8,
+                max: 2.5,
+                onChanged: (v) => _updateFlagshipTextScale(ref, v),
+              ),
             ),
           ],
         ),
@@ -541,9 +555,16 @@ class _CompactTab extends ConsumerWidget {
               displayValue:
                   '${(prefs.widgetCompactTextScale * 100).round()}%',
               min: 0.8,
-              max: 1.5,
-              divisions: 14,
+              max: 2.5,
+              divisions: 34,
               onChanged: (v) => _updateCompactTextScale(ref, v),
+              onDisplayTap: () => _showManualScaleDialog(
+                context,
+                value: prefs.widgetCompactTextScale,
+                min: 0.8,
+                max: 2.5,
+                onChanged: (v) => _updateCompactTextScale(ref, v),
+              ),
             ),
           ],
         ),
@@ -707,6 +728,100 @@ Color _resolveAccentColor(String name) {
   };
 }
 
+Future<void> _showManualScaleDialog(
+  BuildContext context, {
+  required double value,
+  required double min,
+  required double max,
+  required ValueChanged<double> onChanged,
+}) async {
+  final controller = TextEditingController(
+    text: (value * 100).round().toString(),
+  );
+  final submitted = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+      ),
+      title: Text(
+        'Font Scale',
+        style: TextStyle(color: context.adaptiveTextPrimary),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Enter a value from ${(min * 100).round()}% to ${(max * 100).round()}%',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.adaptiveTextTertiary,
+                ),
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textInputAction: TextInputAction.done,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: context.adaptiveTextPrimary,
+                  fontFamily: 'ProductSans',
+                ),
+            decoration: InputDecoration(
+              isDense: true,
+              suffixText: '%',
+              suffixStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: context.adaptiveTextTertiary,
+                  ),
+              border: OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(AppConstants.radiusSm),
+                borderSide: BorderSide(color: AppColors.glassBorder),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(AppConstants.radiusSm),
+                borderSide: BorderSide(color: AppColors.glassBorder),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(AppConstants.radiusSm),
+                borderSide: BorderSide(color: context.adaptiveTextPrimary),
+              ),
+            ),
+            onSubmitted: (_) => Navigator.of(dialogContext).pop(true),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: context.adaptiveTextSecondary),
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: Text(
+            'Apply',
+            style: TextStyle(color: context.adaptiveTextPrimary),
+          ),
+        ),
+      ],
+    ),
+  );
+  final parsed = submitted == true
+      ? double.tryParse(controller.text.trim())
+      : null;
+  controller.dispose();
+  if (parsed != null) {
+    onChanged((parsed / 100).clamp(min, max).toDouble());
+  }
+}
+
 class _WidgetTextPreview extends StatefulWidget {
   const _WidgetTextPreview({
     required this.titleBaseSp,
@@ -738,7 +853,7 @@ class _WidgetTextPreviewState extends State<_WidgetTextPreview> {
   Widget build(BuildContext context) {
     final auto = _autoFactors[_sizeIndex];
     double clampSp(int base) =>
-        (base * auto * widget.manualScale).round().clamp(9, 22).toDouble();
+        (base * auto * widget.manualScale).round().clamp(9, 30).toDouble();
     final titleSp = clampSp(widget.titleBaseSp);
     final artistSp = clampSp(widget.artistBaseSp);
     final cross = widget.centered
