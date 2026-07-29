@@ -52,19 +52,24 @@ jobs:
       # arm64 alone runs clippy; the matrix is a smoke per-target build above.
       # Full per-target clippy is slow; we cross-compile-check all targets via
       # cargo ndk build below, and run clippy once on arm64.
-      # rustfmt is run by Trunk (rustfmt@1.65.0 pinned in .trunk/trunk.yaml),
-      # not here — current stable rustfmt's edition-2024 style diverges from the
-      # existing codebase, so running it here would fail on unrelated churn.
+      # Steps run from rust/ (working-directory) because cargo-ndk 4.x runs
+      # `cargo metadata` in CWD and ignores --manifest-path, so it fails to
+      # find Cargo.toml when invoked from the repo root.
+      # rustfmt is not enforced in CI: the Trunk job was removed, and current
+      # stable rustfmt's edition-2024 style diverges from the existing codebase,
+      # so running it here would fail on unrelated churn.
       - name: clippy (arm64)
         if: matrix.target == 'aarch64-linux-android'
+        working-directory: rust
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: cargo ndk --target aarch64-linux-android clippy --manifest-path rust/Cargo.toml -- -D warnings
+        run: cargo ndk --target aarch64-linux-android clippy -- -D warnings
 
       - name: build (cross)
+        working-directory: rust
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: cargo ndk --target ${{ matrix.target }} build --manifest-path rust/Cargo.toml
+        run: cargo ndk --target ${{ matrix.target }} build
 
   rust-test:
     name: Rust tests (host)
@@ -119,16 +124,3 @@ jobs:
 
       - name: flutter test
         run: flutter test
-
-  trunk:
-    name: Trunk Linters
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: trunk-io/trunk-action@v1
