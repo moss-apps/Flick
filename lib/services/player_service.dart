@@ -2281,10 +2281,15 @@ class PlayerService {
         final position = _lastPlaybackState?.position ?? Duration.zero;
         unawaited(() async {
           try {
+            // Mid-stream USB error = DAC lost while playing. Respect the
+            // pause-on-disconnect pref instead of resuming on the fallback.
+            final pauseOnDisconnect = await _appPreferencesService
+                .getPauseOnUsbDacDisconnect();
             final fellBack = await _handleDirectUsbStartupRefusal(
               message,
               song: song,
               initialPosition: position,
+              autoResumeAfterFallback: !pauseOnDisconnect,
             );
             if (!fellBack) {
               await _refreshAudioOutputDiagnostics(reason: 'Rust backend error');
@@ -3998,6 +4003,7 @@ class PlayerService {
     Object error, {
     required Song? song,
     required Duration initialPosition,
+    bool autoResumeAfterFallback = true,
   }) async {
     if (!Platform.isAndroid ||
         currentEngineType != AudioEngineType.usbDacExperimental) {
@@ -4037,11 +4043,14 @@ class PlayerService {
         await _playbackManager.playTrack(
           song,
           initialPosition: initialPosition,
+          autoPlay: autoResumeAfterFallback,
         );
       });
       _ensurePositionSaveTimer();
       await _refreshAudioOutputDiagnostics(
-        reason: 'direct USB fallback resumed',
+        reason: autoResumeAfterFallback
+            ? 'direct USB fallback resumed'
+            : 'direct USB fallback paused (pause-on-disconnect)',
         activeSong: song,
       );
     }

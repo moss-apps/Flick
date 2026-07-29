@@ -81,11 +81,12 @@ internal object WidgetPrefs {
     fun getMiniTextScale(context: Context): Float =
         getWidgetDouble(context, KEY_TEXT_SCALE, 1.0f)
 
-    // ponytail: clamp bounds keep text sane across dp sizes; baseline per-widget
+    // ponytail: clamp bounds keep text sane across dp sizes; baseline per-widget.
+    // Upper bound raised to 30 so high-dp screens can use larger manual scales.
     fun scaledSp(baseSp: Int, widgetWidthDp: Int, baselineDp: Float, manualScale: Float): Int {
         val widthDp = if (widgetWidthDp > 0) widgetWidthDp else baselineDp.toInt()
         val auto = (widthDp / baselineDp).coerceIn(0.85f, 1.3f)
-        return (baseSp * auto * manualScale).roundToInt().coerceIn(9, 22)
+        return (baseSp * auto * manualScale).roundToInt().coerceIn(9, 30)
     }
 
     fun getAccentColor(context: Context): Int {
