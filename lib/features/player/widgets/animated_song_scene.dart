@@ -467,9 +467,13 @@ class AnimatedSongScene extends StatelessWidget {
 
                   final chip = AnimatedContainer(
                     duration: AppConstants.animationFast,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.responsive(12.0, 14.0, 16.0),
-                      vertical: context.responsive(6.0, 7.0, 8.0),
+                    padding: EdgeInsets.fromLTRB(
+                      context.responsive(12.0, 14.0, 16.0),
+                      context.responsive(6.0, 7.0, 8.0),
+                      (!fromLocker && !hideQueueBadge)
+                          ? context.responsive(6.0, 7.0, 8.0)
+                          : context.responsive(12.0, 14.0, 16.0),
+                      context.responsive(6.0, 7.0, 8.0),
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF121212).withValues(alpha: 0.72),
