@@ -426,6 +426,7 @@ class SliderSetting extends StatelessWidget {
     required this.max,
     this.divisions,
     this.onChanged,
+    this.onDisplayTap,
   });
 
   final IconData icon;
@@ -437,6 +438,7 @@ class SliderSetting extends StatelessWidget {
   final double max;
   final int? divisions;
   final ValueChanged<double>? onChanged;
+  final VoidCallback? onDisplayTap;
 
   @override
   Widget build(BuildContext context) {
@@ -474,22 +476,38 @@ class SliderSetting extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackgroundStrong,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  displayValue,
-                  style: TextStyle(
-                    fontFamily: 'ProductSans',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.adaptiveTextSecondary,
+              GestureDetector(
+                onTap: onDisplayTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.glassBackgroundStrong,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayValue,
+                        style: TextStyle(
+                          fontFamily: 'ProductSans',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: context.adaptiveTextSecondary,
+                        ),
+                      ),
+                      if (onDisplayTap != null) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          LucideIcons.penLine,
+                          size: 11,
+                          color: context.adaptiveTextTertiary,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
