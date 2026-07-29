@@ -443,6 +443,24 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   }
 
   Widget _buildAlbumsGrid() {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final columns = context.gridColumns(
+      compact: 2,
+      phone: 2,
+      tablet: 3,
+    );
+    // ponytail: compute aspect per device. A fixed aspect clipped the
+    // artist line on narrow cards because the square artwork (1.0 of
+    // width) leaves only (1/aspect - 1) * width for the text block,
+    // which is a ~70px fixed cost regardless of card width.
+    final cardWidth =
+        (screenWidth -
+            AppConstants.spacingLg * 2 -
+            AppConstants.spacingMd * (columns - 1)) /
+        columns;
+    const textBudget = 72.0;
+    final aspectRatio = cardWidth / (cardWidth + textBudget);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -471,12 +489,8 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                 bottom: AppConstants.navBarHeight + 120,
               ),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: context.gridColumns(
-                  compact: 2,
-                  phone: 2,
-                  tablet: 3,
-                ),
-                childAspectRatio: 0.78,
+                crossAxisCount: columns,
+                childAspectRatio: aspectRatio,
                 crossAxisSpacing: AppConstants.spacingMd,
                 mainAxisSpacing: AppConstants.spacingLg,
               ),
