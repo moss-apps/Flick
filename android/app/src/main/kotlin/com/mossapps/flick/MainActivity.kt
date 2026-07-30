@@ -1979,6 +1979,7 @@ class MainActivity: FlutterActivity() {
             folderPaths.map { "$it%" }.toTypedArray()
         } else null
 
+        val seenPaths = HashSet<String>()
         try {
             contentResolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
@@ -1998,6 +1999,7 @@ class MainActivity: FlutterActivity() {
 
                 while (cursor.moveToNext()) {
                     val data = cursor.getString(dataCol) ?: continue
+                    seenPaths.add(data)
                     val extension = data.substringAfterLast('.', "").lowercase()
 
                     val id = cursor.getLong(idCol)
@@ -2030,6 +2032,76 @@ class MainActivity: FlutterActivity() {
                         "lastModified" to (cursor.getLong(dateModCol) * 1000L),
                         "dateAdded" to (cursor.getLong(dateAddedCol) * 1000L),
                         "bitrate" to (if (duration > 0 && size > 0) ((size * 8) / (duration / 1000)).toString() else null),
+                    ))
+                }
+            }
+
+            // DSD (.dsf/.dff/.wv) is not classified as audio by some OEM
+            // MediaScanners (ColorOS/Oppo/Realme, HiOS/Tecno/Infinix), so it
+            // never reaches MediaStore.Audio.Media and the default scan drops
+            // it. Pull these from the Files collection and merge, deduping by
+            // filesystem path against the audio rows already collected.
+            val dsdExtPatterns = listOf("%.dsf", "%.dff", "%.wv")
+            val dsdSelection = if (folderPaths.isNotEmpty()) {
+                val folderPart = folderPaths.joinToString(" OR ") {
+                    "${MediaStore.Files.FileColumns.DATA} LIKE ?"
+                }
+                val extPart = dsdExtPatterns.joinToString(" OR ") {
+                    "${MediaStore.Files.FileColumns.DATA} LIKE ?"
+                }
+                "($folderPart) AND ($extPart)"
+            } else {
+                dsdExtPatterns.joinToString(" OR ") {
+                    "${MediaStore.Files.FileColumns.DATA} LIKE ?"
+                }
+            }
+            val dsdSelectionArgs = (
+                (if (folderPaths.isNotEmpty()) folderPaths.map { "$it%" } else emptyList())
+                    + dsdExtPatterns
+                ).toTypedArray()
+            val dsdCollection =
+                MediaStore.Files.getContentUri(volumeName ?: MediaStore.VOLUME_EXTERNAL)
+            val dsdProjection = arrayOf(
+                MediaStore.Files.FileColumns._ID,
+                MediaStore.Files.FileColumns.DATA,
+                MediaStore.Files.FileColumns.MIME_TYPE,
+                MediaStore.Files.FileColumns.SIZE,
+                MediaStore.Files.FileColumns.DATE_MODIFIED,
+                MediaStore.Files.FileColumns.DATE_ADDED,
+            )
+            contentResolver.query(
+                dsdCollection, dsdProjection, dsdSelection, dsdSelectionArgs, null
+            )?.use { c ->
+                val dIdCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+                val dDataCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
+                val dMimeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
+                val dSizeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
+                val dModCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
+                val dAddedCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_ADDED)
+                while (c.moveToNext()) {
+                    val data = c.getString(dDataCol) ?: continue
+                    if (!seenPaths.add(data)) continue
+                    val contentUri = ContentUris.withAppendedId(
+                        dsdCollection, c.getLong(dIdCol)
+                    ).toString()
+                    result.add(mapOf(
+                        "uri" to contentUri,
+                        "filePath" to data,
+                        "name" to (data.substringAfterLast('/', "")),
+                        "title" to "",
+                        "artist" to "",
+                        "album" to "",
+                        "albumArtist" to null,
+                        "duration" to 0L,
+                        "trackNumber" to null,
+                        "discNumber" to null,
+                        "year" to null,
+                        "mimeType" to (if (!c.isNull(dMimeCol)) c.getString(dMimeCol) else null),
+                        "extension" to data.substringAfterLast('.', "").lowercase(),
+                        "size" to c.getLong(dSizeCol),
+                        "lastModified" to (c.getLong(dModCol) * 1000L),
+                        "dateAdded" to (c.getLong(dAddedCol) * 1000L),
+                        "bitrate" to null,
                     ))
                 }
             }
@@ -2142,7 +2214,14 @@ class MainActivity: FlutterActivity() {
             return emptyList()
         }
 
-        return filePaths.filter { !existingPaths.contains(it) }
+        val deleted = filePaths.filter { !existingPaths.contains(it) }
+        // DSD isn't indexed in Audio.Media on some OEMs, so it is always absent
+        // here. Confirm via the filesystem before declaring a DSD file deleted.
+        val dsdExtensions = setOf("dsf", "dff", "wv")
+        return deleted.filterNot { path ->
+            path.substringAfterLast('.', "").lowercase() in dsdExtensions &&
+                java.io.File(path).exists()
+        }
     }
 
     private fun registerMediaStoreObserver() {
