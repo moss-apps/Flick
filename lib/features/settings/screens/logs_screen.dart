@@ -1,6 +1,10 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flick/core/constants/app_constants.dart';
@@ -23,6 +27,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   String _query = '';
   final Set<LogSource> _sources = {};
   bool _stickToBottom = true;
+  bool _isUploading = false;
 
   @override
   void dispose() {
@@ -86,6 +91,125 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   Future<void> _shareAll(List<LogEntry> entries) async {
     if (entries.isEmpty) return;
     await Share.share(entries.map(_format).join('\n'), subject: 'Flick logs');
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // ponytail: unlisted dpaste paste, anonymous, 30-day expiry. Not private —
+  // anyone with the link reads it — so we warn + consent before upload instead
+  // of building a lossy scrubber that would strip diagnostic file paths.
+  Future<void> _uploadAsLink(List<LogEntry> entries) async {
+    if (entries.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Upload logs as a link?', style: TextStyle(color: context.adaptiveTextPrimary)),
+        content: Text(
+          'Your logs are uploaded to dpaste.com as an unlisted link that expires in 30 days. '
+          'Anyone you share the link with can read them — logs may contain file paths and device details.',
+          style: TextStyle(color: context.adaptiveTextSecondary),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Upload')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    setState(() => _isUploading = true);
+    try {
+      final res = await http
+          .post(
+            Uri.parse('https://dpaste.com/api/v2/'),
+            headers: {'User-Agent': 'Flick/$kAppVersionLabel'},
+            body: {
+              'content': entries.map(_format).join('\n'),
+              'syntax': 'text',
+              'expiry_days': '30',
+            },
+          )
+          .timeout(const Duration(seconds: 20));
+      if (res.statusCode == 201) {
+        final url = res.body.trim();
+        await Clipboard.setData(ClipboardData(text: url));
+        if (!mounted) return;
+        _showLinkDialog(url);
+      } else {
+        _snack('Upload failed (${res.statusCode}).');
+      }
+    } catch (e) {
+      _snack('Upload failed: $e');
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  void _showLinkDialog(String url) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Link ready', style: TextStyle(color: context.adaptiveTextPrimary)),
+        content: SelectableText(
+          url,
+          style: TextStyle(color: context.adaptiveAccent, fontFamily: 'monospace'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: url));
+              Navigator.pop(ctx);
+            },
+            child: const Text('Copy'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Share.share(url, subject: 'Flick logs');
+            },
+            child: const Text('Share'),
+          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveAsText(List<LogEntry> entries) async {
+    if (entries.isEmpty) return;
+    final stamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+    final path = await FilePicker.saveFile(
+      dialogTitle: 'Save logs',
+      fileName: 'flick_logs_$stamp.txt',
+      type: FileType.custom,
+      allowedExtensions: const ['txt'],
+      bytes: Uint8List.fromList(utf8.encode(entries.map(_format).join('\n'))),
+    );
+    if (path == null || !mounted) return;
+
+    final share = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Saved', style: TextStyle(color: context.adaptiveTextPrimary)),
+        content: Text(
+          'Saved to:\n$path\n\nShare it now?',
+          style: TextStyle(color: context.adaptiveTextSecondary),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Share')),
+        ],
+      ),
+    );
+    if (share == true && mounted) {
+      await Share.shareXFiles([XFile(path)], subject: 'Flick logs');
+    }
   }
 
   Future<void> _confirmClear() async {
@@ -159,32 +283,55 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
             listenable: AppLog.instance,
             builder: (context, _) {
               final count = AppLog.instance.entries.length;
-              return IconButton(
-                tooltip: 'Copy',
-                onPressed: count == 0 ? null : () => _copyAll(_filtered(AppLog.instance.entries)),
-                icon: Icon(LucideIcons.copy, color: context.adaptiveTextSecondary),
-              );
-            },
-          ),
-          ListenableBuilder(
-            listenable: AppLog.instance,
-            builder: (context, _) {
-              final count = AppLog.instance.entries.length;
-              return IconButton(
-                tooltip: 'Share',
-                onPressed: count == 0 ? null : () => _shareAll(_filtered(AppLog.instance.entries)),
-                icon: Icon(LucideIcons.share2, color: context.adaptiveTextSecondary),
-              );
-            },
-          ),
-          ListenableBuilder(
-            listenable: AppLog.instance,
-            builder: (context, _) {
-              final count = AppLog.instance.entries.length;
-              return IconButton(
-                tooltip: 'Clear',
-                onPressed: count == 0 ? null : _confirmClear,
-                icon: Icon(LucideIcons.trash2, color: context.adaptiveTextSecondary),
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Copy',
+                    onPressed: count == 0
+                        ? null
+                        : () => _copyAll(_filtered(AppLog.instance.entries)),
+                    icon: Icon(LucideIcons.copy, color: context.adaptiveTextSecondary),
+                  ),
+                  IconButton(
+                    tooltip: 'Copy link',
+                    onPressed: (count == 0 || _isUploading)
+                        ? null
+                        : () => _uploadAsLink(_filtered(AppLog.instance.entries)),
+                    icon: _isUploading
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: context.adaptiveTextSecondary,
+                            ),
+                          )
+                        : Icon(LucideIcons.link2, color: context.adaptiveTextSecondary),
+                  ),
+                  IconButton(
+                    tooltip: 'Share',
+                    onPressed: count == 0
+                        ? null
+                        : () => _shareAll(_filtered(AppLog.instance.entries)),
+                    icon: Icon(LucideIcons.share2, color: context.adaptiveTextSecondary),
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: 'More',
+                    icon: Icon(LucideIcons.moreVertical, color: context.adaptiveTextSecondary),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'save', child: Text('Save as text')),
+                      PopupMenuItem(value: 'clear', child: Text('Clear')),
+                    ],
+                    onSelected: (v) {
+                      if (v == 'save') {
+                        _saveAsText(_filtered(AppLog.instance.entries));
+                      } else if (v == 'clear') {
+                        _confirmClear();
+                      }
+                    },
+                  ),
+                ],
               );
             },
           ),
