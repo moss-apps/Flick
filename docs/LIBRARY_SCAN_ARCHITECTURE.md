@@ -10,7 +10,7 @@ Three scan tiers, prioritized by availability and performance:
 
 ### Tier 1 — MediaStore Scanner (`LibraryScannerService`)
 
-- `queryMediaStoreAudio()` — audio files with path, size, last-modified, MediaStore URI
+- `queryMediaStoreAudio()` — audio files with path, size, last-modified, MediaStore URI; also pulls `.dsf`/`.dff`/`.wv` from `MediaStore.Files` (deduped by path) since OEM MediaScanners don't classify DSD/WavPack as audio
 - `queryMediaStoreNonAudio()` — non-audio (CUE, log) sidecars
 - `queryMediaStoreDeletions()` — files removed since last scan
 - Differential sync: only `NEW`/`MODIFIED` entries proceed to metadata extraction
@@ -190,6 +190,7 @@ Surfaces: `_RootFolderCard` (`folders_screen.dart`), `_buildFolderItem` (`librar
 - **No Rust on removable** — can't read scoped raw paths without `MANAGE_EXTERNAL_STORAGE` (not requested). SAF + `MediaMetadataRetriever` is the deep-scan backend on USB.
 - **Per-volume MediaStore is API 29+** — pre-29 removable falls back to SAF.
 - **Deletion detection gap** — `queryMediaStoreDeletions` doesn't thread `volumeName`; MediaStore-based deletion detection on removable returns 0 rows and falls back to SAF only on MediaStore *failure*, not empty result. Pre-existing.
+- **DSD false-deletion guard** — `.dsf`/`.dff`/`.wv` are absent from `Audio.Media` on some OEMs, so deletion detection would flag them as removed every scan. `queryMediaStoreDeletions` confirms a DSD extension via `File.exists()` before declaring it deleted.
 - **Refresh plumbing unchanged** — `songsProvider` is `autoDispose`, refreshed manually; detached enrichment follows the existing background-update pattern rather than adding new invalidation wiring.
 
 ## Supported Formats
@@ -204,12 +205,12 @@ Surfaces: `_RootFolderCard` (`folders_screen.dart`), `_buildFolderItem` (`librar
 | WAV | `.wav` | lofty (RIFF INFO) | MediaStore, SAF, Rust |
 | AIFF | `.aif`, `.aiff` | lofty (ID3v2) | MediaStore, SAF, Rust |
 | ALAC | `.alac` | lofty (MP4) | MediaStore, SAF, Rust |
-| WavPack | `.wv` | lofty (APE/ID3v1) | SAF, Rust |
-| WavPack DSD | `.wv` | lofty (APE/ID3v1); detected via sample rate ≥ 2.8224 MHz or 1-bit depth | SAF, Rust |
-| DSF | `.dsf` | dsf-meta (ID3v2 via `id3` crate) | SAF, Rust |
-| DSDIFF | `.dff` | dff-meta (ID3v2 via `id3` crate) | SAF, Rust |
+| WavPack | `.wv` | lofty (APE/ID3v1) | MediaStore (Files), SAF, Rust |
+| WavPack DSD | `.wv` | lofty (APE/ID3v1); detected via sample rate ≥ 2.8224 MHz or 1-bit depth | MediaStore (Files), SAF, Rust |
+| DSF | `.dsf` | dsf-meta (ID3v2 via `id3` crate) | MediaStore (Files), SAF, Rust |
+| DSDIFF | `.dff` | dff-meta (ID3v2 via `id3` crate) | MediaStore (Files), SAF, Rust |
 
-Android's MediaStore does not index WavPack or DSD files — those formats are SAF/Rust only.
+Android's MediaStore does not classify WavPack or DSD as audio under `MediaStore.Audio.Media`, so the primary audio query misses them. `queryMediaStoreAudio()` runs a secondary query against `MediaStore.Files` for `.dsf`/`.dff`/`.wv` and merges the rows, deduplicating by filesystem path against the audio rows already collected. This recovers DSD on OEM MediaScanners (ColorOS/Oppo/Realme, HiOS/Tecno/Infinix) that never index DSD as audio. Metadata (title/artist/album/duration) is empty at this stage and filled in by the metadata parser.
 
 ## Extension Filter Locations
 
