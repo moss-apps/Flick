@@ -346,6 +346,24 @@ class LibraryScannerService {
 
     if (_isCancelled) return;
 
+    // ponytail: MediaStore returns an empty-but-successful list when the
+    // folder isn't indexed yet (Android 15 scoped storage; no MediaScan is
+    // ever triggered). Fall back to SAF before the diff logic wipes
+    // existing songs and silently reports an empty library.
+    if (mediaStoreFiles.isEmpty) {
+      devLog(
+        'MediaStore returned 0 files for $displayName at $folderPath; '
+        'falling back to SAF',
+      );
+      yield* _scanFolderAndroid(
+        folderUri,
+        displayName,
+        scanPreferences,
+        deferMetadata: true,
+      );
+      return;
+    }
+
     final dbLoadStopwatch = Stopwatch()..start();
     final existingSongs = await _songRepository.getSongEntitiesByFolder(
       folderUri,
