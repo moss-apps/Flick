@@ -857,6 +857,42 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             const SizedBox(height: AppConstants.spacingMd),
             _buildEngineInfoChip(progress),
           ],
+          if (songs == 0) ...[
+            const SizedBox(height: AppConstants.spacingMd),
+            Container(
+              padding: const EdgeInsets.all(AppConstants.spacingSm),
+              decoration: BoxDecoration(
+                color: AppColors.glassBackground,
+                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                border: Border.all(color: AppColors.glassBorder),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    LucideIcons.info,
+                    color: AppColors.textSecondary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: AppConstants.spacingXs),
+                  Expanded(
+                    child: Text(
+                      'No audio was found. If this folder contains music, a '
+                      '.nomedia file may be hiding it, or Android hasn\'t '
+                      'indexed it yet. Try enabling deep scan, or remove any '
+                      '.nomedia file and re-scan.',
+                      style: TextStyle(
+                        fontFamily: 'ProductSans',
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: AppConstants.spacingLg),
           SizedBox(
             width: double.infinity,
