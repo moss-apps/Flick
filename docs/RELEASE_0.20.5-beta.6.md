@@ -109,6 +109,10 @@ This beta adds nine headline features:
 | Pause on Connect | `lib/services/uac2_service.dart`, `lib/services/player_service.dart`, `lib/features/settings/screens/bluetooth_settings_screen.dart` |
 | Artwork | `lib/services/artwork_extraction_service.dart`, `lib/services/artwork_gate_service.dart`, `lib/services/artwork_cache_service.dart` |
 | UI Polish | `lib/features/settings/equalizer_screen.dart`, `lib/widgets/common/back_gesture_detector.dart`, `lib/features/milestones/` |
+| Detail Top Bar | `lib/features/albums/screens/album_detail_screen.dart`, `lib/features/artists/screens/artist_detail_screen.dart`, `lib/features/playlists/screens/playlist_detail_screen.dart` |
+| DSD MediaStore | `rust/src/audio/dsd_alsa_direct.rs`, `lib/services/` |
+| Logs | `lib/features/settings/screens/logs_screen.dart` |
+| Slider/Scale | `lib/widgets/settings_widgets.dart`, `lib/providers/` |
 
 ## Upgrading
 
@@ -119,3 +123,6 @@ This beta adds nine headline features:
 5. Widget text scaling: Settings → Widgets → per-widget type text scale
 6. Pause on connect: Settings → Audio → Bluetooth → toggle USB DAC attach and Bluetooth connect
 7. Speed and sleep timer controls are now sliders — drag to set the exact value
+8. DSD/WavPack files now indexed by OEM MediaScanners — deletion guard prevents accidental removal
+9. Detail screens use a custom overlay top bar instead of SliverAppBar for a polished glass look
+10. Logs screen supports upload and save-as-text for sharing diagnostics
