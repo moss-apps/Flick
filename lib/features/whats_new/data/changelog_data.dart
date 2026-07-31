@@ -133,6 +133,44 @@ const List<ChangelogEntry> kChangelogEntries = [
           'Documentation: network sources plan, CONTRIBUTING.md with bit-perfect/DAC notes.',
         ],
       ),
+      ChangelogSection(
+        title: 'Detail Screen Overlay Top Bar',
+        bullets: [
+          'Detail screens (album, artist, playlist) migrated from `SliverAppBar` to a custom **overlay top bar** with pinned positioning.',
+          'Background rendering refined with art layer gradient seal for a polished glass-morphism look.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'DSD & MediaStore Integration',
+        bullets: [
+          'DSD and WavPack audio files now supported by OEM MediaScanners for proper file indexing.',
+          'Deletion guard prevents accidental removal of DSD/WavPack files through the app.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Logs Screen Enhancements',
+        bullets: [
+          'Log upload and save-as-text options on the logs screen for sharing diagnostics.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Slider & Scale Improvements',
+        bullets: [
+          '`SliderSetting` gains an edit icon and `onDisplayTap` callback for direct value entry.',
+          'Text scale slider range expanded with a manual input dialog for precise values.',
+          '`scaledSp` upper bound increased to 30 for high-density screens.',
+          'Album grid aspect ratio now computed per device width for responsive layouts.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Bug Fixes',
+        bullets: [
+          'Pause-on-disconnect preference now respected in USB DAC audio fallback.',
+          'Queue pill padding fixed in the player song scene.',
+          'Back gesture accounts for vertical distance during horizontal drag.',
+          'USB DAC fallback logging improved.',
+        ],
+      ),
     ],
   ),
   ChangelogEntry(

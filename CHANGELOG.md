@@ -51,6 +51,28 @@
 - Text styles/icon sizes updated in scrobbling and library settings.
 - Docs: network sources plan, CONTRIBUTING.md.
 
+### Detail Screen Overlay Top Bar
+- Detail screens migrated from `SliverAppBar` to custom overlay top bar with pinned positioning.
+- Background rendering refined with art layer gradient seal.
+
+### DSD & MediaStore Integration
+- DSD and WavPack audio files now supported by OEM MediaScanners.
+- Deletion guard prevents accidental removal of DSD/WavPack files.
+
+### Logs Screen Enhancements
+- Log upload and save-as-text options for sharing diagnostics.
+
+### Slider & Scale Improvements
+- `SliderSetting` gains edit icon and `onDisplayTap` for direct value entry.
+- Text scale slider range expanded with manual input dialog.
+- `scaledSp` upper bound increased to 30 for high-density screens.
+- Album grid aspect ratio computed per device width.
+
+### Bug Fixes
+- Pause-on-disconnect respected in USB DAC fallback.
+- Queue pill padding fixed in player song scene.
+- Back gesture accounts for vertical distance during horizontal drag.
+
 ## 0.20.4-beta.5 (2026-07-03)
 
 ### Pitch Shifter (SoundTouch)
