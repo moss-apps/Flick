@@ -7,6 +7,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/adaptive_color_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_haptics.dart';
+import '../../../core/utils/responsive.dart';
 
 // Database, widgets, and service configurations
 import '../../../data/database.dart';
@@ -193,7 +194,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     }
   }
 
-  Future<void> _save() async {
+  Future<void> _save() async {  
     if (!_isValid) return;
     setState(() => _saving = true);
     final token = await _resolvePersistedToken();
@@ -219,7 +220,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove server?'),
-        content: Text(
+      content: Text(
           'Delete "${server.label}" and all songs synced from it? '
           'Cached downloads are kept.',
         ),
@@ -455,7 +456,7 @@ class _TextFieldSetting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(AppConstants.spacingMd),
+      padding: const EdgeInsets.all(AppConstants.spacingLg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -533,8 +534,8 @@ class _SettingsTileIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: AppConstants.containerSizeMd,
-      height: AppConstants.containerSizeMd,
+      width: context.scaleSize(AppConstants.containerSizeMd),
+      height: context.scaleSize(AppConstants.containerSizeMd),
       decoration: BoxDecoration(
         color: AppColors.glassBackgroundStrong,
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
@@ -542,7 +543,7 @@ class _SettingsTileIcon extends StatelessWidget {
       child: Icon(
         icon,
         color: context.adaptiveTextSecondary,
-        size: AppConstants.iconSizeLg,
+        size: context.responsiveIcon(AppConstants.iconSizeLg),
       ),
     );
   }
