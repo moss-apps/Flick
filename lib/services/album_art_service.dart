@@ -12,7 +12,7 @@ import '../data/repositories/song_repository.dart';
 import '../src/rust/api/scanner.dart' as rust_scanner;
 import 'music_folder_service.dart';
 import 'player_service.dart';
-import 'sources/subsonic_service.dart';
+import 'sources/network_source_service.dart';
 
 class AlbumArtService {
   AlbumArtService._();
@@ -132,28 +132,29 @@ class AlbumArtService {
     return File(path).exists();
   }
 
-  /// Fetch raw artwork bytes. Network songs resolve through the Subsonic
-  /// cover-art endpoint using the `subsonic-cover://<id>` marker stored in the
-  /// entity's albumArtPath; local songs extract embedded art as before.
+  /// Fetch raw artwork bytes. Network songs resolve through their protocol
+  /// service's cover endpoint using the `<proto>-cover://<marker>` stored in
+  /// the entity's albumArtPath; local songs extract embedded art as before.
   Future<Uint8List?> _loadArtworkBytes(
     String audioSourcePath, {
     String? existingPath,
   }) async {
     final uri = Uri.tryParse(audioSourcePath);
-    if (uri?.scheme == 'subsonic') {
+    if (uri != null && isSupportedNetworkProtocol(uri.scheme)) {
+      final service = networkSourceServiceFor(uri.scheme);
       final marker = existingPath != null &&
-              existingPath.startsWith(networkCoverArtScheme)
-          ? existingPath.substring(networkCoverArtScheme.length)
+              existingPath.startsWith(service.coverScheme)
+          ? existingPath.substring(service.coverScheme.length)
           : null;
       if (marker == null || marker.isEmpty) return null;
 
-      final serverId = int.tryParse(uri!.host);
+      final serverId = int.tryParse(uri.host);
       if (serverId == null) return null;
       final server = await Database.networkServers.get(serverId);
       if (server == null) return null;
 
       try {
-        final bytes = await SubsonicService.instance.getCoverArt(server, marker);
+        final bytes = await service.getCoverArt(server, marker);
         return Uint8List.fromList(bytes);
       } catch (e) {
         return null;
@@ -179,7 +180,8 @@ class AlbumArtService {
       // Network songs keep their cover-art marker in the DB so a cache
       // eviction can always re-resolve; only the in-memory playlist is
       // updated with the resolved local path.
-      final isNetwork = Uri.tryParse(audioSourcePath)?.scheme == 'subsonic';
+      final isNetwork =
+          isSupportedNetworkProtocol(Uri.tryParse(audioSourcePath)?.scheme);
       if (!isNetwork) {
         await _songRepository.updateAlbumArtPath(audioSourcePath, albumArtPath);
       }
