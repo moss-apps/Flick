@@ -83,6 +83,22 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setShowEngineSelector(value);
   }
 
+  Future<void> setShowUsbVolumeOnMenu(bool value) async {
+    if (state.showUsbVolumeOnMenu == value) return;
+    state = state.copyWith(showUsbVolumeOnMenu: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setShowUsbVolumeOnMenu(value);
+  }
+
+  Future<void> setShowUsbVolumeOnSettings(bool value) async {
+    if (state.showUsbVolumeOnSettings == value) return;
+    state = state.copyWith(showUsbVolumeOnSettings: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setShowUsbVolumeOnSettings(value);
+  }
+
   Future<void> setCrossfadeEnabled(bool value) async {
     if (state.crossfadeEnabled == value) return;
     state = state.copyWith(crossfadeEnabled: value);

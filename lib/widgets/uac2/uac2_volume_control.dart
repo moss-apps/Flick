@@ -17,7 +17,14 @@ String _volumeToDb(double volume) {
 }
 
 class Uac2VolumeControl extends ConsumerStatefulWidget {
-  const Uac2VolumeControl({super.key});
+  final bool useGradientBackground;
+  final List<Color>? gradientColors;
+
+  const Uac2VolumeControl({
+    super.key,
+    this.useGradientBackground = false,
+    this.gradientColors,
+  });
 
   @override
   ConsumerState<Uac2VolumeControl> createState() => _Uac2VolumeControlState();
@@ -115,12 +122,42 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
     final showDb = isSoftwareVolume ||
         deviceStatus.volumeMode == Uac2VolumeMode.hardware;
 
+    final useGradient = widget.useGradientBackground;
+    final gradientColors = widget.gradientColors ??
+        const [
+          Color(0xFF194B68),
+          Color(0xFF0C1624),
+          Color(0xFF1D2A19),
+        ];
+    final labelColor =
+        useGradient ? Colors.white : context.adaptiveTextPrimary;
+    final subLabelColor = useGradient
+        ? Colors.white.withValues(alpha: 0.7)
+        : context.adaptiveTextSecondary;
+    final tertiaryColor = useGradient
+        ? Colors.white.withValues(alpha: 0.5)
+        : context.adaptiveTextTertiary;
+
     return Container(
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
+        gradient: useGradient
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: gradientColors,
+                stops: const [0.0, 0.56, 1.0],
+              )
+            : null,
+        color: useGradient
+            ? null
+            : AppColors.surface.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
+        border: Border.all(
+          color: useGradient
+              ? Colors.white.withValues(alpha: 0.08)
+              : AppColors.glassBorder,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,7 +166,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
             children: [
               Icon(
                 LucideIcons.volume2,
-                color: context.adaptiveTextSecondary,
+                color: subLabelColor,
                 size: 20,
               ),
               const SizedBox(width: AppConstants.spacingSm),
@@ -143,7 +180,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                           : 'Device DAC Volume',
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: context.adaptiveTextPrimary,
+                        color: labelColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -152,7 +189,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                         deviceStatus.routeLabel!,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.adaptiveTextTertiary,
+                          color: tertiaryColor,
                         ),
                       ),
                   ],
@@ -166,7 +203,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                 onPressed: volumeControlWritable ? _toggleMute : null,
                 color: effectiveMuted
                     ? Colors.red.shade400
-                    : context.adaptiveTextSecondary,
+                    : subLabelColor,
                 tooltip: effectiveMuted ? 'Unmute' : 'Mute',
               ),
             ],
@@ -176,7 +213,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
             children: [
               Icon(
                 LucideIcons.volume1,
-                color: context.adaptiveTextTertiary,
+                color: tertiaryColor,
                 size: 16,
               ),
               Expanded(
@@ -193,12 +230,14 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                       ? _onSliderChangeEnd
                       : null,
                   activeColor: AppColors.accent,
-                  inactiveColor: AppColors.textTertiary.withValues(alpha: 0.3),
+                  inactiveColor: useGradient
+                      ? Colors.white.withValues(alpha: 0.22)
+                      : AppColors.textTertiary.withValues(alpha: 0.3),
                 ),
               ),
               Icon(
                 LucideIcons.volume2,
-                color: context.adaptiveTextTertiary,
+                color: tertiaryColor,
                 size: 16,
               ),
               const SizedBox(width: AppConstants.spacingSm),
@@ -209,7 +248,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                       ? '${(effectiveVolume * 100).round()}%  ${_volumeToDb(effectiveVolume)} dB'
                       : '${(effectiveVolume * 100).round()}%',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.adaptiveTextSecondary,
+                    color: subLabelColor,
                     fontWeight: FontWeight.w500,
                   ),
                   textAlign: TextAlign.right,
@@ -222,7 +261,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
             Text(
               'Hardware volume is detected, but writes stay blocked while live direct USB playback is active.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.adaptiveTextTertiary,
+                color: tertiaryColor,
               ),
             ),
           ],

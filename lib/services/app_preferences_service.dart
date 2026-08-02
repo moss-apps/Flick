@@ -10,6 +10,8 @@ class AppPreferences {
   final bool showBrowseMore;
   final bool showQuickAccess;
   final bool showEngineSelector;
+  final bool showUsbVolumeOnMenu;
+  final bool showUsbVolumeOnSettings;
   final bool crossfadeEnabled;
   final double crossfadeDurationSecs;
   final int crossfadeCurveIndex;
@@ -110,6 +112,8 @@ class AppPreferences {
     this.showBrowseMore = true,
     this.showQuickAccess = true,
     this.showEngineSelector = true,
+    this.showUsbVolumeOnMenu = true,
+    this.showUsbVolumeOnSettings = false,
     this.crossfadeEnabled = false,
     this.crossfadeDurationSecs = 3.0,
     this.crossfadeCurveIndex = 0,
@@ -211,6 +215,8 @@ class AppPreferences {
     bool? showBrowseMore,
     bool? showQuickAccess,
     bool? showEngineSelector,
+    bool? showUsbVolumeOnMenu,
+    bool? showUsbVolumeOnSettings,
     bool? crossfadeEnabled,
     double? crossfadeDurationSecs,
     int? crossfadeCurveIndex,
@@ -311,6 +317,10 @@ class AppPreferences {
       showBrowseMore: showBrowseMore ?? this.showBrowseMore,
       showQuickAccess: showQuickAccess ?? this.showQuickAccess,
       showEngineSelector: showEngineSelector ?? this.showEngineSelector,
+      showUsbVolumeOnMenu:
+          showUsbVolumeOnMenu ?? this.showUsbVolumeOnMenu,
+      showUsbVolumeOnSettings:
+          showUsbVolumeOnSettings ?? this.showUsbVolumeOnSettings,
       crossfadeEnabled: crossfadeEnabled ?? this.crossfadeEnabled,
       crossfadeDurationSecs:
           crossfadeDurationSecs ?? this.crossfadeDurationSecs,
@@ -457,6 +467,8 @@ class AppPreferencesService {
   static const _showBrowseMoreKey = 'menu_show_browse_more';
   static const _showQuickAccessKey = 'menu_show_quick_access';
   static const _showEngineSelectorKey = 'menu_show_engine_selector';
+  static const _showUsbVolumeOnMenuKey = 'menu_show_usb_volume';
+  static const _showUsbVolumeOnSettingsKey = 'settings_show_usb_volume';
   static const _crossfadeEnabledKey = 'audio_crossfade_enabled';
   static const _crossfadeDurationKey = 'audio_crossfade_duration_secs';
   static const _crossfadeCurveKey = 'audio_crossfade_curve_index';
@@ -569,6 +581,9 @@ class AppPreferencesService {
       showBrowseMore: prefs.getBool(_showBrowseMoreKey) ?? true,
       showQuickAccess: prefs.getBool(_showQuickAccessKey) ?? true,
       showEngineSelector: prefs.getBool(_showEngineSelectorKey) ?? true,
+      showUsbVolumeOnMenu: prefs.getBool(_showUsbVolumeOnMenuKey) ?? true,
+      showUsbVolumeOnSettings:
+          prefs.getBool(_showUsbVolumeOnSettingsKey) ?? false,
       crossfadeEnabled: prefs.getBool(_crossfadeEnabledKey) ?? false,
       crossfadeDurationSecs: prefs.getDouble(_crossfadeDurationKey) ?? 3.0,
       crossfadeCurveIndex: prefs.getInt(_crossfadeCurveKey) ?? 0,
@@ -789,6 +804,26 @@ class AppPreferencesService {
   Future<void> setShowEngineSelector(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_showEngineSelectorKey, value);
+  }
+
+  Future<bool> getShowUsbVolumeOnMenu() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showUsbVolumeOnMenuKey) ?? true;
+  }
+
+  Future<void> setShowUsbVolumeOnMenu(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showUsbVolumeOnMenuKey, value);
+  }
+
+  Future<bool> getShowUsbVolumeOnSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showUsbVolumeOnSettingsKey) ?? false;
+  }
+
+  Future<void> setShowUsbVolumeOnSettings(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showUsbVolumeOnSettingsKey, value);
   }
 
   Future<bool> getCrossfadeEnabled() async {
