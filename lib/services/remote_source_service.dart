@@ -3,26 +3,21 @@ import 'package:flutter/foundation.dart';
 import '../core/utils/app_log.dart';
 import '../data/database.dart';
 import '../models/song.dart';
-import 'sources/subsonic_service.dart';
+import 'sources/network_source_service.dart';
 
 /// Bridges playback/download for network-sourced songs.
 ///
-/// v1 supports Subsonic only: a cache hit returns the local file path
-/// immediately (gapless/crossfade handoff reads a local file), a miss
-/// downloads the original-quality stream into [NetworkCacheService].
+/// A cache hit returns the local file path immediately (gapless/crossfade
+/// handoff reads a local file); a miss downloads the original-quality stream
+/// into [NetworkCacheService] via the protocol service registered for the
+/// song's `sourceType`.
 class RemoteSourceService {
-  RemoteSourceService._({SubsonicService? subsonic})
-      : _subsonic = subsonic ?? SubsonicService.instance;
+  RemoteSourceService._();
 
   static RemoteSourceService instance = RemoteSourceService._();
 
-  /// Test seam: build an isolated instance with mocked dependencies.
   @visibleForTesting
-  static RemoteSourceService create({SubsonicService? subsonic}) {
-    return RemoteSourceService._(subsonic: subsonic);
-  }
-
-  final SubsonicService _subsonic;
+  static RemoteSourceService create() => RemoteSourceService._();
 
   /// Progress (0..1) of the interactive playback download, null when idle.
   final ValueNotifier<double?> downloadProgressNotifier = ValueNotifier(null);
@@ -45,28 +40,27 @@ class RemoteSourceService {
     if (!song.isNetworkSource) {
       throw StateError('Song is not a network source');
     }
+    final sourceType = song.sourceType;
+    if (sourceType == null) {
+      throw StateError('Network song has no source type');
+    }
     final server = await _serverFor(song);
     final remoteId = song.remoteId;
     if (remoteId == null) {
       throw StateError('Network song has no remote id');
     }
-    switch (song.sourceType) {
-      case 'subsonic':
-        try {
-          return await _subsonic.stream(
-            server,
-            remoteId,
-            extension: song.fileType,
-            onProgress: reportProgress
-                ? (p) => downloadProgressNotifier.value = p
-                : null,
-          );
-        } finally {
-          if (reportProgress) downloadProgressNotifier.value = null;
-        }
-      default:
-        throw StateError(
-            'Source type "${song.sourceType}" is not supported yet');
+    final service = networkSourceServiceFor(sourceType);
+    try {
+      return await service.stream(
+        server,
+        remoteId,
+        extension: song.fileType,
+        onProgress: reportProgress
+            ? (p) => downloadProgressNotifier.value = p
+            : null,
+      );
+    } finally {
+      if (reportProgress) downloadProgressNotifier.value = null;
     }
   }
 
