@@ -10,7 +10,6 @@ pub struct DffDecoder {
     channels: u16,
     total_samples: u64,
     data_offset: u64,
-    audio_length: u64,
     current_position: u64,
     finished: bool,
 }
@@ -46,7 +45,6 @@ impl DffDecoder {
             channels,
             total_samples,
             data_offset,
-            audio_length,
             current_position: 0,
             finished: false,
         })

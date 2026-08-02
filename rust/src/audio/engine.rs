@@ -2668,7 +2668,7 @@ fn command_processing_loop(
     decoders: Arc<Mutex<Vec<DecoderHandle>>>,
     sample_rate: u32,
     shutdown: Arc<AtomicBool>,
-    mut supervisor: Option<&mut ManagedStreamSupervisor>,
+    _supervisor: Option<&mut ManagedStreamSupervisor>,
 ) {
     loop {
         // Check shutdown flag

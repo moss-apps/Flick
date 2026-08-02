@@ -148,15 +148,13 @@ impl Drop for DsdDecoderThread {
     }
 }
 
-enum ChannelData<'a> {
-    Borrowed(&'a [u8]),
+enum ChannelData {
     Owned(Vec<u8>),
 }
 
-impl<'a> ChannelData<'a> {
+impl ChannelData {
     fn as_slice(&self) -> &[u8] {
         match self {
-            ChannelData::Borrowed(s) => s,
             ChannelData::Owned(v) => v,
         }
     }

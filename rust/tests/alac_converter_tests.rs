@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod alac_converter_tests {
-    use rust_lib_flick_player::audio::alac_converter::{AudioMetadata, ConversionSession};
+    use rust_lib_flick_player::audio::alac_converter::AudioMetadata;
 
     #[test]
     fn test_wav_header_generation() {
@@ -10,6 +10,7 @@ mod alac_converter_tests {
             bit_depth: 16,
             duration_samples: 44100,
             duration_seconds: 1.0,
+            is_float: false,
         };
 
         // Test that we can generate a valid WAV header
@@ -28,6 +29,7 @@ mod alac_converter_tests {
             bit_depth: 24,
             duration_samples: 48000 * 60, // 1 minute
             duration_seconds: 60.0,
+            is_float: false,
         };
 
         assert_eq!(metadata.duration_seconds, 60.0);

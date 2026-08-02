@@ -83,7 +83,7 @@ pub fn effective_dsd_output_mode_for_rate(
         (native, dop)
     };
     #[cfg(not(all(feature = "uac2", target_os = "android")))]
-    let (usb_native_capable, usb_dop_capable) = (false, false);
+    let (_usb_native_capable, usb_dop_capable) = (false, false);
 
     match requested {
         DsdOutputMode::PcmDecimation => return DsdOutputMode::PcmDecimation,

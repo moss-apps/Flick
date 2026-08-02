@@ -4,7 +4,6 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
-const DSF_DATA_CHUNK_HEADER_SIZE: u64 = 20;
 const DSF_FALLBACK_SAMPLE_DATA_OFFSET: u64 = 100;
 
 pub struct DsfDecoder {
@@ -13,7 +12,6 @@ pub struct DsfDecoder {
     channels: u16,
     total_samples: u64,
     data_offset: u64,
-    data_size: u64,
     block_size: u32,
     current_position: u64,
     finished: bool,
@@ -29,9 +27,6 @@ impl DsfDecoder {
         let channels = fmt.channel_num() as u16;
         let total_samples = fmt.sample_count();
         let block_size = fmt.block_size_per_channel();
-
-        let data = dsf.data_chunk();
-        let data_size = data.chunk_size().saturating_sub(DSF_DATA_CHUNK_HEADER_SIZE);
 
         let mut file = dsf
             .file()
@@ -50,7 +45,6 @@ impl DsfDecoder {
             channels,
             total_samples,
             data_offset,
-            data_size,
             block_size,
             current_position: 0,
             finished: false,
