@@ -1,49 +1,123 @@
+// Main sources
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+// App constants and other app UI libraries
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/adaptive_color_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_haptics.dart';
+
+// Database, widgets, and service configurations
 import '../../../data/database.dart';
 import '../../../data/repositories/song_repository.dart';
-import '../../../services/sources/subsonic_service.dart';
+import '../../../services/sources/network_source_service.dart';
 import '../widgets/settings_widgets.dart';
 
-/// Add or edit a network server. Subsonic is the only enabled protocol in
-/// v1; the rest are deferred and surfaced as a single "coming soon" note.
+/// Add or edit a network server. All registered protocols are selectable;
+/// each dispatches test/sync/stream through [networkSourceServiceFor].
 class NetworkServerEditScreen extends StatefulWidget {
   const NetworkServerEditScreen({super.key, this.server});
 
   final NetworkServerEntity? server;
 
   @override
-  State<NetworkServerEditScreen> createState() => _NetworkServerEditScreenState();
+  State<NetworkServerEditScreen> createState() =>
+      _NetworkServerEditScreenState();
 }
+
+class _ProtocolMeta {
+  const _ProtocolMeta({
+    required this.id,
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.urlHint,
+    required this.passwordHelper,
+  });
+  final String id;
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final String urlHint;
+  final String passwordHelper;
+}
+
+const List<_ProtocolMeta> _protocols = [
+  _ProtocolMeta(
+    id: NetworkProtocol.subsonic,
+    label: 'Subsonic',
+    subtitle: 'Navidrome · Airsonic · Gonic',
+    icon: LucideIcons.radio,
+    urlHint: 'https://music.example.com/subsonic',
+    passwordHelper: 'Stored as a salted hash, never in plaintext',
+  ),
+  _ProtocolMeta(
+    id: NetworkProtocol.jellyfin,
+    label: 'Jellyfin',
+    subtitle: 'Jellyfin · Emby',
+    icon: LucideIcons.clapperboard,
+    urlHint: 'https://jf.example.com',
+    passwordHelper: 'Sent once to sign in; an access token is stored',
+  ),
+  _ProtocolMeta(
+    id: NetworkProtocol.webdav,
+    label: 'WebDAV',
+    subtitle: 'Nextcloud · ownCloud · SabreDAV',
+    icon: LucideIcons.cloud,
+    urlHint: 'https://cloud.example.com/remote.php/dav/files/user',
+    passwordHelper: 'HTTP Basic needs it recoverable; stored encoded',
+  ),
+  _ProtocolMeta(
+    id: NetworkProtocol.upnp,
+    label: 'UPnP / DLNA',
+    subtitle: 'MinimServer · Serviio · Kodi',
+    icon: LucideIcons.cast,
+    urlHint: 'http://192.168.1.10:8200/rootDesc.xml',
+    passwordHelper: 'Most DLNA servers need no password',
+  ),
+  _ProtocolMeta(
+    id: NetworkProtocol.smb,
+    label: 'SMB',
+    subtitle: 'Samba · Windows share (transport pending)',
+    icon: LucideIcons.hardDrive,
+    urlHint: 'smb://nas/music',
+    passwordHelper: 'Stored encoded; playback unavailable in this build',
+  ),
+];
 
 class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
   late final TextEditingController _labelController;
   late final TextEditingController _urlController;
   late final TextEditingController _usernameController;
   late final TextEditingController _passwordController;
+  late String _selectedProtocol;
   bool _testing = false;
   bool? _testPassed;
+  String? _testError;
   bool _saving = false;
   bool _isValid = false;
 
   bool get _isNew => widget.server == null;
 
+  _ProtocolMeta get _meta =>
+      _protocols.firstWhere((p) => p.id == _selectedProtocol);
+
   @override
   void initState() {
     super.initState();
     final server = widget.server;
+    _selectedProtocol = (server?.protocol.isNotEmpty ?? false)
+        ? server!.protocol
+        : NetworkProtocol.subsonic;
     _labelController = TextEditingController(text: server?.label ?? '');
     _urlController = TextEditingController(text: server?.baseUrl ?? '');
     _usernameController = TextEditingController(text: server?.username ?? '');
     _passwordController = TextEditingController();
     _labelController.addListener(_updateValidity);
     _urlController.addListener(_updateValidity);
-    _isValid = _labelController.text.trim().isNotEmpty &&
+    _isValid =
+        _labelController.text.trim().isNotEmpty &&
         _urlController.text.trim().isNotEmpty;
   }
 
@@ -57,30 +131,39 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
   }
 
   void _updateValidity() {
-    final valid = _labelController.text.trim().isNotEmpty &&
+    final valid =
+        _labelController.text.trim().isNotEmpty &&
         _urlController.text.trim().isNotEmpty;
     if (_isValid != valid) setState(() => _isValid = valid);
   }
 
-  String? get _storedToken {
-    final server = widget.server;
+  /// Resolve the token to persist. When a password is typed it's resolved
+  /// through the protocol service (local transform for Subsonic/WebDAV, a
+  /// sign-in round-trip for Jellyfin). Otherwise the existing token is kept.
+  Future<String?> _resolvePersistedToken() async {
     final password = _passwordController.text;
     if (password.isNotEmpty) {
-      return SubsonicService.buildToken(password);
+      final draft = _draftEntity(token: null);
+      try {
+        return await networkSourceServiceFor(_selectedProtocol)
+            .resolveToken(draft, password);
+      } catch (_) {
+        return null;
+      }
     }
-    return server?.token;
+    return widget.server?.token;
   }
 
-  NetworkServerEntity _draftEntity() {
+  NetworkServerEntity _draftEntity({String? token}) {
     final server = widget.server ?? NetworkServerEntity();
     server
       ..label = _labelController.text.trim()
-      ..protocol = server.protocol.isNotEmpty ? server.protocol : 'subsonic'
+      ..protocol = _selectedProtocol
       ..baseUrl = _urlController.text.trim().replaceAll(RegExp(r'/+$'), '')
       ..username = _usernameController.text.trim().isEmpty
           ? null
           : _usernameController.text.trim()
-      ..token = _storedToken;
+      ..token = token ?? server.token;
     return server;
   }
 
@@ -88,25 +171,44 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     setState(() {
       _testing = true;
       _testPassed = null;
+      _testError = null;
     });
     AppHaptics.tap();
-    final entity = _draftEntity();
-    final ok = await SubsonicService.instance.ping(entity);
-    if (!mounted) return;
-    setState(() {
-      _testing = false;
-      _testPassed = ok;
-    });
+    final token = await _resolvePersistedToken();
+    final entity = _draftEntity(token: token);
+    try {
+      final ok = await networkSourceServiceFor(_selectedProtocol).ping(entity);
+      if (!mounted) return;
+      setState(() {
+        _testing = false;
+        _testPassed = ok;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _testing = false;
+        _testPassed = false;
+        _testError = _humanError(e);
+      });
+    }
   }
 
   Future<void> _save() async {
     if (!_isValid) return;
     setState(() => _saving = true);
+    final token = await _resolvePersistedToken();
     await Database.instance.writeTxn(() async {
-      await Database.networkServers.put(_draftEntity());
+      await Database.networkServers.put(_draftEntity(token: token));
     });
     if (!mounted) return;
     Navigator.of(context).pop(true);
+  }
+
+  String _humanError(Object e) {
+    final raw = e.toString();
+    // Trim the "UnsupportedError: " / "Exception: " boilerplate.
+    final colon = raw.indexOf(': ');
+    return colon > 0 && colon < 24 ? raw.substring(colon + 2) : raw;
   }
 
   Future<void> _delete() async {
@@ -145,14 +247,14 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
   IconData get _testIcon => _testPassed == null
       ? LucideIcons.wifi
       : _testPassed!
-          ? LucideIcons.checkCircle
-          : LucideIcons.xCircle;
+      ? LucideIcons.checkCircle
+      : LucideIcons.xCircle;
 
   String get _testLabel => _testPassed == null
       ? 'Test Connection'
       : _testPassed!
-          ? 'Connection OK'
-          : 'Connection Failed — Retry';
+      ? 'Connection OK'
+      : 'Connection Failed — Retry';
 
   @override
   Widget build(BuildContext context) {
@@ -164,61 +266,41 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
           SettingsSectionHeader('Protocol'),
           SettingsCard(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(AppConstants.spacingMd),
-                child: Row(
-                  children: [
-                    const _SettingsTileIcon(icon: LucideIcons.radio),
-                    const SizedBox(width: AppConstants.spacingMd),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Subsonic',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  color: context.adaptiveTextPrimary,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Navidrome · Airsonic · Gonic',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: context.adaptiveTextTertiary,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.check_circle_rounded,
-                      size: 20,
-                      color: context.adaptiveTextPrimary,
-                    ),
-                  ],
+              for (var i = 0; i < _protocols.length; i++) ...[
+                if (i > 0) const SettingsDivider(),
+                SelectionSetting(
+                  icon: _protocols[i].icon,
+                  title: _protocols[i].label,
+                  subtitle: _protocols[i].subtitle,
+                  selected: _selectedProtocol == _protocols[i].id,
+                  onTap: _isNew
+                      ? () {
+                          AppHaptics.tap();
+                          setState(() {
+                            _selectedProtocol = _protocols[i].id;
+                            _testPassed = null;
+                            _testError = null;
+                          });
+                        }
+                      : null,
                 ),
-              ),
+              ],
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(
-              left: AppConstants.spacingXs,
-              top: AppConstants.spacingSm,
-              bottom: AppConstants.spacingSm,
-            ),
-            child: Text(
-              'More protocols (WebDAV, Jellyfin) coming soon.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.adaptiveTextTertiary,
+          if (_selectedProtocol == NetworkProtocol.smb)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppConstants.spacingXs,
+                top: AppConstants.spacingSm,
+              ),
+              child: Text(
+                'SMB shares can be added now, but streaming needs a native '
+                'transport that is not yet wired into this build.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.adaptiveTextTertiary,
+                    ),
               ),
             ),
-          ),
           const SizedBox(height: AppConstants.spacingLg),
           SettingsSectionHeader('Connection'),
           SettingsCard(
@@ -234,7 +316,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
                 controller: _urlController,
                 icon: LucideIcons.link,
                 label: 'Server URL',
-                hint: 'https://music.example.com/subsonic',
+                hint: _meta.urlHint,
                 keyboardType: TextInputType.url,
               ),
               const SettingsDivider(),
@@ -250,7 +332,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
                 label: 'Password',
                 obscureText: true,
                 helperText: _isNew
-                    ? 'Stored as a salted hash, never in plaintext'
+                    ? _meta.passwordHelper
                     : 'Leave empty to keep the current credentials',
               ),
             ],
@@ -337,8 +419,9 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Could not reach the server. Check the URL and credentials, '
-              'then try again.',
+              _testError ??
+                  'Could not reach the server. Check the URL and credentials, '
+                  'then try again.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: context.adaptiveTextSecondary,
               ),
@@ -413,19 +496,23 @@ class _TextFieldSetting extends StatelessWidget {
                     hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: context.adaptiveTextTertiary,
                     ),
-                    helperStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
+                    helperStyle: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: context.adaptiveTextTertiary),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppConstants.radiusSm),
-                      borderSide: const BorderSide(color: AppColors.glassBorder),
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.radiusSm,
+                      ),
+                      borderSide: const BorderSide(
+                        color: AppColors.glassBorder,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppConstants.radiusSm),
-                      borderSide:
-                          const BorderSide(color: AppColors.glassBorderStrong),
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.radiusSm,
+                      ),
+                      borderSide: const BorderSide(
+                        color: AppColors.glassBorderStrong,
+                      ),
                     ),
                   ),
                 ),
