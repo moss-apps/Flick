@@ -9,11 +9,12 @@ import '../../../core/utils/app_haptics.dart';
 import '../../../data/database.dart';
 import '../../../data/repositories/song_repository.dart';
 import '../../../services/library_scanner_service.dart' show ScanProgress;
-import '../../../services/sources/subsonic_service.dart';
+import '../../../services/sources/network_source_service.dart';
 import '../widgets/settings_widgets.dart';
 import 'network_server_edit_screen.dart';
 
-/// Manage configured network music servers (Subsonic in v1).
+/// Manage configured network music servers (Subsonic, Jellyfin, WebDAV,
+/// UPnP/DLNA, SMB).
 class NetworkSourcesScreen extends StatefulWidget {
   const NetworkSourcesScreen({super.key});
 
@@ -69,7 +70,7 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
     });
     try {
       await for (final progress
-          in SubsonicService.instance.syncLibrary(server)) {
+          in networkSourceServiceFor(server.protocol).syncLibrary(server)) {
         if (mounted && _syncingId == server.id) {
           setState(() => _syncProgress = progress);
         }
@@ -112,7 +113,7 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
             ActionButton(
               icon: LucideIcons.plus,
               title: 'Add Server',
-              subtitle: 'Connect a Subsonic server',
+              subtitle: 'Connect a music server',
               onTap: () => _openEditor(),
             ),
           ],
@@ -156,8 +157,8 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
             ),
             const SizedBox(height: AppConstants.spacingXs),
             Text(
-              'Connect a Subsonic-compatible server like Navidrome,\n'
-              'Airsonic, or Gonic to stream your remote library.',
+              'Connect a Subsonic, Jellyfin, WebDAV, or UPnP server to stream '
+              'your remote library.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: context.adaptiveTextTertiary,
