@@ -217,7 +217,7 @@ class NavigationSetting extends StatelessWidget {
   }
 }
 
-/// Row with a radio-like selection indicator.
+/// Row with a radio-like selection indicator. Disabled when [onTap] is null.
 class SelectionSetting extends StatelessWidget {
   const SelectionSetting({
     super.key,
@@ -225,29 +225,31 @@ class SelectionSetting extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.selected,
-    required this.onTap,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          AppHaptics.tap();
-          onTap();
-        },
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(AppConstants.spacingLg),
           child: Row(
             children: [
-              _SettingsIcon(icon: icon),
+              _SettingsIcon(
+                icon: icon,
+                color: onTap == null
+                    ? context.adaptiveTextTertiary
+                    : null,
+              ),
               const SizedBox(width: AppConstants.spacingMd),
               Expanded(
                 child: Column(
@@ -256,7 +258,9 @@ class SelectionSetting extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: context.adaptiveTextPrimary,
+                        color: onTap == null
+                            ? context.adaptiveTextTertiary
+                            : context.adaptiveTextPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -273,9 +277,11 @@ class SelectionSetting extends StatelessWidget {
                 selected
                     ? Icons.check_circle_rounded
                     : Icons.radio_button_unchecked,
-                color: selected
-                    ? context.adaptiveTextPrimary
-                    : context.adaptiveTextTertiary,
+                color: onTap == null
+                    ? context.adaptiveTextTertiary
+                    : selected
+                        ? context.adaptiveTextPrimary
+                        : context.adaptiveTextTertiary,
                 size: 20,
               ),
             ],
