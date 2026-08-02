@@ -147,7 +147,11 @@ impl AudioSource {
         // Position is in samples (interleaved) at the output sample rate, so divide by channels
         let samples = self.position_samples();
         let frames = samples / self.info.channels as u64;
-        frames as f64 / self.info.output_sample_rate as f64
+        let rate = self.info.output_sample_rate;
+        if rate == 0 {
+            return 0.0;
+        }
+        frames as f64 / rate as f64
     }
 
     /// Set the current playback position in seconds.
