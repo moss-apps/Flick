@@ -216,28 +216,26 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: BlurredSongBackground(
-          child: SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context),
-                Expanded(
-                  child: _isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.textSecondary,
-                          ),
-                        )
-                      : _folders.isEmpty
-                          ? _buildEmptyState()
-                          : _viewMode == FolderViewMode.tree
-                              ? _buildFoldersTree()
-                              : _buildRootFoldersGrid(),
-                ),
-              ],
-            ),
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.textSecondary,
+                        ),
+                      )
+                    : _folders.isEmpty
+                        ? _buildEmptyState()
+                        : _viewMode == FolderViewMode.tree
+                            ? _buildFoldersTree()
+                            : _buildRootFoldersGrid(),
+              ),
+            ],
           ),
         ),
       ),

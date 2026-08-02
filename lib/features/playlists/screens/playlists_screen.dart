@@ -10,7 +10,6 @@ import 'package:flick/models/playlist.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
-import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
 
@@ -26,24 +25,22 @@ class PlaylistsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: BlurredSongBackground(
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context, ref),
-              Expanded(
-                child: playlistsAsync.when(
-                  loading: () => _buildLoadingState(context),
-                  error: (e, _) => _buildErrorState(context, e.toString()),
-                  data: (state) => state.playlists.isEmpty
-                      ? _buildEmptyState(context)
-                      : _buildPlaylistsList(context, ref, state.playlists),
-                ),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(context, ref),
+            Expanded(
+              child: playlistsAsync.when(
+                loading: () => _buildLoadingState(context),
+                error: (e, _) => _buildErrorState(context, e.toString()),
+                data: (state) => state.playlists.isEmpty
+                    ? _buildEmptyState(context)
+                    : _buildPlaylistsList(context, ref, state.playlists),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
 
