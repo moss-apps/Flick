@@ -636,8 +636,12 @@ class SettingsScaffold extends ConsumerWidget {
                 const SizedBox(height: AppConstants.spacingMd),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppConstants.spacingMd,
+                    padding: EdgeInsets.fromLTRB(
+                      AppConstants.spacingMd,
+                      0,
+                      AppConstants.spacingMd,
+                      MediaQuery.paddingOf(context).bottom +
+                          AppConstants.spacingLg,
                     ),
                     child: body,
                   ),
