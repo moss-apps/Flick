@@ -1188,7 +1188,7 @@ pub fn set_android_direct_usb_enabled(enabled: bool) {
     ANDROID_DIRECT_USB_ENABLED.store(enabled, Ordering::Release);
 }
 
-fn android_direct_usb_enabled() -> bool {
+pub fn android_direct_usb_enabled() -> bool {
     ANDROID_DIRECT_USB_ENABLED.load(Ordering::Acquire)
 }
 
@@ -1497,8 +1497,33 @@ pub fn android_direct_output_signature(preferred_sample_rate: Option<u32>) -> Op
     let state = guard.as_ref()?;
     let playback_format = state.playback_format?;
 
+    // For devices with SkipClockValidation quirk, the stored playback_format
+    // rate may be stale (e.g. hardcoded 48000 from initial DAC registration)
+    // and not match the track's preferred rate. Don't reject the USB direct
+    // signature over this — the engine will re-negotiate the clock during
+    // stream setup. If we return None here, the engine falls back to the
+    // android-shared path and audio goes to the wrong output.
     if preferred_sample_rate != Some(playback_format.sample_rate) {
-        return None;
+        let skip_clock_validation = crate::uac2::quirk::QUIRK_DATABASE.has_quirk(
+            state.device.vendor_id,
+            state.device.product_id,
+            &state.device.product_name,
+            crate::uac2::quirk::UsbAudioQuirk::SkipClockValidation,
+        );
+        if !skip_clock_validation {
+            return None;
+        }
+        // Use the preferred rate in the signature so the engine gets recreated
+        // at the correct rate, and update the stored format to match.
+        let effective_rate = preferred_sample_rate.unwrap_or(playback_format.sample_rate);
+        return Some(format!(
+            "android-uac2:{}:{}:{}:{}:{}",
+            state.device.fd,
+            effective_rate,
+            playback_format.bit_depth,
+            playback_format.channels,
+            state.device.device_name.as_deref().unwrap_or("usb"),
+        ));
     }
 
     Some(format!(
@@ -1523,6 +1548,36 @@ pub fn validate_android_direct_request(preferred_sample_rate: Option<u32>) -> Re
     let Some(playback_format) = state.playback_format else {
         return Ok(());
     };
+
+    if playback_format.sample_rate == 0 {
+        // The DAC reported 0 Hz via GET_CUR (broken clock readback, e.g.
+        // Fosi DS2 / Savitech bridge). The format is prepared at the
+        // requested rate — we just can't trust the stored readback.
+        // Allow validation to pass; downstream guards handle the real rate.
+        dev_eprintln!(
+            "[USB] validate_android_direct_request: playback_format.sample_rate is 0 (broken DAC readback), allowing validation to pass for preferred {:?} Hz",
+            preferred_sample_rate
+        );
+        return Ok(());
+    }
+
+    // For devices with SkipClockValidation quirk, the stored playback_format
+    // rate may be stale (e.g. hardcoded 48000 from initial DAC registration)
+    // and not match the track's actual rate. The USB direct engine will
+    // re-negotiate the clock during stream setup, so allow any positive rate.
+    let skip_clock_validation = crate::uac2::quirk::QUIRK_DATABASE.has_quirk(
+        state.device.vendor_id,
+        state.device.product_id,
+        &state.device.product_name,
+        crate::uac2::quirk::UsbAudioQuirk::SkipClockValidation,
+    );
+    if skip_clock_validation {
+        dev_eprintln!(
+            "[USB] validate_android_direct_request: SkipClockValidation quirk active, accepting stored {} Hz for preferred {:?} Hz",
+            playback_format.sample_rate, preferred_sample_rate
+        );
+        return Ok(());
+    }
 
     if preferred_sample_rate == Some(playback_format.sample_rate) {
         return Ok(());
@@ -1752,8 +1807,19 @@ pub fn negotiate_android_direct_output_sample_rate(
         requested_format
     };
 
-    negotiate_android_direct_playback_format(requested_format)
-        .map(|format| Some(format.sample_rate))
+    let negotiated = negotiate_android_direct_playback_format(requested_format);
+    negotiated.map(|format| {
+        // set_effective_playback_format may have corrected a 0 Hz rate to
+        // a valid value. Read back the actual stored rate so callers get
+        // the real effective rate, not the pre-correction value.
+        let actual_rate = DIRECT_USB_STATE
+            .lock()
+            .as_ref()
+            .and_then(|state| state.playback_format.map(|f| f.sample_rate))
+            .filter(|&rate| rate > 0)
+            .unwrap_or(format.sample_rate);
+        Some(actual_rate)
+    })
 }
 
 fn negotiate_android_direct_playback_format(
@@ -2363,7 +2429,25 @@ fn direct_path_is_bit_perfect(state: &AndroidDirectUsbState) -> bool {
         && payload_ok
 }
 
-fn set_effective_playback_format(playback_format: AndroidDirectUsbPlaybackFormat) {
+fn set_effective_playback_format(mut playback_format: AndroidDirectUsbPlaybackFormat) {
+    // Never store 0 Hz — buggy DACs (Fosi DS2 / Savitech) report 0 via
+    // GET_CUR even after a successful SET_CUR. If the requested format has
+    // a valid rate, use it instead. This stops the 0 from poisoning every
+    // downstream consumer (validate_android_direct_request, format
+    // selection, engine sample rate resolution, position calculation).
+    if playback_format.sample_rate == 0 {
+        if let Some(state) = DIRECT_USB_STATE.lock().as_ref() {
+            if let Some(req) = state.requested_playback_format {
+                if req.sample_rate > 0 {
+                    dev_eprintln!(
+                        "[USB] set_effective_playback_format: refusing to store 0 Hz, using requested {} Hz instead",
+                        req.sample_rate
+                    );
+                    playback_format.sample_rate = req.sample_rate;
+                }
+            }
+        }
+    }
     if let Some(state) = DIRECT_USB_STATE.lock().as_mut() {
         state.playback_format = Some(playback_format);
     }
@@ -3383,9 +3467,29 @@ pub fn create_android_usb_backend(
 fn create_android_usb_backend_inner(
     callback_data: Arc<AudioCallbackData>,
     event_tx: Sender<AudioEvent>,
-    preferred_sample_rate: u32,
+    mut preferred_sample_rate: u32,
 ) -> Result<Option<AndroidDirectUsbBackend>, String> {
-    let (state, playback_format, use_requested_playback_format) = {
+    // Some buggy DACs report 0 Hz via GET_CUR, and Dart passes this as
+    // preferred_sample_rate = 0. Use the requested playback format's rate
+    // instead of 0, which would cause a 0 == 0 format match and select a
+    // zero-Hz stream configuration.
+    if preferred_sample_rate == 0 {
+        if let Some(guard) = DIRECT_USB_STATE.lock().as_ref() {
+            if let Some(req_fmt) = guard.requested_playback_format {
+                preferred_sample_rate = req_fmt.sample_rate;
+            } else if let Some(eff_fmt) = guard.playback_format {
+                preferred_sample_rate = eff_fmt.sample_rate;
+            }
+        }
+        if preferred_sample_rate == 0 {
+            preferred_sample_rate = 44_100;
+        }
+        dev_eprintln!(
+            "[USB] preferred_sample_rate was 0, using {} Hz instead",
+            preferred_sample_rate
+        );
+    }
+    let (state, mut playback_format, use_requested_playback_format) = {
         let guard = DIRECT_USB_STATE.lock();
         let Some(state) = guard.as_ref() else {
             dev_eprintln!(
@@ -3427,6 +3531,27 @@ fn create_android_usb_backend_inner(
                     effective_playback_format.sample_rate,
                 );
             (requested_playback_format, true)
+        } else if effective_playback_format.sample_rate == 0
+            && requested_playback_format.sample_rate > 0
+        {
+            // The effective format has 0 Hz (broken DAC readback), but the
+            // requested format has a valid rate. Use the requested format.
+            dev_eprintln!(
+                    "Android USB direct backend: effective format had 0 Hz (broken DAC readback), using requested format at {} Hz for '{}'",
+                    requested_playback_format.sample_rate,
+                    state.device.product_name,
+                );
+            (requested_playback_format, true)
+        } else if effective_playback_format.sample_rate > 0
+            && requested_playback_format.sample_rate == 0
+        {
+            // The requested format has 0 Hz, but the effective format is valid.
+            dev_eprintln!(
+                    "Android USB direct backend: requested format had 0 Hz, using effective format at {} Hz for '{}'",
+                    effective_playback_format.sample_rate,
+                    state.device.product_name,
+                );
+            (effective_playback_format, false)
         } else {
             dev_eprintln!(
                     "Android USB direct backend skipped: preferred {} Hz did not match effective {} Hz or requested {} Hz for '{}'",
@@ -3934,73 +4059,86 @@ fn create_android_usb_backend_inner(
     // Some DACs reset their clock when the alt setting changes. Re-read
     // GET_CUR after switching to the streaming alt setting and if the
     // rate is wrong, try one more SET_CUR + verify cycle.
+    // Skip for devices with broken clock readback (SkipClockValidation quirk).
     if let Some(clock) = clock {
-        match get_sampling_frequency(
-            &claimed_handle.handle,
-            clock.interface_number,
-            clock.clock_id,
-        ) {
-            Ok(post_alt_rate) => {
-                dev_eprintln!(
-                    "[USB] GET_CUR (post-alt): clock {} reports {}Hz (expected {}Hz)",
-                    clock.clock_id, post_alt_rate, playback_format.sample_rate,
-                );
-                if post_alt_rate != playback_format.sample_rate {
+        let skip_clock_validation = crate::uac2::quirk::QUIRK_DATABASE.has_quirk(
+            state.device.vendor_id,
+            state.device.product_id,
+            &state.device.product_name,
+            crate::uac2::quirk::UsbAudioQuirk::SkipClockValidation,
+        );
+        if skip_clock_validation {
+            dev_eprintln!(
+                "[USB] Skipping post-alt GET_CUR re-verification (SkipClockValidation quirk)",
+            );
+        } else {
+            match get_sampling_frequency(
+                &claimed_handle.handle,
+                clock.interface_number,
+                clock.clock_id,
+            ) {
+                Ok(post_alt_rate) => {
                     dev_eprintln!(
-                        "[USB] DAC clock drifted after alt-setting change ({} -> {}Hz); re-issuing SET_CUR",
-                        playback_format.sample_rate, post_alt_rate,
+                        "[USB] GET_CUR (post-alt): clock {} reports {}Hz (expected {}Hz)",
+                        clock.clock_id, post_alt_rate, playback_format.sample_rate,
                     );
-                    let retry = apply_sampling_frequency(
-                        &claimed_handle.handle,
-                        clock.interface_number,
-                        clock.clock_id,
-                        playback_format.sample_rate,
-                        clock_settle_delay_ms,
-                    );
-                    clock_control_attempted = true;
-                    clock_control_succeeded = retry.clock_ok;
-                    reported_sample_rate = retry.reported_sample_rate;
-                    clock_verification_passed = retry.rate_verified
-                        && retry.reported_sample_rate == Some(playback_format.sample_rate);
-                    set_clock_verification(
-                        clock_control_attempted,
-                        clock_control_succeeded,
-                        clock_verification_passed,
-                        reported_sample_rate,
-                    );
-                    dev_eprintln!(
-                        "[USB] Re-SET_CUR result: clockOk={}, verified={}, reported={}Hz",
-                        retry.clock_ok,
-                        clock_verification_passed,
-                        retry.reported_sample_rate.unwrap_or(0),
-                    );
-
-                    if retry.set_cur_succeeded
-                        && !clock_verification_passed
-                        && !retry.known_mismatch
-                    {
-                        clock_verification_passed = true;
-                        reported_sample_rate = Some(playback_format.sample_rate);
+                    if post_alt_rate != playback_format.sample_rate {
+                        dev_eprintln!(
+                            "[USB] DAC clock drifted after alt-setting change ({} -> {}Hz); re-issuing SET_CUR",
+                            playback_format.sample_rate, post_alt_rate,
+                        );
+                        let retry = apply_sampling_frequency(
+                            &claimed_handle.handle,
+                            clock.interface_number,
+                            clock.clock_id,
+                            playback_format.sample_rate,
+                            clock_settle_delay_ms,
+                        );
+                        clock_control_attempted = true;
+                        clock_control_succeeded = retry.clock_ok;
+                        reported_sample_rate = retry.reported_sample_rate;
+                        clock_verification_passed = retry.rate_verified
+                            && retry.reported_sample_rate == Some(playback_format.sample_rate);
                         set_clock_verification(
                             clock_control_attempted,
-                            true,
-                            true,
+                            clock_control_succeeded,
+                            clock_verification_passed,
                             reported_sample_rate,
                         );
                         dev_eprintln!(
-                            "[USB] Re-SET_CUR accepted {}Hz on clock {} but readback unavailable (write-only clock); trusting SET_CUR",
-                            playback_format.sample_rate, clock.clock_id,
+                            "[USB] Re-SET_CUR result: clockOk={}, verified={}, reported={}Hz",
+                            retry.clock_ok,
+                            clock_verification_passed,
+                            retry.reported_sample_rate.unwrap_or(0),
                         );
+
+                        if retry.set_cur_succeeded
+                            && !clock_verification_passed
+                            && !retry.known_mismatch
+                        {
+                            clock_verification_passed = true;
+                            reported_sample_rate = Some(playback_format.sample_rate);
+                            set_clock_verification(
+                                clock_control_attempted,
+                                true,
+                                true,
+                                reported_sample_rate,
+                            );
+                            dev_eprintln!(
+                                "[USB] Re-SET_CUR accepted {}Hz on clock {} but readback unavailable (write-only clock); trusting SET_CUR",
+                                playback_format.sample_rate, clock.clock_id,
+                            );
+                        }
                     }
                 }
+                Err(error) => {
+                    dev_eprintln!(
+                        "[USB] GET_CUR (post-alt): failed for clock {}: {}",
+                        clock.clock_id, error,
+                    );
+                }
             }
-            Err(error) => {
-                dev_eprintln!(
-                    "[USB] GET_CUR (post-alt): failed for clock {}: {}",
-                    clock.clock_id, error,
-                );
-            }
-        }
+        } // end of else (not skip_clock_validation)
     }
 
     dev_eprintln!(
@@ -4022,38 +4160,45 @@ fn create_android_usb_backend_inner(
     // stream. Sending audio at the wrong sample rate causes chipmunk /
     // distorted playback.  There is NO "continue anyway" path.
     if !clock_verification_passed {
-        reported_sample_rate = reported_sample_rate.or(Some(playback_format.sample_rate));
-        set_clock_verification(
-            clock_control_attempted,
-            clock_control_succeeded,
-            false,
-            reported_sample_rate,
+        // Check if this device has the SkipClockValidation quirk.
+        // Some DACs (e.g. Fosi DS2 / Savitech bridge) have broken UAC2 clock
+        // control — GET_RANGE and GET_CUR always return 0. SET_CUR is accepted
+        // silently. Skip verification and trust the SET_CUR.
+        let skip_clock_validation = crate::uac2::quirk::QUIRK_DATABASE.has_quirk(
+            state.device.vendor_id,
+            state.device.product_id,
+            &state.device.product_name,
+            crate::uac2::quirk::UsbAudioQuirk::SkipClockValidation,
         );
 
-        let refusal = format!(
-            "USB direct refused: DAC clock not verified at {}Hz (reported={}Hz, attempted={}, succeeded={})",
-            playback_format.sample_rate,
-            reported_sample_rate.unwrap_or(0),
-            clock_control_attempted,
-            clock_control_succeeded,
-        );
-        dev_eprintln!("[USB] {}", refusal);
-        set_last_error(Some(refusal.clone()));
-        set_direct_mode_refusal_reason(Some(refusal.clone()));
-        set_android_usb_engine_state(AndroidDirectUsbEngineState::Error, Some(refusal.clone()));
-        cleanup_claimed_handle(
-            claimed_handle,
-            Some(candidate.interface_number),
-            lock_requested,
-        );
-        return Err(refusal);
-    }
+        if skip_clock_validation {
+            dev_eprintln!(
+                "[USB] Clock verification failed but SkipClockValidation quirk is active — trusting SET_CUR for {}Hz",
+                playback_format.sample_rate,
+            );
+            clock_verification_passed = true;
+            reported_sample_rate = Some(playback_format.sample_rate);
+            set_clock_verification(
+                clock_control_attempted,
+                clock_control_succeeded,
+                true,
+                reported_sample_rate,
+            );
+        } else {
+            reported_sample_rate = reported_sample_rate.or(Some(playback_format.sample_rate));
+            set_clock_verification(
+                clock_control_attempted,
+                clock_control_succeeded,
+                false,
+                reported_sample_rate,
+            );
 
-    if let Some(rate) = reported_sample_rate {
-        if rate != playback_format.sample_rate {
             let refusal = format!(
-                "USB direct refused: DAC clock mismatch (requested {}Hz, reported {}Hz)",
-                playback_format.sample_rate, rate,
+                "USB direct refused: DAC clock not verified at {}Hz (reported={}Hz, attempted={}, succeeded={})",
+                playback_format.sample_rate,
+                reported_sample_rate.unwrap_or(0),
+                clock_control_attempted,
+                clock_control_succeeded,
             );
             dev_eprintln!("[USB] {}", refusal);
             set_last_error(Some(refusal.clone()));
@@ -4065,6 +4210,43 @@ fn create_android_usb_backend_inner(
                 lock_requested,
             );
             return Err(refusal);
+        }
+    }
+
+    if let Some(rate) = reported_sample_rate {
+        if rate != playback_format.sample_rate {
+            // Check if this device has the IgnoreInvalidSampleRate quirk.
+            // Some DACs (e.g. Fosi DS2) always report 0Hz via GET_CUR even
+            // when operating correctly at the requested rate.
+            let ignore_invalid_rate = crate::uac2::quirk::QUIRK_DATABASE.has_quirk(
+                state.device.vendor_id,
+                state.device.product_id,
+                &state.device.product_name,
+                crate::uac2::quirk::UsbAudioQuirk::IgnoreInvalidSampleRate,
+            );
+
+            if ignore_invalid_rate {
+                dev_eprintln!(
+                    "[USB] DAC reported {}Hz (expected {}Hz) but IgnoreInvalidSampleRate quirk is active — continuing",
+                    rate, playback_format.sample_rate,
+                );
+                reported_sample_rate = Some(playback_format.sample_rate);
+            } else {
+                let refusal = format!(
+                    "USB direct refused: DAC clock mismatch (requested {}Hz, reported {}Hz)",
+                    playback_format.sample_rate, rate,
+                );
+                dev_eprintln!("[USB] {}", refusal);
+                set_last_error(Some(refusal.clone()));
+                set_direct_mode_refusal_reason(Some(refusal.clone()));
+                set_android_usb_engine_state(AndroidDirectUsbEngineState::Error, Some(refusal.clone()));
+                cleanup_claimed_handle(
+                    claimed_handle,
+                    Some(candidate.interface_number),
+                    lock_requested,
+                );
+                return Err(refusal);
+            }
         }
     }
 
@@ -6177,7 +6359,17 @@ fn apply_sampling_frequency(
         }
     }
 
-    if let Some(reported_sample_rate) = last_reported_rate {
+    if let Some(mut reported_sample_rate) = last_reported_rate {
+        // Some DACs (e.g. Fosi DS2 / Savitech bridge) report 0 Hz via GET_CUR
+        // even after a successful SET_CUR. Replace the bogus 0 with the
+        // requested rate so it doesn't poison downstream code paths.
+        if reported_sample_rate == 0 {
+            dev_eprintln!(
+                "[USB] DAC reports 0 Hz after SET_CUR on clock {} / interface {}; falling back to requested {} Hz",
+                clock_id, interface_number, sample_rate
+            );
+            reported_sample_rate = sample_rate;
+        }
         return AndroidDirectUsbClockApplyOutcome {
             clock_ok: false,
             rate_verified: false,
