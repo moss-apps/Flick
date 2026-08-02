@@ -2668,7 +2668,8 @@ fn command_processing_loop(
     decoders: Arc<Mutex<Vec<DecoderHandle>>>,
     sample_rate: u32,
     shutdown: Arc<AtomicBool>,
-    _supervisor: Option<&mut ManagedStreamSupervisor>,
+    #[cfg_attr(not(target_os = "android"), allow(unused_mut, unused_variables))]
+    mut supervisor: Option<&mut ManagedStreamSupervisor>,
 ) {
     loop {
         // Check shutdown flag
