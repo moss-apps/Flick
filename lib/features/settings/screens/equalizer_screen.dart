@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -16,8 +15,9 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/utils/responsive.dart';
+import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/providers/equalizer_provider.dart';
-import 'package:flick/providers/navigation_provider.dart';
+import 'package:flick/providers/providers.dart';
 import 'package:flick/services/eq_preset_file_service.dart';
 import 'package:flick/services/eq_preset_service.dart';
 import 'package:flick/services/equalizer_service.dart';
@@ -81,11 +81,13 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   @override
   Widget build(BuildContext context) {
     final activePresetName = ref.watch(eqActivePresetNameProvider);
+    final currentSong = ref.watch(currentSongProvider);
 
     return Stack(
       children: [
+        Positioned.fill(child: AmbientBackground(song: currentSong)),
         Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             bottom: false,
             child: Column(
@@ -1178,20 +1180,14 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
+          IconButton(
+            icon: Icon(
+              LucideIcons.chevronLeft,
+              color: context.adaptiveTextPrimary,
+              size: context.responsiveIcon(AppConstants.iconSizeMd),
             ),
-            child: IconButton(
-              icon: Icon(
-                LucideIcons.arrowLeft,
-                color: context.adaptiveTextPrimary,
-                size: context.responsiveIcon(AppConstants.iconSizeMd),
-              ),
-              onPressed: onBack,
-            ),
+            onPressed: onBack,
+            visualDensity: VisualDensity.compact,
           ),
           const SizedBox(width: AppConstants.spacingMd),
           Expanded(
@@ -1215,21 +1211,15 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
+          IconButton(
+            tooltip: 'Presets',
+            icon: Icon(
+              LucideIcons.library,
+              color: context.adaptiveTextPrimary,
+              size: context.responsiveIcon(AppConstants.iconSizeMd),
             ),
-            child: IconButton(
-              tooltip: 'Presets',
-              icon: Icon(
-                LucideIcons.library,
-                color: context.adaptiveTextPrimary,
-                size: context.responsiveIcon(AppConstants.iconSizeMd),
-              ),
-              onPressed: onPresets,
-            ),
+            onPressed: onPresets,
+            visualDensity: VisualDensity.compact,
           ),
         ],
       ),
@@ -4366,22 +4356,18 @@ class _GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: AppConstants.glassBlurSigmaLight,
-            sigmaY: AppConstants.glassBlurSigmaLight,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-              border: Border.all(color: AppColors.glassBorder, width: 1),
-            ),
-            child: child,
-          ),
+      // ponytail: opaque fill instead of BackdropFilter. The ambient bg is
+      // already pre-blurred, so a second blur was redundant GPU cost AND it
+      // re-sampled different album-art regions per scroll position, making
+      // the card (and the knobs on it) shift lighter/darker. surfaceLight
+      // (0x1E) stays lighter than the knob body (0x14) so contrast holds.
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          border: Border.all(color: AppColors.glassBorder, width: 1),
         ),
+        child: child,
       ),
     );
   }
