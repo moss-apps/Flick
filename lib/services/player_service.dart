@@ -2999,7 +2999,11 @@ class PlayerService {
         directUsbFormat =
             _uac2Service.currentDeviceStatus?.currentFormat ??
             _uac2Service.lastKnownFormat;
-        preferredSampleRate = directUsbFormat?.sampleRate;
+        // Do NOT overwrite preferredSampleRate from the DAC's stored format.
+        // The stored format may be stale (hardcoded 48000 from initial DAC
+        // registration) or report 0 Hz (broken readback). The Rust engine
+        // already has the track's actual sample rate via
+        // requested_playback_format; passing null here lets it use that.
       }
 
       try {
