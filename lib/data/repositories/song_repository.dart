@@ -130,6 +130,14 @@ class SongRepository {
         .findAll();
   }
 
+  /// Count songs synced from a network server (cheaper than fetching).
+  Future<int> countSongsByRemoteServer(int remoteServerId) async {
+    return await _isar.songEntitys
+        .where()
+        .remoteServerIdEqualTo(remoteServerId)
+        .count();
+  }
+
   /// Delete all songs synced from a network server.
   Future<void> deleteSongsForRemoteServer(int remoteServerId) async {
     await _isar.writeTxn(() async {
