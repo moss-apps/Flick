@@ -12,13 +12,14 @@ import '../../data/database.dart';
 import '../../data/repositories/song_repository.dart';
 import '../library_scanner_service.dart' show ScanProgress;
 import '../network_cache_service.dart';
+import 'network_source_service.dart';
 
 /// Subsonic API client (JSON variant, no transcoding params).
 ///
 /// Auth: Subsonic token auth, `t = md5(password + salt)`, `s = salt`.
 /// The stored server token is the `salt:md5hex` pair, so the plaintext
 /// password is never persisted or transmitted.
-class SubsonicService {
+class SubsonicService implements NetworkSourceService {
   SubsonicService._({
     http.Client? client,
     SongRepository? songRepository,
@@ -47,6 +48,18 @@ class SubsonicService {
   static const String _clientName = 'flick';
   static const String _apiVersion = '1.16.1';
   static const int _pageSize = 500;
+
+  @override
+  String get protocol => NetworkProtocol.subsonic;
+
+  @override
+  String get coverScheme => networkCoverArtScheme;
+
+  @override
+  Future<String?> resolveToken(NetworkServerEntity server, String password) async {
+    // Local transform: salt + md5, no round-trip. The [server] is ignored.
+    return buildToken(password);
+  }
 
   final http.Client _client;
 
@@ -128,6 +141,7 @@ class SubsonicService {
 
   /// Test connectivity + credentials. Returns true when the server responds
   /// with status ok.
+  @override
   Future<bool> ping(NetworkServerEntity server) async {
     try {
       await _getJson(server, 'ping');
@@ -177,6 +191,7 @@ class SubsonicService {
 
   /// Raw cover art bytes for [coverArtId] (the value of a song's `coverArt`
   /// attribute, e.g. "al-123").
+  @override
   Future<List<int>> getCoverArt(
     NetworkServerEntity server,
     String coverArtId,
@@ -195,6 +210,7 @@ class SubsonicService {
   /// so the server returns the stored file, not a transcode. Writes the bytes
   /// into the network cache and returns the local path. When [onProgress] is
   /// given it is called with 0..1 as bytes arrive (streamed download).
+  @override
   Future<String> stream(
     NetworkServerEntity server,
     String songId, {
@@ -235,6 +251,7 @@ class SubsonicService {
   /// Upserts every song (composite-key match on the synthetic filePath),
   /// deletes rows that no longer exist on the server, then stamps
   /// [NetworkServerEntity.lastSyncedAt].
+  @override
   Stream<ScanProgress> syncLibrary(NetworkServerEntity server) async* {
     final albums = await getAlbumList2(server);
     final syncedRemoteIds = <String>{};
