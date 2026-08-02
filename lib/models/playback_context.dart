@@ -4,6 +4,7 @@ enum PlaybackSource {
   folder,
   playlist,
   allSongs,
+  network,
   unknown;
 
   String get label => switch (this) {
@@ -12,6 +13,7 @@ enum PlaybackSource {
     PlaybackSource.folder => 'Folder',
     PlaybackSource.playlist => 'Playlist',
     PlaybackSource.allSongs => 'All Songs',
+    PlaybackSource.network => 'Network',
     PlaybackSource.unknown => 'Unknown',
   };
 }
