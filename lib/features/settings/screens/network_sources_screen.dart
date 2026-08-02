@@ -4,6 +4,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/adaptive_color_provider.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../data/database.dart';
 import '../../../data/repositories/song_repository.dart';
 import '../../../services/library_scanner_service.dart' show ScanProgress;
@@ -21,6 +23,7 @@ class NetworkSourcesScreen extends StatefulWidget {
 
 class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
   List<NetworkServerEntity> _servers = [];
+  final _songCounts = <int, int>{};
   int? _syncingId;
   ScanProgress? _syncProgress;
 
@@ -33,8 +36,18 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
   Future<void> _loadServers() async {
     final servers = await Database.networkServers.where().findAll();
     servers.sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+    final repo = SongRepository();
+    final counts = <int, int>{};
+    for (final s in servers) {
+      counts[s.id] = await repo.countSongsByRemoteServer(s.id);
+    }
     if (!mounted) return;
-    setState(() => _servers = servers);
+    setState(() {
+      _servers = servers;
+      _songCounts
+        ..clear()
+        ..addAll(counts);
+    });
   }
 
   Future<void> _openEditor({NetworkServerEntity? server}) async {
@@ -46,36 +59,6 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
     if (changed == true) {
       await _loadServers();
     }
-  }
-
-  Future<void> _deleteServer(NetworkServerEntity server) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove server?'),
-        content: Text(
-          'Delete "${server.label}" and all songs synced from it? '
-          'Cached downloads are kept.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    await Database.instance.writeTxn(() async {
-      await Database.networkServers.delete(server.id);
-    });
-    await SongRepository().deleteSongsForRemoteServer(server.id);
-    await _loadServers();
   }
 
   Future<void> _syncServer(NetworkServerEntity server) async {
@@ -114,19 +97,9 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_servers.isEmpty) ...[
-            const SizedBox(height: AppConstants.spacingLg),
-            Center(
-              child: Text(
-                'No network sources yet.\nAdd a Subsonic server to browse and '
-                'stream your remote library.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.adaptiveTextTertiary,
-                ),
-              ),
-            ),
-          ] else
+          if (_servers.isEmpty)
+            _buildEmptyState(context)
+          else ...[
             SettingsCard(
               children: [
                 for (var i = 0; i < _servers.length; i++) ...[
@@ -135,29 +108,91 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
                 ],
               ],
             ),
-          const SizedBox(height: AppConstants.spacingMd),
-          ActionButton(
-            icon: LucideIcons.plus,
-            title: 'Add Server',
-            subtitle: 'Connect a Subsonic server',
-            onTap: () => _openEditor(),
-          ),
+            const SizedBox(height: AppConstants.spacingMd),
+            ActionButton(
+              icon: LucideIcons.plus,
+              title: 'Add Server',
+              subtitle: 'Connect a Subsonic server',
+              onTap: () => _openEditor(),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppConstants.spacingLg,
+        vertical: AppConstants.spacingXxl,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.glassBackground,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.glassBorder),
+              ),
+              child: Icon(
+                LucideIcons.server,
+                size: 32,
+                color: context.adaptiveTextTertiary,
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacingLg),
+            Text(
+              'No servers connected',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: context.adaptiveTextPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacingXs),
+            Text(
+              'Connect a Subsonic-compatible server like Navidrome,\n'
+              'Airsonic, or Gonic to stream your remote library.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: context.adaptiveTextTertiary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacingXl),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _openEditor(),
+                icon: const Icon(LucideIcons.plus, size: 18),
+                label: const Text('Add Server'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildServerRow(BuildContext context, NetworkServerEntity server) {
     final isSyncing = _syncingId == server.id;
-    final lastSynced = server.lastSyncedAt;
-    final syncedLabel = lastSynced == null
-        ? 'Never synced'
-        : 'Synced ${_formatDate(lastSynced)}';
+    final songCount = _songCounts[server.id] ?? 0;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => _openEditor(server: server),
+        onTap: isSyncing ? null : () => _openEditor(server: server),
         child: Padding(
           padding: const EdgeInsets.all(AppConstants.spacingMd),
           child: Column(
@@ -167,8 +202,8 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
                 children: [
                   ColoredSettingsIcon(
                     icon: LucideIcons.server,
-                    backgroundColor: const Color(0xFF2D4A6F),
-                    iconColor: const Color(0xFF8BB8FF),
+                    backgroundColor: AppColors.glassBackgroundStrong,
+                    iconColor: context.adaptiveTextSecondary,
                   ),
                   const SizedBox(width: AppConstants.spacingMd),
                   Expanded(
@@ -183,9 +218,10 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context)
                                     .textTheme
-                                    .titleSmall
+                                    .titleMedium
                                     ?.copyWith(
                                       color: context.adaptiveTextPrimary,
+                                      fontWeight: FontWeight.w600,
                                     ),
                               ),
                             ),
@@ -193,7 +229,7 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
                             _ProtocolChip(server.protocol),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           server.baseUrl,
                           overflow: TextOverflow.ellipsis,
@@ -201,58 +237,139 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
                             color: context.adaptiveTextTertiary,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          isSyncing
-                              ? _syncProgress?.phase ?? 'Syncing…'
-                              : syncedLabel,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isSyncing
-                                ? context.adaptiveTextSecondary
-                                : context.adaptiveTextTertiary,
-                          ),
-                        ),
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: isSyncing ? null : () => _syncServer(server),
-                    icon: Icon(
-                      isSyncing
-                          ? LucideIcons.loaderCircle
-                          : LucideIcons.refreshCw,
-                      size: 18,
-                      color: context.adaptiveTextSecondary,
+                  if (!isSyncing)
+                    IconButton(
+                      tooltip: 'Sync now',
+                      onPressed: () {
+                        AppHaptics.tap();
+                        _syncServer(server);
+                      },
+                      icon: Icon(
+                        LucideIcons.refreshCw,
+                        size: 18,
+                        color: context.adaptiveTextSecondary,
+                      ),
                     ),
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'edit':
-                          _openEditor(server: server);
-                        case 'delete':
-                          _deleteServer(server);
-                      }
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      PopupMenuItem(value: 'delete', child: Text('Delete')),
-                    ],
-                  ),
                 ],
               ),
-              if (isSyncing) ...[
-                const SizedBox(height: AppConstants.spacingSm),
-                LinearProgressIndicator(
-                  value: _syncProgress?.progressFraction ?? 0,
-                  minHeight: 3,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ],
+              const SizedBox(height: AppConstants.spacingSm),
+              if (isSyncing)
+                _buildSyncPanel(context)
+              else
+                _buildMetaRow(context, server, songCount),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMetaRow(
+    BuildContext context,
+    NetworkServerEntity server,
+    int songCount,
+  ) {
+    final synced = server.lastSyncedAt;
+    final parts = <String>[
+      if (songCount > 0) '$songCount ${songCount == 1 ? 'song' : 'songs'}',
+      synced == null ? 'Never synced' : 'Synced ${_formatDate(synced)}',
+    ];
+    return Row(
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: synced == null ? AppColors.textTertiary : AppColors.accent,
+          ),
+        ),
+        Flexible(
+          child: Text(
+            parts.join('  ·  '),
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.adaptiveTextTertiary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSyncPanel(BuildContext context) {
+    final p = _syncProgress;
+    final fraction = p?.progressFraction ?? 0.0;
+    final total = p?.totalFiles ?? 0;
+    final done = p?.filesProcessed ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                valueColor: AlwaysStoppedAnimation(context.adaptiveAccent),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                p?.phase ?? 'Syncing…',
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.adaptiveAccent,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (total > 0)
+              Text(
+                '$done / $total',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.adaptiveTextTertiary,
+                ),
+              ),
+          ],
+        ),
+        if (p?.currentFile != null && p!.currentFile!.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            p.currentFile!,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.adaptiveTextTertiary,
+            ),
+          ),
+        ],
+        const SizedBox(height: AppConstants.spacingXs),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+          child: LinearProgressIndicator(
+            value: fraction,
+            minHeight: 4,
+            backgroundColor: AppColors.glassBackground,
+            valueColor: AlwaysStoppedAnimation(context.adaptiveAccent),
+          ),
+        ),
+        if ((p?.songsFound ?? 0) > 0) ...[
+          const SizedBox(height: 4),
+          Text(
+            '${p!.songsFound} songs found',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.adaptiveTextTertiary,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -274,16 +391,17 @@ class _ProtocolChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color(0xFF2D4A6F).withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(4),
+        color: AppColors.glassBackgroundStrong,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXs),
+        border: Border.all(color: AppColors.glassBorder),
       ),
       child: Text(
         protocol.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
-          color: Color(0xFF8BB8FF),
+          color: context.adaptiveTextTertiary,
         ),
       ),
     );
