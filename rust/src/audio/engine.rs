@@ -1227,7 +1227,7 @@ pub fn create_audio_engine(
             48_000
         }
     } else {
-        preferred_sample_rate.unwrap_or(48_000)
+        preferred_sample_rate.filter(|&rate| rate > 0).unwrap_or(48_000)
     };
 
     #[cfg(feature = "uac2")]
@@ -1562,8 +1562,11 @@ pub fn create_audio_engine(
                 let debug_state = android_direct_debug_state();
                 let actual_sample_rate = debug_state
                     .clock_reported_sample_rate
+                    .filter(|&rate| rate > 0)
                     .or(debug_state.playback_format_sample_rate)
+                    .filter(|&rate| rate > 0)
                     .or(debug_state.requested_playback_sample_rate)
+                    .filter(|&rate| rate > 0)
                     .unwrap_or(requested_sample_rate);
                 let verification = OutputVerification::verify(
                     requested_sample_rate,
