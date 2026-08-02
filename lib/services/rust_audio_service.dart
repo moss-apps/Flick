@@ -433,7 +433,12 @@ class RustAudioService {
   void _updateProgress() {
     final progress = rust_audio.audioGetProgress();
     if (progress != null) {
-      final newPositionMs = (progress.positionSecs * 1000).round();
+      final positionSecs = progress.positionSecs;
+      if (!positionSecs.isFinite || positionSecs < 0) {
+        _updateState();
+        return;
+      }
+      final newPositionMs = (positionSecs * 1000).round();
       final currentPositionMs = positionNotifier.value.inMilliseconds;
 
       // Only update if position actually changed (skip no-op updates)
@@ -447,7 +452,9 @@ class RustAudioService {
         }
       }
 
-      if (progress.durationSecs != null) {
+      if (progress.durationSecs != null &&
+          progress.durationSecs!.isFinite &&
+          progress.durationSecs! >= 0) {
         final newDurationMs = (progress.durationSecs! * 1000).round();
         final currentDurationMs = durationNotifier.value.inMilliseconds;
 

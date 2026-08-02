@@ -81,6 +81,16 @@ class Song {
   /// Package name of the app that handed this song to Flick.
   final String? sourcePackage;
 
+  /// Where this song came from: null = local file, otherwise one of
+  /// 'subsonic' | 'webdav' | 'jellyfin'.
+  final String? sourceType;
+
+  /// The server's song id (Subsonic song id, WebDAV file URL, Jellyfin Item.Id).
+  final String? remoteId;
+
+  /// [NetworkServerEntity.id] of the server this song was synced from.
+  final int? remoteServerId;
+
   const Song({
     required this.id,
     required this.title,
@@ -109,9 +119,14 @@ class Song {
     this.dateAdded,
     this.isExternal = false,
     this.sourcePackage,
+    this.sourceType,
+    this.remoteId,
+    this.remoteServerId,
   });
 
   bool get isFromLocker => sourcePackage == 'com.mossapps.locker';
+
+  bool get isNetworkSource => sourceType != null;
 
   static const _dsdExtensions = {'dsf', 'dff'};
   static const _wavpackExtension = 'wv';
@@ -196,6 +211,9 @@ class Song {
     DateTime? dateAdded,
     bool? isExternal,
     String? sourcePackage,
+    String? sourceType,
+    String? remoteId,
+    int? remoteServerId,
   }) {
     return Song(
       id: id ?? this.id,
@@ -225,6 +243,9 @@ class Song {
       dateAdded: dateAdded ?? this.dateAdded,
       isExternal: isExternal ?? this.isExternal,
       sourcePackage: sourcePackage ?? this.sourcePackage,
+      sourceType: sourceType ?? this.sourceType,
+      remoteId: remoteId ?? this.remoteId,
+      remoteServerId: remoteServerId ?? this.remoteServerId,
     );
   }
 

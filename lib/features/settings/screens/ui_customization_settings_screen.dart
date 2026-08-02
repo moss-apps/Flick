@@ -105,6 +105,30 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                       .setShowEngineSelector(value);
                 },
               ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.volume2,
+                title: 'USB Volume on Home',
+                subtitle: 'Show the USB volume bar on the home screen',
+                value: appPreferences.showUsbVolumeOnMenu,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setShowUsbVolumeOnMenu(value);
+                },
+              ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.slidersHorizontal,
+                title: 'USB Volume in Settings',
+                subtitle: 'Show the USB volume bar on the UAC2 settings screen',
+                value: appPreferences.showUsbVolumeOnSettings,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setShowUsbVolumeOnSettings(value);
+                },
+              ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),

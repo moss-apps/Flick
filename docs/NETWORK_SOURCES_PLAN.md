@@ -16,6 +16,29 @@ as a seekable `MediaSource` — same decoders, same DSP, same DSD pipeline. No
 server-side transcode requests; if a server transcodes by default we pass the
 raw-format params to opt out. We do not ship a parallel `just_audio` HTTP path.
 
+**Status**: Phase 1 done. P1.1–P1.3 (`NetworkServerEntity` + registration in
+`database.dart`, `SongEntity` source fields, `PlaybackSource.network`,
+`NetworkCacheService` with LRU eviction; `path` promoted to a direct dep),
+P1.4–P1.8 (SubsonicService, RemoteSourceService, Network Sources settings UI,
+next-track prefetch, network cover art), and P7.1 + P7.2 (cache + Subsonic
+auth unit tests) all shipped. Tests: `test/services/subsonic_service_test.dart`
+(spec known-answer vector for auth, URL params, field mapping, pagination,
+double-tolerant numeric fields).
+
+Small deviations from the text below, all benign:
+- Subsonic token order is the spec-correct `t = md5(password + salt)` — P1.4's
+  parenthetical had the operands reversed; pinned by the P7.2 test.
+- Download progress surfaces on `RemoteSourceService.downloadProgressNotifier`
+  (a per-song download shouldn't pop the library-scan overlay); sync progress
+  reuses the `ScanProgress` class over the same stream shape.
+- Network songs get synthetic `subsonic://<serverId>/<remoteId>` file paths
+  (unique, satisfies the composite index) and keep a `subsonic-cover://<id>`
+  marker in `SongEntity.albumArtPath` so cover art re-resolves after eviction.
+- Save does not auto-trigger a sync; sync is manual per server (refresh icon),
+  matching F.2's "no background polling".
+- Playback errors log via `LogSource.dart` (`LogSource.source` doesn't exist
+  yet).
+
 ---
 
 ## A. What "self-hosted local & cloud server playing" means here
@@ -89,20 +112,20 @@ adapters live entirely on the Dart side and produce either a cached file path
 
 | # | Gap | Severity | Location |
 |---|-----|----------|----------|
-| N1 | No `remoteId` / `sourceType` / `remoteServerId` on `SongEntity`. | High | `lib/data/entities/song_entity.dart` |
-| N2 | No `network` value on `PlaybackSource`; UI label plumbing assumes local. | Medium | `lib/models/playback_context.dart:1` |
-| N3 | No `NetworkServer` config entity (id, label, protocol, baseUrl, user, token, lastSyncedAt). | High | new `lib/data/entities/network_server_entity.dart` |
-| N4 | No `NetworkCacheService` (bounded LRU download cache). | High | new `lib/services/network_cache_service.dart` |
-| N5 | No `RemoteSource` abstraction over the audio path (v1: path; v2: `MediaSource`). | High | `lib/services/remote_source_service.dart` (v1), `rust/src/audio/http_source.rs` (v2) |
-| N6 | No Subsonic adapter (auth salt+md5, `ping`/`getArtists`/`getAlbum`/`stream`). | High | new `lib/services/sources/subsonic_service.dart` |
+| N1 | ~~No `remoteId` / `sourceType` / `remoteServerId` on `SongEntity`.~~ **Done (P1.2)** | High | `lib/data/entities/song_entity.dart` |
+| N2 | ~~No `network` value on `PlaybackSource`; UI label plumbing assumes local.~~ **Done (P1.2)** | Medium | `lib/models/playback_context.dart:1` |
+| N3 | ~~No `NetworkServer` config entity (id, label, protocol, baseUrl, user, token, lastSyncedAt).~~ **Done (P1.1)** | High | `lib/data/entities/network_server_entity.dart` |
+| N4 | ~~No `NetworkCacheService` (bounded LRU download cache).~~ **Done (P1.3)** | High | `lib/services/network_cache_service.dart` |
+| N5 | ~~No `RemoteSource` abstraction over the audio path (v1: path; v2: `MediaSource`).~~ **Done (P1.5, v1 path)** | High | `lib/services/remote_source_service.dart` (v1), `rust/src/audio/http_source.rs` (v2) |
+| N6 | ~~No Subsonic adapter (auth salt+md5, `ping`/`getArtists`/`getAlbum`/`stream`).~~ **Done (P1.4)** | High | `lib/services/sources/subsonic_service.dart` |
 | N7 | No WebDAV adapter (PROPFIND album list, GET file). | Medium | new `lib/services/sources/webdav_service.dart` |
 | N8 | No Jellyfin adapter (`/Users/.../Items` browse, `/Audio/<id>/stream`). | Medium | new `lib/services/sources/jellyfin_service.dart` |
-| N9 | No "Network Sources" settings screen; no add/edit/test flow. | High | new `lib/features/settings/screens/network_sources_screen.dart` |
+| N9 | ~~No "Network Sources" settings screen; no add/edit/test flow.~~ **Done (P1.6)** | High | `lib/features/settings/screens/network_sources_screen.dart` |
 | N10 | Audio engine has no HTTP `MediaSource` (v2). | Medium (v2) | `rust/src/audio/source.rs`, `rust/src/api/audio_api.rs` |
-| N11 | Gapless/crossfade assumes next file is local & instant. Network next-track needs prefetch. | Medium | `lib/services/queue/` (prefetch on `position < duration - 10s`) |
+| N11 | ~~Gapless/crossfade assumes next file is local & instant. Network next-track needs prefetch.~~ **Done (P1.7)** | Medium | `lib/services/player_service.dart` (`_maybePrefetchNextNetworkSong`) |
 | N12 | No SMB adapter. | Low (deferred) | needs `smb_connect` or Rust `pavao`/`puffer` crate |
 | N13 | No UPnP/DLNA media-server adapter. | Low (deferred) | needs `upnp-client` crate; `FEATURE_REQUESTS.md` already lists DLNA casting (separate direction) |
-| N14 | Album-art, lyrics, and Replay hand off network songs through paths that assume local files. | Medium | `album_art_service.dart`, `lyrics_service.dart`, `recap` — resolve network art to cache bytes, lyrics to LRCLib as today |
+| N14 | ~~Album-art, lyrics, and Replay hand off network songs through paths that assume local files.~~ **Done (P1.8)** | Medium | `album_art_service.dart`, `lyrics_service.dart`, `recap` — resolve network art to cache bytes, lyrics to LRCLib as today |
 
 ---
 
@@ -112,14 +135,14 @@ adapters live entirely on the Dart side and produce either a cached file path
 
 | Task | Gap | Change |
 |------|-----|--------|
-| P1.1 | N3 | `NetworkServerEntity` (id, label, protocol, baseUrl, username, token (salted-hash, not plaintext — store the Subsonic `sHex` salt+md5 form), lastSyncedAt). Register in `database.dart`. |
-| P1.2 | N1, N2 | Add `sourceType`, `remoteId`, `remoteServerId` to `SongEntity`; `network` to `PlaybackSource` with label "Network"; UI label plumbing. Local songs: the three new fields null. |
-| P1.3 | N4 | `NetworkCacheService`: LRU dir with size cap (default 2 GB), `getPath(remoteServerId, remoteId)` → cached `<hash>.<ext>` or null, `stash(bytes, ...)` evicting oldest past cap. One class, stdlib + `path` + `crypto` (already deps). |
-| P1.4 | N6 | `SubsonicService`: salt+md5 auth (`t=<md5(salt+pw)>&s=<salt>`), `ping`, `getArtists`/`getAlbumList2`/`getAlbum` (build `SongEntity`s with `sourceType=subsonic`), `getCoverArt` → write to album-art cache like existing `album_art_service.dart:101`, `stream(id)` → `http.get(stream)` with opt-out transcode params, body → `NetworkCacheService.stash`. |
-| P1.5 | N5, v1 | `RemoteSourceService.play(remoteSong)`: if cached → existing `playFile(path)`; else kick download (with progress → existing `_scanProgressNotifier` plumbing reused), then `playFile`. |
-| P1.6 | N9 | "Network Sources" settings screen: list, add (server URL + user + password + "Test" button), edit, delete. Test calls `ping`. |
-| P1.7 | N11 | Prefetch: when queue position < duration − 10 s and next song is `sourceType=subsonic`, start `stream(id)` download into cache so gapless/crossfade reads a local path at handoff. |
-| P1.8 | N14 | Cover art for network songs resolves via `getCoverArt` bytes → existing `albumArtPath` flow; lyrics fall back to LRCLib as today (network songs have no local tags to mine). |
+| P1.1 **(done)** | N3 | `NetworkServerEntity` (id, label, protocol, baseUrl, username, token (salted-hash, not plaintext — store the Subsonic `sHex` salt+md5 form), lastSyncedAt). Register in `database.dart`. |
+| P1.2 **(done)** | N1, N2 | Add `sourceType`, `remoteId`, `remoteServerId` to `SongEntity`; `network` to `PlaybackSource` with label "Network"; UI label plumbing. Local songs: the three new fields null. |
+| P1.3 **(done)** | N4 | `NetworkCacheService`: LRU dir with size cap (default 2 GB), `getPath(remoteServerId, remoteId)` → cached `<hash>.<ext>` or null, `stash(bytes, ...)` evicting oldest past cap. One class, stdlib + `path` + `crypto` (already deps). |
+| P1.4 **(done)** | N6 | `SubsonicService`: salt+md5 auth (`t=md5(password+salt)&s=<salt>` — spec order, password first), `ping`, `getAlbumList2` (paginated) / `getAlbum` (build `SongEntity`s with `sourceType=subsonic`, synthetic `subsonic://<serverId>/<remoteId>` paths), `getCoverArt` → album-art cache via `album_art_service.dart`, `stream(id)` → `http.get(stream)` with no transcode params, body → `NetworkCacheService.stash`. Sync = metadata fetch + upsert + stale purge + `lastSyncedAt` stamp. |
+| P1.5 **(done)** | N5, v1 | `RemoteSourceService.ensureLocal(remoteSong)`: cached → existing local path; miss → download (progress on `downloadProgressNotifier`), then play. `player_service.dart` branches at the top of `_resolvePreparedPlaybackPath`, so both engines (just_audio + Rust) reuse it. |
+| P1.6 **(done)** | N9 | "Network Sources" settings screen: list (label, protocol chip, URL, synced-at, edit/delete/sync), add (URL + user + password + "Test" button), edit, delete. Test calls `ping`. Protocol picker: Subsonic enabled; WebDAV/Jellyfin/SMB/UPnP greyed with "needs a new dependency". Password salted+hashed at save, plaintext never persisted. |
+| P1.7 **(done)** | N11 | Prefetch: 5 s position timer checks position ≥ duration − 10 s and next song is `sourceType=subsonic`, starts `stream(id)` download into cache (marker prevents repeats) so gapless/crossfade reads a local path at handoff. |
+| P1.8 **(done)** | N14 | Cover art for network songs resolves via `getCoverArt` bytes (marker `subsonic-cover://<id>` in `albumArtPath`) → existing `albumArtPath` cache flow; lyrics fall back to LRCLib as today (network songs have no local tags to mine). |
 
 ### Phase 2 — WebDAV (Nextcloud, ownCloud, generic)
 
@@ -163,8 +186,8 @@ adapters live entirely on the Dart side and produce either a cached file path
 
 | Task | Change |
 |------|--------|
-| P7.1 | Dart unit test for `NetworkCacheService`: cap is enforced; LRU evicts oldest on overflow; `stash` then `getPath` returns the same file. |
-| P7.2 | Dart unit test for `SubsonicService` auth: with a known salt+password, assert the `t=`/`s=` query matches the documented md5(salt+password) form. Use a mock `http.Client` for `ping`/`getAlbum`. |
+| P7.1 **(done)** | Dart unit test for `NetworkCacheService`: cap is enforced; LRU evicts oldest on overflow; `stash` then `getPath` returns the same file. |
+| P7.2 **(done)** | Dart unit test for `SubsonicService` auth: known salt+password (`sesame`/`c19b2d` → `t=26719a1196d2a940705a59634eb18eab`), asserts `t=`/`s=` query params against the spec form `md5(password+salt)`; mock `http.Client` for `ping`/`getAlbum`/`getAlbumList2`. |
 | P7.3 | Dart integration test: configure a server pointing at a fixture (or a recorded HTTP cassette), "scan" returns `SongEntity`s with `sourceType=subsonic` and `remoteId` set. |
 | P7.4 | (v2) Rust `#[test]` for `HttpMediaSource`: a `Cursor`-backed fake server, `read` returns contiguous bytes, `seek` followed by `read` returns the right slice, `stream_len` matches. |
 | P7.5 | Manual: real Navidrome + real Jellyfin + a Nextcloud over WebDAV, on both LAN and a cloud VPS, through a USB DAC. Confirm bit-perfect badge, native DSD passthrough on a DSF served by Navidrome, gapless between two network songs, crossfade between a local and a network song. |
@@ -182,10 +205,12 @@ adapters live entirely on the Dart side and produce either a cached file path
 3. Enter label, base URL, username, password (Subsonic) / bearer token
    (WebDAV) / username+password (Jellyfin, exchanged for a token on first
    connect). Stored on `NetworkServerEntity`. Passwords never logged; the
-   Subsonic salt+md5 is computed at request time, plaintext not retained.
+   Subsonic salt+md5 is computed at save time and stored as the
+   `salt:md5hex` token — plaintext is not retained.
 4. "Test connection" → adapter `ping`/`PROPFIND`/`AuthenticateByName`. Show
    pass/fail with the server-reported version string.
-5. Save → trigger a network scan (metadata fetch) for that server.
+5. Save, then sync manually per server (refresh icon) — F.2's "no background
+   polling" applies.
 
 ### F.2 Library sync (not a file walk)
 
@@ -203,17 +228,17 @@ adapters live entirely on the Dart side and produce either a cached file path
 
 ### F.3 Playback
 
-- Tap a network song → `RemoteSourceService.play`:
-  - **v1:** `NetworkCacheService.getPath(...)` → hit → `playFile(path)`. Miss
+- Tap a network song → `RemoteSourceService.ensureLocal`:
+  - **v1:** `NetworkCacheService.getPath(...)` → hit → cached path. Miss
     → download `stream`/`GET`/`/Audio/.../stream` with raw-format params →
-    `stash` → `playFile`. Progress shown via existing scan-progress notifier.
+    `stash` → cached path. Progress on `downloadProgressNotifier`.
   - **v2:** `play_from_http(url, headers)` if range-supported, else v1 path.
 - Gapless/crossfade: prefetch next network song into cache when current
   position ≤ duration − 10 s (Phase 1.7). The crossfader already reads file
   paths; it doesn't care they came from HTTP.
 - Error handling: transport failure mid-stream → log via `app_log.dart`
-  (`LogSource.source`), surface a toast, advance or halt per user setting.
-  Partial cache file deleted.
+  (`LogSource.dart`; `LogSource.source` doesn't exist yet), surface a toast,
+  advance or halt per user setting. Partial cache file deleted.
 
 ### F.4 Cache & storage
 

@@ -11,7 +11,6 @@ import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/screens/album_detail_screen.dart';
 import 'package:flick/services/player_service.dart';
-import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/providers/navigation_provider.dart';
@@ -166,22 +165,20 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: BlurredSongBackground(
-          child: SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context),
-                Expanded(
-                  child: _isLoading
-                      ? _buildLoadingState()
-                      : _sortedAlbums.isEmpty
-                      ? _buildEmptyState()
-                      : _buildAlbumsGrid(),
-                ),
-              ],
-            ),
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: _isLoading
+                    ? _buildLoadingState()
+                    : _sortedAlbums.isEmpty
+                    ? _buildEmptyState()
+                    : _buildAlbumsGrid(),
+              ),
+            ],
           ),
         ),
       ),

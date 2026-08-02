@@ -107,4 +107,17 @@ class SongEntity {
   /// of being overwritten by file tags.
   @Index()
   bool hasLocalEdits = false;
+
+  /// Where this song came from: null = local file, otherwise one of
+  /// 'subsonic' | 'webdav' | 'jellyfin'.
+  @Index()
+  String? sourceType;
+
+  /// The server's song id (Subsonic song id, WebDAV file URL, Jellyfin Item.Id).
+  @Index()
+  String? remoteId;
+
+  /// [NetworkServerEntity.id] of the server this song was synced from.
+  @Index()
+  int? remoteServerId;
 }

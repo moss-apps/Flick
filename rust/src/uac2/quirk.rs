@@ -118,6 +118,21 @@ pub static QUIRK_DATABASE: Lazy<QuirkDatabase> = Lazy::new(|| {
         ],
     );
 
+    // Fosi Audio DS2: Savitech USB bridge with broken UAC2 clock control.
+    // GET_RANGE returns zero subranges (I/O error), GET_CUR always returns 0Hz
+    // even after a successful SET_CUR. The DAC operates correctly at the
+    // requested rate — it just doesn't report it back via standard controls.
+    // Trust SET_CUR and skip all clock validation/readback.
+    db.add(
+        9770, // vendor_id 0x262A (Savitech)
+        1,    // product_id 0x0001
+        "",   // match any product name with this VID/PID
+        &[
+            UsbAudioQuirk::SkipClockValidation,
+            UsbAudioQuirk::IgnoreInvalidSampleRate,
+        ],
+    );
+
     db
 });
 
@@ -137,6 +152,13 @@ mod tests {
     fn unknown_device_returns_empty() {
         let quirks = QUIRK_DATABASE.lookup(0x0000, 0x0000, "Unknown");
         assert!(quirks.is_empty());
+    }
+
+    #[test]
+    fn fosi_ds2_quirks_registered() {
+        let quirks = QUIRK_DATABASE.lookup(9770, 1, "Fosi Audio DS2");
+        assert!(quirks.contains(&UsbAudioQuirk::SkipClockValidation));
+        assert!(quirks.contains(&UsbAudioQuirk::IgnoreInvalidSampleRate));
     }
 
     #[test]

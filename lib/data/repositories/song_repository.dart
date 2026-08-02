@@ -122,6 +122,32 @@ class SongRepository {
     });
   }
 
+  /// All songs synced from a network server (used by network sync purge).
+  Future<List<SongEntity>> getSongsByRemoteServer(int remoteServerId) async {
+    return await _isar.songEntitys
+        .where()
+        .remoteServerIdEqualTo(remoteServerId)
+        .findAll();
+  }
+
+  /// Count songs synced from a network server (cheaper than fetching).
+  Future<int> countSongsByRemoteServer(int remoteServerId) async {
+    return await _isar.songEntitys
+        .where()
+        .remoteServerIdEqualTo(remoteServerId)
+        .count();
+  }
+
+  /// Delete all songs synced from a network server.
+  Future<void> deleteSongsForRemoteServer(int remoteServerId) async {
+    await _isar.writeTxn(() async {
+      await _isar.songEntitys
+          .where()
+          .remoteServerIdEqualTo(remoteServerId)
+          .deleteAll();
+    });
+  }
+
   /// Get all song entities (internal use)
   Future<List<SongEntity>> getAllSongEntities() async {
     return await _isar.songEntitys.where().findAll();
@@ -401,6 +427,9 @@ class SongRepository {
       filePath: entity.filePath,
       folderUri: entity.folderUri,
       dateAdded: entity.dateAdded,
+      sourceType: entity.sourceType,
+      remoteId: entity.remoteId,
+      remoteServerId: entity.remoteServerId,
     );
   }
 

@@ -12,6 +12,7 @@ import 'package:flick/features/settings/screens/queue_settings_screen.dart';
 import 'package:flick/features/settings/screens/ui_customization_settings_screen.dart';
 import 'package:flick/features/settings/screens/integrations_settings_screen.dart';
 import 'package:flick/features/settings/screens/lyrics_settings_screen.dart';
+import 'package:flick/features/settings/screens/network_sources_screen.dart';
 import 'package:flick/features/settings/screens/player_layout_settings_screen.dart';
 import 'package:flick/features/settings/screens/widget_settings_screen.dart';
 import 'package:flick/features/settings/screens/support_flick_screen.dart';
@@ -81,6 +82,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle: 'Folders, scanning, and duplicates',
                           onTap: () =>
                               _navigate(context, const LibrarySettingsScreen()),
+                        ),
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.cloud,
+                          iconBg: const Color(0xFF2D6F6F),
+                          iconFg: const Color(0xFF8BFFE0),
+                          title: 'Network Sources',
+                          subtitle: 'Subsonic servers, sync, and streaming',
+                          onTap: () =>
+                              _navigate(context, const NetworkSourcesScreen()),
                         ),
                         const SettingsDivider(),
                         _CategoryTile(

@@ -711,6 +711,9 @@ class RecentlyPlayedRepository {
       album: entity.album,
       filePath: entity.filePath,
       dateAdded: entity.dateAdded,
+      sourceType: entity.sourceType,
+      remoteId: entity.remoteId,
+      remoteServerId: entity.remoteServerId,
     );
   }
 

@@ -30,6 +30,7 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
     final selectedDevice = ref.watch(selectedUac2DeviceProvider);
     final deviceStatus = ref.watch(uac2DeviceStatusProvider);
     final currentSong = ref.watch(currentSongProvider);
+    final appPreferences = ref.watch(appPreferencesProvider);
 
     return DisplayModeWrapper(
       child: Scaffold(
@@ -88,7 +89,8 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
                             ],
                             if (deviceStatus != null &&
                                 deviceStatus.state != Uac2State.idle &&
-                                deviceStatus.hasVolumeControl) ...[
+                                deviceStatus.hasVolumeControl &&
+                                appPreferences.showUsbVolumeOnSettings) ...[
                               const SizedBox(height: AppConstants.spacingLg),
                               _buildSectionHeader(context, 'Volume Control'),
                               const Uac2VolumeControl(),

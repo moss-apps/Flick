@@ -11,7 +11,6 @@ import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/artists/screens/artist_detail_screen.dart';
 import 'package:flick/services/player_service.dart';
-import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
@@ -195,22 +194,20 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: BlurredSongBackground(
-          child: SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context),
-                Expanded(
-                  child: _isLoading
-                      ? _buildLoadingState()
-                      : _artists.isEmpty
-                      ? _buildEmptyState()
-                      : _buildArtistsList(),
-                ),
-              ],
-            ),
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: _isLoading
+                    ? _buildLoadingState()
+                    : _artists.isEmpty
+                    ? _buildEmptyState()
+                    : _buildArtistsList(),
+              ),
+            ],
           ),
         ),
       ),

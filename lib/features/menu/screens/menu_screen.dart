@@ -34,6 +34,7 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/engine_restart_notice.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
+import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 
 /// Music-home menu screen inspired by streaming app landing pages.
 class MenuScreen extends ConsumerStatefulWidget {
@@ -708,6 +709,27 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                       ),
                                     )
                                   : const SizedBox.shrink(),
+                        ),
+                      ),
+                    if (appPreferences.showUsbVolumeOnMenu)
+                      SliverToBoxAdapter(
+                        child: AnimatedSize(
+                          duration: AppConstants.animationNormal,
+                          curve: Curves.easeInOut,
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppConstants.spacingLg,
+                              0,
+                              AppConstants.spacingLg,
+                              AppConstants.spacingMd,
+                            ),
+                            child: Uac2VolumeControl(
+                              useGradientBackground: true,
+                              gradientColors:
+                                  _heroGradientColors(_heroDominantColor),
+                            ),
+                          ),
                         ),
                       ),
                     if (_pendingEngineRestart &&

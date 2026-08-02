@@ -281,10 +281,15 @@ fn resolve_track_playback_output_sample_rate(
     #[cfg(target_os = "android")]
     {
         let route_type = ENGINE_MANAGER.capability_route_type();
+        #[cfg(feature = "uac2")]
+        let usb_direct_active = crate::uac2::android_direct_usb_enabled();
+        #[cfg(not(feature = "uac2"))]
+        let usb_direct_active = false;
         let should_preserve_existing_rate = !ENGINE_MANAGER.is_high_res_mode_enabled()
             && !ENGINE_MANAGER.get_dap_bit_perfect_enabled()
             && matches!(route_type.as_str(), "unknown" | "internal" | "wired")
-            && current_device_profile().is_some_and(|profile| profile.is_dap());
+            && current_device_profile().is_some_and(|profile| profile.is_dap())
+            && !usb_direct_active;
         if should_preserve_existing_rate {
             if let Some(existing_rate) = read_audio_engine(|handle| handle.sample_rate()) {
                 return Ok(Some(existing_rate));

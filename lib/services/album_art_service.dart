@@ -7,10 +7,12 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
+import '../data/database.dart';
 import '../data/repositories/song_repository.dart';
 import '../src/rust/api/scanner.dart' as rust_scanner;
 import 'music_folder_service.dart';
 import 'player_service.dart';
+import 'sources/network_source_service.dart';
 
 class AlbumArtService {
   AlbumArtService._();
@@ -48,7 +50,8 @@ class AlbumArtService {
     }
 
     final future = _inFlightResolutions.putIfAbsent(audioSourcePath, () async {
-      final raw = await _loadArtworkBytes(audioSourcePath);
+      final raw = await _loadArtworkBytes(audioSourcePath,
+          existingPath: existingPath);
       if (raw == null || raw.isEmpty) {
         await _persistArtworkPath(audioSourcePath, null);
         return null;
@@ -129,7 +132,35 @@ class AlbumArtService {
     return File(path).exists();
   }
 
-  Future<Uint8List?> _loadArtworkBytes(String audioSourcePath) async {
+  /// Fetch raw artwork bytes. Network songs resolve through their protocol
+  /// service's cover endpoint using the `<proto>-cover://<marker>` stored in
+  /// the entity's albumArtPath; local songs extract embedded art as before.
+  Future<Uint8List?> _loadArtworkBytes(
+    String audioSourcePath, {
+    String? existingPath,
+  }) async {
+    final uri = Uri.tryParse(audioSourcePath);
+    if (uri != null && isSupportedNetworkProtocol(uri.scheme)) {
+      final service = networkSourceServiceFor(uri.scheme);
+      final marker = existingPath != null &&
+              existingPath.startsWith(service.coverScheme)
+          ? existingPath.substring(service.coverScheme.length)
+          : null;
+      if (marker == null || marker.isEmpty) return null;
+
+      final serverId = int.tryParse(uri.host);
+      if (serverId == null) return null;
+      final server = await Database.networkServers.get(serverId);
+      if (server == null) return null;
+
+      try {
+        final bytes = await service.getCoverArt(server, marker);
+        return Uint8List.fromList(bytes);
+      } catch (e) {
+        return null;
+      }
+    }
+
     if (Platform.isAndroid && audioSourcePath.startsWith('content://')) {
       return _musicFolderService.fetchEmbeddedArtwork(audioSourcePath);
     }
@@ -146,7 +177,14 @@ class AlbumArtService {
     String? albumArtPath,
   ) async {
     try {
-      await _songRepository.updateAlbumArtPath(audioSourcePath, albumArtPath);
+      // Network songs keep their cover-art marker in the DB so a cache
+      // eviction can always re-resolve; only the in-memory playlist is
+      // updated with the resolved local path.
+      final isNetwork =
+          isSupportedNetworkProtocol(Uri.tryParse(audioSourcePath)?.scheme);
+      if (!isNetwork) {
+        await _songRepository.updateAlbumArtPath(audioSourcePath, albumArtPath);
+      }
       if (albumArtPath != null) {
         PlayerService().syncAlbumArtPaths(
           filePaths: [audioSourcePath],

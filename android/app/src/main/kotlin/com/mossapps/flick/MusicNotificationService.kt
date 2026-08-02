@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -44,6 +45,7 @@ class MusicNotificationService : Service() {
     private lateinit var notificationManager: NotificationManager
     private var methodChannel: MethodChannel? = null
     private var isForegroundServiceStarted = false
+    private var wakeLock: PowerManager.WakeLock? = null
 
     private var currentTitle: String = "Unknown"
     private var currentArtist: String = "Unknown Artist"
@@ -202,6 +204,8 @@ class MusicNotificationService : Service() {
             notificationManager.notify(NOTIFICATION_ID, notification)
         }
 
+        updateWakeLock()
+
         return START_NOT_STICKY
     }
 
@@ -245,6 +249,10 @@ class MusicNotificationService : Service() {
             unregisterReceiver(noisyReceiver)
         } catch (e: Exception) {
         }
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+        }
+        wakeLock = null
         mediaSession.release()
         isForegroundServiceStarted = false
         hideFloatingOverlay()
@@ -265,6 +273,11 @@ class MusicNotificationService : Service() {
             }
         } catch (_: Exception) {
         }
+
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+        }
+        wakeLock = null
 
         try {
             FlutterEngineCache.getInstance().remove("main_engine")
@@ -440,6 +453,34 @@ class MusicNotificationService : Service() {
         }
 
         mediaSession.setPlaybackState(stateBuilder.build())
+    }
+
+    private fun updateWakeLock() {
+        val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        if (pm == null) {
+            android.util.Log.w("MusicNotification", "[WakeLock] PowerManager unavailable")
+            return
+        }
+
+        if (isPlaying) {
+            if (wakeLock == null) {
+                wakeLock = pm.newWakeLock(
+                    PowerManager.PARTIAL_WAKE_LOCK,
+                    "Flick:audio_playback"
+                ).apply {
+                    setReferenceCounted(false)
+                }
+            }
+            if (wakeLock?.isHeld != true) {
+                wakeLock?.acquire(/* 1 hour max, auto-renewed on each notification update */)
+                android.util.Log.d("MusicNotification", "[WakeLock] Acquired PARTIAL_WAKE_LOCK")
+            }
+        } else {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+                android.util.Log.d("MusicNotification", "[WakeLock] Released PARTIAL_WAKE_LOCK")
+            }
+        }
     }
 
     private fun syncAudioFocusState() {
