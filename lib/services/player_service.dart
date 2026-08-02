@@ -37,6 +37,7 @@ import 'package:flick/services/album_color_mode_preference_service.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/alac_converter_service.dart';
+import 'package:flick/services/remote_source_service.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
 enum HwVolumeCapability { unknown, supported, unsupported }
@@ -926,6 +927,7 @@ class PlayerService {
     if (_currentIndex == newIndex) return;
     _currentIndex = newIndex;
     currentIndexNotifier.value = newIndex;
+    _prefetchedNextSongId = null;
     _notifyUpNextChanged();
   }
 
@@ -1044,6 +1046,9 @@ class PlayerService {
       filePath: song.filePath,
       folderUri: song.folderUri,
       dateAdded: song.dateAdded,
+      sourceType: song.sourceType,
+      remoteId: song.remoteId,
+      remoteServerId: song.remoteServerId,
     );
   }
 
@@ -2690,6 +2695,12 @@ class PlayerService {
     final filePath = song.filePath;
     if (filePath == null || filePath.isEmpty) {
       return null;
+    }
+
+    if (song.isNetworkSource) {
+      // Network songs always play from the local network cache: a cache hit
+      // is instant (gapless/crossfade handoff), a miss downloads first.
+      return RemoteSourceService.instance.ensureLocal(song);
     }
 
     final sourceKey = filePath;
@@ -4827,8 +4838,43 @@ class PlayerService {
     _positionSaveTimer?.cancel();
     _positionSaveTimer = Timer.periodic(
       const Duration(seconds: 5),
-      (_) => _savePosition(),
+      (_) {
+        _savePosition();
+        _maybePrefetchNextNetworkSong();
+      },
     );
+  }
+
+  /// Last song id handed to [RemoteSourceService.prefetch]. Reset whenever the
+  /// current track changes so a replayed song re-prefetches its successor.
+  String? _prefetchedNextSongId;
+
+  /// P1.7: when the current network-sourced track is within 10s of its end,
+  /// start downloading the linear-next song so gapless/crossfade handoff reads
+  /// a local path. Cache hits make repeated calls no-ops (and the marker is
+  /// reset on track change, which also covers wrap-around).
+  void _maybePrefetchNextNetworkSong() {
+    final current = currentSongNotifier.value;
+    if (current == null || !current.isNetworkSource) return;
+    if (_playlist.isEmpty || _currentIndex < 0) return;
+
+    final duration = durationNotifier.value;
+    if (duration <= Duration.zero) return;
+    if (positionNotifier.value < duration - const Duration(seconds: 10)) {
+      return;
+    }
+
+    if (_currentIndex >= _playlist.length - 1 &&
+        loopModeNotifier.value != LoopMode.all) {
+      return;
+    }
+    final nextIndex = _currentIndex >= _playlist.length - 1 ? 0 : _currentIndex + 1;
+    final next = _playlist[nextIndex];
+    if (!next.isNetworkSource) return;
+    if (next.id == _prefetchedNextSongId) return;
+
+    _prefetchedNextSongId = next.id;
+    unawaited(RemoteSourceService.instance.prefetch(next));
   }
 
   void _startHwVolumeHealthTimer() {
@@ -5188,6 +5234,7 @@ class PlayerService {
         final playlists = await _playlistService.getPlaylists();
         return playlists.map((p) => p.id).toList();
       case PlaybackSource.allSongs:
+      case PlaybackSource.network:
       case PlaybackSource.unknown:
         return [];
     }
@@ -5250,6 +5297,7 @@ class PlayerService {
         );
         return songs;
       case PlaybackSource.allSongs:
+      case PlaybackSource.network:
       case PlaybackSource.unknown:
         return null;
     }
