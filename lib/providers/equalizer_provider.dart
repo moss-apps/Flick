@@ -1111,6 +1111,18 @@ class EqualizerNotifier extends Notifier<EqualizerState> {
     _syncToAudio();
   }
 
+  void removeParametricBand(int index) {
+    final current = state.parametricBands;
+    if (index < 0 || index >= current.length) return;
+    // ponytail: floor at 1 band so the editor always has a band to show.
+    if (current.length <= 1) return;
+
+    final next = List<ParametricBand>.of(current)..removeAt(index);
+    state = state.copyWith(parametricBands: next, clearActivePresetName: true);
+    ref.read(eqGraphRepaintControllerProvider).bump();
+    _syncToAudio();
+  }
+
   void applyPreset({
     required String presetName,
     required bool enabled,
