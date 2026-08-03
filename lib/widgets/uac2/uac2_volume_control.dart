@@ -44,59 +44,43 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
     setState(() => _draggingVolume = volume);
   }
 
-  /// Called when the user lifts the finger — commits the value to the platform.
-  /// For software volume mode, also syncs to PlayerService so that
-  /// [_currentVolume] stays in sync with the slider.
+  /// Called when the user lifts the finger — commits the value to the
+  /// platform. PlayerService.setVolume is the single entry point; it routes
+  /// to the DAC Feature Unit (hardware), the engine (software/DSP) or drops
+  /// the write when volume is unavailable (bit-perfect passthrough).
   Future<void> _onSliderChangeEnd(double volume) async {
     setState(() => _draggingVolume = null);
 
-    final notifier = ref.read(uac2DeviceStatusProvider.notifier);
-    final status = ref.read(uac2DeviceStatusProvider);
-    final wasMuted = status?.muted ?? false;
-    final isSoftwareVolume = status?.volumeMode == Uac2VolumeMode.software;
+    final playerService = ref.read(playerServiceProvider);
+    final wasMuted = ref.read(uac2DeviceStatusProvider)?.muted ?? false;
 
     if (wasMuted && volume > 0.0) {
-      await notifier.setMute(false);
+      await ref.read(uac2DeviceStatusProvider.notifier).setMute(false);
     }
     if (!wasMuted && volume == 0.0) {
-      final currentVol = isSoftwareVolume
-          ? ref.read(playerServiceProvider).currentVolume
-          : (status?.volume ?? 1.0);
-      _preMuteVolume = currentVol > 0.0 ? currentVol : 1.0;
-      await notifier.setMute(true);
+      _preMuteVolume = playerService.currentVolume > 0.0
+          ? playerService.currentVolume
+          : 1.0;
+      await ref.read(uac2DeviceStatusProvider.notifier).setMute(true);
     }
-    await notifier.setVolume(volume);
-
-    if (isSoftwareVolume) {
-      await ref.read(playerServiceProvider).setVolume(volume);
-    }
+    await playerService.setVolume(volume);
   }
 
   Future<void> _toggleMute() async {
     final notifier = ref.read(uac2DeviceStatusProvider.notifier);
-    final status = ref.read(uac2DeviceStatusProvider);
-    final currentMuted = status?.muted ?? false;
+    final playerService = ref.read(playerServiceProvider);
+    final currentMuted = ref.read(uac2DeviceStatusProvider)?.muted ?? false;
     final newMuted = !currentMuted;
-    final isSoftwareVolume = status?.volumeMode == Uac2VolumeMode.software;
 
     setState(() => _muteUpdateInFlight = true);
 
     if (newMuted) {
-      _preMuteVolume = (isSoftwareVolume
-              ? ref.read(playerServiceProvider).currentVolume
-              : (status?.volume ?? 1.0))
-          .clamp(0.01, 1.0);
-      final success = await notifier.setMute(true);
-      if (success) await notifier.setVolume(0.0);
-      if (isSoftwareVolume) {
-        await ref.read(playerServiceProvider).setVolume(0.0);
-      }
+      _preMuteVolume = playerService.currentVolume.clamp(0.01, 1.0);
+      await notifier.setMute(true);
+      await playerService.setVolume(0.0);
     } else {
-      await notifier.setVolume(_preMuteVolume);
+      await playerService.setVolume(_preMuteVolume);
       await notifier.setMute(false);
-      if (isSoftwareVolume) {
-        await ref.read(playerServiceProvider).setVolume(_preMuteVolume);
-      }
     }
 
     if (mounted) setState(() => _muteUpdateInFlight = false);
@@ -113,24 +97,27 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
     }
 
     final isSoftwareVolume = deviceStatus.volumeMode == Uac2VolumeMode.software;
-    final playerVolume = ref.read(playerServiceProvider).currentVolume;
-    final effectiveVolume = _draggingVolume ??
-        (isSoftwareVolume ? playerVolume : (deviceStatus.volume ?? 1.0));
+    final playerService = ref.read(playerServiceProvider);
+    final isAvailable = playerService.isVolumeAvailable;
+    final playerVolume = playerService.currentVolume;
+    final effectiveVolume =
+        _draggingVolume ??
+        ((isSoftwareVolume || !isAvailable)
+            ? playerVolume
+            : (deviceStatus.volume ?? playerVolume));
     final effectiveMuted = deviceStatus.muted ?? false;
     final volumeControlWritable =
-        deviceStatus.volumeControlWritable && !_muteUpdateInFlight;
-    final showDb = isSoftwareVolume ||
-        deviceStatus.volumeMode == Uac2VolumeMode.hardware;
+        deviceStatus.volumeControlWritable &&
+        isAvailable &&
+        !_muteUpdateInFlight;
+    final showDb =
+        isSoftwareVolume || deviceStatus.volumeMode == Uac2VolumeMode.hardware;
 
     final useGradient = widget.useGradientBackground;
-    final gradientColors = widget.gradientColors ??
-        const [
-          Color(0xFF194B68),
-          Color(0xFF0C1624),
-          Color(0xFF1D2A19),
-        ];
-    final labelColor =
-        useGradient ? Colors.white : context.adaptiveTextPrimary;
+    final gradientColors =
+        widget.gradientColors ??
+        const [Color(0xFF194B68), Color(0xFF0C1624), Color(0xFF1D2A19)];
+    final labelColor = useGradient ? Colors.white : context.adaptiveTextPrimary;
     final subLabelColor = useGradient
         ? Colors.white.withValues(alpha: 0.7)
         : context.adaptiveTextSecondary;
@@ -149,9 +136,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                 stops: const [0.0, 0.56, 1.0],
               )
             : null,
-        color: useGradient
-            ? null
-            : AppColors.surface.withValues(alpha: 0.6),
+        color: useGradient ? null : AppColors.surface.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(AppConstants.radiusLg),
         border: Border.all(
           color: useGradient
@@ -164,11 +149,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
         children: [
           Row(
             children: [
-              Icon(
-                LucideIcons.volume2,
-                color: subLabelColor,
-                size: 20,
-              ),
+              Icon(LucideIcons.volume2, color: subLabelColor, size: 20),
               const SizedBox(width: AppConstants.spacingSm),
               Expanded(
                 child: Column(
@@ -188,9 +169,9 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                       Text(
                         deviceStatus.routeLabel!,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: tertiaryColor,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: tertiaryColor),
                       ),
                   ],
                 ),
@@ -201,9 +182,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                   size: 20,
                 ),
                 onPressed: volumeControlWritable ? _toggleMute : null,
-                color: effectiveMuted
-                    ? Colors.red.shade400
-                    : subLabelColor,
+                color: effectiveMuted ? Colors.red.shade400 : subLabelColor,
                 tooltip: effectiveMuted ? 'Unmute' : 'Mute',
               ),
             ],
@@ -211,11 +190,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
           const SizedBox(height: AppConstants.spacingSm),
           Row(
             children: [
-              Icon(
-                LucideIcons.volume1,
-                color: tertiaryColor,
-                size: 16,
-              ),
+              Icon(LucideIcons.volume1, color: tertiaryColor, size: 16),
               Expanded(
                 child: Slider(
                   value: effectiveVolume,
@@ -235,11 +210,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                       : AppColors.textTertiary.withValues(alpha: 0.3),
                 ),
               ),
-              Icon(
-                LucideIcons.volume2,
-                color: tertiaryColor,
-                size: 16,
-              ),
+              Icon(LucideIcons.volume2, color: tertiaryColor, size: 16),
               const SizedBox(width: AppConstants.spacingSm),
               SizedBox(
                 width: showDb ? 82 : 40,
@@ -256,13 +227,23 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
               ),
             ],
           ),
-          if (!deviceStatus.volumeControlWritable) ...[
+          if (!isAvailable) ...[
+            const SizedBox(height: AppConstants.spacingXs),
+            Text(
+              'Volume is fixed while bit-perfect passthrough is active: '
+              'the stream is sent untouched and this DAC has no hardware '
+              'volume control.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: tertiaryColor),
+            ),
+          ] else if (!deviceStatus.volumeControlWritable) ...[
             const SizedBox(height: AppConstants.spacingXs),
             Text(
               'Hardware volume is detected, but writes stay blocked while live direct USB playback is active.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: tertiaryColor,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: tertiaryColor),
             ),
           ],
         ],
