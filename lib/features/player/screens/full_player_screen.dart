@@ -497,6 +497,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       leftAction: PlayerActionButtonX.fromStorageValue(
                         appPrefs.leftActionButton,
                       ),
+                      centerAction: PlayerActionButtonX.fromStorageValue(
+                        appPrefs.centerActionButton,
+                      ),
                       rightAction: PlayerActionButtonX.fromStorageValue(
                         appPrefs.rightActionButton,
                       ),
@@ -530,6 +533,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                     hideQueueBadge:
                         PlayerActionButtonX.fromStorageValue(
                               appPrefs.leftActionButton,
+                            ) ==
+                            PlayerActionButton.queue ||
+                        PlayerActionButtonX.fromStorageValue(
+                              appPrefs.centerActionButton,
                             ) ==
                             PlayerActionButton.queue ||
                         PlayerActionButtonX.fromStorageValue(
