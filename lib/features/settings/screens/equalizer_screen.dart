@@ -2162,6 +2162,7 @@ class _ParametricEqView extends ConsumerStatefulWidget {
 
 class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
   int? _selectedIndex;
+  int? _justAddedIndex;
   final _bandScrollController = ScrollController();
 
   @override
@@ -2174,6 +2175,22 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
   void dispose() {
     _bandScrollController.dispose();
     super.dispose();
+  }
+
+  void _addBand() {
+    final before = ref.read(equalizerProvider).parametricBands.length;
+    ref.read(equalizerProvider.notifier).addParametricBand();
+    final after = ref.read(equalizerProvider).parametricBands.length;
+    if (after == before) return;
+    setState(() => _justAddedIndex = after - 1);
+    Future.delayed(AppConstants.animationSlow, () {
+      if (!mounted || !_bandScrollController.hasClients) return;
+      _bandScrollController.animateTo(
+        _bandScrollController.position.maxScrollExtent,
+        duration: AppConstants.animationFast,
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   @override
@@ -2285,9 +2302,12 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                           const SizedBox(width: AppConstants.spacingMd),
                       itemBuilder: (context, i) {
                         if (i == bands.length) {
-                          return _AddBandCard(enabled: enabled);
+                          return _AddBandCard(
+                            enabled: enabled,
+                            onAdd: _addBand,
+                          );
                         }
-                        return _ParametricBandEditor(
+                        final card = _ParametricBandEditor(
                           index: i,
                           enabled: enabled,
                           isSelected: _selectedIndex == i,
@@ -2295,6 +2315,41 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                             _selectedIndex =
                                 _selectedIndex == i ? null : i;
                           }),
+                          onRemove: bands.length > 1
+                              ? () {
+                                  final removed = i;
+                                  ref
+                                      .read(equalizerProvider.notifier)
+                                      .removeParametricBand(removed);
+                                  setState(() {
+                                    if (_selectedIndex != null) {
+                                      if (removed == _selectedIndex) {
+                                        _selectedIndex = null;
+                                      } else if (removed < _selectedIndex!) {
+                                        _selectedIndex = _selectedIndex! - 1;
+                                      }
+                                    }
+                                  });
+                                }
+                              : null,
+                        );
+                        if (_justAddedIndex != i) return card;
+                        return TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: AppConstants.animationSlow,
+                          curve: Curves.easeOutCubic,
+                          onEnd: () {
+                            if (!mounted || _justAddedIndex != i) return;
+                            setState(() => _justAddedIndex = null);
+                          },
+                          builder: (context, t, child) => Opacity(
+                            opacity: t,
+                            child: Transform.scale(
+                              scale: 0.85 + 0.15 * t,
+                              child: child,
+                            ),
+                          ),
+                          child: card,
                         );
                       },
                     ),
@@ -2954,8 +3009,9 @@ class _InlineValueEditorState extends State<_InlineValueEditor> {
 
 class _AddBandCard extends ConsumerWidget {
   final bool enabled;
+  final VoidCallback? onAdd;
 
-  const _AddBandCard({required this.enabled});
+  const _AddBandCard({required this.enabled, this.onAdd});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2968,9 +3024,9 @@ class _AddBandCard extends ConsumerWidget {
     return SizedBox(
       width: 140,
       child: GestureDetector(
-        onTap: atLimit || !enabled
+        onTap: atLimit || !enabled || onAdd == null
             ? null
-            : () => ref.read(equalizerProvider.notifier).addParametricBand(),
+            : onAdd,
         child: AnimatedContainer(
           duration: AppConstants.animationFast,
           decoration: BoxDecoration(
@@ -3017,12 +3073,14 @@ class _ParametricBandEditor extends ConsumerWidget {
   final bool enabled;
   final bool isSelected;
   final VoidCallback? onTap;
+  final VoidCallback? onRemove;
 
   const _ParametricBandEditor({
     required this.index,
     required this.enabled,
     this.isSelected = false,
     this.onTap,
+    this.onRemove,
   });
 
   String _hzLabel(double hz) {
@@ -3106,14 +3164,17 @@ class _ParametricBandEditor extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: editable
-                            ? toneColor
-                            : AppColors.glassBorder,
+                    GestureDetector(
+                      onTap: onRemove,
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: Icon(
+                          LucideIcons.x,
+                          size: 16,
+                          color: onRemove == null
+                              ? AppColors.glassBorder
+                              : context.adaptiveTextTertiary,
+                        ),
                       ),
                     ),
                   ],
