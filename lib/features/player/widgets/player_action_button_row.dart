@@ -28,8 +28,9 @@ class PlayerActionButtonRow extends ConsumerStatefulWidget {
   final PlayerScreenMode playerScreenMode;
   final Color? albumColor;
   final AlbumColorMode albumColorMode;
+  final PlayerActionButton leftTopAction;
   final PlayerActionButton leftAction;
-  final PlayerActionButton centerAction;
+  final PlayerActionButton rightTopAction;
   final PlayerActionButton rightAction;
   final PlayerService playerService;
   final FavoritesService favoritesService;
@@ -47,8 +48,9 @@ class PlayerActionButtonRow extends ConsumerStatefulWidget {
     required this.playerScreenMode,
     required this.albumColor,
     required this.albumColorMode,
+    required this.leftTopAction,
     required this.leftAction,
-    required this.centerAction,
+    required this.rightTopAction,
     required this.rightAction,
     required this.playerService,
     required this.favoritesService,
@@ -72,8 +74,9 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     final playerScreenMode = widget.playerScreenMode;
     final albumColor = widget.albumColor;
     final albumColorMode = widget.albumColorMode;
+    final leftTopAction = widget.leftTopAction;
     final leftAction = widget.leftAction;
-    final centerAction = widget.centerAction;
+    final rightTopAction = widget.rightTopAction;
     final rightAction = widget.rightAction;
     final immersiveActions = playerScreenMode == PlayerScreenMode.immersive;
     final actionPadding = immersiveActions
@@ -101,11 +104,13 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _buildActionButton(
+        _buildSideButtons(
+          topAction: leftTopAction,
+          bottomAction: leftAction,
           context: context,
           song: song,
-          action: leftAction,
           actionPadding: actionPadding,
           actionRadius: actionRadius,
           actionIconSize: actionIconSize,
@@ -170,26 +175,11 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
             ],
           ),
         ),
-        _buildActionButton(
+        _buildSideButtons(
+          topAction: rightTopAction,
+          bottomAction: rightAction,
           context: context,
           song: song,
-          action: centerAction,
-          actionPadding: actionPadding,
-          actionRadius: actionRadius,
-          actionIconSize: actionIconSize,
-          inactiveBg: inactiveBg,
-          inactiveBorder: inactiveBorder,
-          albumColor: albumColor,
-          accentBlend: accentBlend,
-          hasAlbumTint: hasAlbumTint,
-          immersiveActions: immersiveActions,
-          lyricsMode: lyricsMode,
-        ),
-        SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
-        _buildActionButton(
-          context: context,
-          song: song,
-          action: rightAction,
           actionPadding: actionPadding,
           actionRadius: actionRadius,
           actionIconSize: actionIconSize,
@@ -226,6 +216,54 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       ),
     );
   }
+  Widget _buildSideButtons({
+    required PlayerActionButton topAction,
+    required PlayerActionButton bottomAction,
+    required BuildContext context,
+    required Song song,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+    required Color? albumColor,
+    required double accentBlend,
+    required bool hasAlbumTint,
+    required bool immersiveActions,
+    required bool lyricsMode,
+  }) {
+    final buttons = <Widget>[];
+    for (final action in [topAction, bottomAction]) {
+      if (action == PlayerActionButton.none) continue;
+      if (buttons.isNotEmpty) {
+        buttons.add(SizedBox(height: context.responsive(6.0, 7.0, 8.0)));
+      }
+      buttons.add(
+        _buildActionButton(
+          context: context,
+          song: song,
+          action: action,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+          albumColor: albumColor,
+          accentBlend: accentBlend,
+          hasAlbumTint: hasAlbumTint,
+          immersiveActions: immersiveActions,
+          lyricsMode: lyricsMode,
+        ),
+      );
+    }
+    if (buttons.isEmpty) return const SizedBox.shrink();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: buttons,
+    );
+  }
+
   Widget _buildActionButton({
     required BuildContext context,
     required Song song,
@@ -242,6 +280,9 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required bool lyricsMode,
   }) {
     switch (action) {
+      // ponytail: none is filtered out by _buildSideButtons; unreachable here.
+      case PlayerActionButton.none:
+        return const SizedBox.shrink();
       case PlayerActionButton.lyrics:
         return _buildLyricsButton(
           context: context,
