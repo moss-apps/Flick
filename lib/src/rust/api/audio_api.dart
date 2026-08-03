@@ -6,6 +6,7 @@
 import '../audio/crossfader.dart';
 import '../audio/dsd_engine/dsd.dart';
 import '../audio/engine.dart';
+import '../audio/equalizer.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
@@ -191,13 +192,14 @@ Future<void> audioSeek({required double positionSecs}) =>
 Future<void> audioSetVolume({required double volume}) =>
     RustLib.instance.api.crateApiAudioApiAudioSetVolume(volume: volume);
 
-/// Set graphic EQ: enabled and 10 band gains in dB (order = 32,64,125,250,500,1k,2k,4k,8k,16k Hz).
+/// Set EQ: enabled and a variable list of band specs (real per-type biquads,
+/// up to 31 bands). Graphic mode is expressed as 10 peaking specs.
 Future<void> audioSetEqualizer({
   required bool enabled,
-  required List<double> gainsDb,
+  required List<EqBandSpec> specs,
 }) => RustLib.instance.api.crateApiAudioApiAudioSetEqualizer(
   enabled: enabled,
-  gainsDb: gainsDb,
+  specs: specs,
 );
 
 /// Set pitch shift in semitones for the native audio engine (tempo preserved).

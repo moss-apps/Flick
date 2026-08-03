@@ -1,5 +1,8 @@
 //! Custom USB Audio Class 1.0 / 2.0 (UAC2) support for DAC/AMP detection and direct playback paths.
 
+// ponytail: feature in progress, not all public API is wired yet
+#![allow(dead_code)]
+
 #[cfg(all(feature = "uac2", target_os = "android"))]
 mod android_direct;
 #[cfg(feature = "uac2")]

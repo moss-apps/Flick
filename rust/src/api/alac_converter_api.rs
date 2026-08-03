@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_session_manager() {
-        let mut manager = SessionManager::new();
+        let manager = SessionManager::new();
         assert_eq!(manager.sessions.len(), 0);
     }
 }

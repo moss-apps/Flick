@@ -14,6 +14,7 @@ import 'api/uac2_api.dart';
 import 'audio/crossfader.dart';
 import 'audio/dsd_engine/dsd.dart';
 import 'audio/engine.dart';
+import 'audio/equalizer.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -224,7 +225,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiAudioApiAudioSetEqualizer({
     required bool enabled,
-    required List<double> gainsDb,
+    required List<EqBandSpec> specs,
   });
 
   Future<void> crateApiAudioApiAudioSetFx({
@@ -1680,14 +1681,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<void> crateApiAudioApiAudioSetEqualizer({
     required bool enabled,
-    required List<double> gainsDb,
+    required List<EqBandSpec> specs,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_bool(enabled, serializer);
-          sse_encode_list_prim_f_32_loose(gainsDb, serializer);
+          sse_encode_list_eq_band_spec(specs, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1700,7 +1701,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiAudioApiAudioSetEqualizerConstMeta,
-        argValues: [enabled, gainsDb],
+        argValues: [enabled, specs],
         apiImpl: this,
       ),
     );
@@ -1709,7 +1710,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiAudioApiAudioSetEqualizerConstMeta =>
       const TaskConstMeta(
         debugName: "audio_set_equalizer",
-        argNames: ["enabled", "gainsDb"],
+        argNames: ["enabled", "specs"],
       );
 
   @override
@@ -3656,6 +3657,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EqBandSpec dco_decode_eq_band_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return EqBandSpec(
+      bandType: dco_decode_eq_band_type(arr[0]),
+      freqHz: dco_decode_f_32(arr[1]),
+      gainDb: dco_decode_f_32(arr[2]),
+      q: dco_decode_f_32(arr[3]),
+    );
+  }
+
+  @protected
+  EqBandType dco_decode_eq_band_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return EqBandType.values[raw as int];
+  }
+
+  @protected
   double dco_decode_f_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
@@ -3700,9 +3721,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<double> dco_decode_list_prim_f_32_loose(dynamic raw) {
+  List<EqBandSpec> dco_decode_list_eq_band_spec(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as List<double>;
+    return (raw as List<dynamic>).map(dco_decode_eq_band_spec).toList();
   }
 
   @protected
@@ -4504,6 +4525,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EqBandSpec sse_decode_eq_band_spec(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_bandType = sse_decode_eq_band_type(deserializer);
+    var var_freqHz = sse_decode_f_32(deserializer);
+    var var_gainDb = sse_decode_f_32(deserializer);
+    var var_q = sse_decode_f_32(deserializer);
+    return EqBandSpec(
+      bandType: var_bandType,
+      freqHz: var_freqHz,
+      gainDb: var_gainDb,
+      q: var_q,
+    );
+  }
+
+  @protected
+  EqBandType sse_decode_eq_band_type(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return EqBandType.values[inner];
+  }
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat32();
@@ -4568,10 +4611,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<double> sse_decode_list_prim_f_32_loose(SseDeserializer deserializer) {
+  List<EqBandSpec> sse_decode_list_eq_band_spec(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+
     var len_ = sse_decode_i_32(deserializer);
-    return deserializer.buffer.getFloat32List(len_);
+    var ans_ = <EqBandSpec>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_eq_band_spec(deserializer));
+    }
+    return ans_;
   }
 
   @protected
@@ -5450,6 +5498,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_eq_band_spec(EqBandSpec self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_eq_band_type(self.bandType, serializer);
+    sse_encode_f_32(self.freqHz, serializer);
+    sse_encode_f_32(self.gainDb, serializer);
+    sse_encode_f_32(self.q, serializer);
+  }
+
+  @protected
+  void sse_encode_eq_band_type(EqBandType self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat32(self);
@@ -5507,15 +5570,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_list_prim_f_32_loose(
-    List<double> self,
+  void sse_encode_list_eq_band_spec(
+    List<EqBandSpec> self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
-    serializer.buffer.putFloat32List(
-      self is Float32List ? self : Float32List.fromList(self),
-    );
+    for (final item in self) {
+      sse_encode_eq_band_spec(item, serializer);
+    }
   }
 
   @protected

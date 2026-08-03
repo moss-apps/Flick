@@ -4,6 +4,7 @@
 //! blocking the audio thread.
 
 use crate::audio::decoder_handle::DecoderHandle;
+use crate::audio::equalizer::EqBandSpec;
 use crate::audio::source::AudioSource;
 use std::path::PathBuf;
 
@@ -41,8 +42,8 @@ pub enum AudioCommand {
     },
     /// Set playback speed (0.5 to 2.0)
     SetPlaybackSpeed { speed: f32 },
-    /// Set graphic EQ: enabled and 10 band gains in dB.
-    SetEqualizer { enabled: bool, gains_db: [f32; 10] },
+    /// Set EQ: enabled and a variable list of band specs (real per-type biquads).
+    SetEqualizer { enabled: bool, specs: Vec<EqBandSpec> },
     /// Set pitch shift in semitones (tempo preserved). 0 = bypass.
     SetPitchShift { semitones: f32 },
     /// Configure compressor settings.

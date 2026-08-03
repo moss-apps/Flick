@@ -12,6 +12,7 @@ use crate::audio::dsd_engine::dsd::{resolve_dsd_pcm_sample_rate, DsdOutputMode, 
 use crate::audio::dsd_engine::format::open_dsd_decoder;
 use crate::audio::dsd_engine::DsdDecoderThread;
 use crate::audio::engine::AudioApiPreference;
+use crate::audio::equalizer::EqBandSpec;
 use crate::audio::manager::{AudioCapability, AudioCapabilitySnapshot, AudioEngine, EngineManager};
 use crate::audio::strategy::OutputStrategy;
 use crate::audio::wavpack_thread::WavpackDecoderThread;
@@ -83,7 +84,7 @@ pub fn effective_dsd_output_mode_for_rate(
         (native, dop)
     };
     #[cfg(not(all(feature = "uac2", target_os = "android")))]
-    let (usb_native_capable, usb_dop_capable) = (false, false);
+    let (_usb_native_capable, usb_dop_capable) = (false, false);
 
     match requested {
         DsdOutputMode::PcmDecimation => return DsdOutputMode::PcmDecimation,
@@ -1187,14 +1188,10 @@ pub fn audio_set_volume(volume: f32) -> Result<(), String> {
     Ok(())
 }
 
-/// Set graphic EQ: enabled and 10 band gains in dB (order = 32,64,125,250,500,1k,2k,4k,8k,16k Hz).
-pub fn audio_set_equalizer(enabled: bool, gains_db: Vec<f32>) -> Result<(), String> {
-    if gains_db.len() != 10 {
-        return Err("Equalizer requires exactly 10 band gains".to_string());
-    }
-    let mut arr = [0.0f32; 10];
-    arr.copy_from_slice(&gains_db[..10]);
-    with_audio_engine(|handle| handle.set_equalizer(enabled, arr))
+/// Set EQ: enabled and a variable list of band specs (real per-type biquads,
+/// up to 31 bands). Graphic mode is expressed as 10 peaking specs.
+pub fn audio_set_equalizer(enabled: bool, specs: Vec<EqBandSpec>) -> Result<(), String> {
+    with_audio_engine(|handle| handle.set_equalizer(enabled, specs))
 }
 
 /// Set pitch shift in semitones for the native audio engine (tempo preserved).

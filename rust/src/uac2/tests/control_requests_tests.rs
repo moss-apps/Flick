@@ -1,5 +1,5 @@
 use crate::uac2::control_requests::{
-    ControlRecipient, ControlRequest, ControlRequestBuilder, ControlRequestType, ControlSelector,
+    ControlRecipient, ControlRequest, ControlRequestType, ControlSelector,
 };
 
 #[test]

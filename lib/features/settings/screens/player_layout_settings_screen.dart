@@ -386,6 +386,31 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               ),
               const SettingsDivider(),
               NavigationSetting(
+                icon: Icons.vertical_align_center_rounded,
+                title: 'Center Button',
+                subtitle: PlayerActionButtonX.fromStorageValue(
+                  appPrefs.centerActionButton,
+                ).label,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => _ActionButtonPickerScreen(
+                        title: 'Center Button',
+                        currentValue: PlayerActionButtonX.fromStorageValue(
+                          appPrefs.centerActionButton,
+                        ),
+                        onSelected: (action) {
+                          ref
+                              .read(appPreferencesProvider.notifier)
+                              .setCenterActionButton(action.storageValue);
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SettingsDivider(),
+              NavigationSetting(
                 icon: Icons.arrow_forward_rounded,
                 title: 'Right Button',
                 subtitle: PlayerActionButtonX.fromStorageValue(

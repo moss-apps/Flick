@@ -6,7 +6,10 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Decode `path` once, computing waveform peaks (and later BS.1770 metrics).
+// These functions are ignored because they are not marked as `pub`: `integrated_loudness`, `loudness_range`, `new`, `process`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Biquad`
+
+/// Decode `path` once, computing waveform peaks + BS.1770 metrics.
 /// Returns `None` for unsupported/unreachable files — callers treat that as a
 /// silent skip.
 ///

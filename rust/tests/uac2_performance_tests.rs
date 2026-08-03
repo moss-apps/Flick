@@ -34,10 +34,10 @@ mod uac2_performance {
     #[ignore]
     fn test_audio_pipeline_latency() {
         let format = AudioFormat::new(
-            FormatType::Pcm,
-            BitDepth::Bits16,
             vec![SampleRate::new(48000).unwrap()],
+            BitDepth::Bits16,
             ChannelConfig::Stereo,
+            FormatType::Pcm,
         )
         .unwrap();
 
@@ -66,18 +66,18 @@ mod uac2_performance {
     #[ignore]
     fn test_format_conversion_performance() {
         let source = AudioFormat::new(
-            FormatType::Pcm,
-            BitDepth::Bits16,
             vec![SampleRate::new(44100).unwrap()],
+            BitDepth::Bits16,
             ChannelConfig::Stereo,
+            FormatType::Pcm,
         )
         .unwrap();
 
         let target = AudioFormat::new(
-            FormatType::Pcm,
-            BitDepth::Bits24,
             vec![SampleRate::new(44100).unwrap()],
+            BitDepth::Bits24,
             ChannelConfig::Stereo,
+            FormatType::Pcm,
         )
         .unwrap();
 
@@ -107,10 +107,10 @@ mod uac2_performance {
     #[ignore]
     fn test_passthrough_performance() {
         let format = AudioFormat::new(
-            FormatType::Pcm,
-            BitDepth::Bits24,
             vec![SampleRate::new(96000).unwrap()],
+            BitDepth::Bits24,
             ChannelConfig::Stereo,
+            FormatType::Pcm,
         )
         .unwrap();
 
@@ -179,24 +179,24 @@ mod uac2_performance {
     fn test_format_matching_performance() {
         let formats: Vec<AudioFormat> = vec![
             AudioFormat::new(
-                FormatType::Pcm,
-                BitDepth::Bits16,
                 vec![SampleRate::new(44100).unwrap()],
+                BitDepth::Bits16,
                 ChannelConfig::Stereo,
+                FormatType::Pcm,
             )
             .unwrap(),
             AudioFormat::new(
-                FormatType::Pcm,
-                BitDepth::Bits24,
                 vec![SampleRate::new(48000).unwrap()],
+                BitDepth::Bits24,
                 ChannelConfig::Stereo,
+                FormatType::Pcm,
             )
             .unwrap(),
             AudioFormat::new(
-                FormatType::Pcm,
-                BitDepth::Bits32,
                 vec![SampleRate::new(96000).unwrap()],
+                BitDepth::Bits32,
                 ChannelConfig::Stereo,
+                FormatType::Pcm,
             )
             .unwrap(),
         ];
@@ -223,10 +223,10 @@ mod uac2_performance {
     #[ignore]
     fn test_low_latency_streaming_simulation() {
         let format = AudioFormat::new(
-            FormatType::Pcm,
-            BitDepth::Bits24,
             vec![SampleRate::new(96000).unwrap()],
+            BitDepth::Bits24,
             ChannelConfig::Stereo,
+            FormatType::Pcm,
         )
         .unwrap();
 

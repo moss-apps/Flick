@@ -331,6 +331,18 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                         ),
                         const SizedBox(height: 8),
                         _PlayerActionButtonSelector(
+                          label: 'Center button',
+                          currentValue: PlayerActionButtonX.fromStorageValue(
+                            appPrefs.centerActionButton,
+                          ),
+                          onChanged: (action) {
+                            prefsNotifier.setCenterActionButton(
+                              action.storageValue,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        _PlayerActionButtonSelector(
                           label: 'Right button',
                           currentValue: PlayerActionButtonX.fromStorageValue(
                             appPrefs.rightActionButton,

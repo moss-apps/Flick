@@ -30,10 +30,10 @@ mod uac2_integration {
     #[test]
     fn test_audio_format_validation() {
         let format = AudioFormat::new(
-            FormatType::Pcm,
-            BitDepth::Bits16,
             vec![SampleRate::new(44100).unwrap()],
+            BitDepth::Bits16,
             ChannelConfig::Stereo,
+            FormatType::Pcm,
         );
 
         assert!(format.is_ok());
@@ -46,8 +46,6 @@ mod uac2_integration {
             .bit_depth(BitDepth::Bits24)
             .channels(ChannelConfig::Stereo)
             .endpoint_address(0x01)
-            .packet_size(192)
-            .interval(1)
             .build();
 
         assert!(config.is_ok());
@@ -56,10 +54,10 @@ mod uac2_integration {
     #[test]
     fn test_audio_pipeline_bit_perfect() {
         let format = AudioFormat::new(
-            FormatType::Pcm,
-            BitDepth::Bits24,
             vec![SampleRate::new(96000).unwrap()],
+            BitDepth::Bits24,
             ChannelConfig::Stereo,
+            FormatType::Pcm,
         )
         .unwrap();
 
@@ -96,23 +94,25 @@ mod uac2_integration {
     #[test]
     fn test_format_negotiation() {
         let source = AudioFormat::new(
-            FormatType::Pcm,
-            BitDepth::Bits16,
             vec![SampleRate::new(44100).unwrap()],
+            BitDepth::Bits16,
             ChannelConfig::Stereo,
+            FormatType::Pcm,
         )
         .unwrap();
 
         let target = AudioFormat::new(
-            FormatType::Pcm,
-            BitDepth::Bits24,
             vec![SampleRate::new(48000).unwrap()],
+            BitDepth::Bits24,
             ChannelConfig::Stereo,
+            FormatType::Pcm,
         )
         .unwrap();
 
-        let negotiator = FormatNegotiator::new(source, target);
-        assert!(negotiator.is_ok());
+        let negotiator = FormatNegotiator;
+        let formats = [source, target];
+        let best = negotiator.negotiate_best(&formats);
+        assert!(best.is_some());
     }
 
     #[test]
@@ -129,12 +129,10 @@ mod uac2_integration {
 
     #[test]
     fn test_error_recovery_strategy() {
-        let strategy = RecoveryStrategy::Reconnect { max_attempts: 3 };
+        let strategy = RecoveryStrategy::Reconnect;
 
         match strategy {
-            RecoveryStrategy::Reconnect { max_attempts } => {
-                assert_eq!(max_attempts, 3);
-            }
+            RecoveryStrategy::Reconnect => {}
             _ => panic!("Wrong strategy type"),
         }
     }
@@ -150,10 +148,10 @@ mod uac2_integration {
     #[ignore]
     fn test_bit_perfect_verification() {
         let source_format = AudioFormat::new(
-            FormatType::Pcm,
-            BitDepth::Bits24,
             vec![SampleRate::new(96000).unwrap()],
+            BitDepth::Bits24,
             ChannelConfig::Stereo,
+            FormatType::Pcm,
         )
         .unwrap();
 

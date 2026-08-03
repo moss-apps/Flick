@@ -1564,12 +1564,13 @@ fn wire__crate__api__audio_api__audio_set_equalizer_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_enabled = <bool>::sse_decode(&mut deserializer);
-            let api_gains_db = <Vec<f32>>::sse_decode(&mut deserializer);
+            let api_specs =
+                <Vec<crate::audio::equalizer::EqBandSpec>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok =
-                        crate::api::audio_api::audio_set_equalizer(api_enabled, api_gains_db)?;
+                        crate::api::audio_api::audio_set_equalizer(api_enabled, api_specs)?;
                     Ok(output_ok)
                 })())
             }
@@ -3751,6 +3752,39 @@ impl SseDecode for crate::audio::dsd_engine::dsd::DsdRate {
     }
 }
 
+impl SseDecode for crate::audio::equalizer::EqBandSpec {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_bandType = <crate::audio::equalizer::EqBandType>::sse_decode(deserializer);
+        let mut var_freqHz = <f32>::sse_decode(deserializer);
+        let mut var_gainDb = <f32>::sse_decode(deserializer);
+        let mut var_q = <f32>::sse_decode(deserializer);
+        return crate::audio::equalizer::EqBandSpec {
+            band_type: var_bandType,
+            freq_hz: var_freqHz,
+            gain_db: var_gainDb,
+            q: var_q,
+        };
+    }
+}
+
+impl SseDecode for crate::audio::equalizer::EqBandType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::audio::equalizer::EqBandType::Peaking,
+            1 => crate::audio::equalizer::EqBandType::LowShelf,
+            2 => crate::audio::equalizer::EqBandType::HighShelf,
+            3 => crate::audio::equalizer::EqBandType::LowPass,
+            4 => crate::audio::equalizer::EqBandType::HighPass,
+            5 => crate::audio::equalizer::EqBandType::BandPass,
+            6 => crate::audio::equalizer::EqBandType::Notch,
+            _ => unreachable!("Invalid variant for EqBandType: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for f32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3812,6 +3846,20 @@ impl SseDecode for Vec<crate::api::scanner::AudioFileMetadata> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::scanner::AudioFileMetadata>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::audio::equalizer::EqBandSpec> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::audio::equalizer::EqBandSpec>::sse_decode(
                 deserializer,
             ));
         }
@@ -5071,6 +5119,55 @@ impl flutter_rust_bridge::IntoIntoDart<crate::audio::dsd_engine::dsd::DsdRate>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::audio::equalizer::EqBandSpec {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.band_type.into_into_dart().into_dart(),
+            self.freq_hz.into_into_dart().into_dart(),
+            self.gain_db.into_into_dart().into_dart(),
+            self.q.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::audio::equalizer::EqBandSpec
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::audio::equalizer::EqBandSpec>
+    for crate::audio::equalizer::EqBandSpec
+{
+    fn into_into_dart(self) -> crate::audio::equalizer::EqBandSpec {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::audio::equalizer::EqBandType {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Peaking => 0.into_dart(),
+            Self::LowShelf => 1.into_dart(),
+            Self::HighShelf => 2.into_dart(),
+            Self::LowPass => 3.into_dart(),
+            Self::HighPass => 4.into_dart(),
+            Self::BandPass => 5.into_dart(),
+            Self::Notch => 6.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::audio::equalizer::EqBandType
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::audio::equalizer::EqBandType>
+    for crate::audio::equalizer::EqBandType
+{
+    fn into_into_dart(self) -> crate::audio::equalizer::EqBandType {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::scanner::ScanChunk {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -5648,6 +5745,37 @@ impl SseEncode for crate::audio::dsd_engine::dsd::DsdRate {
     }
 }
 
+impl SseEncode for crate::audio::equalizer::EqBandSpec {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::audio::equalizer::EqBandType>::sse_encode(self.band_type, serializer);
+        <f32>::sse_encode(self.freq_hz, serializer);
+        <f32>::sse_encode(self.gain_db, serializer);
+        <f32>::sse_encode(self.q, serializer);
+    }
+}
+
+impl SseEncode for crate::audio::equalizer::EqBandType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::audio::equalizer::EqBandType::Peaking => 0,
+                crate::audio::equalizer::EqBandType::LowShelf => 1,
+                crate::audio::equalizer::EqBandType::HighShelf => 2,
+                crate::audio::equalizer::EqBandType::LowPass => 3,
+                crate::audio::equalizer::EqBandType::HighPass => 4,
+                crate::audio::equalizer::EqBandType::BandPass => 5,
+                crate::audio::equalizer::EqBandType::Notch => 6,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for f32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5702,6 +5830,16 @@ impl SseEncode for Vec<crate::api::scanner::AudioFileMetadata> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::scanner::AudioFileMetadata>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::audio::equalizer::EqBandSpec> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::audio::equalizer::EqBandSpec>::sse_encode(item, serializer);
         }
     }
 }

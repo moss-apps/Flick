@@ -14,7 +14,7 @@ use crate::audio::decoder_handle::{detect_file_type, DecoderHandle, FileType};
 use crate::audio::device::current_device_profile;
 use crate::audio::dsd_engine::DsdDecoderThread;
 use crate::audio::dynamics::DynamicsChain;
-use crate::audio::equalizer::Equalizer;
+use crate::audio::equalizer::{EqBandSpec, Equalizer};
 use crate::audio::fx::SpatialFx;
 use crate::audio::pitch_shifter::PitchShifter;
 use crate::audio::source::{AudioSource, SourceProvider};
@@ -518,9 +518,9 @@ impl AudioEngineHandle {
         self.send_command(AudioCommand::SetDopOverride { is_dop })
     }
 
-    /// Set graphic EQ: enabled and 10 band gains in dB (order matches EqualizerState.defaultGraphicFrequenciesHz).
-    pub fn set_equalizer(&self, enabled: bool, gains_db: [f32; 10]) -> Result<(), String> {
-        self.send_command(AudioCommand::SetEqualizer { enabled, gains_db })
+    /// Set EQ: enabled and a variable list of band specs (real per-type biquads).
+    pub fn set_equalizer(&self, enabled: bool, specs: Vec<EqBandSpec>) -> Result<(), String> {
+        self.send_command(AudioCommand::SetEqualizer { enabled, specs })
     }
 
     /// Set pitch shift in semitones (tempo preserved). 0 = bypass.
@@ -2668,6 +2668,7 @@ fn command_processing_loop(
     decoders: Arc<Mutex<Vec<DecoderHandle>>>,
     sample_rate: u32,
     shutdown: Arc<AtomicBool>,
+    #[cfg_attr(not(target_os = "android"), allow(unused_mut, unused_variables))]
     mut supervisor: Option<&mut ManagedStreamSupervisor>,
 ) {
     loop {
@@ -2815,9 +2816,9 @@ fn command_processing_loop(
                         callback_data.set_playback_speed(speed);
                         *callback_data.speed_frac_pos.lock() = 0.0;
                     }
-                    AudioCommand::SetEqualizer { enabled, gains_db } => {
+                    AudioCommand::SetEqualizer { enabled, specs } => {
                         if let Some(mut eq) = callback_data.equalizer.try_lock() {
-                            eq.set(enabled, &gains_db, sample_rate);
+                            eq.set(enabled, &specs, sample_rate);
                         }
                     }
                     AudioCommand::SetPitchShift { semitones } => {

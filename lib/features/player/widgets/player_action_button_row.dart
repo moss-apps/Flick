@@ -29,6 +29,7 @@ class PlayerActionButtonRow extends ConsumerStatefulWidget {
   final Color? albumColor;
   final AlbumColorMode albumColorMode;
   final PlayerActionButton leftAction;
+  final PlayerActionButton centerAction;
   final PlayerActionButton rightAction;
   final PlayerService playerService;
   final FavoritesService favoritesService;
@@ -47,6 +48,7 @@ class PlayerActionButtonRow extends ConsumerStatefulWidget {
     required this.albumColor,
     required this.albumColorMode,
     required this.leftAction,
+    required this.centerAction,
     required this.rightAction,
     required this.playerService,
     required this.favoritesService,
@@ -71,6 +73,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     final albumColor = widget.albumColor;
     final albumColorMode = widget.albumColorMode;
     final leftAction = widget.leftAction;
+    final centerAction = widget.centerAction;
     final rightAction = widget.rightAction;
     final immersiveActions = playerScreenMode == PlayerScreenMode.immersive;
     final actionPadding = immersiveActions
@@ -167,6 +170,22 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
             ],
           ),
         ),
+        _buildActionButton(
+          context: context,
+          song: song,
+          action: centerAction,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+          albumColor: albumColor,
+          accentBlend: accentBlend,
+          hasAlbumTint: hasAlbumTint,
+          immersiveActions: immersiveActions,
+          lyricsMode: lyricsMode,
+        ),
+        SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
         _buildActionButton(
           context: context,
           song: song,

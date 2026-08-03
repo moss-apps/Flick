@@ -8,9 +8,7 @@
 
 use std::path::Path;
 
-use symphonia::core::codecs::Decoder;
 use symphonia::core::errors::Error as SymphoniaError;
-use symphonia::core::formats::FormatReader;
 
 use crate::audio::convolver::IR_TAP_CAP;
 use crate::audio::decoder::{convert_to_interleaved_f32, probe_file};
