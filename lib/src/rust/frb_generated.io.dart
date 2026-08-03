@@ -14,6 +14,7 @@ import 'api/uac2_api.dart';
 import 'audio/crossfader.dart';
 import 'audio/dsd_engine/dsd.dart';
 import 'audio/engine.dart';
+import 'audio/equalizer.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -146,6 +147,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DsdRate dco_decode_dsd_rate(dynamic raw);
 
   @protected
+  EqBandSpec dco_decode_eq_band_spec(dynamic raw);
+
+  @protected
+  EqBandType dco_decode_eq_band_type(dynamic raw);
+
+  @protected
   double dco_decode_f_32(dynamic raw);
 
   @protected
@@ -167,7 +174,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<AudioFileMetadata> dco_decode_list_audio_file_metadata(dynamic raw);
 
   @protected
-  List<double> dco_decode_list_prim_f_32_loose(dynamic raw);
+  List<EqBandSpec> dco_decode_list_eq_band_spec(dynamic raw);
 
   @protected
   Float32List dco_decode_list_prim_f_32_strict(dynamic raw);
@@ -453,6 +460,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DsdRate sse_decode_dsd_rate(SseDeserializer deserializer);
 
   @protected
+  EqBandSpec sse_decode_eq_band_spec(SseDeserializer deserializer);
+
+  @protected
+  EqBandType sse_decode_eq_band_type(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer);
 
   @protected
@@ -478,7 +491,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<double> sse_decode_list_prim_f_32_loose(SseDeserializer deserializer);
+  List<EqBandSpec> sse_decode_list_eq_band_spec(SseDeserializer deserializer);
 
   @protected
   Float32List sse_decode_list_prim_f_32_strict(SseDeserializer deserializer);
@@ -814,6 +827,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_dsd_rate(DsdRate self, SseSerializer serializer);
 
   @protected
+  void sse_encode_eq_band_spec(EqBandSpec self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_eq_band_type(EqBandType self, SseSerializer serializer);
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
 
   @protected
@@ -841,8 +860,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_prim_f_32_loose(
-    List<double> self,
+  void sse_encode_list_eq_band_spec(
+    List<EqBandSpec> self,
     SseSerializer serializer,
   );
 
