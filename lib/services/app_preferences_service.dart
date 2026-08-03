@@ -53,8 +53,9 @@ class AppPreferences {
   final double widgetCompactTextScale;
   final bool lyricsMatchAudioFilename;
   final String leftActionButton;
-  final String centerActionButton;
   final String rightActionButton;
+  final String leftTopActionButton;
+  final String rightTopActionButton;
   final bool welcomeCardDismissed;
   final bool glanceCardHidden;
   final bool glanceCardMinimized;
@@ -156,8 +157,9 @@ class AppPreferences {
     this.widgetCompactTextScale = 1.0,
     this.lyricsMatchAudioFilename = false,
     this.leftActionButton = 'lyrics',
-    this.centerActionButton = 'equalizer',
     this.rightActionButton = 'favorites',
+    this.leftTopActionButton = 'none',
+    this.rightTopActionButton = 'none',
     this.welcomeCardDismissed = false,
     this.glanceCardHidden = false,
     this.glanceCardMinimized = false,
@@ -260,8 +262,9 @@ class AppPreferences {
     double? widgetCompactTextScale,
     bool? lyricsMatchAudioFilename,
     String? leftActionButton,
-    String? centerActionButton,
     String? rightActionButton,
+    String? leftTopActionButton,
+    String? rightTopActionButton,
     bool? welcomeCardDismissed,
     bool? glanceCardHidden,
     bool? glanceCardMinimized,
@@ -385,8 +388,9 @@ class AppPreferences {
       lyricsMatchAudioFilename:
           lyricsMatchAudioFilename ?? this.lyricsMatchAudioFilename,
       leftActionButton: leftActionButton ?? this.leftActionButton,
-      centerActionButton: centerActionButton ?? this.centerActionButton,
       rightActionButton: rightActionButton ?? this.rightActionButton,
+      leftTopActionButton: leftTopActionButton ?? this.leftTopActionButton,
+      rightTopActionButton: rightTopActionButton ?? this.rightTopActionButton,
       welcomeCardDismissed: welcomeCardDismissed ?? this.welcomeCardDismissed,
       glanceCardHidden: glanceCardHidden ?? this.glanceCardHidden,
       glanceCardMinimized: glanceCardMinimized ?? this.glanceCardMinimized,
@@ -514,8 +518,9 @@ class AppPreferencesService {
   static const _widgetCompactTextScaleKey = 'widget_compact_text_scale';
   static const _lyricsMatchAudioFilenameKey = 'lyrics_match_audio_filename';
   static const _leftActionButtonKey = 'left_action_button';
-  static const _centerActionButtonKey = 'center_action_button';
   static const _rightActionButtonKey = 'right_action_button';
+  static const _leftTopActionButtonKey = 'left_top_action_button';
+  static const _rightTopActionButtonKey = 'right_top_action_button';
   static const _welcomeCardDismissedKey = 'welcome_card_dismissed';
   static const _glanceCardHiddenKey = 'glance_card_hidden';
   static const _glanceCardMinimizedKey = 'glance_card_minimized';
@@ -650,9 +655,11 @@ class AppPreferencesService {
       lyricsMatchAudioFilename:
           prefs.getBool(_lyricsMatchAudioFilenameKey) ?? false,
       leftActionButton: prefs.getString(_leftActionButtonKey) ?? 'lyrics',
-      centerActionButton:
-          prefs.getString(_centerActionButtonKey) ?? 'equalizer',
       rightActionButton: prefs.getString(_rightActionButtonKey) ?? 'favorites',
+      leftTopActionButton:
+          prefs.getString(_leftTopActionButtonKey) ?? 'none',
+      rightTopActionButton:
+          prefs.getString(_rightTopActionButtonKey) ?? 'none',
       welcomeCardDismissed: prefs.getBool(_welcomeCardDismissedKey) ?? false,
       glanceCardHidden: prefs.getBool(_glanceCardHiddenKey) ?? false,
       glanceCardMinimized: prefs.getBool(_glanceCardMinimizedKey) ?? false,
@@ -1188,14 +1195,24 @@ class AppPreferencesService {
     await prefs.setString(_rightActionButtonKey, value);
   }
 
-  Future<String> getCenterActionButton() async {
+  Future<String> getLeftTopActionButton() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_centerActionButtonKey) ?? 'equalizer';
+    return prefs.getString(_leftTopActionButtonKey) ?? 'none';
   }
 
-  Future<void> setCenterActionButton(String value) async {
+  Future<void> setLeftTopActionButton(String value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_centerActionButtonKey, value);
+    await prefs.setString(_leftTopActionButtonKey, value);
+  }
+
+  Future<String> getRightTopActionButton() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_rightTopActionButtonKey) ?? 'none';
+  }
+
+  Future<void> setRightTopActionButton(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_rightTopActionButtonKey, value);
   }
 
   Future<bool> getWelcomeCardDismissed() async {
