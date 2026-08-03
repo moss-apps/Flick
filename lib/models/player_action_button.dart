@@ -2,6 +2,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 
 enum PlayerActionButton {
+  none,
   lyrics,
   favorites,
   visualizer,
@@ -17,6 +18,8 @@ enum PlayerActionButton {
 extension PlayerActionButtonX on PlayerActionButton {
   String get storageValue {
     switch (this) {
+      case PlayerActionButton.none:
+        return 'none';
       case PlayerActionButton.lyrics:
         return 'lyrics';
       case PlayerActionButton.favorites:
@@ -42,6 +45,8 @@ extension PlayerActionButtonX on PlayerActionButton {
 
   String get label {
     switch (this) {
+      case PlayerActionButton.none:
+        return 'None';
       case PlayerActionButton.lyrics:
         return 'Lyrics';
       case PlayerActionButton.favorites:
@@ -67,6 +72,8 @@ extension PlayerActionButtonX on PlayerActionButton {
 
   IconData get icon {
     switch (this) {
+      case PlayerActionButton.none:
+        return Icons.block_rounded;
       case PlayerActionButton.lyrics:
         return LucideIcons.fileText;
       case PlayerActionButton.favorites:
@@ -92,6 +99,8 @@ extension PlayerActionButtonX on PlayerActionButton {
 
   static PlayerActionButton fromStorageValue(String? value) {
     switch (value) {
+      case 'none':
+        return PlayerActionButton.none;
       case 'favorites':
         return PlayerActionButton.favorites;
       case 'visualizer':
