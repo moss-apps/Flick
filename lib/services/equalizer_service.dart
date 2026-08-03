@@ -3,6 +3,7 @@ import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/services/android_audio_processing_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
+import 'package:flick/src/rust/audio/equalizer.dart';
 
 EqualizerState _lastRequestedState = EqualizerState.initial();
 
@@ -12,21 +13,6 @@ EqualizerState _lastRequestedState = EqualizerState.initial();
 Future<void> applyEqualizer(EqualizerState state) async {
   _lastRequestedState = _snapshotState(state);
 
-  final useGraphic = state.mode == EqMode.graphic;
-  final gains = _applyPreamp(
-    gains: _applyBmt(
-      gains: useGraphic
-          ? state.graphicGainsDb
-          : _parametricToGraphicGains(state.parametricBands),
-      bassDb: state.bassDb,
-      midDb: state.midDb,
-      trebleDb: state.trebleDb,
-    ),
-    preampDb: state.preampDb,
-  );
-
-  if (gains.length != 10) return;
-
   final playerService = PlayerService();
   final useRustBackend =
       playerService.isUsingRustBackend &&
@@ -34,8 +20,21 @@ Future<void> applyEqualizer(EqualizerState state) async {
       rust_audio.audioIsInitialized();
   final bypassForBitPerfect = playerService.isBitPerfectProcessingLocked;
 
-  // Android + just_audio: use native AudioEffect counterparts with session ID.
+  // Android + just_audio: the native Equalizer AudioEffect is hardware
+  // fixed-band, so keep the 10-gain sampling path (BMT + preamp baked in).
   if (Platform.isAndroid && !useRustBackend) {
+    final gains = _applyPreamp(
+      gains: _applyBmt(
+        gains: state.mode == EqMode.graphic
+            ? state.graphicGainsDb
+            : _parametricToGraphicGains(state.parametricBands),
+        bassDb: state.bassDb,
+        midDb: state.midDb,
+        trebleDb: state.trebleDb,
+      ),
+      preampDb: state.preampDb,
+    );
+    if (gains.length != 10) return;
     try {
       await androidJustAudioProcessingService.apply(
         state: state,
@@ -47,17 +46,14 @@ Future<void> applyEqualizer(EqualizerState state) async {
     return;
   }
 
-  // Rust backend: apply EQ + compressor + limiter to the active native engine.
+  // Rust backend: real variable-band DSP.
   if (!rust_audio.audioIsNativeAvailable() ||
       !rust_audio.audioIsInitialized()) {
     return;
   }
   try {
     if (bypassForBitPerfect) {
-      rust_audio.audioSetEqualizer(
-        enabled: false,
-        gainsDb: List<double>.filled(10, 0.0, growable: false),
-      );
+      rust_audio.audioSetEqualizer(enabled: false, specs: const []);
       await rust_audio.audioSetCompressor(
         enabled: false,
         thresholdDb: state.compressor.thresholdDb,
@@ -93,7 +89,7 @@ Future<void> applyEqualizer(EqualizerState state) async {
 
     rust_audio.audioSetEqualizer(
       enabled: state.enabled,
-      gainsDb: List<double>.from(gains),
+      specs: _buildRustSpecs(state),
     );
     await rust_audio.audioSetCompressor(
       enabled: state.enabled && state.compressor.enabled,
@@ -156,7 +152,7 @@ Future<void> clearConvolverIr() async {
   await rust_audio.audioClearIr();
 }
 
-/// Map parametric bands to 10-band gains for Rust engine (graphic-only).
+/// Map parametric bands to 10-band gains for the Android fixed-band path.
 List<double> _parametricToGraphicGains(List<ParametricBand> bands) {
   final freqs = EqualizerState.defaultGraphicFrequenciesHz;
   return List<double>.generate(
@@ -164,6 +160,67 @@ List<double> _parametricToGraphicGains(List<ParametricBand> bands) {
     (i) => parametricResponseDbAtHz(hz: freqs[i], bands: bands),
     growable: false,
   );
+}
+
+/// Builds real per-band specs for the Rust variable-band engine.
+/// ponytail: BMT (bass/mid/treble) is a graphic-era convenience and is only
+/// applied in graphic mode here; parametric users have shelves directly.
+List<EqBandSpec> _buildRustSpecs(EqualizerState state) {
+  if (state.mode == EqMode.graphic) {
+    final gains = _applyPreamp(
+      gains: _applyBmt(
+        gains: state.graphicGainsDb,
+        bassDb: state.bassDb,
+        midDb: state.midDb,
+        trebleDb: state.trebleDb,
+      ),
+      preampDb: state.preampDb,
+    );
+    final freqs = EqualizerState.defaultGraphicFrequenciesHz;
+    return [
+      for (var i = 0; i < gains.length; i++)
+        EqBandSpec(
+          bandType: EqBandType.peaking,
+          freqHz: freqs[i],
+          gainDb: gains[i],
+          q: 1.0,
+        ),
+    ];
+  }
+  // Parametric: real specs from enabled bands. allPass is a no-op with no FFI
+  // type, so it is skipped. Preamp is baked into gainDb (faithful to the old
+  // per-band behavior; pass/notch bands ignore gainDb in the RBJ formulas).
+  return [
+    for (final b in state.parametricBands)
+      if (b.enabled && b.type != ParametricBandType.allPass)
+        EqBandSpec(
+          bandType: _mapBandType(b.type),
+          freqHz: b.frequencyHz,
+          gainDb: b.gainDb + state.preampDb,
+          q: b.q,
+        ),
+  ];
+}
+
+EqBandType _mapBandType(ParametricBandType t) {
+  switch (t) {
+    case ParametricBandType.peaking:
+      return EqBandType.peaking;
+    case ParametricBandType.lowShelf:
+      return EqBandType.lowShelf;
+    case ParametricBandType.highShelf:
+      return EqBandType.highShelf;
+    case ParametricBandType.lowPass:
+      return EqBandType.lowPass;
+    case ParametricBandType.highPass:
+      return EqBandType.highPass;
+    case ParametricBandType.bandPass:
+      return EqBandType.bandPass;
+    case ParametricBandType.notch:
+      return EqBandType.notch;
+    case ParametricBandType.allPass:
+      return EqBandType.peaking; // unreachable: allPass filtered before mapping
+  }
 }
 
 EqualizerState _snapshotState(EqualizerState state) {
