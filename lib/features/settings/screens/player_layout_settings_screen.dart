@@ -361,8 +361,33 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
           SettingsCard(
             children: [
               NavigationSetting(
+                icon: Icons.arrow_upward_rounded,
+                title: 'Left (Top) Button',
+                subtitle: PlayerActionButtonX.fromStorageValue(
+                  appPrefs.leftTopActionButton,
+                ).label,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => _ActionButtonPickerScreen(
+                        title: 'Left (Top) Button',
+                        currentValue: PlayerActionButtonX.fromStorageValue(
+                          appPrefs.leftTopActionButton,
+                        ),
+                        onSelected: (action) {
+                          ref
+                              .read(appPreferencesProvider.notifier)
+                              .setLeftTopActionButton(action.storageValue);
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SettingsDivider(),
+              NavigationSetting(
                 icon: Icons.arrow_back_rounded,
-                title: 'Left Button',
+                title: 'Left (Bottom) Button',
                 subtitle: PlayerActionButtonX.fromStorageValue(
                   appPrefs.leftActionButton,
                 ).label,
@@ -370,7 +395,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => _ActionButtonPickerScreen(
-                        title: 'Left Button',
+                        title: 'Left (Bottom) Button',
                         currentValue: PlayerActionButtonX.fromStorageValue(
                           appPrefs.leftActionButton,
                         ),
@@ -386,23 +411,23 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               ),
               const SettingsDivider(),
               NavigationSetting(
-                icon: Icons.vertical_align_center_rounded,
-                title: 'Center Button',
+                icon: Icons.arrow_upward_rounded,
+                title: 'Right (Top) Button',
                 subtitle: PlayerActionButtonX.fromStorageValue(
-                  appPrefs.centerActionButton,
+                  appPrefs.rightTopActionButton,
                 ).label,
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => _ActionButtonPickerScreen(
-                        title: 'Center Button',
+                        title: 'Right (Top) Button',
                         currentValue: PlayerActionButtonX.fromStorageValue(
-                          appPrefs.centerActionButton,
+                          appPrefs.rightTopActionButton,
                         ),
                         onSelected: (action) {
                           ref
                               .read(appPreferencesProvider.notifier)
-                              .setCenterActionButton(action.storageValue);
+                              .setRightTopActionButton(action.storageValue);
                         },
                       ),
                     ),
@@ -412,7 +437,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               NavigationSetting(
                 icon: Icons.arrow_forward_rounded,
-                title: 'Right Button',
+                title: 'Right (Bottom) Button',
                 subtitle: PlayerActionButtonX.fromStorageValue(
                   appPrefs.rightActionButton,
                 ).label,
@@ -420,7 +445,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => _ActionButtonPickerScreen(
-                        title: 'Right Button',
+                        title: 'Right (Bottom) Button',
                         currentValue: PlayerActionButtonX.fromStorageValue(
                           appPrefs.rightActionButton,
                         ),
