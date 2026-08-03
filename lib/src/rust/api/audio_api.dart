@@ -86,6 +86,15 @@ void audioSetDapBitPerfectEnabled({required bool enabled}) => RustLib
     .api
     .crateApiAudioApiAudioSetDapBitPerfectEnabled(enabled: enabled);
 
+/// Set the running Rust callback's base pipeline mode.
+///
+/// This is separate from the DAP preference because direct USB playback can
+/// leave the engine in passthrough after bit-perfect is disabled.
+void audioSetPipelineModePassthrough({required bool enabled}) => RustLib
+    .instance
+    .api
+    .crateApiAudioApiAudioSetPipelineModePassthrough(enabled: enabled);
+
 /// Sync the preferred Android audio API (AAudio / OpenSL ES / Auto) from Dart.
 /// The change is staged on the engine manager and applied on the next engine
 /// (re)initialization — the live stream is reopened when the preference no
