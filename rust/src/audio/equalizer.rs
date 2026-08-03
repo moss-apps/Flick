@@ -1,70 +1,175 @@
-//! Graphic EQ: 10 peaking biquad bands at fixed frequencies.
-//! Single responsibility: apply band gains to interleaved f32 samples.
+//! Parametric EQ: variable-band biquad chain with real per-type RBJ
+//! coefficients. Lock-free on the audio thread via fixed-MAX double buffering
+//! (no allocation in process()).
 
 use std::f32::consts::PI;
 use std::sync::atomic::{AtomicU8, Ordering};
 
-/// Fixed center frequencies (Hz) matching Dart EqualizerState.defaultGraphicFrequenciesHz.
+/// Mirror of Dart ParametricBandType (allPass dropped — it is a no-op).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EqBandType {
+    Peaking,
+    LowShelf,
+    HighShelf,
+    LowPass,
+    HighPass,
+    BandPass,
+    Notch,
+}
+
+/// One band. Coefficients are computed in Rust (which knows the active sample
+/// rate); Dart only describes the band.
+#[derive(Debug, Clone, Copy)]
+pub struct EqBandSpec {
+    pub band_type: EqBandType,
+    pub freq_hz: f32,
+    pub gain_db: f32,
+    pub q: f32,
+}
+
+/// Fixed center frequencies (Hz) for graphic mode (Dart builds peaking specs
+/// at these frequencies).
 pub const BAND_FREQS_HZ: [f32; 10] = [
     32.0, 64.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
 ];
 
-const Q: f32 = 1.0;
-const NUM_BANDS: usize = 10;
+/// ponytail: fixed ceiling matching Dart maxParametricBands (31). Variable
+/// count is an active_bands count over this fixed array, keeping process()
+/// allocation-free and the double-buffered swap lock-free. Bump MAX_BANDS
+/// (and the Dart max) if a higher ceiling is ever needed.
+pub const MAX_BANDS: usize = 31;
+
 const COEFFS_PER_BAND: usize = 5;
 
 /// Biquad coeffs per band: b0, b1, b2, a1, a2 (a0 normalized to 1).
 #[derive(Clone, Copy)]
 pub struct EqParams {
     pub enabled: bool,
-    pub coeffs: [[f32; COEFFS_PER_BAND]; NUM_BANDS],
+    pub active_bands: usize,
+    pub coeffs: [[f32; COEFFS_PER_BAND]; MAX_BANDS],
 }
 
 impl EqParams {
     pub fn disabled() -> Self {
         Self {
             enabled: false,
-            coeffs: [[1.0, 0.0, 0.0, 0.0, 0.0]; NUM_BANDS],
+            active_bands: 0,
+            coeffs: [[1.0, 0.0, 0.0, 0.0, 0.0]; MAX_BANDS],
         }
     }
 
-    /// Build from band gains in dB and sample rate.
-    pub fn from_gains_db(gains_db: &[f32; NUM_BANDS], sample_rate: u32) -> Self {
+    /// Build from variable band specs at a given sample rate.
+    pub fn from_specs(specs: &[EqBandSpec], sample_rate: u32) -> Self {
         let fs = sample_rate as f32;
-        let mut coeffs = [[0.0f32; COEFFS_PER_BAND]; NUM_BANDS];
-        for (i, &gain_db) in gains_db.iter().enumerate() {
-            let f0 = BAND_FREQS_HZ[i];
-            let (b0, b1, b2, a1, a2) = peaking_coeffs(f0, gain_db, Q, fs);
-            coeffs[i] = [b0, b1, b2, a1, a2];
+        let mut coeffs = [[1.0f32; COEFFS_PER_BAND]; MAX_BANDS];
+        let n = specs.len().min(MAX_BANDS);
+        for (i, spec) in specs.iter().take(n).enumerate() {
+            coeffs[i] = biquad_coeffs(*spec, fs);
         }
         Self {
             enabled: true,
+            active_bands: n,
             coeffs,
         }
     }
 }
 
-/// Peaking EQ: A = 10^(dBgain/40), w0 = 2*pi*f0/Fs, alpha = sin(w0)/(2*Q).
-fn peaking_coeffs(f0: f32, gain_db: f32, q: f32, fs: f32) -> (f32, f32, f32, f32, f32) {
-    let a = 10.0f32.powf(gain_db / 40.0);
+/// RBJ Audio Cookbook coefficients for a band, normalized (a0 = 1).
+/// f0 is clamped below Nyquist and Q to a positive floor to stay stable.
+fn biquad_coeffs(spec: EqBandSpec, fs: f32) -> [f32; COEFFS_PER_BAND] {
+    let nyq = fs * 0.5;
+    let f0 = spec.freq_hz.clamp(1.0, nyq * 0.99);
+    let q = spec.q.clamp(0.2, 20.0);
+
     let w0 = 2.0 * PI * f0 / fs;
     let cos_w0 = w0.cos();
     let sin_w0 = w0.sin();
     let alpha = sin_w0 / (2.0 * q);
-    let b0 = 1.0 + alpha * a;
-    let b1 = -2.0 * cos_w0;
-    let b2 = 1.0 - alpha * a;
-    let a0 = 1.0 + alpha / a;
-    let a1 = -2.0 * cos_w0;
-    let a2 = 1.0 - alpha / a;
-    (b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
+
+    let (b0, b1, b2, a0, a1, a2) = match spec.band_type {
+        EqBandType::Peaking => {
+            let a = 10.0f32.powf(spec.gain_db / 40.0);
+            (
+                1.0 + alpha * a,
+                -2.0 * cos_w0,
+                1.0 - alpha * a,
+                1.0 + alpha / a,
+                -2.0 * cos_w0,
+                1.0 - alpha / a,
+            )
+        }
+        EqBandType::LowShelf => {
+            let a = 10.0f32.powf(spec.gain_db / 40.0);
+            let sq = a.sqrt();
+            (
+                a * ((a + 1.0) - (a - 1.0) * cos_w0 + 2.0 * sq * alpha),
+                2.0 * a * ((a - 1.0) - (a + 1.0) * cos_w0),
+                a * ((a + 1.0) - (a - 1.0) * cos_w0 - 2.0 * sq * alpha),
+                (a + 1.0) + (a - 1.0) * cos_w0 + 2.0 * sq * alpha,
+                -2.0 * ((a - 1.0) + (a + 1.0) * cos_w0),
+                (a + 1.0) + (a - 1.0) * cos_w0 - 2.0 * sq * alpha,
+            )
+        }
+        EqBandType::HighShelf => {
+            let a = 10.0f32.powf(spec.gain_db / 40.0);
+            let sq = a.sqrt();
+            (
+                a * ((a + 1.0) + (a - 1.0) * cos_w0 + 2.0 * sq * alpha),
+                -2.0 * a * ((a - 1.0) + (a + 1.0) * cos_w0),
+                a * ((a + 1.0) + (a - 1.0) * cos_w0 - 2.0 * sq * alpha),
+                (a + 1.0) - (a - 1.0) * cos_w0 + 2.0 * sq * alpha,
+                2.0 * ((a - 1.0) - (a + 1.0) * cos_w0),
+                (a + 1.0) - (a - 1.0) * cos_w0 - 2.0 * sq * alpha,
+            )
+        }
+        EqBandType::LowPass => (
+            (1.0 - cos_w0) / 2.0,
+            1.0 - cos_w0,
+            (1.0 - cos_w0) / 2.0,
+            1.0 + alpha,
+            -2.0 * cos_w0,
+            1.0 - alpha,
+        ),
+        EqBandType::HighPass => (
+            (1.0 + cos_w0) / 2.0,
+            -(1.0 + cos_w0),
+            (1.0 + cos_w0) / 2.0,
+            1.0 + alpha,
+            -2.0 * cos_w0,
+            1.0 - alpha,
+        ),
+        EqBandType::BandPass => (
+            alpha,
+            0.0,
+            -alpha,
+            1.0 + alpha,
+            -2.0 * cos_w0,
+            1.0 - alpha,
+        ),
+        EqBandType::Notch => (
+            1.0,
+            -2.0 * cos_w0,
+            1.0,
+            1.0 + alpha,
+            -2.0 * cos_w0,
+            1.0 - alpha,
+        ),
+    };
+
+    [
+        b0 / a0,
+        b1 / a0,
+        b2 / a0,
+        a1 / a0,
+        a2 / a0,
+    ]
 }
 
 /// Per-channel, per-band biquad state: x1, x2, y1, y2.
 type BandState = [f32; 4];
-type ChannelState = [BandState; NUM_BANDS];
+type ChannelState = [BandState; MAX_BANDS];
 
-/// Double-buffered params for lock-free updates from command thread.
+/// Double-buffered params for lock-free updates from the command thread.
 /// State is per-channel (not double-buffered) for stereo processing.
 pub struct Equalizer {
     params: [EqParams; 2],
@@ -78,14 +183,14 @@ impl Equalizer {
         Self {
             params: [EqParams::disabled(), EqParams::disabled()],
             index: AtomicU8::new(0),
-            state: [[[0.0; 4]; NUM_BANDS]; 2],
+            state: [[[0.0; 4]; MAX_BANDS]; 2],
         }
     }
 
     /// Called from command thread. sample_rate must match engine.
-    pub fn set(&mut self, enabled: bool, gains_db: &[f32; NUM_BANDS], sample_rate: u32) {
+    pub fn set(&mut self, enabled: bool, specs: &[EqBandSpec], sample_rate: u32) {
         let next = if enabled {
-            EqParams::from_gains_db(gains_db, sample_rate)
+            EqParams::from_specs(specs, sample_rate)
         } else {
             EqParams::disabled()
         };
@@ -110,27 +215,25 @@ impl Equalizer {
     /// Process interleaved buffer in place. channels = 2.
     pub fn process(&mut self, buf: &mut [f32], channels: usize) {
         let p = self.current_params();
-        if !p.enabled {
+        if !p.enabled || p.active_bands == 0 {
             return;
         }
-        // Clamp channels to available state buffers (typically 2 for stereo)
         let max_channels = self.state.len().min(channels);
         let frames = buf.len() / channels;
+        let active = p.active_bands;
         for f in 0..frames {
             for ch in 0..max_channels {
                 let idx = f * channels + ch;
                 let x0 = buf[idx];
-                buf[idx] = process_sample_chain(x0, &p.coeffs, &mut self.state[ch]);
+                buf[idx] =
+                    process_sample_chain(x0, &p.coeffs[..active], &mut self.state[ch][..active]);
             }
         }
     }
 }
 
-fn process_sample_chain(
-    x0: f32,
-    coeffs: &[[f32; COEFFS_PER_BAND]; NUM_BANDS],
-    state: &mut ChannelState,
-) -> f32 {
+#[inline]
+fn process_sample_chain(x0: f32, coeffs: &[[f32; COEFFS_PER_BAND]], state: &mut [BandState]) -> f32 {
     let mut x = x0;
     for (b, s) in coeffs.iter().zip(state.iter_mut()) {
         let (b0, b1, b2, a1, a2) = (b[0], b[1], b[2], b[3], b[4]);
@@ -143,4 +246,104 @@ fn process_sample_chain(
         x = y0;
     }
     x
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn peaking_zero_gain_is_unity() {
+        // 0 dB peaking band has unity transfer function: numerator == denominator
+        // (b0==1 and b==a after a0 normalization), i.e. H(z)=1, not identity coeffs.
+        let fs = 48000.0_f32;
+        let spec = EqBandSpec {
+            band_type: EqBandType::Peaking,
+            freq_hz: 1000.0,
+            gain_db: 0.0,
+            q: 1.0,
+        };
+        let c = biquad_coeffs(spec, fs);
+        assert!((c[0] - 1.0).abs() < 1e-5, "b0={}", c[0]);
+        assert!((c[1] - c[3]).abs() < 1e-5, "b1={} a1={}", c[1], c[3]);
+        assert!((c[2] - c[4]).abs() < 1e-5, "b2={} a2={}", c[2], c[4]);
+    }
+
+    #[test]
+    fn process_bypasses_when_disabled() {
+        let mut eq = Equalizer::new();
+        let mut buf = [0.1_f32, 0.2, 0.3, 0.4];
+        eq.set(false, &[], 48000);
+        eq.process(&mut buf, 2);
+        // untouched
+        assert_eq!(buf, [0.1, 0.2, 0.3, 0.4]);
+    }
+
+    #[test]
+    fn process_identity_with_zero_gain_peaking() {
+        let mut eq = Equalizer::new();
+        let specs = [EqBandSpec {
+            band_type: EqBandType::Peaking,
+            freq_hz: 1000.0,
+            gain_db: 0.0,
+            q: 1.0,
+        }];
+        eq.set(true, &specs, 48000);
+        let mut buf = [0.5_f32, -0.5, 0.25, -0.25];
+        let original = buf;
+        eq.process(&mut buf, 2);
+        for (got, want) in buf.iter().zip(original.iter()) {
+            assert!((got - want).abs() < 1e-5, "got {got} want {want}");
+        }
+    }
+
+    #[test]
+    fn variable_band_count_processes_active_only() {
+        // 3 specs => only 3 bands active; a 4th stale slot must not run.
+        let mut eq = Equalizer::new();
+        let specs = [
+            EqBandSpec {
+                band_type: EqBandType::Peaking,
+                freq_hz: 100.0,
+                gain_db: 6.0,
+                q: 1.0,
+            },
+            EqBandSpec {
+                band_type: EqBandType::HighShelf,
+                freq_hz: 4000.0,
+                gain_db: 3.0,
+                q: 0.7,
+            },
+            EqBandSpec {
+                band_type: EqBandType::Notch,
+                freq_hz: 50.0,
+                gain_db: 0.0,
+                q: 2.0,
+            },
+        ];
+        eq.set(true, &specs, 48000);
+        let p = eq.current_params();
+        assert_eq!(p.active_bands, 3);
+        let mut buf = [0.5_f32; 8];
+        eq.process(&mut buf, 2);
+        // Nonzero boost band must change the sample (not identity).
+        assert!(buf[0].abs() > 1e-6);
+    }
+
+    #[test]
+    fn high_freq_clamps_below_nyquist() {
+        // freq above Nyquist must not blow up (clamped internally).
+        let c = biquad_coeffs(
+            EqBandSpec {
+                band_type: EqBandType::Peaking,
+                freq_hz: 30000.0,
+                gain_db: 9.0,
+                q: 1.0,
+            },
+            48000.0,
+        );
+        for v in c.iter() {
+            assert!(v.is_finite(), "non-finite coeff {c:?}");
+        }
+    }
 }
