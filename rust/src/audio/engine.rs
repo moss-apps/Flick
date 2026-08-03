@@ -2441,10 +2441,11 @@ pub(crate) fn audio_callback(
         return;
     }
 
-    // No EQ, no dynamics, no speed, no crossfade. Gain is applied for
-    // volume control (a no-op when DAC hardware volume is available).
+    // Passthrough: raw samples from decoder straight to output. Volume is
+    // intentionally never applied here — bit-perfect means the DAC (UAC2
+    // hardware volume) is the only volume authority. Software gain would
+    // corrupt the stream.
     if data.is_passthrough() {
-        let gain = data.get_gain();
         let mut sources = match data.sources.try_lock() {
             Some(s) => s,
             None => {
@@ -2459,9 +2460,6 @@ pub(crate) fn audio_callback(
         }
         if read < output.len() {
             output[read..].fill(0.0);
-        }
-        for sample in output[..read].iter_mut() {
-            *sample *= gain;
         }
         return;
     }
@@ -2869,10 +2867,16 @@ fn command_processing_loop(
                         } else {
                             PipelineMode::Dsp
                         };
-                        callback_data.set_pipeline_mode(mode);
                         callback_data
                             .base_pipeline_mode
                             .store(mode as u8, Ordering::Relaxed);
+                        // Keep an active DoP stream in DoP mode. The new base
+                        // mode is restored when the raw override ends.
+                        if callback_data.pipeline_mode.load(Ordering::Relaxed)
+                            != PipelineMode::Dop as u8
+                        {
+                            callback_data.set_pipeline_mode(mode);
+                        }
                     }
                     AudioCommand::SetDopOverride { is_dop } => {
                         if is_dop {
@@ -3361,11 +3365,27 @@ mod tests {
     }
 
     #[test]
-    fn callback_passthrough_applies_volume() {
+    fn callback_passthrough_ignores_volume() {
         let data = build_passthrough_callback_data(48_000, 2);
         let input = vec![0.0, 0.25, -0.5, 0.5, -0.25, 0.0, 1.0, -1.0];
 
         data.set_volume(0.25);
+        data.sources
+            .lock()
+            .set_current(build_source(&input, 48_000, 2));
+
+        let output = run_callback(&data, input.len());
+
+        assert_eq!(output, input);
+    }
+
+    #[test]
+    fn callback_applies_volume_after_switching_to_dsp() {
+        let data = build_passthrough_callback_data(48_000, 2);
+        let input = vec![0.5, -0.5, 0.25, -0.25];
+
+        data.set_volume(0.25);
+        data.set_pipeline_mode(PipelineMode::Dsp);
         data.sources
             .lock()
             .set_current(build_source(&input, 48_000, 2));
@@ -3398,21 +3418,6 @@ mod tests {
         let output = run_callback(&data, 8);
 
         assert_eq!(output, vec![0.0; 8]);
-    }
-
-    #[test]
-    fn callback_passthrough_passthrough_at_volume_1() {
-        let data = build_passthrough_callback_data(48_000, 2);
-        let input = vec![0.0, 0.25, -0.5, 0.5, -0.25, 0.0, 1.0, -1.0];
-
-        data.set_volume(1.0);
-        data.sources
-            .lock()
-            .set_current(build_source(&input, 48_000, 2));
-
-        let output = run_callback(&data, input.len());
-
-        assert_eq!(output, input);
     }
 
     #[test]
