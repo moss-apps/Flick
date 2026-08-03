@@ -405,6 +405,12 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setRightActionButton(value);
   }
 
+  Future<void> setCenterActionButton(String value) async {
+    if (state.centerActionButton == value) return;
+    state = state.copyWith(centerActionButton: value);
+    await ref.read(appPreferencesServiceProvider).setCenterActionButton(value);
+  }
+
   Future<void> setWelcomeCardDismissed(bool value) async {
     if (state.welcomeCardDismissed == value) return;
     state = state.copyWith(welcomeCardDismissed: value);
