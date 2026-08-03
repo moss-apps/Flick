@@ -61,21 +61,23 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
                   ),
                 ],
               ),
-              if (widget.playerService.isSleepTimerActive)
-                TextButton(
-                  onPressed: () {
-                    widget.playerService.cancelSleepTimer();
-                    Navigator.pop(context);
+              ValueListenableBuilder<Duration?>(
+                valueListenable:
+                    widget.playerService.sleepTimerRemainingNotifier,
+                builder: (context, remaining, _) => Switch(
+                  value: remaining != null,
+                  activeThumbColor: AppColors.accent,
+                  onChanged: (on) {
+                    if (on) {
+                      widget.playerService.setSleepTimer(
+                        Duration(minutes: _value.round()),
+                      );
+                    } else {
+                      widget.playerService.cancelSleepTimer();
+                    }
                   },
-                  child: const Text(
-                    'Cancel Timer',
-                    style: TextStyle(
-                      fontFamily: 'ProductSans',
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
                 ),
+              ),
             ],
           ),
           const SizedBox(height: 8),

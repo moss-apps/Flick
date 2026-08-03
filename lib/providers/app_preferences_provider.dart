@@ -405,10 +405,20 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setRightActionButton(value);
   }
 
-  Future<void> setCenterActionButton(String value) async {
-    if (state.centerActionButton == value) return;
-    state = state.copyWith(centerActionButton: value);
-    await ref.read(appPreferencesServiceProvider).setCenterActionButton(value);
+  Future<void> setLeftTopActionButton(String value) async {
+    if (state.leftTopActionButton == value) return;
+    state = state.copyWith(leftTopActionButton: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setLeftTopActionButton(value);
+  }
+
+  Future<void> setRightTopActionButton(String value) async {
+    if (state.rightTopActionButton == value) return;
+    state = state.copyWith(rightTopActionButton: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setRightTopActionButton(value);
   }
 
   Future<void> setWelcomeCardDismissed(bool value) async {

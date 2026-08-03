@@ -319,7 +319,19 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                       icon: Icons.swap_horiz_rounded,
                       children: [
                         _PlayerActionButtonSelector(
-                          label: 'Left button',
+                          label: 'Left (top)',
+                          currentValue: PlayerActionButtonX.fromStorageValue(
+                            appPrefs.leftTopActionButton,
+                          ),
+                          onChanged: (action) {
+                            prefsNotifier.setLeftTopActionButton(
+                              action.storageValue,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        _PlayerActionButtonSelector(
+                          label: 'Left (bottom)',
                           currentValue: PlayerActionButtonX.fromStorageValue(
                             appPrefs.leftActionButton,
                           ),
@@ -331,19 +343,19 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                         ),
                         const SizedBox(height: 8),
                         _PlayerActionButtonSelector(
-                          label: 'Center button',
+                          label: 'Right (top)',
                           currentValue: PlayerActionButtonX.fromStorageValue(
-                            appPrefs.centerActionButton,
+                            appPrefs.rightTopActionButton,
                           ),
                           onChanged: (action) {
-                            prefsNotifier.setCenterActionButton(
+                            prefsNotifier.setRightTopActionButton(
                               action.storageValue,
                             );
                           },
                         ),
                         const SizedBox(height: 8),
                         _PlayerActionButtonSelector(
-                          label: 'Right button',
+                          label: 'Right (bottom)',
                           currentValue: PlayerActionButtonX.fromStorageValue(
                             appPrefs.rightActionButton,
                           ),

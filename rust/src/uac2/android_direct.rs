@@ -4533,7 +4533,27 @@ fn run_usb_render_loop(
             continue;
         }
 
-        if playback_format.is_dop || playback_format.dsd_transport == DsdTransportMode::Native {
+        let is_raw_bitstream =
+            playback_format.is_dop || playback_format.dsd_transport == DsdTransportMode::Native;
+
+        // ponytail: direct-USB runs the engine in Passthrough, so audio_callback
+        // returns raw decoder samples WITHOUT applying engine gain. Apply it here
+        // for the PCM path so DACs without UAC2 HW volume get audible software
+        // gain. When HW volume is active, _reconcileVolumeForTier pins engine
+        // gain to 1.0, so this is a no-op (bit-perfect preserved). DSP-mode
+        // (tuning/crossfade/pitch) makes is_passthrough() false and audio_callback
+        // already applied gain, so we skip to avoid double-apply. Raw DSD/DoP
+        // bitstreams are skipped to avoid corrupting framing markers.
+        if !is_raw_bitstream && callback_data.is_passthrough() {
+            let gain = callback_data.get_gain();
+            if gain != 1.0 {
+                for sample in render_buffer.iter_mut() {
+                    *sample *= gain;
+                }
+            }
+        }
+
+        if is_raw_bitstream {
             for (dst, src) in pcm_samples.iter_mut().zip(render_buffer.iter()) {
                 *dst = src.to_bits() as i32;
             }

@@ -329,6 +329,16 @@ class RustAudioService {
     await rust_audio.audioSetVolume(volume: clampedVolume);
   }
 
+  /// Select the callback's base pipeline mode.
+  Future<void> setPipelineModePassthrough(bool enabled) async {
+    if (!_initialized) return;
+    try {
+      rust_audio.audioSetPipelineModePassthrough(enabled: enabled);
+    } catch (e) {
+      devLog('[RustAudio] Failed to set pipeline mode: $e');
+    }
+  }
+
   /// Enable or disable crossfade.
   Future<void> setCrossfade({
     required bool enabled,

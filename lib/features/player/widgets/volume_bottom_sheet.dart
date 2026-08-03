@@ -18,15 +18,14 @@ class VolumeBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initialVolume = playerService.currentVolume;
+    final isAvailable = playerService.isVolumeAvailable;
     double currentVolume = initialVolume;
     return StatefulBuilder(
       builder: (context, setSheetState) {
         return Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(24),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border.all(color: AppColors.glassBorder),
           ),
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -80,14 +79,18 @@ class VolumeBottomSheet extends StatelessWidget {
                       max: 1.0,
                       divisions: 100,
                       label: '${(currentVolume * 100).round()}%',
-                      onChanged: (value) {
-                        setSheetState(() {
-                          currentVolume = value;
-                        });
-                      },
-                      onChangeEnd: (value) async {
-                        await playerService.setVolume(value);
-                      },
+                      onChanged: isAvailable
+                          ? (value) {
+                              setSheetState(() {
+                                currentVolume = value;
+                              });
+                            }
+                          : null,
+                      onChangeEnd: isAvailable
+                          ? (value) async {
+                              await playerService.setVolume(value);
+                            }
+                          : null,
                       activeColor: AppColors.accent,
                       inactiveColor: AppColors.textTertiary.withValues(
                         alpha: 0.3,
@@ -101,6 +104,17 @@ class VolumeBottomSheet extends StatelessWidget {
                   ),
                 ],
               ),
+              if (!isAvailable) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Volume is fixed while bit-perfect passthrough is active and this DAC has no hardware volume control.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
             ],
           ),

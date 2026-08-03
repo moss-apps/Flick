@@ -40,26 +40,48 @@ import 'package:flick/services/alac_converter_service.dart';
 import 'package:flick/services/remote_source_service.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
-enum HwVolumeCapability { unknown, supported, unsupported }
-
 /// Volume Control State Machine:
 ///
-/// ┌──────────┐  SET_CUR OK   ┌───────────┐
-/// │ UNKNOWN  │──────────────►│ HARDWARE  │
-/// │          │               │ engine=1.0│
-/// └──────────┘               └─────┬─────┘
-///      │                           │
-///      │ SET_CUR fail              │ GET_CUR mismatch
-///      │                           │ (health check fail)
-///      ▼                           ▼
-/// ┌──────────┐               ┌───────────┐
-/// │ SOFTWARE │◄──────────────│           │
-/// │ engine=V │  fallback     │           │
-/// └──────────┘               └───────────┘
+/// Tier evaluation: [determineVolumeTier] — for the direct USB / DAP
+/// bit-perfect paths it trusts `Uac2DeviceStatus.volumeMode` (computed
+/// natively from `nativeHasRustDirectUsbHardwareVolume()`), the single
+/// authoritative source. [PlayerService] feeds it a lie-detector flag
+/// (`hwVolumeFailed`) when a DAC that claimed hardware volume rejects
+/// writes / fails the GET_CUR health check.
 ///
-/// Reconciliation: [_reconcileVolumeForTier]
-/// Tier evaluation: [_determineCurrentTier]
-enum VolumeTier { hardware, software, system }
+/// Reconciliation: [PlayerService._reconcileVolumeForTier]
+enum VolumeTier { hardware, software, system, unavailable }
+
+/// Pure tier decision for [PlayerService._determineCurrentTier].
+///
+/// - Outside the bit-perfect volume path: Rust → software, else system.
+/// - DoP: only DAC hardware volume (or the opt-in PCM-decimation switch)
+///   can change level — software gain corrupts DoP markers.
+/// - Hardware mode trusted → hardware tier.
+/// - Otherwise engine gain only works on the DSP path; bit-perfect
+///   passthrough must never be scaled → unavailable.
+VolumeTier determineVolumeTier({
+  required bool isBitPerfectVolumePath,
+  required Uac2VolumeMode? volumeMode,
+  required bool hwVolumeFailed,
+  required bool isDoP,
+  required bool autoSwitchDsdForVolume,
+  required bool isPassthrough,
+  required bool usingRustBackend,
+}) {
+  if (!isBitPerfectVolumePath) {
+    return usingRustBackend ? VolumeTier.software : VolumeTier.system;
+  }
+  final hwTrusted = volumeMode == Uac2VolumeMode.hardware && !hwVolumeFailed;
+  if (isDoP) {
+    if (hwTrusted) return VolumeTier.hardware;
+    return autoSwitchDsdForVolume
+        ? VolumeTier.software
+        : VolumeTier.unavailable;
+  }
+  if (hwTrusted) return VolumeTier.hardware;
+  return isPassthrough ? VolumeTier.unavailable : VolumeTier.software;
+}
 
 /// Loop mode for playback
 enum LoopMode {
@@ -381,7 +403,9 @@ class PlayerService {
 
   double get currentVolume => _currentVolume;
 
-  HwVolumeCapability _hwVolumeCap = HwVolumeCapability.unknown;
+  /// Lie-detector: set when a DAC that claimed hardware volume rejects
+  /// writes or fails the GET_CUR health check.
+  bool _hwVolumeFailed = false;
   VolumeTier _activeTier = VolumeTier.system;
 
   // Timer to periodically save position
@@ -577,7 +601,9 @@ class PlayerService {
   }
 
   void _initUsbDacDisconnectHandling() {
-    _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((_) async {
+    _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((
+      _,
+    ) async {
       if (!isPlayingNotifier.value) return;
       final enabled = await _appPreferencesService.getPauseOnUsbDacDisconnect();
       if (enabled) pause();
@@ -585,7 +611,9 @@ class PlayerService {
   }
 
   void _initUsbDacAttachHandling() {
-    _usbDacAttachSubscription = _uac2Service.deviceAttachedEvents.listen((_) async {
+    _usbDacAttachSubscription = _uac2Service.deviceAttachedEvents.listen((
+      _,
+    ) async {
       if (!isPlayingNotifier.value) return;
       final enabled = await _appPreferencesService.getPauseOnUsbDacConnect();
       if (enabled) pause();
@@ -597,20 +625,20 @@ class PlayerService {
   /// signed with the platform key, so the post-set verify loop in
   /// [BluetoothService.setCodecConfig] logs the real outcome.
   Future<void> _applyBluetoothCodecPrefs() async {
-    final enabled =
-        await _appPreferencesService.getBtEnableCodecControl();
+    final enabled = await _appPreferencesService.getBtEnableCodecControl();
     if (!enabled) return;
     final codecType = await _appPreferencesService.getBtPreferredCodec();
     if (codecType < 0) return; // automatic; nothing to force
     final devices = await BluetoothService.instance.getConnectedDevices();
-    final preferred = await _appPreferencesService.getPreferredBluetoothDevice();
+    final preferred = await _appPreferencesService
+        .getPreferredBluetoothDevice();
     final target = devices.isEmpty
         ? null
         : (preferred.isNotEmpty
-              ? devices.where((d) => d.address == preferred).firstOrNull
-              : null) ??
-            devices.where((d) => d.isA2dp).firstOrNull ??
-            devices.first;
+                  ? devices.where((d) => d.address == preferred).firstOrNull
+                  : null) ??
+              devices.where((d) => d.isA2dp).firstOrNull ??
+              devices.first;
     if (target == null) return;
     final sampleRate = await _appPreferencesService.getBtSampleRate();
     final bits = codecType == BluetoothCodecType.ldac
@@ -638,11 +666,10 @@ class PlayerService {
     final disconnectTime = _bluetoothDisconnectedAt;
     if (disconnectTime == null) return;
     _bluetoothDisconnectedAt = null;
-    final resumeEnabled =
-        await _appPreferencesService.getResumeOnBluetoothReconnect();
+    final resumeEnabled = await _appPreferencesService
+        .getResumeOnBluetoothReconnect();
     if (!resumeEnabled) return;
-    if (DateTime.now().difference(disconnectTime) >
-        _bluetoothReconnectWindow) {
+    if (DateTime.now().difference(disconnectTime) > _bluetoothReconnectWindow) {
       return;
     }
     if (currentSongNotifier.value == null || isPlayingNotifier.value) return;
@@ -656,8 +683,8 @@ class PlayerService {
   // On Bluetooth connect: pause if opted in (overrides resume-on-reconnect);
   // otherwise fall back to the resume-on-reconnect behaviour.
   Future<void> _maybePauseOnBluetoothConnect() async {
-    final pauseOnConnect =
-        await _appPreferencesService.getPauseOnBluetoothConnect();
+    final pauseOnConnect = await _appPreferencesService
+        .getPauseOnBluetoothConnect();
     if (pauseOnConnect && isPlayingNotifier.value) {
       _bluetoothDisconnectedAt = null;
       _debugLog('[Bluetooth] Connected; pausing due to pause-on-connect pref');
@@ -670,7 +697,8 @@ class PlayerService {
   Future<void> _loadCrossfadePreferences() async {
     final enabled = await _appPreferencesService.getCrossfadeEnabled();
     final duration = await _appPreferencesService.getCrossfadeDurationSecs();
-    _crossfadeCurveIndex = await _appPreferencesService.getCrossfadeCurveIndex();
+    _crossfadeCurveIndex = await _appPreferencesService
+        .getCrossfadeCurveIndex();
     _rustAudioService.crossfadeEnabledNotifier.value = enabled;
     _rustAudioService.crossfadeDurationNotifier.value = duration;
   }
@@ -687,7 +715,7 @@ class PlayerService {
   ///   to keep it in sync after status refreshes.
   void _mirrorUsbVolumeFromUac2Status(Uac2DeviceStatus? status) {
     if (status == null) {
-      _hwVolumeCap = HwVolumeCapability.unknown;
+      _hwVolumeFailed = false;
       unawaited(_reconcileVolumeForTier(_determineCurrentTier()));
       return;
     }
@@ -706,6 +734,7 @@ class PlayerService {
       if (_usingRustBackend && _rustAudioService.isInitialized) {
         unawaited(_rustAudioService.setVolume(_currentVolume));
       }
+      unawaited(_reconcileVolumeForTier(_determineCurrentTier()));
     }
   }
 
@@ -770,7 +799,8 @@ class PlayerService {
     final wasEnabled = _rustAudioService.crossfadeEnabledNotifier.value;
     _rustAudioService.crossfadeEnabledNotifier.value = enabled;
     _rustAudioService.crossfadeDurationNotifier.value = durationSecs;
-    _crossfadeCurveIndex = await _appPreferencesService.getCrossfadeCurveIndex();
+    _crossfadeCurveIndex = await _appPreferencesService
+        .getCrossfadeCurveIndex();
 
     if (_usingRustBackend) {
       await _applyRustPlaybackProcessingPolicy(currentEngineType);
@@ -1205,7 +1235,9 @@ class PlayerService {
     );
   }
 
-  Future<void> setAudioEnginePreference(AudioEnginePreference preference) async {
+  Future<void> setAudioEnginePreference(
+    AudioEnginePreference preference,
+  ) async {
     await _preferencesService.setAudioEnginePreference(preference);
     await initAudio();
     await _sessionManager.syncRouteSelection(
@@ -1430,10 +1462,10 @@ class PlayerService {
           loopModeNotifier.value != LoopMode.all,
       crossfadeConfigProvider: () {
         final curves = AndroidCrossfadeCurve.values;
-        final curve =
-            curves[_crossfadeCurveIndex.clamp(0, curves.length - 1)];
+        final curve = curves[_crossfadeCurveIndex.clamp(0, curves.length - 1)];
         return AndroidCrossfadeConfig(
-          enabled: _rustAudioService.crossfadeEnabledNotifier.value &&
+          enabled:
+              _rustAudioService.crossfadeEnabledNotifier.value &&
               !isBitPerfectProcessingLocked,
           durationSecs: _rustAudioService.crossfadeDurationNotifier.value,
           curve: curve,
@@ -1603,16 +1635,6 @@ class PlayerService {
         a.isNativeDsd == b.isNativeDsd;
   }
 
-  bool _shouldAttemptHardwareVolume() {
-    switch (_hwVolumeCap) {
-      case HwVolumeCapability.unsupported:
-        return false;
-      case HwVolumeCapability.supported:
-      case HwVolumeCapability.unknown:
-        return true;
-    }
-  }
-
   bool get _isDirectUsbPath =>
       Platform.isAndroid &&
       currentEngineType == AudioEngineType.usbDacExperimental;
@@ -1629,32 +1651,44 @@ class PlayerService {
   }
 
   void _onHwVolumeResult(bool success) {
-    _hwVolumeCap = success
-        ? HwVolumeCapability.supported
-        : HwVolumeCapability.unsupported;
+    _hwVolumeFailed = !success;
     unawaited(_reconcileVolumeForTier(_determineCurrentTier()));
   }
 
-  VolumeTier _determineCurrentTier() {
-    // DoP requires hardware volume; software gain corrupts DoP markers
-    // and produces silence at any level other than 100 %.
-    if (isCurrentTrackDoP && _isDirectUsbPath) {
-      return _hwVolumeCap == HwVolumeCapability.unsupported
-          ? VolumeTier.software
-          : VolumeTier.hardware;
-    }
-    if (!isBitPerfectModeEnabled || !_isDirectUsbPath) {
-      return _usingRustBackend ? VolumeTier.software : VolumeTier.system;
-    }
-    switch (_hwVolumeCap) {
-      case HwVolumeCapability.supported:
-        return VolumeTier.hardware;
-      case HwVolumeCapability.unsupported:
-        return VolumeTier.software;
-      case HwVolumeCapability.unknown:
-        return VolumeTier.software;
-    }
+  /// True when the Rust pipeline runs its pure passthrough callback, which
+  /// ignores engine volume entirely (bit-perfect guarantee). EQ/tuning,
+  /// crossfade and pitch force the DSP path, where engine gain works.
+  bool get _isPassthroughActive {
+    final passthrough =
+        audioOutputDiagnosticsNotifier.value?.passthroughAllowed ?? false;
+    if (!passthrough) return false;
+    if (Uac2PreferencesService.is432HzTuningEnabledSync) return false;
+    if (gaplessPlaybackEnabledNotifier.value) return false;
+    if ((playbackSpeedNotifier.value - 1.0).abs() > 0.001) return false;
+    return true;
   }
+
+  /// Bit-perfect volume path: direct USB DAC or DAP internal hi-res engine.
+  bool get _isBitPerfectVolumePath =>
+      isBitPerfectModeEnabled &&
+      (currentEngineType == AudioEngineType.usbDacExperimental ||
+          currentEngineType == AudioEngineType.dapInternalHighRes);
+
+  /// Whether the user can change volume right now. False in bit-perfect
+  /// passthrough when the DAC has no hardware (UAC2 Feature Unit) volume —
+  /// engine gain would corrupt the stream, so the slider must disable.
+  bool get isVolumeAvailable =>
+      _determineCurrentTier() != VolumeTier.unavailable;
+
+  VolumeTier _determineCurrentTier() => determineVolumeTier(
+    isBitPerfectVolumePath: _isBitPerfectVolumePath,
+    volumeMode: _uac2Service.currentDeviceStatus?.volumeMode,
+    hwVolumeFailed: _hwVolumeFailed,
+    isDoP: isCurrentTrackDoP && _isDirectUsbPath,
+    autoSwitchDsdForVolume: Uac2PreferencesService.autoSwitchDsdForVolumeSync,
+    isPassthrough: _isPassthroughActive,
+    usingRustBackend: _usingRustBackend,
+  );
 
   Future<void> _reconcileVolumeForTier(VolumeTier tier) async {
     _activeTier = tier;
@@ -1666,16 +1700,16 @@ class PlayerService {
     if (!_rustAudioService.isInitialized) return;
     switch (tier) {
       case VolumeTier.hardware:
-        // DoP callback ignores engine volume — keep at 1.0.
-        await _rustAudioService.setVolume(
-          isCurrentTrackDoP ? 1.0 : _bitPerfectDefaultVolume,
-        );
+        // DAC Feature Unit is the only volume authority — engine at unity.
+        await _rustAudioService.setVolume(1.0);
         break;
       case VolumeTier.software:
         await _rustAudioService.setVolume(_currentVolume);
         break;
       case VolumeTier.system:
-        await _rustAudioService.setVolume(_bitPerfectDefaultVolume);
+        await _rustAudioService.setVolume(_currentVolume);
+        break;
+      case VolumeTier.unavailable:
         break;
     }
   }
@@ -1854,8 +1888,8 @@ class PlayerService {
     // bitPerfect on USB paths comes from direct USB verification; on internal
     // DAP paths it means passthrough (no DSP) with no resampling — the DSD
     // bitstream or PCM stream reaches the DAC intact.
-    final effectiveBitPerfect = (outputStrategy == 'usb_direct' ||
-            outputStrategy == 'usb_dsd_native')
+    final effectiveBitPerfect =
+        (outputStrategy == 'usb_direct' || outputStrategy == 'usb_dsd_native')
         ? directUsbBitPerfectVerified
         : (usesRustDiagnostics && passthroughAllowed && !resamplerActive);
     final verificationReason =
@@ -2195,7 +2229,10 @@ class PlayerService {
     // Defer the streak popup when a milestone unlocks so the celebration
     // dialog owns the moment; it will fire on the next launch.
     final snoozed = await _milestoneService.isStreakPopupSnoozed();
-    if (milestone == null && !snoozed && streak >= 1 && streakPopupNotifier.value == null) {
+    if (milestone == null &&
+        !snoozed &&
+        streak >= 1 &&
+        streakPopupNotifier.value == null) {
       streakPopupNotifier.value = streak;
     }
   }
@@ -2297,7 +2334,9 @@ class PlayerService {
               autoResumeAfterFallback: !pauseOnDisconnect,
             );
             if (!fellBack) {
-              await _refreshAudioOutputDiagnostics(reason: 'Rust backend error');
+              await _refreshAudioOutputDiagnostics(
+                reason: 'Rust backend error',
+              );
             }
           } finally {
             _midStreamUsbFallbackActive = false;
@@ -2332,7 +2371,8 @@ class PlayerService {
       if (isPlayingNotifier.value != state.isPlaying) {
         isPlayingNotifier.value = state.isPlaying;
       }
-      if (!_suppressPositionUpdatesFromEngine && positionNotifier.value != state.position) {
+      if (!_suppressPositionUpdatesFromEngine &&
+          positionNotifier.value != state.position) {
         positionNotifier.value = state.position;
         if (isAbRepeatActive) {
           checkAbRepeatBoundary(state.position);
@@ -2734,7 +2774,9 @@ class PlayerService {
         sourceKey: sourceKey,
         sourcePath: resolvedPath,
       );
-      _debugLog('[WAV-conv] converted: ${convertedPath ?? "null (fallback to native)"}');
+      _debugLog(
+        '[WAV-conv] converted: ${convertedPath ?? "null (fallback to native)"}',
+      );
       if (convertedPath != null) {
         resolvedPath = convertedPath;
       }
@@ -3167,7 +3209,17 @@ class PlayerService {
       return;
     }
 
+    // The engine can remain in passthrough after bit-perfect is disabled.
+    // Select DSP before sending software volume so the callback applies it.
+    if (!isBitPerfectModeEnabled) {
+      await _rustAudioService.setPipelineModePassthrough(false);
+    }
+
     if (isBitPerfectModeEnabled) {
+      if (playbackMode == AudioEngineType.usbDacExperimental ||
+          playbackMode == AudioEngineType.dapInternalHighRes) {
+        await _rustAudioService.setPipelineModePassthrough(true);
+      }
       await _reconcileVolumeForTier(_determineCurrentTier());
       await _rustAudioService.setPlaybackSpeed(1.0);
       await _rustAudioService.setPitchShiftSemitones(0.0);
@@ -3207,7 +3259,9 @@ class PlayerService {
     }
 
     await reapplyEqualizer();
-    await _rustAudioService.setPitchShiftSemitones(pitchSemitonesNotifier.value);
+    await _rustAudioService.setPitchShiftSemitones(
+      pitchSemitonesNotifier.value,
+    );
     _updatePriorityAnchor();
   }
 
@@ -3329,9 +3383,7 @@ class PlayerService {
     // This prevents USB "Resource busy" from overlapping sessions.
     if (from != to || from == null) {
       if (_rustEngine != null) {
-        _debugLog(
-          '[Engine] Full dispose of Rust engine before ${to.logLabel}',
-        );
+        _debugLog('[Engine] Full dispose of Rust engine before ${to.logLabel}');
         await _disposeUsbEngine();
       }
       if (_justAudioPlayer != null) {
@@ -3841,8 +3893,8 @@ class PlayerService {
     if (advanceIdx >= 0 && advanceIdx < AdvanceListOrder.values.length) {
       _advanceListOrder = AdvanceListOrder.values[advanceIdx];
     }
-    wrapAroundQueueNotifier.value =
-        await _appPreferencesService.getWrapAroundQueue();
+    wrapAroundQueueNotifier.value = await _appPreferencesService
+        .getWrapAroundQueue();
   }
 
   Future<void> restoreLastPlayed() async {
@@ -4418,26 +4470,25 @@ class PlayerService {
     // DoP: software gain corrupts DoP markers (0x05/0xFA).
     // Volume must go through DAC hardware exclusively.
     if (isCurrentTrackDoP && _isDirectUsbPath) {
-      if (_shouldAttemptHardwareVolume()) {
+      final mode = _uac2Service.currentDeviceStatus?.volumeMode;
+      if (mode == Uac2VolumeMode.hardware && !_hwVolumeFailed) {
         _debugLog('[VolFlow] DoP HW path: uac2 setVolume($clampedVolume)');
         final hwOk = await _uac2Service.setVolume(clampedVolume);
         _onHwVolumeResult(hwOk);
+      } else if (Uac2PreferencesService.autoSwitchDsdForVolumeSync &&
+          clampedVolume < 1.0 &&
+          _usingRustBackend &&
+          _rustAudioService.isInitialized) {
+        // Auto-switch to PCM for software volume control.
+        // Pure DoP cannot apply software gain: it corrupts DoP markers
+        // and produces silence/hiss at any level other than 100 %.
+        // The only correct path is to restart the decoder in PCM decimation
+        // mode, where volume works via the normal audio-callback gain loop.
+        await _switchDoPForVolumeTrack(clampedVolume);
       } else {
         _debugLog(
           '[VolFlow] DoP: no hardware volume available — volume unchanged',
         );
-      }
-
-      // Auto-switch to PCM for software volume control.
-      // Pure DoP cannot apply software gain: it corrupts DoP markers
-      // and produces silence/hiss at any level other than 100 %.
-      // The only correct path is to restart the decoder in PCM decimation
-      // mode, where volume works via the normal audio-callback gain loop.
-      if (Uac2PreferencesService.autoSwitchDsdForVolumeSync &&
-          clampedVolume < 1.0 &&
-          _usingRustBackend &&
-          _rustAudioService.isInitialized) {
-        await _switchDoPForVolumeTrack(clampedVolume);
       }
       return;
     }
@@ -4446,10 +4497,14 @@ class PlayerService {
     _activeTier = tier;
     switch (tier) {
       case VolumeTier.hardware:
-        if (_shouldAttemptHardwareVolume()) {
-          _debugLog('[VolFlow] HW path: uac2 setVolume($clampedVolume)');
-          final hwOk = await _uac2Service.setVolume(clampedVolume);
-          _onHwVolumeResult(hwOk);
+        _debugLog('[VolFlow] HW path: uac2 setVolume($clampedVolume)');
+        final hwOk = await _uac2Service.setVolume(clampedVolume);
+        _onHwVolumeResult(hwOk);
+        if (!hwOk && !_isPassthroughActive && _usingRustBackend) {
+          // Lie-detector fallback: DAC claimed hardware volume but rejected
+          // the write — engine gain still works on the DSP path.
+          _debugLog('[VolFlow] HW write failed — falling back to engine gain');
+          await _rustAudioService.setVolume(clampedVolume);
         }
         break;
       case VolumeTier.software:
@@ -4463,6 +4518,11 @@ class PlayerService {
         if (player != null) {
           await player.setVolume(clampedVolume);
         }
+        break;
+      case VolumeTier.unavailable:
+        _debugLog(
+          '[VolFlow] Volume unavailable (bit-perfect passthrough) — ignored',
+        );
         break;
     }
   }
@@ -4840,13 +4900,10 @@ class PlayerService {
 
   void _ensurePositionSaveTimer() {
     _positionSaveTimer?.cancel();
-    _positionSaveTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) {
-        _savePosition();
-        _maybePrefetchNextNetworkSong();
-      },
-    );
+    _positionSaveTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _savePosition();
+      _maybePrefetchNextNetworkSong();
+    });
   }
 
   /// Last song id handed to [RemoteSourceService.prefetch]. Reset whenever the
@@ -4872,7 +4929,9 @@ class PlayerService {
         loopModeNotifier.value != LoopMode.all) {
       return;
     }
-    final nextIndex = _currentIndex >= _playlist.length - 1 ? 0 : _currentIndex + 1;
+    final nextIndex = _currentIndex >= _playlist.length - 1
+        ? 0
+        : _currentIndex + 1;
     final next = _playlist[nextIndex];
     if (!next.isNetworkSource) return;
     if (next.id == _prefetchedNextSongId) return;

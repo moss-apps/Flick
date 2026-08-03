@@ -494,11 +494,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       playerScreenMode: mode,
                       albumColor: albumColor,
                       albumColorMode: colorMode,
+                      leftTopAction: PlayerActionButtonX.fromStorageValue(
+                        appPrefs.leftTopActionButton,
+                      ),
                       leftAction: PlayerActionButtonX.fromStorageValue(
                         appPrefs.leftActionButton,
                       ),
-                      centerAction: PlayerActionButtonX.fromStorageValue(
-                        appPrefs.centerActionButton,
+                      rightTopAction: PlayerActionButtonX.fromStorageValue(
+                        appPrefs.rightTopActionButton,
                       ),
                       rightAction: PlayerActionButtonX.fromStorageValue(
                         appPrefs.rightActionButton,
@@ -536,11 +539,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                             ) ==
                             PlayerActionButton.queue ||
                         PlayerActionButtonX.fromStorageValue(
-                              appPrefs.centerActionButton,
+                              appPrefs.rightActionButton,
                             ) ==
                             PlayerActionButton.queue ||
                         PlayerActionButtonX.fromStorageValue(
-                              appPrefs.rightActionButton,
+                              appPrefs.leftTopActionButton,
+                            ) ==
+                            PlayerActionButton.queue ||
+                        PlayerActionButtonX.fromStorageValue(
+                              appPrefs.rightTopActionButton,
                             ) ==
                             PlayerActionButton.queue,
                     onRotationEnabledChanged: (enabled) {

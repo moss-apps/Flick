@@ -62,8 +62,7 @@ class _IsoVolumePopupOverlay extends ConsumerStatefulWidget {
       _IsoVolumePopupOverlayState();
 }
 
-class _IsoVolumePopupOverlayState
-    extends ConsumerState<_IsoVolumePopupOverlay>
+class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animController;
   late final Animation<double> _fadeAnimation;
@@ -90,23 +89,21 @@ class _IsoVolumePopupOverlayState
       reverseCurve: Curves.easeInCubic,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.85,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOutBack,
-      reverseCurve: Curves.easeInBack,
-    ));
+    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: Curves.easeOutBack,
+        reverseCurve: Curves.easeInBack,
+      ),
+    );
 
-    _slideAnimation = Tween<double>(
-      begin: 12.0,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    ));
+    _slideAnimation = Tween<double>(begin: 12.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      ),
+    );
 
     _animController.forward();
   }
@@ -135,53 +132,36 @@ class _IsoVolumePopupOverlayState
   Future<void> _onSliderChangeEnd(double volume) async {
     setState(() => _draggingVolume = null);
 
-    final notifier = ref.read(uac2DeviceStatusProvider.notifier);
-    final status = ref.read(uac2DeviceStatusProvider);
-    final wasMuted = status?.muted ?? false;
-    final isSoftwareVolume = status?.volumeMode == Uac2VolumeMode.software;
+    final playerService = ref.read(playerServiceProvider);
+    final wasMuted = ref.read(uac2DeviceStatusProvider)?.muted ?? false;
 
     if (wasMuted && volume > 0.0) {
-      await notifier.setMute(false);
+      await ref.read(uac2DeviceStatusProvider.notifier).setMute(false);
     }
     if (!wasMuted && volume == 0.0) {
-      final currentVol = isSoftwareVolume
-          ? ref.read(playerServiceProvider).currentVolume
-          : (status?.volume ?? 1.0);
-      _preMuteVolume = currentVol > 0.0 ? currentVol : 1.0;
-      await notifier.setMute(true);
+      _preMuteVolume = playerService.currentVolume > 0.0
+          ? playerService.currentVolume
+          : 1.0;
+      await ref.read(uac2DeviceStatusProvider.notifier).setMute(true);
     }
-    await notifier.setVolume(volume);
-
-    if (isSoftwareVolume) {
-      await ref.read(playerServiceProvider).setVolume(volume);
-    }
+    await playerService.setVolume(volume);
   }
 
   Future<void> _toggleMute() async {
     final notifier = ref.read(uac2DeviceStatusProvider.notifier);
-    final status = ref.read(uac2DeviceStatusProvider);
-    final currentMuted = status?.muted ?? false;
+    final playerService = ref.read(playerServiceProvider);
+    final currentMuted = ref.read(uac2DeviceStatusProvider)?.muted ?? false;
     final newMuted = !currentMuted;
-    final isSoftwareVolume = status?.volumeMode == Uac2VolumeMode.software;
 
     setState(() => _muteUpdateInFlight = true);
 
     if (newMuted) {
-      _preMuteVolume = (isSoftwareVolume
-              ? ref.read(playerServiceProvider).currentVolume
-              : (status?.volume ?? 1.0))
-          .clamp(0.01, 1.0);
-      final success = await notifier.setMute(true);
-      if (success) await notifier.setVolume(0.0);
-      if (isSoftwareVolume) {
-        await ref.read(playerServiceProvider).setVolume(0.0);
-      }
+      _preMuteVolume = playerService.currentVolume.clamp(0.01, 1.0);
+      await notifier.setMute(true);
+      await playerService.setVolume(0.0);
     } else {
-      await notifier.setVolume(_preMuteVolume);
+      await playerService.setVolume(_preMuteVolume);
       await notifier.setMute(false);
-      if (isSoftwareVolume) {
-        await ref.read(playerServiceProvider).setVolume(_preMuteVolume);
-      }
     }
 
     if (mounted) setState(() => _muteUpdateInFlight = false);
@@ -201,22 +181,29 @@ class _IsoVolumePopupOverlayState
     }
 
     final isSoftwareVolume = deviceStatus.volumeMode == Uac2VolumeMode.software;
-    final playerVolume = ref.read(playerServiceProvider).currentVolume;
-    final effectiveVolume = _draggingVolume ??
-        (isSoftwareVolume ? playerVolume : (deviceStatus.volume ?? 1.0));
+    final playerService = ref.read(playerServiceProvider);
+    final isAvailable = playerService.isVolumeAvailable;
+    final playerVolume = playerService.currentVolume;
+    final effectiveVolume =
+        _draggingVolume ??
+        ((isSoftwareVolume || !isAvailable)
+            ? playerVolume
+            : (deviceStatus.volume ?? playerVolume));
     final effectiveMuted = deviceStatus.muted ?? false;
     final volumeControlWritable =
-        deviceStatus.volumeControlWritable && !_muteUpdateInFlight;
-    final showDb = isSoftwareVolume ||
-        deviceStatus.volumeMode == Uac2VolumeMode.hardware;
+        deviceStatus.volumeControlWritable &&
+        isAvailable &&
+        !_muteUpdateInFlight;
+    final showDb =
+        isSoftwareVolume || deviceStatus.volumeMode == Uac2VolumeMode.hardware;
 
     final isLeft = widget.buttonPosition.dx < widget.screenSize.width / 2;
     final popupLeft = isLeft ? widget.buttonPosition.dx : null;
     final popupRight = isLeft
         ? null
         : (widget.screenSize.width -
-            widget.buttonPosition.dx -
-            widget.buttonSize.width);
+              widget.buttonPosition.dx -
+              widget.buttonSize.width);
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -244,7 +231,9 @@ class _IsoVolumePopupOverlayState
                       height: 260,
                       decoration: BoxDecoration(
                         color: AppColors.surface.withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+                        borderRadius: BorderRadius.circular(
+                          AppConstants.radiusLg,
+                        ),
                         border: Border.all(color: AppColors.glassBorder),
                       ),
                       child: Column(
@@ -255,10 +244,14 @@ class _IsoVolumePopupOverlayState
                             height: 44,
                             child: IconButton(
                               icon: Icon(
-                                effectiveMuted ? LucideIcons.volumeX : LucideIcons.volume2,
+                                effectiveMuted
+                                    ? LucideIcons.volumeX
+                                    : LucideIcons.volume2,
                                 size: 18,
                               ),
-                              onPressed: volumeControlWritable ? _toggleMute : null,
+                              onPressed: volumeControlWritable
+                                  ? _toggleMute
+                                  : null,
                               color: effectiveMuted
                                   ? Colors.red.shade400
                                   : context.adaptiveTextPrimary,
@@ -280,12 +273,15 @@ class _IsoVolumePopupOverlayState
                                 label: showDb
                                     ? '${(effectiveVolume * 100).round()}%  ${_volumeToDb(effectiveVolume)} dB'
                                     : '${(effectiveVolume * 100).round()}%',
-                                onChanged: volumeControlWritable ? _onSliderChanged : null,
-                                onChangeEnd:
-                                    volumeControlWritable ? _onSliderChangeEnd : null,
+                                onChanged: volumeControlWritable
+                                    ? _onSliderChanged
+                                    : null,
+                                onChangeEnd: volumeControlWritable
+                                    ? _onSliderChangeEnd
+                                    : null,
                                 activeColor: AppColors.accent,
-                                inactiveColor:
-                                    AppColors.textTertiary.withValues(alpha: 0.3),
+                                inactiveColor: AppColors.textTertiary
+                                    .withValues(alpha: 0.3),
                               ),
                             ),
                           ),
@@ -295,14 +291,15 @@ class _IsoVolumePopupOverlayState
                                 ? '${(effectiveVolume * 100).round()}%\n${_volumeToDb(effectiveVolume)} dB'
                                 : '${(effectiveVolume * 100).round()}%',
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
                                   color: context.adaptiveTextSecondary,
                                   fontWeight: FontWeight.w500,
                                   fontSize: 10,
                                   height: 1.2,
                                 ),
                           ),
-                          if (!deviceStatus.volumeControlWritable) ...[
+                          if (!volumeControlWritable) ...[
                             const SizedBox(height: 2),
                             Icon(
                               LucideIcons.lock,
