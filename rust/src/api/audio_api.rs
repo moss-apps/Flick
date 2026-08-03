@@ -706,6 +706,15 @@ pub fn audio_set_dap_bit_perfect_enabled(enabled: bool) {
     let _ = enabled;
 }
 
+/// Set the running Rust callback's base pipeline mode.
+///
+/// This is separate from the DAP preference because direct USB playback can
+/// leave the engine in passthrough after bit-perfect is disabled.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_set_pipeline_mode_passthrough(enabled: bool) -> Result<(), String> {
+    with_audio_engine(|handle| handle.set_pipeline_mode_passthrough(enabled))
+}
+
 /// Sync the preferred Android audio API (AAudio / OpenSL ES / Auto) from Dart.
 /// The change is staged on the engine manager and applied on the next engine
 /// (re)initialization — the live stream is reopened when the preference no
