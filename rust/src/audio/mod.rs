@@ -29,6 +29,7 @@ pub mod dynamics;
 pub mod engine;
 pub mod equalizer;
 pub mod fx;
+pub mod http_source;
 pub mod ir_loader;
 pub mod manager;
 pub mod opus_decoder;
