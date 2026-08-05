@@ -52,6 +52,16 @@ abstract class NetworkSourceService {
     void Function(double progress)? onProgress,
   });
 
+  /// Direct ranged HTTP stream URL + auth headers for [remoteId], when the
+  /// protocol supports byte-range requests. Returning non-null enables
+  /// HTTP-first playback (no cache download before play). Default: unsupported
+  /// (cache-then-play via [stream]).
+  Future<({String url, Map<String, String> headers})?> streamDescriptor(
+    NetworkServerEntity server,
+    String remoteId, {
+    String? extension,
+  }) async => null;
+
   /// Pull the full server library into the local DB as [SongEntity]s,
   /// upserting new/changed rows and deleting stale ones, yielding progress.
   Stream<ScanProgress> syncLibrary(NetworkServerEntity server);
