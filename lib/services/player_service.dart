@@ -2961,8 +2961,24 @@ class PlayerService {
       rustAudioService: _rustAudioService,
       ensureInitialized: () => _ensureRustEngineInitialized(playbackMode),
       resolvePlaybackPath: _resolveRustPath,
+      resolveHttpSource: _resolveRustHttpSource,
       disposeEngine: _disposeUsbEngine,
     );
+  }
+
+  /// HTTP-first source resolver for network songs. Returns null for local
+  /// songs or protocols without byte-range support (then the engine falls back
+  /// to cache-then-play via [_resolveRustPath]).
+  Future<({String url, Map<String, String> headers})?> _resolveRustHttpSource(
+    Song song,
+  ) async {
+    if (!song.isNetworkSource) return null;
+    try {
+      return await RemoteSourceService.instance.resolveHttpPlayback(song);
+    } catch (e) {
+      _debugLog('HTTP source resolve failed: $e');
+      return null;
+    }
   }
 
   Future<void> _ensureRustEngineInitialized(
@@ -3823,6 +3839,24 @@ class PlayerService {
 
     final nextIndex = isLastTrack ? 0 : _currentIndex + 1;
     final nextSong = _playlist[nextIndex];
+
+    // HTTP-first: try a direct ranged stream, fall back to cache-then-play.
+    if (nextSong.isNetworkSource) {
+      try {
+        final http = await RemoteSourceService.instance
+            .resolveHttpPlayback(nextSong);
+        if (http != null) {
+          await _rustAudioService.queueNextHttp(
+            url: http.url,
+            headers: http.headers,
+          );
+          return;
+        }
+      } catch (e) {
+        _debugLog('HTTP queue-next failed, falling back to cache: $e');
+      }
+    }
+
     final nextPath = await _resolveRustPath(nextSong);
     if (nextPath != null) {
       await _rustAudioService.queueNext(nextPath);
