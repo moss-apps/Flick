@@ -9,7 +9,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [features]
 default = ["native_audio", "uac2"]
 # Enable native audio engine (now enabled on Android with CPAL/Oboe)
-native_audio = ["cpal", "symphonia", "rubato", "ringbuf", "crossbeam-channel", "wavpack-sys", "opus-sys", "soundtouch-sys"]
+native_audio = ["cpal", "symphonia", "rubato", "ringbuf", "crossbeam-channel", "wavpack-sys", "opus-sys", "soundtouch-sys", "ureq"]
 # Custom UAC 2.0 USB Audio (host-side DAC/AMP support)
 uac2 = ["rusb", "libusb1-sys"]
 
@@ -47,6 +47,8 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", 
 # Audio Engine Dependencies (available on all platforms including Android)
 cpal = { path = "vendor/cpal", optional = true, features = ["oboe-shared-stdcxx"] }
 symphonia = { version = "0.5", features = ["all"], optional = true }
+# ponytail: pure-Rust rustls HTTP client; cross-compiles to Android NDK
+ureq = { version = "2", default-features = false, features = ["tls"], optional = true }
 rubato = { version = "0.15", optional = true }
 ringbuf = { version = "0.4", optional = true }
 crossbeam-channel = { version = "0.5", optional = true }
@@ -70,6 +72,7 @@ android_logger = "0.14"
 [target.'cfg(not(target_os = "android"))'.dependencies]
 cpal = { path = "vendor/cpal" }
 symphonia = { version = "0.5", features = ["all"] }
+ureq = { version = "2", default-features = false, features = ["tls"] }
 rubato = "0.15"
 ringbuf = "0.4"
 crossbeam-channel = "0.5"
