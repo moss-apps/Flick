@@ -5,9 +5,11 @@
 
 use crate::dev_eprintln;
 
+use crate::audio::http_source::HttpMediaSource;
 use crate::audio::opus_decoder;
 use crate::audio::resampler::AudioResampler;
 use crate::audio::source::{AudioSource, SourceInfo, SourceProducer};
+use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -107,6 +109,42 @@ pub fn probe_file(path: &Path) -> Result<ProbeResult, DecoderError> {
             }
         };
 
+    build_probe_result(probed, path.to_path_buf())
+}
+
+/// Probe a remote HTTP audio stream. Hint extension is derived from the URL
+/// path (auth-bearing query string is ignored). No content-based fallback —
+/// reopening an HTTP stream is wasteful and remote URLs carry reliable
+/// extensions.
+pub fn probe_http(url: &str, headers: HashMap<String, String>) -> Result<ProbeResult, DecoderError> {
+    let hint_ext = url_hint_ext(url);
+    let format_opts = FormatOptions {
+        enable_gapless: true,
+        ..Default::default()
+    };
+    let metadata_opts = MetadataOptions::default();
+
+    let mut hint = Hint::new();
+    if !hint_ext.is_empty() {
+        hint.with_extension(&hint_ext);
+    }
+
+    let src = HttpMediaSource::new(url.to_string(), headers);
+    let mss = MediaSourceStream::new(Box::new(src), Default::default());
+
+    let probed = symphonia::default::get_probe()
+        .format(&hint, mss, &format_opts, &metadata_opts)
+        .map_err(|e| DecoderError::UnsupportedFormat(format!("HTTP probe failed: {}", e)))?;
+
+    build_probe_result(probed, PathBuf::from(url_label(url)))
+}
+
+/// Build a [`ProbeResult`] from a probed format reader: locate the audio track,
+/// construct the decoder, and derive [`SourceInfo`]. Shared by file + HTTP paths.
+fn build_probe_result(
+    probed: symphonia::core::probe::ProbeResult,
+    name_path: PathBuf,
+) -> Result<ProbeResult, DecoderError> {
     let format = probed.format;
 
     // Find the first audio track
@@ -159,7 +197,7 @@ pub fn probe_file(path: &Path) -> Result<ProbeResult, DecoderError> {
     };
 
     let source_info = SourceInfo {
-        path: path.to_path_buf(),
+        path: name_path,
         original_sample_rate: sample_rate,
         output_sample_rate: sample_rate,
         channels,
@@ -173,6 +211,35 @@ pub fn probe_file(path: &Path) -> Result<ProbeResult, DecoderError> {
         decoder,
         track_id,
     })
+}
+
+/// Lowercased, ogg-normalized extension hint derived from an HTTP URL's path
+/// (query string stripped, so auth params never leak into the hint).
+fn url_hint_ext(url: &str) -> String {
+    let no_query = url.split('?').next().unwrap_or(url);
+    let after_slash = no_query.rsplit('/').next().unwrap_or(no_query);
+    let raw_ext = match after_slash.rfind('.') {
+        Some(i) => after_slash[i + 1..].to_ascii_lowercase(),
+        None => String::new(),
+    };
+    normalize_ogg_hint(&raw_ext).to_string()
+}
+
+/// Path-only label for an HTTP URL (query stripped) — used as a synthetic
+/// SourceInfo.path for decoder thread naming. Avoids leaking auth tokens.
+fn url_label(url: &str) -> String {
+    let no_query = url.split('?').next().unwrap_or(url);
+    match no_query.rfind('/') {
+        Some(i) => {
+            let name = &no_query[i + 1..];
+            if name.is_empty() {
+                "http-stream".to_string()
+            } else {
+                name.to_string()
+            }
+        }
+        None => no_query.to_string(),
+    }
 }
 
 /// Decoder thread handle.
@@ -209,6 +276,18 @@ impl DecoderThread {
             output_channels,
             start_position_secs,
         )
+    }
+
+    /// Spawn a decoder thread for a remote HTTP audio stream. PCM only —
+    /// remote DSD/WavPack is not supported over HTTP.
+    pub fn spawn_from_http(
+        url: String,
+        headers: HashMap<String, String>,
+        output_sample_rate: u32,
+        output_channels: usize,
+    ) -> Result<(AudioSource, Self), DecoderError> {
+        let probe_result = probe_http(&url, headers)?;
+        Self::spawn_from_probe_result(probe_result, output_sample_rate, output_channels, None)
     }
 
     /// Spawn a decoder thread using a probe result that has already been created.
