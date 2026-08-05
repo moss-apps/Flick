@@ -10,6 +10,8 @@ import 'package:flick/services/rust_audio_service.dart';
 typedef RustEngineInitializer = Future<void> Function();
 typedef RustEngineDisposer = Future<void> Function();
 typedef RustPlaybackPathResolver = Future<String?> Function(Song track);
+typedef RustHttpSourceResolver
+    = Future<({String url, Map<String, String> headers})?> Function(Song track);
 
 class RustAudioEngine implements AudioEngine {
   RustAudioEngine({
@@ -18,17 +20,20 @@ class RustAudioEngine implements AudioEngine {
     required RustEngineInitializer ensureInitialized,
     required RustPlaybackPathResolver resolvePlaybackPath,
     required RustEngineDisposer disposeEngine,
-  }) : _playbackMode = playbackMode,
-       _rustAudioService = rustAudioService,
-       _ensureInitialized = ensureInitialized,
-       _resolvePlaybackPath = resolvePlaybackPath,
-       _disposeEngine = disposeEngine;
+    RustHttpSourceResolver? resolveHttpSource,
+  })  : _playbackMode = playbackMode,
+        _rustAudioService = rustAudioService,
+        _ensureInitialized = ensureInitialized,
+        _resolvePlaybackPath = resolvePlaybackPath,
+        _disposeEngine = disposeEngine,
+        _resolveHttpSource = resolveHttpSource;
 
   final AudioEngineType _playbackMode;
   final RustAudioService _rustAudioService;
   final RustEngineInitializer _ensureInitialized;
   final RustPlaybackPathResolver _resolvePlaybackPath;
   final RustEngineDisposer _disposeEngine;
+  final RustHttpSourceResolver? _resolveHttpSource;
 
   final StreamController<PlaybackState> _controller =
       StreamController<PlaybackState>.broadcast();
@@ -158,6 +163,35 @@ class RustAudioEngine implements AudioEngine {
     }
 
     _needsFreshPlay = false;
+    // ponytail: HTTP-first for network sources. Try a direct ranged stream; on
+    // any failure (no ranges, auth, network) fall back to cache-then-play.
+    final httpResolver = _resolveHttpSource;
+    if (httpResolver != null) {
+      try {
+        final http = await httpResolver(track);
+        if (http != null) {
+          try {
+            await _rustAudioService.playHttp(
+              url: http.url,
+              headers: http.headers,
+            );
+            final pendingSeek = _pendingSeekPosition;
+            if (pendingSeek != null && pendingSeek > Duration.zero) {
+              await _rustAudioService.seek(pendingSeek);
+            }
+            _pendingSeekPosition = null;
+            return;
+          } catch (e) {
+            debugPrint(
+              '[RustAudioEngine] HTTP direct play failed, falling back to cache: $e',
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('[RustAudioEngine] HTTP source resolve failed: $e');
+      }
+    }
+
     final path = await _resolvePlaybackPath(track);
     if (path == null || path.isEmpty) {
       throw StateError('Failed to resolve Rust playback path');
