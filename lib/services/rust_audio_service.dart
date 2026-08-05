@@ -245,6 +245,23 @@ class RustAudioService {
     _startProgressUpdates(fast: true);
   }
 
+  /// Play a remote audio stream directly over HTTP (range-based, no cache
+  /// download before play). Auth is carried via [headers] (e.g. WebDAV Basic);
+  /// Subsonic/Jellyfin embed credentials in [url] and pass an empty map.
+  Future<void> playHttp({
+    required String url,
+    Map<String, String> headers = const {},
+  }) async {
+    if (!_initialized) {
+      throw StateError('Rust audio engine not initialized');
+    }
+    _syncDsdOutputMode();
+    _syncDsdTransportOverrides();
+    await rust_audio.audioPlayFromHttp(url: url, headers: headers);
+    _currentPath = rust_audio.audioGetCurrentPath() ?? url;
+    _startProgressUpdates(fast: true);
+  }
+
   /// Queue the next track for gapless playback.
   /// The next track will automatically start when the current one ends.
   Future<void> queueNext(String path) async {
@@ -256,6 +273,20 @@ class RustAudioService {
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
     await rust_audio.audioQueueNext(path: path);
+  }
+
+  /// Queue a remote HTTP stream as the next track for gapless playback.
+  Future<void> queueNextHttp({
+    required String url,
+    Map<String, String> headers = const {},
+  }) async {
+    if (!_initialized) {
+      throw StateError('Rust audio engine not initialized');
+    }
+    _nextPath = url;
+    _syncDsdOutputMode();
+    _syncDsdTransportOverrides();
+    await rust_audio.audioQueueNextFromHttp(url: url, headers: headers);
   }
 
   void _syncDsdOutputMode() {
