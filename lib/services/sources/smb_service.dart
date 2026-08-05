@@ -65,6 +65,13 @@ class SmbService implements NetworkSourceService {
   }
 
   @override
+  Future<({String url, Map<String, String> headers})?> streamDescriptor(
+    NetworkServerEntity server,
+    String remoteId, {
+    String? extension,
+  }) async => null;
+
+  @override
   Stream<ScanProgress> syncLibrary(NetworkServerEntity server) async* {
     throw UnsupportedError(_unavailableMessage);
   }

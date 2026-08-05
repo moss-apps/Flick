@@ -64,6 +64,30 @@ class RemoteSourceService {
     }
   }
 
+  /// Resolve a direct ranged HTTP stream for [song] when the protocol supports
+  /// byte-range requests. Returns null when unsupported (UPnP/SMB) or on
+  /// resolve failure — callers fall back to cache-then-play via [ensureLocal].
+  Future<({String url, Map<String, String> headers})?> resolveHttpPlayback(
+    Song song,
+  ) async {
+    if (!song.isNetworkSource) return null;
+    final sourceType = song.sourceType;
+    final remoteId = song.remoteId;
+    if (sourceType == null || remoteId == null) return null;
+    try {
+      final server = await _serverFor(song);
+      final service = networkSourceServiceFor(sourceType);
+      return await service.streamDescriptor(
+        server,
+        remoteId,
+        extension: song.fileType,
+      );
+    } catch (e) {
+      AppLog.instance.add('HTTP stream resolve failed for "${song.title}": $e');
+      return null;
+    }
+  }
+
   /// Background prefetch for the next queue entry. Best effort: never throws,
   /// does not touch [downloadProgressNotifier] (interactive downloads own it).
   Future<void> prefetch(Song song) async {

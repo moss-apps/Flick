@@ -244,6 +244,17 @@ class SubsonicService implements NetworkSourceService {
         extension: extension);
   }
 
+  @override
+  Future<({String url, Map<String, String> headers})?> streamDescriptor(
+    NetworkServerEntity server,
+    String songId, {
+    String? extension,
+  }) async {
+    // ponytail: Subsonic auth is entirely URL-embedded (u/p/t+s query params),
+    // so headers are empty. Range support is universal across servers.
+    return (url: _endpoint(server, 'stream', {'id': songId}).toString(), headers: const <String, String>{});
+  }
+
   // --- Library sync -------------------------------------------------------
 
   /// Pull the full server library into the local DB as SongEntitys.

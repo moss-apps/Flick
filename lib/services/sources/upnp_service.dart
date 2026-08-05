@@ -210,6 +210,17 @@ class UpnpService implements NetworkSourceService {
         extension: extension);
   }
 
+  @override
+  Future<({String url, Map<String, String> headers})?> streamDescriptor(
+    NetworkServerEntity server,
+    String remoteId, {
+    String? extension,
+  }) async {
+    // remoteId is the url-encoded <res> stream URL. DLNA MediaServer spec
+    // mandates byte-range support; no auth on LAN by convention.
+    return (url: Uri.decodeFull(remoteId), headers: const <String, String>{});
+  }
+
   // --- Library walk -------------------------------------------------------
 
   @override

@@ -16,14 +16,33 @@ as a seekable `MediaSource` — same decoders, same DSP, same DSD pipeline. No
 server-side transcode requests; if a server transcodes by default we pass the
 raw-format params to opt out. We do not ship a parallel `just_audio` HTTP path.
 
-**Status**: Phase 1 done. P1.1–P1.3 (`NetworkServerEntity` + registration in
-`database.dart`, `SongEntity` source fields, `PlaybackSource.network`,
-`NetworkCacheService` with LRU eviction; `path` promoted to a direct dep),
-P1.4–P1.8 (SubsonicService, RemoteSourceService, Network Sources settings UI,
-next-track prefetch, network cover art), and P7.1 + P7.2 (cache + Subsonic
-auth unit tests) all shipped. Tests: `test/services/subsonic_service_test.dart`
-(spec known-answer vector for auth, URL params, field mapping, pagination,
-double-tolerant numeric fields).
+**Status**: Phases 1, 2, 3, and 6 done. P1.1–P1.3 (`NetworkServerEntity` +
+registration in `database.dart`, `SongEntity` source fields,
+`PlaybackSource.network`, `NetworkCacheService` with LRU eviction; `path`
+promoted to a direct dep), P1.4–P1.8 (SubsonicService, RemoteSourceService,
+Network Sources settings UI, next-track prefetch, network cover art), and
+P7.1 + P7.2 (cache + Subsonic auth unit tests) all shipped. Phase 2
+(`WebdavService` — PROPFIND walk, HTTP Basic, cover-by-convention, test in
+`test/services/webdav_service_test.dart`). Phase 3 (`JellyfinService` —
+AuthenticateByName, `/Users/.../Items`, `/Audio/<id>/stream?static=true`,
+test in `test/services/jellyfin_service_test.dart`). Phase 6 (`UpnpService` —
+**pure Dart**, no new dep: device-description resolve → SOAP Browse over
+HTTP, audio via plain GET of `<res>`, test in
+`test/services/upnp_service_test.dart`; the plan's "needs `upnp-client`
+crate" gate turned out unnecessary since DLNA resources are plain HTTP).
+Phase 5 (SMB) shipped as an honest loud-failing placeholder: no mature
+pure-Dart SMB2/3 client and candidate Rust crates don't build on the
+Android NDK, so `SmbService` throws a clear message and recommends the
+WebDAV workaround.
+
+Remaining: P7.3 and P7.5 only (integration test, manual bit-perfect/DSD/gapless
+check). Phase 4 — the v2 seekable HTTP `MediaSource` latency win — is shipped:
+`HttpMediaSource` does block-granularity ranged GETs in pure Rust (`ureq` +
+rustls), `probe_http` shares the post-probe builder with `probe_file`, and
+`audio_play_from_http` / `audio_queue_next_from_http` reuse the full DSP/gapless
+pipeline. `RemoteSourceService` resolves an HTTP descriptor for Subsonic/Jellyfin/
+WebDAV/UPnP and the Rust engine plays it directly, falling back to cache-then-play
+on transport error or for SMB.
 
 Small deviations from the text below, all benign:
 - Subsonic token order is the spec-correct `t = md5(password + salt)` — P1.4's
@@ -118,13 +137,13 @@ adapters live entirely on the Dart side and produce either a cached file path
 | N4 | ~~No `NetworkCacheService` (bounded LRU download cache).~~ **Done (P1.3)** | High | `lib/services/network_cache_service.dart` |
 | N5 | ~~No `RemoteSource` abstraction over the audio path (v1: path; v2: `MediaSource`).~~ **Done (P1.5, v1 path)** | High | `lib/services/remote_source_service.dart` (v1), `rust/src/audio/http_source.rs` (v2) |
 | N6 | ~~No Subsonic adapter (auth salt+md5, `ping`/`getArtists`/`getAlbum`/`stream`).~~ **Done (P1.4)** | High | `lib/services/sources/subsonic_service.dart` |
-| N7 | No WebDAV adapter (PROPFIND album list, GET file). | Medium | new `lib/services/sources/webdav_service.dart` |
-| N8 | No Jellyfin adapter (`/Users/.../Items` browse, `/Audio/<id>/stream`). | Medium | new `lib/services/sources/jellyfin_service.dart` |
+| N7 | ~~No WebDAV adapter (PROPFIND album list, GET file).~~ **Done (P2.1)** | Medium | `lib/services/sources/webdav_service.dart` |
+| N8 | ~~No Jellyfin adapter (`/Users/.../Items` browse, `/Audio/<id>/stream`).~~ **Done (P3.1)** | Medium | `lib/services/sources/jellyfin_service.dart` |
 | N9 | ~~No "Network Sources" settings screen; no add/edit/test flow.~~ **Done (P1.6)** | High | `lib/features/settings/screens/network_sources_screen.dart` |
 | N10 | Audio engine has no HTTP `MediaSource` (v2). | Medium (v2) | `rust/src/audio/source.rs`, `rust/src/api/audio_api.rs` |
 | N11 | ~~Gapless/crossfade assumes next file is local & instant. Network next-track needs prefetch.~~ **Done (P1.7)** | Medium | `lib/services/player_service.dart` (`_maybePrefetchNextNetworkSong`) |
 | N12 | No SMB adapter. | Low (deferred) | needs `smb_connect` or Rust `pavao`/`puffer` crate |
-| N13 | No UPnP/DLNA media-server adapter. | Low (deferred) | needs `upnp-client` crate; `FEATURE_REQUESTS.md` already lists DLNA casting (separate direction) |
+| N13 | ~~No UPnP/DLNA media-server adapter.~~ **Done (P6, pure Dart — no new dep)** | ~~Low (deferred)~~ Done | `lib/services/sources/upnp_service.dart` |
 | N14 | ~~Album-art, lyrics, and Replay hand off network songs through paths that assume local files.~~ **Done (P1.8)** | Medium | `album_art_service.dart`, `lyrics_service.dart`, `recap` — resolve network art to cache bytes, lyrics to LRCLib as today |
 
 ---
@@ -148,39 +167,46 @@ adapters live entirely on the Dart side and produce either a cached file path
 
 | Task | Gap | Change |
 |------|-----|--------|
-| P2.1 | N7 | `WebDavService`: `PROPFIND` on the music root with Depth:1 to list folders-as-albums, recursive `PROPFIND` for tracks, basic-auth or bearer token. Build `SongEntity` with `sourceType=webdav`, `remoteId` = file URL. Cover art: `Thumbs`/`Cover.jpg` conventions or skip (fall back to `getCoverArt`-style “first image in folder”). |
-| P2.2 | — | Register WebDAV in `NetworkServerEntity.protocol`. Settings add/edit flow branches on protocol. |
-| P2.3 | — | `RemoteSourceService` extension: WebDAV `GET` → cache, same `playFile` path. |
+| P2.1 **(done)** | N7 | `WebDavService`: recursive `PROPFIND` walk of the share (BFS queue, Depth:1 per folder), HTTP Basic auth (token = `base64(password)`, recoverable — Basic needs it). Builds `SongEntity` with `sourceType=webdav`, `remoteId` = url-encoded file href, album = parent folder name, artist = grandparent folder. Cover art by filename convention (`cover`/`folder`/`album`/`albumart`/`front` stems with image ext), marker `webdav-cover://<base64(href)>`. |
+| P2.2 **(done)** | — | `NetworkProtocol.webdav` registered; protocol picker in `network_server_edit_screen.dart` selects WebDAV with Nextcloud/ownCloud/SabreDAV subtitle. |
+| P2.3 **(done)** | — | `RemoteSourceService.ensureLocal` dispatches via `networkSourceServiceFor(sourceType)`, so WebDAV GET → cache → existing `playFile` path reuses the same seam as Subsonic. |
 
 ### Phase 3 — Jellyfin
 
 | Task | Gap | Change |
 |------|-----|--------|
-| P3.1 | N8 | `JellyfinService`: `/Users/AuthenticateByName` for token, `/Users/<id>/Items?IncludeItemTypes=MusicAlbum`, `/Items?ParentId=...` for tracks, `/Audio/<id>/stream` for bytes (no transcode params). `remoteId` = Jellyfin `Item.Id`. |
-| P3.2 | — | Register branch. Cover art via `/Items/<id>/Images/Primary` → cache. |
+| P3.1 **(done)** | N8 | `JellyfinService`: `POST /Users/AuthenticateByName` exchanges password for `{userId, token}` (stored as JSON blob in `NetworkServerEntity.token`), `/Users/<id>/Items?IncludeItemTypes=MusicAlbum` then `?ParentId=...&IncludeItemTypes=Audio` for tracks, `/Audio/<id>/stream?static=true&api_key=...` for raw bytes. `remoteId` = Jellyfin `Item.Id`. |
+| P3.2 **(done)** | — | Registered; cover art via `/Items/<id>/Images/Primary` → cache, marker `jellyfin-cover://<albumId>`. |
 
-### Phase 4 — Seekable HTTP `MediaSource` (v2, latency win)
+### Phase 4 — Seekable HTTP `MediaSource` (v2, latency win) — DONE
+
+Shipped in pure Rust via `ureq` + rustls (cross-compiles to Android NDK, no new
+native deps). All 4 protocols with range-capable servers (Subsonic, WebDAV,
+Jellyfin, UPnP/DLNA) play directly over HTTP; cache-then-play remains the
+fallback and the offline/replay path.
 
 | Task | Gap | Change |
 |------|-----|--------|
-| P4.1 | N10 | New `rust/src/audio/http_source.rs`: `HttpMediaSource { url, headers, pos, range_buf }` implementing `Symphonia` `MediaSource` (`read`/`seek`/...). `seek` = drop buffer, save target offset; next `read` issues `Range: bytes=N-`. Headers carry Subsonic/Jellyfin/WebDAV auth. |
-| P4.2 | N10 | `rust/src/api/audio_api.rs`: `play_from_http(url, headers)` mirror of the existing path-based entrypoint, swaps only the `MediaSource` construction. Everything downstream (DSP, DSD, gapless) is reused. |
-| P4.3 | N5 | `RemoteSourceService.play` v2 path: prefer `play_from_http` when range supported (Subsonic `stream` ✓, WebDAV GET ✓, Jellyfin stream ✓ — all return `Accept-Ranges: bytes`). Fall back to cache-then-play if server says no ranges or on transport error. |
-| P4.4 | — | Cache becomes a prefetch/seek-ahead buffer, not a full-file requirement. Keep `NetworkCacheService` for offline and replay; size cap stays. |
+| P4.1 **(done)** | N10 | `rust/src/audio/http_source.rs`: `HttpMediaSource { url, headers, pos, len, buf, buf_start }` impl Symphonia `MediaSource`. `seek` drops `buf` + sets `pos`; next `read` issues `Range: bytes=pos-(pos+1MiB-1)` and refills. `len` resolved from `Content-Range` on the first 206 (HEAD skipped — lazy). 200-with-`pos!=0` rejected (server ignored Range). All fields `Sync` → no `Mutex`. `ureq` gated by `native_audio`, mirrored in the desktop target section. |
+| P4.1b **(done)** | — | `decoder.rs`: extracted shared `build_probe_result(probed, name_path)`; added `probe_http(url, headers)` (hint ext from URL path, query stripped so auth never leaks; no content-fallback reopen) and `DecoderThread::spawn_from_http`. `url_label` strips the query for the decoder thread name. |
+| P4.2 **(done)** | N10 | `audio_api.rs`: `audio_play_from_http(url, headers)` + `audio_queue_next_from_http(...)` mirror the Standard branch (probe → rate-negotiate → `spawn_from_probe_result` → `play_prepared`/`queue_next_prepared`). PCM only; DSD/WavPack stay path-based. `headers: HashMap<String,String>` maps to Dart `Map`. |
+| P4.3 **(done)** | N5 | `NetworkSourceService.streamDescriptor(server, remoteId)` → `({url, headers})?` (record — no new class). Overridden for Subsonic (auth in query), Jellyfin (`api_key` query), WebDAV (Basic header), UPnP (`remoteId` is the `<res>` URL, DLNA mandates ranges); SMB returns null. `RemoteSourceService.resolveHttpPlayback` + `RustAudioEngine` optional `resolveHttpSource` callback try HTTP first, fall back to cache-then-play on any error. `_queueNextTrackForGapless` mirrors the same try-HTTP-first pattern. |
+| P4.4 | — | Unchanged from plan: cache stays for offline/replay and as the fallback target; size cap untouched. No new buffer layer — `HttpMediaSource`'s 1 MiB block fetch *is* the seek-ahead buffer. |
+| P7.4 **(done)** | — | `rust/src/audio/http_source.rs` `#[cfg(test)]`: in-process `TcpListener` HTTP/1.1 server honoring `Range`. `sequential_read_and_len` reads 200 KB through and asserts bytes + `byte_len`; `seek_then_read` seeks mid-stream and back to 0. Both pass. |
 
 ### Phase 5 — SMB (LAN only; needs a new dep)
 
 | Task | Gap | Change |
 |------|-----|--------|
-| P5.1 | N12 | Evaluate `pavao`/`puffer` (Rust SMB2/3) vs Dart `smb_connect`. Decision driven by: does it go through the Rust engine (preferred — keeps DSP) or only through `just_audio`'s URI handler (rejected — loses engine). If no Rust crate is acceptable, **defer or skip SMB.** SMB isn't worth a second playback path. |
-| P5.2 | — | If a Rust path: `SmbSource` implementing `MediaSource` like the HTTP one, mounted lazily. Auth via NTLMv2. Read-only — we never write back metadata edits to SMB shares in v1. |
+| P5.1 **(done — deferred by decision)** | N12 | Evaluated `pavao`/`puffer` (Rust SMB2/3) vs Dart `smb_connect`: no mature pure-Dart SMB2/3 client exists, and the candidate Rust crates either link system `libsmbclient` (unavailable on Android NDK) or don't build cleanly on mobile. **Decision: ship an honest loud-failing placeholder, not a fake transport.** `SmbService` is wired through the registry so every flow throws `UnsupportedError` with a clear message recommending the WebDAV workaround (most NAS firmwares expose SMB shares over WebDAV out of the box). Landing a real transport later is then a localized change. |
+| P5.2 **(skipped)** | — | No `SmbSource`/`MediaSource` until a transport exists. The placeholder stores `base64(password)` at save so a future transport has the credential ready. |
 
 ### Phase 6 — UPnP/DLNA media-server browsing (LAN only; needs a new dep)
 
 | Task | Gap | Change |
 |------|-----|--------|
-| P6.1 | N13 | Evaluate `upnp-client` Rust crate for ContentDirectory browsing + `http-get` resource URLs. The DLNA *casting* item in `FEATURE_REQUESTS.md` is a different direction (Flick as renderer); this phase is Flick as **control point / player pulling from a media server**. Don't conflate them. |
-| P6.2 | — | If adopted: same `MediaSource` seam as HTTP/SMB; resources are plain HTTP `res` URLs, so they may ride the Phase 4 `HttpMediaSource` directly with no new Rust code. |
+| P6.1 **(done)** | N13 | `UpnpService` in **pure Dart** (no `upnp-client` crate needed): resolve ContentDirectory control URL from the user-supplied device-description URL (`rootDesc.xml`), SOAP `Browse` over HTTP, BFS over containers from root `0`, parse DIDL-Lite (`object.item.audioItem.*` only), audio streamed via plain HTTP GET of the item's `<res>` url. The DLNA *casting* item in `FEATURE_REQUESTS.md` remains a separate direction (Flick as renderer); this is Flick as control point/player. |
+| P6.2 **(done)** | — | Resources are plain HTTP `res` URLs → ride the existing cache-then-play path (Phase 4 `HttpMediaSource` will pick them up with no new Rust code when it lands). |
 
 ### Phase 7 — Self-checks (ponytail: one runnable check per non-trivial unit)
 

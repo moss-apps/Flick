@@ -262,6 +262,22 @@ class JellyfinService implements NetworkSourceService {
         extension: extension);
   }
 
+  @override
+  Future<({String url, Map<String, String> headers})?> streamDescriptor(
+    NetworkServerEntity server,
+    String songId, {
+    String? extension,
+  }) async {
+    final creds = _creds(server.token);
+    if (creds == null) return null;
+    final uri = Uri.parse('${_base(server)}/Audio/$songId/stream')
+        .replace(queryParameters: {
+      'static': 'true',
+      'api_key': creds.token,
+    });
+    return (url: uri.toString(), headers: const <String, String>{});
+  }
+
   // --- Sync ---------------------------------------------------------------
 
   @override

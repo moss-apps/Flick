@@ -183,6 +183,27 @@ Future<void> audioPlay({required String path}) =>
 Future<void> audioQueueNext({required String path}) =>
     RustLib.instance.api.crateApiAudioApiAudioQueueNext(path: path);
 
+/// Play a remote audio stream over HTTP. Range-support is assumed (caller
+/// verifies `Accept-Ranges: bytes`); PCM only, no DSD/WavPack over HTTP.
+/// Auth is carried via `headers` (e.g. WebDAV Basic) — Subsonic/Jellyfin embed
+/// credentials in the URL query and pass an empty header map.
+Future<void> audioPlayFromHttp({
+  required String url,
+  required Map<String, String> headers,
+}) => RustLib.instance.api.crateApiAudioApiAudioPlayFromHttp(
+  url: url,
+  headers: headers,
+);
+
+/// Queue a remote HTTP stream as the next track for gapless playback.
+Future<void> audioQueueNextFromHttp({
+  required String url,
+  required Map<String, String> headers,
+}) => RustLib.instance.api.crateApiAudioApiAudioQueueNextFromHttp(
+  url: url,
+  headers: headers,
+);
+
 /// Pause playback.
 Future<void> audioPause() => RustLib.instance.api.crateApiAudioApiAudioPause();
 
