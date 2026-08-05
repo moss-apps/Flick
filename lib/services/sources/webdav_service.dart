@@ -263,6 +263,20 @@ class WebdavService implements NetworkSourceService {
         extension: extension);
   }
 
+  @override
+  Future<({String url, Map<String, String> headers})?> streamDescriptor(
+    NetworkServerEntity server,
+    String remoteId, {
+    String? extension,
+  }) async {
+    // remoteId is stored url-encoded (cache-key-safe); decode for the URL.
+    final href = remoteId.contains('%')
+        ? Uri.decodeComponent(remoteId)
+        : remoteId;
+    final uri = Uri.parse('${_origin(server)}$href');
+    return (url: uri.toString(), headers: {'Authorization': _basicAuth(server)});
+  }
+
   // --- Library walk -------------------------------------------------------
 
   @override
