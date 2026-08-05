@@ -4,7 +4,7 @@
 //! Now available on all platforms including Android (using CPAL with Oboe backend).
 
 use crate::audio::commands::{AudioEvent, PlaybackState};
-use crate::audio::decoder::{probe_file, DecoderThread};
+use crate::audio::decoder::{probe_file, probe_http, DecoderThread};
 use crate::audio::decoder_handle::{detect_file_type, DecoderHandle};
 #[cfg(target_os = "android")]
 use crate::audio::device::current_device_profile;
@@ -19,6 +19,7 @@ use crate::audio::wavpack_thread::WavpackDecoderThread;
 use log::{info as log_info, warn as log_warn};
 use once_cell::sync::Lazy;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
 
@@ -1165,6 +1166,80 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
     with_audio_engine(|engine| {
         engine.set_dop_override(is_raw)?;
         engine.queue_next_prepared(source, handle)
+    })
+}
+
+/// Play a remote audio stream over HTTP. Range-support is assumed (caller
+/// verifies `Accept-Ranges: bytes`); PCM only, no DSD/WavPack over HTTP.
+/// Auth is carried via `headers` (e.g. WebDAV Basic) — Subsonic/Jellyfin embed
+/// credentials in the URL query and pass an empty header map.
+pub fn audio_play_from_http(url: String, headers: HashMap<String, String>) -> Result<(), String> {
+    let probe_result = probe_http(&url, headers)
+        .map_err(|e| format!("Failed to probe HTTP stream: {}", e))?;
+    let file_rate = probe_result.source_info.original_sample_rate;
+    ensure_audio_engine(resolve_track_playback_output_sample_rate(Some(file_rate))?)?;
+    let (output_sample_rate, output_channels) =
+        with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
+    if output_sample_rate != file_rate {
+        log_warn!(
+            "[AUDIO] http: engine_sample_rate_hz={} stream_sample_rate_hz={} — decoder resampling active",
+            output_sample_rate,
+            file_rate
+        );
+    }
+    let (source, decoder_thread) = DecoderThread::spawn_from_probe_result(
+        probe_result,
+        output_sample_rate,
+        output_channels,
+        None,
+    )
+    .map_err(|e| format!("Failed to decode HTTP stream: {}", e))?;
+    with_audio_engine(|handle| {
+        handle.set_dop_override(false)?;
+        handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
+    })
+}
+
+/// Queue a remote HTTP stream as the next track for gapless playback.
+pub fn audio_queue_next_from_http(
+    url: String,
+    headers: HashMap<String, String>,
+) -> Result<(), String> {
+    if !audio_is_initialized() {
+        let probe_result = probe_http(&url, headers)
+            .map_err(|e| format!("Failed to probe HTTP stream: {}", e))?;
+        let file_rate = probe_result.source_info.original_sample_rate;
+        ensure_audio_engine(resolve_track_playback_output_sample_rate(Some(file_rate))?)?;
+        let (output_sample_rate, output_channels) =
+            with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
+        let (source, decoder_thread) = DecoderThread::spawn_from_probe_result(
+            probe_result,
+            output_sample_rate,
+            output_channels,
+            None,
+        )
+        .map_err(|e| format!("Failed to decode HTTP stream: {}", e))?;
+        return with_audio_engine(|handle| {
+            handle.set_dop_override(false)?;
+            handle.queue_next_prepared(source, DecoderHandle::Symphonia(decoder_thread))
+        });
+    }
+
+    // Engine already live at a fixed rate: probe + queue without rate negotiation.
+    let probe_result = probe_http(&url, headers)
+        .map_err(|e| format!("Failed to probe HTTP stream: {}", e))?;
+    let (output_sample_rate, output_channels) =
+        with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
+    let (source, decoder_thread) = DecoderThread::spawn_from_probe_result(
+        probe_result,
+        output_sample_rate,
+        output_channels,
+        None,
+    )
+    .map_err(|e| format!("Failed to decode HTTP stream: {}", e))?;
+    with_audio_engine(|handle| {
+        handle.set_dop_override(false)?;
+        handle.queue_next_prepared(source, DecoderHandle::Symphonia(decoder_thread))
     })
 }
 
