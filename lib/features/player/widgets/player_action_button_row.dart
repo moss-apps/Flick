@@ -20,6 +20,7 @@ import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/volume_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/share/share_bottom_sheet.dart';
 import 'package:flick/features/settings/screens/equalizer_screen.dart';
+import 'package:flick/features/settings/screens/casting_settings_screen.dart';
 
 class PlayerActionButtonRow extends ConsumerStatefulWidget {
   final Song song;
@@ -391,6 +392,15 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         );
       case PlayerActionButton.volume:
         return _buildVolumeButton(
+          context: context,
+          actionPadding: actionPadding,
+          actionRadius: actionRadius,
+          actionIconSize: actionIconSize,
+          inactiveBg: inactiveBg,
+          inactiveBorder: inactiveBorder,
+        );
+      case PlayerActionButton.cast:
+        return _buildCastButton(
           context: context,
           actionPadding: actionPadding,
           actionRadius: actionRadius,
@@ -812,6 +822,48 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
           child: Icon(
             LucideIcons.volume,
             color: Colors.white.withValues(alpha: 0.96),
+            size: actionIconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCastButton({
+    required BuildContext context,
+    required EdgeInsets actionPadding,
+    required double actionRadius,
+    required double actionIconSize,
+    required Color inactiveBg,
+    required Color inactiveBorder,
+  }) {
+    final isCasting = ref.watch(isCastingProvider);
+    return Tooltip(
+      message: isCasting ? 'Casting — tap to manage' : 'Cast',
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const CastingSettingsScreen(),
+          ),
+        ),
+        child: Container(
+          padding: actionPadding,
+          decoration: BoxDecoration(
+            color: isCasting
+                ? AppColors.accent.withValues(alpha: 0.28)
+                : inactiveBg,
+            borderRadius: BorderRadius.circular(actionRadius),
+            border: Border.all(
+              color: isCasting
+                  ? AppColors.accent.withValues(alpha: 0.45)
+                  : inactiveBorder,
+            ),
+          ),
+          child: Icon(
+            LucideIcons.cast,
+            color: isCasting
+                ? AppColors.accent
+                : Colors.white.withValues(alpha: 0.96),
             size: actionIconSize,
           ),
         ),
