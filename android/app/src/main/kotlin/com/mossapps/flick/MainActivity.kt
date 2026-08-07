@@ -100,6 +100,8 @@ class MainActivity: FlutterActivity() {
     private val OVERLAY_CHANNEL = "com.mossapps.flick/overlay"
     private val BLUETOOTH_CHANNEL = "com.mossapps.flick/bluetooth"
     private val BLUETOOTH_EVENT_CHANNEL = "com.mossapps.flick/bluetooth_events"
+    private val CAST_CHANNEL = "com.mossapps.flick/cast"
+    private val CAST_EVENT_CHANNEL = "com.mossapps.flick/cast_events"
     private val LOCKER_PACKAGE = "com.mossapps.locker"
     private val LOCKER_RETURN_URI = "locker://return?source=flick"
     // private val CONVERTER_CHANNEL = "com.mossapps.flick/converter"
@@ -161,6 +163,8 @@ class MainActivity: FlutterActivity() {
     private var developerMode: Boolean = false
     private var bluetoothEventSink: EventChannel.EventSink? = null
     private var aclReceiver: BroadcastReceiver? = null
+    private var castController: CastController? = null
+    private var castEventSink: EventChannel.EventSink? = null
 
     // Load the Rust shared library before calling into native startup hooks.
     init {
@@ -975,6 +979,49 @@ class MainActivity: FlutterActivity() {
                 }
                 override fun onCancel(arguments: Any?) {
                     bluetoothEventSink = null
+                }
+            }
+        )
+
+        // Chromecast: discovery via MediaRouter, control via RemoteMediaClient.
+        if (castController == null) {
+            castController = CastController(this)
+            castController!!.start()
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CAST_CHANNEL).setMethodCallHandler { call, result ->
+            val cc = castController
+            when (call.method) {
+                "discover" -> result.success(cc?.discover())
+                "connect" -> {
+                    cc?.connect(call.argument<String>("id") ?: "")
+                    result.success(null)
+                }
+                "disconnect" -> { cc?.disconnect(); result.success(null) }
+                "load" -> {
+                    cc?.load(
+                        call.argument<String>("url") ?: "",
+                        call.argument<String>("title"),
+                        call.argument<String>("artist"),
+                    )
+                    result.success(null)
+                }
+                "play" -> { cc?.play(); result.success(null) }
+                "pause" -> { cc?.pause(); result.success(null) }
+                "stop" -> { cc?.stop(); result.success(null) }
+                "seek" -> { cc?.seek((call.argument<Int>("position") ?: 0).toLong()); result.success(null) }
+                "setVolume" -> { cc?.setVolume((call.argument<Double>("volume") ?: 1.0)); result.success(null) }
+                "getOutputRoutes" -> result.success(cc?.getOutputRoutes())
+                "selectOutputRoute" -> result.success(cc?.selectOutputRoute(call.argument<String>("id") ?: ""))
+                else -> result.notImplemented()
+            }
+        }
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, CAST_EVENT_CHANNEL).setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    castEventSink = events
+                }
+                override fun onCancel(arguments: Any?) {
+                    castEventSink = null
                 }
             }
         )
