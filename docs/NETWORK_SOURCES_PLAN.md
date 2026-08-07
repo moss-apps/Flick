@@ -35,8 +35,20 @@ pure-Dart SMB2/3 client and candidate Rust crates don't build on the
 Android NDK, so `SmbService` throws a clear message and recommends the
 WebDAV workaround.
 
-Remaining: P7.3 and P7.5 only (integration test, manual bit-perfect/DSD/gapless
-check). Phase 4 — the v2 seekable HTTP `MediaSource` latency win — is shipped:
+Remaining: P7.5 only — the manual bit-perfect/DSD/gapless check, a hardware
+gate (real servers + USB DAC) that can't run in CI. P7.3 (the Subsonic scan
+integration test) is shipped in
+`test/services/subsonic_scan_integration_test.dart`: drives the real
+`getAlbumList2` → `getAlbum` traversal over a recorded HTTP cassette, then maps
+through a shared `@visibleForTesting static SubsonicService.buildSongEntity`
+(the sync builder, promoted from private `_songEntity` since it is pure), and
+asserts the produced `SongEntity`s carry `sourceType=subsonic`, a set
+`remoteId`, the `subsonic://<serverId>/<remoteId>` composite-key path, the
+`subsonic-cover://` art marker (per-song override + album fallback), and hi-res
+fields. The Isar upsert/purge/`lastSyncedAt` stamp are excluded — they hit the
+`Database.instance` singleton, which the project keeps out of unit tests
+(matching the existing Subsonic/Jellyfin "HTTP-only, DB-free" test policy); the
+mapping + protocol traversal, the parts that can break, are covered. Phase 4 — the v2 seekable HTTP `MediaSource` latency win — is shipped:
 `HttpMediaSource` does block-granularity ranged GETs in pure Rust (`ureq` +
 rustls), `probe_http` shares the post-probe builder with `probe_file`, and
 `audio_play_from_http` / `audio_queue_next_from_http` reuse the full DSP/gapless
@@ -214,9 +226,9 @@ fallback and the offline/replay path.
 |------|--------|
 | P7.1 **(done)** | Dart unit test for `NetworkCacheService`: cap is enforced; LRU evicts oldest on overflow; `stash` then `getPath` returns the same file. |
 | P7.2 **(done)** | Dart unit test for `SubsonicService` auth: known salt+password (`sesame`/`c19b2d` → `t=26719a1196d2a940705a59634eb18eab`), asserts `t=`/`s=` query params against the spec form `md5(password+salt)`; mock `http.Client` for `ping`/`getAlbum`/`getAlbumList2`. |
-| P7.3 | Dart integration test: configure a server pointing at a fixture (or a recorded HTTP cassette), "scan" returns `SongEntity`s with `sourceType=subsonic` and `remoteId` set. |
+| P7.3 **(done)** | Dart integration test (`test/services/subsonic_scan_integration_test.dart`): a recorded HTTP cassette (getAlbumList2 → 2 albums → getAlbum each → 3 tracks) drives the real scan traversal, mapping through `SubsonicService.buildSongEntity`. Asserts every `SongEntity` has `sourceType=subsonic`, a set `remoteId`, the `subsonic://7/<remoteId>` composite-key path, the `subsonic-cover://` art marker (per-song override + album fallback), and hi-res fields (96 kHz FLAC, 2.8 MHz DSF). The Isar upsert/purge/`lastSyncedAt` stamp are excluded — they go through the `Database.instance` singleton, which the project keeps out of unit tests (DB-free policy); the mapping + protocol traversal are covered. |
 | P7.4 | (v2) Rust `#[test]` for `HttpMediaSource`: a `Cursor`-backed fake server, `read` returns contiguous bytes, `seek` followed by `read` returns the right slice, `stream_len` matches. |
-| P7.5 | Manual: real Navidrome + real Jellyfin + a Nextcloud over WebDAV, on both LAN and a cloud VPS, through a USB DAC. Confirm bit-perfect badge, native DSD passthrough on a DSF served by Navidrome, gapless between two network songs, crossfade between a local and a network song. |
+| P7.5 **(manual — pending hardware run)** | Manual hardware gate. Cannot run in CI; needs real servers + a USB DAC. Runbook: (1) **Setup** — Navidrome + Jellyfin on a LAN box, a Nextcloud share over WebDAV, and the same three on a cloud VPS; configure each in Settings → Network Sources, sync. (2) **Bit-perfect** — play a known 24/96 FLAC from each server; confirm the bit-perfect badge shows and the reported sample rate matches the file (not a transcode). (3) **Native DSD** — serve a `.dsf` from Navidrome; confirm DoP/USB DAC locks to the DSD stream (no PCM decode). (4) **Gapless** — play two consecutive network songs off the same album; confirm no silence gap at the boundary (prefetch path from P1.7). (5) **Crossfade** — crossfade a local song into a network song; confirm the crossfader reads the cached/prefetched path cleanly. (6) **Range fallback** — if any server lacks `Accept-Ranges: bytes`, confirm it transparently falls back to cache-then-play (v1) with no error toast. Record pass/fail per server × {LAN, cloud}; file issues for any regression. |
 
 ---
 

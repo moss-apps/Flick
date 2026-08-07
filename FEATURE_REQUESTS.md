@@ -50,10 +50,10 @@ name, track count, artist, and (newly added) **Year**.
 
 ## Casting & Streaming
 
-- [ ] **DLNA casting** — stream to DLNA-compatible receivers
-- [ ] **Chromecast casting** — stream to Chromecast devices
-- [ ] **UPnP casting** — stream to UPnP devices
-- [ ] **Chromecast Output selection** — per-output-device routing (Wired Headset/AUX, Speaker, Bluetooth, USB DAC, Other)
+- [x] **DLNA casting** — stream to DLNA-compatible receivers
+- [x] **Chromecast casting** — stream to Chromecast devices
+- [x] **UPnP casting** — stream to UPnP devices
+- [x] **Chromecast Output selection** — per-output-device routing (Wired Headset/AUX, Speaker, Bluetooth, USB DAC, Other)
 
 ---
 
@@ -96,6 +96,6 @@ name, track count, artist, and (newly added) **Year**.
 ## Integrations
 
 - [ ] **Tidal integration** — Tidal streaming service support
-- [ ] **Local Media Server** — stream music from NAS / network shares
+- [X] **Local Media Server** — stream music from NAS / network shares. Shipped as Network Sources (`docs/NETWORK_SOURCES_PLAN.md`): Subsonic (Navidrome/Airsonic/gonic/etc.), WebDAV (Nextcloud/ownCloud/Synology/generic), Jellyfin, and UPnP/DLNA media-server browse/play, all through the existing Rust engine (bit-perfect/DSD/gapless preserved). SMB is a loud-failing placeholder recommending the WebDAV workaround.
 
 ---
