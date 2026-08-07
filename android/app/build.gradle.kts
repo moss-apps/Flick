@@ -218,4 +218,8 @@ dependencies {
     val glanceVersion = "1.2.0-rc01"
     implementation("androidx.glance:glance-appwidget:$glanceVersion")
     implementation("androidx.glance:glance-material3:$glanceVersion")
+
+    // Google Cast SDK for Chromecast casting
+    implementation("com.google.android.gms:play-services-cast-framework:21.5.0")
+    implementation("com.google.android.gms:play-services-cast:21.5.0")
 }
