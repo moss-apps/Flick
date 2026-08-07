@@ -30,6 +30,9 @@
         android:label="Flick"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.mossapps.flick.CastOptionsProvider" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -430,8 +430,8 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
             child: Center(
               child: SvgPicture.asset(
                 'assets/icons/flicklogo_svg.svg',
-                width: 48,
-                height: 48,
+                width: 28,
+                height: 28,
                 fit: BoxFit.contain,
               ),
             ),

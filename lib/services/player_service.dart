@@ -38,6 +38,7 @@ import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/alac_converter_service.dart';
 import 'package:flick/services/remote_source_service.dart';
+import 'package:flick/services/casting/casting_service.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
 /// Volume Control State Machine:
@@ -326,6 +327,8 @@ class PlayerService {
   final PlaylistService _playlistService = PlaylistService();
   final RustAudioService _rustAudioService = RustAudioService();
   final Uac2Service _uac2Service = Uac2Service.instance;
+  final CastingService _castingService = CastingService.instance;
+  bool get isCasting => _castingService.isActive;
   final ColorExtractionService _colorExtractionService =
       ColorExtractionService();
   final AlbumColorModePreferenceService _albumColorModePreferenceService =
@@ -3775,6 +3778,11 @@ class PlayerService {
       _consumeQueueEntryAt(_currentIndex);
       _clearRestoredPlaybackContext(songId: song.id);
 
+      if (_castingService.isActive) {
+        final handled = await _castingService.delegatePlay(song);
+        if (handled) return;
+      }
+
       if (song.filePath != null) {
         await _prepareImmediatePlaybackAsset(song);
         // Route changes are already pushed into the session manager via the
@@ -3983,6 +3991,10 @@ class PlayerService {
   }
 
   Future<void> _pauseInternal() async {
+    if (_castingService.isActive) {
+      await _castingService.delegatePause();
+      return;
+    }
     _debugLog(
       '[Playback] pause() called, hasAttachedEngine=${_playbackManager.hasAttachedEngine}',
     );
@@ -4014,6 +4026,10 @@ class PlayerService {
   }
 
   Future<void> _resumeInternal() async {
+    if (_castingService.isActive) {
+      await _castingService.delegateResume();
+      return;
+    }
     await initAudio();
 
     final song = currentSongNotifier.value ?? _songAtCurrentIndex();
@@ -4188,6 +4204,10 @@ class PlayerService {
   }
 
   Future<void> seek(Duration position) async {
+    if (_castingService.isActive) {
+      await _castingService.delegateSeek(position);
+      return;
+    }
     try {
       await _playbackManager.seek(position);
     } catch (e) {
@@ -4495,6 +4515,11 @@ class PlayerService {
 
   Future<void> setVolume(double volume) async {
     final clampedVolume = volume.clamp(0.0, 1.0).toDouble();
+    if (_castingService.isActive) {
+      _currentVolume = clampedVolume;
+      await _castingService.delegateSetVolume(clampedVolume);
+      return;
+    }
     _currentVolume = clampedVolume;
     if (currentEngineType == AudioEngineType.usbDacExperimental ||
         currentEngineType == AudioEngineType.dapInternalHighRes) {
