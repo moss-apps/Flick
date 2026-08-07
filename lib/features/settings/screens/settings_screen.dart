@@ -5,6 +5,7 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/settings/screens/app_info_settings_screen.dart';
 import 'package:flick/features/settings/screens/audio_settings_screen.dart';
 import 'package:flick/features/settings/screens/bluetooth_settings_screen.dart';
+import 'package:flick/features/settings/screens/casting_settings_screen.dart';
 import 'package:flick/features/settings/screens/interface_settings_screen.dart';
 import 'package:flick/features/settings/screens/library_settings_screen.dart';
 import 'package:flick/features/settings/screens/playback_display_settings_screen.dart';
@@ -147,6 +148,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onTap: () => _navigate(
                             context,
                             const BluetoothSettingsScreen(),
+                          ),
+                        ),
+                        const SettingsDivider(),
+                        _CategoryTile(
+                          icon: LucideIcons.cast,
+                          iconBg: const Color(0xFF6F2D4A),
+                          iconFg: const Color(0xFFFF8BB8),
+                          title: 'Casting',
+                          subtitle: 'DLNA, UPnP and Chromecast receivers',
+                          onTap: () => _navigate(
+                            context,
+                            const CastingSettingsScreen(),
                           ),
                         ),
                         const SettingsDivider(),
