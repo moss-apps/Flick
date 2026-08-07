@@ -278,7 +278,7 @@ class SubsonicService implements NetworkSourceService {
       try {
         final rawSongs = await getAlbum(server, album['id'] as String);
         final entities = rawSongs
-            .map((s) => _songEntity(server, s,
+            .map((s) => buildSongEntity(server, s,
                 albumName: albumName,
                 albumArtist: albumArtist,
                 coverArt: coverArt,
@@ -331,7 +331,12 @@ class SubsonicService implements NetworkSourceService {
     await _repo.deleteSongsByIds(stale.map((e) => e.id).toList());
   }
 
-  SongEntity _songEntity(
+  /// Map a raw Subsonic song map to a [SongEntity] tagged
+  /// `sourceType = 'subsonic'` with a synthetic `subsonic://<serverId>/<remoteId>`
+  /// filePath and a `subsonic-cover://<id>` album-art marker. Pure: no instance
+  /// state, so [SubsonicService.syncLibrary] and tests share one mapping.
+  @visibleForTesting
+  static SongEntity buildSongEntity(
     NetworkServerEntity server,
     Map<String, dynamic> s, {
     String? albumName,
