@@ -1,34 +1,15 @@
-# flutter pub run flutter_launcher_icons
+# dart run flutter_launcher_icons
+# ponytail: fli reads THIS file (not pubspec) when it exists. One safe-zone glyph
+# (dark dots scaled to 64% of canvas) serves both layers — foreground shows
+# dark-on-light (visible on #F5F5F5), monochrome uses its alpha as the themed shape.
+# inset is 0 because the glyph is pre-scaled into the adaptive safe zone.
 flutter_launcher_icons:
   image_path: "assets/icons/reverse_flick_logo.png"
-
   android: "launcher_icon"
-  # image_path_android: "assets/icon/icon.png"
-  min_sdk_android: 21 # android min sdk min:16, default 21
-  # adaptive_icon_background: "assets/icon/background.png"
-  # adaptive_icon_foreground: "assets/icon/foreground.png"
-  # adaptive_icon_foreground_inset: 16
-  # adaptive_icon_monochrome: "assets/icon/monochrome.png"
-
-  # ios: true
-  # # image_path_ios: "assets/icon/icon.png"
-  # remove_alpha_ios: true
-  # # image_path_ios_dark_transparent: "assets/icon/icon_dark.png"
-  # # image_path_ios_tinted_grayscale: "assets/icon/icon_tinted.png"
-  # # desaturate_tinted_to_grayscale_ios: true
-  # # background_color_ios: "#ffffff"
-
-  # web:
-  #   generate: true
-  #   image_path: "path/to/image.png"
-  #   background_color: "#hexcode"
-  #   theme_color: "#hexcode"
-
-  # windows:
-  #   generate: true
-  #   image_path: "path/to/image.png"
-  #   icon_size: 48 # min:48, max:256, default: 48
-
-  # macos:
-  #   generate: true
-  #   image_path: "path/to/image.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#F5F5F5"
+  adaptive_icon_foreground: "assets/icons/launcher_icon_foreground.png"
+  adaptive_icon_foreground_inset: 0
+  # ponytail: monochrome kept larger (64%) — home themed icon looked fine; only
+  # the splash (which uses the foreground) was zoomed.
+  adaptive_icon_monochrome: "assets/icons/launcher_icon_safe.png"
