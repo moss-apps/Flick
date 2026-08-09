@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
@@ -18,20 +17,19 @@ class AlbumArtService {
   AlbumArtService._();
 
   static final AlbumArtService instance = AlbumArtService._();
-  static const String _storeKey = 'flickArtworkCache';
-  // ponytail: 30-day staleness + 500-entry LRU cap bounds on-disk storage to
-  // ~roughly the size of a large library's most-listened artwork. Bump the
-  // cap (or drop the stale period) only if getCacheSize() reports pressure.
-  static const Duration _cacheStalePeriod = Duration(days: 30);
-  static const int _cacheMaxEntries = 500;
 
-  static final CacheManager _cacheManager = CacheManager(
-    Config(
-      _storeKey,
-      stalePeriod: _cacheStalePeriod,
-      maxNrOfCacheObjects: _cacheMaxEntries,
-    ),
-  );
+  // ponytail: artwork lives in the app *support* dir (durable) instead of
+  // flutter_cache_manager's cache dir (OS-evictable). A DB pointer at a file
+  // the OS had evicted was the root cause of art vanishing on reopen. 30-day
+  // age + 500-entry cap bound storage; the tail re-extracts on demand once
+  // pruned, so storage stays bounded without reintroducing the stale-pointer
+  // bug for the common (recently played) set.
+  static const Duration _artworkStalePeriod = Duration(days: 30);
+  static const int _artworkMaxEntries = 500;
+  static const Duration _pruneInterval = Duration(hours: 6);
+
+  Directory? _artworkDir;
+  DateTime _lastPrune = DateTime.fromMillisecondsSinceEpoch(0);
 
   final SongRepository _songRepository = SongRepository();
   final MusicFolderService _musicFolderService = MusicFolderService();
@@ -57,24 +55,24 @@ class AlbumArtService {
         return null;
       }
 
+      // Extension is irrelevant: Flutter's image decoder sniffs magic bytes,
+      // so keying the file on the content hash alone keeps lookup O(1) with
+      // no glob and no raw-vs-normalized format mismatch.
       final cacheKey = _cacheKey(raw);
-      final cached = await _cacheManager.getFileFromCache(cacheKey);
-      final cachedPath = cached?.file.path;
-      if (await _isUsableImagePath(cachedPath)) {
-        unawaited(_persistArtworkPath(audioSourcePath, cachedPath));
-        return cachedPath;
+      final dir = await _ensureArtworkDir();
+      final cachedFile = File('${dir.path}/$cacheKey');
+      if (await _isUsableImagePath(cachedFile.path)) {
+        unawaited(_persistArtworkPath(audioSourcePath, cachedFile.path));
+        unawaited(_pruneIfNeeded(dir));
+        return cachedFile.path;
       }
 
       final bytes = await _normalizeArtworkBytes(raw);
-      final extension = _detectFileExtension(bytes);
-      final file = await _cacheManager.putFile(
-        cacheKey,
-        bytes,
-        fileExtension: extension,
-      );
+      await cachedFile.writeAsBytes(bytes, flush: true);
 
-      await _persistArtworkPath(audioSourcePath, file.path);
-      return file.path;
+      await _persistArtworkPath(audioSourcePath, cachedFile.path);
+      unawaited(_pruneIfNeeded(dir));
+      return cachedFile.path;
     });
 
     try {
@@ -85,39 +83,67 @@ class AlbumArtService {
   }
 
   Future<int> getCacheSize() async {
+    final dir = await _ensureArtworkDir();
     var total = 0;
-    for (final dir in await _candidateCacheRoots()) {
-      for (final name in const [_storeKey, 'libCachedImageData']) {
-        final cacheDir = Directory('${dir.path}/$name');
-        if (!await cacheDir.exists()) continue;
-        try {
-          await for (final entity
-              in cacheDir.list(recursive: true, followLinks: false)) {
-            if (entity is File) total += await entity.length();
-          }
-        } catch (_) {}
+    try {
+      await for (final entity
+          in dir.list(recursive: false, followLinks: false)) {
+        if (entity is File) total += await entity.length();
       }
-    }
+    } catch (_) {}
     return total;
   }
 
   Future<void> clearCache() async {
-    await _cacheManager.emptyCache();
-    await DefaultCacheManager().emptyCache();
+    final dir = await _ensureArtworkDir();
+    try {
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is File) await entity.delete();
+      }
+    } catch (_) {}
   }
 
-  Future<List<Directory>> _candidateCacheRoots() async {
-    final dirs = <Directory>[];
-    for (final future in [
-      getTemporaryDirectory(),
-      getApplicationCacheDirectory(),
-      getApplicationSupportDirectory(),
-    ]) {
-      try {
-        dirs.add(await future);
-      } catch (_) {}
+  Future<Directory> _ensureArtworkDir() async {
+    final cached = _artworkDir;
+    if (cached != null) return cached;
+    final support = await getApplicationSupportDirectory();
+    final artwork = Directory('${support.path}/artwork');
+    if (!await artwork.exists()) {
+      await artwork.create(recursive: true);
     }
-    return dirs;
+    _artworkDir = artwork;
+    return artwork;
+  }
+
+  // ponytail: throttled best-effort prune — newest _artworkMaxEntries survive,
+  // anything older than _artworkStalePeriod goes regardless. Pruned entries
+  // re-extract on next access via the normal self-heal path, so this only
+  // bounds storage, never loses art permanently.
+  Future<void> _pruneIfNeeded(Directory dir) async {
+    final now = DateTime.now();
+    if (now.difference(_lastPrune) < _pruneInterval) return;
+    _lastPrune = now;
+
+    try {
+      final files = <({File file, DateTime modified})>[];
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is! File) continue;
+        final stat = await entity.stat();
+        files.add((file: entity, modified: stat.modified));
+      }
+      files.sort((a, b) => b.modified.compareTo(a.modified));
+
+      final staleCut = now.subtract(_artworkStalePeriod);
+      for (var i = 0; i < files.length; i++) {
+        final beyondCap = i >= _artworkMaxEntries;
+        final isStale = files[i].modified.isBefore(staleCut);
+        if (beyondCap || isStale) {
+          try {
+            await files[i].file.delete();
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
   }
 
   Future<bool> _isUsableImagePath(String? path) async {
@@ -199,48 +225,6 @@ class AlbumArtService {
   String _cacheKey(Uint8List bytes) {
     final digest = md5.convert(bytes);
     return 'embedded-artwork:${digest.toString()}';
-  }
-
-  String _detectFileExtension(Uint8List bytes) {
-    if (bytes.length >= 8 &&
-        bytes[0] == 0x89 &&
-        bytes[1] == 0x50 &&
-        bytes[2] == 0x4E &&
-        bytes[3] == 0x47) {
-      return 'png';
-    }
-
-    if (bytes.length >= 3 &&
-        bytes[0] == 0xFF &&
-        bytes[1] == 0xD8 &&
-        bytes[2] == 0xFF) {
-      return 'jpg';
-    }
-
-    if (bytes.length >= 12 &&
-        bytes[0] == 0x52 &&
-        bytes[1] == 0x49 &&
-        bytes[2] == 0x46 &&
-        bytes[3] == 0x46 &&
-        bytes[8] == 0x57 &&
-        bytes[9] == 0x45 &&
-        bytes[10] == 0x42 &&
-        bytes[11] == 0x50) {
-      return 'webp';
-    }
-
-    if (bytes.length >= 6 &&
-        bytes[0] == 0x47 &&
-        bytes[1] == 0x49 &&
-        bytes[2] == 0x46) {
-      return 'gif';
-    }
-
-    if (bytes.length >= 2 && bytes[0] == 0x42 && bytes[1] == 0x4D) {
-      return 'bmp';
-    }
-
-    return 'jpg';
   }
 }
 
