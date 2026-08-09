@@ -14,7 +14,7 @@ import '../widgets/settings_widgets.dart';
 import 'network_server_edit_screen.dart';
 
 /// Manage configured network music servers (Subsonic, Jellyfin, WebDAV,
-/// UPnP/DLNA, SMB).
+/// UPnP/DLNA, SMB, Tidal).
 class NetworkSourcesScreen extends StatefulWidget {
   const NetworkSourcesScreen({super.key});
 
@@ -157,8 +157,8 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
             ),
             const SizedBox(height: AppConstants.spacingXs),
             Text(
-              'Connect a Subsonic, Jellyfin, WebDAV, or UPnP server to stream '
-              'your remote library.',
+              'Connect a Subsonic, Jellyfin, WebDAV, UPnP, or Tidal server to '
+              'stream your remote library.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: context.adaptiveTextTertiary,
