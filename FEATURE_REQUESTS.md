@@ -74,7 +74,7 @@ name, track count, artist, and (newly added) **Year**.
   - ~~HRTF preset library~~
   - ~~Optional HRTF scan upload~~
 - ~~**MQA (Master Quality Authenticated)**~~ — too far. Licensed, instant bankrupt for me.
-- [ ] **Pitch shifter** — adjust audio pitch independently of tempo
+- [X] **Pitch shifter** — adjust audio pitch independently of tempo
 
 ---
 
@@ -95,7 +95,7 @@ name, track count, artist, and (newly added) **Year**.
 
 ## Integrations
 
-- [ ] **Tidal integration** — Tidal streaming service support
+- [x] **Tidal integration** — Tidal streaming service support (reverse-engineered web/OAuth2 path: user signs in with their own account; HiFi lossless FLAC/ALAC through the bit-perfect engine; HiRes/MQA/Atmos gated by Tidal and surfaced as an error).
 - [X] **Local Media Server** — stream music from NAS / network shares. Shipped as Network Sources (`docs/NETWORK_SOURCES_PLAN.md`): Subsonic (Navidrome/Airsonic/gonic/etc.), WebDAV (Nextcloud/ownCloud/Synology/generic), Jellyfin, and UPnP/DLNA media-server browse/play, all through the existing Rust engine (bit-perfect/DSD/gapless preserved). SMB is a loud-failing placeholder recommending the WebDAV workaround.
 
 ---

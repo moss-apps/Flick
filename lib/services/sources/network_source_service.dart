@@ -4,6 +4,7 @@ import '../library_scanner_service.dart' show ScanProgress;
 import 'jellyfin_service.dart';
 import 'smb_service.dart';
 import 'subsonic_service.dart';
+import 'tidal_service.dart';
 import 'upnp_service.dart';
 import 'webdav_service.dart';
 
@@ -74,8 +75,9 @@ class NetworkProtocol {
   static const webdav = 'webdav';
   static const upnp = 'upnp';
   static const smb = 'smb';
+  static const tidal = 'tidal';
 
-  static const all = [subsonic, jellyfin, webdav, upnp, smb];
+  static const all = [subsonic, jellyfin, webdav, upnp, smb, tidal];
 }
 
 final Map<String, NetworkSourceService> _registry = {};
@@ -90,6 +92,7 @@ void _ensureSeeded() {
     WebdavService.instance,
     UpnpService.instance,
     SmbService.instance,
+    TidalService.instance,
   ]) {
     _registry[s.protocol] = s;
   }
