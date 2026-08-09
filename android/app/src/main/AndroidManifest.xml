@@ -132,5 +132,17 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- url_launcher: Android 11+ (API 30+) package-visibility requires
+             declaring the browser VIEW intent or launchUrl throws
+             ACTIVITY_NOT_FOUND. Needed for Tidal/Last.fm OAuth device flow. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
     </queries>
 </manifest>
