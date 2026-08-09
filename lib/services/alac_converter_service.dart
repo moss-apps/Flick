@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -12,35 +13,119 @@ import 'package:flick/core/utils/dev_log.dart';
 class AlacConverterService {
   static final Map<String, bool> _wavConversionSupportCache = {};
 
-  /// Convert a supported source file to WAV and save to a temporary file.
+  // --- persistent WAV cache (survives app restarts) ---
+  static const _cacheDirName = 'wav_cache';
+  static const _manifestName = 'manifest.json';
+  static Map<String, _WavCacheEntry>? _manifest;
+  static bool _manifestLoaded = false;
+
+  static Future<Directory> _wavCacheDir() async {
+    final support = await getApplicationSupportDirectory();
+    final dir = Directory('${support.path}/$_cacheDirName');
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dir;
+  }
+
+  static Future<void> _ensureManifest() async {
+    if (_manifestLoaded) return;
+    _manifestLoaded = true;
+    try {
+      final dir = await _wavCacheDir();
+      final file = File('${dir.path}/$_manifestName');
+      if (await file.exists()) {
+        final raw = jsonDecode(await file.readAsString());
+        if (raw is Map<String, dynamic>) {
+          _manifest = raw.map(
+            (k, v) => MapEntry(k, _WavCacheEntry.fromJson(v as Map<String, dynamic>)),
+          );
+          return;
+        }
+      }
+      _manifest = {};
+    } catch (_) {
+      _manifest = {};
+    }
+  }
+
+  static Future<void> _persistManifest() async {
+    final manifest = _manifest;
+    if (manifest == null) return;
+    try {
+      final dir = await _wavCacheDir();
+      final file = File('${dir.path}/$_manifestName');
+      await file.writeAsString(
+        jsonEncode(manifest.map((k, v) => MapEntry(k, v.toJson()))),
+      );
+    } catch (_) {
+      // best-effort; in-session cache still works
+    }
+  }
+
+  /// Returns the persisted WAV path for [sourcePath] if a valid converted copy
+  /// already exists on disk, otherwise null.
+  // ponytail: validity keyed on source byte size only. A replaced source with
+  // identical size would reuse a stale WAV; add content hashing if that bites.
+  // Uncompressed WAVs are ~10x the source; no eviction yet, add LRU if the dir
+  // grows too large.
+  static Future<String?> tryGetCachedWav(String sourcePath) async {
+    await _ensureManifest();
+    final entry = _manifest?[sourcePath];
+    if (entry == null) return null;
+    try {
+      final srcFile = File(sourcePath);
+      if (!await srcFile.exists()) return null;
+      if (await srcFile.length() != entry.sourceSize) return null;
+      final wavFile = File(entry.wavPath);
+      if (!await wavFile.exists()) return null;
+      return entry.wavPath;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Convert a supported source file to WAV and save to the persistent cache.
   ///
-  /// Returns the path to the converted WAV file
+  /// Returns the path to the converted WAV file. Reuses an existing cached
+  /// copy when valid, so repeated launches skip re-conversion.
   static Future<String> convertToWavFile(String sourcePath) async {
-    final tempDir = await getTemporaryDirectory();
-    return _convertToWavFile(sourcePath: sourcePath, tempDirPath: tempDir.path);
+    final cached = await tryGetCachedWav(sourcePath);
+    if (cached != null) return cached;
+
+    final dir = await _wavCacheDir();
+    final wavPath = await _convertToWavFile(
+      sourcePath: sourcePath,
+      cacheDirPath: dir.path,
+    );
+
+    _manifest ??= {};
+    _manifest![sourcePath] = _WavCacheEntry(
+      wavPath: wavPath,
+      sourceSize: await File(sourcePath).length(),
+    );
+    await _persistManifest();
+    return wavPath;
   }
 
   static Future<String> _convertToWavFile({
     required String sourcePath,
-    required String tempDirPath,
+    required String cacheDirPath,
   }) async {
-    // Read source file
     final sourceFile = File(sourcePath);
     final fileBytes = await sourceFile.readAsBytes();
 
-    // Convert to WAV
     final wavBytes = alac_api.alacConvertToWav(fileBytes: fileBytes);
     if (wavBytes.isEmpty) {
       throw StateError('Rust converter returned empty WAV data');
     }
 
-    // Save to temporary file
     final sourceName = sourcePath.split('/').last;
     final baseName = sourceName.replaceAll(
       RegExp(r'\.(alac|m4a|aiff|aif)$', caseSensitive: false),
       '',
     );
-    final wavPath = '$tempDirPath/${baseName}_${sourcePath.hashCode.abs()}.wav';
+    final wavPath = '$cacheDirPath/${baseName}_${sourcePath.hashCode.abs()}.wav';
     final wavFile = File(wavPath);
     await wavFile.writeAsBytes(wavBytes);
 
@@ -93,6 +178,20 @@ class AlacConverterService {
   static bool requiresWavConversion(String filePath) {
     return isAlacOrM4a(filePath) || isAiff(filePath);
   }
+}
+
+class _WavCacheEntry {
+  final String wavPath;
+  final int sourceSize;
+
+  _WavCacheEntry({required this.wavPath, required this.sourceSize});
+
+  Map<String, dynamic> toJson() => {'wavPath': wavPath, 'sourceSize': sourceSize};
+
+  factory _WavCacheEntry.fromJson(Map<String, dynamic> json) => _WavCacheEntry(
+        wavPath: json['wavPath'] as String,
+        sourceSize: json['sourceSize'] as int,
+      );
 }
 
 /// Streaming ALAC converter for large files
