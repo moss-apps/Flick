@@ -109,7 +109,7 @@ class SongEntity {
   bool hasLocalEdits = false;
 
   /// Where this song came from: null = local file, otherwise one of
-  /// 'subsonic' | 'webdav' | 'jellyfin'.
+  /// 'subsonic' | 'webdav' | 'jellyfin' | 'tidal' | 'upnp'.
   @Index()
   String? sourceType;
 

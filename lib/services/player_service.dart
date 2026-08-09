@@ -2754,12 +2754,16 @@ class PlayerService {
         defaultTargetPlatform == TargetPlatform.android &&
         parsed?.scheme == 'content';
 
-    final normalizedType = _playbackFileType(song);
-    _debugLog(
-      '[WAV-conv] resolve path: file=${song.title} '
-      'normType=$normalizedType engine=$currentEngineType '
-      'isContentUri=$isAndroidContentUri shouldConvert=${_shouldConvertToWav(song)}',
-    );
+    final needsWavWork = isAndroidContentUri ||
+        _shouldConvertToWav(song);
+    if (needsWavWork) {
+      final normalizedType = _playbackFileType(song);
+      _debugLog(
+        '[WAV-conv] resolve path: file=${song.title} '
+        'normType=$normalizedType engine=$currentEngineType '
+        'isContentUri=$isAndroidContentUri shouldConvert=${_shouldConvertToWav(song)}',
+      );
+    }
 
     if (isAndroidContentUri && _shouldStageContentUriForPlayback(song)) {
       final stagedPath = await _stageContentUriForPlayback(
@@ -2785,7 +2789,9 @@ class PlayerService {
       }
     }
 
-    _debugLog('[WAV-conv] final resolved path: $resolvedPath');
+    if (needsWavWork) {
+      _debugLog('[WAV-conv] final resolved path: $resolvedPath');
+    }
     return resolvedPath;
   }
 
@@ -2881,16 +2887,26 @@ class PlayerService {
     }
 
     final playbackUri = _toPlaybackUri(sourcePath);
-    _debugLog(
-      '[WAV-conv] convert check: sourceScheme=${playbackUri.scheme} '
-      'sourcePath=$sourcePath',
-    );
     if (playbackUri.scheme != 'file') {
       _debugLog('[WAV-conv] skipping: not a file: scheme');
       return null;
     }
 
     final localPath = playbackUri.toFilePath();
+
+    // Persistent cache: reuse a previously converted WAV, skipping probe +
+    // conversion. Avoids re-reading/re-converting every launch.
+    final persisted = await AlacConverterService.tryGetCachedWav(localPath);
+    if (persisted != null) {
+      _convertedPlaybackPathCache[sourceKey] = persisted;
+      _debugLog('[WAV-conv] using persisted cache: $persisted');
+      return persisted;
+    }
+
+    _debugLog(
+      '[WAV-conv] convert check: sourceScheme=${playbackUri.scheme} '
+      'sourcePath=$sourcePath',
+    );
     final canConvert = await AlacConverterService.canConvertToWavFile(
       localPath,
     );

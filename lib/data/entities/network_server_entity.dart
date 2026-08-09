@@ -10,7 +10,7 @@ class NetworkServerEntity {
   /// Display name shown in the Network Sources settings screen.
   late String label;
 
-  /// Protocol: 'subsonic' | 'webdav' | 'jellyfin' (SMB/UPnP deferred).
+  /// Protocol: 'subsonic' | 'webdav' | 'jellyfin' | 'tidal' (SMB/UPnP too).
   late String protocol;
 
   /// Base URL of the server, e.g. https://music.example.com/subsonic.
