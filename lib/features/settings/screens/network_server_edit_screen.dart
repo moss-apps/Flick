@@ -1,6 +1,8 @@
 // Main sources
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // App constants and other app UI libraries
 import '../../../core/constants/app_constants.dart';
@@ -13,6 +15,7 @@ import '../../../core/utils/responsive.dart';
 import '../../../data/database.dart';
 import '../../../data/repositories/song_repository.dart';
 import '../../../services/sources/network_source_service.dart';
+import '../../../services/sources/tidal_service.dart';
 import '../widgets/settings_widgets.dart';
 
 /// Add or edit a network server. All registered protocols are selectable;
@@ -85,6 +88,14 @@ const List<_ProtocolMeta> _protocols = [
     urlHint: 'smb://nas/music',
     passwordHelper: 'Stored encoded; playback unavailable in this build',
   ),
+  _ProtocolMeta(
+    id: NetworkProtocol.tidal,
+    label: 'Tidal',
+    subtitle: 'Sign in with your account · HiFi lossless',
+    icon: LucideIcons.waves,
+    urlHint: TidalService.tidalBaseUrl,
+    passwordHelper: 'OAuth sign-in; no password stored here',
+  ),
 ];
 
 class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
@@ -96,10 +107,18 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
   bool _testing = false;
   bool? _testPassed;
   String? _testError;
+  /// Set when Tidal sign-in can't auto-open the browser; the live banner shows
+  /// it for manual copy/open while polling continues.
+  String? _testVerificationUri;
   bool _saving = false;
   bool _isValid = false;
 
   bool get _isNew => widget.server == null;
+
+  bool get _isTidal => _selectedProtocol == NetworkProtocol.tidal;
+
+  /// Tidal OAuth token resolved during this session (device-code login).
+  String? _resolvedToken;
 
   _ProtocolMeta get _meta =>
       _protocols.firstWhere((p) => p.id == _selectedProtocol);
@@ -132,16 +151,22 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
   }
 
   void _updateValidity() {
-    final valid =
-        _labelController.text.trim().isNotEmpty &&
-        _urlController.text.trim().isNotEmpty;
+    final valid = _labelController.text.trim().isNotEmpty &&
+        (_isTidal || _urlController.text.trim().isNotEmpty);
     if (_isValid != valid) setState(() => _isValid = valid);
   }
 
   /// Resolve the token to persist. When a password is typed it's resolved
   /// through the protocol service (local transform for Subsonic/WebDAV, a
   /// sign-in round-trip for Jellyfin). Otherwise the existing token is kept.
+  /// Tidal has no password field — its device-code token is captured in
+  /// [_resolvedToken] during [_testConnection], or the previously-stored
+  /// sign-in is reused.
   Future<String?> _resolvePersistedToken() async {
+    if (_isTidal) {
+      if (_resolvedToken != null) return _resolvedToken;
+      return widget.server?.token;
+    }
     final password = _passwordController.text;
     if (password.isNotEmpty) {
       final draft = _draftEntity(token: null);
@@ -160,7 +185,9 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     server
       ..label = _labelController.text.trim()
       ..protocol = _selectedProtocol
-      ..baseUrl = _urlController.text.trim().replaceAll(RegExp(r'/+$'), '')
+      ..baseUrl = _isTidal
+          ? TidalService.tidalBaseUrl
+          : _urlController.text.trim().replaceAll(RegExp(r'/+$'), '')
       ..username = _usernameController.text.trim().isEmpty
           ? null
           : _usernameController.text.trim()
@@ -173,9 +200,33 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       _testing = true;
       _testPassed = null;
       _testError = null;
+      _testVerificationUri = null;
     });
     AppHaptics.tap();
-    final token = await _resolvePersistedToken();
+    var token = await _resolvePersistedToken();
+    // Tidal with no session token yet: drive the device-code login (opens the
+    // browser, polls until authorized), then validate.
+    if (_isTidal && (token == null || token.isEmpty)) {
+      try {
+        token = await TidalService.instance.signIn(
+          onVerificationLink: (uri) {
+            if (!mounted) return;
+            setState(() => _testVerificationUri = uri);
+          },
+        );
+        _resolvedToken = token;
+        if (!mounted) return;
+        setState(() => _testVerificationUri = null);
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _testing = false;
+          _testPassed = false;
+          _testError = _humanError(e);
+        });
+        return;
+      }
+    }
     final entity = _draftEntity(token: token);
     try {
       final ok = await networkSourceServiceFor(_selectedProtocol).ping(entity);
@@ -251,11 +302,18 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       ? LucideIcons.checkCircle
       : LucideIcons.xCircle;
 
-  String get _testLabel => _testPassed == null
-      ? 'Test Connection'
-      : _testPassed!
-      ? 'Connection OK'
-      : 'Connection Failed — Retry';
+  String get _testLabel {
+    if (_testPassed == true) return _isTidal ? 'Signed in' : 'Connection OK';
+    if (_testPassed == false) {
+      return _isTidal ? 'Sign-in Failed — Retry' : 'Connection Failed — Retry';
+    }
+    if (_isTidal) {
+      final hasToken = _resolvedToken != null ||
+          (widget.server?.token?.isNotEmpty ?? false);
+      return hasToken ? 'Test Connection' : 'Sign in with Tidal';
+    }
+    return 'Test Connection';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -281,6 +339,8 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
                             _selectedProtocol = _protocols[i].id;
                             _testPassed = null;
                             _testError = null;
+                            _testVerificationUri = null;
+                            _resolvedToken = null;
                           });
                         }
                       : null,
@@ -302,6 +362,21 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
                     ),
               ),
             ),
+          if (_isTidal)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppConstants.spacingXs,
+                top: AppConstants.spacingSm,
+              ),
+              child: Text(
+                'Sign in with your own Tidal account. HiFi lossless (FLAC/ALAC) '
+                'plays through the bit-perfect engine; HiRes/MQA and Atmos are '
+                'gated by Tidal and will show an error instead of playing.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.adaptiveTextTertiary,
+                    ),
+              ),
+            ),
           const SizedBox(height: AppConstants.spacingLg),
           SettingsSectionHeader('Connection'),
           SettingsCard(
@@ -310,32 +385,34 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
                 controller: _labelController,
                 icon: LucideIcons.tag,
                 label: 'Label',
-                hint: 'My Navidrome',
+                hint: 'My ${_meta.label}',
               ),
-              const SettingsDivider(),
-              _TextFieldSetting(
-                controller: _urlController,
-                icon: LucideIcons.link,
-                label: 'Server URL',
-                hint: _meta.urlHint,
-                keyboardType: TextInputType.url,
-              ),
-              const SettingsDivider(),
-              _TextFieldSetting(
-                controller: _usernameController,
-                icon: LucideIcons.user,
-                label: 'Username',
-              ),
-              const SettingsDivider(),
-              _TextFieldSetting(
-                controller: _passwordController,
-                icon: LucideIcons.lock,
-                label: 'Password',
-                obscureText: true,
-                helperText: _isNew
-                    ? _meta.passwordHelper
-                    : 'Leave empty to keep the current credentials',
-              ),
+              if (!_isTidal) ...[
+                const SettingsDivider(),
+                _TextFieldSetting(
+                  controller: _urlController,
+                  icon: LucideIcons.link,
+                  label: 'Server URL',
+                  hint: _meta.urlHint,
+                  keyboardType: TextInputType.url,
+                ),
+                const SettingsDivider(),
+                _TextFieldSetting(
+                  controller: _usernameController,
+                  icon: LucideIcons.user,
+                  label: 'Username',
+                ),
+                const SettingsDivider(),
+                _TextFieldSetting(
+                  controller: _passwordController,
+                  icon: LucideIcons.lock,
+                  label: 'Password',
+                  obscureText: true,
+                  helperText: _isNew
+                      ? _meta.passwordHelper
+                      : 'Leave empty to keep the current credentials',
+                ),
+              ],
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
@@ -359,6 +436,10 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
               ),
             ),
           ),
+          if (_testing && _testVerificationUri != null) ...[
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildSignInLinkBanner(context),
+          ],
           if (_testPassed == false) ...[
             const SizedBox(height: AppConstants.spacingSm),
             _buildFailureBanner(context),
@@ -431,6 +512,130 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
         ],
       ),
     );
+  }
+
+  /// Shown live while Tidal device-code polling runs after the browser failed
+  /// to auto-open. Offers manual copy/open of the verification link.
+  Widget _buildSignInLinkBanner(BuildContext context) {
+    final uri = _testVerificationUri!;
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingSm),
+      decoration: BoxDecoration(
+        color: AppColors.glassBackground,
+        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                LucideIcons.link,
+                size: 16,
+                color: context.adaptiveTextSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Couldn't open the browser automatically. Authorize on any "
+                  "device with this link — we'll finish signing in once you do:",
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.adaptiveTextSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.glassBackgroundStrong,
+              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+              border: Border.all(color: AppColors.glassBorder),
+            ),
+            child: SelectableText(
+              uri,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.adaptiveTextSecondary,
+                fontFamily: 'monospace',
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingSm),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _linkAction(
+                icon: LucideIcons.externalLink,
+                label: 'Open in browser',
+                onTap: () => _openLink(uri),
+              ),
+              _linkAction(
+                icon: LucideIcons.copy,
+                label: 'Copy link',
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: uri));
+                  AppHaptics.tap();
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Glass-styled action button matching the app design language (used for the
+  /// Tidal sign-in link actions).
+  Widget _linkAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.glassBackgroundStrong,
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+            border: Border.all(color: AppColors.glassBorderStrong),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: context.adaptiveTextSecondary),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: context.adaptiveTextPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Open [uri] for the Tidal device flow in the default browser. If no
+  /// default browser is set, the system shows its own chooser.
+  Future<void> _openLink(String uri) async {
+    AppHaptics.tap();
+    try {
+      await launchUrl(Uri.parse(uri), mode: LaunchMode.externalApplication);
+    } catch (_) {/* nothing to do — the banner still shows the link */}
   }
 }
 
