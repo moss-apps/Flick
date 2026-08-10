@@ -2650,6 +2650,7 @@ class PlayerService {
   }
 
   void _stopPlayback() async {
+    _wasPlayingBeforeAudioInterruption = false;
     await _savePosition();
     _positionSaveTimer?.cancel();
     _clearReplayTracking();
@@ -4003,6 +4004,10 @@ class PlayerService {
 
   Future<void> pause() {
     _debugLog('[PlayerService] pause() called');
+    // Manual pause cancels any pending auto-resume from a transient focus
+    // loss; otherwise the next notification's end event restarts playback.
+    // The interruption handler calls _pauseInternal directly, not here.
+    _wasPlayingBeforeAudioInterruption = false;
     return _enqueuePlaybackRequest(_pauseInternal);
   }
 
@@ -4201,6 +4206,7 @@ class PlayerService {
       );
       try {
         if (isPlayingNotifier.value) {
+          _wasPlayingBeforeAudioInterruption = false;
           await _pauseInternal();
         } else {
           await _resumeInternal();
