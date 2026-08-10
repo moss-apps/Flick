@@ -44,6 +44,134 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
+    version: '0.21.0-beta.1',
+    date: '2026-07-10',
+    sections: [
+      ChangelogSection(
+        title: 'Network Sources — Self-Hosted Music Servers',
+        bullets: [
+          '**Subsonic, Jellyfin/Emby, UPnP/DLNA, WebDAV, and Tidal** support for streaming from your own music server.',
+          '`NetworkSourceService` abstraction with per-protocol implementations (Subsonic API, Jellyfin REST, DLNA DIDL-Lite, WebDAV, Tidal).',
+          '`NetworkServerEntity` Isar collection stores server credentials and config.',
+          'Network Sources screen with server add/edit/delete, validation, and failure banners.',
+          'Multi-protocol server config — each server declares its protocol type.',
+          '`RemoteSourceService` resolves network songs into playable stream descriptors.',
+          '`NetworkCacheService` with bounded LRU download caching for offline-ready playback.',
+          'Remote sync tracking: `sourceType`, `remoteId`, `remoteServerId` on `SongEntity` and `RecentlyPlayedEntity`.',
+          'Album art resolution generalized across all network protocols.',
+          'Subsonic prefetch for gapless playback.',
+          '`countSongsByRemoteServer` for per-server library stats.',
+          'SAF fallback when MediaStore returns no files.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Casting — DLNA & Chromecast',
+        bullets: [
+          '**CastingService** orchestrates DLNA/UPnP and Google Chromecast backends.',
+          'Chromecast backend with `CastController`, cast channels, and Google Cast SDK.',
+          'DLNA/UPnP backend for renderer discovery and control.',
+          '`CastDevice` model with DLNA and Chromecast device types.',
+          'Casting settings screen with device discovery and output routing.',
+          'Cast button added to player action row — start casting from the player.',
+          'Cast delegation integrated into `PlayerService`.',
+          '`CastOptionsProvider` for Google Cast integration preferences.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'HTTP Audio Streaming Engine',
+        bullets: [
+          '**HTTP-based audio streaming** via `ureq` Rust client with ranged requests.',
+          'Seekable HTTP media source for remote audio — scrub through network streams.',
+          'HTTP audio stream probing and decoding in the Rust audio pipeline.',
+          'HTTP-first source resolution for network songs — streams directly without local download.',
+          '`streamDescriptor` on `NetworkSourceService` enables HTTP-first playback per protocol.',
+          'HTTP play and queue methods exposed via FFI to Dart.',
+          'HTTP streaming playback integrated into `RustAudioEngine` and `RustAudioService`.',
+          'Network-source prefetch for gapless crossfade between streamed tracks.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Parametric Equalizer Refactor',
+        bullets: [
+          'Graphic EQ converted to **parametric EQ** with variable band types and RBJ biquad coefficients.',
+          '`EqBandSpec` and `EqBandType` FFI types replace raw gain arrays.',
+          'Variable-band Rust DSP specs — add and remove bands dynamically.',
+          'Animated band add/removal with smooth transitions.',
+          '`removeParametricBand` method on `EqualizerNotifier`.',
+          'BMT (bass/mid/treble) tone controls preserved alongside parametric bands.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Player Action Button Layout',
+        bullets: [
+          'Configurable **center action button** (default: equalizer) with selector in player layout sheet.',
+          '**Top-left and top-right action buttons** added alongside existing bottom pair.',
+          '`PlayerActionButton` enum gains `none` option — hide any action slot.',
+          'Player layout settings reorganized into top/bottom pairs.',
+          'Sleep timer toggle available as an action button.',
+          '`leftTopAction`, `rightTopAction`, `centerActionButton` preferences persisted.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Volume Tier System',
+        bullets: [
+          '`HwVolumeCapability` enum replaced with **`determineVolumeTier()`** pure function — testable, deterministic.',
+          'New `unavailable` tier for DACs that report no volume control.',
+          '`_hwVolumeFailed` lie-detector flag catches DACs that claim volume support but fail at runtime.',
+          'Volume slider disabled with explanatory message when hardware volume is unavailable.',
+          'All volume control routed through `PlayerService` for single-source-of-truth.',
+          'ISO volume popup consolidated — mute and volume logic unified.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Passthrough Pipeline Mode',
+        bullets: [
+          '**`audio_set_pipeline_mode_passthrough`** API — forces bit-perfect PCM path on direct USB.',
+          'Software gain removed from passthrough PCM path for true bit-perfect output.',
+          '`setPipelineModePassthrough` exposed on `RustAudioService`.',
+          'Passthrough mode verified with wire audit (`supportsVerifiedBitPerfect = true`).',
+        ],
+      ),
+      ChangelogSection(
+        title: 'USB DAC Fixes & Quirks',
+        bullets: [
+          '**Fosi Audio DS2 quirk** added for broken clock control (SkipClockValidation).',
+          '0 Hz DAC readback fix — handles DACs that return zero sample rate.',
+          'Division-by-zero guard when `output_sample_rate` is 0.',
+          'Zero sample rates filtered out of the audio engine.',
+          'Preferred sample rate no longer overwritten by DAC stored format.',
+          'Non-finite and negative position/duration values guarded in audio progress updates.',
+          'Sample rate preserved only when USB direct audio is inactive.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Reliability & Performance',
+        bullets: [
+          '**Wake lock** keeps CPU awake during audio playback — prevents sleep-related dropouts.',
+          '**Auto-resume fix** after audio interruptions (phone calls, notifications).',
+          '**Persistent WAV cache** — converted WAV files survive app restarts.',
+          'Custom artwork cache in support directory replaces `flutter_cache_manager`.',
+          '`dev_eprintln!` prints to terminal; `AppLog` gated behind developer mode.',
+          'Audio stream supervisor enabled on non-Android platforms (desktop testing).',
+          'WAV conversion optimized with conditional logging.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'UI Polish',
+        bullets: [
+          'Ambient background added to equalizer screen.',
+          '`BlurredSongBackground` removed from list screens for performance.',
+          'USB volume control visibility preferences and gradient styling.',
+          'Responsive scaling on settings icons and USB volume toggles.',
+          'Settings scaffold padding adjusted for bottom safe area.',
+          'Launcher icons updated.',
+          'VIEW intent queries added for Android 11+ package visibility.',
+          'Release minification disabled; resource shrinking disabled.',
+        ],
+      ),
+    ],
+  ),
+  ChangelogEntry(
     version: '0.20.5-beta.6',
     date: '2026-07-06',
     sections: [

@@ -1,5 +1,76 @@
 # Changelog
 
+## 0.21.0-beta.1 (2026-07-10)
+
+### Network Sources — Self-Hosted Music Servers
+- Subsonic, Jellyfin/Emby, UPnP/DLNA, WebDAV, and Tidal streaming support.
+- `NetworkSourceService` abstraction with per-protocol implementations.
+- `NetworkServerEntity` Isar collection for server credentials.
+- Network Sources screen with server add/edit/delete, validation, failure banners.
+- `RemoteSourceService` resolves network songs to playable streams.
+- `NetworkCacheService` with bounded LRU download caching.
+- Remote sync tracking on `SongEntity` (`sourceType`, `remoteId`, `remoteServerId`).
+- Album art resolution generalized across protocols.
+- Subsonic prefetch for gapless playback.
+
+### Casting — DLNA & Chromecast
+- CastingService orchestrates DLNA/UPnP and Chromecast backends.
+- Chromecast with CastController, cast channels, Google Cast SDK.
+- DLNA/UPnP backend for renderer discovery and control.
+- Casting settings screen with device discovery.
+- Cast button in player action row.
+
+### HTTP Audio Streaming Engine
+- HTTP streaming via ureq Rust client with ranged requests.
+- Seekable HTTP media source for remote audio.
+- HTTP-first source resolution for network songs.
+- `streamDescriptor` on `NetworkSourceService` for per-protocol HTTP playback.
+- HTTP play/queue methods via FFI.
+- Network-source prefetch for gapless crossfade.
+
+### Parametric Equalizer Refactor
+- Graphic EQ → parametric EQ with variable band types and RBJ coefficients.
+- `EqBandSpec` and `EqBandType` FFI types replace raw gain arrays.
+- Dynamic band add/removal with animated transitions.
+
+### Player Action Button Layout
+- Configurable center action button (default: equalizer).
+- Top-left and top-right action buttons added.
+- `PlayerActionButton` enum gains `none` option.
+- Player layout settings reorganized into top/bottom pairs.
+
+### Volume Tier System
+- `determineVolumeTier()` pure function replaces `HwVolumeCapability` enum.
+- `unavailable` tier for DACs with no volume control.
+- `_hwVolumeFailed` lie-detector flag.
+- Volume slider disabled with message when hardware volume unavailable.
+- Volume control routed through PlayerService.
+
+### Passthrough Pipeline Mode
+- `audio_set_pipeline_mode_passthrough` API for bit-perfect PCM.
+- Software gain removed from passthrough path.
+- Wire audit verified (`supportsVerifiedBitPerfect = true`).
+
+### USB DAC Fixes & Quirks
+- Fosi Audio DS2 quirk (SkipClockValidation).
+- 0 Hz DAC readback fix; division-by-zero guard.
+- Preferred sample rate no longer overwritten by DAC stored format.
+- Non-finite/negative position/duration guarded.
+
+### Reliability & Performance
+- Wake lock keeps CPU awake during playback.
+- Auto-resume fix after audio interruptions.
+- Persistent WAV cache across app restarts.
+- Custom artwork cache replaces flutter_cache_manager.
+- dev_eprintln prints to terminal; AppLog gated on dev mode.
+- Audio stream supervisor on non-Android platforms.
+
+### UI Polish
+- Ambient background on equalizer screen; BlurredSongBackground removed from lists.
+- USB volume visibility preferences and gradient styling.
+- Responsive settings icon scaling.
+- Launcher icons updated; VIEW intent queries for Android 11+.
+
 ## 0.20.5-beta.6 (2026-07-06)
 
 ### Audio Preload & Analysis
