@@ -1,6 +1,6 @@
 # Flick 0.21.0-beta.1
 
-0.21.0-beta.1 is a major release: network sources for self-hosted music servers (Subsonic, Jellyfin, DLNA, WebDAV, Tidal), DLNA and Chromecast casting, an HTTP audio streaming engine, a parametric equalizer refactor, configurable player action buttons, a volume tier system, bit-perfect passthrough mode, USB DAC fixes, and reliability improvements.
+0.21.0-beta.1 is a major release, shipped while continuously keeping up with improvements and bug fixing across the app: network sources for self-hosted music servers (Subsonic, Jellyfin, DLNA, WebDAV, Tidal), DLNA and Chromecast casting, an HTTP audio streaming engine, a parametric equalizer refactor, configurable player action buttons, a volume tier system, bit-perfect passthrough mode, USB DAC fixes, and reliability improvements.
 
 ## Overview
 
