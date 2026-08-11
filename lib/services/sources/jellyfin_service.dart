@@ -162,7 +162,7 @@ class JellyfinService implements NetworkSourceService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Future<List<Map<String, dynamic>>> _albums(
+  Future<List<Map<String, dynamic>>> _allAudio(
     NetworkServerEntity server,
     _JellyfinCredentials creds,
   ) async {
@@ -171,28 +171,8 @@ class JellyfinService implements NetworkSourceService {
       '/Users/${creds.userId}/Items',
       query: {
         'Recursive': 'true',
-        'IncludeItemTypes': 'MusicAlbum',
-        'Fields': 'DateCreated',
-      },
-      accessToken: creds.token,
-    );
-    return ((payload['Items'] as List<dynamic>?) ?? const [])
-        .cast<Map<String, dynamic>>();
-  }
-
-  Future<List<Map<String, dynamic>>> _songsInAlbum(
-    NetworkServerEntity server,
-    _JellyfinCredentials creds,
-    String albumId,
-  ) async {
-    final payload = await _getJson(
-      server,
-      '/Users/${creds.userId}/Items',
-      query: {
-        'Recursive': 'true',
-        'ParentId': albumId,
         'IncludeItemTypes': 'Audio',
-        'Fields': 'MediaSources,Genres',
+        'Fields': 'MediaSources,Genres,ProductionYear',
       },
       accessToken: creds.token,
     );
@@ -287,76 +267,40 @@ class JellyfinService implements NetworkSourceService {
       throw StateError('Jellyfin server "${server.label}" has no stored token');
     }
 
-    final albums = await _albums(server, creds);
-    final syncedRemoteIds = <String>{};
-    var songsFound = 0;
-    var filesProcessed = 0;
-
-    for (final album in albums) {
-      final albumName = (album['Name'] as String?) ?? '';
-      final albumArtist = _firstAlbumArtist(album);
-      final albumId = album['Id'] as String;
-      final year = _toInt(album['ProductionYear']);
-
+    // Query every Audio item directly. Iterating MusicAlbum containers misses
+    // loose tracks (root-level files, singles) that Jellyfin indexes but never
+    // groups into an album entity — their AlbumId is null despite having tags.
+    final tracks = await _allAudio(server, creds);
+    final entities = <SongEntity>[];
+    for (final s in tracks) {
       try {
-        final rawSongs = await _songsInAlbum(server, creds, albumId);
-        final entities = rawSongs
-            .map((s) => _songEntity(
-                  server,
-                  s,
-                  albumName: albumName,
-                  albumArtist: albumArtist,
-                  albumId: albumId,
-                  year: year,
-                ))
-            .toList();
-        await _repo.upsertSongs(entities);
-        syncedRemoteIds.addAll(entities.map((e) => e.remoteId!));
-        songsFound += entities.length;
+        entities.add(_songEntityFromTrack(server, s));
       } catch (e) {
         AppLog.instance.add(
-          'Jellyfin sync skipped album "$albumName" on ${server.label}: $e',
+          'Jellyfin sync skipped a track on ${server.label}: $e',
         );
       }
-
-      filesProcessed++;
-      yield ScanProgress(
-        songsFound: songsFound,
-        totalFiles: albums.length,
-        filesProcessed: filesProcessed,
-        phase: 'Syncing ${server.label}',
-        currentFile: albumName,
-      );
     }
 
-    await purgeAndStampNetworkSync(server, syncedRemoteIds);
+    await _repo.upsertSongs(entities);
+    await purgeAndStampNetworkSync(
+      server,
+      entities.map((e) => e.remoteId!).toSet(),
+    );
 
     yield ScanProgress(
-      songsFound: songsFound,
-      totalFiles: albums.length,
-      filesProcessed: filesProcessed,
+      songsFound: entities.length,
+      totalFiles: tracks.length,
+      filesProcessed: tracks.length,
       phase: 'Syncing ${server.label}',
       isComplete: true,
     );
   }
 
-  String _firstAlbumArtist(Map<String, dynamic> album) {
-    final artists = album['AlbumArtists'] as List<dynamic>?;
-    if (artists != null && artists.isNotEmpty) {
-      final first = artists.first as Map<String, dynamic>;
-      return (first['Name'] as String?) ?? '';
-    }
-    return (album['AlbumArtist'] as String?) ?? '';
-  }
-
-  SongEntity _songEntity(
+  SongEntity _songEntityFromTrack(
     NetworkServerEntity server,
-    Map<String, dynamic> s, {
-    required String albumName,
-    required String albumArtist,
-    required String albumId,
-    int? year,
-  }) {
+    Map<String, dynamic> s,
+  ) {
     final remoteId = s['Id'] as String;
     final runTimeTicks = _toInt(s['RunTimeTicks']);
     final mediaSources = s['MediaSources'] as List<dynamic>?;
@@ -366,25 +310,30 @@ class JellyfinService implements NetworkSourceService {
     final artists = (s['Artists'] as List<dynamic>?)?.cast<String?>();
     final genres = (s['Genres'] as List<dynamic>?)?.cast<String?>();
     final bitrateBps = _toInt(mediaSource?['Bitrate']);
+    final albumName = (s['Album'] as String?) ?? '';
+    final albumId = (s['AlbumId'] as String?) ?? '';
+    final albumArtist = (s['AlbumArtist'] as String?) ??
+        (artists != null && artists.isNotEmpty ? (artists.first ?? '') : '');
     return SongEntity()
       ..filePath = '${NetworkProtocol.jellyfin}://${server.id}/$remoteId'
       ..title = (s['Name'] as String?) ?? 'Unknown'
       ..artist = (artists != null && artists.isNotEmpty)
           ? (artists.first ?? 'Unknown')
           : (s['AlbumArtist'] as String?) ?? 'Unknown'
-      ..album = albumName.isNotEmpty ? albumName : (s['Album'] as String?)
+      ..album = albumName.isNotEmpty ? albumName : null
       ..albumArtist = albumArtist.isNotEmpty ? albumArtist : null
       ..durationMs = runTimeTicks != null ? runTimeTicks ~/ 10000 : null
       ..trackNumber = _toInt(s['IndexNumber'])
       ..discNumber = _toInt(s['ParentIndexNumber'])
-      ..year = year ?? _toInt(s['ProductionYear'])
+      ..year = _toInt(s['ProductionYear'])
       ..genre = genres != null && genres.isNotEmpty ? genres.join(', ') : null
       ..fileSize = _toInt(s['Size'])
-      ..fileType = (mediaSource?['Container'] as String?) ??
-          (s['Container'] as String?)
+      ..fileType =
+          (mediaSource?['Container'] as String?) ?? (s['Container'] as String?)
       ..bitrate = bitrateBps == null ? null : bitrateBps ~/ 1000
       ..sampleRate = _toInt(mediaSource?['SampleRate'])
-      ..albumArtPath = '$_coverMarkerScheme$albumId'
+      ..albumArtPath =
+          '$_coverMarkerScheme${albumId.isNotEmpty ? albumId : remoteId}'
       ..sourceType = NetworkProtocol.jellyfin
       ..remoteId = remoteId
       ..remoteServerId = server.id
