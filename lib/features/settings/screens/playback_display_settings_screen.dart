@@ -43,6 +43,21 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
               ),
               const SettingsDivider(),
               ToggleSetting(
+                icon: LucideIcons.shieldCheck,
+                title: 'Background Playback Anchor',
+                subtitle: appPrefs.priorityAnchorEnabled
+                    ? 'Keeps bit-perfect audio alive in the background'
+                    : 'May stop in the background on some devices',
+                value: appPrefs.priorityAnchorEnabled,
+                onChanged: (value) {
+                  playerService.setPriorityAnchorEnabled(value);
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setPriorityAnchorEnabled(value);
+                },
+              ),
+              const SettingsDivider(),
+              ToggleSetting(
                 icon: LucideIcons.pictureInPicture2,
                 title: 'Floating Mini-Player',
                 subtitle: appPrefs.floatingPlayerEnabled
