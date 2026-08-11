@@ -427,6 +427,15 @@ class PlayerService {
     Duration.zero,
   );
 
+  /// True while a network-sourced song is being resolved for playback (HTTP
+  /// stream attach or cache download). UI surfaces a loading indicator so the
+  /// user sees that their tap was registered during the network round-trip.
+  final ValueNotifier<bool> isNetworkLoadingNotifier = ValueNotifier(false);
+  // ponytail: monotonically increasing token; only the most-recent network
+  // play request is allowed to clear the loading flag. Upgrade path: a per-
+  // song Set<int> if multiple concurrent network loads ever need tracking.
+  int _networkLoadingGen = 0;
+
   // ponytail: guards the engine's position write during interactive seek
   // (vinyl spin). Local drag writes to positionNotifier stick; engine ticks
   // get re-enabled on endInteractiveSeek(). Upgrade path: per-source locks if
@@ -2747,6 +2756,23 @@ class PlayerService {
   }
 
   Future<Uri> _resolvePlaybackUri(Song song) async {
+    // ponytail: HTTP-first for network sources. Hand ExoPlayer the ranged URL
+    // so playback starts while bytes stream in, instead of blocking on a full
+    // cache download before the first frame. Falls back to cache-then-play
+    // (ensureLocal) for protocols without byte-range support (SMB/UPnP) or on
+    // resolve failure. Matches the Rust backend's existing strategy.
+    if (song.isNetworkSource) {
+      try {
+        final http = await RemoteSourceService.instance.resolveHttpPlayback(
+          song,
+        );
+        if (http != null) return Uri.parse(http.url);
+      } catch (e) {
+        _debugLog(
+          '[Playback] HTTP-first resolve failed for "${song.title}": $e',
+        );
+      }
+    }
     final resolvedPath = await _resolvePreparedPlaybackPath(song);
     if (resolvedPath == null || resolvedPath.isEmpty) {
       return Uri.parse('');
@@ -3730,6 +3756,10 @@ class PlayerService {
   }) {
     _debugLog('[UI] tap(${song.id})');
     if (context != null) setPlaybackContext(context);
+    // Immediate UI feedback: surface the loading state synchronously so the
+    // mini-player shows a spinner before the (possibly queued) playback
+    // request even starts running. Cleared by _playInternal's finally.
+    if (song.isNetworkSource) isNetworkLoadingNotifier.value = true;
     return _enqueuePlaybackRequest(
       () => _playInternal(song, playlist: playlist),
     );
@@ -3766,6 +3796,7 @@ class PlayerService {
 
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
+    final loadingGen = ++_networkLoadingGen;
     try {
       _debugLog(
         '[Playback] play() called for ${song.title} '
@@ -3865,6 +3896,14 @@ class PlayerService {
       );
       debugPrintStack(stackTrace: stackTrace);
       rethrow;
+    } finally {
+      // Only the most-recent play request is allowed to clear the loading
+      // flag. Superseded requests (user tapped another song while this one
+      // was still queued/loading) leave it untouched so the spinner stays up
+      // until the latest tap resolves.
+      if (loadingGen == _networkLoadingGen) {
+        isNetworkLoadingNotifier.value = false;
+      }
     }
   }
 
@@ -5141,6 +5180,7 @@ class PlayerService {
     positionNotifier.dispose();
     durationNotifier.dispose();
     bufferedPositionNotifier.dispose();
+    isNetworkLoadingNotifier.dispose();
     playbackSpeedNotifier.dispose();
     pitchSemitonesNotifier.dispose();
     sleepTimerRemainingNotifier.dispose();
