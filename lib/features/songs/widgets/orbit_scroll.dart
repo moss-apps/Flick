@@ -113,6 +113,9 @@ class _OrbitScrollState extends State<OrbitScroll>
 
   // Debounce timer that flushes deferred artwork extraction after a fling settles.
   Timer? _artworkGateTimer;
+  // ponytail: hold at most ONE pause; per-tick pauses with canceled release
+  // timers leaked the refcount and froze artwork extraction forever.
+  bool _artworkGateHeld = false;
   DateTime _lastScrollTime = DateTime.now();
   int _lastReportedIndex = 0;
 
@@ -183,7 +186,10 @@ class _OrbitScrollState extends State<OrbitScroll>
     _controller.dispose();
     _scrollOffset.dispose();
     _artworkGateTimer?.cancel();
-    pauseArtworkExtraction(false);
+    if (_artworkGateHeld) {
+      _artworkGateHeld = false;
+      pauseArtworkExtraction(false);
+    }
     super.dispose();
   }
 
@@ -236,10 +242,17 @@ class _OrbitScrollState extends State<OrbitScroll>
   // --- Gesture Handling ---
 
   void _markScrollActive() {
-    pauseArtworkExtraction(true);
+    if (!_artworkGateHeld) {
+      _artworkGateHeld = true;
+      pauseArtworkExtraction(true);
+    }
     _artworkGateTimer?.cancel();
     _artworkGateTimer = Timer(const Duration(milliseconds: 150), () {
-      pauseArtworkExtraction(false);
+      _artworkGateTimer = null;
+      if (_artworkGateHeld) {
+        _artworkGateHeld = false;
+        pauseArtworkExtraction(false);
+      }
     });
   }
 
