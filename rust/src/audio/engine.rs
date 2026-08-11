@@ -8,7 +8,7 @@ use crate::dev_eprintln;
 use crate::audio::commands::{AudioCommand, AudioEvent, PlaybackProgress, PlaybackState};
 use crate::audio::convolver::Convolver;
 use crate::audio::crossfader::Crossfader;
-use crate::audio::decoder::DecoderThread;
+use crate::audio::decoder::{probe_http, DecoderThread};
 use crate::audio::decoder_handle::{detect_file_type, DecoderHandle, FileType};
 #[cfg(target_os = "android")]
 use crate::audio::device::current_device_profile;
@@ -1209,22 +1209,22 @@ pub fn create_audio_engine(
     let will_attempt_usb = false;
 
     // When a DAP device has bit-perfect disabled, force the output to
-    // 48 kHz so that all DSP runs at a fixed rate. USB DACs are excluded
-    // because they use their own direct path. DSD playback needs its
-    // native PCM target rate (e.g., 176.4 kHz); honour explicit requests
-    // above 48 kHz to avoid a rate mismatch with the DSD decoder.
+    // 48 kHz so that all DSP runs at a fixed rate and the in-app rubato
+    // resampler does any rate conversion cleanly. The only exception is an
+    // active DSD track, whose PCM target rate (176.4k/352.8k) must be
+    // honoured to avoid a mismatch with the DSD decoder. Leaving a hi-res
+    // PCM rate (e.g. 96k) here opens the engine at 96k and pushes the
+    // 96->48 downsample onto the Android mixer, whose fast filter folds
+    // ultrasonic energy back as aliasing — distorted and ~2x loud at any
+    // app volume, because the conversion happens downstream of the gain.
     let dap_force_dsp = !dap_bit_perfect_enabled
         && device_profile.as_ref().is_some_and(|p| p.is_dap())
         && !will_attempt_usb;
     let mut requested_sample_rate = if dap_force_dsp {
-        if let Some(rate) = preferred_sample_rate {
-            if rate > 48_000 {
-                rate
-            } else {
-                48_000
-            }
-        } else {
-            48_000
+        let dsd_active = crate::api::audio_api::current_dsd_track_rate().is_some();
+        match preferred_sample_rate.filter(|&r| r > 0) {
+            Some(rate) if dsd_active && rate > 48_000 => rate,
+            _ => 48_000,
         }
     } else {
         preferred_sample_rate.filter(|&rate| rate > 0).unwrap_or(48_000)
@@ -3255,12 +3255,14 @@ fn handle_seek(
 ) {
     let target_secs = position_secs.max(0.0);
 
-    let current_path = {
+    let current = {
         let sources = callback_data.sources.lock();
-        sources.current().map(|s| s.info.path.clone())
+        sources
+            .current()
+            .map(|s| (s.info.path.clone(), s.info.http_origin.clone()))
     };
 
-    let Some(path) = current_path else {
+    let Some((path, http_origin)) = current else {
         let _ = event_tx.try_send(AudioEvent::Error {
             message: "Seek failed: no track loaded".to_string(),
         });
@@ -3284,12 +3286,33 @@ fn handle_seek(
         }
     }
 
-    match spawn_decoder(
-        path.clone(),
-        sample_rate,
-        callback_data.channels(),
-        Some(target_secs),
-    ) {
+    // HTTP sources (Jellyfin/Subsonic/WebDAV): SourceInfo.path is a URL label
+    // with the auth query stripped, so spawn_decoder would try to open it as a
+    // local file and fail -> engine Idle -> playback stuck. Re-probe the
+    // ranged stream and spawn the decoder with a start position; decode_thread
+    // then seeks the HttpMediaSource to the target byte range.
+    let spawn_result = if let Some((url, headers)) = http_origin.as_ref() {
+        match probe_http(url, headers.clone()) {
+            Ok(probe_result) => DecoderThread::spawn_from_probe_result(
+                probe_result,
+                sample_rate,
+                callback_data.channels(),
+                Some(target_secs),
+            )
+            .map(|(s, h)| (s, DecoderHandle::Symphonia(h)))
+            .map_err(|e| anyhow::anyhow!("{}", e)),
+            Err(e) => Err(anyhow::anyhow!("{}", e)),
+        }
+    } else {
+        spawn_decoder(
+            path.clone(),
+            sample_rate,
+            callback_data.channels(),
+            Some(target_secs),
+        )
+    };
+
+    match spawn_result {
         Ok((mut source, handle)) => {
             source.set_ready();
             if !was_paused {
@@ -3339,6 +3362,7 @@ mod tests {
             channels,
             total_samples: samples.len() as u64,
             duration_secs,
+            http_origin: None,
         };
         let (mut source, mut producer) = AudioSource::new(info);
 
