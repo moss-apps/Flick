@@ -334,6 +334,7 @@ class PlayerService {
   final AlbumColorModePreferenceService _albumColorModePreferenceService =
       AlbumColorModePreferenceService();
   bool _priorityAnchorActive = false;
+  bool _priorityAnchorEnabled = true;
   bool _midStreamUsbFallbackActive = false;
   late final AudioSessionManager _sessionManager;
   late final AudioEngineManager _playbackManager;
@@ -584,6 +585,7 @@ class PlayerService {
     unawaited(_loadGaplessPlaybackPreference());
     unawaited(_loadCrossfadePreferences());
     unawaited(_loadFloatingPlayerPreference());
+    unawaited(_loadPriorityAnchorPreference());
     _initBluetoothReconnectHandling();
     _initUsbDacDisconnectHandling();
     _initUsbDacAttachHandling();
@@ -1644,8 +1646,15 @@ class PlayerService {
       Platform.isAndroid &&
       currentEngineType == AudioEngineType.usbDacExperimental;
 
+  // ponytail: any Rust/bit-perfect path can be system-invisible to OEM
+  // battery AI (Xiaomi/Tecno/Infinix), not just direct USB. Reuses the
+  // existing usesRustBackend helper which excludes normalAndroid.
+  bool get _isAnchorEligiblePath =>
+      Platform.isAndroid && currentEngineType.usesRustBackend;
+
   void _updatePriorityAnchor() {
-    final shouldAnchor = _isDirectUsbPath && isPlayingNotifier.value;
+    final shouldAnchor =
+        _isAnchorEligiblePath && _priorityAnchorEnabled && isPlayingNotifier.value;
     if (shouldAnchor && !_priorityAnchorActive) {
       _uac2Service.startPriorityAnchor();
       _priorityAnchorActive = true;
@@ -1653,6 +1662,16 @@ class PlayerService {
       _uac2Service.stopPriorityAnchor();
       _priorityAnchorActive = false;
     }
+  }
+
+  Future<void> _loadPriorityAnchorPreference() async {
+    _priorityAnchorEnabled = await _appPreferencesService.getPriorityAnchorEnabled();
+    _updatePriorityAnchor();
+  }
+
+  Future<void> setPriorityAnchorEnabled(bool value) async {
+    _priorityAnchorEnabled = value;
+    _updatePriorityAnchor();
   }
 
   void _onHwVolumeResult(bool success) {
