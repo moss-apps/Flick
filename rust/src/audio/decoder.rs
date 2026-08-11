@@ -129,14 +129,16 @@ pub fn probe_http(url: &str, headers: HashMap<String, String>) -> Result<ProbeRe
         hint.with_extension(&hint_ext);
     }
 
-    let src = HttpMediaSource::new(url.to_string(), headers);
+    let src = HttpMediaSource::new(url.to_string(), headers.clone());
     let mss = MediaSourceStream::new(Box::new(src), Default::default());
 
     let probed = symphonia::default::get_probe()
         .format(&hint, mss, &format_opts, &metadata_opts)
         .map_err(|e| DecoderError::UnsupportedFormat(format!("HTTP probe failed: {}", e)))?;
 
-    build_probe_result(probed, PathBuf::from(url_label(url)))
+    let mut result = build_probe_result(probed, PathBuf::from(url_label(url)))?;
+    result.source_info.http_origin = Some((url.to_string(), headers));
+    Ok(result)
 }
 
 /// Build a [`ProbeResult`] from a probed format reader: locate the audio track,
@@ -203,6 +205,7 @@ fn build_probe_result(
         channels,
         total_samples,
         duration_secs,
+        http_origin: None,
     };
 
     Ok(ProbeResult {
