@@ -250,6 +250,12 @@ class SongRepository {
     });
   }
 
+  Future<Set<String>> getReferencedAlbumArtPaths() async {
+    final paths =
+        await _isar.songEntitys.where().albumArtPathProperty().findAll();
+    return paths.whereType<String>().where((p) => p.isNotEmpty).toSet();
+  }
+
   Future<void> updateSongMetadata(
     String filePath, {
     String? title,
