@@ -313,14 +313,10 @@ class AudioSessionManager {
         return AudioEngineType.normalAndroid;
       }
 
-      if (!bitPerfectEnabled) {
-        _debugLog(
-          '[Session] Keeping NORMAL_ANDROID because Bit-perfect (USB DAC) is '
-          'disabled for this session '
-          '(${info.routeLabel ?? info.routeType ?? 'unknown'})',
-        );
-        return AudioEngineType.normalAndroid;
-      }
+      // ponytail: bit-perfect (USB) off no longer forces the stuttering HAL
+      // path. We keep the direct-USB driver and run the DSP chain over it —
+      // the only click-free route on the Pixel USB audio HAL. bit-perfect on
+      // => Passthrough; off => Dsp (decided in engine.rs direct-USB block).
       final suppressedReason = _suppressedReasonForCurrentUsbDevice(info);
       if (suppressedReason != null) {
         _debugLog(
