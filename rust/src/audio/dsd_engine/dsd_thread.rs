@@ -74,6 +74,7 @@ impl DsdDecoderThread {
             channels: output_channels,
             total_samples: total_output_samples,
             duration_secs,
+            http_origin: None,
         };
 
         let (source, producer) = AudioSource::new(source_info);
