@@ -110,6 +110,7 @@ impl WavpackDecoderThread {
             total_samples: (duration_secs * output_sample_rate as f64 * output_channels as f64)
                 as u64,
             duration_secs,
+            http_origin: None,
         };
 
         let (source, producer) = AudioSource::new(source_info);

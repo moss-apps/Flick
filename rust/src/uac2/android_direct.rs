@@ -3958,20 +3958,38 @@ fn create_android_usb_backend_inner(
             Err(e) => {
                 clock_control_attempted = true;
                 clock_control_succeeded = false;
-                clock_verification_passed = false;
-                reported_sample_rate = None;
-                set_clock_verification(
-                    clock_control_attempted,
-                    clock_control_succeeded,
-                    false,
-                    None,
-                );
-                let message = format!(
-                    "[clock-diag] UAC1 SET_CUR {}Hz on endpoint 0x{:02x} failed: {} — will refuse",
-                    playback_format.sample_rate, candidate.endpoint_address, e
-                );
-                dev_eprintln!("{}", message);
-                set_last_error(Some(message));
+                // UAC1 adaptive/synchronous/NoSync endpoints derive their clock
+                // from the host (SOF); SET_CUR is optional and many reject it.
+                // Only an Asynchronous endpoint has its own clock, where a failed
+                // SET_CUR leaves the rate genuinely unknown (chipmunk risk) and
+                // we must refuse. (FiiO BR13 reports NoSync and rejects SET_CUR.)
+                if candidate.sync_type == SyncType::Asynchronous {
+                    clock_verification_passed = false;
+                    reported_sample_rate = None;
+                    set_clock_verification(true, false, false, None);
+                    let message = format!(
+                        "[clock-diag] UAC1 SET_CUR {}Hz on endpoint 0x{:02x} failed: {} — will refuse (asynchronous endpoint)",
+                        playback_format.sample_rate, candidate.endpoint_address, e,
+                    );
+                    dev_eprintln!("{}", message);
+                    set_last_error(Some(message));
+                } else {
+                    clock_verification_passed = true;
+                    reported_sample_rate = Some(playback_format.sample_rate);
+                    set_dac_mode(DacMode::AdaptiveStreaming);
+                    set_clock_verification(
+                        true,
+                        false,
+                        true,
+                        Some(playback_format.sample_rate),
+                    );
+                    let message = format!(
+                        "[clock-diag] UAC1 SET_CUR {}Hz on endpoint 0x{:02x} failed: {} — tolerable for {:?} endpoint, trusting host-driven rate",
+                        playback_format.sample_rate, candidate.endpoint_address, e, candidate.sync_type,
+                    );
+                    dev_eprintln!("{}", message);
+                    set_last_error(Some(message));
+                }
             }
         }
     } else {

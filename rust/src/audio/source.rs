@@ -5,6 +5,7 @@
 
 use ringbuf::traits::{Consumer, Observer, Producer, Split};
 use ringbuf::HeapRb;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -28,6 +29,13 @@ pub struct SourceInfo {
     pub total_samples: u64,
     /// Total duration in seconds
     pub duration_secs: f64,
+    // ponytail: HTTP origin (full url + auth headers/query) for remote streams.
+    // None for local files. Lets handle_seek re-spawn the decoder over HTTP
+    // instead of mistaking the URL label (SourceInfo.path) for a local path,
+    // which fails and drops the engine to Idle. Per-source so it auto-clears
+    // on track change. Note: HashMap Debug would print headers — never log
+    // SourceInfo wholesale in release paths.
+    pub http_origin: Option<(String, HashMap<String, String>)>,
 }
 
 /// State of an audio source.
@@ -459,6 +467,7 @@ mod tests {
             channels: 2,
             total_samples: 4,
             duration_secs: 4.0 / 48_000.0 / 2.0,
+            http_origin: None,
         }
     }
 

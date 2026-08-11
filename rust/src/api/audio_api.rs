@@ -31,6 +31,13 @@ static PENDING_VOLUME: AtomicU32 = AtomicU32::new(0);
 
 const PENDING_VOLUME_NONE: u32 = 0xFFFF_FFFF;
 
+// ponytail: mirror of the last volume the app pushed. PENDING_VOLUME is
+// one-shot and gets consumed on the first engine recreate, so reopening the
+// stream on a sample-rate change (e.g. a 96k track) would otherwise drop the
+// new engine to the CallbackData default of 1.0 = full-scale blast. This is
+// the fallback for that case.
+static LAST_VOLUME: AtomicU32 = AtomicU32::new(1.0f32.to_bits());
+
 static PENDING_XF_ENABLED: AtomicU8 = AtomicU8::new(u8::MAX);
 static PENDING_XF_DURATION: AtomicU32 = AtomicU32::new(0xFFFF_FFFF);
 static PENDING_XF_CURVE: AtomicU8 = AtomicU8::new(u8::MAX);
@@ -194,6 +201,7 @@ pub fn current_dsd_track_rate() -> Option<u32> {
 
 pub fn set_pending_volume(volume: f32) {
     PENDING_VOLUME.store(volume.to_bits(), Ordering::Relaxed);
+    LAST_VOLUME.store(volume.to_bits(), Ordering::Relaxed);
 }
 
 pub fn take_pending_volume() -> Option<f32> {
@@ -203,6 +211,10 @@ pub fn take_pending_volume() -> Option<f32> {
     }
     PENDING_VOLUME.store(PENDING_VOLUME_NONE, Ordering::Relaxed);
     Some(f32::from_bits(bits))
+}
+
+pub fn last_volume() -> f32 {
+    f32::from_bits(LAST_VOLUME.load(Ordering::Relaxed))
 }
 
 pub fn set_pending_crossfade(enabled: bool, duration_secs: f32) {

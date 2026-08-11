@@ -1414,11 +1414,12 @@ Future<void> stopPriorityAnchor() async {
       directUsbRegistered: directUsbRegistered,
     );
 
+    // Prewarming is transient: if we're not streaming on the next refresh,
+    // the device is simply connected. Making it sticky leaves the indicator
+    // stuck on "Prewarming" forever when playback fails to start.
     final resolvedState = effectiveIsPlaying && isStreamingState
         ? Uac2State.streaming
-        : (_currentDeviceStatus?.state == Uac2State.prewarming
-            ? Uac2State.prewarming
-            : Uac2State.connected);
+        : Uac2State.connected;
 
     _updateStatus(
       Uac2DeviceStatus(

@@ -20,10 +20,9 @@ class AlbumArtService {
 
   // ponytail: artwork lives in the app *support* dir (durable) instead of
   // flutter_cache_manager's cache dir (OS-evictable). A DB pointer at a file
-  // the OS had evicted was the root cause of art vanishing on reopen. 30-day
-  // age + 500-entry cap bound storage; the tail re-extracts on demand once
-  // pruned, so storage stays bounded without reintroducing the stale-pointer
-  // bug for the common (recently played) set.
+  // the OS had evicted was the root cause of art vanishing on reopen. The
+  // prune below only ever deletes files no song points at, so stored art is
+  // permanent; orphan files stay bounded by the 30-day age + 500-entry cap.
   static const Duration _artworkStalePeriod = Duration(days: 30);
   static const int _artworkMaxEntries = 500;
   static const Duration _pruneInterval = Duration(hours: 6);
@@ -82,6 +81,23 @@ class AlbumArtService {
     }
   }
 
+  /// Resolves artwork for [songs] that have no usable pointer yet. Safe to
+  /// run detached after a scan: already-resolved songs short-circuit on the
+  /// [resolveArtworkPath] existence check, network songs are skipped (their
+  /// covers resolve lazily via the marker).
+  Future<void> resolveMissingArtwork(List<SongEntity> songs) async {
+    for (final song in songs) {
+      final path = song.filePath;
+      if (path.isEmpty) continue;
+      final scheme = Uri.tryParse(path)?.scheme;
+      if (isSupportedNetworkProtocol(scheme)) continue;
+      await resolveArtworkPath(
+        existingPath: song.albumArtPath,
+        audioSourcePath: path,
+      );
+    }
+  }
+
   Future<int> getCacheSize() async {
     final dir = await _ensureArtworkDir();
     var total = 0;
@@ -115,16 +131,17 @@ class AlbumArtService {
     return artwork;
   }
 
-  // ponytail: throttled best-effort prune — newest _artworkMaxEntries survive,
-  // anything older than _artworkStalePeriod goes regardless. Pruned entries
-  // re-extract on next access via the normal self-heal path, so this only
-  // bounds storage, never loses art permanently.
+  // ponytail: throttled best-effort prune — files still referenced by a song
+  // in the DB never get deleted (art must persist); orphans beyond
+  // _artworkMaxEntries or older than _artworkStalePeriod go.
   Future<void> _pruneIfNeeded(Directory dir) async {
     final now = DateTime.now();
     if (now.difference(_lastPrune) < _pruneInterval) return;
     _lastPrune = now;
 
     try {
+      final referenced = await _songRepository.getReferencedAlbumArtPaths();
+
       final files = <({File file, DateTime modified})>[];
       await for (final entity in dir.list(followLinks: false)) {
         if (entity is! File) continue;
@@ -134,13 +151,16 @@ class AlbumArtService {
       files.sort((a, b) => b.modified.compareTo(a.modified));
 
       final staleCut = now.subtract(_artworkStalePeriod);
-      for (var i = 0; i < files.length; i++) {
-        final beyondCap = i >= _artworkMaxEntries;
-        final isStale = files[i].modified.isBefore(staleCut);
-        if (beyondCap || isStale) {
+      var kept = 0;
+      for (final entry in files) {
+        final beyondCap = kept >= _artworkMaxEntries;
+        final isStale = entry.modified.isBefore(staleCut);
+        if (!referenced.contains(entry.file.path) && (beyondCap || isStale)) {
           try {
-            await files[i].file.delete();
+            await entry.file.delete();
           } catch (_) {}
+        } else {
+          kept++;
         }
       }
     } catch (_) {}

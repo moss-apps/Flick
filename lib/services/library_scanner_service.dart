@@ -13,6 +13,7 @@ import '../services/rip_log_service.dart';
 import '../services/fingerprint_cache_service.dart';
 import '../services/uac2_preferences_service.dart';
 import '../services/audio_preload_service.dart';
+import '../services/album_art_service.dart';
 import '../src/rust/api/scanner.dart'; // Rust bridge
 import 'package:flick/core/utils/dev_log.dart';
 
@@ -307,6 +308,17 @@ class LibraryScannerService {
       }
     } finally {
       _currentlyScanning.remove(scanKey);
+      if (!_isCancelled) {
+        // Detached artwork backfill: resolve covers the lazy tile path hasn't
+        // reached yet, so art persists after the scan instead of appearing
+        // only when tiles are tapped. Runs unpaused — tiles may resolve
+        // concurrently; _inFlightResolutions dedupes.
+        unawaited(_runDetachedScanTask(displayName, 'artwork resolve',
+            () async {
+          final songs = await _songRepository.getSongEntitiesByFolder(folderUri);
+          await AlbumArtService.instance.resolveMissingArtwork(songs);
+        }));
+      }
     }
   }
 

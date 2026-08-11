@@ -22,6 +22,7 @@ class QueueSettingsScreen extends ConsumerWidget {
           SettingsCard(
             children: [
               _WrapAroundQueueTile(playerService: playerService),
+              _AutoplayOnQueueEndTile(playerService: playerService),
             ],
           ),
           const SizedBox(height: AppConstants.navBarHeight + 40),
@@ -50,6 +51,31 @@ class _WrapAroundQueueTile extends StatelessWidget {
               : 'Stop at the end of the current list',
           value: enabled,
           onChanged: (value) => playerService.setWrapAroundQueue(value),
+        );
+      },
+    );
+  }
+}
+
+class _AutoplayOnQueueEndTile extends StatelessWidget {
+  const _AutoplayOnQueueEndTile({required this.playerService});
+
+  final PlayerService playerService;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: playerService.autoplayOnQueueEndNotifier,
+      builder: (context, _) {
+        final enabled = playerService.autoplayOnQueueEndNotifier.value;
+        return ToggleSetting(
+          icon: LucideIcons.shuffle,
+          title: 'Autoplay on Queue End',
+          subtitle: enabled
+              ? 'Play a random library song when the queue ends'
+              : 'Stop when the queue ends',
+          value: enabled,
+          onChanged: (value) => playerService.setAutoplayOnQueueEnd(value),
         );
       },
     );

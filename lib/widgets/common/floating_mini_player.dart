@@ -286,6 +286,7 @@ class _FloatingMiniPlayerState extends ConsumerState<FloatingMiniPlayer>
                                 child: currentSong.albumArt != null
                                     ? CachedImageWidget(
                                         imagePath: currentSong.albumArt!,
+                                        audioSourcePath: currentSong.filePath,
                                         fit: BoxFit.cover,
                                         useThumbnail: true,
                                         thumbnailWidth: 96,

@@ -104,6 +104,15 @@ class SongRepository {
     if (entities.isEmpty) return;
 
     await _isar.writeTxn(() async {
+      for (final entity in entities) {
+        final existing = await _isar.songEntitys.getByFilePathStartOffsetMs(
+          entity.filePath,
+          entity.startOffsetMs,
+        );
+        if (existing != null) {
+          entity.id = existing.id;
+        }
+      }
       await _isar.songEntitys.putAll(entities);
     });
   }
@@ -248,6 +257,12 @@ class SongRepository {
         await _isar.songEntitys.put(existing);
       }
     });
+  }
+
+  Future<Set<String>> getReferencedAlbumArtPaths() async {
+    final paths =
+        await _isar.songEntitys.where().albumArtPathProperty().findAll();
+    return paths.whereType<String>().where((p) => p.isNotEmpty).toSet();
   }
 
   Future<void> updateSongMetadata(

@@ -361,7 +361,9 @@ impl EngineManager {
         let mut state = self.state.lock();
         state.current = Some(AudioEngine::Rust);
         state.rust_handle = Some(new_handle);
-        if let Some(volume) = crate::api::audio_api::take_pending_volume() {
+        if let Some(volume) = crate::api::audio_api::take_pending_volume()
+            .or_else(|| Some(crate::api::audio_api::last_volume()))
+        {
             if let Some(handle) = state.rust_handle.as_ref() {
                 let _ = handle.set_volume(volume);
             }

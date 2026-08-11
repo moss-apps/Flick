@@ -507,6 +507,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setKeepPlayingOnQuit(value);
   }
 
+  Future<void> setPriorityAnchorEnabled(bool value) async {
+    if (state.priorityAnchorEnabled == value) return;
+    state = state.copyWith(priorityAnchorEnabled: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setPriorityAnchorEnabled(value);
+  }
+
   Future<void> setPauseOnBluetoothDisconnect(bool value) async {
     if (state.pauseOnBluetoothDisconnect == value) return;
     state = state.copyWith(pauseOnBluetoothDisconnect: value);

@@ -97,6 +97,10 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
 
   String? _resolvedImagePath;
   bool _hasPendingResolve = false;
+  // ponytail: one recovery attempt per failed path — a decode failure means
+  // the cache file is corrupt or was pruned/cleared mid-session, so drop it
+  // from _knownExistingPaths and re-extract instead of failing forever.
+  final Set<String> _recoveryAttempted = {};
 
   @override
   void initState() {
@@ -181,12 +185,9 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
   void _enqueueDeferredResolution(String audioSourcePath) {
     if (_hasPendingResolve) return;
     _hasPendingResolve = true;
-    final imagePath = widget.imagePath;
     enqueueArtworkResolver(() {
       _hasPendingResolve = false;
-      if (!mounted ||
-          widget.audioSourcePath != audioSourcePath ||
-          widget.imagePath != imagePath) {
+      if (!mounted || widget.audioSourcePath != audioSourcePath) {
         return;
       }
       _resolveEmbeddedArtwork();
@@ -233,6 +234,7 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
         );
       },
       errorBuilder: (context, error, stackTrace) {
+        _recoverFailedFile(imagePath);
         return SizedBox(
           width: widget.width,
           height: widget.height,
@@ -247,6 +249,30 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
           ? widget.thumbnailHeight
           : null,
     );
+  }
+
+  void _recoverFailedFile(String failedPath) {
+    if (failedPath.startsWith('http') ||
+        _recoveryAttempted.contains(failedPath)) {
+      return;
+    }
+    _recoveryAttempted.add(failedPath);
+    _knownExistingPaths.remove(failedPath);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final file = File(failedPath);
+      if (file.existsSync()) {
+        try {
+          file.deleteSync();
+        } catch (_) {}
+      }
+      if (_resolvedImagePath == failedPath) {
+        setState(() {
+          _resolvedImagePath = null;
+        });
+      }
+      _resolveEmbeddedArtwork();
+    });
   }
 
   Widget _buildNetworkImage(String imagePath) {

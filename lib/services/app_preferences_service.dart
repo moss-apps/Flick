@@ -68,6 +68,7 @@ class AppPreferences {
   final int bottomBarAutoCollapseSeconds;
   final String miniPlayerSwipeAction;
   final bool keepPlayingOnQuit;
+  final bool priorityAnchorEnabled;
   final bool pauseOnBluetoothDisconnect;
   final bool resumeOnBluetoothReconnect;
   final bool pauseOnUsbDacDisconnect;
@@ -172,6 +173,7 @@ class AppPreferences {
     this.bottomBarAutoCollapseSeconds = 5,
     this.miniPlayerSwipeAction = 'visualizer',
     this.keepPlayingOnQuit = false,
+    this.priorityAnchorEnabled = true,
     this.pauseOnBluetoothDisconnect = true,
     this.resumeOnBluetoothReconnect = false,
     this.pauseOnUsbDacDisconnect = true,
@@ -277,6 +279,7 @@ class AppPreferences {
     int? bottomBarAutoCollapseSeconds,
     String? miniPlayerSwipeAction,
     bool? keepPlayingOnQuit,
+    bool? priorityAnchorEnabled,
     bool? pauseOnBluetoothDisconnect,
     bool? resumeOnBluetoothReconnect,
     bool? pauseOnUsbDacDisconnect,
@@ -410,6 +413,8 @@ class AppPreferences {
       miniPlayerSwipeAction:
           miniPlayerSwipeAction ?? this.miniPlayerSwipeAction,
       keepPlayingOnQuit: keepPlayingOnQuit ?? this.keepPlayingOnQuit,
+      priorityAnchorEnabled:
+          priorityAnchorEnabled ?? this.priorityAnchorEnabled,
       pauseOnBluetoothDisconnect:
           pauseOnBluetoothDisconnect ?? this.pauseOnBluetoothDisconnect,
       resumeOnBluetoothReconnect:
@@ -536,6 +541,7 @@ class AppPreferencesService {
       'bottom_bar_auto_collapse_seconds';
   static const _miniPlayerSwipeActionKey = 'mini_player_swipe_action';
   static const _keepPlayingOnQuitKey = 'app_keep_playing_on_quit';
+  static const _priorityAnchorEnabledKey = 'app_priority_anchor_enabled';
   static const _pauseOnBluetoothDisconnectKey =
       'app_pause_on_bluetooth_disconnect';
   static const _resumeOnBluetoothReconnectKey =
@@ -578,6 +584,7 @@ class AppPreferencesService {
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
   static const _wrapAroundQueueKey = 'playback_wrap_around_queue';
+  static const _autoplayOnQueueEndKey = 'playback_autoplay_on_queue_end';
 
   Future<AppPreferences> getPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -677,6 +684,8 @@ class AppPreferencesService {
       miniPlayerSwipeAction:
           prefs.getString(_miniPlayerSwipeActionKey) ?? 'visualizer',
       keepPlayingOnQuit: prefs.getBool(_keepPlayingOnQuitKey) ?? false,
+      priorityAnchorEnabled:
+          prefs.getBool(_priorityAnchorEnabledKey) ?? true,
       pauseOnBluetoothDisconnect:
           prefs.getBool(_pauseOnBluetoothDisconnectKey) ?? true,
       resumeOnBluetoothReconnect:
@@ -1369,6 +1378,16 @@ class AppPreferencesService {
     await prefs.setBool(_wrapAroundQueueKey, value);
   }
 
+  Future<bool> getAutoplayOnQueueEnd() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_autoplayOnQueueEndKey) ?? true;
+  }
+
+  Future<void> setAutoplayOnQueueEnd(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_autoplayOnQueueEndKey, value);
+  }
+
   Future<bool> getKeepPlayingOnQuit() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keepPlayingOnQuitKey) ?? false;
@@ -1377,6 +1396,16 @@ class AppPreferencesService {
   Future<void> setKeepPlayingOnQuit(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keepPlayingOnQuitKey, value);
+  }
+
+  Future<bool> getPriorityAnchorEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_priorityAnchorEnabledKey) ?? true;
+  }
+
+  Future<void> setPriorityAnchorEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_priorityAnchorEnabledKey, value);
   }
 
   Future<bool> getPauseOnBluetoothDisconnect() async {

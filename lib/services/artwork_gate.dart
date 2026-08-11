@@ -38,26 +38,39 @@ mixin ArtworkExtractionScrollGate {
   static const Duration _settleDelay = Duration(milliseconds: 150);
 
   Timer? _artworkGate;
+  // ponytail: hold at most ONE pause per owner. Incrementing on every scroll
+  // update while canceling the pending release timer leaked refcounts and
+  // froze extraction forever.
+  bool _artworkGateHeld = false;
 
   bool onScrollNotification(ScrollNotification notification) {
     if (notification is ScrollEndNotification) {
-      _artworkGate?.cancel();
-      _artworkGate = null;
-      pauseArtworkExtraction(false);
+      _releaseArtworkGate();
     } else if (notification is ScrollUpdateNotification ||
         notification is UserScrollNotification ||
         notification is OverscrollNotification) {
-      pauseArtworkExtraction(true);
+      if (!_artworkGateHeld) {
+        _artworkGateHeld = true;
+        pauseArtworkExtraction(true);
+      }
       _artworkGate?.cancel();
-      _artworkGate = Timer(_settleDelay, () => pauseArtworkExtraction(false));
+      _artworkGate = Timer(_settleDelay, _releaseArtworkGate);
     }
     return true;
   }
 
-  void disposeArtworkGate() {
+  void _releaseArtworkGate() {
     _artworkGate?.cancel();
+    _artworkGate = null;
+    if (_artworkGateHeld) {
+      _artworkGateHeld = false;
+      pauseArtworkExtraction(false);
+    }
+  }
+
+  void disposeArtworkGate() {
     // Release the global pause so extraction isn't left frozen when the
     // route is popped mid-scroll.
-    pauseArtworkExtraction(false);
+    _releaseArtworkGate();
   }
 }

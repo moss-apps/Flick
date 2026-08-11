@@ -239,6 +239,41 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     }
   }
 
+  void _confirmRemoveAllSongs() {
+    showDialog(
+      context: context,
+      builder: (context) => GlassDialog(
+        title: 'Remove All Songs?',
+        content: const Text(
+          'Every song is removed from your library. Files on disk are kept; '
+          'rescan your folders to add them again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _removeAllSongs();
+            },
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _removeAllSongs() async {
+    try {
+      await SongRepository().deleteAllSongs();
+      if (mounted) _showToast('Library emptied');
+    } catch (e) {
+      if (mounted) _showToast('Failed to remove songs: $e');
+    }
+  }
+
   Future<void> _addFolder() async {
     try {
       final permissionService = PermissionService();
@@ -450,7 +485,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       context: context,
       builder: (context) => GlassDialog(
         title: 'Remove Folder?',
-        content: Text('Remove "${folder.displayName}" from your library?'),
+        content: Text(
+          'Remove "${folder.displayName}" and all of its songs from your '
+          'library? Files on disk are not deleted.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1515,6 +1553,13 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 title: 'Clear Artwork Cache',
                 subtitle: _cacheSizeLabel,
                 onTap: _isClearingCache ? null : _confirmClearArtworkCache,
+              ),
+              const SettingsDivider(),
+              ActionButton(
+                icon: LucideIcons.trash2,
+                title: 'Remove All Songs',
+                subtitle: 'Empty the library; files on disk are kept',
+                onTap: _confirmRemoveAllSongs,
               ),
             ],
           ),

@@ -334,6 +334,7 @@ class PlayerService {
   final AlbumColorModePreferenceService _albumColorModePreferenceService =
       AlbumColorModePreferenceService();
   bool _priorityAnchorActive = false;
+  bool _priorityAnchorEnabled = true;
   bool _midStreamUsbFallbackActive = false;
   late final AudioSessionManager _sessionManager;
   late final AudioEngineManager _playbackManager;
@@ -426,6 +427,15 @@ class PlayerService {
     Duration.zero,
   );
 
+  /// True while a network-sourced song is being resolved for playback (HTTP
+  /// stream attach or cache download). UI surfaces a loading indicator so the
+  /// user sees that their tap was registered during the network round-trip.
+  final ValueNotifier<bool> isNetworkLoadingNotifier = ValueNotifier(false);
+  // ponytail: monotonically increasing token; only the most-recent network
+  // play request is allowed to clear the loading flag. Upgrade path: a per-
+  // song Set<int> if multiple concurrent network loads ever need tracking.
+  int _networkLoadingGen = 0;
+
   // ponytail: guards the engine's position write during interactive seek
   // (vinyl spin). Local drag writes to positionNotifier stick; engine ticks
   // get re-enabled on endInteractiveSeek(). Upgrade path: per-source locks if
@@ -462,6 +472,8 @@ class PlayerService {
   // Wrap-around queue: tapping a song mid-list queues preceding songs at the end.
   final ValueNotifier<bool> wrapAroundQueueNotifier = ValueNotifier(true);
   bool get wrapAroundQueue => wrapAroundQueueNotifier.value;
+
+  final ValueNotifier<bool> autoplayOnQueueEndNotifier = ValueNotifier(true);
 
   // Category shuffle tracking
   final Set<String> _playedCategoryIds = {};
@@ -582,6 +594,7 @@ class PlayerService {
     unawaited(_loadGaplessPlaybackPreference());
     unawaited(_loadCrossfadePreferences());
     unawaited(_loadFloatingPlayerPreference());
+    unawaited(_loadPriorityAnchorPreference());
     _initBluetoothReconnectHandling();
     _initUsbDacDisconnectHandling();
     _initUsbDacAttachHandling();
@@ -1642,8 +1655,15 @@ class PlayerService {
       Platform.isAndroid &&
       currentEngineType == AudioEngineType.usbDacExperimental;
 
+  // ponytail: any Rust/bit-perfect path can be system-invisible to OEM
+  // battery AI (Xiaomi/Tecno/Infinix), not just direct USB. Reuses the
+  // existing usesRustBackend helper which excludes normalAndroid.
+  bool get _isAnchorEligiblePath =>
+      Platform.isAndroid && currentEngineType.usesRustBackend;
+
   void _updatePriorityAnchor() {
-    final shouldAnchor = _isDirectUsbPath && isPlayingNotifier.value;
+    final shouldAnchor =
+        _isAnchorEligiblePath && _priorityAnchorEnabled && isPlayingNotifier.value;
     if (shouldAnchor && !_priorityAnchorActive) {
       _uac2Service.startPriorityAnchor();
       _priorityAnchorActive = true;
@@ -1651,6 +1671,16 @@ class PlayerService {
       _uac2Service.stopPriorityAnchor();
       _priorityAnchorActive = false;
     }
+  }
+
+  Future<void> _loadPriorityAnchorPreference() async {
+    _priorityAnchorEnabled = await _appPreferencesService.getPriorityAnchorEnabled();
+    _updatePriorityAnchor();
+  }
+
+  Future<void> setPriorityAnchorEnabled(bool value) async {
+    _priorityAnchorEnabled = value;
+    _updatePriorityAnchor();
   }
 
   void _onHwVolumeResult(bool success) {
@@ -2620,8 +2650,7 @@ class PlayerService {
       await _advanceForMode(loopModeNotifier.value);
       return;
     } else {
-      await _pauseInternal();
-      await seek(Duration.zero);
+      await _handleQueueEnd();
       return;
     }
 
@@ -2727,6 +2756,23 @@ class PlayerService {
   }
 
   Future<Uri> _resolvePlaybackUri(Song song) async {
+    // ponytail: HTTP-first for network sources. Hand ExoPlayer the ranged URL
+    // so playback starts while bytes stream in, instead of blocking on a full
+    // cache download before the first frame. Falls back to cache-then-play
+    // (ensureLocal) for protocols without byte-range support (SMB/UPnP) or on
+    // resolve failure. Matches the Rust backend's existing strategy.
+    if (song.isNetworkSource) {
+      try {
+        final http = await RemoteSourceService.instance.resolveHttpPlayback(
+          song,
+        );
+        if (http != null) return Uri.parse(http.url);
+      } catch (e) {
+        _debugLog(
+          '[Playback] HTTP-first resolve failed for "${song.title}": $e',
+        );
+      }
+    }
     final resolvedPath = await _resolvePreparedPlaybackPath(song);
     if (resolvedPath == null || resolvedPath.isEmpty) {
       return Uri.parse('');
@@ -3710,6 +3756,10 @@ class PlayerService {
   }) {
     _debugLog('[UI] tap(${song.id})');
     if (context != null) setPlaybackContext(context);
+    // Immediate UI feedback: surface the loading state synchronously so the
+    // mini-player shows a spinner before the (possibly queued) playback
+    // request even starts running. Cleared by _playInternal's finally.
+    if (song.isNetworkSource) isNetworkLoadingNotifier.value = true;
     return _enqueuePlaybackRequest(
       () => _playInternal(song, playlist: playlist),
     );
@@ -3746,6 +3796,7 @@ class PlayerService {
 
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
+    final loadingGen = ++_networkLoadingGen;
     try {
       _debugLog(
         '[Playback] play() called for ${song.title} '
@@ -3845,6 +3896,14 @@ class PlayerService {
       );
       debugPrintStack(stackTrace: stackTrace);
       rethrow;
+    } finally {
+      // Only the most-recent play request is allowed to clear the loading
+      // flag. Superseded requests (user tapped another song while this one
+      // was still queued/loading) leave it untouched so the spinner stays up
+      // until the latest tap resolves.
+      if (loadingGen == _networkLoadingGen) {
+        isNetworkLoadingNotifier.value = false;
+      }
     }
   }
 
@@ -3954,6 +4013,8 @@ class PlayerService {
     }
     wrapAroundQueueNotifier.value = await _appPreferencesService
         .getWrapAroundQueue();
+    autoplayOnQueueEndNotifier.value = await _appPreferencesService
+        .getAutoplayOnQueueEnd();
   }
 
   Future<void> restoreLastPlayed() async {
@@ -4115,7 +4176,9 @@ class PlayerService {
         normalized.contains('android usb direct') ||
         normalized.contains('usb dac disconnected') ||
         normalized.contains('usb session already active') ||
-        normalized.contains('failed to claim usb interface');
+        normalized.contains('failed to claim usb interface') ||
+        normalized.contains('android managed output stream') ||
+        normalized.contains('sending on a disconnected channel');
   }
 
   bool _isDirectUsbClockSetupFailure(String message) {
@@ -4302,9 +4365,8 @@ class PlayerService {
       return;
     }
 
-    _debugLog('next(): End of playlist, pausing');
-    await _pauseInternal();
-    await seek(Duration.zero);
+    _debugLog('next(): End of playlist');
+    await _handleQueueEnd();
   }
 
   Future<void> previous() {
@@ -5118,6 +5180,7 @@ class PlayerService {
     positionNotifier.dispose();
     durationNotifier.dispose();
     bufferedPositionNotifier.dispose();
+    isNetworkLoadingNotifier.dispose();
     playbackSpeedNotifier.dispose();
     pitchSemitonesNotifier.dispose();
     sleepTimerRemainingNotifier.dispose();
@@ -5177,11 +5240,42 @@ class PlayerService {
     unawaited(_appPreferencesService.setWrapAroundQueue(value));
   }
 
+  void setAutoplayOnQueueEnd(bool value) {
+    autoplayOnQueueEndNotifier.value = value;
+    unawaited(_appPreferencesService.setAutoplayOnQueueEnd(value));
+  }
+
+  // ponytail: at a genuine queue end (loop off, no advance/shuffle left),
+  // autoplay a random library track instead of stopping. Mirrors the
+  // "autoplay" behaviour of mainstream players. Falls back to pause+rewind
+  // when disabled, the library is empty, or the only song is the current one.
+  Future<void> _handleQueueEnd() async {
+    if (autoplayOnQueueEndNotifier.value) {
+      try {
+        final allSongs = await _songRepository.getAllSongs();
+        final currentId = currentSongNotifier.value?.id;
+        final candidates =
+            allSongs.where((s) => s.id != currentId).toList();
+        if (candidates.isNotEmpty) {
+          final rng = math.Random();
+          await _playInternal(
+            candidates[rng.nextInt(candidates.length)],
+            playlist: allSongs,
+          );
+          return;
+        }
+      } catch (e) {
+        _debugLog('_handleQueueEnd autoplay error: $e');
+      }
+    }
+    await _pauseInternal();
+    await seek(Duration.zero);
+  }
+
   Future<void> _advanceForMode(LoopMode mode) async {
     final song = currentSongNotifier.value;
     if (song == null) {
-      await _pauseInternal();
-      await seek(Duration.zero);
+      await _handleQueueEnd();
       return;
     }
 
@@ -5201,16 +5295,14 @@ class PlayerService {
       }
 
       if (nextSongs == null || nextSongs.isEmpty) {
-        _debugLog('_advanceForMode($mode): no next category found, pausing');
-        await _pauseInternal();
-        await seek(Duration.zero);
+        _debugLog('_advanceForMode($mode): no next category found');
+        await _handleQueueEnd();
         return;
       }
       await _playInternal(nextSongs.first, playlist: nextSongs);
     } catch (e) {
       _debugLog('_advanceForMode($mode): error: $e');
-      await _pauseInternal();
-      await seek(Duration.zero);
+      await _handleQueueEnd();
     }
   }
 
@@ -5316,8 +5408,7 @@ class PlayerService {
     final ctx = _playbackContext;
     if (ctx.source == PlaybackSource.unknown ||
         ctx.source == PlaybackSource.allSongs) {
-      await _pauseInternal();
-      await seek(Duration.zero);
+      await _handleQueueEnd();
       return;
     }
 
@@ -5336,8 +5427,7 @@ class PlayerService {
               .toList();
         }
         if (available.isEmpty) {
-          await _pauseInternal();
-          await seek(Duration.zero);
+          await _handleQueueEnd();
           return;
         }
       }
@@ -5346,8 +5436,7 @@ class PlayerService {
       final nextId = available[rng.nextInt(available.length)];
       final songs = await _getCategorySongsById(ctx.source, nextId);
       if (songs == null || songs.isEmpty) {
-        await _pauseInternal();
-        await seek(Duration.zero);
+        await _handleQueueEnd();
         return;
       }
 
@@ -5359,8 +5448,7 @@ class PlayerService {
       await _playInternal(ordered.first, playlist: ordered);
     } catch (e) {
       _debugLog('_advanceToRandomCategory error: $e');
-      await _pauseInternal();
-      await seek(Duration.zero);
+      await _handleQueueEnd();
     }
   }
 
