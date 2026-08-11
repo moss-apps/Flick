@@ -701,7 +701,11 @@ class MainActivity: FlutterActivity() {
                         isFavorite?.let { putExtra("isFavorite", it) }
                         color?.let { putExtra("color", it) }
                     }
-                    startService(intent)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(intent)
+                    } else {
+                        startService(intent)
+                    }
                     result.success(null)
                 }
                 "hideNotification" -> {
