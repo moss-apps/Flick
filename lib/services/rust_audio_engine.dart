@@ -237,6 +237,7 @@ class RustAudioEngine implements AudioEngine {
     }
 
     await _rustAudioService.seek(position);
+    _pendingSeekPosition = null; // ponytail: immediate seek applied; clears stale value so resume() won't re-seek backward
   }
 
   @override
