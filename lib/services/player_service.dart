@@ -463,6 +463,8 @@ class PlayerService {
   final ValueNotifier<bool> wrapAroundQueueNotifier = ValueNotifier(true);
   bool get wrapAroundQueue => wrapAroundQueueNotifier.value;
 
+  final ValueNotifier<bool> autoplayOnQueueEndNotifier = ValueNotifier(true);
+
   // Category shuffle tracking
   final Set<String> _playedCategoryIds = {};
 
@@ -2620,8 +2622,7 @@ class PlayerService {
       await _advanceForMode(loopModeNotifier.value);
       return;
     } else {
-      await _pauseInternal();
-      await seek(Duration.zero);
+      await _handleQueueEnd();
       return;
     }
 
@@ -3954,6 +3955,8 @@ class PlayerService {
     }
     wrapAroundQueueNotifier.value = await _appPreferencesService
         .getWrapAroundQueue();
+    autoplayOnQueueEndNotifier.value = await _appPreferencesService
+        .getAutoplayOnQueueEnd();
   }
 
   Future<void> restoreLastPlayed() async {
@@ -4115,7 +4118,9 @@ class PlayerService {
         normalized.contains('android usb direct') ||
         normalized.contains('usb dac disconnected') ||
         normalized.contains('usb session already active') ||
-        normalized.contains('failed to claim usb interface');
+        normalized.contains('failed to claim usb interface') ||
+        normalized.contains('android managed output stream') ||
+        normalized.contains('sending on a disconnected channel');
   }
 
   bool _isDirectUsbClockSetupFailure(String message) {
@@ -4302,9 +4307,8 @@ class PlayerService {
       return;
     }
 
-    _debugLog('next(): End of playlist, pausing');
-    await _pauseInternal();
-    await seek(Duration.zero);
+    _debugLog('next(): End of playlist');
+    await _handleQueueEnd();
   }
 
   Future<void> previous() {
@@ -5177,11 +5181,42 @@ class PlayerService {
     unawaited(_appPreferencesService.setWrapAroundQueue(value));
   }
 
+  void setAutoplayOnQueueEnd(bool value) {
+    autoplayOnQueueEndNotifier.value = value;
+    unawaited(_appPreferencesService.setAutoplayOnQueueEnd(value));
+  }
+
+  // ponytail: at a genuine queue end (loop off, no advance/shuffle left),
+  // autoplay a random library track instead of stopping. Mirrors the
+  // "autoplay" behaviour of mainstream players. Falls back to pause+rewind
+  // when disabled, the library is empty, or the only song is the current one.
+  Future<void> _handleQueueEnd() async {
+    if (autoplayOnQueueEndNotifier.value) {
+      try {
+        final allSongs = await _songRepository.getAllSongs();
+        final currentId = currentSongNotifier.value?.id;
+        final candidates =
+            allSongs.where((s) => s.id != currentId).toList();
+        if (candidates.isNotEmpty) {
+          final rng = math.Random();
+          await _playInternal(
+            candidates[rng.nextInt(candidates.length)],
+            playlist: allSongs,
+          );
+          return;
+        }
+      } catch (e) {
+        _debugLog('_handleQueueEnd autoplay error: $e');
+      }
+    }
+    await _pauseInternal();
+    await seek(Duration.zero);
+  }
+
   Future<void> _advanceForMode(LoopMode mode) async {
     final song = currentSongNotifier.value;
     if (song == null) {
-      await _pauseInternal();
-      await seek(Duration.zero);
+      await _handleQueueEnd();
       return;
     }
 
@@ -5201,16 +5236,14 @@ class PlayerService {
       }
 
       if (nextSongs == null || nextSongs.isEmpty) {
-        _debugLog('_advanceForMode($mode): no next category found, pausing');
-        await _pauseInternal();
-        await seek(Duration.zero);
+        _debugLog('_advanceForMode($mode): no next category found');
+        await _handleQueueEnd();
         return;
       }
       await _playInternal(nextSongs.first, playlist: nextSongs);
     } catch (e) {
       _debugLog('_advanceForMode($mode): error: $e');
-      await _pauseInternal();
-      await seek(Duration.zero);
+      await _handleQueueEnd();
     }
   }
 
@@ -5316,8 +5349,7 @@ class PlayerService {
     final ctx = _playbackContext;
     if (ctx.source == PlaybackSource.unknown ||
         ctx.source == PlaybackSource.allSongs) {
-      await _pauseInternal();
-      await seek(Duration.zero);
+      await _handleQueueEnd();
       return;
     }
 
@@ -5336,8 +5368,7 @@ class PlayerService {
               .toList();
         }
         if (available.isEmpty) {
-          await _pauseInternal();
-          await seek(Duration.zero);
+          await _handleQueueEnd();
           return;
         }
       }
@@ -5346,8 +5377,7 @@ class PlayerService {
       final nextId = available[rng.nextInt(available.length)];
       final songs = await _getCategorySongsById(ctx.source, nextId);
       if (songs == null || songs.isEmpty) {
-        await _pauseInternal();
-        await seek(Duration.zero);
+        await _handleQueueEnd();
         return;
       }
 
@@ -5359,8 +5389,7 @@ class PlayerService {
       await _playInternal(ordered.first, playlist: ordered);
     } catch (e) {
       _debugLog('_advanceToRandomCategory error: $e');
-      await _pauseInternal();
-      await seek(Duration.zero);
+      await _handleQueueEnd();
     }
   }
 
