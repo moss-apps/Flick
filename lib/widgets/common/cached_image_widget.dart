@@ -185,12 +185,9 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
   void _enqueueDeferredResolution(String audioSourcePath) {
     if (_hasPendingResolve) return;
     _hasPendingResolve = true;
-    final imagePath = widget.imagePath;
     enqueueArtworkResolver(() {
       _hasPendingResolve = false;
-      if (!mounted ||
-          widget.audioSourcePath != audioSourcePath ||
-          widget.imagePath != imagePath) {
+      if (!mounted || widget.audioSourcePath != audioSourcePath) {
         return;
       }
       _resolveEmbeddedArtwork();
