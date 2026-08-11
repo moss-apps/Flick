@@ -170,12 +170,8 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     final password = _passwordController.text;
     if (password.isNotEmpty) {
       final draft = _draftEntity(token: null);
-      try {
-        return await networkSourceServiceFor(_selectedProtocol)
-            .resolveToken(draft, password);
-      } catch (_) {
-        return null;
-      }
+      return await networkSourceServiceFor(_selectedProtocol)
+          .resolveToken(draft, password);
     }
     return widget.server?.token;
   }
@@ -203,7 +199,18 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       _testVerificationUri = null;
     });
     AppHaptics.tap();
-    var token = await _resolvePersistedToken();
+    String? token;
+    try {
+      token = await _resolvePersistedToken();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _testing = false;
+        _testPassed = false;
+        _testError = _humanError(e);
+      });
+      return;
+    }
     // Tidal with no session token yet: drive the device-code login (opens the
     // browser, polls until authorized), then validate.
     if (_isTidal && (token == null || token.isEmpty)) {
@@ -245,10 +252,21 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     }
   }
 
-  Future<void> _save() async {  
+  Future<void> _save() async {
     if (!_isValid) return;
     setState(() => _saving = true);
-    final token = await _resolvePersistedToken();
+    String? token;
+    try {
+      token = await _resolvePersistedToken();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _testPassed = false;
+        _testError = _humanError(e);
+      });
+      return;
+    }
     await Database.instance.writeTxn(() async {
       await Database.networkServers.put(_draftEntity(token: token));
     });
@@ -639,7 +657,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
   }
 }
 
-class _TextFieldSetting extends StatelessWidget {
+class _TextFieldSetting extends StatefulWidget {
   const _TextFieldSetting({
     required this.controller,
     required this.icon,
@@ -659,20 +677,27 @@ class _TextFieldSetting extends StatelessWidget {
   final TextInputType? keyboardType;
 
   @override
+  State<_TextFieldSetting> createState() => _TextFieldSettingState();
+}
+
+class _TextFieldSettingState extends State<_TextFieldSetting> {
+  late bool _obscured = widget.obscureText;
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(AppConstants.spacingLg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _SettingsTileIcon(icon: icon),
+          _SettingsTileIcon(icon: widget.icon),
           const SizedBox(width: AppConstants.spacingMd),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label.toUpperCase(),
+                  widget.label.toUpperCase(),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: context.adaptiveTextTertiary,
                     letterSpacing: 1.0,
@@ -681,17 +706,17 @@ class _TextFieldSetting extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 TextField(
-                  controller: controller,
-                  obscureText: obscureText,
-                  keyboardType: keyboardType,
+                  controller: widget.controller,
+                  obscureText: _obscured,
+                  keyboardType: widget.keyboardType,
                   autocorrect: false,
-                  enableSuggestions: !obscureText,
+                  enableSuggestions: !_obscured,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: context.adaptiveTextPrimary,
                   ),
                   decoration: InputDecoration(
-                    hintText: hint,
-                    helperText: helperText,
+                    hintText: widget.hint,
+                    helperText: widget.helperText,
                     isDense: true,
                     filled: true,
                     fillColor: AppColors.glassBackground,
@@ -699,6 +724,22 @@ class _TextFieldSetting extends StatelessWidget {
                       horizontal: 12,
                       vertical: 12,
                     ),
+                    suffixIcon: widget.obscureText
+                        ? IconButton(
+                            icon: Icon(
+                              _obscured
+                                  ? LucideIcons.eye
+                                  : LucideIcons.eyeOff,
+                              size: 18,
+                            ),
+                            color: context.adaptiveTextSecondary,
+                            tooltip: _obscured ? 'Show password' : 'Hide password',
+                            onPressed: () {
+                              AppHaptics.tap();
+                              setState(() => _obscured = !_obscured);
+                            },
+                          )
+                        : null,
                     hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: context.adaptiveTextTertiary,
                     ),
