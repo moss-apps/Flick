@@ -998,6 +998,7 @@ class _EmbeddedMiniPlayerState extends ConsumerState<_EmbeddedMiniPlayer> {
                   child: currentSong.albumArt != null
                       ? CachedImageWidget(
                           imagePath: currentSong.albumArt!,
+                          audioSourcePath: currentSong.filePath,
                           fit: BoxFit.cover,
                           useThumbnail: true,
                           thumbnailWidth: 128,
