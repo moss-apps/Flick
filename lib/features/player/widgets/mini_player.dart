@@ -260,39 +260,60 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
 
                       // Play/Pause button with circular background
                       ValueListenableBuilder<bool>(
-                        valueListenable: _playerService.isPlayingNotifier,
-                        builder: (context, isPlaying, _) {
-                          return Container(
-                            margin: const EdgeInsets.only(right: 12),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isPlaying 
-                                ? AppColors.accent.withValues(alpha: 0.15)
-                                : AppColors.glassBackgroundStrong,
-                              border: Border.all(
-                                color: isPlaying 
-                                  ? AppColors.accent.withValues(alpha: 0.3)
-                                  : AppColors.glassBorder.withValues(alpha: 0.2),
-                              ),
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(24),
-                                onTap: () {
-                                  AppHaptics.tap();
-                                  _playerService.togglePlayPause();
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(10.0),
-                                  child: Icon(
-                                    isPlaying ? LucideIcons.pause : LucideIcons.play,
-                                    color: isPlaying ? AppColors.accentLight : AppColors.textPrimary,
-                                    size: 20,
-                                  ),
+                        valueListenable: _playerService.isNetworkLoadingNotifier,
+                        builder: (context, isLoading, _) {
+                          if (isLoading) {
+                            return Container(
+                              margin: const EdgeInsets.only(right: 12),
+                              width: 40,
+                              height: 40,
+                              alignment: Alignment.center,
+                              child: const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.accent,
                                 ),
                               ),
-                            ),
+                            );
+                          }
+                          return ValueListenableBuilder<bool>(
+                            valueListenable: _playerService.isPlayingNotifier,
+                            builder: (context, isPlaying, _) {
+                              return Container(
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isPlaying
+                                    ? AppColors.accent.withValues(alpha: 0.15)
+                                    : AppColors.glassBackgroundStrong,
+                                  border: Border.all(
+                                    color: isPlaying
+                                      ? AppColors.accent.withValues(alpha: 0.3)
+                                      : AppColors.glassBorder.withValues(alpha: 0.2),
+                                  ),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(24),
+                                    onTap: () {
+                                      AppHaptics.tap();
+                                      _playerService.togglePlayPause();
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(10.0),
+                                      child: Icon(
+                                        isPlaying ? LucideIcons.pause : LucideIcons.play,
+                                        color: isPlaying ? AppColors.accentLight : AppColors.textPrimary,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
