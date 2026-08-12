@@ -16,7 +16,7 @@ This beta adds seven headline features:
 
 ## Highlights
 
-- **Bluetooth codec control**: A Hi-Res Direct mode forces the highest-quality codec (LDAC, aptX HD) for compatible headphones. Per-codec preferences (AAC, aptX, LDAC, SBC, etc.) are persisted and applied on Bluetooth init and device connect. Device connection state is tracked with codec configuration feedback in the UI. Hi-Res Direct mode is resolved before low-latency in audio route selection. Bluetooth settings gained device filtering, UI refinements, and a developer mode toggle for advanced codec debugging.
+- **Bluetooth codec control**: A Hi-Res Direct mode biases audio route selection toward a high-resolution engine path for compatible headphones. Per-codec preferences (AAC, aptX, LDAC, SBC, etc.) are persisted and applied on Bluetooth init and device connect. Device connection state is tracked with codec configuration feedback in the UI. Bluetooth settings gained device filtering, UI refinements, and a developer mode toggle for advanced codec debugging.
 - **Glance cards**: Each Quick Access card (Recently Played, Smart Mixes, Artists, etc.) can now be hidden, shown, or minimized independently. Per-card preferences are persisted. `AlbumsScreen` was migrated to `ConsumerStatefulWidget` (Riverpod) with app preferences. Single-art and empty-art album edge cases are handled, and the album year is displayed on album cards. `AlbumArtPickerBottomSheet` returns a change status for reactive UI updates. A stale song provider after in-place art updates is prevented.
 - **Streak polish**: The animated shimmer streak number on the popup was replaced with static tier-colored text — no more phantom shimmer glitter. Dynamic tier colors and glow effects pulse on the streak banner. Tier color and count helpers were added to `MilestoneCategoryX`. New unit tests cover tier colors and counts.
 - **USB fixes**: Write-only USB clocks (devices that don't support readback on `GET_CUR`) are now supported by trusting the `SET_CUR` value. A USB permission `PendingIntent` failure on devices with restrictive package handling is fixed.
@@ -28,11 +28,10 @@ This beta adds seven headline features:
 
 ### Bluetooth Codec Control
 
-- Hi-Res Direct mode forces highest-quality codec
+- Hi-Res Direct mode biases toward a high-resolution engine path
 - Per-codec preference persistence (AAC, aptX, LDAC, etc.)
 - Codec preferences applied on init and connect
 - Device connection state with codec feedback
-- Hi-Res Direct before low-latency in route resolution
 - Device filtering and UI refinements in Bluetooth settings
 - Developer mode toggle for codec debugging
 
