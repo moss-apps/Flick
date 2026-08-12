@@ -2358,14 +2358,35 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                   _ScrollProgressBar(
                     controller: _bandScrollController,
                   ),
-                  if (_selectedIndex != null &&
-                      _selectedIndex! < bands.length) ...[
-                    const SizedBox(height: AppConstants.spacingMd),
-                    _BandDetailPanel(
-                      index: _selectedIndex!,
-                      enabled: enabled,
-                    ),
-                  ],
+                  AnimatedSize(
+                    duration: AppConstants.animationNormal,
+                    curve: Curves.easeInOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: (_selectedIndex != null &&
+                            _selectedIndex! < bands.length)
+                        ? Padding(
+                            padding: const EdgeInsets.only(
+                              top: AppConstants.spacingMd,
+                            ),
+                            child: TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0.0, end: 1.0),
+                              duration: AppConstants.animationNormal,
+                              curve: Curves.easeOutCubic,
+                              builder: (context, t, child) => Opacity(
+                                opacity: t,
+                                child: Transform.translate(
+                                  offset: Offset(0, 8 * (1 - t)),
+                                  child: child,
+                                ),
+                              ),
+                              child: _BandDetailPanel(
+                                index: _selectedIndex!,
+                                enabled: enabled,
+                              ),
+                            ),
+                          )
+                        : const SizedBox(width: double.infinity),
+                  ),
                 ],
               ),
             ),
