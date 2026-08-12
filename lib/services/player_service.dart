@@ -1278,6 +1278,7 @@ class PlayerService {
         _preferencesService.initializeDeveloperModeCache(),
         _preferencesService.initializeKillIsochronousUsbOnQuitCache(),
         _preferencesService.initialize432HzTuningCache(),
+        _preferencesService.initializeBtFlagsCache(),
         _preferencesService.getDsdOutputMode(),
         _sessionManager.initialize(),
         _uac2Service.isBitPerfectEnabled(),
