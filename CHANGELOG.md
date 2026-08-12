@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bluetooth
+- **Fix:** Hi-Res Direct no longer forces the `dapInternalHighRes` engine on Bluetooth routes. That engine is a wired/internal path and caused reported volume loss (output capped near 35-40% at max volume) and periodic dropouts every 5-10s over A2DP. Bluetooth now keeps the BT-appropriate engine (Rust/Oboe under low-latency, else normal Android). Codec quality remains controlled by the user's per-codec preferences and LDAC bitrate setting.
+- **Fix:** Bluetooth output-mode toggles (Hi-Res Direct, Low-latency Mode) now survive an app restart. Their notifiers were never hydrated from storage at startup, so they appeared reset to off after relaunch.
+
 ## 0.21.0-beta.1 (2026-07-10)
 
 ### Network Sources — Self-Hosted Music Servers
@@ -241,11 +247,10 @@
 ## 0.20.2-beta.3 (2026-06-27)
 
 ### Bluetooth Codec Control
-- **Bluetooth Hi-Res Direct mode** forces highest-quality codec path.
+- **Bluetooth Hi-Res Direct mode** biases route selection toward a high-resolution engine path.
 - Per-codec preference controls with persistence (AAC, aptX, LDAC, etc.).
 - Codec preferences applied on Bluetooth init and connect.
 - Device connection state tracking with codec configuration feedback.
-- Hi-Res Direct mode resolved before low-latency in audio route selection.
 - Bluetooth settings refactored with codec control, device filtering, and UI refinements.
 - Developer mode toggle for advanced codec debugging.
 

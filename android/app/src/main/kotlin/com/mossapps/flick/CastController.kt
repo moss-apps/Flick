@@ -1,6 +1,7 @@
 package com.mossapps.flick
 
 import android.content.Context
+import android.util.Log
 import androidx.mediarouter.media.MediaRouter
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaMetadata
@@ -15,7 +16,17 @@ import java.util.concurrent.TimeUnit
 // (CastContext creates the session); control = RemoteMediaClient on the session.
 class CastController(private val context: Context) {
     private val mediaRouter: MediaRouter by lazy { MediaRouter.getInstance(context) }
-    private val castContext: CastContext by lazy { CastContext.getSharedInstance(context) }
+    // ponytail: Cast SDK needs Google Play Services; null out on GMS-free
+    // devices (GrapheneOS etc.) so the app runs without Cast instead of
+    // crashing on launch. MediaRouter output routing still works without GMS.
+    private val castContext: CastContext? by lazy {
+        try {
+            CastContext.getSharedInstance(context)
+        } catch (e: Throwable) {
+            Log.w("CastController", "Cast SDK unavailable (no Google Play Services): ${e.message}")
+            null
+        }
+    }
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
     private var eventSink: android.os.Handler? = null
@@ -40,7 +51,7 @@ class CastController(private val context: Context) {
     }
 
     fun start() {
-        castContext.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
+        castContext?.sessionManager?.addSessionManagerListener(sessionListener, CastSession::class.java)
     }
 
     fun discover(): List<Map<String, Any>> {
@@ -68,14 +79,16 @@ class CastController(private val context: Context) {
     }
 
     fun disconnect() {
-        if (castContext.sessionManager.currentCastSession != null) {
-            castContext.sessionManager.endCurrentSession(true)
+        val sessionManager = castContext?.sessionManager
+        if (sessionManager?.currentCastSession != null) {
+            sessionManager.endCurrentSession(true)
         }
         connectedSession = null
     }
 
     private fun client(): RemoteMediaClient? {
-        return connectedSession?.remoteMediaClient ?: castContext.sessionManager.currentCastSession?.remoteMediaClient
+        val sessionManager = castContext?.sessionManager ?: return null
+        return connectedSession?.remoteMediaClient ?: sessionManager.currentCastSession?.remoteMediaClient
     }
 
     fun load(url: String, title: String?, artist: String?) {

@@ -291,6 +291,13 @@ class Uac2PreferencesService {
     }
   }
 
+  // ponytail: getters hydrate their notifiers as a side effect; this just gives
+  // startup a named entry point so the BT toggles survive an app restart.
+  Future<void> initializeBtFlagsCache() async {
+    await getBtHiResDirect();
+    await getBtLowLatencyMode();
+  }
+
   Future<void> setDeveloperModeEnabled(bool enabled) async {
     try {
       final prefs = await SharedPreferences.getInstance();

@@ -482,11 +482,10 @@ const List<ChangelogEntry> kChangelogEntries = [
       ChangelogSection(
         title: 'Bluetooth Codec Control',
         bullets: [
-          '**Bluetooth Hi-Res Direct mode** — forces the highest-quality codec path for capable headphones.',
+          '**Bluetooth Hi-Res Direct mode** — biases route selection toward a high-resolution engine path.',
           'Per-codec preference controls with persistence (AAC, aptX, LDAC, etc.).',
           'Codec preferences applied on Bluetooth init and on device connect.',
           'Device connection state tracking with codec configuration feedback.',
-          'Hi-Res Direct mode resolved before low-latency in audio route selection.',
           'Bluetooth settings refactored with codec control, device filtering, and UI refinements.',
           'Developer mode toggle in Bluetooth settings for advanced codec debugging.',
         ],
