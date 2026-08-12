@@ -182,6 +182,7 @@ class AudioSessionManager {
     await _preferencesService.initializeDeveloperModeCache();
     await _preferencesService.initializeKillIsochronousUsbOnQuitCache();
     await _preferencesService.initialize432HzTuningCache();
+    await _preferencesService.initializeBtFlagsCache();
     await _deviceService.initialize();
     selectedModeNotifier.value = await _resolvePreferredMode();
 
@@ -260,15 +261,10 @@ class AudioSessionManager {
     );
 
     if (info.isBluetoothRoute) {
-      final btHiResDirect = await _preferencesService.getBtHiResDirect();
-      if (btHiResDirect) {
-        _debugLog(
-          '[Session] Selected DAP_INTERNAL_HIGH_RES for Bluetooth because '
-          'Hi-Res Direct is enabled '
-          '(${info.routeLabel ?? info.routeType ?? 'unknown'})',
-        );
-        return AudioEngineType.dapInternalHighRes;
-      }
+      // ponytail: Hi-Res Direct no longer swaps the BT engine. dapInternalHighRes
+      // is a wired/internal path; on A2DP it caused level loss + 5-10s dropouts
+      // (link-budget underruns). Codec quality stays driven by the user's codec
+      // prefs (_applyBluetoothCodecPrefs). Hi-Res Direct state is logged above.
       if (Uac2PreferencesService.isBtLowLatencyModeSync) {
         _debugLog(
           '[Session] Selected RUST_OBOE for Bluetooth because Low-latency mode '
