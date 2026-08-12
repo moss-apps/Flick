@@ -9,10 +9,12 @@ import 'package:flick/core/utils/app_haptics.dart';
 
 /// A circular rotary knob for parameter control.
 ///
-/// Uses a custom gesture recognizer that eagerly accepts drag events,
-/// preventing parent scrollables (e.g. PageView, ListView) from
-/// intercepting horizontal/vertical swipes while the user is turning
-/// the knob.
+/// Turns via a rotary gesture: the finger's motion is projected onto the
+/// knob's tangent, so natural circular/arc swipes turn it (clockwise =
+/// increase). Sensitivity is constant regardless of where the knob was
+/// grabbed. A custom gesture recognizer eagerly accepts the pointer so
+/// parent scrollables (PageView, ListView) can't steal the drag, and the
+/// finger can travel beyond the knob while turning.
 class RotaryKnob extends StatefulWidget {
   final double value;
   final double min;
@@ -47,12 +49,9 @@ class _RotaryKnobState extends State<RotaryKnob>
   bool _isDragging = false;
   late AnimationController _animController;
 
-  Offset _lastGlobalPosition = Offset.zero;
-  double _lastAngle = 0.0;
-  // Full turns of arc drag for a full min->max sweep. Tuned for fine control.
-  static const double _fullSweepTurns = 1.5;
-  // Pixels of vertical drag (center fallback) for a full sweep.
+  // Pixels of arc travel for a full min->max sweep.
   static const double _fullSweepPixels = 360.0;
+  Offset _lastLocal = Offset.zero;
 
   @override
   void initState() {
@@ -113,58 +112,43 @@ class _RotaryKnobState extends State<RotaryKnob>
     return math.pi * 0.75 + clampedT * (1.5 * math.pi);
   }
 
+  Offset _localOf(Offset globalPosition) {
+    final box = context.findRenderObject() as RenderBox?;
+    return box?.globalToLocal(globalPosition) ?? Offset.zero;
+  }
+
   void _handleDragStart(Offset globalPosition) {
     if (widget.onChanged == null) return;
     _animController.stop();
     _isDragging = true;
-    _lastGlobalPosition = globalPosition;
-    _lastAngle = _angleFromCenter(globalPosition);
+    _lastLocal = _localOf(globalPosition);
+    _lastHapticValue = _currentValue;
   }
 
-  double _angleFromCenter(Offset globalPosition) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) return 0.0;
-    final localPos = box.globalToLocal(globalPosition);
-    final center = Offset(widget.size / 2, widget.size / 2);
-    return math.atan2(localPos.dy - center.dy, localPos.dx - center.dx);
-  }
-
-  double _radiusFromCenter(Offset globalPosition) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) return 0.0;
-    final localPos = box.globalToLocal(globalPosition);
-    final center = Offset(widget.size / 2, widget.size / 2);
-    return (localPos - center).distance;
-  }
-
+  // Rotary gesture via tangent projection: the component of finger motion
+  // along the circle's tangent drives the value. Clockwise = increase,
+  // counterclockwise = decrease (standard knob convention). Value-per-pixel
+  // is constant regardless of where the knob was grabbed, so it stays stable
+  // with natural arc/circular swipes. Near the exact center (where the
+  // tangent direction is undefined) it falls back to vertical drag.
   void _handleDragUpdate(Offset globalPosition) {
     if (widget.onChanged == null || !_isDragging) return;
+    final local = _localOf(globalPosition);
     final range = widget.max - widget.min;
-    final radius = _radiusFromCenter(globalPosition);
+    final center = Offset(widget.size / 2, widget.size / 2);
+    final delta = local - _lastLocal;
+    _lastLocal = local;
 
-    double valueDelta;
-    if (radius > widget.size * 0.15) {
-      final angle = _angleFromCenter(globalPosition);
-      var delta = angle - _lastAngle;
-      // Shortest signed delta, handling the ±π wraparound.
-      if (delta > math.pi) {
-        delta -= 2 * math.pi;
-      } else if (delta < -math.pi) {
-        delta += 2 * math.pi;
-      }
-      _lastAngle = angle;
-      // Clockwise (positive delta in screen coords) = increase.
-      valueDelta = delta / (_fullSweepTurns * 2 * math.pi) * range;
-    } else {
-      final dy = globalPosition.dy - _lastGlobalPosition.dy;
-      _lastAngle = _angleFromCenter(globalPosition);
-      valueDelta = -dy * range / _fullSweepPixels;
-    }
+    final r = local - center;
+    final radius = r.distance;
+    // Clockwise tangent (screen coords) = (-r.dy, r.dx); projecting the
+    // movement onto it yields signed arc travel. Center dead zone uses -dy.
+    final travel = radius > widget.size * 0.2
+        ? (delta.dx * -r.dy + delta.dy * r.dx) / radius
+        : -delta.dy;
 
-    _lastGlobalPosition = globalPosition;
-
-    final newValue =
-        (_currentValue + valueDelta).clamp(widget.min, widget.max);
+    final newValue = (_currentValue + travel * range / _fullSweepPixels)
+        .clamp(widget.min, widget.max);
     final snapped = (newValue * 10).round() / 10.0;
 
     final diff = (snapped - _lastHapticValue).abs();
