@@ -71,11 +71,57 @@ class _AudioSettingsScreenState extends ConsumerState<AudioSettingsScreen> {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
+          const _ExtendedVolumeSection(),
+          const SizedBox(height: AppConstants.spacingLg),
           const _CrossfadeSection(),
           const SizedBox(height: AppConstants.spacingLg),
           const SizedBox(height: AppConstants.navBarHeight + 40),
         ],
       ),
+    );
+  }
+}
+
+class _ExtendedVolumeSection extends ConsumerWidget {
+  const _ExtendedVolumeSection();
+
+  Future<void> _setEnabled(
+    WidgetRef ref,
+    PlayerService playerService,
+    bool value,
+  ) async {
+    await ref
+        .read(appPreferencesProvider.notifier)
+        .setExtendedVolumeEnabled(value);
+    await playerService.setExtendedVolumeEnabled(value);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(appPreferencesProvider);
+    final playerService = ref.read(playerServiceProvider);
+
+    return ListenableBuilder(
+      listenable: playerService.extendedVolumeEnabledNotifier,
+      builder: (context, _) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SettingsSectionHeader('Volume'),
+            SettingsCard(
+              children: [
+                ToggleSetting(
+                  icon: LucideIcons.volume2,
+                  title: 'Extended Volume',
+                  subtitle: 'Boost beyond 100% (up to 200%)',
+                  value: prefs.extendedVolumeEnabled,
+                  onChanged: (v) => _setEnabled(ref, playerService, v),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 }
