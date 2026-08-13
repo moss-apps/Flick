@@ -4,6 +4,7 @@ import android.media.audiofx.AudioEffect
 import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.EnvironmentalReverb
 import android.media.audiofx.Equalizer
+import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.Virtualizer
 import android.os.Build
 import android.util.Log
@@ -19,28 +20,86 @@ internal class JustAudioProcessingController {
     private var dynamicsProcessing: DynamicsProcessing? = null
     private var environmentalReverb: EnvironmentalReverb? = null
     private var virtualizer: Virtualizer? = null
+    private var loudnessEnhancer: LoudnessEnhancer? = null
+    private var boostSessionId: Int? = null
 
     fun handle(call: MethodCall, result: MethodChannel.Result): Boolean {
-        if (call.method != METHOD_APPLY_AUDIO_PROCESSING) {
-            return false
+        when (call.method) {
+            METHOD_APPLY_AUDIO_PROCESSING -> {
+                val request = AudioProcessingRequest.from(call.arguments)
+                if (request == null) {
+                    result.error(
+                        "INVALID_ARGUMENT",
+                        "Expected a valid audio processing payload for just_audio",
+                        null,
+                    )
+                    return true
+                }
+                apply(request, result)
+                return true
+            }
+            METHOD_SET_VOLUME_BOOST -> {
+                applyVolumeBoost(call.arguments, result)
+                return true
+            }
+            else -> return false
         }
-
-        val request = AudioProcessingRequest.from(call.arguments)
-        if (request == null) {
-            result.error(
-                "INVALID_ARGUMENT",
-                "Expected a valid audio processing payload for just_audio",
-                null,
-            )
-            return true
-        }
-
-        apply(request, result)
-        return true
     }
 
     fun release() {
         releaseAll()
+        releaseLoudnessEnhancer()
+    }
+
+    private fun applyVolumeBoost(arguments: Any?, result: MethodChannel.Result) {
+        try {
+            val payload = arguments as? Map<*, *>
+            val gainMb = (payload?.get("gainMb") as? Number)?.toInt() ?: 0
+            val sessionId = (payload?.get("audioSessionId") as? Number)?.toInt()
+
+            if (gainMb <= 0) {
+                releaseLoudnessEnhancer()
+                result.success(null)
+                return
+            }
+
+            val sid = sessionId ?: run {
+                result.error(
+                    "AUDIO_SESSION_NOT_READY",
+                    "Audio session not ready. Start playback first.",
+                    null,
+                )
+                return
+            }
+
+            // Recreate the effect if the session changed.
+            if (boostSessionId != sid) {
+                releaseLoudnessEnhancer()
+            }
+
+            val effect = loudnessEnhancer
+                ?: createLoudnessEnhancer(sid)?.also { loudnessEnhancer = it }
+                ?: run {
+                    result.error(
+                        "LOUDNESS_ENHANCER_UNAVAILABLE",
+                        "LoudnessEnhancer could not be created",
+                        null,
+                    )
+                    return
+                }
+
+            boostSessionId = sid
+            effect.enabled = true
+            effect.setTargetGain(gainMb)
+            result.success(null)
+        } catch (e: Exception) {
+            logAndRelease("LoudnessEnhancer", e) { releaseLoudnessEnhancer() }
+            result.error(
+                "AUDIO_PROCESSING_ERROR",
+                "Failed to apply volume boost: ${e.message}",
+                null,
+            )
+        }
     }
 
     private fun apply(request: AudioProcessingRequest, result: MethodChannel.Result) {
@@ -298,6 +357,15 @@ internal class JustAudioProcessingController {
         }
     }
 
+    private fun createLoudnessEnhancer(sessionId: Int): LoudnessEnhancer? {
+        return try {
+            LoudnessEnhancer(sessionId)
+        } catch (e: Exception) {
+            logEffectFailure("LoudnessEnhancer", e)
+            null
+        }
+    }
+
     private fun releaseAll() {
         releaseEqualizer()
         releaseDynamics()
@@ -328,6 +396,12 @@ internal class JustAudioProcessingController {
     private fun releaseVirtualizer() {
         releaseAudioEffect(virtualizer)
         virtualizer = null
+    }
+
+    private fun releaseLoudnessEnhancer() {
+        releaseAudioEffect(loudnessEnhancer)
+        loudnessEnhancer = null
+        boostSessionId = null
     }
 
     private fun releaseAudioEffect(effect: AudioEffect?) {
@@ -595,6 +669,7 @@ internal class JustAudioProcessingController {
     companion object {
         private const val TAG = "JustAudioProcessing"
         private const val METHOD_APPLY_AUDIO_PROCESSING = "applyAudioProcessing"
+        private const val METHOD_SET_VOLUME_BOOST = "setVolumeBoost"
         private const val LIMITER_LINK_GROUP = 0
         private const val LIMITER_ATTACK_MS = 1f
         private const val LIMITER_RATIO = 20f
