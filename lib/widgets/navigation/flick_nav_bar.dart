@@ -14,6 +14,7 @@ class FlickNavBar extends StatefulWidget {
   final Widget? miniPlayerWidget;
   final NavBarConfig config;
   final bool collapsed;
+  final bool separateMiniPlayer;
 
   const FlickNavBar({
     super.key,
@@ -24,6 +25,7 @@ class FlickNavBar extends StatefulWidget {
     this.showMiniPlayer = false,
     this.miniPlayerWidget,
     this.collapsed = false,
+    this.separateMiniPlayer = false,
   });
 
   @override
@@ -40,77 +42,88 @@ class _FlickNavBarState extends State<FlickNavBar> {
 
     final borderRadius = BorderRadius.circular(context.scaleSize(20));
 
-    return AnimatedContainer(
-      duration: AppConstants.animationNormal,
-      curve: Curves.easeOutCubic,
-      margin: EdgeInsets.fromLTRB(
-        horizontalPadding,
-        0,
-        horizontalPadding,
-        bottomPadding + verticalPadding,
-      ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: widget.collapsed
-              ? [Colors.transparent, Colors.transparent]
-              : [
-                  AppColors.surfaceLight.withValues(alpha: 0.92),
-                  AppColors.surface.withValues(alpha: 0.97),
-                ],
-        ),
-        borderRadius: borderRadius,
-        border: Border.all(
-          color: widget.collapsed ? Colors.transparent : AppColors.glassBorder,
-          width: 1,
-        ),
-        boxShadow: widget.collapsed
-            ? [
-                const BoxShadow(
-                  color: Colors.transparent,
-                  blurRadius: 24,
-                  spreadRadius: 2,
-                  offset: Offset(0, 10),
-                ),
-                const BoxShadow(
-                  color: Colors.transparent,
-                  blurRadius: 40,
-                  spreadRadius: -8,
-                  offset: Offset(0, 4),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 24,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 10),
-                ),
-                BoxShadow(
-                  color: AppColors.accent.withValues(alpha: 0.03),
-                  blurRadius: 40,
-                  spreadRadius: -8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (widget.showMiniPlayer && widget.miniPlayerWidget != null) widget.miniPlayerWidget!,
-          AnimatedCrossFade(
-            firstChild: _buildNavigationRow(context, buttons),
-            secondChild: const SizedBox.shrink(),
-            crossFadeState:
-                widget.collapsed
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.separateMiniPlayer &&
+            widget.showMiniPlayer &&
+            widget.miniPlayerWidget != null)
+          widget.miniPlayerWidget!,
+        AnimatedContainer(
+          duration: AppConstants.animationNormal,
+          curve: Curves.easeOutCubic,
+          margin: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            0,
+            horizontalPadding,
+            bottomPadding + verticalPadding,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: widget.collapsed
+                  ? [Colors.transparent, Colors.transparent]
+                  : [
+                      AppColors.surfaceLight.withValues(alpha: 0.92),
+                      AppColors.surface.withValues(alpha: 0.97),
+                    ],
+            ),
+            borderRadius: borderRadius,
+            border: Border.all(
+              color: widget.collapsed ? Colors.transparent : AppColors.glassBorder,
+              width: 1,
+            ),
+            boxShadow: widget.collapsed
+                ? [
+                    const BoxShadow(
+                      color: Colors.transparent,
+                      blurRadius: 24,
+                      spreadRadius: 2,
+                      offset: Offset(0, 10),
+                    ),
+                    const BoxShadow(
+                      color: Colors.transparent,
+                      blurRadius: 40,
+                      spreadRadius: -8,
+                      offset: Offset(0, 4),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 24,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: AppColors.accent.withValues(alpha: 0.03),
+                      blurRadius: 40,
+                      spreadRadius: -8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!widget.separateMiniPlayer &&
+                  widget.showMiniPlayer &&
+                  widget.miniPlayerWidget != null)
+                widget.miniPlayerWidget!,
+              AnimatedCrossFade(
+                firstChild: _buildNavigationRow(context, buttons),
+                secondChild: const SizedBox.shrink(),
+                crossFadeState: widget.collapsed
                     ? CrossFadeState.showSecond
                     : CrossFadeState.showFirst,
-            duration: AppConstants.animationNormal,
-            sizeCurve: Curves.easeOutCubic,
+                duration: AppConstants.animationNormal,
+                sizeCurve: Curves.easeOutCubic,
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

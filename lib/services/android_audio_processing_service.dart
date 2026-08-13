@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 
@@ -15,6 +16,15 @@ class AndroidJustAudioProcessingService {
   static const double _dbEpsilon = 0.01;
 
   final MethodChannel _channel;
+
+  /// Boost gain in millibels for a linear volume > 1.0 (extended volume).
+  /// 1.0 → 0 mB, 2.0 → ~602 mB (+6 dB). Returns 0 for volumes <= 1.0.
+  static int volumeToBoostMb(double volume) {
+    if (volume <= 1.0) return 0;
+    final clamped = volume.clamp(1.0, 2.0);
+    final db = 20.0 * math.log(clamped) / math.ln10;
+    return (db * 100).round();
+  }
 
   Future<void> apply({
     required EqualizerState state,
@@ -34,6 +44,15 @@ class AndroidJustAudioProcessingService {
     }
 
     await _channel.invokeMethod<void>('applyAudioProcessing', request.toMap());
+  }
+
+  /// Apply a positive volume boost (gain in millibels) to the just_audio
+  /// session via Android's LoudnessEnhancer. Pass gainMb <= 0 to release.
+  Future<void> setVolumeBoost({required int gainMb, int? audioSessionId}) async {
+    await _channel.invokeMethod<void>('setVolumeBoost', <String, Object?>{
+      'gainMb': gainMb,
+      'audioSessionId': audioSessionId,
+    });
   }
 }
 

@@ -47,6 +47,9 @@ Future<void> setPendingVolume({required double volume}) =>
 Future<double?> takePendingVolume() =>
     RustLib.instance.api.crateApiAudioApiTakePendingVolume();
 
+Future<double> lastVolume() =>
+    RustLib.instance.api.crateApiAudioApiLastVolume();
+
 Future<void> setPendingCrossfade({
   required bool enabled,
   required double durationSecs,

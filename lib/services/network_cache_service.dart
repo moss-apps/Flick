@@ -81,6 +81,20 @@ class NetworkCacheService {
     return file.path;
   }
 
+  /// Resolve (and create) the canonical cache path for a (server, song) entry
+  /// without writing bytes. Lets a native downloader stream straight to disk,
+  /// avoiding a full-file FFI buffer round-trip for large FLACs.
+  Future<String> pathFor(
+    int remoteServerId,
+    String remoteId, {
+    String? extension,
+  }) async {
+    final serverDir = Directory(p.join((await _root()).path, '$remoteServerId'));
+    await serverDir.create(recursive: true);
+    return p.join(serverDir.path,
+        '${_hash(remoteServerId, remoteId)}.${extension ?? 'bin'}');
+  }
+
   Future<String?> _findByHash(Directory serverDir, String hash) async {
     await for (final entry in serverDir.list()) {
       final name = p.basename(entry.path);

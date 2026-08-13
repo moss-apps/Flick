@@ -352,10 +352,10 @@ class RustAudioService {
     await rust_audio.audioSeek(positionSecs: position.inMilliseconds / 1000.0);
   }
 
-  /// Set the volume (0.0 to 1.0).
+  /// Set the volume (0.0 to 2.0; values >1.0 apply extended gain).
   Future<void> setVolume(double volume) async {
     if (!_initialized) return;
-    final clampedVolume = volume.clamp(0.0, 1.0);
+    final clampedVolume = volume.clamp(0.0, 2.0);
     volumeNotifier.value = clampedVolume;
     await rust_audio.audioSetVolume(volume: clampedVolume);
   }

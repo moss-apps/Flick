@@ -10,6 +10,7 @@ import 'package:flick/models/playlist.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
+import 'package:flick/services/sources/network_source_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
 
@@ -115,6 +116,8 @@ class PlaylistsScreen extends ConsumerWidget {
                   _showCreatePlaylistDialog(context, ref);
                 } else if (value == 'import_m3u') {
                   _importPlaylist(context, ref);
+                } else if (value == 'sync_servers') {
+                  _syncServerPlaylists(context, ref);
                 }
               },
               itemBuilder: (context) => [
@@ -135,6 +138,16 @@ class PlaylistsScreen extends ConsumerWidget {
                       Icon(LucideIcons.fileUp, size: 18),
                       SizedBox(width: 8),
                       Text('Import M3U/M3U8'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'sync_servers',
+                  child: Row(
+                    children: [
+                      Icon(LucideIcons.refreshCw, size: 18),
+                      SizedBox(width: 8),
+                      Text('Sync Server Playlists'),
                     ],
                   ),
                 ),
@@ -276,9 +289,21 @@ class PlaylistsScreen extends ConsumerWidget {
         itemCount: playlists.length,
       itemBuilder: (context, index) {
         final playlist = playlists[index];
+        final serversAsync = ref.watch(networkServersProvider);
+        String? serverLabel;
+        final serverId = playlist.networkServerId;
+        if (serverId != null && serversAsync.value != null) {
+          for (final server in serversAsync.value!) {
+            if (server.id == serverId) {
+              serverLabel = server.label;
+              break;
+            }
+          }
+        }
         return _PlaylistCard(
           key: ValueKey(playlist.id),
           playlist: playlist,
+          serverLabel: serverLabel,
           onTap: () {
             NavigationHelper.pushFade(
               context,
@@ -338,6 +363,13 @@ class PlaylistsScreen extends ConsumerWidget {
 
   void _showCreatePlaylistDialog(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
+    final serversAsync = ref.watch(networkServersProvider);
+    final servers = serversAsync.value
+            ?.where((s) => s.protocol == NetworkProtocol.subsonic)
+            .toList() ??
+        const [];
+    // ponytail: 0 = "this device"; Isar ids start at 1 so it never collides.
+    var serverId = 0;
 
     showDialog(
       context: context,
@@ -350,22 +382,59 @@ class PlaylistsScreen extends ConsumerWidget {
           'Create Playlist',
           style: TextStyle(color: context.adaptiveTextPrimary),
         ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: TextStyle(color: context.adaptiveTextPrimary),
-          decoration: InputDecoration(
-            hintText: 'Playlist name',
-            hintStyle: TextStyle(color: context.adaptiveTextTertiary),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.glassBorder),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: TextStyle(color: context.adaptiveTextPrimary),
+              decoration: InputDecoration(
+                hintText: 'Playlist name',
+                hintStyle: TextStyle(color: context.adaptiveTextTertiary),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.glassBorder),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: context.adaptiveTextSecondary),
+                ),
+              ),
+              onSubmitted: (value) => _createPlaylist(
+                context,
+                ref,
+                value,
+                controller,
+                serverId: serverId,
+              ),
             ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: context.adaptiveTextSecondary),
-            ),
-          ),
-          onSubmitted: (value) =>
-              _createPlaylist(context, ref, value, controller),
+            if (servers.isNotEmpty) ...[
+              const SizedBox(height: AppConstants.spacingMd),
+              DropdownButtonFormField<int>(
+                initialValue: serverId,
+                decoration: InputDecoration(
+                  labelText: 'Store on',
+                  labelStyle: TextStyle(color: context.adaptiveTextTertiary),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.glassBorder),
+                  ),
+                ),
+                style: TextStyle(color: context.adaptiveTextPrimary),
+                dropdownColor: AppColors.surface,
+                items: [
+                  const DropdownMenuItem(
+                    value: 0,
+                    child: Text('This device'),
+                  ),
+                  for (final server in servers)
+                    DropdownMenuItem(
+                      value: server.id,
+                      child: Text(server.label),
+                    ),
+                ],
+                onChanged: (value) => serverId = value ?? 0,
+              ),
+            ],
+          ],
         ),
         actions: [
           TextButton(
@@ -382,6 +451,7 @@ class PlaylistsScreen extends ConsumerWidget {
               controller.text,
               controller,
               dialogContext: dialogContext,
+              serverId: serverId,
             ),
             child: Text(
               'Create',
@@ -399,6 +469,7 @@ class PlaylistsScreen extends ConsumerWidget {
     String name,
     TextEditingController controller, {
     BuildContext? dialogContext,
+    int serverId = 0,
   }) async {
     if (name.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -407,9 +478,10 @@ class PlaylistsScreen extends ConsumerWidget {
       return;
     }
 
-    final playlist = await ref
-        .read(playlistsProvider.notifier)
-        .createPlaylist(name);
+    final playlist = await ref.read(playlistsProvider.notifier).createPlaylist(
+      name,
+      serverId: serverId == 0 ? null : serverId,
+    );
 
     if (playlist == null) {
       if (context.mounted) {
@@ -430,6 +502,29 @@ class PlaylistsScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Playlist "${playlist.name}" created')),
       );
+    }
+  }
+
+  Future<void> _syncServerPlaylists(BuildContext context, WidgetRef ref) async {
+    try {
+      final synced = await ref
+          .read(playlistsProvider.notifier)
+          .syncServerPlaylists();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            synced == 0
+                ? 'No server playlists found'
+                : 'Synced $synced playlist${synced == 1 ? '' : 's'} from servers',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Server playlist sync failed: $e')));
     }
   }
 
@@ -488,6 +583,7 @@ class PlaylistsScreen extends ConsumerWidget {
 
 class _PlaylistCard extends StatelessWidget {
   final Playlist playlist;
+  final String? serverLabel;
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback onExportM3u;
@@ -496,6 +592,7 @@ class _PlaylistCard extends StatelessWidget {
   const _PlaylistCard({
     super.key,
     required this.playlist,
+    this.serverLabel,
     required this.onTap,
     required this.onDelete,
     required this.onExportM3u,
@@ -537,7 +634,9 @@ class _PlaylistCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${playlist.songIds.length} song${playlist.songIds.length == 1 ? '' : 's'}',
+                        serverLabel == null
+                            ? '${playlist.songIds.length} song${playlist.songIds.length == 1 ? '' : 's'}'
+                            : '${playlist.songIds.length} song${playlist.songIds.length == 1 ? '' : 's'} · $serverLabel',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: context.adaptiveTextTertiary,
                         ),

@@ -20,6 +20,7 @@ import 'package:flick/services/bluetooth_service.dart';
 import 'package:flick/services/audio_engine_manager.dart';
 import 'package:flick/services/audio_session_manager.dart';
 import 'package:flick/services/equalizer_service.dart';
+import 'package:flick/services/android_audio_processing_service.dart';
 import 'package:flick/services/last_played_service.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/data/repositories/recently_played_repository.dart';
@@ -406,6 +407,13 @@ class PlayerService {
   static const double _bitPerfectDefaultVolume = 0.25;
 
   double get currentVolume => _currentVolume;
+
+  /// Extended-volume boost (up to 200 %) toggle. Only the software (Rust)
+  /// and system (ExoPlayer + LoudnessEnhancer) tiers may exceed 1.0.
+  bool _extendedVolumeEnabled = false;
+  int _currentBoostMb = 0;
+  final ValueNotifier<bool> extendedVolumeEnabledNotifier =
+      ValueNotifier<bool>(false);
 
   /// Lie-detector: set when a DAC that claimed hardware volume rejects
   /// writes or fails the GET_CUR health check.
@@ -1290,6 +1298,10 @@ class PlayerService {
         enabled: Uac2PreferencesService.is432HzTuningEnabledSync,
       );
 
+      _extendedVolumeEnabled =
+          await _appPreferencesService.getExtendedVolumeEnabled();
+      extendedVolumeEnabledNotifier.value = _extendedVolumeEnabled;
+
       final engineType = _sessionManager.selectedMode;
       if (engineType == AudioEngineType.usbDacExperimental ||
           engineType == AudioEngineType.dapInternalHighRes) {
@@ -1713,6 +1725,55 @@ class PlayerService {
   /// engine gain would corrupt the stream, so the slider must disable.
   bool get isVolumeAvailable =>
       _determineCurrentTier() != VolumeTier.unavailable;
+
+  /// Maximum volume the user may select right now. Extended boost (2.0) is
+  /// only available on the software and system tiers when the toggle is on;
+  /// hardware, passthrough, DoP and casting paths stay clamped at 1.0.
+  double get maxVolume {
+    if (!_extendedVolumeEnabled || _castingService.isActive) return 1.0;
+    final tier = _determineCurrentTier();
+    return (tier == VolumeTier.software || tier == VolumeTier.system)
+        ? 2.0
+        : 1.0;
+  }
+
+  /// Toggle extended volume at runtime. Disabling clamps the current volume
+  /// back to 1.0 and releases any active LoudnessEnhancer boost.
+  Future<void> setExtendedVolumeEnabled(bool enabled) async {
+    if (_extendedVolumeEnabled == enabled) return;
+    _extendedVolumeEnabled = enabled;
+    extendedVolumeEnabledNotifier.value = enabled;
+    if (!enabled && _currentVolume > 1.0) {
+      await setVolume(1.0);
+    } else {
+      await _reconcileSystemVolumeBoost(
+        _determineCurrentTier() == VolumeTier.system ? _currentVolume : 0.0,
+      );
+    }
+  }
+
+  /// Apply or release the LoudnessEnhancer boost on the just_audio session.
+  /// [effectiveVolume] is the volume to realise on the system tier; pass 0.0
+  /// to release (e.g. when on another tier or casting).
+  Future<void> _reconcileSystemVolumeBoost(double effectiveVolume) async {
+    if (!Platform.isAndroid) {
+      if (_currentBoostMb != 0) _currentBoostMb = 0;
+      return;
+    }
+    final desiredMb = _extendedVolumeEnabled
+        ? AndroidJustAudioProcessingService.volumeToBoostMb(effectiveVolume)
+        : 0;
+    if (desiredMb == _currentBoostMb) return;
+    _currentBoostMb = desiredMb;
+    try {
+      await androidJustAudioProcessingService.setVolumeBoost(
+        gainMb: desiredMb,
+        audioSessionId: androidAudioSessionId,
+      );
+    } catch (e) {
+      _debugLog('[VolFlow] LoudnessEnhancer boost failed: $e');
+    }
+  }
 
   VolumeTier _determineCurrentTier() => determineVolumeTier(
     isBitPerfectVolumePath: _isBitPerfectVolumePath,
@@ -4599,10 +4660,17 @@ class PlayerService {
   // ==================== Volume ====================
 
   Future<void> setVolume(double volume) async {
-    final clampedVolume = volume.clamp(0.0, 1.0).toDouble();
+    final tier = _determineCurrentTier();
+    final tierSupportsBoost = _extendedVolumeEnabled &&
+        (tier == VolumeTier.software || tier == VolumeTier.system);
+    final maxForTier = tierSupportsBoost ? 2.0 : 1.0;
+    final clampedVolume = volume.clamp(0.0, maxForTier).toDouble();
+
     if (_castingService.isActive) {
-      _currentVolume = clampedVolume;
-      await _castingService.delegateSetVolume(clampedVolume);
+      // Cast devices cannot exceed 100 %.
+      _currentVolume = clampedVolume.clamp(0.0, 1.0);
+      await _castingService.delegateSetVolume(_currentVolume);
+      await _reconcileSystemVolumeBoost(0.0);
       return;
     }
     _currentVolume = clampedVolume;
@@ -4634,10 +4702,10 @@ class PlayerService {
           '[VolFlow] DoP: no hardware volume available — volume unchanged',
         );
       }
+      await _reconcileSystemVolumeBoost(0.0);
       return;
     }
 
-    final tier = _determineCurrentTier();
     _activeTier = tier;
     switch (tier) {
       case VolumeTier.hardware:
@@ -4650,23 +4718,30 @@ class PlayerService {
           _debugLog('[VolFlow] HW write failed — falling back to engine gain');
           await _rustAudioService.setVolume(clampedVolume);
         }
+        await _reconcileSystemVolumeBoost(0.0);
         break;
       case VolumeTier.software:
         if (_usingRustBackend) {
           _debugLog('[VolFlow] SW path: engine setVolume($clampedVolume)');
           await _rustAudioService.setVolume(clampedVolume);
         }
+        // No native effect on the Rust path; ensure any stale boost is released.
+        await _reconcileSystemVolumeBoost(0.0);
         break;
       case VolumeTier.system:
         final player = _justAudioPlayer;
         if (player != null) {
-          await player.setVolume(clampedVolume);
+          // ExoPlayer clamps at 1.0; the boost portion (>1.0) is applied via
+          // Android LoudnessEnhancer below.
+          await player.setVolume(math.min(clampedVolume, 1.0));
         }
+        await _reconcileSystemVolumeBoost(clampedVolume);
         break;
       case VolumeTier.unavailable:
         _debugLog(
           '[VolFlow] Volume unavailable (bit-perfect passthrough) — ignored',
         );
+        await _reconcileSystemVolumeBoost(0.0);
         break;
     }
   }

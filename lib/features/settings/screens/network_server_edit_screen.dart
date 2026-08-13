@@ -14,6 +14,7 @@ import '../../../core/utils/responsive.dart';
 // Database, widgets, and service configurations
 import '../../../data/database.dart';
 import '../../../data/repositories/song_repository.dart';
+import '../../../services/playlist_service.dart';
 import '../../../services/sources/network_source_service.dart';
 import '../../../services/sources/tidal_service.dart';
 import '../widgets/settings_widgets.dart';
@@ -290,8 +291,8 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Remove server?'),
       content: Text(
-          'Delete "${server.label}" and all songs synced from it? '
-          'Cached downloads are kept.',
+          'Delete "${server.label}" and all songs and playlists synced from '
+          'it? Cached downloads are kept.',
         ),
         actions: [
           TextButton(
@@ -310,6 +311,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       await Database.networkServers.delete(server.id);
     });
     await SongRepository().deleteSongsForRemoteServer(server.id);
+    await PlaylistService.instance.removeNetworkPlaylistsForServer('${server.id}');
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }

@@ -54,6 +54,18 @@ class BottomBarSettingsScreen extends ConsumerWidget {
                       .setMiniPlayerSwipeAction('switchSongs');
                 },
               ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.split,
+                title: 'Separate from Nav Bar',
+                subtitle: 'Show the mini player as its own bar above the buttons',
+                value: appPreferences.separateMiniPlayerFromNavBar,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setSeparateMiniPlayerFromNavBar(value);
+                },
+              ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),

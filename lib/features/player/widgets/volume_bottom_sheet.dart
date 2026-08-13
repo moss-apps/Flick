@@ -17,7 +17,8 @@ class VolumeBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initialVolume = playerService.currentVolume;
+    final maxVolume = playerService.maxVolume;
+    final initialVolume = playerService.currentVolume.clamp(0.0, maxVolume);
     final isAvailable = playerService.isVolumeAvailable;
     double currentVolume = initialVolume;
     return StatefulBuilder(
@@ -76,8 +77,8 @@ class VolumeBottomSheet extends StatelessWidget {
                     child: Slider(
                       value: currentVolume,
                       min: 0.0,
-                      max: 1.0,
-                      divisions: 100,
+                      max: maxVolume,
+                      divisions: (maxVolume * 100).round(),
                       label: '${(currentVolume * 100).round()}%',
                       onChanged: isAvailable
                           ? (value) {

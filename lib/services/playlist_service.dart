@@ -3,10 +3,12 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flick/data/database.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/models/playlist.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/core/utils/dev_log.dart';
+import 'package:flick/services/sources/subsonic_service.dart';
 
 class PlaylistImportResult {
   final Playlist playlist;
@@ -59,10 +61,21 @@ class PlaylistService {
   List<Playlist> _playlists = [];
   bool _isLoaded = false;
   bool _importInProgress = false;
-  final SongRepository _songRepository;
+  SongRepository? _songRepository;
+  final SubsonicService? _subsonicService;
 
-  PlaylistService({SongRepository? songRepository})
-    : _songRepository = songRepository ?? SongRepository();
+  /// Shared instance: playlists live in one place (prefs + memory), and
+  /// [SubsonicService] syncs into the same instance the UI reads.
+  static PlaylistService instance = PlaylistService();
+
+  PlaylistService({SongRepository? songRepository, SubsonicService? subsonicService})
+    : _songRepository = songRepository,
+      _subsonicService = subsonicService;
+
+  // ponytail: lazy init so prefs-only paths (mirror sync, tests) never touch Isar.
+  SongRepository get _repo => _songRepository ??= SongRepository();
+
+  SubsonicService get _subsonic => _subsonicService ?? SubsonicService.instance;
 
   Future<void> _ensureLoaded() async {
     if (_isLoaded) return;
@@ -105,13 +118,34 @@ class PlaylistService {
     );
   }
 
-  Future<Playlist?> createPlaylist(String name) async {
+  /// Create a playlist. With [serverId] set, the playlist is created on that
+  /// Subsonic server first and a local mirror is stored; otherwise it's a
+  /// purely local playlist (as before).
+  Future<Playlist?> createPlaylist(String name, {int? serverId}) async {
     await _ensureLoaded();
     final trimmedName = name.trim();
 
-    if (trimmedName.isEmpty || _playlistNameExists(trimmedName)) {
-      return null;
+    if (trimmedName.isEmpty) return null;
+
+    if (serverId != null) {
+      final server = await Database.networkServers.get(serverId);
+      if (server == null) return null;
+      try {
+        final created = await _subsonic.createPlaylist(server, name: trimmedName);
+        final remoteId = created?['id']?.toString();
+        if (remoteId == null) return null;
+        return upsertNetworkPlaylist(
+          serverId: serverId,
+          remoteId: remoteId,
+          name: trimmedName,
+        );
+      } catch (e) {
+        devLog('[PlaylistService] Remote create failed: $e');
+        return null;
+      }
     }
+
+    if (_playlistNameExists(trimmedName)) return null;
 
     final playlist = Playlist(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -133,8 +167,24 @@ class PlaylistService {
 
     final trimmedName = playlist.name.trim();
     if (trimmedName.isEmpty ||
-        _playlistNameExists(trimmedName, excludeId: playlist.id)) {
+        (!playlist.isNetworkSource &&
+            _playlistNameExists(trimmedName, excludeId: playlist.id))) {
       return null;
+    }
+
+    if (playlist.isNetworkSource) {
+      final server = await _networkServerFor(playlist);
+      if (server == null) return null;
+      try {
+        await _subsonic.updatePlaylist(
+          server,
+          playlist.networkRemoteId!,
+          name: trimmedName,
+        );
+      } catch (e) {
+        devLog('[PlaylistService] Remote rename failed: $e');
+        return null;
+      }
     }
 
     final updated = playlist.copyWith(
@@ -150,15 +200,29 @@ class PlaylistService {
   Future<bool> deletePlaylist(String id) async {
     await _ensureLoaded();
 
-    final initialLength = _playlists.length;
-    _playlists.removeWhere((p) => p.id == id);
+    Playlist? playlist;
+    for (final p in _playlists) {
+      if (p.id == id) {
+        playlist = p;
+        break;
+      }
+    }
+    if (playlist == null) return false;
 
-    if (_playlists.length < initialLength) {
-      await _savePlaylists();
-      return true;
+    if (playlist.isNetworkSource) {
+      final server = await _networkServerFor(playlist);
+      if (server == null) return false;
+      try {
+        await _subsonic.deletePlaylist(server, playlist.networkRemoteId!);
+      } catch (e) {
+        devLog('[PlaylistService] Remote delete failed: $e');
+        return false;
+      }
     }
 
-    return false;
+    _playlists.removeWhere((p) => p.id == id);
+    await _savePlaylists();
+    return true;
   }
 
   Future<bool> addSongToPlaylist(String playlistId, String songId) async {
@@ -169,6 +233,23 @@ class PlaylistService {
 
     final playlist = _playlists[index];
     if (playlist.songIds.contains(songId)) return true;
+
+    if (playlist.isNetworkSource) {
+      final remoteId = await _remoteIdForSong(playlist, songId);
+      if (remoteId == null) return false;
+      final server = await _networkServerFor(playlist);
+      if (server == null) return false;
+      try {
+        await _subsonic.updatePlaylist(
+          server,
+          playlist.networkRemoteId!,
+          songIdsToAdd: [remoteId],
+        );
+      } catch (e) {
+        devLog('[PlaylistService] Remote add failed: $e');
+        return false;
+      }
+    }
 
     final updated = playlist.copyWith(
       songIds: [...playlist.songIds, songId],
@@ -198,6 +279,38 @@ class PlaylistService {
     final item = songIds.removeAt(oldIndex);
     songIds.insert(adjustedNew, item);
 
+    if (playlist.isNetworkSource) {
+      final server = await _networkServerFor(playlist);
+      if (server == null) return false;
+      final songs = await _repo.getAllSongs();
+      final byId = {for (final s in songs) s.id: s};
+      final remoteIds = <String>[];
+      var resolvable = true;
+      for (final id in songIds) {
+        final song = byId[id];
+        if (song == null ||
+            song.remoteId == null ||
+            song.remoteServerId != playlist.networkServerId) {
+          resolvable = false;
+          break;
+        }
+        remoteIds.add(song.remoteId!);
+      }
+      if (!resolvable) return false;
+      try {
+        // Subsonic has no reorder call; full-replace the server playlist.
+        await _subsonic.createPlaylist(
+          server,
+          playlistId: playlist.networkRemoteId,
+          name: playlist.name,
+          songIds: remoteIds,
+        );
+      } catch (e) {
+        devLog('[PlaylistService] Remote reorder failed: $e');
+        return false;
+      }
+    }
+
     final updated = playlist.copyWith(
       songIds: songIds,
       updatedAt: DateTime.now(),
@@ -216,6 +329,24 @@ class PlaylistService {
     if (index == -1) return false;
 
     final playlist = _playlists[index];
+
+    if (playlist.isNetworkSource) {
+      final remoteId = await _remoteIdForSong(playlist, songId);
+      if (remoteId == null) return false;
+      final server = await _networkServerFor(playlist);
+      if (server == null) return false;
+      try {
+        await _subsonic.updatePlaylist(
+          server,
+          playlist.networkRemoteId!,
+          songIdsToRemove: [remoteId],
+        );
+      } catch (e) {
+        devLog('[PlaylistService] Remote remove failed: $e');
+        return false;
+      }
+    }
+
     final updated = playlist.copyWith(
       songIds: playlist.songIds.where((id) => id != songId).toList(),
       updatedAt: DateTime.now(),
@@ -225,6 +356,103 @@ class PlaylistService {
     await _savePlaylists();
 
     return true;
+  }
+
+  // --- Network (Subsonic) playlist mirrors ---------------------------------
+
+  /// Idempotently upsert a server playlist mirror keyed by sourcePath
+  /// `subsonic://<serverId>/<remoteId>`. [saveAfter] skips the prefs write
+  /// so bulk syncs can persist once at the end.
+  Future<Playlist> upsertNetworkPlaylist({
+    required int serverId,
+    required String remoteId,
+    required String name,
+    List<String> songIds = const [],
+    bool saveAfter = true,
+  }) async {
+    await _ensureLoaded();
+    final sourcePath = '${Playlist.networkSourceScheme}://$serverId/$remoteId';
+    final now = DateTime.now();
+    final existing = _findPlaylistBySourcePath(sourcePath);
+
+    late final Playlist playlist;
+    if (existing != null) {
+      playlist = existing.copyWith(
+        name: name,
+        songIds: songIds,
+        updatedAt: now,
+        sourcePath: sourcePath,
+      );
+      final index = _playlists.indexWhere((item) => item.id == existing.id);
+      if (index >= 0) {
+        _playlists[index] = playlist;
+      }
+    } else {
+      playlist = Playlist(
+        id: '${Playlist.networkSourceScheme}:$serverId:$remoteId',
+        name: name,
+        songIds: songIds,
+        createdAt: now,
+        updatedAt: now,
+        sourcePath: sourcePath,
+      );
+      _playlists.add(playlist);
+    }
+
+    if (saveAfter) {
+      await _savePlaylists();
+    }
+    return playlist;
+  }
+
+  /// Remove mirrors for [serverId] whose sourcePath is not in [keepPaths].
+  Future<void> removeStaleNetworkPlaylists(
+    String serverId,
+    Set<String> keepPaths,
+  ) async {
+    await _ensureLoaded();
+    final prefix = '${Playlist.networkSourceScheme}://$serverId/';
+    final before = _playlists.length;
+    _playlists.removeWhere(
+      (p) =>
+          p.sourcePath != null &&
+          p.sourcePath!.startsWith(prefix) &&
+          !keepPaths.contains(p.sourcePath),
+    );
+    if (_playlists.length != before) {
+      await _savePlaylists();
+    }
+  }
+
+  /// Purge every mirror owned by [serverId] (used when a server is removed).
+  Future<void> removeNetworkPlaylistsForServer(String serverId) async {
+    await removeStaleNetworkPlaylists(serverId, const {});
+  }
+
+  /// Write the in-memory playlists to prefs (used after bulk syncs).
+  Future<void> persist() => _savePlaylists();
+
+  Future<NetworkServerEntity?> _networkServerFor(Playlist playlist) async {
+    final serverId = playlist.networkServerId;
+    if (serverId == null) return null;
+    return Database.networkServers.get(serverId);
+  }
+
+  /// The remote song id for [songId], only when the song belongs to the same
+  /// server as [playlist]. Null when untranslatable (local song, other server,
+  /// or unknown id).
+  Future<String?> _remoteIdForSong(Playlist playlist, String songId) async {
+    final songs = await _repo.getAllSongs();
+    for (final song in songs) {
+      if (song.id == songId) {
+        if (song.remoteId != null &&
+            song.remoteServerId == playlist.networkServerId) {
+          return song.remoteId;
+        }
+        return null;
+      }
+    }
+    return null;
   }
 
   Future<PlaylistImportResult?> importM3uPlaylist() async {
@@ -429,7 +657,7 @@ class PlaylistService {
   Future<List<Song>> _getOrderedSongs(List<String> songIds) async {
     if (songIds.isEmpty) return [];
 
-    final songs = await _songRepository.getAllSongs();
+    final songs = await _repo.getAllSongs();
     final byId = {for (final song in songs) song.id: song};
 
     final ordered = <Song>[];
@@ -534,7 +762,7 @@ class PlaylistService {
   }
 
   Future<_SongLookup> _buildSongLookup() async {
-    final songs = await _songRepository.getAllSongs();
+    final songs = await _repo.getAllSongs();
     final byPath = <String, List<Song>>{};
     final byFileName = <String, List<Song>>{};
 

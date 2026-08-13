@@ -5,18 +5,23 @@ import 'package:flick/core/utils/dev_log.dart';
 
 class MediaStoreObserverService {
   final MusicFolderService _musicFolderService;
-  final LibraryScannerService _scannerService;
+  final Stream<ScanProgress> Function() _scanAllFolders;
+  final DateTime Function() _clock;
 
   StreamSubscription? _subscription;
   Timer? _debounce;
   bool _isProcessing = false;
   bool _pendingRescan = false;
+  DateTime? _pausedAt;
 
   MediaStoreObserverService({
     MusicFolderService? musicFolderService,
-    LibraryScannerService? scannerService,
+    Stream<ScanProgress> Function()? scanAllFolders,
+    DateTime Function()? clock,
   })  : _musicFolderService = musicFolderService ?? MusicFolderService(),
-        _scannerService = scannerService ?? LibraryScannerService();
+        _scanAllFolders =
+            scanAllFolders ?? (() => LibraryScannerService().scanAllFolders()),
+        _clock = clock ?? DateTime.now;
 
   void start() {
     try {
@@ -47,7 +52,19 @@ class MediaStoreObserverService {
     _debounce = Timer(const Duration(seconds: 3), _processChange);
   }
 
+  void notifyPaused() {
+    _pausedAt = _clock();
+  }
+
   void notifyResumed() {
+    final pausedAt = _pausedAt;
+    _pausedAt = null;
+    // ponytail: skip catch-up rescan after brief app switches (jank, #210);
+    // the MediaStore change stream still covers real changes while away.
+    if (pausedAt != null &&
+        _clock().difference(pausedAt) < const Duration(minutes: 1)) {
+      return;
+    }
     _debounce?.cancel();
     if (_isProcessing) {
       _pendingRescan = true;
@@ -65,7 +82,7 @@ class MediaStoreObserverService {
     _pendingRescan = false;
 
     try {
-      await for (final _ in _scannerService.scanAllFolders()) {}
+      await for (final _ in _scanAllFolders()) {}
       devLog('MediaStoreObserver: auto-rescan complete');
     } catch (e) {
       devLog('MediaStoreObserver rescan failed: $e');

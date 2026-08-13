@@ -44,6 +44,10 @@ libusb1-sys = { version = "0.7", optional = true }
 # Async runtime for serialized engine initialization and UAC2 tasks
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", "io-util"] }
 
+# ponytail: pure-Rust SMB2/3 client; cross-compiles to Android NDK like ureq.
+# Activates tokio "net" + "time" via feature unification (no manual enable needed).
+smb2 = "0.18"
+
 # Audio Engine Dependencies (available on all platforms including Android)
 cpal = { path = "vendor/cpal", optional = true, features = ["oboe-shared-stdcxx"] }
 symphonia = { version = "0.5", features = ["all"], optional = true }

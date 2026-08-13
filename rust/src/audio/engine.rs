@@ -57,6 +57,10 @@ pub static XRUN_COUNT: AtomicU64 = AtomicU64::new(0);
 pub static TUNING_432HZ_ENABLED: AtomicBool = AtomicBool::new(false);
 const TUNING_432HZ_RATIO: f32 = 432.0 / 440.0;
 
+/// Maximum linear volume slider value. Extended-volume boost (200 %) is
+/// applied above 1.0; gain scales linearly to 2.0 (+6 dB) at the cap.
+pub const MAX_VOLUME: f32 = 2.0;
+
 /// User-facing preference for the Android low-level audio API that Oboe wraps.
 /// `Auto` lets Oboe choose (AAudio then OpenSL ES); the explicit variants force
 /// that API first, with `Unspecified` as a safety net so audio still plays if the
@@ -163,6 +167,11 @@ pub struct AudioCallbackData {
     /// callback out of passthrough so shifting runs even on a verified
     /// bit-perfect output (same trick as crossfade_forces_dsp).
     pitch_shift_forces_dsp: AtomicBool,
+    /// Lock-free mirror of an active EQ. Forces the callback out of
+    /// passthrough so the biquads run even on a verified bit-perfect USB
+    /// output (same trick as crossfade/pitch_shift_forces_dsp). Without
+    /// this, EQ is silently dropped on bit-perfect pipelines.
+    eq_forces_dsp: AtomicBool,
     /// Channel for sending finished tracks to command thread
     finished_tracks: Sender<AudioSource>,
     /// Experimental 432 Hz tuning override. When enabled the callback leaves
@@ -226,6 +235,7 @@ impl AudioCallbackData {
             dynamics: Mutex::new(DynamicsChain::new(sample_rate)),
             pitch_shifter: Mutex::new(PitchShifter::new(sample_rate, channels)),
             pitch_shift_forces_dsp: AtomicBool::new(false),
+            eq_forces_dsp: AtomicBool::new(false),
             finished_tracks,
             tuning_432hz_enabled: AtomicBool::new(tuning_enabled),
             crossfade_forces_dsp: AtomicBool::new(false),
@@ -254,7 +264,7 @@ impl AudioCallbackData {
     #[inline]
     pub fn set_volume(&self, volume: f32) {
         debug_assert!(
-            (0.0..=1.0).contains(&volume) || volume.is_nan(),
+            (0.0..=MAX_VOLUME).contains(&volume) || volume.is_nan(),
             "Volume out of range: {volume}"
         );
         self.volume.store(volume.to_bits(), Ordering::Relaxed);
@@ -321,7 +331,8 @@ impl AudioCallbackData {
         let tuning = self.tuning_432hz_enabled.load(Ordering::Relaxed);
         let crossfade = self.crossfade_forces_dsp.load(Ordering::Relaxed);
         let pitch = self.pitch_shift_forces_dsp.load(Ordering::Relaxed);
-        mode == PipelineMode::Passthrough as u8 && !tuning && !crossfade && !pitch
+        let eq = self.eq_forces_dsp.load(Ordering::Relaxed);
+        mode == PipelineMode::Passthrough as u8 && !tuning && !crossfade && !pitch && !eq
     }
 
     /// Whether crossfade may run. Crossfade requires the DSP path (not
@@ -2394,12 +2405,18 @@ fn sharing_label(sharing: SharingMode) -> &'static str {
 /// Convert a linear volume slider value (0.0–1.0) to an exponential gain.
 /// 1.0 → 0 dB, 0.0 → -∞ dB (silence). The slider position maps linearly to dB.
 /// Exponent 2.0 gives a −40 dB range so 50 % slider → −20 dB (perceived ~¼ loudness).
+///
+/// Above 1.0 (extended volume) gain scales linearly to MAX_VOLUME (+6 dB at
+/// 200 %), matching the Android LoudnessEnhancer mapping.
 #[inline]
 fn volume_to_gain(volume: f32) -> f32 {
     if volume <= 0.0 {
         0.0
-    } else {
+    } else if volume <= 1.0 {
         10.0_f32.powf(2.0 * (volume - 1.0))
+    } else {
+        // Linear extension so 2.0 → 2.0 (+6.02 dB).
+        volume.clamp(1.0, MAX_VOLUME)
     }
 }
 
@@ -2825,6 +2842,12 @@ fn command_processing_loop(
                         if let Some(mut eq) = callback_data.equalizer.try_lock() {
                             eq.set(enabled, &specs, sample_rate);
                         }
+                        // EQ needs the DSP path (see crossfade). Force out of
+                        // passthrough when active so the biquads run even on a
+                        // verified bit-perfect USB output.
+                        callback_data
+                            .eq_forces_dsp
+                            .store(enabled && !specs.is_empty(), Ordering::Relaxed);
                     }
                     AudioCommand::SetPitchShift { semitones } => {
                         log::info!("[PITCH] command handler: SetPitchShift({semitones})");
@@ -3466,6 +3489,15 @@ mod tests {
         let gain = volume_to_gain(0.5);
         let expected: Vec<f32> = input.iter().map(|s| s * gain).collect();
         assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn volume_to_gain_extended_range_is_linear_above_unity() {
+        assert_eq!(volume_to_gain(1.0), 1.0);
+        assert_eq!(volume_to_gain(1.5), 1.5);
+        assert_eq!(volume_to_gain(2.0), 2.0);
+        assert_eq!(volume_to_gain(5.0), 2.0);
+        assert!(volume_to_gain(0.5) < 1.0);
     }
 
     #[test]

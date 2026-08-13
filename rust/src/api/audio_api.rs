@@ -22,6 +22,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
+use std::sync::Mutex;
 
 static ENGINE_MANAGER: Lazy<EngineManager> = Lazy::new(EngineManager::new);
 
@@ -41,6 +42,13 @@ static LAST_VOLUME: AtomicU32 = AtomicU32::new(1.0f32.to_bits());
 static PENDING_XF_ENABLED: AtomicU8 = AtomicU8::new(u8::MAX);
 static PENDING_XF_DURATION: AtomicU32 = AtomicU32::new(0xFFFF_FFFF);
 static PENDING_XF_CURVE: AtomicU8 = AtomicU8::new(u8::MAX);
+
+// ponytail: pending EQ so it survives engine recreation. A USB DAC rebuilds
+// the engine on a sample-rate change between tracks; volume and crossfade are
+// already re-applied on the fresh handle, but EQ was dropped — so it worked
+// on the first track and silently vanished on the next (issue #211). EqBandSpec
+// is Copy but the band list is a Vec, so this needs a Mutex, not atomics.
+static PENDING_EQ: Lazy<Mutex<Option<(bool, Vec<EqBandSpec>)>>> = Lazy::new(|| Mutex::new(None));
 
 pub fn current_dsd_output_mode() -> DsdOutputMode {
     match DSD_OUTPUT_MODE.load(Ordering::Relaxed) {
@@ -252,6 +260,14 @@ pub fn take_pending_crossfade() -> Option<(bool, f32, crate::audio::crossfader::
         _ => crate::audio::crossfader::CrossfadeCurve::EqualPower,
     };
     Some((enabled, duration_secs, curve))
+}
+
+pub fn set_pending_equalizer(enabled: bool, specs: Vec<EqBandSpec>) {
+    *PENDING_EQ.lock().expect("pending eq poisoned") = Some((enabled, specs));
+}
+
+pub fn take_pending_equalizer() -> Option<(bool, Vec<EqBandSpec>)> {
+    PENDING_EQ.lock().expect("pending eq poisoned").take()
 }
 
 fn with_audio_engine<T>(
@@ -1278,7 +1294,7 @@ pub fn audio_seek(position_secs: f64) -> Result<(), String> {
 
 /// Set the playback volume.
 pub fn audio_set_volume(volume: f32) -> Result<(), String> {
-    let clamped = volume.clamp(0.0, 1.0);
+    let clamped = volume.clamp(0.0, crate::audio::engine::MAX_VOLUME);
     set_pending_volume(clamped);
     let _ = with_audio_engine(|handle| handle.set_volume(clamped));
     Ok(())
@@ -1287,6 +1303,7 @@ pub fn audio_set_volume(volume: f32) -> Result<(), String> {
 /// Set EQ: enabled and a variable list of band specs (real per-type biquads,
 /// up to 31 bands). Graphic mode is expressed as 10 peaking specs.
 pub fn audio_set_equalizer(enabled: bool, specs: Vec<EqBandSpec>) -> Result<(), String> {
+    set_pending_equalizer(enabled, specs.clone());
     with_audio_engine(|handle| handle.set_equalizer(enabled, specs))
 }
 
@@ -1527,5 +1544,29 @@ mod tests {
             let (_, _, got) = take_pending_crossfade().unwrap();
             assert_eq!(got, expect, "curve {:?} did not round-trip", curve);
         }
+    }
+
+    #[test]
+    fn pending_equalizer_round_trip() {
+        let _ = take_pending_equalizer();
+
+        let specs = vec![EqBandSpec {
+            band_type: crate::audio::equalizer::EqBandType::Peaking,
+            freq_hz: 1000.0,
+            gain_db: 4.5,
+            q: 1.2,
+        }];
+        set_pending_equalizer(true, specs.clone());
+        let (enabled, got) = take_pending_equalizer().expect("pending set");
+        assert!(enabled);
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].freq_hz, 1000.0);
+        assert_eq!(got[0].gain_db, 4.5);
+        assert!(take_pending_equalizer().is_none(), "take must clear");
+
+        set_pending_equalizer(false, Vec::new());
+        let (enabled, got) = take_pending_equalizer().unwrap();
+        assert!(!enabled, "disabled state must round-trip");
+        assert!(got.is_empty());
     }
 }

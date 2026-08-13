@@ -67,6 +67,7 @@ class AppPreferences {
   final bool bottomBarAutoCollapseEnabled;
   final int bottomBarAutoCollapseSeconds;
   final String miniPlayerSwipeAction;
+  final bool separateMiniPlayerFromNavBar;
   final bool keepPlayingOnQuit;
   final bool priorityAnchorEnabled;
   final bool pauseOnBluetoothDisconnect;
@@ -104,6 +105,7 @@ class AppPreferences {
   final bool showMoreArtists;
   final bool detailHeaderArtExpanded;
   final bool detailHeaderCenteredTitle;
+  final bool extendedVolumeEnabled;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -172,6 +174,7 @@ class AppPreferences {
     this.bottomBarAutoCollapseEnabled = false,
     this.bottomBarAutoCollapseSeconds = 5,
     this.miniPlayerSwipeAction = 'visualizer',
+    this.separateMiniPlayerFromNavBar = false,
     this.keepPlayingOnQuit = false,
     this.priorityAnchorEnabled = true,
     this.pauseOnBluetoothDisconnect = true,
@@ -209,6 +212,7 @@ class AppPreferences {
     this.showMoreArtists = true,
     this.detailHeaderArtExpanded = true,
     this.detailHeaderCenteredTitle = false,
+    this.extendedVolumeEnabled = false,
   });
 
   AppPreferences copyWith({
@@ -278,6 +282,7 @@ class AppPreferences {
     bool? bottomBarAutoCollapseEnabled,
     int? bottomBarAutoCollapseSeconds,
     String? miniPlayerSwipeAction,
+    bool? separateMiniPlayerFromNavBar,
     bool? keepPlayingOnQuit,
     bool? priorityAnchorEnabled,
     bool? pauseOnBluetoothDisconnect,
@@ -315,6 +320,7 @@ class AppPreferences {
     bool? showMoreArtists,
     bool? detailHeaderArtExpanded,
     bool? detailHeaderCenteredTitle,
+    bool? extendedVolumeEnabled,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -412,6 +418,8 @@ class AppPreferences {
           bottomBarAutoCollapseSeconds ?? this.bottomBarAutoCollapseSeconds,
       miniPlayerSwipeAction:
           miniPlayerSwipeAction ?? this.miniPlayerSwipeAction,
+      separateMiniPlayerFromNavBar:
+          separateMiniPlayerFromNavBar ?? this.separateMiniPlayerFromNavBar,
       keepPlayingOnQuit: keepPlayingOnQuit ?? this.keepPlayingOnQuit,
       priorityAnchorEnabled:
           priorityAnchorEnabled ?? this.priorityAnchorEnabled,
@@ -466,6 +474,8 @@ class AppPreferences {
           detailHeaderArtExpanded ?? this.detailHeaderArtExpanded,
       detailHeaderCenteredTitle:
           detailHeaderCenteredTitle ?? this.detailHeaderCenteredTitle,
+      extendedVolumeEnabled:
+          extendedVolumeEnabled ?? this.extendedVolumeEnabled,
     );
   }
 }
@@ -540,6 +550,8 @@ class AppPreferencesService {
   static const _bottomBarAutoCollapseSecondsKey =
       'bottom_bar_auto_collapse_seconds';
   static const _miniPlayerSwipeActionKey = 'mini_player_swipe_action';
+  static const _separateMiniPlayerFromNavBarKey =
+      'separate_mini_player_from_nav_bar';
   static const _keepPlayingOnQuitKey = 'app_keep_playing_on_quit';
   static const _priorityAnchorEnabledKey = 'app_priority_anchor_enabled';
   static const _pauseOnBluetoothDisconnectKey =
@@ -580,6 +592,7 @@ class AppPreferencesService {
   static const _showMoreArtistsKey = 'album_show_more_artists';
   static const _detailHeaderArtExpandedKey = 'detail_header_art_expanded';
   static const _detailHeaderCenteredTitleKey = 'detail_header_centered_title';
+  static const _extendedVolumeEnabledKey = 'audio_extended_volume_enabled';
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
@@ -683,6 +696,8 @@ class AppPreferencesService {
           prefs.getInt(_bottomBarAutoCollapseSecondsKey) ?? 5,
       miniPlayerSwipeAction:
           prefs.getString(_miniPlayerSwipeActionKey) ?? 'visualizer',
+      separateMiniPlayerFromNavBar:
+          prefs.getBool(_separateMiniPlayerFromNavBarKey) ?? false,
       keepPlayingOnQuit: prefs.getBool(_keepPlayingOnQuitKey) ?? false,
       priorityAnchorEnabled:
           prefs.getBool(_priorityAnchorEnabledKey) ?? true,
@@ -736,6 +751,8 @@ class AppPreferencesService {
           prefs.getBool(_detailHeaderArtExpandedKey) ?? true,
       detailHeaderCenteredTitle:
           prefs.getBool(_detailHeaderCenteredTitleKey) ?? false,
+      extendedVolumeEnabled:
+          prefs.getBool(_extendedVolumeEnabledKey) ?? false,
     );
   }
 
@@ -877,6 +894,16 @@ class AppPreferencesService {
   Future<void> setCrossfadeCurveIndex(int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_crossfadeCurveKey, value);
+  }
+
+  Future<bool> getExtendedVolumeEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_extendedVolumeEnabledKey) ?? false;
+  }
+
+  Future<void> setExtendedVolumeEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_extendedVolumeEnabledKey, value);
   }
 
   Future<bool> getSwipeActionsEnabled() async {
@@ -1336,6 +1363,16 @@ class AppPreferencesService {
   Future<void> setMiniPlayerSwipeAction(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_miniPlayerSwipeActionKey, value);
+  }
+
+  Future<bool> getSeparateMiniPlayerFromNavBar() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_separateMiniPlayerFromNavBarKey) ?? false;
+  }
+
+  Future<void> setSeparateMiniPlayerFromNavBar(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_separateMiniPlayerFromNavBarKey, value);
   }
 
   Future<int> getShuffleMode() async {

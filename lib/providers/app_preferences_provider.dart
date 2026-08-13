@@ -119,6 +119,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setCrossfadeCurveIndex(value);
   }
 
+  Future<void> setExtendedVolumeEnabled(bool value) async {
+    if (state.extendedVolumeEnabled == value) return;
+    state = state.copyWith(extendedVolumeEnabled: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setExtendedVolumeEnabled(value);
+  }
+
   Future<void> setSwipeActionsEnabled(bool value) async {
     if (state.swipeActionsEnabled == value) return;
     state = state.copyWith(swipeActionsEnabled: value);
@@ -499,6 +507,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref
         .read(appPreferencesServiceProvider)
         .setMiniPlayerSwipeAction(value);
+  }
+
+  Future<void> setSeparateMiniPlayerFromNavBar(bool value) async {
+    if (state.separateMiniPlayerFromNavBar == value) return;
+    state = state.copyWith(separateMiniPlayerFromNavBar: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setSeparateMiniPlayerFromNavBar(value);
   }
 
   Future<void> setKeepPlayingOnQuit(bool value) async {

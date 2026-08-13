@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -119,19 +118,10 @@ class _AudioVisualizerState extends State<AudioVisualizer>
   void _onBackendChanged() => _syncVisualizerAttachment();
 
   void _syncVisualizerAttachment() {
-    final usingRust = widget.playerService.usingRustBackendNotifier.value;
-    final sessionId = widget.playerService.androidAudioSessionId;
-
-    if (!Platform.isAndroid || usingRust || sessionId == null || sessionId <= 0) {
-      _visualizerService.detach();
-      return;
-    }
-
-    if (_isPlaying) {
-      _visualizerService.attach(sessionId);
-    } else {
-      _visualizerService.detach();
-    }
+    // ponytail: never attach the native Visualizer — attaching any AudioEffect
+    // forces Android off the compressed-offload/direct path and tanks quality
+    // (breaks hardware Atmos/EAC3). The simulated path is good enough.
+    _visualizerService.detach();
   }
 
   void _onSongChanged() {
