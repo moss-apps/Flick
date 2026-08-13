@@ -509,6 +509,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setMiniPlayerSwipeAction(value);
   }
 
+  Future<void> setSeparateMiniPlayerFromNavBar(bool value) async {
+    if (state.separateMiniPlayerFromNavBar == value) return;
+    state = state.copyWith(separateMiniPlayerFromNavBar: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setSeparateMiniPlayerFromNavBar(value);
+  }
+
   Future<void> setKeepPlayingOnQuit(bool value) async {
     if (state.keepPlayingOnQuit == value) return;
     state = state.copyWith(keepPlayingOnQuit: value);
