@@ -21,6 +21,7 @@ import 'package:flick/features/favorites/screens/favorites_screen.dart';
 import 'package:flick/features/search/screens/search_screen.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/app_haptics.dart';
+import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
@@ -619,6 +620,14 @@ class _MainShellState extends ConsumerState<MainShell>
   }
 
   void _onNavBarVisibilityChanged(bool isVisible) {
+    final separated = ref.read(appPreferencesProvider).separateMiniPlayerFromNavBar;
+    if (separated) {
+      if (_navBarAnimationController.isAnimating ||
+          _navBarAnimationController.value != 0) {
+        _navBarAnimationController.reverse();
+      }
+      return;
+    }
     if (isVisible) {
       _navBarAnimationController.reverse();
     } else {
@@ -860,13 +869,19 @@ class _MainShellState extends ConsumerState<MainShell>
   Widget _buildUnifiedBottomBar() {
     final currentIndex = ref.watch(navigationIndexProvider);
     final navBarConfig = ref.watch(navBarConfigProvider);
+    final appPrefs = ref.watch(appPreferencesProvider);
+    final separated = appPrefs.separateMiniPlayerFromNavBar;
+    final alwaysVisible = ref.watch(navBarAlwaysVisibleProvider);
+    final navBarVisible = ref.watch(navBarVisibleProvider);
+    final scrollHidden = separated && !alwaysVisible && !navBarVisible;
+    final collapsed = _isBottomBarCollapsed || scrollHidden;
 
     return TutorialTargetAnchor(
       target: TutorialTarget.navBar,
       child: FlickNavBar(
         currentIndex: currentIndex,
         config: navBarConfig,
-        collapsed: _isBottomBarCollapsed,
+        collapsed: collapsed,
         onTap: (index) {
           if (ref.read(navigationIndexProvider) != index) {
             ref.read(navigationIndexProvider.notifier).setIndex(index);
@@ -880,10 +895,12 @@ class _MainShellState extends ConsumerState<MainShell>
           );
         },
         showMiniPlayer: true,
+        separateMiniPlayer: separated,
         miniPlayerWidget: TutorialTargetAnchor(
           target: TutorialTarget.miniPlayer,
           child: _EmbeddedMiniPlayer(
-            collapsed: _isBottomBarCollapsed,
+            collapsed: collapsed,
+            matchNavBarWidth: separated && !collapsed,
           ),
         ),
       ),
@@ -894,8 +911,12 @@ class _MainShellState extends ConsumerState<MainShell>
 /// Embedded mini player widget that uses Riverpod for state.
 class _EmbeddedMiniPlayer extends ConsumerStatefulWidget {
   final bool collapsed;
+  final bool matchNavBarWidth;
 
-  const _EmbeddedMiniPlayer({this.collapsed = false});
+  const _EmbeddedMiniPlayer({
+    this.collapsed = false,
+    this.matchNavBarWidth = false,
+  });
 
   @override
   ConsumerState<_EmbeddedMiniPlayer> createState() =>
@@ -1111,11 +1132,16 @@ class _EmbeddedMiniPlayerState extends ConsumerState<_EmbeddedMiniPlayer> {
       onHorizontalDragStart: (_) {},
       onHorizontalDragUpdate: (_) {},
       onHorizontalDragEnd: _onHorizontalDragEnd,
-      child: Container(
+      child: AnimatedContainer(
+        duration: AppConstants.animationNormal,
         margin: EdgeInsets.fromLTRB(
+          widget.matchNavBarWidth
+              ? context.scaleSize(AppConstants.spacingLg)
+              : 12,
           12,
-          12,
-          12,
+          widget.matchNavBarWidth
+              ? context.scaleSize(AppConstants.spacingLg)
+              : 12,
           widget.collapsed ? 12 : 8,
         ),
         height: 56,
