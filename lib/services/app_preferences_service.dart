@@ -104,6 +104,7 @@ class AppPreferences {
   final bool showMoreArtists;
   final bool detailHeaderArtExpanded;
   final bool detailHeaderCenteredTitle;
+  final bool extendedVolumeEnabled;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -209,6 +210,7 @@ class AppPreferences {
     this.showMoreArtists = true,
     this.detailHeaderArtExpanded = true,
     this.detailHeaderCenteredTitle = false,
+    this.extendedVolumeEnabled = false,
   });
 
   AppPreferences copyWith({
@@ -315,6 +317,7 @@ class AppPreferences {
     bool? showMoreArtists,
     bool? detailHeaderArtExpanded,
     bool? detailHeaderCenteredTitle,
+    bool? extendedVolumeEnabled,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -466,6 +469,8 @@ class AppPreferences {
           detailHeaderArtExpanded ?? this.detailHeaderArtExpanded,
       detailHeaderCenteredTitle:
           detailHeaderCenteredTitle ?? this.detailHeaderCenteredTitle,
+      extendedVolumeEnabled:
+          extendedVolumeEnabled ?? this.extendedVolumeEnabled,
     );
   }
 }
@@ -580,6 +585,7 @@ class AppPreferencesService {
   static const _showMoreArtistsKey = 'album_show_more_artists';
   static const _detailHeaderArtExpandedKey = 'detail_header_art_expanded';
   static const _detailHeaderCenteredTitleKey = 'detail_header_centered_title';
+  static const _extendedVolumeEnabledKey = 'audio_extended_volume_enabled';
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
@@ -736,6 +742,8 @@ class AppPreferencesService {
           prefs.getBool(_detailHeaderArtExpandedKey) ?? true,
       detailHeaderCenteredTitle:
           prefs.getBool(_detailHeaderCenteredTitleKey) ?? false,
+      extendedVolumeEnabled:
+          prefs.getBool(_extendedVolumeEnabledKey) ?? false,
     );
   }
 
@@ -877,6 +885,16 @@ class AppPreferencesService {
   Future<void> setCrossfadeCurveIndex(int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_crossfadeCurveKey, value);
+  }
+
+  Future<bool> getExtendedVolumeEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_extendedVolumeEnabledKey) ?? false;
+  }
+
+  Future<void> setExtendedVolumeEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_extendedVolumeEnabledKey, value);
   }
 
   Future<bool> getSwipeActionsEnabled() async {
