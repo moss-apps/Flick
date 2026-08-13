@@ -376,6 +376,11 @@ impl EngineManager {
                 let _ = handle.set_crossfade_curve(curve);
             }
         }
+        if let Some((enabled, specs)) = crate::api::audio_api::take_pending_equalizer() {
+            if let Some(handle) = state.rust_handle.as_ref() {
+                let _ = handle.set_equalizer(enabled, specs);
+            }
+        }
         Ok(())
     }
 
