@@ -10,8 +10,10 @@ import 'package:http/http.dart' as http;
 import '../../core/utils/app_log.dart';
 import '../../data/database.dart';
 import '../../data/repositories/song_repository.dart';
+import '../../models/playlist.dart';
 import '../library_scanner_service.dart' show ScanProgress;
 import '../network_cache_service.dart';
+import '../playlist_service.dart';
 import 'network_source_service.dart';
 
 /// Subsonic API client (JSON variant, no transcoding params).
@@ -24,9 +26,11 @@ class SubsonicService implements NetworkSourceService {
     http.Client? client,
     SongRepository? songRepository,
     NetworkCacheService? networkCache,
+    PlaylistService? playlistService,
   })  : _client = client ?? http.Client(),
         _songRepository = songRepository,
-        _networkCache = networkCache;
+        _networkCache = networkCache,
+        _playlistService = playlistService;
 
   /// Singleton used by the app.
   static SubsonicService instance = SubsonicService._();
@@ -37,11 +41,13 @@ class SubsonicService implements NetworkSourceService {
     http.Client? client,
     SongRepository? songRepository,
     NetworkCacheService? networkCache,
+    PlaylistService? playlistService,
   }) {
     return SubsonicService._(
       client: client,
       songRepository: songRepository,
       networkCache: networkCache,
+      playlistService: playlistService,
     );
   }
 
@@ -67,10 +73,14 @@ class SubsonicService implements NetworkSourceService {
   // ponytail: lazy init, eager if tests start needing injection everywhere
   SongRepository? _songRepository;
   NetworkCacheService? _networkCache;
+  PlaylistService? _playlistService;
 
   SongRepository get _repo => _songRepository ??= SongRepository();
 
   NetworkCacheService get _cache => _networkCache ??= NetworkCacheService();
+
+  PlaylistService get _playlists =>
+      _playlistService ??= PlaylistService.instance;
 
   // --- Auth ---------------------------------------------------------------
 
@@ -107,7 +117,7 @@ class SubsonicService implements NetworkSourceService {
   }
 
   Uri _endpoint(NetworkServerEntity server, String method,
-      [Map<String, String> extra = const {}]) {
+      [Map<String, dynamic> extra = const {}]) {
     final base = server.baseUrl.replaceAll(RegExp(r'/+$'), '');
     return Uri.parse('$base/rest/$method.view').replace(
       queryParameters: {..._authParams(server), ...extra},
@@ -117,7 +127,7 @@ class SubsonicService implements NetworkSourceService {
   Future<Map<String, dynamic>> _getJson(
     NetworkServerEntity server,
     String method, {
-    Map<String, String> extra = const {},
+    Map<String, dynamic> extra = const {},
     Duration timeout = const Duration(seconds: 15),
   }) async {
     final uri = _endpoint(server, method, extra);
@@ -187,6 +197,69 @@ class SubsonicService implements NetworkSourceService {
             as List<dynamic>?)
         ?.cast<Map<String, dynamic>>() ??
         const [];
+  }
+
+  // --- Playlists ----------------------------------------------------------
+
+  /// Server-side playlist summaries (Navidrome exposes its .m3u/.m3u8 files
+  /// through this endpoint).
+  Future<List<Map<String, dynamic>>> getPlaylists(
+    NetworkServerEntity server,
+  ) async {
+    final payload = await _getJson(server, 'getPlaylists');
+    return ((payload['playlists'] as Map<String, dynamic>?)?['playlist']
+            as List<dynamic>?)
+        ?.cast<Map<String, dynamic>>() ??
+        const [];
+  }
+
+  /// Full song entries inside one playlist, or null when the playlist is
+  /// gone. Entries are complete song objects (same shape as getAlbum).
+  Future<List<Map<String, dynamic>>?> getPlaylist(
+    NetworkServerEntity server,
+    String playlistId,
+  ) async {
+    final payload =
+        await _getJson(server, 'getPlaylist', extra: {'id': playlistId});
+    final playlist = payload['playlist'] as Map<String, dynamic>?;
+    return (playlist?['entry'] as List<dynamic>?)?.cast<Map<String, dynamic>>();
+  }
+
+  /// Create a playlist, or replace an existing one's contents when
+  /// [playlistId] is given. Returns the created/updated playlist summary.
+  Future<Map<String, dynamic>?> createPlaylist(
+    NetworkServerEntity server, {
+    String? name,
+    String? playlistId,
+    List<String>? songIds,
+  }) async {
+    final payload = await _getJson(server, 'createPlaylist', extra: {
+      if (name != null) 'name': name,
+      if (playlistId != null) 'playlistId': playlistId,
+      if (songIds != null && songIds.isNotEmpty) 'songId': songIds,
+    });
+    return payload['playlist'] as Map<String, dynamic>?;
+  }
+
+  Future<void> updatePlaylist(
+    NetworkServerEntity server,
+    String playlistId, {
+    String? name,
+    List<String>? songIdsToAdd,
+    List<String>? songIdsToRemove,
+  }) async {
+    await _getJson(server, 'updatePlaylist', extra: {
+      'playlistId': playlistId,
+      if (name != null) 'name': name,
+      if (songIdsToAdd != null && songIdsToAdd.isNotEmpty)
+        'songIdToAdd': songIdsToAdd,
+      if (songIdsToRemove != null && songIdsToRemove.isNotEmpty)
+        'songIdToRemove': songIdsToRemove,
+    });
+  }
+
+  Future<void> deletePlaylist(NetworkServerEntity server, String playlistId) async {
+    await _getJson(server, 'deletePlaylist', extra: {'id': playlistId});
   }
 
   /// Raw cover art bytes for [coverArtId] (the value of a song's `coverArt`
@@ -307,6 +380,14 @@ class SubsonicService implements NetworkSourceService {
 
     await _purgeStale(server, syncedRemoteIds);
 
+    try {
+      await syncPlaylists(server);
+    } catch (e) {
+      AppLog.instance.add(
+        'Subsonic playlist sync failed on ${server.label}: $e',
+      );
+    }
+
     await Database.instance.writeTxn(() async {
       final stored = await Database.networkServers.get(server.id);
       if (stored != null) {
@@ -329,6 +410,99 @@ class SubsonicService implements NetworkSourceService {
     final stale = existing.where((e) => !syncedIds.contains(e.remoteId)).toList();
     if (stale.isEmpty) return;
     await _repo.deleteSongsByIds(stale.map((e) => e.id).toList());
+  }
+
+  /// Pull server-side playlists into local [Playlist] mirrors keyed by
+  /// `subsonic://<serverId>/<remotePlaylistId>` source paths. Songs referenced
+  /// by playlists but missing locally are upserted from the entry metadata so
+  /// playlists stay playable. Mirrors of playlists deleted on the server are
+  /// removed. Returns the number of playlists synced.
+  Future<int> syncPlaylists(NetworkServerEntity server) async {
+    final summaries = await getPlaylists(server);
+    final playlists = <({String remoteId, String name, List<Map<String, dynamic>> entries})>[];
+    for (final summary in summaries) {
+      final remoteId = summary['id']?.toString();
+      if (remoteId == null) continue;
+      try {
+        final entries = await getPlaylist(server, remoteId) ?? const [];
+        playlists.add((
+          remoteId: remoteId,
+          name: summary['name'] as String? ?? 'Playlist',
+          entries: entries,
+        ));
+      } catch (e) {
+        AppLog.instance.add(
+          'Subsonic playlist "$remoteId" skipped on ${server.label}: $e',
+        );
+      }
+    }
+
+    // Resolve every entry to a local song row, upserting the missing ones.
+    final byRemote = <String, String>{
+      for (final e in await _repo.getSongsByRemoteServer(server.id))
+        if (e.remoteId != null) e.remoteId!: e.id.toString(),
+    };
+    final missing = <String, Map<String, dynamic>>{};
+    for (final p in playlists) {
+      for (final entry in p.entries) {
+        final id = entry['id']?.toString();
+        if (id != null && !byRemote.containsKey(id)) {
+          missing[id] = entry;
+        }
+      }
+    }
+    if (missing.isNotEmpty) {
+      final entities = [
+        for (final m in missing.entries) buildSongEntity(server, m.value),
+      ];
+      await _repo.upsertSongs(entities);
+      for (final e in entities) {
+        if (e.remoteId != null) byRemote[e.remoteId!] = e.id.toString();
+      }
+    }
+
+    final songIdsByPlaylist = resolvePlaylistSongIds(playlists, byRemote);
+    final syncedPaths = <String>{};
+    for (final p in playlists) {
+      await _playlists.upsertNetworkPlaylist(
+        serverId: server.id,
+        remoteId: p.remoteId,
+        name: p.name,
+        songIds: songIdsByPlaylist[p.remoteId] ?? const [],
+        saveAfter: false,
+      );
+      syncedPaths.add(
+        '${Playlist.networkSourceScheme}://${server.id}/${p.remoteId}',
+      );
+    }
+    if (syncedPaths.isNotEmpty) {
+      await _playlists.persist();
+    }
+    await _playlists.removeStaleNetworkPlaylists('${server.id}', syncedPaths);
+    return playlists.length;
+  }
+
+  /// Pure mapping from raw playlist entries to local song ids. Playlists with
+  /// unresolvable entries are skipped per-song (never fail the whole pull).
+  @visibleForTesting
+  static Map<String, List<String>> resolvePlaylistSongIds(
+    List<({String remoteId, String name, List<Map<String, dynamic>> entries})>
+        playlists,
+    Map<String, String> remoteIdToLocalId,
+  ) {
+    final result = <String, List<String>>{};
+    for (final p in playlists) {
+      final ids = <String>[];
+      for (final entry in p.entries) {
+        final id = entry['id']?.toString();
+        if (id == null) continue;
+        final localId = remoteIdToLocalId[id];
+        if (localId == null) continue;
+        ids.add(localId);
+      }
+      result[p.remoteId] = ids;
+    }
+    return result;
   }
 
   /// Map a raw Subsonic song map to a [SongEntity] tagged
