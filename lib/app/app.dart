@@ -570,6 +570,7 @@ class _MainShellState extends ConsumerState<MainShell>
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       _cancelIdleTimer();
+      ref.read(autoLibrarySyncServiceProvider).notifyPaused();
       unawaited(ref.read(playerServiceProvider).persistLastPlayed());
       unawaited(WidgetSyncService.instance.pushPaused());
       unawaited(ref.read(playerServiceProvider).onAppPaused());
