@@ -10,6 +10,7 @@ import 'api/logging.dart';
 import 'api/metadata_editor.dart';
 import 'api/scanner.dart';
 import 'api/simple.dart';
+import 'api/smb_api.dart';
 import 'api/uac2_api.dart';
 import 'audio/crossfader.dart';
 import 'audio/dsd_engine/dsd.dart';
@@ -43,6 +44,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<ScanChunk> dco_decode_StreamSink_scan_chunk_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<SmbEntry> dco_decode_StreamSink_smb_entry_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<SmbProgress> dco_decode_StreamSink_smb_progress_Sse(
+    dynamic raw,
+  );
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -269,6 +278,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScanResult dco_decode_scan_result(dynamic raw);
 
   @protected
+  SmbEntry dco_decode_smb_entry(dynamic raw);
+
+  @protected
+  SmbProgress dco_decode_smb_progress(dynamic raw);
+
+  @protected
   TagEditFields dco_decode_tag_edit_fields(dynamic raw);
 
   @protected
@@ -333,6 +348,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<ScanChunk> sse_decode_StreamSink_scan_chunk_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<SmbEntry> sse_decode_StreamSink_smb_entry_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<SmbProgress> sse_decode_StreamSink_smb_progress_Sse(
     SseDeserializer deserializer,
   );
 
@@ -613,6 +638,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScanResult sse_decode_scan_result(SseDeserializer deserializer);
 
   @protected
+  SmbEntry sse_decode_smb_entry(SseDeserializer deserializer);
+
+  @protected
+  SmbProgress sse_decode_smb_progress(SseDeserializer deserializer);
+
+  @protected
   TagEditFields sse_decode_tag_edit_fields(SseDeserializer deserializer);
 
   @protected
@@ -688,6 +719,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_scan_chunk_Sse(
     RustStreamSink<ScanChunk> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_smb_entry_Sse(
+    RustStreamSink<SmbEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_smb_progress_Sse(
+    RustStreamSink<SmbProgress> self,
     SseSerializer serializer,
   );
 
@@ -1026,6 +1069,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_scan_result(ScanResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_smb_entry(SmbEntry self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_smb_progress(SmbProgress self, SseSerializer serializer);
 
   @protected
   void sse_encode_tag_edit_fields(TagEditFields self, SseSerializer serializer);
