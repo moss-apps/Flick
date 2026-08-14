@@ -1,81 +1,56 @@
 # Changelog
 
-## Unreleased
+## Currently on Pre-release
 
-### Bluetooth
-- **Fix:** Hi-Res Direct no longer forces the `dapInternalHighRes` engine on Bluetooth routes. That engine is a wired/internal path and caused reported volume loss (output capped near 35-40% at max volume) and periodic dropouts every 5-10s over A2DP. Bluetooth now keeps the BT-appropriate engine (Rust/Oboe under low-latency, else normal Android). Codec quality remains controlled by the user's per-codec preferences and LDAC bitrate setting.
-- **Fix:** Bluetooth output-mode toggles (Hi-Res Direct, Low-latency Mode) now survive an app restart. Their notifiers were never hydrated from storage at startup, so they appeared reset to off after relaunch.
+Changes landing on top of the current pre-release are tracked here and folded into the release notes as they ship.
 
 ## 0.21.0-beta.1 (2026-07-10)
 
-### Network Sources — Self-Hosted Music Servers
-- Subsonic, Jellyfin/Emby, UPnP/DLNA, WebDAV, and Tidal streaming support.
-- `NetworkSourceService` abstraction with per-protocol implementations.
-- `NetworkServerEntity` Isar collection for server credentials.
-- Network Sources screen with server add/edit/delete, validation, failure banners.
-- `RemoteSourceService` resolves network songs to playable streams.
-- `NetworkCacheService` with bounded LRU download caching.
-- Remote sync tracking on `SongEntity` (`sourceType`, `remoteId`, `remoteServerId`).
-- Album art resolution generalized across protocols.
-- Subsonic prefetch for gapless playback.
+Shipped while continuously keeping up with improvements and bug fixing across the app.
 
-### Casting — DLNA & Chromecast
-- CastingService orchestrates DLNA/UPnP and Chromecast backends.
-- Chromecast with CastController, cast channels, Google Cast SDK.
-- DLNA/UPnP backend for renderer discovery and control.
-- Casting settings screen with device discovery.
-- Cast button in player action row.
+### Network Sources & Casting
+- Stream from self-hosted servers: **Subsonic, Jellyfin/Emby, UPnP/DLNA, WebDAV, Tidal, and SMB2/3**.
+- HTTP-first streaming with seek, gapless prefetch, and LRU download caching.
+- Subsonic playlist sync — mirror playlists to/from your server; playlists removed with their server.
+- Cast to **DLNA renderers and Chromecast**; Cast SDK optional for GMS-free devices.
+- Server management with validation, failure banners, token error handling, password toggle.
 
-### HTTP Audio Streaming Engine
-- HTTP streaming via ureq Rust client with ranged requests.
-- Seekable HTTP media source for remote audio.
-- HTTP-first source resolution for network songs.
-- `streamDescriptor` on `NetworkSourceService` for per-protocol HTTP playback.
-- HTTP play/queue methods via FFI.
-- Network-source prefetch for gapless crossfade.
+### Extended Volume (up to 200%)
+- Volume boost via LoudnessEnhancer with toggle in Audio settings.
+- Volume preserved across engine recreation; slider reflects boost range.
+- Volume authority refactor — `isHardwareVolumeAuthority` routing.
 
-### Parametric Equalizer Refactor
-- Graphic EQ → parametric EQ with variable band types and RBJ coefficients.
-- `EqBandSpec` and `EqBandType` FFI types replace raw gain arrays.
-- Dynamic band add/removal with animated transitions.
+### Parametric EQ & Audio
+- Graphic EQ → **parametric EQ**: variable band types with RBJ coefficients, animated band add/remove.
+- EQ survives engine recreation; reapplies on session changes; bypassed on bit-perfect output.
+- Bit-perfect passthrough API — software gain removed from path.
+- Autoplay on queue end (optional); stuttering HAL path skipped when bit-perfect off.
+- Earpiece excluded from auto device selection; wake lock prevents sleep dropouts.
 
-### Player Action Button Layout
-- Configurable center action button (default: equalizer).
-- Top-left and top-right action buttons added.
-- `PlayerActionButton` enum gains `none` option.
-- Player layout settings reorganized into top/bottom pairs.
+### USB DAC Fixes
+- Fosi Audio DS2 quirk (broken clock), 0 Hz readback fix, SkipClockValidation.
+- UAC1 SET_CUR failures tolerated on host-driven clock endpoints.
+- Sample-rate guards: no DAC-stored-rate overwrites or divide-by-zero.
 
-### Volume Tier System
-- `determineVolumeTier()` pure function replaces `HwVolumeCapability` enum.
-- `unavailable` tier for DACs with no volume control.
-- `_hwVolumeFailed` lie-detector flag.
-- Volume slider disabled with message when hardware volume unavailable.
-- Volume control routed through PlayerService.
+### Bluetooth
+- Hi-Res Direct no longer forces the `dapInternalHighRes` engine on BT routes — fixes volume loss (~35-40% cap) and 5-10s dropouts over A2DP.
+- Output-mode toggles (Hi-Res Direct, Low-latency) now survive app restarts.
+- Flags cached at startup; refined Hi-Res Direct codec selection; priority anchor keeps background playback alive.
 
-### Passthrough Pipeline Mode
-- `audio_set_pipeline_mode_passthrough` API for bit-perfect PCM.
-- Software gain removed from passthrough path.
-- Wire audit verified (`supportsVerifiedBitPerfect = true`).
+### Player & UI
+- Configurable action buttons: center, top-left/right, bottom — any slot hideable.
+- Separate mini player from nav bar (toggle in settings).
+- Compact layout for very short screens; resizable activity.
 
-### USB DAC Fixes & Quirks
-- Fosi Audio DS2 quirk (SkipClockValidation).
-- 0 Hz DAC readback fix; division-by-zero guard.
-- Preferred sample rate no longer overwritten by DAC stored format.
-- Non-finite/negative position/duration guarded.
+### Library & Artwork
+- Remove All Songs option; songs deleted when their folder is removed.
+- Artwork survives cache prune and persists after scans.
+- Corrupt cached images auto-recover; extraction freeze on rapid scroll fixed.
 
-### Reliability & Performance
-- Wake lock keeps CPU awake during playback.
-- Auto-resume fix after audio interruptions.
-- Persistent WAV cache across app restarts.
-- Custom artwork cache replaces flutter_cache_manager.
-- dev_eprintln prints to terminal; AppLog gated on dev mode.
-- Audio stream supervisor on non-Android platforms.
-
-### UI Polish
-- Ambient background on equalizer screen; BlurredSongBackground removed from lists.
-- USB volume visibility preferences and gradient styling.
-- Responsive settings icon scaling.
-- Launcher icons updated; VIEW intent queries for Android 11+.
+### Reliability
+- Auto-resume after interruptions; pending seek cleared after completion.
+- Persistent WAV cache across restarts; HTTP audio source timeout.
+- Network sync hardening: entity IDs resolved before bulk insert, Jellyfin fetches all audio tracks.
 
 ## 0.20.5-beta.6 (2026-07-06)
 
