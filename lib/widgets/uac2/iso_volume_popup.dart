@@ -184,11 +184,12 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
     final playerService = ref.read(playerServiceProvider);
     final isAvailable = playerService.isVolumeAvailable;
     final playerVolume = playerService.currentVolume;
+    final hardwareAuthority = playerService.isHardwareVolumeAuthority;
     final effectiveVolume =
         _draggingVolume ??
-        ((isSoftwareVolume || !isAvailable)
-            ? playerVolume
-            : (deviceStatus.volume ?? playerVolume));
+        (hardwareAuthority
+            ? (deviceStatus.volume ?? playerVolume)
+            : playerVolume);
     final effectiveMuted = deviceStatus.muted ?? false;
     final volumeControlWritable =
         deviceStatus.volumeControlWritable &&

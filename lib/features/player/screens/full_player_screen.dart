@@ -24,7 +24,6 @@ import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_screen_mode_preference_service.dart';
 
-
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/uac2/iso_volume_popup.dart';
 import 'package:flick/providers/providers.dart';
@@ -57,6 +56,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     _dismissVolumePopup = null;
     Navigator.of(context).pop();
   }
+
   static const String _topBarTextFontFamily = 'ProductSans';
   static const FontWeight _topBarTextFontWeight = FontWeight.w500;
 
@@ -362,7 +362,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 onVerticalDragStart: (details) {
                   if (_isVinylRotationActive) return;
                   final screenHeight = MediaQuery.sizeOf(context).height;
-                  if (details.globalPosition.dy >= screenHeight - _backGestureEdgeWidth) {
+                  if (details.globalPosition.dy >=
+                      screenHeight - _backGestureEdgeWidth) {
                     _dragOffset = 0.0;
                     return;
                   }
@@ -411,10 +412,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   final screenWidth = MediaQuery.sizeOf(context).width;
                   final screenHeight = MediaQuery.sizeOf(context).height;
                   final nearBottomEdge =
-                      _horizontalDragStartY >= screenHeight - _backGestureEdgeWidth;
-                  final nearLeftEdge = _horizontalDragStartX <= _backGestureEdgeWidth;
+                      _horizontalDragStartY >=
+                      screenHeight - _backGestureEdgeWidth;
+                  final nearLeftEdge =
+                      _horizontalDragStartX <= _backGestureEdgeWidth;
                   final nearRightEdge =
-                      _horizontalDragStartX >= screenWidth - _backGestureEdgeWidth;
+                      _horizontalDragStartX >=
+                      screenWidth - _backGestureEdgeWidth;
                   if (nearLeftEdge || nearRightEdge || nearBottomEdge) return;
 
                   if (details.primaryVelocity! < -500) {
@@ -488,33 +492,35 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                         _navigation.openAlbumFromSong(context, song),
                     buildFileInfoRow: (song, lyricsMode, mode) =>
                         PlayerActionButtonRow(
-                      song: song,
-                      lyricsMode: lyricsMode,
-                      isVisualizationMode: _isVisualizationMode,
-                      playerScreenMode: mode,
-                      albumColor: albumColor,
-                      albumColorMode: colorMode,
-                      leftTopAction: PlayerActionButtonX.fromStorageValue(
-                        appPrefs.leftTopActionButton,
-                      ),
-                      leftAction: PlayerActionButtonX.fromStorageValue(
-                        appPrefs.leftActionButton,
-                      ),
-                      rightTopAction: PlayerActionButtonX.fromStorageValue(
-                        appPrefs.rightTopActionButton,
-                      ),
-                      rightAction: PlayerActionButtonX.fromStorageValue(
-                        appPrefs.rightActionButton,
-                      ),
-                      playerService: _playerService,
-                      favoritesService: _favoritesService,
-                      onToggleLyrics: () =>
-                          setState(() => _isLyricsMode = !lyricsMode),
-                      onToggleVisualization: (v) => _setVisualizationMode(v),
-                      onOpenQueue: (ctx) => _navigation.openQueue(ctx),
-                      usbVolumeButtonKey: _usbVolumeButtonKey,
-                      onShowUsbVolumePopup: (ctx) => _showUsbVolumePopup(ctx),
-                    ),
+                          song: song,
+                          lyricsMode: lyricsMode,
+                          isVisualizationMode: _isVisualizationMode,
+                          playerScreenMode: mode,
+                          albumColor: albumColor,
+                          albumColorMode: colorMode,
+                          leftTopAction: PlayerActionButtonX.fromStorageValue(
+                            appPrefs.leftTopActionButton,
+                          ),
+                          leftAction: PlayerActionButtonX.fromStorageValue(
+                            appPrefs.leftActionButton,
+                          ),
+                          rightTopAction: PlayerActionButtonX.fromStorageValue(
+                            appPrefs.rightTopActionButton,
+                          ),
+                          rightAction: PlayerActionButtonX.fromStorageValue(
+                            appPrefs.rightActionButton,
+                          ),
+                          playerService: _playerService,
+                          favoritesService: _favoritesService,
+                          onToggleLyrics: () =>
+                              setState(() => _isLyricsMode = !lyricsMode),
+                          onToggleVisualization: (v) =>
+                              _setVisualizationMode(v),
+                          onOpenQueue: (ctx) => _navigation.openQueue(ctx),
+                          usbVolumeButtonKey: _usbVolumeButtonKey,
+                          onShowUsbVolumePopup: (ctx) =>
+                              _showUsbVolumePopup(ctx),
+                        ),
                     visualizerAnimationStyle: visStyle,
                     visualizerFrequencyMode: visFreq,
                     visualizerMovementMode: visMove,
@@ -567,4 +573,3 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     );
   }
 }
-

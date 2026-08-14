@@ -39,7 +39,7 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 use oboe::{
     AudioApi, AudioDeviceDirection, AudioDeviceInfo, AudioDeviceType, AudioFormat,
     AudioOutputCallback, AudioOutputStreamSafe, AudioStream, AudioStreamAsync, AudioStreamBase,
-    AudioStreamSafe, ContentType, DataCallbackResult, Output, PerformanceMode,
+    AudioStreamSafe, ChannelCount, ContentType, DataCallbackResult, Output, PerformanceMode,
     SampleRateConversionQuality, SharingMode, Stereo, Usage,
 };
 use parking_lot::Mutex;
@@ -2159,7 +2159,7 @@ fn open_android_output_stream(
                     .set_performance_mode(performance_mode)
                     .set_usage(Usage::Media)
                     .set_content_type(ContentType::Music)
-                    .set_channel_conversion_allowed(!bit_perfect_route)
+                    .set_channel_conversion_allowed(false)
                     .set_format_conversion_allowed(true)
                     .set_sample_rate_conversion_quality(if bit_perfect_route {
                         SampleRateConversionQuality::None
@@ -2224,6 +2224,18 @@ fn open_android_output_stream(
                         actual_format,
                         actual_channels,
                     );
+
+                    if actual_channels != ChannelCount::Stereo {
+                        last_error = Some(format!(
+                            "{} {} opened '{}' with {:?} channels instead of {}",
+                            audio_api_label(audio_api),
+                            sharing_label(sharing_mode),
+                            selected_device.product_name,
+                            actual_channels,
+                            ANDROID_DIRECT_CHANNELS,
+                        ));
+                        continue;
+                    }
 
                     if bit_perfect_route && actual_rate != target_sample_rate as i32 {
                         last_error = Some(format!(
@@ -2353,9 +2365,9 @@ fn android_output_device_priority(device_type: AudioDeviceType) -> u8 {
         | AudioDeviceType::BleSpeaker
         | AudioDeviceType::HearingAid => 2,
         AudioDeviceType::BuiltinSpeaker => 3,
-        _ => 4,
-        AudioDeviceType::BuiltinEarpiece => 5,
-        AudioDeviceType::BuiltinSpeakerSafe => 6,
+        AudioDeviceType::BuiltinEarpiece => 4,
+        AudioDeviceType::BuiltinSpeakerSafe => 5,
+        _ => 6,
     }
 }
 

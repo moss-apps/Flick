@@ -130,9 +130,11 @@ class PriorityAnchorService(private val context: Context) {
     private fun findBuiltinAudioDevice(): AudioDeviceInfo? {
         val manager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val devices = manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        // Never claim the earpiece: an active media track pinned there makes it
+        // the active media route, so streams reopened after track end follow it
+        // off the main speaker.
         return devices.firstOrNull {
             it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-                || it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
         }
     }
 }

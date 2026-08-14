@@ -8,9 +8,21 @@
 
 use std::collections::HashMap;
 use std::io::{self, Read, Seek, SeekFrom};
+use std::time::Duration;
 use symphonia::core::io::MediaSource;
 
 const BLOCK_SIZE: usize = 1024 * 1024; // 1 MiB
+
+// ponytail: global timeouts so a stalled network can't pin the command thread.
+fn http_agent() -> &'static ureq::Agent {
+    static AGENT: std::sync::OnceLock<ureq::Agent> = std::sync::OnceLock::new();
+    AGENT.get_or_init(|| {
+        ureq::AgentBuilder::new()
+            .timeout_connect(Duration::from_secs(10))
+            .timeout_read(Duration::from_secs(30))
+            .build()
+    })
+}
 
 pub struct HttpMediaSource {
     url: String,
@@ -42,7 +54,7 @@ impl HttpMediaSource {
         }
 
         let end = self.pos + BLOCK_SIZE as u64 - 1;
-        let mut req = ureq::get(&self.url);
+        let mut req = http_agent().get(&self.url);
         for (k, v) in &self.headers {
             req = req.set(k, v);
         }

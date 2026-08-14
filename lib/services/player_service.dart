@@ -1451,6 +1451,13 @@ class PlayerService {
     await _configureAndroidAudioSession();
     final player = just_audio.AudioPlayer();
     _justAudioPlayer = player;
+    int? lastEqSessionId;
+    player.androidAudioSessionIdStream.listen((sessionId) {
+      if (sessionId == null || sessionId == lastEqSessionId) return;
+      if (!identical(_justAudioPlayer, player)) return;
+      lastEqSessionId = sessionId;
+      unawaited(reapplyEqualizer());
+    });
     await player.setVolume(_currentVolume);
     await player.setSpeed(playbackSpeedNotifier.value);
     await _updateLoopMode();
@@ -1725,6 +1732,12 @@ class PlayerService {
   /// engine gain would corrupt the stream, so the slider must disable.
   bool get isVolumeAvailable =>
       _determineCurrentTier() != VolumeTier.unavailable;
+
+  /// True when the DAC hardware (Feature Unit) volume is the active volume
+  /// authority; the UI should display the DAC level only then. Otherwise the
+  /// bar shows [currentVolume], which is what [setVolume] actually writes.
+  bool get isHardwareVolumeAuthority =>
+      _determineCurrentTier() == VolumeTier.hardware;
 
   /// Maximum volume the user may select right now. Extended boost (2.0) is
   /// only available on the software and system tiers when the toggle is on;

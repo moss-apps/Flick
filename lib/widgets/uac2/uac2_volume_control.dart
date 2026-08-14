@@ -100,11 +100,12 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
     final playerService = ref.read(playerServiceProvider);
     final isAvailable = playerService.isVolumeAvailable;
     final playerVolume = playerService.currentVolume;
+    final hardwareAuthority = playerService.isHardwareVolumeAuthority;
     final effectiveVolume =
         _draggingVolume ??
-        ((isSoftwareVolume || !isAvailable)
-            ? playerVolume
-            : (deviceStatus.volume ?? playerVolume));
+        (hardwareAuthority
+            ? (deviceStatus.volume ?? playerVolume)
+            : playerVolume);
     final effectiveMuted = deviceStatus.muted ?? false;
     final volumeControlWritable =
         deviceStatus.volumeControlWritable &&
@@ -156,9 +157,11 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      deviceStatus.isExternalRoute
-                          ? 'USB Route Volume'
-                          : 'Device DAC Volume',
+                      hardwareAuthority
+                          ? (deviceStatus.isExternalRoute
+                                ? 'USB Route Volume'
+                                : 'Device DAC Volume')
+                          : 'Volume',
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: labelColor,
