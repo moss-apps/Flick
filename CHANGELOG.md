@@ -1,5 +1,9 @@
 # Changelog
 
+## Currently on Pre-release
+
+Changes landing on top of the current pre-release are tracked here and folded into the release notes as they ship.
+
 ## 0.21.0-beta.1 (2026-07-10)
 
 Shipped while continuously keeping up with improvements and bug fixing across the app.
