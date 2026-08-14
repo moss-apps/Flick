@@ -2365,9 +2365,9 @@ fn android_output_device_priority(device_type: AudioDeviceType) -> u8 {
         | AudioDeviceType::BleSpeaker
         | AudioDeviceType::HearingAid => 2,
         AudioDeviceType::BuiltinSpeaker => 3,
-        _ => 4,
-        AudioDeviceType::BuiltinEarpiece => 5,
-        AudioDeviceType::BuiltinSpeakerSafe => 6,
+        AudioDeviceType::BuiltinEarpiece => 4,
+        AudioDeviceType::BuiltinSpeakerSafe => 5,
+        _ => 6,
     }
 }
 

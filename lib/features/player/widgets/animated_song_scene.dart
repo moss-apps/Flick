@@ -477,7 +477,7 @@ class AnimatedSongScene extends StatelessWidget {
                       context.responsive(12.0, 14.0, 16.0),
                       context.responsive(6.0, 7.0, 8.0),
                       (!fromLocker && !hideQueueBadge)
-                          ? context.responsive(6.0, 7.0, 8.0)
+                          ? context.responsive(10.0, 11.0, 12.0)
                           : context.responsive(12.0, 14.0, 16.0),
                       context.responsive(6.0, 7.0, 8.0),
                     ),
