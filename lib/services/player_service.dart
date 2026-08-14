@@ -1726,6 +1726,12 @@ class PlayerService {
   bool get isVolumeAvailable =>
       _determineCurrentTier() != VolumeTier.unavailable;
 
+  /// True when the DAC hardware (Feature Unit) volume is the active volume
+  /// authority; the UI should display the DAC level only then. Otherwise the
+  /// bar shows [currentVolume], which is what [setVolume] actually writes.
+  bool get isHardwareVolumeAuthority =>
+      _determineCurrentTier() == VolumeTier.hardware;
+
   /// Maximum volume the user may select right now. Extended boost (2.0) is
   /// only available on the software and system tiers when the toggle is on;
   /// hardware, passthrough, DoP and casting paths stay clamped at 1.0.
