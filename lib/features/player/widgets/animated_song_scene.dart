@@ -24,9 +24,13 @@ import 'package:flick/features/player/widgets/visualizer_art_box.dart';
 import 'package:flick/features/player/widgets/album_art_box.dart';
 import 'package:flick/features/player/widgets/waveform_layer.dart';
 import 'package:flick/features/player/widgets/player_controls.dart';
+import 'package:flick/features/player/widgets/compact_player_info_layout.dart';
 import 'package:flick/features/player/widgets/inline_lyrics_panel.dart';
 import 'package:flick/features/player/widgets/lyrics_mode_waveform_strip.dart';
+
 class AnimatedSongScene extends StatelessWidget {
+  static const double _shortHeightThreshold = 620.0;
+
   final Song song;
   final bool lyricsMode;
   final bool visualizationMode;
@@ -77,7 +81,8 @@ class AnimatedSongScene extends StatelessWidget {
   final bool vinylMode;
   final ValueChanged<bool>? onVinylChanged;
 
-  const AnimatedSongScene({super.key,
+  const AnimatedSongScene({
+    super.key,
     required this.song,
     required this.lyricsMode,
     required this.visualizationMode,
@@ -131,12 +136,13 @@ class AnimatedSongScene extends StatelessWidget {
   Widget build(BuildContext context) {
     final direction = transitionDirection >= 0 ? 1.0 : -1.0;
     final sceneKey = ValueKey('${song.id}_${playerScreenMode.storageValue}');
-    final showVisualizerOnly =
-        visualizationMode &&
-        immersiveFullView &&
-        playerScreenMode == PlayerScreenMode.immersive;
+    final isShortHeight =
+        MediaQuery.sizeOf(context).height < _shortHeightThreshold;
     final showImmersiveFullView =
-        immersiveFullView && playerScreenMode == PlayerScreenMode.immersive;
+        immersiveFullView &&
+        playerScreenMode == PlayerScreenMode.immersive &&
+        !isShortHeight;
+    final showVisualizerOnly = visualizationMode && showImmersiveFullView;
 
     final scene = RepaintBoundary(
       key: sceneKey,
@@ -1082,60 +1088,75 @@ class AnimatedSongScene extends StatelessWidget {
                         )
                       : KeyedSubtree(
                           key: const ValueKey('artwork-default'),
-                          child: Transform.translate(
-                            offset: Offset(0, artworkCardVerticalOffset),
-                            child: Column(
-                              mainAxisAlignment: isVeryShortHeight
-                                  ? MainAxisAlignment.start
-                                  : MainAxisAlignment.center,
-                              children: [
-                                Flexible(
-                                  flex: isVeryShortHeight ? 5 : 7,
-                                  child: Center(
-                                    child: OverflowBox(
-                                      maxWidth: artworkSize,
-                                      maxHeight: artworkSize,
-                                      child: visualizationMode
-                                          ? VisualizerArtBox(
-                                              playerService: playerService,
-                                              size: artworkSize,
-                                              animationStyle:
-                                                  visualizerAnimationStyle,
-                                              frequencyMode:
-                                                  visualizerFrequencyMode,
-                                              movementMode:
-                                                  visualizerMovementMode,
-                                              albumColor: albumColor,
-                                              showFrame: artworkCardShowFrame,
-                                            )
-                                          : AlbumArtBox(
-                                              song: song,
-                                              size: artworkSize,
-                                              playerService: playerService,
-                                              onRotationEnabledChanged:
-                                                  onRotationEnabledChanged,
-                                              initialVinyl: vinylMode,
-                                              onVinylChanged: onVinylChanged,
-                                              showFrame: artworkCardShowFrame,
-                                            ),
-                                    ),
+                          child: isVeryShortHeight
+                              ? Center(
+                                  child: CompactPlayerInfoLayout(
+                                    song: song,
+                                    onNavigateToArtistDetail:
+                                        onNavigateToArtistDetail,
+                                  ),
+                                )
+                              : Transform.translate(
+                                  offset: Offset(0, artworkCardVerticalOffset),
+                                  child: Column(
+                                    mainAxisAlignment: isVeryShortHeight
+                                        ? MainAxisAlignment.start
+                                        : MainAxisAlignment.center,
+                                    children: [
+                                      Flexible(
+                                        flex: isVeryShortHeight ? 5 : 7,
+                                        child: Center(
+                                          child: OverflowBox(
+                                            maxWidth: artworkSize,
+                                            maxHeight: artworkSize,
+                                            child: visualizationMode
+                                                ? VisualizerArtBox(
+                                                    playerService:
+                                                        playerService,
+                                                    size: artworkSize,
+                                                    animationStyle:
+                                                        visualizerAnimationStyle,
+                                                    frequencyMode:
+                                                        visualizerFrequencyMode,
+                                                    movementMode:
+                                                        visualizerMovementMode,
+                                                    albumColor: albumColor,
+                                                    showFrame:
+                                                        artworkCardShowFrame,
+                                                  )
+                                                : AlbumArtBox(
+                                                    song: song,
+                                                    size: artworkSize,
+                                                    playerService:
+                                                        playerService,
+                                                    onRotationEnabledChanged:
+                                                        onRotationEnabledChanged,
+                                                    initialVinyl: vinylMode,
+                                                    onVinylChanged:
+                                                        onVinylChanged,
+                                                    showFrame:
+                                                        artworkCardShowFrame,
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(height: artworkSpacing),
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: isVeryShortHeight
+                                              ? 8.0
+                                              : 0.0,
+                                        ),
+                                        child: _buildSongIdentity(
+                                          context,
+                                          compact: isShortHeight,
+                                          veryCompact: isVeryShortHeight,
+                                        ),
+                                      ),
+                                      SizedBox(height: identitySpacing),
+                                    ],
                                   ),
                                 ),
-                                SizedBox(height: artworkSpacing),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isVeryShortHeight ? 8.0 : 0.0,
-                                  ),
-                                  child: _buildSongIdentity(
-                                    context,
-                                    compact: isShortHeight,
-                                    veryCompact: isVeryShortHeight,
-                                  ),
-                                ),
-                                SizedBox(height: identitySpacing),
-                              ],
-                            ),
-                          ),
                         ),
                 ),
               ),
@@ -1361,4 +1382,3 @@ class AnimatedSongScene extends StatelessWidget {
     );
   }
 }
-
