@@ -1451,6 +1451,13 @@ class PlayerService {
     await _configureAndroidAudioSession();
     final player = just_audio.AudioPlayer();
     _justAudioPlayer = player;
+    int? lastEqSessionId;
+    player.androidAudioSessionIdStream.listen((sessionId) {
+      if (sessionId == null || sessionId == lastEqSessionId) return;
+      if (!identical(_justAudioPlayer, player)) return;
+      lastEqSessionId = sessionId;
+      unawaited(reapplyEqualizer());
+    });
     await player.setVolume(_currentVolume);
     await player.setSpeed(playbackSpeedNotifier.value);
     await _updateLoopMode();
