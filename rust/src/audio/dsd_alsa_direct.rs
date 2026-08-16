@@ -28,6 +28,7 @@ mod internal {
     const FMT_DSD_U8: usize = 56;
     const FMT_DSD_U16_LE: usize = 57;
     const FMT_DSD_U32_LE: usize = 58;
+    const FMT_S32_LE: usize = 10;
 
     // Access modes
     const ACCESS_RW_INTERLEAVED: usize = 3;
@@ -117,7 +118,8 @@ mod internal {
             FMT_DSD_U8 => "DSD_U8",
             FMT_DSD_U16_LE => "DSD_U16_LE",
             FMT_DSD_U32_LE => "DSD_U32_LE",
-            _ => "DSD_?",
+            FMT_S32_LE => "S32_LE",
+            _ => "?"
         }
     }
 
@@ -206,37 +208,63 @@ mod internal {
     // ── Open + configure ──────────────────────────────────────────────────
 
     pub fn open(byte_rate: u32, channels: usize) -> bool {
+        open_with_formats(byte_rate, channels, &[FMT_DSD_U8, FMT_DSD_U16_LE, FMT_DSD_U32_LE])
+    }
+
+    pub fn open_pcm(sample_rate: u32, channels: usize) -> Result<i32, String> {
+        open_detail(sample_rate, channels, &[FMT_S32_LE])
+    }
+
+    fn open_with_formats(rate: u32, channels: usize, preferred_formats: &[usize]) -> bool {
+        open_detail(rate, channels, preferred_formats).is_ok()
+    }
+
+    /// Same as open_with_formats but returns the per-device failure reasons,
+    /// so callers can surface exactly why direct ALSA was unavailable
+    /// (EACCES = no /dev/snd permission, EBUSY = audioserver holds the
+    /// device, EINVAL = format/rate rejected).
+    pub fn open_detail(
+        rate: u32,
+        channels: usize,
+        preferred_formats: &[usize],
+    ) -> Result<i32, String> {
         if FD.load(Ordering::Acquire) >= 0 {
-            return true;
+            return Ok(FD.load(Ordering::Acquire));
         }
 
         let devices = discover_playback_devices();
+        let mut failures: Vec<String> = Vec::new();
         for (path, _card, _dev) in &devices {
-            match try_open_device(path, byte_rate, channels) {
+            match try_open_device(path, rate, channels, preferred_formats) {
                 Ok(fd) => {
                     FD.store(fd, Ordering::Release);
                     log::info!(
-                        "[DSD-ALSA] DSD output opened: {} rate={} ch={}",
+                        "[DSD-ALSA] Output opened: {} rate={} ch={}",
                         path,
-                        byte_rate,
+                        rate,
                         channels
                     );
-                    return true;
+                    return Ok(fd);
                 }
                 Err(e) => {
                     log::info!("[DSD-ALSA] {} failed: {}", path, e);
+                    failures.push(format!("{}: {}", path, e));
                 }
             }
         }
-        log::warn!(
-            "[DSD-ALSA] No device accepted DSD at byte_rate={} ch={}",
-            byte_rate,
-            channels
-        );
-        false
+        Err(if failures.is_empty() {
+            "no /dev/snd/pcmC*D*p devices found".to_string()
+        } else {
+            failures.join("; ")
+        })
     }
 
-    fn try_open_device(path: &str, byte_rate: u32, channels: usize) -> Result<i32, String> {
+    fn try_open_device(
+        path: &str,
+        rate: u32,
+        channels: usize,
+        preferred_formats: &[usize],
+    ) -> Result<i32, String> {
         let cpath = CString::new(path).map_err(|e| format!("path: {}", e))?;
         let fd = unsafe { libc::open(cpath.as_ptr(), libc::O_RDWR | libc::O_CLOEXEC) };
         if fd < 0 {
@@ -277,10 +305,9 @@ mod internal {
             ));
         }
 
-        // Check if DSD_U8 survived refine
-        let dsd_formats = [FMT_DSD_U8, FMT_DSD_U16_LE, FMT_DSD_U32_LE];
+        // Pick the first preferred format that survived refine
         let mut chosen_fmt = None;
-        for &fmt in &dsd_formats {
+        for &fmt in preferred_formats {
             if mask_test(&params.masks[1], fmt) {
                 chosen_fmt = Some(fmt);
                 break;
@@ -289,16 +316,19 @@ mod internal {
 
         let fmt = match chosen_fmt {
             Some(f) => {
-                log::info!("[DSD-ALSA] Driver supports DSD format {}", fmt_name(f));
+                log::info!("[DSD-ALSA] Driver supports format {}", fmt_name(f));
                 f
             }
             None => {
                 unsafe { libc::close(fd) };
-                return Err("Driver does not support any DSD format".into());
+                return Err(format!(
+                    "Driver does not support any of formats {:?}",
+                    preferred_formats
+                ));
             }
         };
 
-        // Narrow params to exact DSD configuration
+        // Narrow params to the exact configuration
         mask_reset(&mut params.masks[0]); // ACCESS
         mask_set(&mut params.masks[0], ACCESS_RW_INTERLEAVED);
         mask_reset(&mut params.masks[1]); // FORMAT
@@ -307,12 +337,12 @@ mod internal {
         mask_set(&mut params.masks[2], SUBFORMAT_STD);
 
         interval_exact(&mut params.intervals[INTERVAL_CHANNELS], channels as u32);
-        interval_exact(&mut params.intervals[INTERVAL_RATE], byte_rate);
+        interval_exact(&mut params.intervals[INTERVAL_RATE], rate);
 
         let sample_bits = match fmt {
             FMT_DSD_U8 => 8,
             FMT_DSD_U16_LE => 16,
-            FMT_DSD_U32_LE => 32,
+            FMT_DSD_U32_LE | FMT_S32_LE => 32,
             _ => 8,
         };
         interval_exact(&mut params.intervals[INTERVAL_SAMPLE_BITS], sample_bits);
@@ -321,7 +351,7 @@ mod internal {
             sample_bits * channels as u32,
         );
 
-        let period = (byte_rate / 8).max(1024);
+        let period = (rate / 8).max(1024);
         interval_exact(&mut params.intervals[INTERVAL_PERIOD_SIZE], period);
         interval_exact(&mut params.intervals[INTERVAL_PERIODS], 4);
 
@@ -362,7 +392,7 @@ mod internal {
             "[DSD-ALSA] AudioFlinger bypassed: direct /dev/snd ioctl path active on {} ({} rate={} ch={})",
             path,
             fmt_name(fmt),
-            byte_rate,
+            rate,
             channels
         );
 
@@ -427,7 +457,10 @@ mod internal {
 // ── Public API ────────────────────────────────────────────────────────────
 
 #[cfg(target_os = "android")]
-pub use internal::{close as dsd_alsa_close, is_open as dsd_alsa_is_open, open as dsd_alsa_open};
+pub use internal::{
+    close as dsd_alsa_close, is_open as dsd_alsa_is_open, open as dsd_alsa_open,
+    open_pcm as pcm_alsa_open,
+};
 
 #[cfg(target_os = "android")]
 pub fn dsd_alsa_probe() -> bool {
@@ -442,6 +475,11 @@ pub fn dsd_alsa_write(data: &[u8]) -> i32 {
 #[cfg(not(target_os = "android"))]
 pub fn dsd_alsa_open(_rate: u32, _channels: usize) -> bool {
     false
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn pcm_alsa_open(_rate: u32, _channels: usize) -> Result<i32, String> {
+    Err("ALSA direct is Android-only".to_string())
 }
 
 #[cfg(not(target_os = "android"))]
