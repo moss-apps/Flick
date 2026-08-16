@@ -717,8 +717,10 @@ class RecentlyPlayedRepository {
     );
   }
 
-  /// Build a resolution string from entity properties.
-  String _buildResolutionString(SongEntity entity) {
+  /// Build a resolution string from entity properties. Null when the source
+  /// sync had no audio metrics (SMB/WebDAV) — callers hide the chip instead
+  /// of showing a placeholder.
+  String? _buildResolutionString(SongEntity entity) {
     final parts = <String>[];
     if (entity.bitDepth != null) {
       parts.add('${entity.bitDepth}-bit');
@@ -734,7 +736,7 @@ class RecentlyPlayedRepository {
     if (bitrateLabel != null) {
       parts.add(bitrateLabel);
     }
-    return parts.isEmpty ? 'Unknown' : parts.join(' / ');
+    return parts.isEmpty ? null : parts.join(' / ');
   }
 
   String _formatSampleRateKhz(int sampleRateHz) {
