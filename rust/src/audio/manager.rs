@@ -301,9 +301,8 @@ impl EngineManager {
 
                 #[cfg(target_os = "android")]
                 {
-                    // Don't reuse across DSD mode changes: DoP needs PipelineMode::Dop,
-                    // native needs a different backend. A dap-native engine serving a
-                    // DoP track (or vice versa) corrupts the bitstream.
+                    // Don't reuse across DSD mode changes (Dop vs native
+                    // backends corrupt the bitstream).
                     let strategy = handle.output_runtime().strategy.as_str();
                     let desired_dsd_dop = desired_signature.contains(":dsd-dop:");
                     let desired_dsd_native = desired_signature.contains(":dsd-native:");
@@ -314,7 +313,11 @@ impl EngineManager {
                     }
 
                     let requested_rate = preferred_sample_rate.unwrap_or(48_000);
-                    return handle.output_signature().starts_with("android-shared:")
+                    // android-direct: never reuse — the DIRECT AudioTrack
+                    // doesn't survive track transitions (restoreTrack_l churn
+                    // on the sole direct slot); recreate instead.
+                    return (handle.output_signature().starts_with("android-shared:")
+                        || handle.output_signature().starts_with("android-alsa:"))
                         && handle.sample_rate() == requested_rate
                         && (allow_dap_native || strategy != "dap_native")
                         && dap_bit_perfect_enabled == (strategy == "dap_native")
