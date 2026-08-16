@@ -297,6 +297,32 @@ class SongRepository {
     });
   }
 
+  /// Persist probed audio format for songs whose sync couldn't read tags
+  /// (SMB/WebDAV). Only fills null fields.
+  Future<void> updateAudioFormat(
+    String filePath, {
+    int? sampleRate,
+    int? bitDepth,
+  }) async {
+    await _isar.writeTxn(() async {
+      final existing = await _isar.songEntitys
+          .filter()
+          .filePathEqualTo(filePath)
+          .findFirst();
+      if (existing == null) return;
+      var changed = false;
+      if (sampleRate != null && existing.sampleRate == null) {
+        existing.sampleRate = sampleRate;
+        changed = true;
+      }
+      if (bitDepth != null && existing.bitDepth == null) {
+        existing.bitDepth = bitDepth;
+        changed = true;
+      }
+      if (changed) await _isar.songEntitys.put(existing);
+    });
+  }
+
   /// Count songs in a folder.
   Future<int> countSongsInFolder(String folderUri) async {
     return await _isar.songEntitys.where().folderUriEqualTo(folderUri).count();
@@ -537,8 +563,10 @@ class SongRepository {
     return albumName;
   }
 
-  /// Build a resolution string from entity properties.
-  String _buildResolutionString(SongEntity entity) {
+  /// Build a resolution string from entity properties. Null when the source
+  /// sync had no audio metrics (SMB/WebDAV) — callers hide the chip instead
+  /// of showing a placeholder.
+  String? _buildResolutionString(SongEntity entity) {
     final parts = <String>[];
     if (entity.bitDepth != null) {
       parts.add('${entity.bitDepth}-bit');
@@ -554,7 +582,7 @@ class SongRepository {
     if (bitrateLabel != null) {
       parts.add(bitrateLabel);
     }
-    return parts.isEmpty ? 'Unknown' : parts.join(' / ');
+    return parts.isEmpty ? null : parts.join(' / ');
   }
 
   String _formatSampleRateKhz(int sampleRateHz) {
