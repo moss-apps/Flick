@@ -5,6 +5,8 @@ enum AudioPathManagement {
   androidManagedShared,
   androidManagedLowLatency,
   directUsbExperimental,
+  alsaDirectDap,
+  managedDirectExclusive,
 }
 
 @immutable
