@@ -16,15 +16,22 @@ class DlnaBackend {
 
   DlnaBackend();
 
-  Future<List<CastDevice>> discover({Duration timeout = const Duration(seconds: 4)}) async {
-    final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, _ssdpPort, reuseAddress: true);
+  Future<List<CastDevice>> discover({
+    Duration timeout = const Duration(seconds: 4),
+  }) async {
+    final socket = await RawDatagramSocket.bind(
+      InternetAddress.anyIPv4,
+      _ssdpPort,
+      reuseAddress: true,
+    );
     final locations = <String>{};
     try {
       socket.multicastLoopback = false;
       try {
         socket.joinMulticast(InternetAddress(_ssdpAddress));
       } catch (_) {}
-      final req = 'M-SEARCH * HTTP/1.1\r\n'
+      final req =
+          'M-SEARCH * HTTP/1.1\r\n'
           'HOST: $_ssdpAddress:$_ssdpPort\r\n'
           'MAN: "ssdp:discover"\r\n'
           'MX: 2\r\n'
@@ -39,7 +46,10 @@ class DlnaBackend {
           final datagram = socket.receive();
           if (datagram == null) return;
           final msg = String.fromCharCodes(datagram.data);
-          final m = RegExp(r'LOCATION: (.+)', caseSensitive: false).firstMatch(msg);
+          final m = RegExp(
+            r'LOCATION: (.+)',
+            caseSensitive: false,
+          ).firstMatch(msg);
           if (m != null) locations.add(m.group(1)!.trim());
         }
       });
@@ -52,20 +62,31 @@ class DlnaBackend {
     }
 
     final devices = <CastDevice>[];
-    await Future.wait(locations.map((loc) async {
-      final dev = await _resolve(loc);
-      if (dev != null) devices.add(dev);
-    }));
+    await Future.wait(
+      locations.map((loc) async {
+        final dev = await _resolve(loc);
+        if (dev != null) devices.add(dev);
+      }),
+    );
     return devices;
   }
 
   Future<CastDevice?> _resolve(String locationUrl) async {
     try {
-      final res = await http.get(Uri.parse(locationUrl)).timeout(const Duration(seconds: 3));
+      final res = await http
+          .get(Uri.parse(locationUrl))
+          .timeout(const Duration(seconds: 3));
       if (res.statusCode != 200) return null;
       final doc = xml.XmlDocument.parse(res.body);
-      final friendlyName = doc.findAllElements('friendlyName', namespace: '*').firstOrNull?.innerText ?? 'Unknown';
-      final udn = doc.findAllElements('UDN', namespace: '*').firstOrNull?.innerText ?? locationUrl;
+      final friendlyName =
+          doc
+              .findAllElements('friendlyName', namespace: '*')
+              .firstOrNull
+              ?.innerText ??
+          'Unknown';
+      final udn =
+          doc.findAllElements('UDN', namespace: '*').firstOrNull?.innerText ??
+          locationUrl;
       String? controlUrl = _findAvTransportControlUrl(doc, locationUrl);
       if (controlUrl == null) return null;
       return CastDevice(
@@ -73,7 +94,8 @@ class DlnaBackend {
         name: friendlyName,
         backend: CastBackend.dlna,
         locationUrl: locationUrl,
-        iconUrl: controlUrl, // ponytail: reuse iconUrl slot for controlURL; renderer session resolves fresh
+        iconUrl:
+            controlUrl, // ponytail: reuse iconUrl slot for controlURL; renderer session resolves fresh
       );
     } catch (_) {
       return null;
@@ -82,45 +104,93 @@ class DlnaBackend {
 
   String? _findAvTransportControlUrl(xml.XmlDocument doc, String locationUrl) {
     for (final svc in doc.findAllElements('service', namespace: '*')) {
-      final st = svc.findElements('serviceType', namespace: '*').firstOrNull?.innerText ?? '';
+      final st =
+          svc
+              .findElements('serviceType', namespace: '*')
+              .firstOrNull
+              ?.innerText ??
+          '';
       if (!st.contains('AVTransport')) continue;
-      final cu = svc.findElements('controlURL', namespace: '*').firstOrNull?.innerText;
+      final cu = svc
+          .findElements('controlURL', namespace: '*')
+          .firstOrNull
+          ?.innerText;
       if (cu == null) continue;
       return Uri.parse(locationUrl).resolve(cu).toString();
     }
     return null;
   }
 
-  Future<void> setUri(String controlUrl, String mediaUrl, {String? title}) async {
-    final current = title != null ? '<dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">${_esc(title)}</dc:title>' : '';
-    final meta = '<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" '
+  Future<void> setUri(
+    String controlUrl,
+    String mediaUrl, {
+    String? title,
+  }) async {
+    final current = title != null
+        ? '<dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">${_esc(title)}</dc:title>'
+        : '';
+    final meta =
+        '<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" '
         'xmlns:dc="http://purl.org/dc/elements/1.1/">'
         '<item id="1" parentID="0" restricted="1">'
         '<res protocolInfo="http-get:*:audio/*:*">${_esc(mediaUrl)}</res>'
         '$current</item></DIDL-Lite>';
-    await _soap(controlUrl, 'SetAVTransportURI',
-        '<InstanceID>0</InstanceID><CurrentURI>${_esc(mediaUrl)}</CurrentURI><CurrentURIMetaData>$meta</CurrentURIMetaData>');
+    await _soap(
+      controlUrl,
+      'SetAVTransportURI',
+      '<InstanceID>0</InstanceID><CurrentURI>${_esc(mediaUrl)}</CurrentURI><CurrentURIMetaData>$meta</CurrentURIMetaData>',
+    );
   }
 
-  Future<void> play(String controlUrl) => _soap(controlUrl, 'Play', '<InstanceID>0</InstanceID><Speed>1</Speed>');
-  Future<void> pause(String controlUrl) => _soap(controlUrl, 'Pause', '<InstanceID>0</InstanceID>');
-  Future<void> stop(String controlUrl) => _soap(controlUrl, 'Stop', '<InstanceID>0</InstanceID>');
+  Future<void> play(String controlUrl) =>
+      _soap(controlUrl, 'Play', '<InstanceID>0</InstanceID><Speed>1</Speed>');
+  Future<void> pause(String controlUrl) =>
+      _soap(controlUrl, 'Pause', '<InstanceID>0</InstanceID>');
+  Future<void> stop(String controlUrl) =>
+      _soap(controlUrl, 'Stop', '<InstanceID>0</InstanceID>');
 
-  Future<void> seek(String controlUrl, Duration position) =>
-      _soap(controlUrl, 'Seek', '<InstanceID>0</InstanceID><Unit>REL_TIME</Unit><Target>${_fmtTime(position)}</Target>');
+  Future<void> seek(String controlUrl, Duration position) => _soap(
+    controlUrl,
+    'Seek',
+    '<InstanceID>0</InstanceID><Unit>REL_TIME</Unit><Target>${_fmtTime(position)}</Target>',
+  );
 
-  Future<void> setVolume(String controlUrl, int volume) =>
-      _soap(controlUrl, 'SetVolume', '<InstanceID>0</InstanceID><Channel>Master</Channel><DesiredVolume>$volume</DesiredVolume>');
+  Future<void> setVolume(String controlUrl, int volume) => _soap(
+    controlUrl,
+    'SetVolume',
+    '<InstanceID>0</InstanceID><Channel>Master</Channel><DesiredVolume>$volume</DesiredVolume>',
+  );
 
-  Future<({Duration position, Duration duration, bool playing})?> getPosition(String controlUrl) async {
+  Future<({Duration position, Duration duration, bool playing})?> getPosition(
+    String controlUrl,
+  ) async {
     try {
-      final res = await _soap(controlUrl, 'GetPositionInfo', '<InstanceID>0</InstanceID>');
+      final res = await _soap(
+        controlUrl,
+        'GetPositionInfo',
+        '<InstanceID>0</InstanceID>',
+      );
       final doc = xml.XmlDocument.parse(res);
-      final posStr = doc.findAllElements('RelTime', namespace: '*').firstOrNull?.innerText;
-      final durStr = doc.findAllElements('TrackDuration', namespace: '*').firstOrNull?.innerText;
-      final tiRes = await _soap(controlUrl, 'GetTransportInfo', '<InstanceID>0</InstanceID>');
+      final posStr = doc
+          .findAllElements('RelTime', namespace: '*')
+          .firstOrNull
+          ?.innerText;
+      final durStr = doc
+          .findAllElements('TrackDuration', namespace: '*')
+          .firstOrNull
+          ?.innerText;
+      final tiRes = await _soap(
+        controlUrl,
+        'GetTransportInfo',
+        '<InstanceID>0</InstanceID>',
+      );
       final tiDoc = xml.XmlDocument.parse(tiRes);
-      final state = tiDoc.findAllElements('CurrentTransportState', namespace: '*').firstOrNull?.innerText ?? '';
+      final state =
+          tiDoc
+              .findAllElements('CurrentTransportState', namespace: '*')
+              .firstOrNull
+              ?.innerText ??
+          '';
       return (
         position: _parseTime(posStr) ?? Duration.zero,
         duration: _parseTime(durStr) ?? Duration.zero,
@@ -132,22 +202,39 @@ class DlnaBackend {
   }
 
   Future<String> _soap(String controlUrl, String action, String args) async {
-    final body = '<?xml version="1.0" encoding="utf-8"?>'
+    final body =
+        '<?xml version="1.0" encoding="utf-8"?>'
         '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" '
         's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
         '<s:Body><u:$action xmlns:u="$_serviceType">$args</u:$action></s:Body></s:Envelope>';
-    final res = await http.post(
-      Uri.parse(controlUrl),
-      headers: {
-        'Content-Type': 'text/xml; charset="utf-8"',
-        'SOAPAction': '"$_serviceType#$action"',
-      },
-      body: body,
-    ).timeout(const Duration(seconds: 5));
+    final res = await http
+        .post(
+          Uri.parse(controlUrl),
+          headers: {
+            'Content-Type': 'text/xml; charset="utf-8"',
+            'SOAPAction': '"$_serviceType#$action"',
+          },
+          body: body,
+        )
+        .timeout(const Duration(seconds: 5));
+    // ponytail: string sniff instead of full fault parse — enough to tell
+    // "renderer rejected it" from "renderer did it".
+    if (res.statusCode != 200 || res.body.contains('faultcode')) {
+      final desc =
+          RegExp(r'<errorDescription>([^<]*)').firstMatch(res.body)?.group(1) ??
+          res.body;
+      throw StateError(
+        'AVTransport $action failed '
+        '(HTTP ${res.statusCode}): $desc',
+      );
+    }
     return res.body;
   }
 
-  String _esc(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  String _esc(String s) => s
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
   String _fmtTime(Duration d) {
     final h = d.inHours.toString().padLeft(2, '0');
     final m = (d.inMinutes % 60).toString().padLeft(2, '0');
@@ -156,9 +243,15 @@ class DlnaBackend {
   }
 
   Duration? _parseTime(String? s) {
-    if (s == null || s == 'NOT_IMPLEMENTED' || s == '0:00:00') return s == '0:00:00' ? Duration.zero : null;
+    if (s == null || s == 'NOT_IMPLEMENTED' || s == '0:00:00') {
+      return s == '0:00:00' ? Duration.zero : null;
+    }
     final m = RegExp(r'(\d+):(\d+):(\d+)').firstMatch(s);
     if (m == null) return null;
-    return Duration(hours: int.parse(m.group(1)!), minutes: int.parse(m.group(2)!), seconds: int.parse(m.group(3)!));
+    return Duration(
+      hours: int.parse(m.group(1)!),
+      minutes: int.parse(m.group(2)!),
+      seconds: int.parse(m.group(3)!),
+    );
   }
 }
