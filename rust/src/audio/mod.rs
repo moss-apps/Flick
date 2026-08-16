@@ -33,6 +33,7 @@ pub mod http_source;
 pub mod ir_loader;
 pub mod manager;
 pub mod opus_decoder;
+pub mod audiotrack_direct;
 pub mod pitch_shifter;
 pub mod resampler;
 pub mod source;

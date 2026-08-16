@@ -1678,8 +1678,12 @@ class PlayerService {
   // ponytail: any Rust/bit-perfect path can be system-invisible to OEM
   // battery AI (Xiaomi/Tecno/Infinix), not just direct USB. Reuses the
   // existing usesRustBackend helper which excludes normalAndroid.
+  // Excluded on DAP_INTERNAL_HIGH_RES: the anchor's Java AudioTrack gets
+  // HiBy-forced onto the sole DIRECT slot, killing our native stream.
   bool get _isAnchorEligiblePath =>
-      Platform.isAndroid && currentEngineType.usesRustBackend;
+      Platform.isAndroid &&
+      currentEngineType.usesRustBackend &&
+      currentEngineType != AudioEngineType.dapInternalHighRes;
 
   void _updatePriorityAnchor() {
     final shouldAnchor =
@@ -1964,6 +1968,10 @@ class PlayerService {
         ? AudioPathManagement.androidManagedShared
         : !usesRustDiagnostics
         ? AudioPathManagement.androidManagedShared
+        : outputSignature?.startsWith('android-alsa:') == true
+        ? AudioPathManagement.alsaDirectDap
+        : outputSignature?.startsWith('android-direct:') == true
+        ? AudioPathManagement.managedDirectExclusive
         : (outputStrategy == 'usb_direct' &&
                   outputSignature?.startsWith('android-uac2:') == true) ||
               outputStrategy == 'usb_dsd_native'
@@ -1971,7 +1979,9 @@ class PlayerService {
         : AudioPathManagement.androidManagedLowLatency;
 
     final isMixerManaged =
-        pathManagement != AudioPathManagement.directUsbExperimental;
+        pathManagement != AudioPathManagement.directUsbExperimental &&
+        pathManagement != AudioPathManagement.alsaDirectDap &&
+        pathManagement != AudioPathManagement.managedDirectExclusive;
     final requestedOutputSampleRate =
         (!usesRustDiagnostics ? trackFormat?.sampleRate : null) ??
         engineRequestedSampleRate ??
@@ -2039,8 +2049,17 @@ class PlayerService {
               'Rust engine via DoP over PCM carrier (verified)',
             'dsd_dop' => 'Rust engine via DoP over PCM carrier',
             'dap_native' when passthroughAllowed =>
-              'Rust engine via native DAP HAL path (verified)',
-            'dap_native' => 'Rust engine via native DAP HAL path',
+              outputSignature?.startsWith('android-direct:') == true
+                  ? 'Rust engine via AudioTrack DIRECT PCM (mixer bypass, verified)'
+                  : outputSignature?.startsWith('android-alsa:') == true
+                  ? 'Rust engine via ALSA direct DAP path (verified)'
+                  : 'Rust engine via native DAP HAL path (verified)',
+            'dap_native' =>
+              outputSignature?.startsWith('android-direct:') == true
+                  ? 'Rust engine via AudioTrack DIRECT PCM (mixer bypass)'
+                  : outputSignature?.startsWith('android-alsa:') == true
+                  ? 'Rust engine via ALSA direct DAP path'
+                  : 'Rust engine via native DAP HAL path',
             'mixer_bit_perfect' =>
               'Rust engine via Android mixer bit-perfect path',
             'mixer_matched' =>

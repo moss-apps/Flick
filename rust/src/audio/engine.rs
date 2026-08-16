@@ -1048,6 +1048,8 @@ fn build_output_runtime_state(
 enum AndroidManagedStreamKind {
     F32(AudioStreamAsync<Output, AndroidOutputCallbackF32>),
     I32(AudioStreamAsync<Output, AndroidOutputCallbackI32>),
+    I32Pcm(AudioStreamAsync<Output, AndroidOutputCallbackI32Pcm>),
+    I16(AudioStreamAsync<Output, AndroidOutputCallbackI16>),
 }
 
 #[cfg(target_os = "android")]
@@ -1055,6 +1057,9 @@ struct AndroidManagedStream {
     kind: AndroidManagedStreamKind,
     actual_sample_rate: u32,
     active_audio_api: &'static str,
+    active_sharing: &'static str,
+    sample_format: &'static str,
+    exclusive_error: Option<String>,
 }
 
 #[cfg(target_os = "android")]
@@ -1063,6 +1068,8 @@ impl AndroidManagedStream {
         match &mut self.kind {
             AndroidManagedStreamKind::F32(s) => s.start(),
             AndroidManagedStreamKind::I32(s) => s.start(),
+            AndroidManagedStreamKind::I32Pcm(s) => s.start(),
+            AndroidManagedStreamKind::I16(s) => s.start(),
         }
     }
 
@@ -1070,6 +1077,8 @@ impl AndroidManagedStream {
         match &mut self.kind {
             AndroidManagedStreamKind::F32(s) => s.stop(),
             AndroidManagedStreamKind::I32(s) => s.stop(),
+            AndroidManagedStreamKind::I32Pcm(s) => s.stop(),
+            AndroidManagedStreamKind::I16(s) => s.stop(),
         }
     }
 }
@@ -1538,6 +1547,15 @@ pub fn create_audio_engine(
 
     let mut dsd_native_backend = None;
 
+    // Raw ALSA S32_LE fallback — /dev/snd direct write (EACCES on HiBy).
+    let mut pcm_alsa_backend = None;
+    let mut dap_alsa_error: Option<String> = None;
+
+    // Native AudioTrack DIRECT — the UAPP mixer-bypass method.
+    #[cfg(target_os = "android")]
+    let mut audiotrack_backend = None;
+    let mut dap_audiotrack_error: Option<String> = None;
+
     let mut final_sample_rate = requested_sample_rate;
     let mut output_runtime = build_output_runtime_state(
         desired_strategy,
@@ -1658,10 +1676,7 @@ pub fn create_audio_engine(
         }
     }
 
-    // DSD Native output: ALSA direct only (raw SNDRV_PCM ioctls on /dev/snd,
-    // bypasses AudioTrack/AudioFlinger entirely). No AudioTrack fallback; on
-    // failure DsdNativeBackend returns DSD_NATIVE_FALLBACK, which the strategy
-    // layer maps to DoP (see api/audio_api.rs).
+    // DSD Native: ALSA direct only; on failure map to DoP via audio_api.rs.
     #[cfg(target_os = "android")]
     if desired_strategy == OutputStrategy::DsdNative && direct_usb_backend.is_none() {
         match crate::audio::dsd_native_backend::DsdNativeBackend::start(
@@ -1706,14 +1721,117 @@ pub fn create_audio_engine(
         }
     }
 
+    // DapNative PCM: mixer-bypassing direct paths first, managed fallback last.
+    #[cfg(target_os = "android")]
+    if desired_strategy == OutputStrategy::DapNative
+        && dap_bit_perfect_enabled
+        && direct_usb_backend.is_none()
+        && dsd_native_backend.is_none()
+    {
+        match crate::audio::audiotrack_direct::AudioTrackDirectBackend::start(
+            Arc::clone(&callback_data_clone),
+            event_tx_clone.clone(),
+            requested_sample_rate,
+            channels,
+        ) {
+            Ok(backend) => {
+                log::info!(
+                    "[ENGINE] DAP native PCM via AudioTrack DIRECT at {} Hz — mixer bypassed",
+                    requested_sample_rate
+                );
+                final_sample_rate = requested_sample_rate;
+                callback_data.reconfigure_sample_rate(final_sample_rate);
+                callback_data.set_pipeline_mode(PipelineMode::Passthrough);
+                output_runtime = build_output_runtime_state(
+                    OutputStrategy::DapNative,
+                    OutputVerification::verify(
+                        requested_sample_rate,
+                        requested_sample_rate,
+                        true,
+                        true,
+                    ),
+                    false,
+                    false,
+                );
+                output_signature = format!("android-direct:dap-native:{}", requested_sample_rate);
+                audiotrack_backend = Some(backend);
+            }
+            Err(error) => {
+                log::info!(
+                    "[ENGINE] DAP native AudioTrack DIRECT unavailable ({}). Trying ALSA direct.",
+                    error
+                );
+                dap_audiotrack_error = Some(error);
+            }
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    if desired_strategy == OutputStrategy::DapNative
+        && dap_bit_perfect_enabled
+        && direct_usb_backend.is_none()
+        && dsd_native_backend.is_none()
+        && audiotrack_backend.is_none()
+    {
+        match crate::audio::dsd_native_backend::PcmAlsaBackend::start(
+            Arc::clone(&callback_data_clone),
+            event_tx_clone.clone(),
+            requested_sample_rate,
+            channels,
+        ) {
+            Ok(backend) => {
+                log::info!(
+                    "[ENGINE] DAP native PCM via ALSA direct at {} Hz — AudioFlinger bypassed",
+                    requested_sample_rate
+                );
+                final_sample_rate = requested_sample_rate;
+                callback_data.reconfigure_sample_rate(final_sample_rate);
+                callback_data.set_pipeline_mode(PipelineMode::Passthrough);
+                output_runtime = build_output_runtime_state(
+                    OutputStrategy::DapNative,
+                    OutputVerification::verify(
+                        requested_sample_rate,
+                        requested_sample_rate,
+                        true,
+                        true,
+                    ),
+                    false,
+                    false,
+                );
+                output_signature = format!("android-alsa:dap-native:{}", requested_sample_rate);
+                pcm_alsa_backend = Some(backend);
+            }
+            Err(error) => {
+                log::info!(
+                    "[ENGINE] DAP native ALSA direct unavailable ({}). Using Android-managed output.",
+                    error
+                );
+                dap_alsa_error = Some(error);
+            }
+        }
+    }
+
     let mut managed_stream = None;
     // Hoisted so the audio thread can reopen the managed Oboe stream with the
     // same parameters after an interruption (preserving the playback position).
     let mut managed_prefer_exclusive = false;
     let mut managed_use_integer = false;
     #[cfg(feature = "uac2")]
+    #[cfg(target_os = "android")]
+    let use_managed_fallback = direct_usb_backend.is_none()
+        && dsd_native_backend.is_none()
+        && pcm_alsa_backend.is_none()
+        && audiotrack_backend.is_none();
+    #[cfg(feature = "uac2")]
+    #[cfg(not(target_os = "android"))]
     let use_managed_fallback = direct_usb_backend.is_none() && dsd_native_backend.is_none();
     #[cfg(not(feature = "uac2"))]
+    #[cfg(target_os = "android")]
+    let use_managed_fallback = dsd_native_backend.is_none()
+        && pcm_alsa_backend.is_none()
+        && audiotrack_backend.is_none();
+    #[cfg(not(feature = "uac2"))]
+    #[cfg(not(target_os = "android"))]
     let use_managed_fallback = dsd_native_backend.is_none();
 
     if use_managed_fallback {
@@ -1738,11 +1856,19 @@ pub fn create_audio_engine(
             managed_use_integer,
             audio_api_pref,
         )?;
+        // Bit-perfect requires Exclusive: Shared goes through the mixer,
+        // which silently resamples to the primary rate on many DAPs.
+        let route_verified = match desired_shared_strategy {
+            OutputStrategy::DapNative | OutputStrategy::DsdDoP => {
+                managed.active_sharing != "shared"
+            }
+            _ => true,
+        };
         let verification = OutputVerification::verify(
             requested_sample_rate,
             managed.actual_sample_rate,
             desired_shared_strategy.requests_passthrough(),
-            true,
+            route_verified,
         );
         let resolved_shared_strategy = verification.resolved_strategy(desired_shared_strategy);
         final_sample_rate = managed.actual_sample_rate;
@@ -1758,6 +1884,30 @@ pub fn create_audio_engine(
         output_runtime =
             build_output_runtime_state(desired_shared_strategy, verification, false, false);
         output_runtime.active_audio_api = Some(managed.active_audio_api.to_string());
+        if desired_shared_strategy == OutputStrategy::DapNative {
+            let alsa_note = dap_alsa_error
+                .as_deref()
+                .map(|e| format!("; ALSA direct: {}", e))
+                .unwrap_or_default();
+            let audiotrack_note = dap_audiotrack_error
+                .as_deref()
+                .map(|e| format!("; AudioTrack direct: {}", e))
+                .unwrap_or_default();
+            let exclusive_note = managed
+                .exclusive_error
+                .as_deref()
+                .map(|e| format!("; exclusive attempts: {}", e))
+                .unwrap_or_default();
+            output_runtime.verification_reason = Some(format!(
+                "managed stream sharing={} pcm={} at {} Hz{}{}{}",
+                managed.active_sharing,
+                managed.sample_format,
+                managed.actual_sample_rate,
+                audiotrack_note,
+                alsa_note,
+                exclusive_note
+            ));
+        }
         if dsd_rate.is_some()
             && effective_dsd_mode == crate::audio::dsd_engine::dsd::DsdOutputMode::Dop
             && dsd_native_backend.is_none()
@@ -1767,13 +1917,22 @@ pub fn create_audio_engine(
                     .to_string(),
             );
         }
-        output_signature =
-            android_output_signature_for_strategy(resolved_shared_strategy, requested_sample_rate);
+        // Verified-exclusive DapNative rides the HAL direct_pcm profile
+        // (mixer bypass); give it its own signature so reuse + diagnostics
+        // can tell it apart from the shared/mixer path.
+        output_signature = if desired_shared_strategy == OutputStrategy::DapNative
+            && resolved_shared_strategy == OutputStrategy::DapNative
+            && managed.active_sharing == "exclusive"
+        {
+            format!("android-direct:dap-native:{}", requested_sample_rate)
+        } else {
+            android_output_signature_for_strategy(resolved_shared_strategy, requested_sample_rate)
+        };
         managed_stream = Some(managed);
     }
 
     log::info!(
-        "[ENGINE] requested_rate_hz={} actual_rate_hz={} strategy={} resampler_active={} passthrough_allowed={} channels={} dap_profile={:?} audio_api_pref={} active_audio_api={:?}",
+        "[ENGINE] requested_rate_hz={} actual_rate_hz={} strategy={} resampler_active={} passthrough_allowed={} channels={} dap_profile={:?} audio_api_pref={} active_audio_api={:?} sharing={}",
         requested_sample_rate,
         final_sample_rate,
         output_runtime.strategy,
@@ -1783,6 +1942,7 @@ pub fn create_audio_engine(
         device_profile.as_ref().map(|profile| &profile.kind),
         audio_api_pref.as_str(),
         output_runtime.active_audio_api,
+        managed_stream.as_ref().map(|s| s.active_sharing).unwrap_or("n/a"),
     );
 
     // Spawn the audio thread (which owns the Oboe stream)
@@ -1792,6 +1952,9 @@ pub fn create_audio_engine(
             #[cfg(feature = "uac2")]
             let mut direct_usb_backend = direct_usb_backend;
             let mut dsd_native_backend = dsd_native_backend;
+            let mut pcm_alsa_backend = pcm_alsa_backend;
+            #[cfg(target_os = "android")]
+            let mut audiotrack_backend = audiotrack_backend;
             let mut managed_stream = managed_stream;
 
             #[cfg(feature = "uac2")]
@@ -1835,6 +1998,48 @@ pub fn create_audio_engine(
             }
             #[cfg(not(target_os = "android"))]
             let _ = dsd_native_backend;
+
+            #[cfg(target_os = "android")]
+            if audiotrack_backend.is_some() {
+                command_processing_loop(
+                    command_rx,
+                    finished_rx,
+                    event_tx,
+                    callback_data_for_thread,
+                    state_clone,
+                    decoders_clone,
+                    final_sample_rate,
+                    shutdown_clone,
+                    None,
+                );
+
+                if let Some(mut backend) = audiotrack_backend.take() {
+                    backend.stop();
+                }
+                return;
+            }
+
+            #[cfg(target_os = "android")]
+            if pcm_alsa_backend.is_some() {
+                command_processing_loop(
+                    command_rx,
+                    finished_rx,
+                    event_tx,
+                    callback_data_for_thread,
+                    state_clone,
+                    decoders_clone,
+                    final_sample_rate,
+                    shutdown_clone,
+                    None,
+                );
+
+                if let Some(mut backend) = pcm_alsa_backend.take() {
+                    backend.stop();
+                }
+                return;
+            }
+            #[cfg(not(target_os = "android"))]
+            let _ = pcm_alsa_backend;
 
             let mut supervisor = match managed_stream.take() {
                 Some(stream) => ManagedStreamSupervisor::new(
@@ -2066,6 +2271,212 @@ impl AudioOutputCallback for AndroidOutputCallbackI32 {
     }
 }
 
+/// Linear PCM i32 callback for direct-PCM output (UAPP-proven on HiBy R4).
+#[cfg(target_os = "android")]
+struct AndroidOutputCallbackI32Pcm {
+    callback_data: Arc<AudioCallbackData>,
+    event_tx: Sender<AudioEvent>,
+    scratch: Vec<f32>,
+}
+
+#[cfg(target_os = "android")]
+impl AndroidOutputCallbackI32Pcm {
+    fn new(callback_data: Arc<AudioCallbackData>, event_tx: Sender<AudioEvent>) -> Self {
+        Self {
+            callback_data,
+            event_tx,
+            scratch: vec![0.0; ANDROID_DIRECT_SCRATCH_SAMPLES],
+        }
+    }
+}
+
+#[cfg(target_os = "android")]
+fn f32_to_i32(sample: f32) -> i32 {
+    // `as` saturates; the clamp only pins +2^31 (not representable) to i32::MAX.
+    let scaled = (sample * 2_147_483_648.0f32).round();
+    if scaled >= 2_147_483_648.0f32 {
+        i32::MAX
+    } else {
+        scaled as i32
+    }
+}
+
+#[cfg(target_os = "android")]
+impl AudioOutputCallback for AndroidOutputCallbackI32Pcm {
+    type FrameType = (i32, Stereo);
+
+    fn on_error_before_close(
+        &mut self,
+        audio_stream: &mut dyn AudioOutputStreamSafe,
+        error: oboe::Error,
+    ) {
+        dev_eprintln!(
+            "Android managed pcm-i32 output error before close: {:?} (device_id={}, sample_rate={} Hz, sharing={:?}, api={:?})",
+            error,
+            audio_stream.get_device_id(),
+            audio_stream.get_sample_rate(),
+            audio_stream.get_sharing_mode(),
+            audio_stream.get_audio_api(),
+        );
+    }
+
+    fn on_error_after_close(
+        &mut self,
+        audio_stream: &mut dyn AudioOutputStreamSafe,
+        error: oboe::Error,
+    ) {
+        dev_eprintln!(
+            "Android managed pcm-i32 output error after close: {:?} (device_id={}, sample_rate={} Hz, sharing={:?}, api={:?})",
+            error,
+            audio_stream.get_device_id(),
+            audio_stream.get_sample_rate(),
+            audio_stream.get_sharing_mode(),
+            audio_stream.get_audio_api(),
+        );
+        self.callback_data.request_stream_restart();
+    }
+
+    fn on_audio_ready(
+        &mut self,
+        _audio_stream: &mut dyn AudioOutputStreamSafe,
+        audio_data: &mut [(i32, i32)],
+    ) -> DataCallbackResult {
+        let required_samples = audio_data.len() * ANDROID_DIRECT_CHANNELS;
+
+        if required_samples > self.scratch.len() {
+            dev_eprintln!(
+                "[oboe-pcm-i32] burst {} frames > scratch {} frames — growing scratch",
+                audio_data.len(),
+                self.scratch.len() / ANDROID_DIRECT_CHANNELS,
+            );
+            self.scratch.resize(required_samples, 0.0);
+        }
+
+        let scratch = &mut self.scratch[..required_samples];
+        audio_callback(scratch, &self.callback_data, &self.event_tx);
+
+        for (frame_index, frame) in audio_data.iter_mut().enumerate() {
+            let sample_index = frame_index * ANDROID_DIRECT_CHANNELS;
+            *frame = (
+                f32_to_i32(scratch[sample_index]),
+                f32_to_i32(scratch[sample_index + 1]),
+            );
+        }
+
+        DataCallbackResult::Continue
+    }
+}
+
+/// Integer i16 callback for exclusive direct-PCM (PCM_16-only direct profiles).
+#[cfg(target_os = "android")]
+struct AndroidOutputCallbackI16 {
+    callback_data: Arc<AudioCallbackData>,
+    event_tx: Sender<AudioEvent>,
+    scratch: Vec<f32>,
+}
+
+#[cfg(target_os = "android")]
+impl AndroidOutputCallbackI16 {
+    fn new(callback_data: Arc<AudioCallbackData>, event_tx: Sender<AudioEvent>) -> Self {
+        Self {
+            callback_data,
+            event_tx,
+            scratch: vec![0.0; ANDROID_DIRECT_SCRATCH_SAMPLES],
+        }
+    }
+}
+
+#[cfg(target_os = "android")]
+fn f32_to_i16(sample: f32) -> i16 {
+    (sample * 32768.0).round().clamp(-32768.0, 32767.0) as i16
+}
+
+#[cfg(target_os = "android")]
+impl AudioOutputCallback for AndroidOutputCallbackI16 {
+    type FrameType = (i16, Stereo);
+
+    fn on_error_before_close(
+        &mut self,
+        audio_stream: &mut dyn AudioOutputStreamSafe,
+        error: oboe::Error,
+    ) {
+        dev_eprintln!(
+            "Android managed i16 output error before close: {:?} (device_id={}, sample_rate={} Hz, sharing={:?}, api={:?})",
+            error,
+            audio_stream.get_device_id(),
+            audio_stream.get_sample_rate(),
+            audio_stream.get_sharing_mode(),
+            audio_stream.get_audio_api(),
+        );
+    }
+
+    fn on_error_after_close(
+        &mut self,
+        audio_stream: &mut dyn AudioOutputStreamSafe,
+        error: oboe::Error,
+    ) {
+        dev_eprintln!(
+            "Android managed i16 output error after close: {:?} (device_id={}, sample_rate={} Hz, sharing={:?}, api={:?})",
+            error,
+            audio_stream.get_device_id(),
+            audio_stream.get_sample_rate(),
+            audio_stream.get_sharing_mode(),
+            audio_stream.get_audio_api(),
+        );
+        self.callback_data.request_stream_restart();
+    }
+
+    fn on_audio_ready(
+        &mut self,
+        _audio_stream: &mut dyn AudioOutputStreamSafe,
+        audio_data: &mut [(i16, i16)],
+    ) -> DataCallbackResult {
+        let required_samples = audio_data.len() * ANDROID_DIRECT_CHANNELS;
+
+        if required_samples > self.scratch.len() {
+            dev_eprintln!(
+                "[oboe-i16] burst {} frames > scratch {} frames — growing scratch",
+                audio_data.len(),
+                self.scratch.len() / ANDROID_DIRECT_CHANNELS,
+            );
+            self.scratch.resize(required_samples, 0.0);
+        }
+
+        let scratch = &mut self.scratch[..required_samples];
+        audio_callback(scratch, &self.callback_data, &self.event_tx);
+
+        for (frame_index, frame) in audio_data.iter_mut().enumerate() {
+            let sample_index = frame_index * ANDROID_DIRECT_CHANNELS;
+            *frame = (
+                f32_to_i16(scratch[sample_index]),
+                f32_to_i16(scratch[sample_index + 1]),
+            );
+        }
+
+        DataCallbackResult::Continue
+    }
+}
+
+/// PCM payload variants tried by the managed open loop hunting a direct output.
+#[cfg(target_os = "android")]
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ManagedPcmFormat {
+    S32,
+    S16,
+    F32,
+}
+
+#[cfg(target_os = "android")]
+impl ManagedPcmFormat {
+    fn label(self) -> &'static str {
+        match self {
+            ManagedPcmFormat::S32 => "pcm-i32",
+            ManagedPcmFormat::S16 => "i16",
+            ManagedPcmFormat::F32 => "f32",
+        }
+    }
+}
+
 #[cfg(target_os = "android")]
 fn open_android_output_stream(
     callback_data: Arc<AudioCallbackData>,
@@ -2107,112 +2518,219 @@ fn open_android_output_stream(
     let mut fallback_kind = None;
     let mut fallback_rate = 0u32;
     let mut fallback_api: Option<&'static str> = None;
+    let mut fallback_sharing: Option<&'static str> = None;
+    let mut fallback_format: Option<&'static str> = None;
+    let mut exclusive_notes: Vec<String> = Vec::new();
 
     for &sharing_mode in sharing_modes {
         for &audio_api in &attempts {
-            let result: Result<AndroidManagedStreamKind, String> = if use_integer_format {
-                let builder = oboe::AudioStreamBuilder::default()
-                    .set_stereo()
-                    .set_format::<i32>()
-                    .set_sample_rate(target_sample_rate as i32)
-                    .set_frames_per_callback(frames_per_callback)
-                    .set_sharing_mode(sharing_mode)
-                    .set_performance_mode(performance_mode)
-                    .set_usage(Usage::Media)
-                    .set_content_type(ContentType::Music)
-                    .set_channel_conversion_allowed(false)
-                    .set_format_conversion_allowed(false)
-                    .set_sample_rate_conversion_quality(SampleRateConversionQuality::None)
-                    .set_audio_api(audio_api);
+            // On a bit-perfect route we try integer formats before f32 when
+            // requesting Exclusive: the HiBy R4 only grants a direct
+            // (mixer-bypassing) output to a PCM_32 request at the native
+            // rate — exactly how UAPP does it — with i16 as a second chance
+            // for PCM_16-only HALs.
+            let try_formats: &[ManagedPcmFormat] = if bit_perfect_route
+                && !use_integer_format
+                && sharing_mode == SharingMode::Exclusive
+            {
+                &[
+                    ManagedPcmFormat::S32,
+                    ManagedPcmFormat::S16,
+                    ManagedPcmFormat::F32,
+                ]
+            } else {
+                &[ManagedPcmFormat::F32]
+            };
+            for &attempt_fmt in try_formats {
+                let result: Result<AndroidManagedStreamKind, String> = if use_integer_format {
+                    let builder = oboe::AudioStreamBuilder::default()
+                        .set_stereo()
+                        .set_format::<i32>()
+                        .set_sample_rate(target_sample_rate as i32)
+                        .set_frames_per_callback(frames_per_callback)
+                        .set_sharing_mode(sharing_mode)
+                        .set_performance_mode(performance_mode)
+                        .set_usage(Usage::Media)
+                        .set_content_type(ContentType::Music)
+                        .set_channel_conversion_allowed(false)
+                        .set_format_conversion_allowed(false)
+                        .set_sample_rate_conversion_quality(SampleRateConversionQuality::None)
+                        .set_audio_api(audio_api);
 
-                let builder = if bit_perfect_route {
-                    builder.set_device_id(selected_device.id)
+                    let builder = if bit_perfect_route {
+                        builder.set_device_id(selected_device.id)
+                    } else {
+                        builder
+                    };
+
+                    match builder
+                        .set_callback(AndroidOutputCallbackI32::new(
+                            Arc::clone(&callback_data),
+                            event_tx.clone(),
+                        ))
+                        .open_stream()
+                    {
+                        Ok(stream) => Ok(AndroidManagedStreamKind::I32(stream)),
+                        Err(error) => Err(format!(
+                            "{} {} open failed on '{}' (id {}, type {:?}): {}",
+                            audio_api_label(audio_api),
+                            sharing_label(sharing_mode),
+                            selected_device.product_name,
+                            selected_device.id,
+                            selected_device.device_type,
+                            error
+                        )),
+                    }
+                } else if attempt_fmt == ManagedPcmFormat::S32 {
+                    // UAPP-style direct request: PCM_32 + DIRECT flag only.
+                    // LowLatency tacks FAST onto the flags and breaks the
+                    // direct_pcm profile match, so this attempt must keep
+                    // PerformanceMode::None.
+                    let builder = oboe::AudioStreamBuilder::default()
+                        .set_stereo()
+                        .set_format::<i32>()
+                        .set_sample_rate(target_sample_rate as i32)
+                        .set_frames_per_callback(frames_per_callback)
+                        .set_sharing_mode(sharing_mode)
+                        .set_performance_mode(PerformanceMode::None)
+                        .set_usage(Usage::Media)
+                        .set_content_type(ContentType::Music)
+                        .set_channel_conversion_allowed(false)
+                        .set_format_conversion_allowed(false)
+                        .set_sample_rate_conversion_quality(SampleRateConversionQuality::None)
+                        .set_audio_api(audio_api)
+                        .set_device_id(selected_device.id);
+
+                    match builder
+                        .set_callback(AndroidOutputCallbackI32Pcm::new(
+                            Arc::clone(&callback_data),
+                            event_tx.clone(),
+                        ))
+                        .open_stream()
+                    {
+                        Ok(stream) => Ok(AndroidManagedStreamKind::I32Pcm(stream)),
+                        Err(error) => Err(format!(
+                            "{} {} pcm-i32 open failed on '{}' (id {}, type {:?}): {}",
+                            audio_api_label(audio_api),
+                            sharing_label(sharing_mode),
+                            selected_device.product_name,
+                            selected_device.id,
+                            selected_device.device_type,
+                            error
+                        )),
+                    }
+                } else if attempt_fmt == ManagedPcmFormat::S16 {
+                    let builder = oboe::AudioStreamBuilder::default()
+                        .set_stereo()
+                        .set_format::<i16>()
+                        .set_sample_rate(target_sample_rate as i32)
+                        .set_frames_per_callback(frames_per_callback)
+                        .set_sharing_mode(sharing_mode)
+                        .set_performance_mode(performance_mode)
+                        .set_usage(Usage::Media)
+                        .set_content_type(ContentType::Music)
+                        .set_channel_conversion_allowed(false)
+                        .set_format_conversion_allowed(false)
+                        .set_sample_rate_conversion_quality(SampleRateConversionQuality::None)
+                        .set_audio_api(audio_api)
+                        .set_device_id(selected_device.id);
+
+                    match builder
+                        .set_callback(AndroidOutputCallbackI16::new(
+                            Arc::clone(&callback_data),
+                            event_tx.clone(),
+                        ))
+                        .open_stream()
+                    {
+                        Ok(stream) => Ok(AndroidManagedStreamKind::I16(stream)),
+                        Err(error) => Err(format!(
+                            "{} {} i16 open failed on '{}' (id {}, type {:?}): {}",
+                            audio_api_label(audio_api),
+                            sharing_label(sharing_mode),
+                            selected_device.product_name,
+                            selected_device.id,
+                            selected_device.device_type,
+                            error
+                        )),
+                    }
                 } else {
-                    builder
+                    let mut builder = oboe::AudioStreamBuilder::default()
+                        .set_stereo()
+                        .set_f32()
+                        .set_sample_rate(target_sample_rate as i32)
+                        .set_frames_per_callback(frames_per_callback)
+                        .set_sharing_mode(sharing_mode)
+                        .set_performance_mode(performance_mode)
+                        .set_usage(Usage::Media)
+                        .set_content_type(ContentType::Music)
+                        .set_channel_conversion_allowed(false)
+                        .set_format_conversion_allowed(true)
+                        .set_sample_rate_conversion_quality(if bit_perfect_route {
+                            SampleRateConversionQuality::None
+                        } else {
+                            SampleRateConversionQuality::Medium
+                        })
+                        .set_audio_api(audio_api);
+
+                    if bit_perfect_route {
+                        builder = builder.set_device_id(selected_device.id);
+                    }
+
+                    match builder
+                        .set_callback(AndroidOutputCallbackF32::new(
+                            Arc::clone(&callback_data),
+                            event_tx.clone(),
+                        ))
+                        .open_stream()
+                    {
+                        Ok(stream) => Ok(AndroidManagedStreamKind::F32(stream)),
+                        Err(error) => Err(format!(
+                            "{} {} open failed on '{}' (id {}, type {:?}): {}",
+                            audio_api_label(audio_api),
+                            sharing_label(sharing_mode),
+                            selected_device.product_name,
+                            selected_device.id,
+                            selected_device.device_type,
+                            error
+                        )),
+                    }
                 };
 
-                match builder
-                    .set_callback(AndroidOutputCallbackI32::new(
-                        Arc::clone(&callback_data),
-                        event_tx.clone(),
-                    ))
-                    .open_stream()
-                {
-                    Ok(stream) => Ok(AndroidManagedStreamKind::I32(stream)),
-                    Err(error) => Err(format!(
-                        "{} {} open failed on '{}' (id {}, type {:?}): {}",
-                        audio_api_label(audio_api),
-                        sharing_label(sharing_mode),
-                        selected_device.product_name,
-                        selected_device.id,
-                        selected_device.device_type,
-                        error
-                    )),
-                }
-            } else {
-                let mut builder = oboe::AudioStreamBuilder::default()
-                    .set_stereo()
-                    .set_f32()
-                    .set_sample_rate(target_sample_rate as i32)
-                    .set_frames_per_callback(frames_per_callback)
-                    .set_sharing_mode(sharing_mode)
-                    .set_performance_mode(performance_mode)
-                    .set_usage(Usage::Media)
-                    .set_content_type(ContentType::Music)
-                    .set_channel_conversion_allowed(false)
-                    .set_format_conversion_allowed(true)
-                    .set_sample_rate_conversion_quality(if bit_perfect_route {
-                        SampleRateConversionQuality::None
-                    } else {
-                        SampleRateConversionQuality::Medium
-                    })
-                    .set_audio_api(audio_api);
+                match result {
+                    Ok(kind) => {
+                        let (actual_rate, actual_api, actual_sharing, actual_format, actual_channels) =
+                            match &kind {
+                                AndroidManagedStreamKind::F32(s) => (
+                                    s.get_sample_rate(),
+                                    s.get_audio_api(),
+                                    s.get_sharing_mode(),
+                                    s.get_format(),
+                                    s.get_channel_count(),
+                                ),
+                                AndroidManagedStreamKind::I32(s) => (
+                                    s.get_sample_rate(),
+                                    s.get_audio_api(),
+                                    s.get_sharing_mode(),
+                                    s.get_format(),
+                                    s.get_channel_count(),
+                                ),
+                                AndroidManagedStreamKind::I32Pcm(s) => (
+                                    s.get_sample_rate(),
+                                    s.get_audio_api(),
+                                    s.get_sharing_mode(),
+                                    s.get_format(),
+                                    s.get_channel_count(),
+                                ),
+                                AndroidManagedStreamKind::I16(s) => (
+                                    s.get_sample_rate(),
+                                    s.get_audio_api(),
+                                    s.get_sharing_mode(),
+                                    s.get_format(),
+                                    s.get_channel_count(),
+                                ),
+                            };
 
-                if bit_perfect_route {
-                    builder = builder.set_device_id(selected_device.id);
-                }
-
-                match builder
-                    .set_callback(AndroidOutputCallbackF32::new(
-                        Arc::clone(&callback_data),
-                        event_tx.clone(),
-                    ))
-                    .open_stream()
-                {
-                    Ok(stream) => Ok(AndroidManagedStreamKind::F32(stream)),
-                    Err(error) => Err(format!(
-                        "{} {} open failed on '{}' (id {}, type {:?}): {}",
-                        audio_api_label(audio_api),
-                        sharing_label(sharing_mode),
-                        selected_device.product_name,
-                        selected_device.id,
-                        selected_device.device_type,
-                        error
-                    )),
-                }
-            };
-
-            match result {
-                Ok(kind) => {
-                    let (actual_rate, actual_api, actual_sharing, actual_format, actual_channels) =
-                        match &kind {
-                            AndroidManagedStreamKind::F32(s) => (
-                                s.get_sample_rate(),
-                                s.get_audio_api(),
-                                s.get_sharing_mode(),
-                                s.get_format(),
-                                s.get_channel_count(),
-                            ),
-                            AndroidManagedStreamKind::I32(s) => (
-                                s.get_sample_rate(),
-                                s.get_audio_api(),
-                                s.get_sharing_mode(),
-                                s.get_format(),
-                                s.get_channel_count(),
-                            ),
-                        };
-
-                    dev_eprintln!(
+                        dev_eprintln!(
                         "Android managed output opened '{}' (id {}, type {:?}) requested {} Hz -> actual {} Hz, api {:?}, sharing {:?}, format {:?}, channels {:?}",
                         selected_device.product_name,
                         selected_device.id,
@@ -2225,44 +2743,90 @@ fn open_android_output_stream(
                         actual_channels,
                     );
 
-                    if actual_channels != ChannelCount::Stereo {
-                        last_error = Some(format!(
-                            "{} {} opened '{}' with {:?} channels instead of {}",
-                            audio_api_label(audio_api),
-                            sharing_label(sharing_mode),
-                            selected_device.product_name,
-                            actual_channels,
-                            ANDROID_DIRECT_CHANNELS,
-                        ));
-                        continue;
-                    }
-
-                    if bit_perfect_route && actual_rate != target_sample_rate as i32 {
-                        last_error = Some(format!(
-                            "{} {} opened '{}' at {} Hz instead of requested {} Hz",
-                            audio_api_label(audio_api),
-                            sharing_label(sharing_mode),
-                            selected_device.product_name,
-                            actual_rate,
-                            target_sample_rate,
-                        ));
-                        if fallback_kind.is_none() {
-                            fallback_kind = Some(kind);
-                            fallback_rate = actual_rate.max(1) as u32;
-                            fallback_api = Some(audio_api_label(actual_api));
+                        // A shared integer stream means the direct-PCM route
+                        // was not granted; it would silently resample through
+                        // the mixer like a shared f32 stream. Close it and
+                        // keep looking (exclusive integer is the only prize).
+                        if attempt_fmt != ManagedPcmFormat::F32
+                            && sharing_label(actual_sharing) == "shared"
+                        {
+                            let note = format!(
+                                "{} exclusive {} downgraded to shared on '{}' — not a direct-PCM route",
+                                audio_api_label(audio_api),
+                                attempt_fmt.label(),
+                                selected_device.product_name,
+                            );
+                            last_error = Some(note.clone());
+                            if sharing_mode == SharingMode::Exclusive {
+                                exclusive_notes.push(note);
+                            }
+                            drop(kind);
+                            continue;
                         }
+
+                        if actual_channels != ChannelCount::Stereo {
+                            last_error = Some(format!(
+                                "{} {} opened '{}' with {:?} channels instead of {}",
+                                audio_api_label(audio_api),
+                                sharing_label(sharing_mode),
+                                selected_device.product_name,
+                                actual_channels,
+                                ANDROID_DIRECT_CHANNELS,
+                            ));
+                            continue;
+                        }
+
+                        if bit_perfect_route && actual_rate != target_sample_rate as i32 {
+                            last_error = Some(format!(
+                                "{} {} opened '{}' at {} Hz instead of requested {} Hz",
+                                audio_api_label(audio_api),
+                                sharing_label(sharing_mode),
+                                selected_device.product_name,
+                                actual_rate,
+                                target_sample_rate,
+                            ));
+                            if fallback_kind.is_none() {
+                                fallback_format = Some(match &kind {
+                                    AndroidManagedStreamKind::F32(_) => "f32",
+                                    AndroidManagedStreamKind::I32(_) => "i32",
+                                    AndroidManagedStreamKind::I32Pcm(_) => "s32",
+                                    AndroidManagedStreamKind::I16(_) => "s16",
+                                });
+                                fallback_kind = Some(kind);
+                                fallback_rate = actual_rate.max(1) as u32;
+                                fallback_api = Some(audio_api_label(actual_api));
+                                fallback_sharing = Some(sharing_label(actual_sharing));
+                            }
+                            continue;
+                        }
+
+                        let sample_format = match &kind {
+                            AndroidManagedStreamKind::F32(_) => "f32",
+                            AndroidManagedStreamKind::I32(_) => "i32",
+                            AndroidManagedStreamKind::I32Pcm(_) => "s32",
+                            AndroidManagedStreamKind::I16(_) => "s16",
+                        };
+                        let exclusive_error = if sharing_label(actual_sharing) == "exclusive" {
+                            None
+                        } else {
+                            (!exclusive_notes.is_empty()).then(|| exclusive_notes.join(" | "))
+                        };
+                        return Ok(AndroidManagedStream {
+                            kind,
+                            actual_sample_rate: actual_rate.max(1) as u32,
+                            active_audio_api: audio_api_label(actual_api),
+                            active_sharing: sharing_label(actual_sharing),
+                            sample_format,
+                            exclusive_error,
+                        });
+                    }
+                    Err(error) => {
+                        if sharing_mode == SharingMode::Exclusive {
+                            exclusive_notes.push(error.clone());
+                        }
+                        last_error = Some(error);
                         continue;
                     }
-
-                    return Ok(AndroidManagedStream {
-                        kind,
-                        actual_sample_rate: actual_rate.max(1) as u32,
-                        active_audio_api: audio_api_label(actual_api),
-                    });
-                }
-                Err(error) => {
-                    last_error = Some(error);
-                    continue;
                 }
             }
         }
@@ -2273,6 +2837,9 @@ fn open_android_output_stream(
             kind,
             actual_sample_rate: fallback_rate.max(1),
             active_audio_api: fallback_api.unwrap_or("Unspecified"),
+            active_sharing: fallback_sharing.unwrap_or("Unspecified"),
+            sample_format: fallback_format.unwrap_or("f32"),
+            exclusive_error: (!exclusive_notes.is_empty()).then(|| exclusive_notes.join(" | ")),
         });
     }
 
@@ -2385,14 +2952,9 @@ fn audio_api_label(audio_api: AudioApi) -> &'static str {
     }
 }
 
-/// Resolve a user audio-API preference into the ordered list of Oboe `AudioApi`
-/// candidates to try when opening the managed output stream.
-///
-/// Bluetooth always defers to Oboe's default (`Unspecified`): exclusive mode is
-/// wrong for the AudioFlinger mixer path, and AAudio/OpenSL selection there has
-/// no benefit. For wired/USB/Internal outputs the explicit preference is tried
-/// first, with `Unspecified` appended as a safety net so audio still plays when
-/// the chosen API is unavailable (e.g. AAudio on API 26, the project minSdk).
+/// Resolve user audio-API preference to ordered Oboe candidates.
+/// Bluetooth always uses Oboe's default — exclusive mode is wrong for the
+/// mixer path. Explicit pref tried first, Unspecified as safety net.
 #[cfg(target_os = "android")]
 fn audio_api_attempts(pref: AudioApiPreference, is_bluetooth: bool) -> Vec<AudioApi> {
     if is_bluetooth {

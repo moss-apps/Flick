@@ -106,7 +106,9 @@ class JellyfinService implements NetworkSourceService {
             'Pw': password,
           }),
         )
-        .timeout(const Duration(seconds: 15));
+        // ponytail: 60s ceiling for LDAP/SSO backends (Authentik et al);
+        // wrong-credential 401s still return as fast as the server sends them.
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode != 200) {
       throw JellyfinNetworkException(
           'Authentication failed (HTTP ${response.statusCode})');

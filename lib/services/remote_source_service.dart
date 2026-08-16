@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/utils/app_log.dart';
 import '../data/database.dart';
+import '../data/repositories/song_repository.dart';
 import '../models/song.dart';
+import '../src/rust/api/audio_api.dart' as rust_audio;
 import 'sources/network_source_service.dart';
 
 /// Bridges playback/download for network-sourced songs.
@@ -21,6 +25,10 @@ class RemoteSourceService {
 
   /// Progress (0..1) of the interactive playback download, null when idle.
   final ValueNotifier<double?> downloadProgressNotifier = ValueNotifier(null);
+
+  /// Songs whose format probe failed (e.g. AAC-in-M4A Symphonia gap);
+  /// skip retrying them every play.
+  final Set<String> _probeFailed = {};
 
   Future<NetworkServerEntity> _serverFor(Song song) async {
     final serverId = song.remoteServerId;
@@ -51,7 +59,7 @@ class RemoteSourceService {
     }
     final service = networkSourceServiceFor(sourceType);
     try {
-      return await service.stream(
+      final path = await service.stream(
         server,
         remoteId,
         extension: song.fileType,
@@ -59,8 +67,30 @@ class RemoteSourceService {
             ? (p) => downloadProgressNotifier.value = p
             : null,
       );
+      unawaited(_backfillAudioFormat(song, path));
+      return path;
     } finally {
       if (reportProgress) downloadProgressNotifier.value = null;
+    }
+  }
+
+  /// ponytail: probe-once backfill for sources whose sync can't read tags
+  /// (SMB/WebDAV listing has no sampleRate/bitDepth). Runs after the file is
+  /// local either way; HTTP-direct streams skip it. Full tag read at sync time
+  /// is the upgrade path if users want quality labels before first play.
+  Future<void> _backfillAudioFormat(Song song, String localPath) async {
+    if (song.sampleRate != null || song.bitDepth != null) return;
+    if (_probeFailed.contains(song.id)) return;
+    try {
+      final probed = await rust_audio.audioProbeFormat(path: localPath);
+      await SongRepository().updateAudioFormat(
+        song.filePath!,
+        sampleRate: probed.sampleRate,
+        bitDepth: probed.bitsPerSample,
+      );
+    } catch (e) {
+      _probeFailed.add(song.id);
+      AppLog.instance.add('Format backfill failed for "${song.title}": $e');
     }
   }
 

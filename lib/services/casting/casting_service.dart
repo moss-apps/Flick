@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../../models/song.dart';
 import '../player_service.dart';
 import '../remote_source_service.dart';
+import 'cast_content_server.dart';
 import 'cast_device.dart';
 import 'dlna_backend.dart';
 import 'chromecast_backend.dart';
@@ -19,7 +21,8 @@ class CastingService {
 
   final ValueNotifier<List<CastDevice>> devicesNotifier =
       ValueNotifier<List<CastDevice>>(const []);
-  final ValueNotifier<CastDevice?> activeDeviceNotifier = ValueNotifier<CastDevice?>(null);
+  final ValueNotifier<CastDevice?> activeDeviceNotifier =
+      ValueNotifier<CastDevice?>(null);
   final ValueNotifier<bool> isActiveNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isDiscoveringNotifier = ValueNotifier<bool>(false);
 
@@ -50,7 +53,10 @@ class CastingService {
   void startContinuousDiscovery() {
     if (_discoverCooldown != null) return;
     discover();
-    _discoverCooldown = Timer.periodic(const Duration(seconds: 10), (_) => discover());
+    _discoverCooldown = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => discover(),
+    );
   }
 
   void stopContinuousDiscovery() {
@@ -76,6 +82,7 @@ class CastingService {
     } else if (_activeDevice != null && _currentSong != null) {
       await _dlna.stop(_controlUrl(_activeDevice!));
     }
+    await CastContentServer.instance.stop();
     _activeDevice = null;
     _currentSong = null;
     activeDeviceNotifier.value = null;
@@ -90,10 +97,12 @@ class CastingService {
     ps.currentSongNotifier.value = song;
     ps.durationNotifier.value = song.duration;
     ps.positionNotifier.value = Duration.zero;
-    final resolved = await RemoteSourceService.instance.resolveHttpPlayback(song);
-    final url = resolved?.url;
+    final resolved = await RemoteSourceService.instance.resolveHttpPlayback(
+      song,
+    );
+    final url = resolved?.url ?? await _serveFromPhone(song);
     if (url == null) {
-      // Local files can't be cast without an embedded HTTP server (deferred).
+      // Content-URI locals and unresolvable sources stay local-only.
       return false;
     }
     final dev = _activeDevice!;
@@ -151,13 +160,43 @@ class CastingService {
   Future<void> delegateSetVolume(double volume) async {
     if (_activeDevice == null) return;
     if (_activeDevice!.backend == CastBackend.dlna) {
-      await _dlna.setVolume(_controlUrl(_activeDevice!), (volume * 100).round().clamp(0, 100));
+      await _dlna.setVolume(
+        _controlUrl(_activeDevice!),
+        (volume * 100).round().clamp(0, 100),
+      );
     } else {
       await _chromecast.setVolume(volume);
     }
   }
 
-  String _controlUrl(CastDevice d) => d.iconUrl!; // DLNA: controlURL stashed here at discovery
+  String _controlUrl(CastDevice d) =>
+      d.iconUrl!; // DLNA: controlURL stashed here at discovery
+
+  /// Last-resort cast source: serve the bytes from this phone via the
+  /// embedded HTTP server. Covers local files, SMB, and cached network songs
+  /// (including formats the local engine can't decode — the renderer decodes).
+  Future<String?> _serveFromPhone(Song song) async {
+    try {
+      String? path;
+      if (song.isNetworkSource) {
+        path = await RemoteSourceService.instance.ensureLocal(song);
+      } else {
+        final p = song.filePath;
+        if (p != null && !p.startsWith('content://') && File(p).existsSync()) {
+          path = p;
+        }
+      }
+      if (path == null) return null;
+      final ext = song.fileType.toLowerCase();
+      final title = song.title.replaceAll(RegExp(r'[^A-Za-z0-9._\- ]'), '');
+      return await CastContentServer.instance.serve(
+        path,
+        filename: '${title.isEmpty ? 'track' : title}.$ext',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 
   void _startDlnaPolling(String controlUrl) {
     _pollTimer?.cancel();
@@ -167,7 +206,9 @@ class CastingService {
       if (info == null) return;
       final ps = PlayerService();
       ps.positionNotifier.value = info.position;
-      if (info.duration.inMilliseconds > 0) ps.durationNotifier.value = info.duration;
+      if (info.duration.inMilliseconds > 0) {
+        ps.durationNotifier.value = info.duration;
+      }
       ps.isPlayingNotifier.value = info.playing;
     });
   }
