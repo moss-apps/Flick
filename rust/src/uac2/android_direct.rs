@@ -59,6 +59,7 @@ const USB_DIR_IN: u8 = 0x80;
 const USB_DIR_OUT: u8 = 0x00;
 const USB_TYPE_CLASS: u8 = 0x20;
 const USB_RECIP_INTERFACE: u8 = 0x01;
+const USB_RECIP_ENDPOINT: u8 = 0x02;
 const UAC2_CLOCK_SOURCE: u8 = 0x0a;
 const UAC2_AS_GENERAL: u8 = 0x01;
 const UAC2_FORMAT_TYPE: u8 = 0x02;
@@ -2014,6 +2015,7 @@ fn negotiate_android_direct_playback_format(
         } else if candidate.is_uac1 {
             match set_uac1_sampling_frequency(
                 &claimed_handle.handle,
+                candidate.interface_number,
                 candidate.endpoint_address,
                 requested_format.sample_rate,
             ) {
@@ -3933,6 +3935,7 @@ fn create_android_usb_backend_inner(
         // spec defines as the rate-setting mechanism.
         match set_uac1_sampling_frequency(
             &claimed_handle.handle,
+            candidate.interface_number,
             candidate.endpoint_address,
             playback_format.sample_rate,
         ) {
@@ -4024,6 +4027,41 @@ fn create_android_usb_backend_inner(
         return Err(msg);
     }
     thread::sleep(Duration::from_millis(50));
+
+    // UAC1: endpoint SET_CUR is only reliable once the streaming alt setting
+    // is active. Re-issue it; success here upgrades the clock verdict even if
+    // the pre-alt attempt was rejected.
+    if candidate.is_uac1 {
+        match set_uac1_sampling_frequency(
+            &claimed_handle.handle,
+            candidate.interface_number,
+            candidate.endpoint_address,
+            playback_format.sample_rate,
+        ) {
+            Ok(()) => {
+                clock_control_attempted = true;
+                clock_control_succeeded = true;
+                clock_verification_passed = true;
+                reported_sample_rate = Some(playback_format.sample_rate);
+                set_dac_mode(DacMode::FixedClock);
+                set_clock_verification(true, true, true, reported_sample_rate);
+                let message = format!(
+                    "[clock-diag] UAC1: post-alt SET_CUR {}Hz on endpoint 0x{:02x} succeeded — DAC locked to requested rate",
+                    playback_format.sample_rate, candidate.endpoint_address
+                );
+                dev_eprintln!("{}", message);
+                set_last_error(Some(message));
+            }
+            Err(e) => {
+                let message = format!(
+                    "[clock-diag] UAC1: post-alt SET_CUR {}Hz on endpoint 0x{:02x} failed: {} — keeping prior verdict",
+                    playback_format.sample_rate, candidate.endpoint_address, e,
+                );
+                dev_eprintln!("{}", message);
+                set_last_error(Some(message));
+            }
+        }
+    }
 
     if !claimed_handle
         .claimed_interfaces
@@ -6012,12 +6050,17 @@ fn set_sampling_frequency(
 
 fn set_uac1_sampling_frequency(
     handle: &DeviceHandle<Context>,
+    interface_number: u8,
     endpoint_address: u8,
     sample_rate: u32,
 ) -> Result<(), String> {
-    let request_type = USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE;
+    // UAC1 spec 5.2.3.2.3.2: SAM_FREQ_CONTROL SET_CUR is an endpoint request —
+    // bmRequestType 0x22, wIndex = (interface << 8) | endpoint address.
+    // The old INTERFACE-recipient form (0x21, wIndex = endpoint) gets STALLed
+    // by real hardware (FiiO BR13) and the DAC free-runs at its default rate.
+    let request_type = USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_ENDPOINT;
     let value = UAC1_SAM_FREQ_CONTROL;
-    let index = endpoint_address as u16;
+    let index = ((interface_number as u16) << 8) | endpoint_address as u16;
     let data = [
         (sample_rate & 0xFF) as u8,
         ((sample_rate >> 8) & 0xFF) as u8,
