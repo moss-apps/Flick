@@ -980,6 +980,10 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     final modeDescription = switch (diagnostics?.pathManagement) {
       AudioPathManagement.directUsbExperimental =>
         'Exclusive USB is active and bypassing the Android mixer.',
+      AudioPathManagement.alsaDirectDap =>
+        'Direct ALSA output is active and bypassing the Android audio server.',
+      AudioPathManagement.managedDirectExclusive =>
+        'Exclusive direct PCM is active and bypassing the Android mixer at the track\'s native rate.',
       AudioPathManagement.androidManagedLowLatency =>
         'Playback is using Android-managed output and may be resampled.',
       AudioPathManagement.androidManagedShared =>
