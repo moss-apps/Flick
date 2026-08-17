@@ -790,6 +790,22 @@ class _LayoutPreview extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                Container(
+                  padding: EdgeInsets.all(7 * immersiveFullViewScale),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.34),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: _AlbumArtThumb(
+                    song: song,
+                    size: artSize,
+                    radius: 12,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -836,22 +852,6 @@ class _LayoutPreview extends StatelessWidget {
                           ),
                         ),
                     ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: EdgeInsets.all(7 * immersiveFullViewScale),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.34),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: _AlbumArtThumb(
-                    song: song,
-                    size: artSize,
-                    radius: 12,
                   ),
                 ),
               ],
@@ -1122,6 +1122,22 @@ class _FullScreenPreview extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                Container(
+                  padding: EdgeInsets.all(10 * immersiveFullViewScale),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.34),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: _AlbumArtThumb(
+                    song: song,
+                    size: artSize,
+                    radius: 16,
+                  ),
+                ),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1166,22 +1182,6 @@ class _FullScreenPreview extends StatelessWidget {
                           ),
                         ),
                     ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  padding: EdgeInsets.all(10 * immersiveFullViewScale),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.34),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: _AlbumArtThumb(
-                    song: song,
-                    size: artSize,
-                    radius: 16,
                   ),
                 ),
               ],
