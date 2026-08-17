@@ -4,6 +4,9 @@
 
 Changes landing on top of the current pre-release are tracked here and folded into the release notes as they ship.
 
+### Folders
+- Hierarchy (tree) view now available inside folders via the grid/list toggle — matches the root Folders screen; view mode persists across screens.
+
 ## 0.21.0-beta.1 (2026-07-10)
 
 Shipped while continuously keeping up with improvements and bug fixing across the app.
