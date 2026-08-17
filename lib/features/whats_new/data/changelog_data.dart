@@ -54,7 +54,9 @@ const List<ChangelogEntry> kChangelogEntries = [
           'HTTP-first streaming with seek, prefetch for gapless playback, and LRU download caching.',
           'Subsonic playlist sync — mirror playlists to and from your server; playlists removed with their server.',
           'Cast to **DLNA renderers and Chromecast**; Cast SDK optional for GMS-free devices.',
+          'LAN media streaming — local files served to cast devices via embedded HTTP server.',
           'Server management screen with validation, failure banners, token error handling, and password toggle.',
+          'Jellyfin service timeout raised to 60s.',
         ],
       ),
       ChangelogSection(
@@ -74,13 +76,15 @@ const List<ChangelogEntry> kChangelogEntries = [
           'Bit-perfect passthrough API (`audio_set_pipeline_mode_passthrough`) — software gain removed from path.',
           'Autoplay on queue end (optional), stuttering HAL path skipped when bit-perfect is off.',
           'Earpiece excluded from auto device selection; wake lock prevents sleep dropouts.',
+          'Duck-on-interruption option for Android audio focus interruptions.',
+          'Direct audio backends (audiotrack_direct, PcmAlsaBackend) with S32_LE/I32/I16 PCM paths.',
         ],
       ),
       ChangelogSection(
         title: 'USB DAC Fixes',
         bullets: [
           'Fosi Audio DS2 quirk (broken clock control), 0 Hz readback fix, SkipClockValidation.',
-          'UAC1 SET_CUR failures tolerated on host-driven clock endpoints.',
+          'UAC1 SET_CUR failures tolerated on host-driven clock endpoints; endpoint recipient prevents STALL.',
           'Sample-rate guards: no more DAC-stored-rate overwrites or divide-by-zero.',
         ],
       ),
@@ -90,6 +94,7 @@ const List<ChangelogEntry> kChangelogEntries = [
           'Configurable action buttons: center, top-left/right, bottom pairs — any slot can be hidden.',
           'Separate mini player from nav bar (toggle in settings).',
           'Compact layout for very short screens; resizable activity.',
+          'Reusable `SurfaceIconButton` across screens; animated spinning refresh button.',
         ],
       ),
       ChangelogSection(
@@ -106,6 +111,7 @@ const List<ChangelogEntry> kChangelogEntries = [
           'Remove All Songs option; songs deleted when their folder is removed.',
           'Artwork survives cache prune (referenced paths preserved) and persists after scans.',
           'Corrupt cached images auto-recover; extraction freeze on rapid scroll fixed.',
+          'Ambient background added across tabs with duplicate prevention.',
         ],
       ),
       ChangelogSection(
@@ -114,6 +120,7 @@ const List<ChangelogEntry> kChangelogEntries = [
           'Auto-resume after interruptions; pending seek cleared after completion.',
           'Persistent WAV cache across restarts; HTTP audio source timeout.',
           'Network sync hardening: song entity IDs resolved before bulk insert, Jellyfin fetches all audio tracks.',
+          'Missing audio metrics handled for SMB/WebDAV songs; raw UTF-8 URI decoding fixed.',
         ],
       ),
     ],
