@@ -13,7 +13,9 @@ Shipped while continuously keeping up with improvements and bug fixing across th
 - HTTP-first streaming with seek, gapless prefetch, and LRU download caching.
 - Subsonic playlist sync — mirror playlists to/from your server; playlists removed with their server.
 - Cast to **DLNA renderers and Chromecast**; Cast SDK optional for GMS-free devices.
+- LAN media streaming — local files served to cast devices via embedded HTTP server.
 - Server management with validation, failure banners, token error handling, password toggle.
+- Jellyfin service timeout raised to 60s.
 
 ### Extended Volume (up to 200%)
 - Volume boost via LoudnessEnhancer with toggle in Audio settings.
@@ -26,10 +28,12 @@ Shipped while continuously keeping up with improvements and bug fixing across th
 - Bit-perfect passthrough API — software gain removed from path.
 - Autoplay on queue end (optional); stuttering HAL path skipped when bit-perfect off.
 - Earpiece excluded from auto device selection; wake lock prevents sleep dropouts.
+- Duck-on-interruption option for Android audio focus interruptions.
+- Direct audio backends (audiotrack_direct, PcmAlsaBackend) with S32_LE/I32/I16 PCM paths.
 
 ### USB DAC Fixes
 - Fosi Audio DS2 quirk (broken clock), 0 Hz readback fix, SkipClockValidation.
-- UAC1 SET_CUR failures tolerated on host-driven clock endpoints.
+- UAC1 SET_CUR failures tolerated on host-driven clock endpoints; endpoint recipient prevents STALL.
 - Sample-rate guards: no DAC-stored-rate overwrites or divide-by-zero.
 
 ### Bluetooth
@@ -41,16 +45,19 @@ Shipped while continuously keeping up with improvements and bug fixing across th
 - Configurable action buttons: center, top-left/right, bottom — any slot hideable.
 - Separate mini player from nav bar (toggle in settings).
 - Compact layout for very short screens; resizable activity.
+- Reusable `SurfaceIconButton` across screens; animated spinning refresh button.
 
 ### Library & Artwork
 - Remove All Songs option; songs deleted when their folder is removed.
 - Artwork survives cache prune and persists after scans.
 - Corrupt cached images auto-recover; extraction freeze on rapid scroll fixed.
+- Ambient background added across tabs with duplicate prevention.
 
 ### Reliability
 - Auto-resume after interruptions; pending seek cleared after completion.
 - Persistent WAV cache across restarts; HTTP audio source timeout.
 - Network sync hardening: entity IDs resolved before bulk insert, Jellyfin fetches all audio tracks.
+- Missing audio metrics handled for SMB/WebDAV songs; raw UTF-8 URI decoding fixed.
 
 ## 0.20.5-beta.6 (2026-07-06)
 
