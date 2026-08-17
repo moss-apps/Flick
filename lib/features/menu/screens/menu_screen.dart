@@ -221,33 +221,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
 
   void _navigateTo(BuildContext context, Widget screen) {
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => screen,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          if (AppConstants.animationNormal == Duration.zero) {
-            return child;
-          }
-
-          final curvedAnimation = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          );
-
-          final slideAnimation = Tween<Offset>(
-            begin: const Offset(0.06, 0.0),
-            end: Offset.zero,
-          ).animate(curvedAnimation);
-
-          return FadeTransition(
-            opacity: curvedAnimation,
-            child: SlideTransition(position: slideAnimation, child: child),
-          );
-        },
-        transitionDuration: AppConstants.animationNormal,
-        reverseTransitionDuration: AppConstants.animationFast,
-        opaque: true,
-      ),
+      MaterialPageRoute(builder: (_) => screen),
     );
   }
 
@@ -669,7 +643,8 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
         backgroundColor: Colors.transparent,
         body: Stack(
           children: [
-            SafeArea(
+            RepaintBoundary(
+              child: SafeArea(
               bottom: false,
               child: RefreshIndicator(
                 onRefresh: _refreshHome,
@@ -1109,8 +1084,9 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                       ),
                     ],
                   ],
-                ),
-              ),
+                 ),
+               ),
+             ),
             ),
           ],
         ),
