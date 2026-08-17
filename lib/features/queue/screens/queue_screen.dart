@@ -8,6 +8,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/surface_icon_button.dart';
 
 class QueueScreen extends ConsumerStatefulWidget {
   const QueueScreen({super.key});
@@ -326,19 +327,10 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: IconButton(
-              icon: Icon(
-                LucideIcons.x,
-                color: context.adaptiveTextPrimary,
-              ),
-              onPressed: _exitSelectionMode,
-            ),
+          SurfaceIconButton.icon(
+            icon: LucideIcons.x,
+            onPressed: _exitSelectionMode,
+            iconColor: context.adaptiveTextPrimary,
           ),
           const SizedBox(width: AppConstants.spacingMd),
           Expanded(
@@ -405,19 +397,10 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: IconButton(
-              icon: Icon(
-                LucideIcons.arrowLeft,
-                color: context.adaptiveTextPrimary,
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
+          SurfaceIconButton.icon(
+            icon: LucideIcons.chevronLeft,
+            onPressed: () => Navigator.of(context).pop(),
+            iconColor: context.adaptiveTextPrimary,
           ),
           const SizedBox(width: AppConstants.spacingMd),
           Expanded(
@@ -440,20 +423,10 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: IconButton(
-              icon: Icon(
-                LucideIcons.checkCheck,
-                color: context.adaptiveTextPrimary,
-              ),
-              tooltip: 'Select',
-              onPressed: onSelectMode,
-            ),
+          SurfaceIconButton.icon(
+            icon: LucideIcons.checkCheck,
+            onPressed: onSelectMode,
+            iconColor: context.adaptiveTextPrimary,
           ),
           const SizedBox(width: AppConstants.spacingSm),
           if (canClear)
