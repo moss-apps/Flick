@@ -67,6 +67,8 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   late final AnimationController _updateNoticeController;
   late final Animation<double> _updateNoticeFade;
   late final Animation<Offset> _updateNoticeSlide;
+  bool _isRefreshing = false;
+  late final AnimationController _refreshController;
 
   @override
   void initState() {
@@ -107,6 +109,10 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
       ),
     );
     _updateNoticeController.forward();
+    _refreshController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadHistoryData();
       _watchHistory();
@@ -117,6 +123,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   void dispose() {
     _welcomeCardController.dispose();
     _updateNoticeController.dispose();
+    _refreshController.dispose();
     _historySubscription?.cancel();
     super.dispose();
   }
@@ -179,11 +186,21 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   }
 
   Future<void> _refreshHome() async {
+    if (_isRefreshing) return;
+    _isRefreshing = true;
+    _refreshController.repeat();
     ref.invalidate(songsProvider);
     ref.invalidate(favoritesProvider);
     ref.invalidate(playlistsProvider);
     await ref.read(updateCheckProvider.notifier).refreshIfOnline(force: true);
     await _loadHistoryData(showLoadingState: false);
+    _refreshController.stop();
+    _refreshController.animateBack(
+      0,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.bounceOut,
+    );
+    _isRefreshing = false;
   }
 
   Future<void> _openPlayStoreListing() async {
@@ -1140,10 +1157,13 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
             ),
             child: IconButton(
               onPressed: _refreshHome,
-              icon: Icon(
-                LucideIcons.refreshCcw,
-                color: context.adaptiveTextPrimary,
-                size: context.responsiveIcon(AppConstants.iconSizeMd),
+              icon: RotationTransition(
+                turns: _refreshController,
+                child: Icon(
+                  LucideIcons.refreshCcw,
+                  color: context.adaptiveTextPrimary,
+                  size: context.responsiveIcon(AppConstants.iconSizeMd),
+                ),
               ),
             ),
           ),
@@ -3157,7 +3177,7 @@ class _SmartMixDetailScreen extends StatelessWidget {
                         left: 16,
                         child: IconButton(
                           icon: Icon(
-                            LucideIcons.arrowLeft,
+                            LucideIcons.chevronLeft,
                             color: context.adaptiveTextPrimary,
                           ),
                           onPressed: () => Navigator.of(context).pop(),
