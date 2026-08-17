@@ -13,6 +13,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
+import 'package:flick/widgets/common/surface_icon_button.dart';
 
 /// Number of songs fetched per page.
 const int _kPageSize = 50;
@@ -224,22 +225,14 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: IconButton(
-              icon: Icon(
-                LucideIcons.arrowLeft,
-                color: context.adaptiveTextPrimary,
-                size: context.responsiveIcon(AppConstants.iconSizeMd),
-              ),
+          if (Navigator.of(context).canPop()) ...[
+            SurfaceIconButton.icon(
+              icon: LucideIcons.chevronLeft,
               onPressed: () => Navigator.of(context).pop(),
+              iconColor: context.adaptiveTextPrimary,
             ),
-          ),
-          const SizedBox(width: AppConstants.spacingMd),
+            const SizedBox(width: AppConstants.spacingMd),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

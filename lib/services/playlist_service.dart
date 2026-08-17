@@ -1021,10 +1021,14 @@ class PlaylistService {
   }
 
   String _decodeUriSafely(String value) {
+    if (!value.contains('%')) return value;
     try {
       return Uri.decodeFull(value);
     } on FormatException catch (e) {
       devLog('[PlaylistService] URI decode error for "$value": $e');
+      return value;
+    } on ArgumentError {
+      // Raw UTF-8 (non-percent-encoded) input — Uri.decodeFull rejects it.
       return value;
     }
   }
@@ -1043,7 +1047,7 @@ class PlaylistService {
 
     final uri = _tryParseUri(trimmed);
     if (uri != null && uri.pathSegments.isNotEmpty) {
-      return Uri.decodeComponent(uri.pathSegments.last);
+      return _decodeUriSafely(uri.pathSegments.last);
     }
 
     final normalized = trimmed.replaceAll('\\', '/');

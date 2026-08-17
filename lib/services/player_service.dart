@@ -366,6 +366,7 @@ class PlayerService {
   final ValueNotifier<bool> gaplessPlaybackEnabledNotifier = ValueNotifier(
     true,
   );
+  final ValueNotifier<bool> duckOnInterruptionNotifier = ValueNotifier(true);
   final ValueNotifier<MilestoneType?> pendingMilestoneNotifier = ValueNotifier(
     null,
   );
@@ -380,6 +381,7 @@ class PlayerService {
   bool _rustListenersAttached = false;
   bool _audioSessionConfigured = false;
   bool _wasPlayingBeforeAudioInterruption = false;
+  bool _isDucked = false;
   VoidCallback? _rustStateListener;
   VoidCallback? _rustPositionListener;
   VoidCallback? _rustDurationListener;
@@ -600,6 +602,7 @@ class PlayerService {
     _uac2Service.addStatusListener(_mirrorUsbVolumeFromUac2Status);
     _notifyQueueChanged();
     unawaited(_loadGaplessPlaybackPreference());
+    unawaited(_loadDuckOnInterruptionPreference());
     unawaited(_loadCrossfadePreferences());
     unawaited(_loadFloatingPlayerPreference());
     unawaited(_loadPriorityAnchorPreference());
@@ -806,9 +809,22 @@ class PlayerService {
     gaplessPlaybackEnabledNotifier.value = enabled;
   }
 
+  Future<void> _loadDuckOnInterruptionPreference() async {
+    final enabled = await _preferencesService.getDuckOnInterruption();
+    duckOnInterruptionNotifier.value = enabled;
+  }
+
   Future<void> setGaplessPlaybackEnabled(bool enabled) async {
     gaplessPlaybackEnabledNotifier.value = enabled;
     await _preferencesService.setGaplessPlaybackEnabled(enabled);
+  }
+
+  Future<void> setDuckOnInterruption(bool enabled) async {
+    duckOnInterruptionNotifier.value = enabled;
+    await _preferencesService.setDuckOnInterruption(enabled);
+    if (Platform.isAndroid && _audioSessionConfigured) {
+      await _applyAndroidAudioSessionConfig();
+    }
   }
 
   /// Push the current crossfade preferences to the Rust engine.
@@ -1334,6 +1350,7 @@ class PlayerService {
 
     // Any in-flight interruption state is irrelevant once we release focus.
     _wasPlayingBeforeAudioInterruption = false;
+    _isDucked = false;
 
     try {
       final session = await AudioSession.instance;
@@ -1376,14 +1393,7 @@ class PlayerService {
 
     try {
       final session = await AudioSession.instance;
-      // Explicitly pause when ducked so the Rust/Oboe engine does not stay in
-      // a half-muted state after notification sounds. This makes every
-      // transient focus loss emit a matching pause/resume pair.
-      await session.configure(
-        const AudioSessionConfiguration.music().copyWith(
-          androidWillPauseWhenDucked: true,
-        ),
-      );
+      await _applyAndroidAudioSessionConfig();
       _audioFocusSubscription ??= session.interruptionEventStream.listen((
         event,
       ) {
@@ -1395,6 +1405,18 @@ class PlayerService {
     }
   }
 
+  Future<void> _applyAndroidAudioSessionConfig() async {
+    final session = await AudioSession.instance;
+    // When ducking is enabled we keep the stream alive at reduced gain for
+    // transient losses (notifications) instead of pausing. Users who prefer
+    // a hard pause get androidWillPauseWhenDucked: true.
+    await session.configure(
+      const AudioSessionConfiguration.music().copyWith(
+        androidWillPauseWhenDucked: !duckOnInterruptionNotifier.value,
+      ),
+    );
+  }
+
   void _onAudioInterruptionEvent(AudioInterruptionEvent event) {
     _debugLog(
       '[AudioFocus] Interruption event: begin=${event.begin}, '
@@ -1403,6 +1425,14 @@ class PlayerService {
     );
 
     if (event.begin) {
+      if (event.type == AudioInterruptionType.duck &&
+          duckOnInterruptionNotifier.value) {
+        // Transient loss (notification sound): dip volume, keep playing.
+        if (isPlayingNotifier.value) {
+          unawaited(_setDucked(true));
+        }
+        return;
+      }
       if (isPlayingNotifier.value) {
         _wasPlayingBeforeAudioInterruption = true;
         unawaited(_pauseInternal());
@@ -1413,6 +1443,10 @@ class PlayerService {
     // Interruption ended. Only resume if we were actually playing when it
     // started; otherwise a manual pause during the interruption would cause
     // an unwanted auto-resume.
+    if (event.type == AudioInterruptionType.duck && _isDucked) {
+      unawaited(_setDucked(false));
+      return;
+    }
     if (!_wasPlayingBeforeAudioInterruption) {
       return;
     }
@@ -1426,6 +1460,28 @@ class PlayerService {
         // Permanent focus loss (e.g. another app started long-form playback).
         // Stay paused and let the user explicitly resume.
         break;
+    }
+  }
+
+  /// Duck gain relative to the user's volume. 0.2 ≈ -14 dB, enough for
+  /// notification sounds to sit on top without killing the music.
+  static const double _duckVolumeScale = 0.2;
+
+  Future<void> _setDucked(bool ducked) async {
+    if (_isDucked == ducked) return;
+    _isDucked = ducked;
+    // DoP over direct USB: software gain corrupts DoP markers, and the
+    // exclusive device is not mixed with system sounds anyway. Leave as-is.
+    if (isCurrentTrackDoP && _isDirectUsbPath) return;
+    final volume = ducked ? _currentVolume * _duckVolumeScale : _currentVolume;
+    try {
+      if (_usingRustBackend && _rustAudioService.isInitialized) {
+        await _rustAudioService.setVolume(volume);
+      } else {
+        await _justAudioPlayer?.setVolume(volume);
+      }
+    } catch (e) {
+      _debugLog('[AudioFocus] Failed to ${ducked ? 'apply' : 'lift'} duck: $e');
     }
   }
 

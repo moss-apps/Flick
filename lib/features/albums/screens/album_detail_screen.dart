@@ -503,7 +503,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
               children: [
                 IconButton(
                   icon: Icon(
-                    LucideIcons.arrowLeft,
+                    LucideIcons.chevronLeft,
                     color: context.adaptiveTextPrimary,
                   ),
                   onPressed: () => Navigator.of(context).pop(),
@@ -640,7 +640,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
           left: 16,
           child: IconButton(
             icon: Icon(
-              LucideIcons.arrowLeft,
+              LucideIcons.chevronLeft,
               color: context.adaptiveTextPrimary,
             ),
             onPressed: () => Navigator.of(context).pop(),

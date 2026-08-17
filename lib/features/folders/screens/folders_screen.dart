@@ -13,8 +13,10 @@ import 'package:flick/core/utils/uri_display_utils.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/providers/providers.dart';
-import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/widgets/common/blurred_song_background.dart';
+import 'package:flick/widgets/common/surface_icon_button.dart';
+import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 
@@ -30,8 +32,10 @@ import 'package:flick/widgets/common/display_mode_wrapper.dart';
   for (final song in allSongs) {
     if (song.folderUri != folderUri) continue;
 
-    final relPath =
-        SongsState.extractRelativeSubfolder(song.folderUri, song.filePath);
+    final relPath = SongsState.extractRelativeSubfolder(
+      song.folderUri,
+      song.filePath,
+    );
 
     if (prefix.isNotEmpty) {
       if (relPath != prefix && !relPath.startsWith('$prefix/')) continue;
@@ -40,13 +44,16 @@ import 'package:flick/widgets/common/display_mode_wrapper.dart';
     if (relPath == prefix) {
       directSongs.add(song);
     } else {
-      final remainder =
-          prefix.isEmpty ? relPath : relPath.substring(prefix.length + 1);
+      final remainder = prefix.isEmpty
+          ? relPath
+          : relPath.substring(prefix.length + 1);
       final slashIdx = remainder.indexOf('/');
-      final immediateFolder =
-          slashIdx == -1 ? remainder : remainder.substring(0, slashIdx);
-      final fullKey =
-          prefix.isEmpty ? immediateFolder : '$prefix/$immediateFolder';
+      final immediateFolder = slashIdx == -1
+          ? remainder
+          : remainder.substring(0, slashIdx);
+      final fullKey = prefix.isEmpty
+          ? immediateFolder
+          : '$prefix/$immediateFolder';
       subfolderMap.putIfAbsent(
         fullKey,
         () => FolderGroup(
@@ -179,7 +186,11 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
   }
 
   void _toggleViewMode() {
-    _setViewMode(_viewMode == FolderViewMode.grid ? FolderViewMode.tree : FolderViewMode.grid);
+    _setViewMode(
+      _viewMode == FolderViewMode.grid
+          ? FolderViewMode.tree
+          : FolderViewMode.grid,
+    );
   }
 
   void _showSortSheet() {
@@ -195,48 +206,58 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
           Navigator.of(context).pop();
         },
         onPageSizeChanged: (value) {
-          ref.read(appPreferencesProvider.notifier).setFolderGridPageSize(value);
+          ref
+              .read(appPreferencesProvider.notifier)
+              .setFolderGridPageSize(value);
         },
       ),
     );
   }
 
   void _openRootFolder(MusicFolder folder) {
-    NavigationHelper.pushFade(
-      context,
-      (_) => FolderBrowserScreen(
-        folderUri: folder.uri,
-        displayName: folder.displayName,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FolderBrowserScreen(
+          folderUri: folder.uri,
+          displayName: folder.displayName,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentSong = ref.watch(currentSongProvider);
+
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.textSecondary,
-                        ),
-                      )
-                    : _folders.isEmpty
+        body: Stack(
+          children: [
+            Positioned.fill(child: AmbientBackground(song: currentSong)),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context),
+                  Expanded(
+                    child: _isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.textSecondary,
+                            ),
+                          )
+                        : _folders.isEmpty
                         ? _buildEmptyState()
                         : _viewMode == FolderViewMode.tree
-                            ? _buildFoldersTree()
-                            : _buildRootFoldersGrid(),
+                        ? _buildFoldersTree()
+                        : _buildRootFoldersGrid(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -251,20 +272,10 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
       child: Row(
         children: [
           if (Navigator.of(context).canPop()) ...[
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.glassBackground,
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                border: Border.all(color: AppColors.glassBorder),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  LucideIcons.arrowLeft,
-                  color: context.adaptiveTextPrimary,
-                  size: context.responsiveIcon(AppConstants.iconSizeMd),
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
+            SurfaceIconButton.icon(
+              icon: LucideIcons.chevronLeft,
+              onPressed: () => Navigator.of(context).pop(),
+              iconColor: context.adaptiveTextPrimary,
             ),
             const SizedBox(width: AppConstants.spacingMd),
           ],
@@ -275,15 +286,15 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
                 Text(
                   'Folders',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: context.adaptiveTextPrimary,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    color: context.adaptiveTextPrimary,
+                  ),
                 ),
                 Text(
                   '${_folders.length} music folders',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
+                    color: context.adaptiveTextTertiary,
+                  ),
                 ),
               ],
             ),
@@ -291,53 +302,16 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackground,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    _viewMode == FolderViewMode.grid
-                        ? LucideIcons.list
-                        : LucideIcons.layoutGrid,
-                    color: context.adaptiveTextSecondary,
-                    size: context.responsiveIcon(AppConstants.iconSizeMd),
-                  ),
-                  onPressed: _toggleViewMode,
-                ),
+              SurfaceIconButton.icon(
+                icon: _viewMode == FolderViewMode.grid
+                    ? LucideIcons.list
+                    : LucideIcons.layoutGrid,
+                onPressed: _toggleViewMode,
               ),
               const SizedBox(width: AppConstants.spacingSm),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.surfaceLight.withValues(alpha: 0.75),
-                      AppColors.surface.withValues(alpha: 0.85),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  border: Border.all(color: AppColors.glassBorder, width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 12,
-                      spreadRadius: 1,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.sort_rounded,
-                    color: context.adaptiveTextSecondary,
-                    size: context.responsiveIcon(AppConstants.iconSizeMd),
-                  ),
-                  onPressed: _showSortSheet,
-                ),
+              SurfaceIconButton.icon(
+                icon: Icons.sort_rounded,
+                onPressed: _showSortSheet,
               ),
             ],
           ),
@@ -360,16 +334,16 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
           Text(
             'No Folders Added',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: context.adaptiveTextSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: context.adaptiveTextSecondary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: AppConstants.spacingSm),
           Text(
             'Add music folders in Settings',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.adaptiveTextTertiary,
-                ),
+              color: context.adaptiveTextTertiary,
+            ),
           ),
         ],
       ),
@@ -379,28 +353,43 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
   Widget _buildRootFoldersGrid() {
     final songsAsync = ref.watch(songsProvider);
     final allSongs = songsAsync.value?.songs ?? const [];
+    final pageSize = ref.watch(appPreferencesProvider).folderGridPageSize;
 
-    // Build folder group-like objects for root folders with song data
-    final rootGroups = <_RootFolderEntry>[];
-    for (final folder in _folders) {
-      final folderSongs =
-          allSongs.where((s) => s.folderUri == folder.uri).toList();
-      rootGroups.add(_RootFolderEntry(folder: folder, songs: folderSongs));
+    final rootGroups = _resolveRootEntries(allSongs)
+      ..sort((a, b) {
+        switch (_sortOption) {
+          case FolderRootSortOption.name:
+            return a.folder.displayName.compareTo(b.folder.displayName);
+          case FolderRootSortOption.songCount:
+            final countCompare = b.songs.length.compareTo(a.songs.length);
+            if (countCompare != 0) return countCompare;
+            return a.folder.displayName.compareTo(b.folder.displayName);
+        }
+      });
+
+    // ponytail: mutate during build, cache fields keep this cheap across rebuilds
+    if (_visibleFolderCount < pageSize) {
+      _visibleFolderCount = min(pageSize, rootGroups.length);
+    }
+    if (_visibleFolderCount > rootGroups.length) {
+      _visibleFolderCount = rootGroups.length;
     }
 
-    rootGroups.sort((a, b) {
-      switch (_sortOption) {
-        case FolderRootSortOption.name:
-          return a.folder.displayName.compareTo(b.folder.displayName);
-        case FolderRootSortOption.songCount:
-          final countCompare = b.songs.length.compareTo(a.songs.length);
-          if (countCompare != 0) return countCompare;
-          return a.folder.displayName.compareTo(b.folder.displayName);
-      }
-    });
-
     return NotificationListener<ScrollNotification>(
-      onNotification: (_) => true,
+      onNotification: (notification) {
+        if (notification.metrics.pixels >=
+            notification.metrics.maxScrollExtent - 200) {
+          if (_visibleFolderCount < rootGroups.length) {
+            setState(() {
+              _visibleFolderCount = min(
+                _visibleFolderCount + pageSize,
+                rootGroups.length,
+              );
+            });
+          }
+        }
+        return true;
+      },
       child: GridView.builder(
         padding: const EdgeInsets.fromLTRB(
           AppConstants.spacingLg,
@@ -408,22 +397,48 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
           AppConstants.spacingLg,
           AppConstants.navBarHeight + 120,
         ),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: context.gridColumns(compact: 2, phone: 2, tablet: 3),
-        childAspectRatio: 0.70,
-        crossAxisSpacing: AppConstants.spacingMd,
-        mainAxisSpacing: AppConstants.spacingLg,
-      ),
-      itemCount: rootGroups.length,
-      itemBuilder: (context, index) {
-        final entry = rootGroups[index];
-        return _RootFolderCard(
-          entry: entry,
-          onTap: () => _openRootFolder(entry.folder),
-        );
-      },
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: context.gridColumns(compact: 2, phone: 2, tablet: 3),
+          childAspectRatio: 0.70,
+          crossAxisSpacing: AppConstants.spacingMd,
+          mainAxisSpacing: AppConstants.spacingLg,
+        ),
+        itemCount: _visibleFolderCount,
+        itemBuilder: (context, index) {
+          final entry = rootGroups[index];
+          return _RootFolderCard(
+            entry: entry,
+            onTap: () => _openRootFolder(entry.folder),
+          );
+        },
       ),
     );
+  }
+
+  List<_RootFolderEntry>? _rootEntries;
+  List<MusicFolder>? _rootEntriesForFolders;
+  Object? _rootEntriesSongsId;
+  int _visibleFolderCount = 0;
+
+  List<_RootFolderEntry> _resolveRootEntries(List<Song> allSongs) {
+    if (_rootEntries != null &&
+        identical(_rootEntriesForFolders, _folders) &&
+        identical(_rootEntriesSongsId, allSongs)) {
+      return _rootEntries!;
+    }
+
+    final entries = [
+      for (final folder in _folders)
+        _RootFolderEntry(
+          folder: folder,
+          songs: allSongs.where((s) => s.folderUri == folder.uri).toList(),
+        ),
+    ];
+
+    _rootEntries = entries;
+    _rootEntriesForFolders = _folders;
+    _rootEntriesSongsId = allSongs;
+    return entries;
   }
 
   Widget _buildFoldersTree() {
@@ -453,9 +468,12 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
 
     final roots = <_FolderTreeNode>[];
     for (final folder in _folders) {
-      final folderSongs =
-          allSongs.where((s) => s.folderUri == folder.uri).toList();
-      roots.add(_buildTreeNode(folder.uri, '', folder.displayName, folderSongs));
+      final folderSongs = allSongs
+          .where((s) => s.folderUri == folder.uri)
+          .toList();
+      roots.add(
+        _buildTreeNode(folder.uri, '', folder.displayName, folderSongs),
+      );
     }
 
     roots.sort((a, b) {
@@ -493,8 +511,10 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
       return _buildTreeNode(folderUri, sub.key, childName, sub.songs);
     }).toList();
 
-    final childSongCount =
-        children.fold<int>(0, (sum, node) => sum + node.songCount);
+    final childSongCount = children.fold<int>(
+      0,
+      (sum, node) => sum + node.songCount,
+    );
 
     return _FolderTreeNode(
       folderUri: folderUri,
@@ -515,19 +535,22 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
         dateAdded: DateTime.now(),
       ),
     );
-    NavigationHelper.pushFade(
-      context,
-      (_) => FolderBrowserScreen(
-        folderUri: folder.uri,
-        displayName: folder.displayName,
-        prefix: node.key,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FolderBrowserScreen(
+          folderUri: folder.uri,
+          displayName: folder.displayName,
+          prefix: node.key,
+        ),
       ),
     );
   }
 
   Future<void> _playTreeSong(_FolderTreeNode node, Song song) async {
     final playlist = node.allSongs;
-    await ref.read(playerProvider.notifier).play(
+    await ref
+        .read(playerProvider.notifier)
+        .play(
           song,
           playlist: playlist,
           context: PlaybackContext(
@@ -577,10 +600,14 @@ class _RootFolderCardState extends State<_RootFolderCard>
       duration: AppConstants.animationFast,
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _tiltAnimation = Tween<double>(begin: 0.0, end: 0.02)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _tiltAnimation = Tween<double>(
+      begin: 0.0,
+      end: 0.02,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _cachedArtworks = _computeArtworks(widget.entry.songs);
   }
 
@@ -619,155 +646,143 @@ class _RootFolderCardState extends State<_RootFolderCard>
       padded.add(const _ArtEntry(null, null));
     }
 
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        widget.onTap();
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.diagonal3Values(
+            _scaleAnimation.value,
+            _scaleAnimation.value,
+            1.0,
+          )..rotateZ(_tiltAnimation.value),
+          child: child,
+        );
       },
-      onTapCancel: () => _controller.reverse(),
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.diagonal3Values(
-              _scaleAnimation.value,
-              _scaleAnimation.value,
-              1.0,
-            )..rotateZ(_tiltAnimation.value),
-            child: child,
-          );
-        },
-        child: RepaintBoundary(
-          child: Material(
-            color: Colors.transparent,
+      child: RepaintBoundary(
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          child: InkWell(
+            onTap: widget.onTap,
+            onHighlightChanged: (highlighted) =>
+                highlighted ? _controller.forward() : _controller.reverse(),
             borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-            child: InkWell(
-              onTap: widget.onTap,
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AspectRatio(
-                      aspectRatio: 1,
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(AppConstants.radiusLg),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.18),
-                              blurRadius: 18,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(AppConstants.radiusLg),
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(AppConstants.radiusLg),
-                          ),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              _buildArtGrid(context, padded),
-                              Positioned.fill(
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.transparent,
-                                        Colors.black.withValues(alpha: 0.1),
-                                        Colors.black.withValues(alpha: 0.45),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                left: AppConstants.spacingSm,
-                                bottom: AppConstants.spacingSm,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppConstants.spacingSm,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.55),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.12),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    '${widget.entry.songs.length} tracks',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppConstants.spacingSm,
-                        AppConstants.spacingMd,
-                        AppConstants.spacingSm,
-                        AppConstants.spacingSm,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.entry.folder.displayName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(
-                                  color: context.adaptiveTextPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            [
-                              '${widget.entry.songs.length} songs',
-                              if (widget.entry.folder.isRemovable == true)
-                                (widget.entry.folder.volumeState != null &&
-                                        widget.entry.folder.volumeState != 'mounted')
-                                    ? 'USB not connected'
-                                    : 'External',
-                            ].join(' · '),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: context.adaptiveTextSecondary,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.18),
+                            blurRadius: 18,
+                            offset: const Offset(0, 10),
                           ),
                         ],
                       ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(AppConstants.radiusLg),
+                        ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            _buildArtGrid(context, padded),
+                            Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: 0.1),
+                                      Colors.black.withValues(alpha: 0.45),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: AppConstants.spacingSm,
+                              bottom: AppConstants.spacingSm,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppConstants.spacingSm,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.55),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                                child: Text(
+                                  '${widget.entry.songs.length} tracks',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppConstants.spacingSm,
+                      AppConstants.spacingMd,
+                      AppConstants.spacingSm,
+                      AppConstants.spacingSm,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.entry.folder.displayName,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: context.adaptiveTextPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          [
+                            '${widget.entry.songs.length} songs',
+                            if (widget.entry.folder.isRemovable == true)
+                              (widget.entry.folder.volumeState != null &&
+                                      widget.entry.folder.volumeState !=
+                                          'mounted')
+                                  ? 'USB not connected'
+                                  : 'External',
+                          ].join(' · '),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.adaptiveTextSecondary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -776,8 +791,7 @@ class _RootFolderCardState extends State<_RootFolderCard>
     );
   }
 
-  Widget _buildArtGrid(
-      BuildContext context, List<_ArtEntry> artworks) {
+  Widget _buildArtGrid(BuildContext context, List<_ArtEntry> artworks) {
     final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cardWidth = context.scaleSize(AppConstants.cardWidthMd);
     final targetWidth = (cardWidth * devicePixelRatio).round();
@@ -789,8 +803,9 @@ class _RootFolderCardState extends State<_RootFolderCard>
       children: artworks.map((entry) {
         if (entry.art != null && entry.art!.isNotEmpty) {
           return ClipRRect(
-            borderRadius:
-                BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
+            borderRadius: BorderRadius.all(
+              Radius.circular(AppConstants.radiusSm),
+            ),
             child: CachedImageWidget(
               imagePath: entry.art,
               audioSourcePath: entry.source,
@@ -810,8 +825,7 @@ class _RootFolderCardState extends State<_RootFolderCard>
 
   Widget _buildGridPlaceholder(BuildContext context) {
     return ClipRRect(
-      borderRadius:
-          BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
+      borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
       child: Container(
         color: AppColors.surfaceLight,
         child: const Icon(
@@ -964,18 +978,18 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     var songs = grouped.songs;
 
     if (_filterOption != SongFileTypeFilter.all) {
-      songs = songs
-          .where((s) => _filterOption.matches(s.fileType))
-          .toList();
+      songs = songs.where((s) => _filterOption.matches(s.fileType)).toList();
       subfolders = subfolders
-          .map((f) => FolderGroup(
-                name: f.name,
-                key: f.key,
-                folderUri: f.folderUri,
-                songs: f.songs
-                    .where((s) => _filterOption.matches(s.fileType))
-                    .toList(),
-              ))
+          .map(
+            (f) => FolderGroup(
+              name: f.name,
+              key: f.key,
+              folderUri: f.folderUri,
+              songs: f.songs
+                  .where((s) => _filterOption.matches(s.fileType))
+                  .toList(),
+            ),
+          )
           .where((f) => f.songs.isNotEmpty)
           .toList();
     }
@@ -1003,10 +1017,8 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
         });
     }
 
-    final totalCount = subfolders.fold<int>(
-          0,
-          (sum, g) => sum + g.songs.length,
-        ) +
+    final totalCount =
+        subfolders.fold<int>(0, (sum, g) => sum + g.songs.length) +
         songs.length;
 
     return Stack(
@@ -1036,8 +1048,12 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   }
 
   Widget _buildHeader(BuildContext context, int count) {
-    final title =
-        widget.prefix.isEmpty ? widget.displayName : widget.prefix.split('/').last;
+    final crumbs = [
+      widget.displayName,
+      if (widget.prefix.isNotEmpty)
+        ...widget.prefix.split('/').map(decodeUriDisplayComponent),
+    ];
+    final title = crumbs.last;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -1046,20 +1062,10 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: IconButton(
-              icon: Icon(
-                LucideIcons.arrowLeft,
-                color: context.adaptiveTextPrimary,
-                size: 20,
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
+          SurfaceIconButton.icon(
+            icon: LucideIcons.chevronLeft,
+            onPressed: () => Navigator.of(context).pop(),
+            iconColor: context.adaptiveTextPrimary,
           ),
           const SizedBox(width: AppConstants.spacingMd),
           Expanded(
@@ -1077,13 +1083,10 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
                     Expanded(
                       child: Text(
                         title,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: context.adaptiveTextPrimary,
-                            ),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: context.adaptiveTextPrimary,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1091,11 +1094,26 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  '$count items',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                Row(
+                  children: [
+                    if (crumbs.length > 1) ...[
+                      Flexible(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: _buildParentCrumbs(context, crumbs),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppConstants.spacingSm),
+                    ],
+                    Text(
+                      '$count items',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: context.adaptiveTextTertiary,
                       ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1103,42 +1121,61 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackground,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    LucideIcons.shuffle,
-                    color: context.adaptiveTextPrimary,
-                    size: 20,
-                  ),
-                  onPressed: () => _shuffleAll(context),
-                ),
+              SurfaceIconButton.icon(
+                icon: LucideIcons.shuffle,
+                onPressed: () => _shuffleAll(context),
+                iconColor: context.adaptiveTextPrimary,
               ),
               const SizedBox(width: AppConstants.spacingSm),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackground,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.sort_rounded,
-                    color: context.adaptiveTextPrimary,
-                    size: 20,
-                  ),
-                  onPressed: _showSortSheet,
-                ),
+              SurfaceIconButton.icon(
+                icon: Icons.sort_rounded,
+                onPressed: _showSortSheet,
+                iconColor: context.adaptiveTextPrimary,
               ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  List<Widget> _buildParentCrumbs(BuildContext context, List<String> crumbs) {
+    final parents = crumbs.sublist(0, crumbs.length - 1);
+    return [
+      for (var i = 0; i < parents.length; i++) ...[
+        if (i > 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Icon(
+              LucideIcons.chevronRight,
+              size: 12,
+              color: context.adaptiveTextTertiary,
+            ),
+          ),
+        InkWell(
+          onTap: () => _popLevels(crumbs.length - 1 - i),
+          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Text(
+              parents[i],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.adaptiveTextSecondary,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ];
+  }
+
+  void _popLevels(int levels) {
+    final navigator = Navigator.of(context);
+    for (var i = 0; i < levels && navigator.canPop(); i++) {
+      navigator.pop();
+    }
   }
 
   Widget _buildContent(
@@ -1151,15 +1188,40 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
       child: CustomScrollView(
         slivers: [
           if (subfolders.isNotEmpty)
-            SliverToBoxAdapter(child: _buildSubfolderGrid(context, subfolders)),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                AppConstants.spacingLg,
+                AppConstants.spacingSm,
+                AppConstants.spacingLg,
+                0,
+              ),
+              sliver: SliverGrid.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: context.gridColumns(
+                    compact: 2,
+                    phone: 2,
+                    tablet: 3,
+                  ),
+                  childAspectRatio: 0.70,
+                  crossAxisSpacing: AppConstants.spacingMd,
+                  mainAxisSpacing: AppConstants.spacingLg,
+                ),
+                itemCount: subfolders.length,
+                itemBuilder: (context, index) {
+                  final folder = subfolders[index];
+                  return _SubfolderCard(
+                    folder: folder,
+                    onTap: () => _openSubfolder(context, folder),
+                  );
+                },
+              ),
+            ),
           if (subfolders.isNotEmpty && songs.isNotEmpty)
             const SliverToBoxAdapter(
               child: SizedBox(height: AppConstants.spacingMd),
             ),
           SliverPadding(
-            padding: EdgeInsets.only(
-              bottom: AppConstants.navBarHeight + 120,
-            ),
+            padding: EdgeInsets.only(bottom: AppConstants.navBarHeight + 120),
             sliver: SliverList.builder(
               itemCount: songs.length,
               itemBuilder: (context, index) {
@@ -1183,41 +1245,14 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     );
   }
 
-  Widget _buildSubfolderGrid(
-      BuildContext context, List<FolderGroup> subfolders) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        AppConstants.spacingLg,
-        AppConstants.spacingSm,
-        AppConstants.spacingLg,
-        0,
-      ),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: context.gridColumns(compact: 2, phone: 2, tablet: 3),
-        childAspectRatio: 0.70,
-        crossAxisSpacing: AppConstants.spacingMd,
-        mainAxisSpacing: AppConstants.spacingLg,
-      ),
-      itemCount: subfolders.length,
-      itemBuilder: (context, index) {
-        final folder = subfolders[index];
-        return _SubfolderCard(
-          folder: folder,
-          onTap: () => _openSubfolder(context, folder),
-        );
-      },
-    );
-  }
-
   void _openSubfolder(BuildContext context, FolderGroup folder) {
-    NavigationHelper.pushFade(
-      context,
-      (_) => FolderBrowserScreen(
-        folderUri: widget.folderUri,
-        displayName: widget.displayName,
-        prefix: folder.key,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FolderBrowserScreen(
+          folderUri: widget.folderUri,
+          displayName: widget.displayName,
+          prefix: folder.key,
+        ),
       ),
     );
   }
@@ -1236,16 +1271,16 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
           Text(
             'No Songs Found',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: context.adaptiveTextSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: context.adaptiveTextSecondary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: AppConstants.spacingSm),
           Text(
             'This folder appears to be empty',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.adaptiveTextTertiary,
-                ),
+              color: context.adaptiveTextTertiary,
+            ),
           ),
         ],
       ),
@@ -1264,7 +1299,9 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     List<FolderGroup> subfolders,
   ) async {
     final playlist = _buildPlaylist(directSongs, subfolders);
-    await ref.read(playerProvider.notifier).play(song, playlist: playlist, context: _folderContext);
+    await ref
+        .read(playerProvider.notifier)
+        .play(song, playlist: playlist, context: _folderContext);
     if (mounted) {
       await NavigationHelper.navigateToFullPlayer(
         context,
@@ -1274,7 +1311,9 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   }
 
   List<Song> _buildPlaylist(
-      List<Song> directSongs, List<FolderGroup> subfolders) {
+    List<Song> directSongs,
+    List<FolderGroup> subfolders,
+  ) {
     final result = <Song>[];
     for (final folder in subfolders) {
       result.addAll(folder.songs);
@@ -1292,11 +1331,9 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     final playlist = _buildPlaylist(songs, subfolders);
     if (playlist.isEmpty) return;
     final shuffled = List<Song>.from(playlist)..shuffle(Random());
-    await ref.read(playerProvider.notifier).play(
-          shuffled.first,
-          playlist: shuffled,
-          context: _folderContext,
-        );
+    await ref
+        .read(playerProvider.notifier)
+        .play(shuffled.first, playlist: shuffled, context: _folderContext);
     if (mounted) {
       await NavigationHelper.navigateToFullPlayer(
         context,
@@ -1331,18 +1368,26 @@ class _SubfolderCardState extends State<_SubfolderCard>
       duration: AppConstants.animationFast,
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _tiltAnimation = Tween<double>(begin: 0.0, end: 0.02)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _cachedArtworks = _RootFolderCardState._computeArtworks(widget.folder.songs);
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _tiltAnimation = Tween<double>(
+      begin: 0.0,
+      end: 0.02,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _cachedArtworks = _RootFolderCardState._computeArtworks(
+      widget.folder.songs,
+    );
   }
 
   @override
   void didUpdateWidget(covariant _SubfolderCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.folder.songs, widget.folder.songs)) {
-      _cachedArtworks = _RootFolderCardState._computeArtworks(widget.folder.songs);
+      _cachedArtworks = _RootFolderCardState._computeArtworks(
+        widget.folder.songs,
+      );
     }
   }
 
@@ -1360,148 +1405,135 @@ class _SubfolderCardState extends State<_SubfolderCard>
       padded.add(const _ArtEntry(null, null));
     }
 
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        widget.onTap();
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.diagonal3Values(
+            _scaleAnimation.value,
+            _scaleAnimation.value,
+            1.0,
+          )..rotateZ(_tiltAnimation.value),
+          child: child,
+        );
       },
-      onTapCancel: () => _controller.reverse(),
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.diagonal3Values(
-              _scaleAnimation.value,
-              _scaleAnimation.value,
-              1.0,
-            )..rotateZ(_tiltAnimation.value),
-            child: child,
-          );
-        },
-        child: RepaintBoundary(
-          child: Material(
-            color: Colors.transparent,
+      child: RepaintBoundary(
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          child: InkWell(
+            onTap: widget.onTap,
+            onHighlightChanged: (highlighted) =>
+                highlighted ? _controller.forward() : _controller.reverse(),
             borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-            child: InkWell(
-              onTap: widget.onTap,
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AspectRatio(
-                      aspectRatio: 1,
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(AppConstants.radiusLg),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.18),
-                              blurRadius: 18,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(AppConstants.radiusLg),
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(AppConstants.radiusLg),
-                          ),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              _buildArtGrid(context, padded),
-                              Positioned.fill(
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.transparent,
-                                        Colors.black.withValues(alpha: 0.1),
-                                        Colors.black.withValues(alpha: 0.45),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                left: AppConstants.spacingSm,
-                                bottom: AppConstants.spacingSm,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppConstants.spacingSm,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.55),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.12),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    '${widget.folder.songs.length} tracks',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppConstants.spacingSm,
-                        AppConstants.spacingMd,
-                        AppConstants.spacingSm,
-                        AppConstants.spacingSm,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.folder.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(
-                                  color: context.adaptiveTextPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${widget.folder.songs.length} songs',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: context.adaptiveTextSecondary,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.18),
+                            blurRadius: 18,
+                            offset: const Offset(0, 10),
                           ),
                         ],
                       ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(AppConstants.radiusLg),
+                        ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            _buildArtGrid(context, padded),
+                            Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: 0.1),
+                                      Colors.black.withValues(alpha: 0.45),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: AppConstants.spacingSm,
+                              bottom: AppConstants.spacingSm,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppConstants.spacingSm,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.55),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                                child: Text(
+                                  '${widget.folder.songs.length} tracks',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppConstants.spacingSm,
+                      AppConstants.spacingMd,
+                      AppConstants.spacingSm,
+                      AppConstants.spacingSm,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.folder.name,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: context.adaptiveTextPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${widget.folder.songs.length} songs',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.adaptiveTextSecondary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1522,8 +1554,9 @@ class _SubfolderCardState extends State<_SubfolderCard>
       children: artworks.map((entry) {
         if (entry.art != null && entry.art!.isNotEmpty) {
           return ClipRRect(
-            borderRadius:
-                BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
+            borderRadius: BorderRadius.all(
+              Radius.circular(AppConstants.radiusSm),
+            ),
             child: CachedImageWidget(
               imagePath: entry.art,
               audioSourcePath: entry.source,
@@ -1543,8 +1576,7 @@ class _SubfolderCardState extends State<_SubfolderCard>
 
   Widget _buildGridPlaceholder(BuildContext context) {
     return ClipRRect(
-      borderRadius:
-          BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
+      borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
       child: Container(
         color: AppColors.surfaceLight,
         child: const Icon(
@@ -1618,9 +1650,9 @@ class _SongTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: context.adaptiveTextPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        color: context.adaptiveTextPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -1628,8 +1660,8 @@ class _SongTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.adaptiveTextSecondary,
-                          ),
+                        color: context.adaptiveTextSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -1638,9 +1670,9 @@ class _SongTile extends StatelessWidget {
               Text(
                 song.formattedDuration,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                  color: context.adaptiveTextTertiary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ],
           ),
@@ -1709,8 +1741,9 @@ class _FolderTreeViewState extends State<_FolderTreeView> {
         final node = widget.roots[index];
         return Padding(
           padding: EdgeInsets.only(
-            bottom:
-                index == widget.roots.length - 1 ? 0 : AppConstants.spacingSm,
+            bottom: index == widget.roots.length - 1
+                ? 0
+                : AppConstants.spacingSm,
           ),
           child: _buildNode(node, 0),
         );
@@ -1826,9 +1859,19 @@ class _FolderTreeRow extends StatelessWidget {
                 vertical: AppConstants.spacingXs,
               ),
               decoration: BoxDecoration(
-                color: isExpanded
-                    ? AppColors.glassBackgroundStrong
-                    : AppColors.glassBackground,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isExpanded
+                      ? [
+                          AppColors.surfaceLight.withValues(alpha: 0.92),
+                          AppColors.surface.withValues(alpha: 0.98),
+                        ]
+                      : [
+                          AppColors.surfaceLight.withValues(alpha: 0.7),
+                          AppColors.surface.withValues(alpha: 0.82),
+                        ],
+                ),
                 borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                 border: Border.all(
                   color: isExpanded
@@ -1857,9 +1900,7 @@ class _FolderTreeRow extends StatelessWidget {
                           node.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyLarge
+                          style: Theme.of(context).textTheme.bodyLarge
                               ?.copyWith(
                                 color: context.adaptiveTextPrimary,
                                 fontWeight: FontWeight.w600,
@@ -1870,12 +1911,8 @@ class _FolderTreeRow extends StatelessWidget {
                           _subtitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: context.adaptiveTextTertiary,
-                              ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.adaptiveTextTertiary),
                         ),
                       ],
                     ),
@@ -1944,7 +1981,7 @@ class _FolderTreeRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong,
+        color: AppColors.surfaceLight.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(AppConstants.radiusRound),
         border: Border.all(color: AppColors.glassBorder),
       ),
@@ -2009,10 +2046,7 @@ class _TreeLevelLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _VerticalLinePainter(x, color),
-      child: child,
-    );
+    return CustomPaint(painter: _VerticalLinePainter(x, color), child: child);
   }
 }
 
@@ -2129,15 +2163,17 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
                       children: [
                         Text(
                           'Folders shown per page',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.adaptiveTextTertiary,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.adaptiveTextTertiary),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.glassBackgroundStrong,
                       borderRadius: BorderRadius.circular(6),
@@ -2155,12 +2191,16 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
               ),
               SliderTheme(
                 data: SliderThemeData(
-                  activeTrackColor: AppColors.textPrimary.withValues(alpha: 0.9),
+                  activeTrackColor: AppColors.textPrimary.withValues(
+                    alpha: 0.9,
+                  ),
                   inactiveTrackColor: AppColors.glassBackgroundStrong,
                   thumbColor: AppColors.textPrimary,
                   overlayColor: AppColors.textPrimary.withValues(alpha: 0.15),
                   trackHeight: 4,
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 10,
+                  ),
                 ),
                 child: Slider(
                   value: _pageSize,
@@ -2242,7 +2282,9 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
                   label,
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                     color: isSelected
                         ? AppColors.accent
                         : context.adaptiveTextPrimary,
@@ -2401,7 +2443,9 @@ class _FolderBrowserSortSheet extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                     color: isSelected
                         ? AppColors.accent
                         : context.adaptiveTextPrimary,
@@ -2476,9 +2520,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected
-                ? AppColors.accent
-                : context.adaptiveTextPrimary,
+            color: isSelected ? AppColors.accent : context.adaptiveTextPrimary,
           ),
         ),
       ),

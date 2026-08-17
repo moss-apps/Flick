@@ -11,7 +11,9 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
+import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/features/player/widgets/ambient_background.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
   const FavoritesScreen({super.key});
@@ -195,28 +197,36 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   Widget build(BuildContext context) {
     final removalMode =
         ref.watch(appPreferencesProvider).favoriteRemovalMode;
+    final currentSong = ref.watch(currentSongProvider);
 
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_selectionMode)
-                _buildSelectionHeader(context)
-              else
-                _buildHeader(context),
-              Expanded(
-                child: _isLoading
-                    ? _buildLoadingState()
-                    : _favorites.isEmpty
-                        ? _buildEmptyState()
-                        : _buildFavoritesList(removalMode),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: AmbientBackground(song: currentSong),
+            ),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_selectionMode)
+                    _buildSelectionHeader(context)
+                  else
+                    _buildHeader(context),
+                  Expanded(
+                    child: _isLoading
+                        ? _buildLoadingState()
+                        : _favorites.isEmpty
+                            ? _buildEmptyState()
+                            : _buildFavoritesList(removalMode),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -278,20 +288,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
       child: Row(
         children: [
           if (Navigator.of(context).canPop()) ...[
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.glassBackground,
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                border: Border.all(color: AppColors.glassBorder),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  LucideIcons.arrowLeft,
-                  color: context.adaptiveTextPrimary,
-                  size: context.responsiveIcon(AppConstants.iconSizeMd),
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
+            SurfaceIconButton.icon(
+              icon: LucideIcons.chevronLeft,
+              onPressed: () => Navigator.of(context).pop(),
+              iconColor: context.adaptiveTextPrimary,
             ),
             const SizedBox(width: AppConstants.spacingMd),
           ],
@@ -316,40 +316,19 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
             ),
           ),
           if (_favorites.isNotEmpty) ...[
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.glassBackground,
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                border: Border.all(color: AppColors.glassBorder),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  LucideIcons.checkCheck,
-                  color: context.adaptiveTextPrimary,
-                  size: context.responsiveIcon(AppConstants.iconSizeMd),
-                ),
-                tooltip: 'Select',
-                onPressed: () => _enterSelectionMode(null),
-              ),
+            SurfaceIconButton.icon(
+              icon: LucideIcons.checkCheck,
+              onPressed: () => _enterSelectionMode(null),
+              iconColor: context.adaptiveTextPrimary,
             ),
             const SizedBox(width: AppConstants.spacingSm),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.glassBackground,
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                border: Border.all(color: AppColors.glassBorder),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  LucideIcons.shuffle,
-                  color: context.adaptiveTextPrimary,
-                  size: context.responsiveIcon(AppConstants.iconSizeMd),
-                ),
-                onPressed: () {
-                  final shuffled = List<Song>.from(_favorites)..shuffle();
-                  _playerService.play(shuffled.first, playlist: shuffled);
-                },
-              ),
+            SurfaceIconButton.icon(
+              icon: LucideIcons.shuffle,
+              onPressed: () {
+                final shuffled = List<Song>.from(_favorites)..shuffle();
+                _playerService.play(shuffled.first, playlist: shuffled);
+              },
+              iconColor: context.adaptiveTextPrimary,
             ),
           ],
         ],

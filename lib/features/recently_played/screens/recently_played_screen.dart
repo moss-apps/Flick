@@ -14,6 +14,7 @@ import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/glass_dialog.dart';
+import 'package:flick/widgets/common/surface_icon_button.dart';
 
 /// Number of history entries fetched per page.
 const int _kPageSize = 50;
@@ -255,22 +256,14 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: IconButton(
-              icon: Icon(
-                LucideIcons.arrowLeft,
-                color: context.adaptiveTextPrimary,
-                size: context.responsiveIcon(AppConstants.iconSizeMd),
-              ),
+          if (Navigator.of(context).canPop()) ...[
+            SurfaceIconButton.icon(
+              icon: LucideIcons.chevronLeft,
               onPressed: () => Navigator.of(context).pop(),
+              iconColor: context.adaptiveTextPrimary,
             ),
-          ),
-          const SizedBox(width: AppConstants.spacingMd),
+            const SizedBox(width: AppConstants.spacingMd),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,20 +285,10 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
             ),
           ),
           if (_groupedHistory.isNotEmpty)
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.glassBackground,
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                border: Border.all(color: AppColors.glassBorder),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  LucideIcons.trash2,
-                  color: context.adaptiveTextSecondary,
-                  size: context.responsiveIcon(AppConstants.iconSizeMd),
-                ),
-                onPressed: _clearHistory,
-              ),
+            SurfaceIconButton.icon(
+              icon: LucideIcons.trash2,
+              onPressed: _clearHistory,
+              iconColor: context.adaptiveTextSecondary,
             ),
         ],
       ),

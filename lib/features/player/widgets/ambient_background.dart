@@ -27,6 +27,26 @@ import 'package:flick/core/utils/dev_log.dart';
 /// Shared cache so parallel [AmbientBackground] instances don't recompute.
 final Map<String, ui.Image> _blurCache = {};
 
+/// Maps a song's input key (albumArt path, or filePath when art is embedded)
+/// to the resolved art path that was actually blurred. Lets newly pushed
+/// screens seed their first frame synchronously instead of flashing empty
+/// while the async resolution runs.
+final Map<String, String> _resolvedPathIndex = {};
+
+/// Marks a subtree as already sitting on a shared [AmbientBackground]
+/// (the bottom-bar shell). Any [AmbientBackground] under this scope
+/// renders nothing, so tab screens don't stack a second instance.
+class AmbientBackgroundScope extends InheritedWidget {
+  const AmbientBackgroundScope({super.key, required super.child});
+
+  static bool isPresent(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AmbientBackgroundScope>() !=
+      null;
+
+  @override
+  bool updateShouldNotify(AmbientBackgroundScope oldWidget) => false;
+}
+
 class AmbientBackground extends StatefulWidget {
   final Song? song;
 
@@ -67,13 +87,23 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
     }
   }
 
+  /// Key used to remember how this song's art was resolved.
+  String? get _inputKey {
+    final art = widget.song?.albumArt;
+    if (art != null && art.isNotEmpty) return art;
+    return widget.song?.filePath;
+  }
+
   /// Seeded synchronously so [build] never starts with a null image
   /// when the artwork is already cached.
   void _syncInitFromCache() {
-    final albumArt = widget.song?.albumArt;
-    if (albumArt != null && albumArt.isNotEmpty && _blurCache.containsKey(albumArt)) {
-      _blurredImage = _blurCache[albumArt];
-      _currentPath = albumArt;
+    final key = _inputKey;
+    if (key == null) return;
+    final resolved = _resolvedPathIndex[key] ?? key;
+    final image = _blurCache[resolved];
+    if (image != null) {
+      _blurredImage = image;
+      _currentPath = resolved;
     }
   }
 
@@ -96,6 +126,9 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
       }
       return;
     }
+
+    final input = _inputKey;
+    if (input != null) _resolvedPathIndex[input] = resolvedPath;
 
     // If another widget already blurred this path, reuse it instantly.
     if (_blurCache.containsKey(resolvedPath)) {
@@ -206,31 +239,39 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
 
   @override
   Widget build(BuildContext context) {
+    // Shared shell background already exists below this subtree.
+    if (AmbientBackgroundScope.isPresent(context)) {
+      return const SizedBox.shrink();
+    }
     if (widget.song?.albumArt == null && widget.song?.filePath == null) {
       return const SizedBox.shrink();
+    }
+
+    final image = _blurredImage;
+    // No cross-fade from empty: a fresh screen shows the image instantly.
+    if (image == null) {
+      return const SizedBox.expand();
     }
 
     return RepaintBoundary(
       child: AnimatedSwitcher(
         duration: AppConstants.animationSlow,
-        child: _blurredImage != null
-            ? SizedBox.expand(
-                key: ValueKey(_currentPath),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Pre-blurred raster — zero GPU filter cost per frame
-                    RawImage(
-                      image: _blurredImage,
-                      fit: BoxFit.cover,
-                      opacity: const AlwaysStoppedAnimation(0.6),
-                    ),
-                    // Dark scrim for readability
-                    ColoredBox(color: Colors.black.withValues(alpha: 0.3)),
-                  ],
-                ),
-              )
-            : const SizedBox.expand(key: ValueKey('placeholder')),
+        child: SizedBox.expand(
+          key: ValueKey(_currentPath),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Pre-blurred raster — zero GPU filter cost per frame
+              RawImage(
+                image: image,
+                fit: BoxFit.cover,
+                opacity: const AlwaysStoppedAnimation(0.6),
+              ),
+              // Dark scrim for readability
+              ColoredBox(color: Colors.black.withValues(alpha: 0.3)),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -57,6 +59,10 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
                 },
               ),
               const SettingsDivider(),
+              if (Platform.isAndroid) ...[
+                _DuckOnInterruptionTile(playerService: playerService),
+                const SettingsDivider(),
+              ],
               ToggleSetting(
                 icon: LucideIcons.pictureInPicture2,
                 title: 'Floating Mini-Player',
@@ -202,6 +208,31 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppConstants.navBarHeight + 40),
         ],
       ),
+    );
+  }
+}
+
+class _DuckOnInterruptionTile extends StatelessWidget {
+  const _DuckOnInterruptionTile({required this.playerService});
+
+  final PlayerService playerService;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: playerService.duckOnInterruptionNotifier,
+      builder: (context, _) {
+        final duck = playerService.duckOnInterruptionNotifier.value;
+        return ToggleSetting(
+          icon: LucideIcons.bellOff,
+          title: 'Duck on Notifications',
+          subtitle: duck
+              ? 'Volume dips while notification sounds play'
+              : 'Playback pauses while notification sounds play',
+          value: duck,
+          onChanged: (value) => playerService.setDuckOnInterruption(value),
+        );
+      },
     );
   }
 }

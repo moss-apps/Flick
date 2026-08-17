@@ -10,10 +10,11 @@ import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/artists/screens/artist_detail_screen.dart';
+import 'package:flick/features/player/widgets/ambient_background.dart';
+import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
-import 'package:flick/providers/navigation_provider.dart';
-import 'package:flick/providers/app_preferences_provider.dart';
+import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
 
@@ -181,6 +182,8 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentSong = ref.watch(currentSongProvider);
+
     if (!_visibilitySet) {
       _visibilitySet = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -194,21 +197,28 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: _isLoading
-                    ? _buildLoadingState()
-                    : _artists.isEmpty
-                    ? _buildEmptyState()
-                    : _buildArtistsList(),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: AmbientBackground(song: currentSong),
+            ),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context),
+                  Expanded(
+                    child: _isLoading
+                        ? _buildLoadingState()
+                        : _artists.isEmpty
+                        ? _buildEmptyState()
+                        : _buildArtistsList(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -228,20 +238,10 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
           Row(
             children: [
               if (Navigator.of(context).canPop()) ...[
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.glassBackground,
-                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                    border: Border.all(color: AppColors.glassBorder),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      LucideIcons.arrowLeft,
-                      color: context.adaptiveTextPrimary,
-                      size: context.responsiveIcon(AppConstants.iconSizeMd),
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
+                SurfaceIconButton.icon(
+                  icon: LucideIcons.chevronLeft,
+                  onPressed: () => Navigator.of(context).pop(),
+                  iconColor: context.adaptiveTextPrimary,
                 ),
                 const SizedBox(width: AppConstants.spacingMd),
               ],
@@ -266,20 +266,10 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
                   ],
                 ),
               ),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackground,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.sort_rounded,
-                    color: context.adaptiveTextPrimary,
-                    size: context.responsiveIcon(AppConstants.iconSizeMd),
-                  ),
-                  onPressed: _showSortSheet,
-                ),
+              SurfaceIconButton.icon(
+                icon: Icons.sort_rounded,
+                onPressed: _showSortSheet,
+                iconColor: context.adaptiveTextPrimary,
               ),
             ],
           ),
