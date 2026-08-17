@@ -74,6 +74,40 @@ import 'package:flick/widgets/common/display_mode_wrapper.dart';
   return (subfolders: sortedFolders, songs: directSongs);
 }
 
+/// Builds a tree node for [prefix] inside [folderUri], recursing into
+/// subfolders of [folderSongs] (filtered to [prefix] by grouping).
+_FolderTreeNode _buildFolderTreeNode(
+  String folderUri,
+  String prefix,
+  String name,
+  List<Song> folderSongs,
+) {
+  final grouped = groupByImmediateFolder(
+    allSongs: folderSongs,
+    folderUri: folderUri,
+    prefix: prefix,
+  );
+
+  final children = grouped.subfolders.map((sub) {
+    final childName = decodeUriDisplayComponent(sub.key.split('/').last);
+    return _buildFolderTreeNode(folderUri, sub.key, childName, sub.songs);
+  }).toList();
+
+  final childSongCount = children.fold<int>(
+    0,
+    (sum, node) => sum + node.songCount,
+  );
+
+  return _FolderTreeNode(
+    folderUri: folderUri,
+    key: prefix,
+    name: name,
+    songs: grouped.songs,
+    children: children,
+    songCount: grouped.songs.length + childSongCount,
+  );
+}
+
 enum FolderRootSortOption { name, songCount }
 
 enum FolderBrowserSortOption { name, songCount, title, artist, dateAdded }
@@ -472,7 +506,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
           .where((s) => s.folderUri == folder.uri)
           .toList();
       roots.add(
-        _buildTreeNode(folder.uri, '', folder.displayName, folderSongs),
+        _buildFolderTreeNode(folder.uri, '', folder.displayName, folderSongs),
       );
     }
 
@@ -492,38 +526,6 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
     _treeRootsSongsId = allSongs;
     _treeRootsSongsLen = allSongs.length;
     return roots;
-  }
-
-  _FolderTreeNode _buildTreeNode(
-    String folderUri,
-    String prefix,
-    String name,
-    List<Song> folderSongs,
-  ) {
-    final grouped = groupByImmediateFolder(
-      allSongs: folderSongs,
-      folderUri: folderUri,
-      prefix: prefix,
-    );
-
-    final children = grouped.subfolders.map((sub) {
-      final childName = decodeUriDisplayComponent(sub.key.split('/').last);
-      return _buildTreeNode(folderUri, sub.key, childName, sub.songs);
-    }).toList();
-
-    final childSongCount = children.fold<int>(
-      0,
-      (sum, node) => sum + node.songCount,
-    );
-
-    return _FolderTreeNode(
-      folderUri: folderUri,
-      key: prefix,
-      name: name,
-      songs: grouped.songs,
-      children: children,
-      songCount: grouped.songs.length + childSongCount,
-    );
   }
 
   void _openTreeFolder(_FolderTreeNode node) {
@@ -861,6 +863,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   bool _isLoading = true;
   FolderBrowserSortOption _sortOption = FolderBrowserSortOption.name;
   SongFileTypeFilter _filterOption = SongFileTypeFilter.all;
+  FolderViewMode _viewMode = FolderViewMode.grid;
 
   @override
   void initState() {
@@ -871,6 +874,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     });
     _loadSortOption();
     _loadFilterOption();
+    _loadViewMode();
   }
 
   Future<void> _loadSongs() async {
@@ -923,6 +927,27 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     await prefs.setString('folder_browser_filter_option', option.name);
     if (mounted) {
       setState(() => _filterOption = option);
+    }
+  }
+
+  Future<void> _loadViewMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString('folder_view_mode');
+    if (!mounted) return;
+    final mode = FolderViewMode.values.firstWhere(
+      (v) => v.name == value,
+      orElse: () => FolderViewMode.grid,
+    );
+    if (mode != _viewMode) {
+      setState(() => _viewMode = mode);
+    }
+  }
+
+  Future<void> _setViewMode(FolderViewMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('folder_view_mode', mode.name);
+    if (mounted) {
+      setState(() => _viewMode = mode);
     }
   }
 
@@ -1021,6 +1046,9 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
         subfolders.fold<int>(0, (sum, g) => sum + g.songs.length) +
         songs.length;
 
+    final treeMode = _viewMode == FolderViewMode.tree;
+    final treeNode = treeMode ? _resolveTreeNode() : null;
+
     return Stack(
       children: [
         Scaffold(
@@ -1033,7 +1061,11 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
                 children: [
                   _buildHeader(context, totalCount),
                   Expanded(
-                    child: subfolders.isEmpty && songs.isEmpty
+                    child: treeMode
+                        ? (treeNode!.children.isEmpty && treeNode.songs.isEmpty
+                              ? _buildEmptyState(context)
+                              : _buildTreeContent(treeNode))
+                        : subfolders.isEmpty && songs.isEmpty
                         ? _buildEmptyState(context)
                         : _buildContent(context, subfolders, songs),
                   ),
@@ -1044,6 +1076,41 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
         ),
         const FloatingMiniPlayer(),
       ],
+    );
+  }
+
+  _FolderTreeNode? _treeNode;
+  List<Song>? _treeNodeSongs;
+  String? _treeNodePrefix;
+
+  _FolderTreeNode _resolveTreeNode() {
+    final cached = _treeNode;
+    if (cached != null &&
+        identical(_treeNodeSongs, _allSongs) &&
+        _treeNodePrefix == widget.prefix) {
+      return cached;
+    }
+
+    final node = _buildFolderTreeNode(
+      widget.folderUri,
+      widget.prefix,
+      '',
+      _allSongs,
+    );
+
+    _treeNode = node;
+    _treeNodeSongs = _allSongs;
+    _treeNodePrefix = widget.prefix;
+    return node;
+  }
+
+  Widget _buildTreeContent(_FolderTreeNode node) {
+    return _FolderTreeView(
+      roots: node.children,
+      rootSongs: node.songs,
+      onFolderTap: (child) => _openSubfolderKey(child.key),
+      onSongTap: (_, song) => _playSong(song, node.allSongs, const []),
+      onRootSongTap: (song) => _playSong(song, node.allSongs, const []),
     );
   }
 
@@ -1121,6 +1188,18 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              SurfaceIconButton.icon(
+                icon: _viewMode == FolderViewMode.grid
+                    ? LucideIcons.list
+                    : LucideIcons.layoutGrid,
+                onPressed: () => _setViewMode(
+                  _viewMode == FolderViewMode.grid
+                      ? FolderViewMode.tree
+                      : FolderViewMode.grid,
+                ),
+                iconColor: context.adaptiveTextPrimary,
+              ),
+              const SizedBox(width: AppConstants.spacingSm),
               SurfaceIconButton.icon(
                 icon: LucideIcons.shuffle,
                 onPressed: () => _shuffleAll(context),
@@ -1246,12 +1325,16 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   }
 
   void _openSubfolder(BuildContext context, FolderGroup folder) {
+    _openSubfolderKey(folder.key);
+  }
+
+  void _openSubfolderKey(String key) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => FolderBrowserScreen(
           folderUri: widget.folderUri,
           displayName: widget.displayName,
-          prefix: folder.key,
+          prefix: key,
         ),
       ),
     );
@@ -1692,13 +1775,17 @@ class _ArtEntry {
 /// Expandable tree view of folder hierarchies with their songs.
 class _FolderTreeView extends StatefulWidget {
   final List<_FolderTreeNode> roots;
+  final List<Song> rootSongs;
   final ValueChanged<_FolderTreeNode> onFolderTap;
   final void Function(_FolderTreeNode, Song) onSongTap;
+  final ValueChanged<Song>? onRootSongTap;
 
   const _FolderTreeView({
     required this.roots,
+    this.rootSongs = const [],
     required this.onFolderTap,
     required this.onSongTap,
+    this.onRootSongTap,
   });
 
   @override
@@ -1729,6 +1816,7 @@ class _FolderTreeViewState extends State<_FolderTreeView> {
 
   @override
   Widget build(BuildContext context) {
+    final itemCount = widget.roots.length + widget.rootSongs.length;
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
         AppConstants.spacingMd,
@@ -1736,16 +1824,31 @@ class _FolderTreeViewState extends State<_FolderTreeView> {
         AppConstants.spacingMd,
         AppConstants.navBarHeight + 120,
       ),
-      itemCount: widget.roots.length,
+      itemCount: itemCount,
       itemBuilder: (context, index) {
-        final node = widget.roots[index];
+        final isLast = index == itemCount - 1;
+        if (index < widget.roots.length) {
+          final node = widget.roots[index];
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: isLast ? 0 : AppConstants.spacingSm,
+            ),
+            child: _buildNode(node, 0),
+          );
+        }
+        final song = widget.rootSongs[index - widget.roots.length];
         return Padding(
           padding: EdgeInsets.only(
-            bottom: index == widget.roots.length - 1
-                ? 0
-                : AppConstants.spacingSm,
+            bottom: isLast ? 0 : AppConstants.spacingSm,
           ),
-          child: _buildNode(node, 0),
+          child: _FolderTreeSongTile(
+            song: song,
+            depth: 0,
+            step: _indentStep,
+            offset: _guideOffset,
+            color: _guideColor(context),
+            onTap: () => widget.onRootSongTap?.call(song),
+          ),
         );
       },
     );
@@ -2018,16 +2121,18 @@ class _FolderTreeSongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tile = Padding(
+      padding: EdgeInsets.only(left: depth * step),
+      child: _SongTile(song: song, onTap: onTap),
+    );
+    if (depth == 0) return tile;
     return CustomPaint(
       painter: _TreeTickPainter(
         (depth - 1) * step + offset,
         depth * step,
         color,
       ),
-      child: Padding(
-        padding: EdgeInsets.only(left: depth * step),
-        child: _SongTile(song: song, onTap: onTap),
-      ),
+      child: tile,
     );
   }
 }

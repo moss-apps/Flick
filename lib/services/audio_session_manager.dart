@@ -261,14 +261,19 @@ class AudioSessionManager {
     );
 
     if (info.isBluetoothRoute) {
-      // ponytail: Hi-Res Direct no longer swaps the BT engine. dapInternalHighRes
-      // is a wired/internal path; on A2DP it caused level loss + 5-10s dropouts
-      // (link-budget underruns). Codec quality stays driven by the user's codec
-      // prefs (_applyBluetoothCodecPrefs). Hi-Res Direct state is logged above.
-      if (Uac2PreferencesService.isBtLowLatencyModeSync) {
+      // ponytail: dapInternalHighRes is never used on BT (level loss + 5-10s
+      // dropouts on A2DP); both output-mode toggles use the stable shared
+      // Rust Oboe stream. Codec quality stays driven by codec prefs.
+      final outputModeReason = Uac2PreferencesService.isBtLowLatencyModeSync
+          ? 'Low-latency mode'
+          : Uac2PreferencesService.isBtHiResDirectSync
+          ? 'Hi-Res Direct'
+          : null;
+      if (outputModeReason != null) {
         _debugLog(
-          '[Session] Selected RUST_OBOE for Bluetooth because Low-latency mode '
-          'is enabled (${info.routeLabel ?? info.routeType ?? 'unknown'})',
+          '[Session] Selected RUST_OBOE for Bluetooth because '
+          '$outputModeReason is enabled '
+          '(${info.routeLabel ?? info.routeType ?? 'unknown'})',
         );
         return AudioEngineType.rustOboe;
       }
