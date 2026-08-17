@@ -30,6 +30,7 @@ import 'package:flick/widgets/common/glass_search_bar.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
+import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
@@ -2039,45 +2040,10 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    final isCompact = context.isCompact;
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.surfaceLight.withValues(alpha: 0.75),
-            AppColors.surface.withValues(alpha: 0.85),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        border: Border.all(color: AppColors.glassBorder, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 12,
-            spreadRadius: 1,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: IconButton(
-        onPressed: onTap,
-        visualDensity: isCompact
-            ? VisualDensity.compact
-            : VisualDensity.standard,
-        constraints: isCompact
-            ? const BoxConstraints(minWidth: 36, minHeight: 36)
-            : const BoxConstraints(minWidth: 44, minHeight: 44),
-        padding: isCompact
-            ? const EdgeInsets.all(4)
-            : const EdgeInsets.all(8),
-        icon: Icon(
-          icon,
-          color: context.adaptiveTextSecondary,
-          size: context.responsiveIcon(AppConstants.iconSizeMd),
-        ),
-      ),
+    return SurfaceIconButton.icon(
+      icon: icon,
+      onPressed: onTap,
+      compact: context.isCompact,
     );
   }
 
