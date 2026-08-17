@@ -537,7 +537,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
               children: [
                 IconButton(
                   icon: Icon(
-                    LucideIcons.arrowLeft,
+                    LucideIcons.chevronLeft,
                     color: context.adaptiveTextPrimary,
                   ),
                   onPressed: () => Navigator.of(context).pop(),
@@ -646,7 +646,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
           left: 16,
           child: IconButton(
             icon: Icon(
-              LucideIcons.arrowLeft,
+              LucideIcons.chevronLeft,
               color: context.adaptiveTextPrimary,
             ),
             onPressed: () => Navigator.of(context).pop(),

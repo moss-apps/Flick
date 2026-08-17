@@ -568,7 +568,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
               children: [
                 IconButton(
                   icon: Icon(
-                    LucideIcons.arrowLeft,
+                    LucideIcons.chevronLeft,
                     color: context.adaptiveTextPrimary,
                   ),
                   onPressed: () => Navigator.of(context).pop(),
@@ -709,7 +709,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
           left: 16,
           child: IconButton(
             icon: Icon(
-              LucideIcons.arrowLeft,
+              LucideIcons.chevronLeft,
               color: context.adaptiveTextPrimary,
             ),
             onPressed: () => Navigator.of(context).pop(),

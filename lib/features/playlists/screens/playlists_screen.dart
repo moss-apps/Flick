@@ -12,7 +12,10 @@ import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/services/sources/network_source_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
+import 'package:flick/features/player/widgets/ambient_background.dart';
+import 'package:flick/providers/player_provider.dart';
 
 class PlaylistsScreen extends ConsumerWidget {
   const PlaylistsScreen({super.key});
@@ -23,26 +26,34 @@ class PlaylistsScreen extends ConsumerWidget {
       ref.read(navBarVisibleProvider.notifier).setVisible(true);
     });
     final playlistsAsync = ref.watch(playlistsProvider);
+    final currentSong = ref.watch(currentSongProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, ref),
-            Expanded(
-              child: playlistsAsync.when(
-                loading: () => _buildLoadingState(context),
-                error: (e, _) => _buildErrorState(context, e.toString()),
-                data: (state) => state.playlists.isEmpty
-                    ? _buildEmptyState(context)
-                    : _buildPlaylistsList(context, ref, state.playlists),
-              ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: AmbientBackground(song: currentSong),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context, ref),
+                Expanded(
+                  child: playlistsAsync.when(
+                    loading: () => _buildLoadingState(context),
+                    error: (e, _) => _buildErrorState(context, e.toString()),
+                    data: (state) => state.playlists.isEmpty
+                        ? _buildEmptyState(context)
+                        : _buildPlaylistsList(context, ref, state.playlists),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
 
     );
@@ -59,20 +70,10 @@ class PlaylistsScreen extends ConsumerWidget {
       child: Row(
         children: [
           if (Navigator.of(context).canPop()) ...[
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: IconButton(
-              icon: Icon(
-                LucideIcons.arrowLeft,
-                color: context.adaptiveTextPrimary,
-                size: context.responsiveIcon(AppConstants.iconSizeMd),
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
+          SurfaceIconButton.icon(
+            icon: LucideIcons.chevronLeft,
+            onPressed: () => Navigator.of(context).pop(),
+            iconColor: context.adaptiveTextPrimary,
           ),
           const SizedBox(width: AppConstants.spacingMd),
           ],
@@ -98,12 +99,7 @@ class PlaylistsScreen extends ConsumerWidget {
               ],
             ),
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
+          SurfaceIconButton(
             child: PopupMenuButton<String>(
               icon: Icon(
                 LucideIcons.ellipsisVertical,

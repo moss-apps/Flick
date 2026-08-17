@@ -10,11 +10,12 @@ import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/screens/album_detail_screen.dart';
+import 'package:flick/features/player/widgets/ambient_background.dart';
+import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
-import 'package:flick/providers/navigation_provider.dart';
-import 'package:flick/providers/app_preferences_provider.dart';
 
 enum AlbumSortOption { name, artist, tracks }
 
@@ -152,6 +153,8 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentSong = ref.watch(currentSongProvider);
+
     if (!_visibilitySet) {
       _visibilitySet = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -165,21 +168,28 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: _isLoading
-                    ? _buildLoadingState()
-                    : _sortedAlbums.isEmpty
-                    ? _buildEmptyState()
-                    : _buildAlbumsGrid(),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: AmbientBackground(song: currentSong),
+            ),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context),
+                  Expanded(
+                    child: _isLoading
+                        ? _buildLoadingState()
+                        : _sortedAlbums.isEmpty
+                        ? _buildEmptyState()
+                        : _buildAlbumsGrid(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -199,20 +209,10 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
           Row(
             children: [
               if (Navigator.of(context).canPop()) ...[
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.glassBackground,
-                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                    border: Border.all(color: AppColors.glassBorder),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      LucideIcons.arrowLeft,
-                      color: context.adaptiveTextPrimary,
-                      size: context.responsiveIcon(AppConstants.iconSizeMd),
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
+                SurfaceIconButton.icon(
+                  icon: LucideIcons.chevronLeft,
+                  onPressed: () => Navigator.of(context).pop(),
+                  iconColor: context.adaptiveTextPrimary,
                 ),
                 const SizedBox(width: AppConstants.spacingMd),
               ],
@@ -237,20 +237,10 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                   ],
                 ),
               ),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackground,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.sort_rounded,
-                    color: context.adaptiveTextPrimary,
-                    size: context.responsiveIcon(AppConstants.iconSizeMd),
-                  ),
-                  onPressed: _showSortSheet,
-                ),
+              SurfaceIconButton.icon(
+                icon: Icons.sort_rounded,
+                onPressed: _showSortSheet,
+                iconColor: context.adaptiveTextPrimary,
               ),
             ],
           ),
