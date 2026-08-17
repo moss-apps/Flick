@@ -862,7 +862,9 @@ class _MainShellState extends ConsumerState<MainShell>
     required Widget child,
   }) {
     return RepaintBoundary(
-      child: TickerMode(enabled: currentIndex == tabIndex, child: child),
+      child: AmbientBackgroundScope(
+        child: TickerMode(enabled: currentIndex == tabIndex, child: child),
+      ),
     );
   }
 
