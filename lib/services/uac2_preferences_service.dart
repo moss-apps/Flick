@@ -35,6 +35,7 @@ class Uac2PreferencesService {
   static const _keyUsbSoftwareVolume = 'uac2_usb_software_volume';
   static const _keyKillIsochronousUsbOnQuit = 'uac2_kill_isochronous_usb_on_quit';
   static const _keyGaplessPlaybackEnabled = 'gapless_playback_enabled';
+  static const _keyDuckOnInterruption = 'duck_on_interruption_enabled';
   static const _keyDsdOutputMode = 'dsd_output_mode';
   static const _keyAutoSwitchDsdForVolume = 'auto_switch_dsd_for_volume';
   static const _keyDsdByteOrderOverride = 'dsd_byte_order_override';
@@ -423,6 +424,25 @@ class Uac2PreferencesService {
     }
   }
 
+  Future<bool> getDuckOnInterruption() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_keyDuckOnInterruption) ?? true;
+    } catch (e) {
+      devLog('Failed to load duck-on-interruption setting: $e');
+      return true;
+    }
+  }
+
+  Future<void> setDuckOnInterruption(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyDuckOnInterruption, enabled);
+    } catch (e) {
+      devLog('Failed to save duck-on-interruption setting: $e');
+    }
+  }
+
   Future<void> setBtLowLatencyMode(bool enabled) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -607,6 +627,7 @@ await prefs.remove(_keyAudioEnginePreference);
       await prefs.remove(_keyUsbSoftwareVolume);
     await prefs.remove(_keyKillIsochronousUsbOnQuit);
     await prefs.remove(_keyGaplessPlaybackEnabled);
+    await prefs.remove(_keyDuckOnInterruption);
     await prefs.remove(_keyDsdOutputMode);
     await prefs.remove(_keyAutoSwitchDsdForVolume);
     await prefs.remove(_keyBtLowLatencyMode);
