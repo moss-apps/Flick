@@ -33,6 +33,20 @@ final Map<String, ui.Image> _blurCache = {};
 /// while the async resolution runs.
 final Map<String, String> _resolvedPathIndex = {};
 
+/// Marks a subtree as already sitting on a shared [AmbientBackground]
+/// (the bottom-bar shell). Any [AmbientBackground] under this scope
+/// renders nothing, so tab screens don't stack a second instance.
+class AmbientBackgroundScope extends InheritedWidget {
+  const AmbientBackgroundScope({super.key, required super.child});
+
+  static bool isPresent(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AmbientBackgroundScope>() !=
+      null;
+
+  @override
+  bool updateShouldNotify(AmbientBackgroundScope oldWidget) => false;
+}
+
 class AmbientBackground extends StatefulWidget {
   final Song? song;
 
@@ -225,6 +239,10 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
 
   @override
   Widget build(BuildContext context) {
+    // Shared shell background already exists below this subtree.
+    if (AmbientBackgroundScope.isPresent(context)) {
+      return const SizedBox.shrink();
+    }
     if (widget.song?.albumArt == null && widget.song?.filePath == null) {
       return const SizedBox.shrink();
     }
