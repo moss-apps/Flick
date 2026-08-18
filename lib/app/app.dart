@@ -32,6 +32,7 @@ import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
 import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flick/features/onboarding/widgets/tutorial_overlay.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/library_scanner_service.dart';
 import 'package:flick/services/player_service.dart';
@@ -810,6 +811,9 @@ class _MainShellState extends ConsumerState<MainShell>
 
                 // Interactive tutorial overlay
                 const Positioned.fill(child: TutorialOverlay()),
+
+                // USB DAC attach → bit-perfect switch prompt
+                const UsbBitPerfectPrompt(),
               ],
             ),
           ),
