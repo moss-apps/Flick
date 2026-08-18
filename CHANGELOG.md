@@ -7,6 +7,9 @@ Changes landing on top of the current pre-release are tracked here and folded in
 ### Folders
 - Hierarchy (tree) view now available inside folders via the grid/list toggle — matches the root Folders screen; view mode persists across screens.
 
+### Lyrics
+- Embedded lyrics now read from MP4/M4A `©lyr` atoms (UTF-8 and UTF-16) and OGG/Opus Vorbis comments, joining existing ID3 (USLT/SYLT) and FLAC support.
+
 ## 0.21.0-beta.1 (2026-07-10)
 
 Shipped while continuously keeping up with improvements and bug fixing across the app.
