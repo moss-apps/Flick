@@ -2036,22 +2036,18 @@ fn negotiate_android_direct_playback_format(
                         "[USB] UAC1 SET_CUR failed for endpoint=0x{:02x}: {}",
                         candidate.endpoint_address, e
                     );
-                    if uac1_set_cur_failure_tolerable(candidate.sync_type) {
-                        dac_mode = DacMode::AdaptiveStreaming;
-                        reported_rate = Some(requested_format.sample_rate);
-                        last_message = Some(format!(
-                            "UAC 1.0 device: failed to set rate on endpoint 0x{:02x}: {}; continuing with adaptive streaming",
-                            candidate.endpoint_address, e
-                        ));
-                    } else {
-                        let msg = format!(
-                            "UAC 1.0 device: failed to set rate on endpoint 0x{:02x}: {} ({:?} endpoint is not host-paced); refusing direct USB",
-                            candidate.endpoint_address, e, candidate.sync_type
-                        );
-                        set_last_error(Some(msg.clone()));
-                        set_direct_mode_refusal_reason(Some(msg.clone()));
-                        return Err(msg);
-                    }
+                    // Defer the verdict: many UAC1 DACs (FiiO BR13) STALL every
+                    // SET_CUR encoding while the streaming alt setting is
+                    // inactive (alt 0). The stream-open path re-issues SET_CUR
+                    // after the alt setting is live and refuses there if it
+                    // still fails — bailing here would abort before the only
+                    // attempt that can succeed.
+                    dac_mode = DacMode::AdaptiveStreaming;
+                    reported_rate = Some(requested_format.sample_rate);
+                    last_message = Some(format!(
+                        "UAC 1.0 device: rate set on endpoint 0x{:02x} deferred ({}); retrying after alt setting is active",
+                        candidate.endpoint_address, e
+                    ));
                 }
             }
         } else if let Some(actual_rate) = choose_adaptive_sample_rate(
@@ -4064,12 +4060,46 @@ fn create_android_usb_backend_inner(
                 set_last_error(Some(message));
             }
             Err(e) => {
-                let message = format!(
-                    "[clock-diag] UAC1: post-alt SET_CUR {}Hz on endpoint 0x{:02x} failed: {} — keeping prior verdict",
-                    playback_format.sample_rate, candidate.endpoint_address, e,
-                );
-                dev_eprintln!("{}", message);
-                set_last_error(Some(message));
+                // SET_CUR stalled even with the alt setting active. Probe
+                // GET_CUR: some UAC1 firmware auto-locks the rate and only
+                // reports it read-only, in which case a matching readback is
+                // sufficient verification.
+                match get_uac1_sampling_frequency(
+                    &claimed_handle.handle,
+                    candidate.interface_number,
+                    candidate.endpoint_address,
+                ) {
+                    Ok(reported) if reported == playback_format.sample_rate => {
+                        clock_control_attempted = true;
+                        clock_control_succeeded = false;
+                        clock_verification_passed = true;
+                        reported_sample_rate = Some(reported);
+                        set_dac_mode(DacMode::FixedClock);
+                        set_clock_verification(true, false, true, reported_sample_rate);
+                        let message = format!(
+                            "[clock-diag] UAC1: post-alt SET_CUR failed but GET_CUR reports requested {}Hz — trusting readback",
+                            reported
+                        );
+                        dev_eprintln!("{}", message);
+                        set_last_error(Some(message));
+                    }
+                    Ok(reported) => {
+                        let message = format!(
+                            "[clock-diag] UAC1: post-alt SET_CUR failed ({}) and GET_CUR reports {}Hz, requested {}Hz — keeping prior verdict",
+                            e, reported, playback_format.sample_rate
+                        );
+                        dev_eprintln!("{}", message);
+                        set_last_error(Some(message));
+                    }
+                    Err(readback_error) => {
+                        let message = format!(
+                            "[clock-diag] UAC1: post-alt SET_CUR failed: {} — keeping prior verdict (GET_CUR probe: {})",
+                            e, readback_error
+                        );
+                        dev_eprintln!("{}", message);
+                        set_last_error(Some(message));
+                    }
+                }
             }
         }
     }
@@ -6065,29 +6095,131 @@ fn set_uac1_sampling_frequency(
     endpoint_address: u8,
     sample_rate: u32,
 ) -> Result<(), String> {
-    // UAC1 spec 5.2.3.2.3.2: SAM_FREQ_CONTROL SET_CUR is an endpoint request —
-    // bmRequestType 0x22, wIndex = (interface << 8) | endpoint address.
-    // The old INTERFACE-recipient form (0x21, wIndex = endpoint) gets STALLed
-    // by real hardware (FiiO BR13) and the DAC free-runs at its default rate.
-    let request_type = USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_ENDPOINT;
-    let value = UAC1_SAM_FREQ_CONTROL;
-    let index = ((interface_number as u16) << 8) | endpoint_address as u16;
     let data = [
         (sample_rate & 0xFF) as u8,
         ((sample_rate >> 8) & 0xFF) as u8,
         ((sample_rate >> 16) & 0xFF) as u8,
     ];
-    handle
-        .write_control(
+
+    // UAC1 5.2.3.2.3.2: SAM_FREQ_CONTROL SET_CUR is an endpoint request
+    // (bmRequestType 0x22, wValue 0x0100, 3-byte LE rate). Real hardware
+    // disagrees on wIndex: the spec form is (interface << 8) | endpoint, but
+    // Linux snd-usb-audio sends the endpoint address alone, and some legacy
+    // firmware only accepts the interface-recipient hybrid. A control STALL
+    // is auto-cleared before the next SETUP, so failing forms can be tried
+    // in sequence. Some devices (FiiO BR13) STALL every form while the
+    // streaming alt setting is inactive — the stream-open path retries after
+    // the alt setting is live.
+    let encodings: [(u8, u16, &str); 3] = [
+        (
+            USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
+            endpoint_address as u16,
+            "endpoint-only (Linux)",
+        ),
+        (
+            USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
+            ((interface_number as u16) << 8) | endpoint_address as u16,
+            "endpoint+interface (spec)",
+        ),
+        (
+            USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
+            endpoint_address as u16,
+            "interface-recipient (legacy)",
+        ),
+    ];
+
+    let mut last_error = String::new();
+    for (request_type, index, label) in encodings {
+        match handle.write_control(
             request_type,
             UAC2_REQUEST_SET_CUR,
-            value,
+            UAC1_SAM_FREQ_CONTROL,
             index,
             &data,
             Duration::from_secs(1),
-        )
-        .map_err(|error| format!("Failed to set UAC1 sampling frequency: {}", error))?;
-    Ok(())
+        ) {
+            Ok(_) => {
+                dev_eprintln!(
+                    "[USB] UAC1 SET_CUR: endpoint=0x{:02x} rate={}Hz accepted wIndex=0x{:04x} ({})",
+                    endpoint_address,
+                    sample_rate,
+                    index,
+                    label
+                );
+                return Ok(());
+            }
+            Err(error) => {
+                dev_eprintln!(
+                    "[USB] UAC1 SET_CUR wIndex=0x{:04x} ({}) stalled: {}",
+                    index,
+                    label,
+                    error
+                );
+                last_error = format!("Failed to set UAC1 sampling frequency: {}", error);
+            }
+        }
+    }
+    Err(last_error)
+}
+
+fn get_uac1_sampling_frequency(
+    handle: &DeviceHandle<Context>,
+    interface_number: u8,
+    endpoint_address: u8,
+) -> Result<u32, String> {
+    let mut data = [0u8; 3];
+    let encodings: [(u8, u16, &str); 2] = [
+        (
+            USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
+            endpoint_address as u16,
+            "endpoint-only (Linux)",
+        ),
+        (
+            USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
+            ((interface_number as u16) << 8) | endpoint_address as u16,
+            "endpoint+interface (spec)",
+        ),
+    ];
+
+    let mut last_error = String::new();
+    for (request_type, index, label) in encodings {
+        match handle.read_control(
+            request_type,
+            UAC2_REQUEST_GET_CUR,
+            UAC1_SAM_FREQ_CONTROL,
+            index,
+            &mut data,
+            Duration::from_secs(1),
+        ) {
+            Ok(transferred) if transferred == data.len() => {
+                let rate = u32::from_le_bytes([data[0], data[1], data[2], 0]);
+                dev_eprintln!(
+                    "[USB] UAC1 GET_CUR: endpoint=0x{:02x} reports {}Hz via wIndex=0x{:04x} ({})",
+                    endpoint_address,
+                    rate,
+                    index,
+                    label
+                );
+                return Ok(rate);
+            }
+            Ok(transferred) => {
+                last_error = format!(
+                    "GET_CUR returned {} bytes, expected 3 (wIndex=0x{:04x}, {})",
+                    transferred, index, label
+                );
+            }
+            Err(error) => {
+                dev_eprintln!(
+                    "[USB] UAC1 GET_CUR wIndex=0x{:04x} ({}) failed: {}",
+                    index,
+                    label,
+                    error
+                );
+                last_error = format!("Failed to read UAC1 sampling frequency: {}", error);
+            }
+        }
+    }
+    Err(last_error)
 }
 
 fn get_sampling_frequency(
