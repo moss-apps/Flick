@@ -79,7 +79,7 @@ class _RestartingScreenState extends State<RestartingScreen>
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Color(0xFF040404),
         body: SafeArea(
           child: FadeTransition(
             opacity: _fade,
@@ -88,7 +88,7 @@ class _RestartingScreenState extends State<RestartingScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   AnimatedBuilder(
-                    animation: _sweepController,
+                    animation: _sweepController,  
                     builder: (context, child) {
                       return ShaderMask(
                         blendMode: BlendMode.srcIn,
