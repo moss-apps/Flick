@@ -79,7 +79,7 @@ class _RestartingScreenState extends State<RestartingScreen>
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: Color(0xFF040404),
+        backgroundColor: AppColors.backgroundBlack,
         body: SafeArea(
           child: FadeTransition(
             opacity: _fade,
