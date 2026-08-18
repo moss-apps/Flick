@@ -2036,12 +2036,22 @@ fn negotiate_android_direct_playback_format(
                         "[USB] UAC1 SET_CUR failed for endpoint=0x{:02x}: {}",
                         candidate.endpoint_address, e
                     );
-                    dac_mode = DacMode::AdaptiveStreaming;
-                    reported_rate = Some(requested_format.sample_rate);
-                    last_message = Some(format!(
-                        "UAC 1.0 device: failed to set rate on endpoint 0x{:02x}: {}; continuing with adaptive streaming",
-                        candidate.endpoint_address, e
-                    ));
+                    if uac1_set_cur_failure_tolerable(candidate.sync_type) {
+                        dac_mode = DacMode::AdaptiveStreaming;
+                        reported_rate = Some(requested_format.sample_rate);
+                        last_message = Some(format!(
+                            "UAC 1.0 device: failed to set rate on endpoint 0x{:02x}: {}; continuing with adaptive streaming",
+                            candidate.endpoint_address, e
+                        ));
+                    } else {
+                        let msg = format!(
+                            "UAC 1.0 device: failed to set rate on endpoint 0x{:02x}: {} ({:?} endpoint is not host-paced); refusing direct USB",
+                            candidate.endpoint_address, e, candidate.sync_type
+                        );
+                        set_last_error(Some(msg.clone()));
+                        set_direct_mode_refusal_reason(Some(msg.clone()));
+                        return Err(msg);
+                    }
                 }
             }
         } else if let Some(actual_rate) = choose_adaptive_sample_rate(
@@ -3961,22 +3971,13 @@ fn create_android_usb_backend_inner(
             Err(e) => {
                 clock_control_attempted = true;
                 clock_control_succeeded = false;
-                // UAC1 adaptive/synchronous/NoSync endpoints derive their clock
-                // from the host (SOF); SET_CUR is optional and many reject it.
-                // Only an Asynchronous endpoint has its own clock, where a failed
-                // SET_CUR leaves the rate genuinely unknown (chipmunk risk) and
-                // we must refuse. (FiiO BR13 reports NoSync and rejects SET_CUR.)
-                if candidate.sync_type == SyncType::Asynchronous {
-                    clock_verification_passed = false;
-                    reported_sample_rate = None;
-                    set_clock_verification(true, false, false, None);
-                    let message = format!(
-                        "[clock-diag] UAC1 SET_CUR {}Hz on endpoint 0x{:02x} failed: {} — will refuse (asynchronous endpoint)",
-                        playback_format.sample_rate, candidate.endpoint_address, e,
-                    );
-                    dev_eprintln!("{}", message);
-                    set_last_error(Some(message));
-                } else {
+                // Only adaptive/synchronous UAC1 endpoints are host-paced, so a
+                // rejected SET_CUR is tolerable there. Asynchronous endpoints run
+                // their own clock and NoSync endpoints free-run entirely (FiiO
+                // BR13: NoSync, stays locked at 48/96 kHz while we stream at the
+                // file rate -> chipmunk), so a failed rate set leaves the DAC rate
+                // unknown: refuse.
+                if uac1_set_cur_failure_tolerable(candidate.sync_type) {
                     clock_verification_passed = true;
                     reported_sample_rate = Some(playback_format.sample_rate);
                     set_dac_mode(DacMode::AdaptiveStreaming);
@@ -3988,6 +3989,16 @@ fn create_android_usb_backend_inner(
                     );
                     let message = format!(
                         "[clock-diag] UAC1 SET_CUR {}Hz on endpoint 0x{:02x} failed: {} — tolerable for {:?} endpoint, trusting host-driven rate",
+                        playback_format.sample_rate, candidate.endpoint_address, e, candidate.sync_type,
+                    );
+                    dev_eprintln!("{}", message);
+                    set_last_error(Some(message));
+                } else {
+                    clock_verification_passed = false;
+                    reported_sample_rate = None;
+                    set_clock_verification(true, false, false, None);
+                    let message = format!(
+                        "[clock-diag] UAC1 SET_CUR {}Hz on endpoint 0x{:02x} failed: {} — will refuse ({:?} endpoint is not host-paced)",
                         playback_format.sample_rate, candidate.endpoint_address, e, candidate.sync_type,
                     );
                     dev_eprintln!("{}", message);
@@ -6791,6 +6802,14 @@ fn sync_type_label(sync_type: SyncType) -> &'static str {
         SyncType::Synchronous => "synchronous",
         SyncType::NoSync => "none",
     }
+}
+
+// A failed UAC1 SET_CUR is only tolerable when the endpoint is host-paced
+// (adaptive/synchronous). Asynchronous runs its own clock; NoSync free-runs
+// (FiiO BR13) — either way the DAC rate stays unknown and direct streaming
+// would be pitched wrong.
+fn uac1_set_cur_failure_tolerable(sync_type: SyncType) -> bool {
+    matches!(sync_type, SyncType::Adaptive | SyncType::Synchronous)
 }
 
 fn usage_type_label(usage_type: UsageType) -> &'static str {
