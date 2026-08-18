@@ -2417,17 +2417,34 @@ class MainActivity: FlutterActivity() {
                         "content" to id3Lyrics,
                         "source" to "embedded:id3",
                     )
-                } else {
-                    val flacVorbisLyrics = parseFlacVorbisLyrics(audioUriString)
-                    if (!flacVorbisLyrics.isNullOrBlank()) {
-                        mapOf(
-                            "content" to flacVorbisLyrics,
-                            "source" to "embedded:vorbis",
-                        )
                     } else {
-                        null
+                        val flacVorbisLyrics = parseFlacVorbisLyrics(audioUriString)
+                        if (!flacVorbisLyrics.isNullOrBlank()) {
+                            mapOf(
+                                "content" to flacVorbisLyrics,
+                                "source" to "embedded:vorbis",
+                            )
+                        } else {
+                            val mp4Lyrics = parseMp4Lyrics(audioUriString)
+                            if (!mp4Lyrics.isNullOrBlank()) {
+                                mapOf(
+                                    "content" to mp4Lyrics,
+                                    "source" to "embedded:mp4",
+                                )
+                            } else {
+                                // ponytail: covers ID3/FLAC/MP4/Ogg; WMA and APE tags not parsed
+                                val oggLyrics = parseOggLyrics(audioUriString)
+                                if (!oggLyrics.isNullOrBlank()) {
+                                    mapOf(
+                                        "content" to oggLyrics,
+                                        "source" to "embedded:ogg",
+                                    )
+                                } else {
+                                    null
+                                }
+                            }
+                        }
                     }
-                }
             } else {
                 mapOf(
                     "content" to lyricText,
@@ -2640,11 +2657,162 @@ class MainActivity: FlutterActivity() {
                     if (!readExact(input, commentData)) break
                     return@use parseVorbisCommentLyrics(commentData)
                 } else {
-                    if (!skipFully(input, blockLength)) break
+                    if (!skipFully(input, blockLength.toLong())) break
                 }
             }
             null
         }
+    }
+
+    private fun parseOggLyrics(audioUriString: String): String? {
+        return openAudioInputStream(audioUriString)?.use { input ->
+            val magic = ByteArray(4)
+            if (!readExact(input, magic) || String(magic, Charsets.ISO_8859_1) != "OggS") {
+                return@use null
+            }
+
+            var packetIndex = 0
+            val packet = ByteArrayOutputStream()
+            val pageHeader = ByteArray(23)
+            while (true) {
+                if (!readExact(input, pageHeader)) return@use null
+                val segmentCount = pageHeader[22].toInt() and 0xFF
+                if (segmentCount > 0) {
+                    val segmentTable = ByteArray(segmentCount)
+                    if (!readExact(input, segmentTable)) return@use null
+
+                    for (i in 0 until segmentCount) {
+                        val segmentLength = segmentTable[i].toInt() and 0xFF
+                        val chunk = ByteArray(segmentLength)
+                        if (!readExact(input, chunk)) return@use null
+                        packet.write(chunk)
+
+                        if (segmentLength < 255) {
+                            // Packet 1 is the Vorbis/Opus comment header
+                            if (packetIndex == 1) {
+                                return@use parseVorbisCommentLyrics(packet.toByteArray())
+                            }
+                            packetIndex++
+                            packet.reset()
+                        }
+                    }
+                }
+            }
+            null
+        }
+    }
+
+    private fun parseMp4Lyrics(audioUriString: String): String? {
+        return openAudioInputStream(audioUriString)?.use { input ->
+            val knownTopLevel = setOf("ftyp", "moov", "mdat", "free", "skip", "wide", "pnot")
+            while (true) {
+                val atom = readMp4AtomHeader(input) ?: return@use null
+                if (!knownTopLevel.contains(atom.type)) return@use null
+                if (atom.type == "moov") {
+                    return@use walkMp4Container(input, atom.contentSize, setOf("udta", "meta"))
+                }
+                if (!skipFully(input, atom.contentSize)) return@use null
+            }
+            null
+        }
+    }
+
+    private class Mp4Atom(val type: String, val contentSize: Long)
+
+    private fun readMp4AtomHeader(input: InputStream): Mp4Atom? {
+        val header = ByteArray(8)
+        if (!readExact(input, header)) return null
+        var size = readBigEndianInt(header, 0).toLong() and 0xFFFFFFFFL
+        val type = String(header, 4, 4, Charsets.ISO_8859_1)
+
+        if (size == 1L) {
+            val ext = ByteArray(8)
+            if (!readExact(input, ext)) return null
+            var bigSize = 0L
+            for (b in ext) bigSize = (bigSize shl 8) or (b.toLong() and 0xFF)
+            if (bigSize < 16) return null
+            size = bigSize - 16
+        } else if (size == 0L) {
+            // Atom extends to end of file; treat as huge
+            size = Long.MAX_VALUE / 4
+        } else {
+            size -= 8
+        }
+
+        if (size < 0) return null
+        return Mp4Atom(type, size)
+    }
+
+    // Walks an atom's children, consuming exactly containerSize bytes.
+    // Returns lyrics text from a ©lyr item, or null after consuming the container.
+    private fun walkMp4Container(input: InputStream, containerSize: Long, childTypes: Set<String>): String? {
+        var remaining = containerSize
+        while (remaining >= 8) {
+            val atom = readMp4AtomHeader(input) ?: return null
+            remaining -= 8
+            if (atom.contentSize > remaining) return null
+            remaining -= atom.contentSize
+
+            if (atom.type == "\u00A9lyr") {
+                return readMp4LyricsData(input, atom.contentSize)
+            }
+
+            if (childTypes.contains(atom.type)) {
+                var payload = atom.contentSize
+                if (atom.type == "meta") {
+                    // meta is a FullBox: 4 version/flags bytes precede children
+                    if (payload < 4) return null
+                    val versionFlags = ByteArray(4)
+                    if (!readExact(input, versionFlags)) return null
+                    payload -= 4
+                }
+                val next = when (atom.type) {
+                    "moov" -> setOf("udta", "meta")
+                    "udta" -> setOf("meta")
+                    "meta" -> setOf("ilst")
+                    else -> emptySet()
+                }
+                val found = walkMp4Container(input, payload, next)
+                if (found != null) return found
+            } else {
+                if (!skipFully(input, atom.contentSize)) return null
+            }
+        }
+        if (remaining > 0) skipFully(input, remaining)
+        return null
+    }
+
+    private fun readMp4LyricsData(input: InputStream, itemSize: Long): String? {
+        var remaining = itemSize
+        while (remaining >= 8) {
+            val atom = readMp4AtomHeader(input) ?: return null
+            remaining -= 8
+            if (atom.contentSize > remaining) return null
+            remaining -= atom.contentSize
+
+            if (atom.type == "data" && atom.contentSize >= 8) {
+                val header = ByteArray(8)
+                if (!readExact(input, header)) return null
+                val payloadLength = (atom.contentSize - 8).toInt()
+                if (payloadLength <= 0) return null
+                val payload = ByteArray(payloadLength)
+                if (!readExact(input, payload)) return null
+
+                val typeIndicator =
+                    ((header[1].toInt() and 0xFF) shl 16) or
+                        ((header[2].toInt() and 0xFF) shl 8) or
+                        (header[3].toInt() and 0xFF)
+                // ponytail: type 2 is UTF-16; UTF_16 charset honors a BOM when present
+                val text = when (typeIndicator) {
+                    2 -> payload.toString(Charsets.UTF_16)
+                    else -> payload.toString(Charsets.UTF_8)
+                }.replace("\u0000", "").trim()
+                return text.ifBlank { null }
+            }
+
+            if (!skipFully(input, atom.contentSize)) return null
+        }
+        return null
     }
 
     private fun parseVorbisCommentLyrics(data: ByteArray): String? {
@@ -2712,8 +2880,8 @@ class MainActivity: FlutterActivity() {
         return true
     }
 
-    private fun skipFully(input: InputStream, bytesToSkip: Int): Boolean {
-        var remaining = bytesToSkip.toLong()
+    private fun skipFully(input: InputStream, bytesToSkip: Long): Boolean {
+        var remaining = bytesToSkip
         while (remaining > 0) {
             val skipped = input.skip(remaining)
             if (skipped <= 0) {
