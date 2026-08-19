@@ -952,8 +952,46 @@ class PlayerService {
 
   Future<void> onAppResumed() async {
     _appInForeground = true;
-    if (!_floatingPlayerActive) return;
-    await _deactivateFloatingPlayer();
+    if (_floatingPlayerActive) {
+      await _deactivateFloatingPlayer();
+    }
+    unawaited(_restoreBitPerfectEngineAfterForeground());
+  }
+
+  /// One UI suspends userspace USB transfers while the app is backgrounded,
+  /// which makes direct USB fake-fail ("USB DAC disconnected") and fall back
+  /// to ExoPlayer. Re-attach the bit-perfect engine once we're back.
+  Future<void> _restoreBitPerfectEngineAfterForeground() async {
+    if (!Platform.isAndroid ||
+        !isPlayingNotifier.value ||
+        currentEngineType != AudioEngineType.normalAndroid) {
+      return;
+    }
+    try {
+      await _sessionManager.syncRouteSelection(reason: 'app resumed');
+      if (_sessionManager.selectedMode != AudioEngineType.usbDacExperimental ||
+          currentEngineType == AudioEngineType.usbDacExperimental) {
+        return;
+      }
+      if (currentSongNotifier.value == null) return;
+      _debugLog(
+        '[Engine] Foreground: restoring ${AudioEngineType.usbDacExperimental.logLabel}',
+      );
+      await _enqueuePlaybackRequest(() async {
+        try {
+          await _resumeInternal();
+        } catch (e) {
+          final recovered = await _handleDirectUsbStartupRefusal(
+            e,
+            song: currentSongNotifier.value,
+            initialPosition: positionNotifier.value,
+          );
+          if (!recovered) rethrow;
+        }
+      });
+    } catch (e) {
+      _debugLog('[Engine] Foreground bit-perfect restore failed: $e');
+    }
   }
 
   bool get _isGaplessActive =>
@@ -1493,6 +1531,14 @@ class PlayerService {
     try {
       await _resumeInternal();
     } catch (e, stackTrace) {
+      final recovered = await _handleDirectUsbStartupRefusal(
+        e,
+        song: currentSongNotifier.value,
+        initialPosition: positionNotifier.value,
+      );
+      if (recovered) {
+        return;
+      }
       _debugLog('[AudioFocus] Auto-resume after interruption failed: $e');
       debugPrintStack(stackTrace: stackTrace);
     }
@@ -2510,11 +2556,30 @@ class PlayerService {
             // pause-on-disconnect pref instead of resuming on the fallback.
             final pauseOnDisconnect = await _appPreferencesService
                 .getPauseOnUsbDacDisconnect();
+            var autoResumeAfterFallback = !pauseOnDisconnect;
+            if (pauseOnDisconnect) {
+              // "USB DAC disconnected" is often a lie (e.g. Samsung One UI
+              // suspends userspace USB transfers when the app is backgrounded
+              // while the DAC stays attached). Release the frozen direct-USB
+              // session first so listDevices() does a real UsbManager query,
+              // then only honour pause-on-disconnect for a genuine unplug.
+              await _uac2Service.releaseAndroidDirectUsbRuntime();
+              final stillAttached =
+                  (await _uac2Service.listDevices()).isNotEmpty;
+              if (stillAttached) {
+                _debugLog(
+                  '[Engine] Direct USB failed but DAC still attached; '
+                  'treating as transient USB suspension, auto-resuming on '
+                  'fallback',
+                );
+                autoResumeAfterFallback = true;
+              }
+            }
             final fellBack = await _handleDirectUsbStartupRefusal(
               message,
               song: song,
               initialPosition: position,
-              autoResumeAfterFallback: !pauseOnDisconnect,
+              autoResumeAfterFallback: autoResumeAfterFallback,
             );
             if (!fellBack) {
               await _refreshAudioOutputDiagnostics(
@@ -4328,7 +4393,9 @@ class PlayerService {
         normalized.contains('usb session already active') ||
         normalized.contains('failed to claim usb interface') ||
         normalized.contains('android managed output stream') ||
-        normalized.contains('sending on a disconnected channel');
+        normalized.contains('sending on a disconnected channel') ||
+        normalized.contains('refusing direct usb') ||
+        normalized.contains('failed to set uac1 sampling frequency');
   }
 
   bool _isDirectUsbClockSetupFailure(String message) {
