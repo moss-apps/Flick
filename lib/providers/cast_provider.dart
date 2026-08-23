@@ -16,19 +16,8 @@ class CastState {
     this.isDiscovering = false,
   });
 
-  CastState copyWith({
-    List<CastDevice>? devices,
-    CastDevice? activeDevice,
-    bool? isActive,
-    bool? isDiscovering,
-  }) {
-    return CastState(
-      devices: devices ?? this.devices,
-      activeDevice: activeDevice ?? this.activeDevice,
-      isActive: isActive ?? this.isActive,
-      isDiscovering: isDiscovering ?? this.isDiscovering,
-    );
-  }
+  // ponytail: no copyWith — its `activeDevice ?? old` kept a stale device after
+  // disconnect. Always build from service notifiers instead.
 }
 
 final castServiceProvider = Provider<CastingService>((ref) {
@@ -49,7 +38,7 @@ class CastNotifier extends Notifier<CastState> {
     );
 
     void sync() {
-      state = state.copyWith(
+      state = CastState(
         devices: _service.devicesNotifier.value,
         activeDevice: _service.activeDeviceNotifier.value,
         isActive: _service.isActiveNotifier.value,

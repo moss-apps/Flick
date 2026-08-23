@@ -1111,7 +1111,7 @@ Future<void> stopPriorityAnchor() async {
         return null;
       }
       if (!rust_uac2.uac2IsAvailable()) return null;
-      return rust_uac2.uac2GetVolumeRange();
+      return await rust_uac2.uac2GetVolumeRange();
     } catch (e) {
       devLog('Uac2Service.getVolumeRange failed: $e');
       return null;
@@ -1182,7 +1182,7 @@ Future<void> stopPriorityAnchor() async {
         return false;
       }
       if (!rust_uac2.uac2IsAvailable()) return false;
-      return rust_uac2.uac2AttemptReconnect();
+      return await rust_uac2.uac2AttemptReconnect();
     } catch (e) {
       devLog('Uac2Service.attemptReconnect failed: $e');
       return false;
@@ -1208,7 +1208,7 @@ Future<void> stopPriorityAnchor() async {
         return false;
       }
       if (!rust_uac2.uac2IsAvailable()) return false;
-      return rust_uac2.uac2ActivateFallback();
+      return await rust_uac2.uac2ActivateFallback();
     } catch (e) {
       devLog('Uac2Service.activateFallback failed: $e');
       return false;

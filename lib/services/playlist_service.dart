@@ -134,7 +134,7 @@ class PlaylistService {
         final created = await _subsonic.createPlaylist(server, name: trimmedName);
         final remoteId = created?['id']?.toString();
         if (remoteId == null) return null;
-        return upsertNetworkPlaylist(
+        return await upsertNetworkPlaylist(
           serverId: serverId,
           remoteId: remoteId,
           name: trimmedName,
@@ -492,7 +492,7 @@ class PlaylistService {
       );
       devLog('[PlaylistService] Display name: $displayName');
 
-      return _upsertPlaylistFromSource(
+      return await _upsertPlaylistFromSource(
         PlaylistSourceFile(sourcePath: uri, displayName: displayName),
         content: content,
       );

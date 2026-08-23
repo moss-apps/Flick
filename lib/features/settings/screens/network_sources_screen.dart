@@ -62,6 +62,16 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
     }
   }
 
+  // ponytail: string sniffing across the per-protocol exception types; a
+  // shared AuthException hierarchy is the upgrade path.
+  bool _isAuthFailure(Object e) {
+    final s = e.toString();
+    return s.contains('401') ||
+        s.contains('has no stored credentials') ||
+        s.contains('Authentication failed') ||
+        s.contains('session expired');
+  }
+
   Future<void> _syncServer(NetworkServerEntity server) async {
     if (_syncingId != null) return;
     setState(() {
@@ -77,8 +87,23 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final authFailure = _isAuthFailure(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sync failed: $e')),
+          SnackBar(
+            duration: const Duration(seconds: 6),
+            content: Text(
+              authFailure
+                  ? 'Credentials rejected by ${server.label}. '
+                      'Re-enter the password.'
+                  : 'Sync failed: $e',
+            ),
+            action: authFailure
+                ? SnackBarAction(
+                    label: 'Fix',
+                    onPressed: () => _openEditor(server: server),
+                  )
+                : null,
+          ),
         );
       }
     }
