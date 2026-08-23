@@ -1,6 +1,7 @@
 // Main sources
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:isar_community/isar.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -177,9 +178,14 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     return widget.server?.token;
   }
 
+  // Fresh entity, never the caller's in-memory row. Test Connection resolves
+  // tokens from whatever is typed; mutating the shared entity here leaked
+  // untested credentials into the list screen even when the edit was abandoned.
   NetworkServerEntity _draftEntity({String? token}) {
-    final server = widget.server ?? NetworkServerEntity();
-    server
+    final old = widget.server;
+    return NetworkServerEntity()
+      ..id = old?.id ?? Isar.autoIncrement
+      ..lastSyncedAt = old?.lastSyncedAt
       ..label = _labelController.text.trim()
       ..protocol = _selectedProtocol
       ..baseUrl = _isTidal
@@ -188,8 +194,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       ..username = _usernameController.text.trim().isEmpty
           ? null
           : _usernameController.text.trim()
-      ..token = token ?? server.token;
-    return server;
+      ..token = token ?? old?.token;
   }
 
   Future<void> _testConnection() async {
