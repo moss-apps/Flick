@@ -48,7 +48,7 @@ class ExternalPlaybackService {
       if (payload == null) {
         return false;
       }
-      return _playExternalPayload(payload.cast<String, dynamic>());
+      return await _playExternalPayload(payload.cast<String, dynamic>());
     } on PlatformException catch (e) {
       devLog('Failed to consume pending external playback: ${e.message}');
       return false;

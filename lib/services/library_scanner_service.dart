@@ -2353,7 +2353,7 @@ class LibraryScannerService {
   Future<String?> _readTextFile(String uri) async {
     try {
       if (uri.startsWith('/') && File(uri).existsSync()) {
-        return File(uri).readAsString();
+        return await File(uri).readAsString();
       }
       return await _storageChannel.invokeMethod<String>('readTextDocument', {
         'uri': uri,
