@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -499,8 +500,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     );
   }
 
-  void _showLicensesBottomSheet() {
-    const licenseContent = '''
+  static const String _flickLicenseText = '''
 MIT License
 
 Copyright (c) 2026 Flick Player Contributors
@@ -524,35 +524,34 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ''';
 
-    GlassBottomSheet.show(
-      context: context,
-      title: 'Licenses',
-      maxHeightRatio: 0.7,
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppConstants.spacingMd),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppConstants.spacingMd),
-              decoration: BoxDecoration(
-                color: AppColors.glassBackground,
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                border: Border.all(color: AppColors.glassBorder),
-              ),
-              child: const Text(
-                licenseContent,
-                style: TextStyle(
-                  fontFamily: 'ProductSans',
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  height: 1.6,
-                ),
+  static bool _flickLicenseRegistered = false;
+
+  // ponytail: LicensePage covers the list + detail UI; only Flick's own entry is added manually
+  void _openLicensesScreen() {
+    if (!_flickLicenseRegistered) {
+      _flickLicenseRegistered = true;
+      LicenseRegistry.addLicense(() async* {
+        yield LicenseEntryWithLineBreaks(['Flick'], _flickLicenseText);
+      });
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        // ponytail: iOS platform override swaps the app bar back arrow for a chevron-left
+        builder: (_) => Theme(
+          data: Theme.of(context).copyWith(platform: TargetPlatform.iOS),
+          child: LicensePage(
+            applicationName: 'Flick',
+            applicationVersion: kAppVersion,
+            applicationIcon: Padding(
+              padding: const EdgeInsets.all(AppConstants.spacingSm),
+              child: SvgPicture.asset(
+                'assets/icons/flicklogo_svg.svg',
+                width: 28,
+                height: 28,
+                fit: BoxFit.contain,
               ),
             ),
-            const SizedBox(height: AppConstants.spacingMd),
-          ],
+          ),
         ),
       ),
     );
@@ -646,7 +645,7 @@ SOFTWARE.
                 icon: LucideIcons.fileText,
                 title: 'Licenses',
                 subtitle: 'Open source licenses',
-                onTap: _showLicensesBottomSheet,
+                onTap: _openLicensesScreen,
               ),
               const SettingsDivider(),
               NavigationSetting(
