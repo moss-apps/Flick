@@ -5,10 +5,19 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/metadata_editor_service.dart';
+import 'package:flick/services/player_service.dart';
 import 'package:flick/src/rust/api/metadata_editor.dart' as rust_metadata;
 import 'package:flick/providers/providers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+/// Deprecated: use [MetadataEditorBottomSheet] (`lib/features/songs/widgets/metadata_editor_bottom_sheet.dart:12`).
+///
+/// Kept temporarily for backward compatibility; will be deleted once the
+/// bottom-sheet rollout is confirmed. New code should call
+/// `MetadataEditorBottomSheet.show(context, song)`.
+@Deprecated(
+  'Use MetadataEditorBottomSheet.show instead – full-screen editor will be removed',
+)
 class MetadataEditorScreen extends ConsumerStatefulWidget {
   final Song song;
 
@@ -155,6 +164,20 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
 
     if (result.saved) {
       final messenger = ScaffoldMessenger.of(context);
+      final path = widget.song.filePath;
+      if (path != null && path.isNotEmpty) {
+        PlayerService().syncSongMetadata(
+          filePath: path,
+          title: fields.title,
+          artist: fields.artist,
+          album: fields.album,
+          albumArtist: fields.albumArtist,
+          genre: fields.genre,
+          year: fields.year,
+          trackNumber: fields.trackNumber,
+          discNumber: fields.discNumber,
+        );
+      }
       ref.invalidate(songsProvider);
       Navigator.of(context).pop(true);
       if (result.verified) {

@@ -29,6 +29,7 @@ import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -2227,19 +2228,11 @@ class _SongListTile extends StatelessWidget {
                     thumbnailHeight: 92,
                     placeholder: const ColoredBox(
                       color: AppColors.surface,
-                      child: Icon(
-                        LucideIcons.music,
-                        color: AppColors.textTertiary,
-                        size: 18,
-                      ),
+                      child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                     ),
                     errorWidget: const ColoredBox(
                       color: AppColors.surface,
-                      child: Icon(
-                        LucideIcons.music,
-                        color: AppColors.textTertiary,
-                        size: 18,
-                      ),
+                      child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                     ),
                   ),
                 ),
