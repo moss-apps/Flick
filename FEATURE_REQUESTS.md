@@ -77,7 +77,7 @@ name, track count, artist, and (newly added) **Year**.
 - [X] **Pitch shifter** — adjust audio pitch independently of tempo
 - [ ] **Replay Gain (track & album)** — apply per-track or per-album loudness gain on playback; album mode keeps relative levels, track mode normalizes every track. Clipping prevention (peak limiting when gain pushes past 0 dBFS) included.
 - [ ] **Replay Gain scanner** — batch-scan library (or per-track) using ReplayGain 2.0-style loudness analysis (EBU R128/LUFS), store values as tags or in a local DB.
-- [ ] **Crossfeed (BS2B)** — 3-stage Bauer stereophonic-to-binaural crossfeed DSP to reduce ear fatigue on headphones; selectable crossfeed level (e.g. default/crossfeed/crossfeed-easy), built-in or wrapped around the existing Rust DSP pipeline.
+- [X] **Crossfeed (BS2B)** — 3-stage Bauer stereophonic-to-binaural crossfeed DSP to reduce ear fatigue on headphones; selectable crossfeed level (Off/Default/Crossfeed/Crossfeed easy) built into the Rust DSP pipeline. Shipped as `_CrossfeedSection` in Audio settings; bypassed in bit-perfect passthrough and under 432 Hz tuning.
 
 ---
 

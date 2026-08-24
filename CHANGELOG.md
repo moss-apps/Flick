@@ -4,6 +4,15 @@
 
 Changes landing on top of the current pre-release are tracked here and folded into the release notes as they ship.
 
+### Headphone Crossfeed
+- BS2B (Bauer stereophonic-to-binaural) 3-stage crossfeed with selectable presets — Default, Crossfeed (strong), and Crossfeed easy (gentle), plus Off. Blends a low-passed opposite-channel signal into each channel to reduce ear fatigue on headphones; runs in the native Rust DSP chain, bypassed on bit-perfect passthrough.
+- Crossfeed level persists across engine recreation (e.g. sample-rate changes between tracks).
+
+### ReplayGain
+- ReplayGain playback (Track & Album modes) with pre-amp and clipping prevention — applied per source by the native engine and folded into the just_audio volume path.
+- ReplayGain scanner in Library settings: analyzes loudness (EBU R128 / BS.1770), writes `REPLAYGAIN_*` tags back into files, and updates the library database.
+- Library scans now read existing `REPLAYGAIN_*` tags (FLAC/Vorbis, MP3/ID3, MP4, WAV/AIFF, plus DSF/DFF ID3 tags).
+
 ### Folders
 - Hierarchy (tree) view now available inside folders via the grid/list toggle — matches the root Folders screen; view mode persists across screens.
 
