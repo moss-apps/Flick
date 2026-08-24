@@ -8,6 +8,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 
 class QueueScreen extends ConsumerStatefulWidget {
@@ -902,19 +903,11 @@ class _Artwork extends StatelessWidget {
           thumbnailHeight: 96,
           placeholder: const ColoredBox(
             color: AppColors.surface,
-            child: Icon(
-              LucideIcons.music,
-              color: AppColors.textTertiary,
-              size: 18,
-            ),
+            child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
           ),
           errorWidget: const ColoredBox(
             color: AppColors.surface,
-            child: Icon(
-              LucideIcons.music,
-              color: AppColors.textTertiary,
-              size: 18,
-            ),
+            child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
           ),
         ),
       ),
