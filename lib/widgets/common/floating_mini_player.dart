@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/features/player/screens/full_player_screen.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 class FloatingMiniPlayer extends ConsumerStatefulWidget {
   const FloatingMiniPlayer({super.key});
@@ -90,7 +90,10 @@ class _FloatingMiniPlayerState extends ConsumerState<FloatingMiniPlayer>
             const begin = Offset(0.0, 1.0);
             const end = Offset.zero;
             const curve = Curves.easeOutCubic;
-            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            var tween = Tween(
+              begin: begin,
+              end: end,
+            ).chain(CurveTween(curve: curve));
             return SlideTransition(
               position: animation.drive(tween),
               child: child,
@@ -182,8 +185,7 @@ class _FloatingMiniPlayerState extends ConsumerState<FloatingMiniPlayer>
         screenSize.height - height - safeArea.bottom - safeArea.top - 16;
     final double absTop = safeArea.top + 8 + _offset.dy;
     final bool nearTop = absTop < screenSize.height * 0.25;
-    final bool nearBottom =
-        absTop > screenSize.height * 0.75 - safeArea.bottom;
+    final bool nearBottom = absTop > screenSize.height * 0.75 - safeArea.bottom;
     final bool flingVertical = velocity.dy.abs() > 400;
 
     double snapDy;
@@ -291,11 +293,27 @@ class _FloatingMiniPlayerState extends ConsumerState<FloatingMiniPlayer>
                                         useThumbnail: true,
                                         thumbnailWidth: 96,
                                         thumbnailHeight: 96,
+                                        placeholder: Container(
+                                          color: AppColors.surfaceDark,
+                                          child: const FlickArtworkPlaceholder(
+                                            size: 22,
+                                            opacity: 0.85,
+                                          ),
+                                        ),
+                                        errorWidget: Container(
+                                          color: AppColors.surfaceDark,
+                                          child: const FlickArtworkPlaceholder(
+                                            size: 22,
+                                            opacity: 0.85,
+                                          ),
+                                        ),
                                       )
-                                    : const Icon(
-                                        LucideIcons.music,
-                                        size: 16,
-                                        color: AppColors.textTertiary,
+                                    : Container(
+                                        color: AppColors.surfaceDark,
+                                        child: const FlickArtworkPlaceholder(
+                                          size: 20,
+                                          opacity: 0.88,
+                                        ),
                                       ),
                               ),
                             ),

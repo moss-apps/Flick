@@ -6,8 +6,8 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/responsive.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 class AlbumArtBox extends StatefulWidget {
   final Song song;
@@ -18,7 +18,8 @@ class AlbumArtBox extends StatefulWidget {
   final ValueChanged<bool>? onVinylChanged;
   final bool showFrame;
 
-  const AlbumArtBox({super.key,
+  const AlbumArtBox({
+    super.key,
     required this.song,
     this.size,
     this.playerService,
@@ -469,18 +470,22 @@ class _AlbumArtBoxState extends State<AlbumArtBox>
                                 fit: BoxFit.cover,
                                 placeholder: Container(
                                   color: Colors.white.withValues(alpha: 0.05),
-                                  child: Icon(
-                                    LucideIcons.music,
-                                    size: iconSize * (1 - t * 0.5),
-                                    color: Colors.white.withValues(alpha: 0.48),
+                                  child: Transform.translate(
+                                    offset: Offset(0, 6 * (1 - t)),
+                                    child: FlickArtworkPlaceholder(
+                                      size: iconSize * (1 - t * 0.5) * 1.42,
+                                      opacity: 0.92,
+                                    ),
                                   ),
                                 ),
                                 errorWidget: Container(
                                   color: Colors.white.withValues(alpha: 0.05),
-                                  child: Icon(
-                                    LucideIcons.music,
-                                    size: iconSize * (1 - t * 0.5),
-                                    color: Colors.white.withValues(alpha: 0.48),
+                                  child: Transform.translate(
+                                    offset: Offset(0, 6 * (1 - t)),
+                                    child: FlickArtworkPlaceholder(
+                                      size: iconSize * (1 - t * 0.5) * 1.42,
+                                      opacity: 0.92,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -497,18 +502,22 @@ class _AlbumArtBoxState extends State<AlbumArtBox>
                                 fit: BoxFit.cover,
                                 placeholder: Container(
                                   color: Colors.white.withValues(alpha: 0.05),
-                                  child: Icon(
-                                    LucideIcons.music,
-                                    size: iconSize * (1 - t * 0.5),
-                                    color: Colors.white.withValues(alpha: 0.48),
+                                  child: Transform.translate(
+                                    offset: Offset(0, 6 * (1 - t)),
+                                    child: FlickArtworkPlaceholder(
+                                      size: iconSize * (1 - t * 0.5) * 1.42,
+                                      opacity: 0.92,
+                                    ),
                                   ),
                                 ),
                                 errorWidget: Container(
                                   color: Colors.white.withValues(alpha: 0.05),
-                                  child: Icon(
-                                    LucideIcons.music,
-                                    size: iconSize * (1 - t * 0.5),
-                                    color: Colors.white.withValues(alpha: 0.48),
+                                  child: Transform.translate(
+                                    offset: Offset(0, 6 * (1 - t)),
+                                    child: FlickArtworkPlaceholder(
+                                      size: iconSize * (1 - t * 0.5) * 1.42,
+                                      opacity: 0.92,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -749,4 +758,3 @@ class _VinylOutlinePainter extends CustomPainter {
   bool shouldRepaint(covariant _VinylOutlinePainter old) =>
       old.progress != progress;
 }
-

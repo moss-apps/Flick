@@ -13,6 +13,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/glass_dialog.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 
@@ -704,11 +705,10 @@ class _RecentlyPlayedTileState extends State<_RecentlyPlayedTile>
   }
 
   Widget _buildPlaceholder(BuildContext context) {
-    return Center(
-      child: Icon(
-        LucideIcons.music,
-        size: context.responsiveIcon(AppConstants.iconSizeLg),
-        color: context.adaptiveTextTertiary.withValues(alpha: 0.5),
+    return Container(
+      color: AppColors.surfaceLight,
+      child: const Center(
+        child: FlickArtworkPlaceholder(size: 28, opacity: 0.9),
       ),
     );
   }

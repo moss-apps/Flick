@@ -141,6 +141,7 @@ class GlassBottomSheet extends StatelessWidget {
     bool enableDrag = true,
   }) {
     return showModalBottomSheet<T>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: isScrollControlled,
       isDismissible: isDismissible,

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
@@ -13,6 +12,7 @@ import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/player_action_button.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 class PlayerLayoutSheet extends ConsumerStatefulWidget {
   final PlayerService playerService;
@@ -36,6 +36,7 @@ class PlayerLayoutSheet extends ConsumerStatefulWidget {
     required Song? song,
   }) {
     return showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1036,10 +1037,11 @@ class _PreviewAlbumArt extends StatelessWidget {
           colors: [Color(0xFF4B3D7A), Color(0xFF111111)],
         ),
       ),
-      child: Icon(
-        LucideIcons.music,
-        color: Colors.white.withValues(alpha: 0.62),
-        size: size.isFinite ? math.max(18, size * 0.38) : 64,
+      child: Center(
+        child: FlickArtworkPlaceholder(
+          size: size.isFinite ? math.max(22, size * 0.42) : 72,
+          opacity: 0.9,
+        ),
       ),
     );
   }

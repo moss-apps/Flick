@@ -8,6 +8,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/uac2/uac2_player_status.dart';
 
 class MiniPlayer extends ConsumerStatefulWidget {
@@ -126,11 +127,14 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                           return Align(
                             alignment: Alignment.bottomLeft,
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
                               child: FractionallySizedBox(
-                                widthFactor: (position.inMilliseconds /
-                                        duration.inMilliseconds)
-                                    .clamp(0.0, 1.0),
+                                widthFactor:
+                                    (position.inMilliseconds /
+                                            duration.inMilliseconds)
+                                        .clamp(0.0, 1.0),
                                 child: Container(
                                   height: 3,
                                   decoration: BoxDecoration(
@@ -141,7 +145,9 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: AppColors.accent.withValues(alpha: 0.5),
+                                        color: AppColors.accent.withValues(
+                                          alpha: 0.5,
+                                        ),
                                         blurRadius: 6,
                                         offset: const Offset(0, -1),
                                       ),
@@ -162,7 +168,12 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                       Hero(
                         tag: 'mini_player_art',
                         child: Container(
-                          margin: const EdgeInsets.only(left: 8, top: 8, bottom: 8, right: 14),
+                          margin: const EdgeInsets.only(
+                            left: 8,
+                            top: 8,
+                            bottom: 8,
+                            right: 14,
+                          ),
                           width: 56,
                           height: 56,
                           decoration: BoxDecoration(
@@ -185,15 +196,19 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                               useThumbnail: true,
                               thumbnailWidth: 128,
                               thumbnailHeight: 128,
-                              placeholder: const Icon(
-                                LucideIcons.music,
-                                size: 24,
-                                color: AppColors.textTertiary,
+                              placeholder: Container(
+                                color: AppColors.surfaceDark,
+                                child: const FlickArtworkPlaceholder(
+                                  size: 32,
+                                  opacity: 0.88,
+                                ),
                               ),
-                              errorWidget: const Icon(
-                                LucideIcons.music,
-                                size: 24,
-                                color: AppColors.textTertiary,
+                              errorWidget: Container(
+                                color: AppColors.surfaceDark,
+                                child: const FlickArtworkPlaceholder(
+                                  size: 32,
+                                  opacity: 0.88,
+                                ),
                               ),
                             ),
                           ),
@@ -230,7 +245,9 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                       fontFamily: 'ProductSans',
                                       fontSize: 13.5,
                                       fontWeight: FontWeight.w500,
-                                      color: AppColors.textSecondary.withValues(alpha: 0.9),
+                                      color: AppColors.textSecondary.withValues(
+                                        alpha: 0.9,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -241,7 +258,9 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 2), // Spacing for progress bar
+                            const SizedBox(
+                              height: 2,
+                            ), // Spacing for progress bar
                           ],
                         ),
                       ),
@@ -260,7 +279,8 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
 
                       // Play/Pause button with circular background
                       ValueListenableBuilder<bool>(
-                        valueListenable: _playerService.isNetworkLoadingNotifier,
+                        valueListenable:
+                            _playerService.isNetworkLoadingNotifier,
                         builder: (context, isLoading, _) {
                           if (isLoading) {
                             return Container(
@@ -286,12 +306,16 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: isPlaying
-                                    ? AppColors.accent.withValues(alpha: 0.15)
-                                    : AppColors.glassBackgroundStrong,
+                                      ? AppColors.accent.withValues(alpha: 0.15)
+                                      : AppColors.glassBackgroundStrong,
                                   border: Border.all(
                                     color: isPlaying
-                                      ? AppColors.accent.withValues(alpha: 0.3)
-                                      : AppColors.glassBorder.withValues(alpha: 0.2),
+                                        ? AppColors.accent.withValues(
+                                            alpha: 0.3,
+                                          )
+                                        : AppColors.glassBorder.withValues(
+                                            alpha: 0.2,
+                                          ),
                                   ),
                                 ),
                                 child: Material(
@@ -305,8 +329,12 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                     child: Padding(
                                       padding: const EdgeInsets.all(10.0),
                                       child: Icon(
-                                        isPlaying ? LucideIcons.pause : LucideIcons.play,
-                                        color: isPlaying ? AppColors.accentLight : AppColors.textPrimary,
+                                        isPlaying
+                                            ? LucideIcons.pause
+                                            : LucideIcons.play,
+                                        color: isPlaying
+                                            ? AppColors.accentLight
+                                            : AppColors.textPrimary,
                                         size: 20,
                                       ),
                                     ),

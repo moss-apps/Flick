@@ -6,8 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/features/songs/screens/metadata_editor_screen.dart';
 import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart';
+import 'package:flick/features/songs/widgets/metadata_editor_bottom_sheet.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/music_folder_service.dart';
@@ -37,6 +38,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
     VoidCallback? onSelect,
   }) {
     return showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -139,12 +141,12 @@ class SongActionsBottomSheet extends ConsumerWidget {
               label: 'Edit Metadata',
               onTap: () {
                 Navigator.pop(context);
-                Navigator.of(context).push<bool>(
-                  MaterialPageRoute(
-                    builder: (_) => MetadataEditorScreen(song: song),
-                  ),
-                ).then((saved) {
-                  if (saved == true && rootContext.mounted) {
+                Future.delayed(Duration.zero, () async {
+                  final saved = await MetadataEditorBottomSheet.show(
+                    rootContext,
+                    song,
+                  );
+                  if (saved && rootContext.mounted) {
                     ref.invalidate(songsProvider);
                   }
                 });
@@ -215,19 +217,11 @@ class SongActionsBottomSheet extends ConsumerWidget {
               thumbnailHeight: 136,
               placeholder: const ColoredBox(
                 color: AppColors.surfaceLight,
-                child: Icon(
-                  LucideIcons.music,
-                  color: AppColors.textTertiary,
-                  size: 24,
-                ),
+                child: FlickArtworkPlaceholder(size: 28, opacity: 0.9),
               ),
               errorWidget: const ColoredBox(
                 color: AppColors.surfaceLight,
-                child: Icon(
-                  LucideIcons.music,
-                  color: AppColors.textTertiary,
-                  size: 24,
-                ),
+                child: FlickArtworkPlaceholder(size: 28, opacity: 0.9),
               ),
             ),
           ),
@@ -355,6 +349,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
 
   void _showAddToPlaylistSheet(BuildContext context) {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -570,6 +565,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
 
   void _showMetadataSheet(BuildContext context) {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

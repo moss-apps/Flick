@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 class LyricShareCard extends StatelessWidget {
   final Song song;
@@ -139,7 +140,7 @@ class LyricShareCard extends StatelessWidget {
   Widget _fallbackBackground() => Container(
     color: const Color(0xFF1A1A1A),
     child: const Center(
-      child: Icon(Icons.music_note_rounded, color: Color(0xFF404040), size: 64),
+      child: FlickArtworkPlaceholder(size: 56, opacity: 0.9),
     ),
   );
 }

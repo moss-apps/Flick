@@ -1,34 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/providers/providers.dart';
 import 'package:flick/services/metadata_editor_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/src/rust/api/metadata_editor.dart' as rust_metadata;
-import 'package:flick/providers/providers.dart';
+import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Deprecated: use [MetadataEditorBottomSheet] (`lib/features/songs/widgets/metadata_editor_bottom_sheet.dart:12`).
-///
-/// Kept temporarily for backward compatibility; will be deleted once the
-/// bottom-sheet rollout is confirmed. New code should call
-/// `MetadataEditorBottomSheet.show(context, song)`.
-@Deprecated(
-  'Use MetadataEditorBottomSheet.show instead – full-screen editor will be removed',
-)
-class MetadataEditorScreen extends ConsumerStatefulWidget {
-  final Song song;
+class _MetadataEditorSheetResult {
+  const _MetadataEditorSheetResult({
+    required this.saved,
+    required this.verified,
+    this.message,
+  });
 
-  const MetadataEditorScreen({super.key, required this.song});
-
-  @override
-  ConsumerState<MetadataEditorScreen> createState() =>
-      _MetadataEditorScreenState();
+  final bool saved;
+  final bool verified;
+  final String? message;
 }
 
-class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
+class MetadataEditorBottomSheet extends ConsumerStatefulWidget {
+  final Song song;
+
+  const MetadataEditorBottomSheet({super.key, required this.song});
+
+  static Future<bool> show(BuildContext context, Song song) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final result = await showModalBottomSheet<_MetadataEditorSheetResult>(
+      useRootNavigator: true,
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: AppBottomSheetSurface(
+          maxHeightRatio: 0.85,
+          child: MetadataEditorBottomSheet(song: song),
+        ),
+      ),
+    );
+
+    final saved = result?.saved ?? false;
+    if (!context.mounted || messenger == null || result == null) {
+      return saved;
+    }
+
+    // ScaffoldMessenger after pop – per spec, show after sheet is dismissed
+    // using the caller's messenger so it survives the sheet's context disposal.
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            result.verified
+                ? 'Saved and verified'
+                : (result.message ?? 'Saved (verification pending)'),
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: result.verified ? 2 : 4),
+        ),
+      );
+    return saved;
+  }
+
+  @override
+  ConsumerState<MetadataEditorBottomSheet> createState() =>
+      _MetadataEditorBottomSheetState();
+}
+
+class _MetadataEditorBottomSheetState
+    extends ConsumerState<MetadataEditorBottomSheet> {
   late TextEditingController _titleController;
   late TextEditingController _artistController;
   late TextEditingController _albumController;
@@ -54,7 +101,8 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
     _titleController = TextEditingController(text: s.title);
     _artistController = TextEditingController(text: s.artist);
     _albumController = TextEditingController(text: s.album ?? '');
-    _albumArtistController = TextEditingController(text: s.albumArtist ?? '');
+    _albumArtistController =
+        TextEditingController(text: s.albumArtist ?? '');
     _genreController = TextEditingController(text: s.genre ?? '');
     _yearController =
         TextEditingController(text: s.year?.toString() ?? '');
@@ -115,8 +163,10 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
     return null;
   }
 
-  String? _trackError() => _positiveIntError(_trackNumberController, 'track');
-  String? _discError() => _positiveIntError(_discNumberController, 'disc');
+  String? _trackError() =>
+      _positiveIntError(_trackNumberController, 'track');
+  String? _discError() =>
+      _positiveIntError(_discNumberController, 'disc');
 
   String? _positiveIntError(TextEditingController c, String label) {
     final t = c.text.trim();
@@ -131,6 +181,7 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
 
   Future<void> _save() async {
     if (!_hasChanges || _isSaving || _hasInvalidFields) return;
+    if (!_isEditable) return;
     setState(() {
       _isSaving = true;
       _error = null;
@@ -163,9 +214,10 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
     if (!mounted) return;
 
     if (result.saved) {
-      final messenger = ScaffoldMessenger.of(context);
       final path = widget.song.filePath;
       if (path != null && path.isNotEmpty) {
+        // Immediate in-memory mirror so mini/full player, queue and notification
+        // update without waiting for DB watch or track change.
         PlayerService().syncSongMetadata(
           filePath: path,
           title: fields.title,
@@ -179,29 +231,32 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
         );
       }
       ref.invalidate(songsProvider);
-      Navigator.of(context).pop(true);
-      if (result.verified) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Saved and verified'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      } else {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(result.message ?? 'Saved (verification pending)'),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
+
+      final verified = result.verified;
+      final message = verified ? null : result.message;
+      if (!mounted) return;
+      // Pop with result; static show() will handle ScaffoldMessenger after pop.
+      Navigator.of(context).pop(
+        _MetadataEditorSheetResult(
+          saved: true,
+          verified: verified,
+          message: message,
+        ),
+      );
     } else {
       setState(() {
         _isSaving = false;
         _error = result.message ?? 'Failed to save metadata.';
       });
+    }
+  }
+
+  void _handleClose() {
+    if (_isSaving) return;
+    if (_hasChanges) {
+      _showDiscardDialog(context);
+    } else {
+      Navigator.of(context).pop();
     }
   }
 
@@ -211,90 +266,121 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
     final canSave =
         _isEditable && _hasChanges && !_isSaving && !_hasInvalidFields;
 
+    // PopScope to intercept system back / drag dismiss when there are changes.
+    // Header (drag handle + "Edit Metadata" + X) is kept outside the scroll
+    // view so it persists while the form fields scroll underneath.
     return PopScope(
-      canPop: !_isSaving,
+      canPop: !_isSaving && !_hasChanges,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _hasChanges && !_isSaving) {
           _showDiscardDialog(context);
         }
       },
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(LucideIcons.x, color: accent),
-            onPressed: () {
-              if (_hasChanges && !_isSaving) {
-                _showDiscardDialog(context);
-              } else {
-                Navigator.of(context).pop(false);
-              }
-            },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDragHandle(),
+          const SizedBox(height: AppConstants.spacingMd),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Edit Metadata',
+                  style: TextStyle(
+                    fontFamily: 'ProductSans',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: accent,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: _isSaving ? null : _handleClose,
+                child: Container(
+                  padding: const EdgeInsets.all(AppConstants.spacingXs),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceLight,
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.radiusMd),
+                    border: Border.all(color: AppColors.glassBorder),
+                  ),
+                  child: const Icon(
+                    LucideIcons.x,
+                    color: AppColors.textSecondary,
+                    size: 16,
+                  ),
+                ),
+              ),
+            ],
           ),
-          title: Text(
-            'Edit Metadata',
-            style: TextStyle(
-              fontFamily: 'ProductSans',
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: accent,
-            ),
-          ),
-        ),
-        body: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          behavior: HitTestBehavior.translucent,
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.fromLTRB(
-              AppConstants.spacingLg,
-              AppConstants.spacingSm,
-              AppConstants.spacingLg,
-              AppConstants.spacingXl + AppConstants.spacingXxl,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (!_isEditable) ...[
-                  _buildLockBanner(context),
+          const SizedBox(height: AppConstants.spacingMd),
+          Flexible(
+            fit: FlexFit.loose,
+            child: SingleChildScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!_isEditable) ...[
+                    _buildLockBanner(context),
+                    const SizedBox(height: AppConstants.spacingLg),
+                  ],
+                  if (_error != null) ...[
+                    _buildErrorBanner(context),
+                    const SizedBox(height: AppConstants.spacingMd),
+                  ],
+                  _buildField(context, 'Title', _titleController,
+                      focusNode: _titleFocus,
+                      enabled: _isEditable && !_isSaving),
+                  _buildField(context, 'Artist', _artistController,
+                      enabled: _isEditable && !_isSaving),
+                  _buildField(context, 'Album', _albumController,
+                      enabled: _isEditable && !_isSaving),
+                  _buildField(context, 'Album Artist',
+                      _albumArtistController,
+                      enabled: _isEditable && !_isSaving),
+                  _buildField(context, 'Genre', _genreController,
+                      enabled: _isEditable && !_isSaving),
+                  _buildField(context, 'Year', _yearController,
+                      enabled: _isEditable && !_isSaving,
+                      keyboardType: TextInputType.number,
+                      errorText: _yearError()),
+                  _buildField(context, 'Track #', _trackNumberController,
+                      enabled: _isEditable && !_isSaving,
+                      keyboardType: TextInputType.number,
+                      errorText: _trackError()),
+                  _buildField(context, 'Disc #', _discNumberController,
+                      enabled: _isEditable && !_isSaving,
+                      keyboardType: TextInputType.number,
+                      errorText: _discError()),
                   const SizedBox(height: AppConstants.spacingLg),
+                  _buildReadOnlyInfo(context),
+                  const SizedBox(height: AppConstants.spacingSm),
                 ],
-                if (_error != null) ...[
-                  _buildErrorBanner(context),
-                  const SizedBox(height: AppConstants.spacingMd),
-                ],
-                _buildField(context, 'Title', _titleController,
-                    focusNode: _titleFocus,
-                    enabled: _isEditable && !_isSaving),
-                _buildField(context, 'Artist', _artistController,
-                    enabled: _isEditable && !_isSaving),
-                _buildField(context, 'Album', _albumController,
-                    enabled: _isEditable && !_isSaving),
-                _buildField(context, 'Album Artist', _albumArtistController,
-                    enabled: _isEditable && !_isSaving),
-                _buildField(context, 'Genre', _genreController,
-                    enabled: _isEditable && !_isSaving),
-                _buildField(context, 'Year', _yearController,
-                    enabled: _isEditable && !_isSaving,
-                    keyboardType: TextInputType.number,
-                    errorText: _yearError()),
-                _buildField(context, 'Track #', _trackNumberController,
-                    enabled: _isEditable && !_isSaving,
-                    keyboardType: TextInputType.number,
-                    errorText: _trackError()),
-                _buildField(context, 'Disc #', _discNumberController,
-                    enabled: _isEditable && !_isSaving,
-                    keyboardType: TextInputType.number,
-                    errorText: _discError()),
-                const SizedBox(height: AppConstants.spacingXl),
-                _buildReadOnlyInfo(context),
-              ],
+              ),
             ),
           ),
+          if (_isEditable) ...[
+            const SizedBox(height: AppConstants.spacingMd),
+            _buildSaveButton(context, canSave),
+            const SizedBox(height: AppConstants.spacingSm),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDragHandle() {
+    return Center(
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: AppColors.glassBorderStrong,
+          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
         ),
-        bottomNavigationBar: _isEditable ? _buildSaveBar(context, canSave) : null,
       ),
     );
   }
@@ -494,63 +580,41 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
     );
   }
 
-  Widget _buildSaveBar(BuildContext context, bool canSave) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(
-          AppConstants.spacingLg,
-          AppConstants.spacingSm,
-          AppConstants.spacingLg,
-          AppConstants.spacingSm,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          border: Border(
-            top: BorderSide(color: AppColors.glassBorder, width: 1),
+  Widget _buildSaveButton(BuildContext context, bool canSave) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: FilledButton(
+        onPressed: canSave ? _save : null,
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.accent,
+          disabledBackgroundColor:
+              AppColors.surfaceLight.withValues(alpha: 0.6),
+          foregroundColor: AppColors.background,
+          disabledForegroundColor: AppColors.textTertiary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
           ),
+          padding: EdgeInsets.zero,
         ),
-        child: AnimatedSize(
-          duration: AppConstants.animationFast,
-          alignment: Alignment.center,
-          child: SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton(
-              onPressed: canSave ? _save : null,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                disabledBackgroundColor:
-                    AppColors.surfaceLight.withValues(alpha: 0.6),
-                foregroundColor: AppColors.background,
-                disabledForegroundColor: AppColors.textTertiary,
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(AppConstants.radiusMd),
+        child: _isSaving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(AppColors.background),
                 ),
-                padding: EdgeInsets.zero,
+              )
+            : Text(
+                'Save Changes',
+                style: TextStyle(
+                  fontFamily: 'ProductSans',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(AppColors.background),
-                      ),
-                    )
-                  : Text(
-                      'Save Changes',
-                      style: TextStyle(
-                        fontFamily: 'ProductSans',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -562,7 +626,8 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
         backgroundColor: AppColors.surfaceLight,
         title: Text('Discard Changes?',
             style: TextStyle(
-                fontFamily: 'ProductSans', color: context.adaptiveTextPrimary)),
+                fontFamily: 'ProductSans',
+                color: context.adaptiveTextPrimary)),
         content: Text(
           'You have unsaved changes. Are you sure you want to discard them?',
           style: TextStyle(
@@ -577,7 +642,7 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              Navigator.of(context).pop(false);
+              Navigator.of(context).pop();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
             child: const Text('Discard'),

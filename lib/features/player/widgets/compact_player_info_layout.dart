@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 /// Compact horizontal player header used when window height is constrained
 /// (split screen / freeform). Artwork left, song info right. File info and
@@ -55,18 +55,16 @@ class CompactPlayerInfoLayout extends StatelessWidget {
                 fit: BoxFit.cover,
                 placeholder: Container(
                   color: AppColors.glassBackgroundStrong,
-                  child: Icon(
-                    LucideIcons.music,
-                    size: context.responsive(24.0, 28.0, 32.0),
-                    color: AppColors.textTertiary,
+                  child: FlickArtworkPlaceholder(
+                    size: context.responsive(28.0, 32.0, 36.0),
+                    opacity: 0.92,
                   ),
                 ),
                 errorWidget: Container(
                   color: AppColors.glassBackgroundStrong,
-                  child: Icon(
-                    LucideIcons.music,
-                    size: context.responsive(24.0, 28.0, 32.0),
-                    color: AppColors.textTertiary,
+                  child: FlickArtworkPlaceholder(
+                    size: context.responsive(28.0, 32.0, 36.0),
+                    opacity: 0.92,
                   ),
                 ),
               ),

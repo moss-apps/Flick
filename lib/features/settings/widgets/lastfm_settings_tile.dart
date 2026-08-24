@@ -106,6 +106,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
 
   Future<void> _disconnect() async {
     final confirmed = await showModalBottomSheet<bool>(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
@@ -289,6 +290,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
 
     try {
       await showModalBottomSheet(
+      useRootNavigator: true,
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
@@ -777,6 +779,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
 
   Future<void> _showConnectedBottomSheet(String username) async {
     await showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(

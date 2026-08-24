@@ -11,6 +11,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
@@ -145,6 +146,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
 
   void _showLongPressSheet(Song song) {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
@@ -608,11 +610,10 @@ class _FavoriteSongTile extends StatelessWidget {
   }
 
   Widget _buildPlaceholder(BuildContext context) {
-    return Center(
-      child: Icon(
-        LucideIcons.music,
-        color: context.adaptiveTextTertiary,
-        size: context.responsiveIcon(AppConstants.iconSizeLg),
+    return Container(
+      color: AppColors.surfaceLight,
+      child: const Center(
+        child: FlickArtworkPlaceholder(size: 28, opacity: 0.9),
       ),
     );
   }

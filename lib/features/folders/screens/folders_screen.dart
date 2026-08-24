@@ -17,8 +17,8 @@ import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
-import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 /// Groups songs by immediate subfolder relative to [prefix] within [folderUri].
 ({List<FolderGroup> subfolders, List<Song> songs}) groupByImmediateFolder({
@@ -230,6 +230,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
   void _showSortSheet() {
     final pageSize = ref.read(appPreferencesProvider).folderGridPageSize;
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _FolderRootSortSheet(
@@ -830,10 +831,8 @@ class _RootFolderCardState extends State<_RootFolderCard>
       borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
       child: Container(
         color: AppColors.surfaceLight,
-        child: const Icon(
-          LucideIcons.music,
-          color: AppColors.textTertiary,
-          size: 18,
+        child: const Center(
+          child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
         ),
       ),
     );
@@ -953,6 +952,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
 
   void _showSortSheet() {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _FolderBrowserSortSheet(
@@ -1074,7 +1074,6 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
             ),
           ),
         ),
-        const FloatingMiniPlayer(),
       ],
     );
   }
@@ -1662,10 +1661,8 @@ class _SubfolderCardState extends State<_SubfolderCard>
       borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
       child: Container(
         color: AppColors.surfaceLight,
-        child: const Icon(
-          LucideIcons.music,
-          color: AppColors.textTertiary,
-          size: 18,
+        child: const Center(
+          child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
         ),
       ),
     );
@@ -1706,19 +1703,11 @@ class _SongTile extends StatelessWidget {
                     thumbnailHeight: 92,
                     placeholder: const ColoredBox(
                       color: AppColors.surface,
-                      child: Icon(
-                        LucideIcons.music,
-                        color: AppColors.textTertiary,
-                        size: 18,
-                      ),
+                      child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                     ),
                     errorWidget: const ColoredBox(
                       color: AppColors.surface,
-                      child: Icon(
-                        LucideIcons.music,
-                        color: AppColors.textTertiary,
-                        size: 18,
-                      ),
+                      child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                     ),
                   ),
                 ),

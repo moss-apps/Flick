@@ -7,6 +7,7 @@ import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/common/marquee_widget.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 /// Song card widget for displaying in the orbit scroll.
 class SongCard extends StatefulWidget {
@@ -388,11 +389,7 @@ class _SongCardState extends State<SongCard> {
         ),
       ),
       child: const Center(
-        child: Icon(
-          Icons.music_note_rounded,
-          color: AppColors.textTertiary,
-          size: 28,
-        ),
+        child: FlickArtworkPlaceholder(size: 36, opacity: 0.9),
       ),
     );
   }

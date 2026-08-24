@@ -13,6 +13,7 @@ import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/services/csv_export_service.dart';
 import 'package:flick/services/gallery_save_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -1842,22 +1843,14 @@ class _PosterAlbumArtFeature extends StatelessWidget {
           child: imagePath == null || imagePath!.isEmpty
               ? ColoredBox(
                   color: Colors.white.withValues(alpha: 0.1),
-                  child: Icon(
-                    Icons.music_note_rounded,
-                    size: 62,
-                    color: Colors.white.withValues(alpha: 0.78),
-                  ),
+                  child: const FlickArtworkPlaceholder(size: 80, opacity: 0.9),
                 )
               : CachedImageWidget(
                   imagePath: imagePath,
                   fit: BoxFit.cover,
                   errorWidget: ColoredBox(
                     color: Colors.white.withValues(alpha: 0.1),
-                    child: Icon(
-                      Icons.music_note_rounded,
-                      size: 62,
-                      color: Colors.white.withValues(alpha: 0.78),
-                    ),
+                    child: const FlickArtworkPlaceholder(size: 80, opacity: 0.9),
                   ),
                 ),
         ),
@@ -2459,10 +2452,9 @@ class _PosterArtThumb extends StatelessWidget {
         child: imagePath == null || imagePath!.isEmpty
             ? Container(
                 color: Colors.white.withValues(alpha: 0.08),
-                child: Icon(
-                  Icons.music_note_rounded,
-                  size: size * 0.34,
-                  color: Colors.white.withValues(alpha: 0.78),
+                child: FlickArtworkPlaceholder(
+                  size: size * 0.38,
+                  opacity: 0.9,
                 ),
               )
             : CachedImageWidget(imagePath: imagePath!, fit: BoxFit.cover),

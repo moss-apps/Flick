@@ -12,6 +12,7 @@ import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/services/sources/network_source_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
@@ -745,11 +746,7 @@ class _PlaylistCover extends ConsumerWidget {
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
         border: Border.all(color: AppColors.surfaceDark),
       ),
-      child: Icon(
-        LucideIcons.music,
-        color: context.adaptiveTextSecondary,
-        size: context.responsiveIcon(AppConstants.iconSizeLg),
-      ),
+      child: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
     );
   }
 
@@ -804,10 +801,8 @@ class _PlaylistCover extends ConsumerWidget {
   Widget _buildPlaceholderIcon(BuildContext context) {
     return Container(
       color: AppColors.surfaceLight,
-      child: Icon(
-        LucideIcons.music,
-        color: context.adaptiveTextSecondary,
-        size: context.responsiveIcon(AppConstants.iconSizeLg),
+      child: const Center(
+        child: FlickArtworkPlaceholder(size: 28, opacity: 0.9),
       ),
     );
   }

@@ -1159,6 +1159,10 @@ class PlayerService {
       resolution: song.resolution,
       sampleRate: song.sampleRate,
       bitDepth: song.bitDepth,
+      replaygainTrackGain: song.replaygainTrackGain,
+      replaygainTrackPeak: song.replaygainTrackPeak,
+      replaygainAlbumGain: song.replaygainAlbumGain,
+      replaygainAlbumPeak: song.replaygainAlbumPeak,
       startOffsetMs: song.startOffsetMs,
       endOffsetMs: song.endOffsetMs,
       ripper: song.ripper,
@@ -1170,13 +1174,150 @@ class PlayerService {
       albumArtist: song.albumArtist,
       trackNumber: song.trackNumber,
       discNumber: song.discNumber,
+      year: song.year,
+      genre: song.genre,
       filePath: song.filePath,
       folderUri: song.folderUri,
       dateAdded: song.dateAdded,
+      isExternal: song.isExternal,
+      sourcePackage: song.sourcePackage,
       sourceType: song.sourceType,
       remoteId: song.remoteId,
       remoteServerId: song.remoteServerId,
     );
+  }
+
+  /// Immediately reflects edited metadata in the in-memory playback state so
+  /// the UI (mini/full player, notification, queue) updates without waiting
+  /// for a DB watch tick or a track change.
+  ///
+  /// Fields with `null` mean “unchanged” (mirrors `SongRepository.updateSongMetadata`
+  /// and `MetadataEditorService` semantics). Only `filePath`-matched songs are patched.
+  void syncSongMetadata({
+    required String filePath,
+    String? title,
+    String? artist,
+    String? album,
+    String? albumArtist,
+    String? genre,
+    int? year,
+    int? trackNumber,
+    int? discNumber,
+  }) {
+    if (filePath.isEmpty) return;
+    final hasChange =
+        title != null ||
+        artist != null ||
+        album != null ||
+        albumArtist != null ||
+        genre != null ||
+        year != null ||
+        trackNumber != null ||
+        discNumber != null;
+    if (!hasChange) return;
+
+    Song syncSong(Song song) {
+      if (song.filePath != filePath) return song;
+      // Detect if anything would actually change.
+      final nextTitle = title ?? song.title;
+      final nextArtist = artist ?? song.artist;
+      final nextAlbum = album ?? song.album;
+      final nextAlbumArtist = albumArtist ?? song.albumArtist;
+      final nextGenre = genre ?? song.genre;
+      final nextYear = year ?? song.year;
+      final nextTrack = trackNumber ?? song.trackNumber;
+      final nextDisc = discNumber ?? song.discNumber;
+      if (nextTitle == song.title &&
+          nextArtist == song.artist &&
+          nextAlbum == song.album &&
+          nextAlbumArtist == song.albumArtist &&
+          nextGenre == song.genre &&
+          nextYear == song.year &&
+          nextTrack == song.trackNumber &&
+          nextDisc == song.discNumber) {
+        return song;
+      }
+      return Song(
+        id: song.id,
+        title: nextTitle,
+        artist: nextArtist,
+        albumArt: song.albumArt,
+        duration: song.duration,
+        fileType: song.fileType,
+        resolution: song.resolution,
+        sampleRate: song.sampleRate,
+        bitDepth: song.bitDepth,
+        replaygainTrackGain: song.replaygainTrackGain,
+        replaygainTrackPeak: song.replaygainTrackPeak,
+        replaygainAlbumGain: song.replaygainAlbumGain,
+        replaygainAlbumPeak: song.replaygainAlbumPeak,
+        startOffsetMs: song.startOffsetMs,
+        endOffsetMs: song.endOffsetMs,
+        ripper: song.ripper,
+        readMode: song.readMode,
+        accurateRip: song.accurateRip,
+        testCrc: song.testCrc,
+        copyCrc: song.copyCrc,
+        album: nextAlbum,
+        albumArtist: nextAlbumArtist,
+        trackNumber: nextTrack,
+        discNumber: nextDisc,
+        year: nextYear,
+        genre: nextGenre,
+        filePath: song.filePath,
+        folderUri: song.folderUri,
+        dateAdded: song.dateAdded,
+        isExternal: song.isExternal,
+        sourcePackage: song.sourcePackage,
+        sourceType: song.sourceType,
+        remoteId: song.remoteId,
+        remoteServerId: song.remoteServerId,
+      );
+    }
+
+    var queueChanged = false;
+
+    for (var i = 0; i < _playlist.length; i++) {
+      final updated = syncSong(_playlist[i]);
+      if (!identical(updated, _playlist[i])) {
+        _playlist[i] = updated;
+      }
+    }
+
+    for (var i = 0; i < _originalPlaylist.length; i++) {
+      final updated = syncSong(_originalPlaylist[i]);
+      if (!identical(updated, _originalPlaylist[i])) {
+        _originalPlaylist[i] = updated;
+      }
+    }
+
+    for (var i = 0; i < _queuedEntries.length; i++) {
+      final entry = _queuedEntries[i];
+      final updatedSong = syncSong(entry.song);
+      if (!identical(updatedSong, entry.song)) {
+        _queuedEntries[i] = _QueueEntry(id: entry.id, song: updatedSong);
+        queueChanged = true;
+      }
+    }
+
+    var currentSongUpdated = false;
+    final currentSong = currentSongNotifier.value;
+    if (currentSong != null) {
+      final updatedCurrentSong = syncSong(currentSong);
+      if (!identical(updatedCurrentSong, currentSong)) {
+        currentSongNotifier.value = updatedCurrentSong;
+        currentSongUpdated = true;
+      }
+    }
+
+    if (queueChanged) {
+      _notifyQueueChanged();
+    }
+    _notifyUpNextChanged();
+
+    if (currentSongUpdated) {
+      _updateNotificationState();
+    }
   }
 
   void _insertQueuedEntriesAfterCurrent() {

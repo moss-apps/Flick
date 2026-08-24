@@ -144,6 +144,7 @@ class BitPerfectIndicator extends ConsumerWidget {
         AudioPathManagement.directUsbExperimental;
 
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,

@@ -32,6 +32,7 @@ import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/engine_restart_notice.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
@@ -2295,17 +2296,11 @@ class _HeroFeatureTile extends StatelessWidget {
                 thumbnailHeight: 160,
                 placeholder: Container(
                   color: Colors.white.withValues(alpha: 0.06),
-                  child: Icon(
-                    LucideIcons.music4,
-                    color: Colors.white.withValues(alpha: 0.72),
-                  ),
+                  child: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
                 ),
                 errorWidget: Container(
                   color: Colors.white.withValues(alpha: 0.06),
-                  child: Icon(
-                    LucideIcons.music4,
-                    color: Colors.white.withValues(alpha: 0.72),
-                  ),
+                  child: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
                 ),
               ),
             ),
@@ -2750,17 +2745,11 @@ class _RecentTrackCard extends StatelessWidget {
                     thumbnailHeight: 240,
                     placeholder: Container(
                       color: AppColors.glassBackgroundStrong,
-                      child: Icon(
-                        LucideIcons.music4,
-                        color: context.adaptiveTextSecondary,
-                      ),
+                      child: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
                     ),
                     errorWidget: Container(
                       color: AppColors.glassBackgroundStrong,
-                      child: Icon(
-                        LucideIcons.music4,
-                        color: context.adaptiveTextSecondary,
-                      ),
+                      child: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
                     ),
                   ),
                 ),

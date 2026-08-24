@@ -10,6 +10,7 @@ class SongMetadataSheet extends StatelessWidget {
 
   static Future<void> show(BuildContext context, Song song) {
     return showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
