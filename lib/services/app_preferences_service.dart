@@ -15,6 +15,7 @@ class AppPreferences {
   final bool crossfadeEnabled;
   final double crossfadeDurationSecs;
   final int crossfadeCurveIndex;
+  final int crossfeedLevel;
   final bool swipeActionsEnabled;
   final String favoriteRemovalMode; // 'swipe' or 'longpress'
   final bool fastIndexEnabled;
@@ -106,6 +107,9 @@ class AppPreferences {
   final bool detailHeaderArtExpanded;
   final bool detailHeaderCenteredTitle;
   final bool extendedVolumeEnabled;
+  final String replayGainMode; // 'off', 'track', or 'album'
+  final double replayGainPreampDb;
+  final bool replayGainPreventClipping;
 
   const AppPreferences({
     this.animationsEnabled = true,
@@ -122,6 +126,7 @@ class AppPreferences {
     this.crossfadeEnabled = false,
     this.crossfadeDurationSecs = 3.0,
     this.crossfadeCurveIndex = 0,
+    this.crossfeedLevel = 0,
     this.swipeActionsEnabled = false,
     this.favoriteRemovalMode = 'longpress',
     this.fastIndexEnabled = true,
@@ -213,6 +218,9 @@ class AppPreferences {
     this.detailHeaderArtExpanded = true,
     this.detailHeaderCenteredTitle = false,
     this.extendedVolumeEnabled = false,
+    this.replayGainMode = 'off',
+    this.replayGainPreampDb = 0.0,
+    this.replayGainPreventClipping = true,
   });
 
   AppPreferences copyWith({
@@ -230,6 +238,7 @@ class AppPreferences {
     bool? crossfadeEnabled,
     double? crossfadeDurationSecs,
     int? crossfadeCurveIndex,
+    int? crossfeedLevel,
     bool? swipeActionsEnabled,
     String? favoriteRemovalMode,
     bool? fastIndexEnabled,
@@ -321,6 +330,9 @@ class AppPreferences {
     bool? detailHeaderArtExpanded,
     bool? detailHeaderCenteredTitle,
     bool? extendedVolumeEnabled,
+    String? replayGainMode,
+    double? replayGainPreampDb,
+    bool? replayGainPreventClipping,
   }) {
     return AppPreferences(
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
@@ -340,6 +352,7 @@ class AppPreferences {
       crossfadeDurationSecs:
           crossfadeDurationSecs ?? this.crossfadeDurationSecs,
       crossfadeCurveIndex: crossfadeCurveIndex ?? this.crossfadeCurveIndex,
+      crossfeedLevel: crossfeedLevel ?? this.crossfeedLevel,
       swipeActionsEnabled: swipeActionsEnabled ?? this.swipeActionsEnabled,
       favoriteRemovalMode: favoriteRemovalMode ?? this.favoriteRemovalMode,
       fastIndexEnabled: fastIndexEnabled ?? this.fastIndexEnabled,
@@ -476,6 +489,10 @@ class AppPreferences {
           detailHeaderCenteredTitle ?? this.detailHeaderCenteredTitle,
       extendedVolumeEnabled:
           extendedVolumeEnabled ?? this.extendedVolumeEnabled,
+      replayGainMode: replayGainMode ?? this.replayGainMode,
+      replayGainPreampDb: replayGainPreampDb ?? this.replayGainPreampDb,
+      replayGainPreventClipping:
+          replayGainPreventClipping ?? this.replayGainPreventClipping,
     );
   }
 }
@@ -495,6 +512,7 @@ class AppPreferencesService {
   static const _crossfadeEnabledKey = 'audio_crossfade_enabled';
   static const _crossfadeDurationKey = 'audio_crossfade_duration_secs';
   static const _crossfadeCurveKey = 'audio_crossfade_curve_index';
+  static const _crossfeedLevelKey = 'audio_crossfeed_level';
   static const _swipeActionsEnabledKey = 'swipe_actions_enabled';
   static const _favoriteRemovalModeKey = 'favorite_removal_mode';
   static const _fastIndexEnabledKey = 'fast_index_enabled';
@@ -593,6 +611,10 @@ class AppPreferencesService {
   static const _detailHeaderArtExpandedKey = 'detail_header_art_expanded';
   static const _detailHeaderCenteredTitleKey = 'detail_header_centered_title';
   static const _extendedVolumeEnabledKey = 'audio_extended_volume_enabled';
+  static const _replayGainModeKey = 'audio_replaygain_mode';
+  static const _replayGainPreampKey = 'audio_replaygain_preamp_db';
+  static const _replayGainPreventClippingKey =
+      'audio_replaygain_prevent_clipping';
   static const _shuffleModeKey = 'playback_shuffle_mode';
   static const _loopModeKey = 'playback_loop_mode';
   static const _advanceListOrderKey = 'playback_advance_list_order';
@@ -617,6 +639,7 @@ class AppPreferencesService {
       crossfadeEnabled: prefs.getBool(_crossfadeEnabledKey) ?? false,
       crossfadeDurationSecs: prefs.getDouble(_crossfadeDurationKey) ?? 3.0,
       crossfadeCurveIndex: prefs.getInt(_crossfadeCurveKey) ?? 0,
+      crossfeedLevel: prefs.getInt(_crossfeedLevelKey) ?? 0,
       swipeActionsEnabled: prefs.getBool(_swipeActionsEnabledKey) ?? false,
       favoriteRemovalMode:
           prefs.getString(_favoriteRemovalModeKey) ?? 'longpress',
@@ -753,6 +776,10 @@ class AppPreferencesService {
           prefs.getBool(_detailHeaderCenteredTitleKey) ?? false,
       extendedVolumeEnabled:
           prefs.getBool(_extendedVolumeEnabledKey) ?? false,
+      replayGainMode: prefs.getString(_replayGainModeKey) ?? 'off',
+      replayGainPreampDb: prefs.getDouble(_replayGainPreampKey) ?? 0.0,
+      replayGainPreventClipping:
+          prefs.getBool(_replayGainPreventClippingKey) ?? true,
     );
   }
 
@@ -896,6 +923,16 @@ class AppPreferencesService {
     await prefs.setInt(_crossfadeCurveKey, value);
   }
 
+  Future<int> getCrossfeedLevel() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_crossfeedLevelKey) ?? 0;
+  }
+
+  Future<void> setCrossfeedLevel(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_crossfeedLevelKey, value.clamp(0, 3));
+  }
+
   Future<bool> getExtendedVolumeEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_extendedVolumeEnabledKey) ?? false;
@@ -904,6 +941,36 @@ class AppPreferencesService {
   Future<void> setExtendedVolumeEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_extendedVolumeEnabledKey, value);
+  }
+
+  Future<String> getReplayGainMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_replayGainModeKey) ?? 'off';
+  }
+
+  Future<void> setReplayGainMode(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_replayGainModeKey, value);
+  }
+
+  Future<double> getReplayGainPreampDb() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_replayGainPreampKey) ?? 0.0;
+  }
+
+  Future<void> setReplayGainPreampDb(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_replayGainPreampKey, value);
+  }
+
+  Future<bool> getReplayGainPreventClipping() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_replayGainPreventClippingKey) ?? true;
+  }
+
+  Future<void> setReplayGainPreventClipping(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_replayGainPreventClippingKey, value);
   }
 
   Future<bool> getSwipeActionsEnabled() async {
