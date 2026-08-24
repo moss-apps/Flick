@@ -33,6 +33,14 @@ pub struct AudioFileMetadata {
     pub track_number: Option<u32>,
     pub disc_number: Option<u32>,
     pub file_size: u64,
+    /// ReplayGain loudness gain for the track (dB).
+    pub replaygain_track_gain: Option<f64>,
+    /// ReplayGain track peak (linear, e.g. 0.977125).
+    pub replaygain_track_peak: Option<f64>,
+    /// ReplayGain loudness gain for the whole album (dB).
+    pub replaygain_album_gain: Option<f64>,
+    /// ReplayGain album peak (linear).
+    pub replaygain_album_peak: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -361,6 +369,56 @@ fn classify_scan_work(
 
 const DSD_SAMPLE_RATE_THRESHOLD: u32 = 2_822_400;
 
+/// Parse a ReplayGain tag value like "-6.53 dB" (or a bare "-6.53" / "-6.53dB").
+/// Returns None for anything that isn't a finite float.
+fn parse_rg_db(value: Option<&str>) -> Option<f64> {
+    let raw = value?.trim();
+    let id3 = raw.strip_suffix("dB").or_else(|| {
+        raw.strip_suffix(" dB")
+    });
+    let number = id3.map(str::trim).unwrap_or(raw);
+    number.parse::<f64>().ok().filter(|v| v.is_finite())
+}
+
+/// Parse a ReplayGain peak value like "0.977125" (bare float).
+fn parse_rg_peak(value: Option<&str>) -> Option<f64> {
+    let raw = value?.trim();
+    raw.parse::<f64>().ok().filter(|v| v.is_finite())
+}
+
+/// ReplayGain values from a lofty tag. Falls back to the first tag when the
+/// primary has no ReplayGain frames (some taggers write them only to tag
+/// versions a reader prefers incidentally).
+fn lofty_replaygains(
+    tag: Option<&lofty::tag::Tag>,
+) -> (Option<f64>, Option<f64>, Option<f64>, Option<f64>) {
+    let value = |key: ItemKey| tag.and_then(|t| t.get_string(&key));
+    (
+        parse_rg_db(value(ItemKey::ReplayGainTrackGain)),
+        parse_rg_peak(value(ItemKey::ReplayGainTrackPeak)),
+        parse_rg_db(value(ItemKey::ReplayGainAlbumGain)),
+        parse_rg_peak(value(ItemKey::ReplayGainAlbumPeak)),
+    )
+}
+
+/// ReplayGain values from an ID3 tag's extended text frames (used by DSD
+/// files, which carry ID3 tags).
+fn id3_replaygains(tag: Option<&id3::Tag>) -> (Option<f64>, Option<f64>, Option<f64>, Option<f64>) {
+    let find = |description: &str| {
+        tag.and_then(|t| {
+            t.extended_texts()
+                .find(|xt| xt.description.eq_ignore_ascii_case(description))
+                .map(|xt| xt.value.as_str())
+        })
+    };
+    (
+        parse_rg_db(find("REPLAYGAIN_TRACK_GAIN")),
+        parse_rg_peak(find("REPLAYGAIN_TRACK_PEAK")),
+        parse_rg_db(find("REPLAYGAIN_ALBUM_GAIN")),
+        parse_rg_peak(find("REPLAYGAIN_ALBUM_PEAK")),
+    )
+}
+
 fn extract_text_metadata_only(entry: &FileScanEntry) -> Option<AudioFileMetadata> {
     let path = PathBuf::from(&entry.path);
     let format = path
@@ -395,6 +453,8 @@ fn extract_lofty_metadata(
         .or_else(|| tagged_file.first_tag());
     let properties = tagged_file.properties();
     let duration_ms = properties.duration().as_millis().min(u128::from(u64::MAX)) as u64;
+    let (rg_track_gain, rg_track_peak, rg_album_gain, rg_album_peak) =
+        lofty_replaygains(tag);
 
     Some(AudioFileMetadata {
         path: entry.path.clone(),
@@ -410,6 +470,10 @@ fn extract_lofty_metadata(
         track_number: tag.and_then(|t| t.track()),
         disc_number: tag.and_then(|t| t.disk()),
         file_size: entry.file_size,
+        replaygain_track_gain: rg_track_gain,
+        replaygain_track_peak: rg_track_peak,
+        replaygain_album_gain: rg_album_gain,
+        replaygain_album_peak: rg_album_peak,
     })
 }
 
@@ -459,6 +523,8 @@ fn extract_dsf_metadata(
     });
 
     let tag = dsf.id3_tag().as_ref();
+    let (rg_track_gain, rg_track_peak, rg_album_gain, rg_album_peak) =
+        id3_replaygains(tag);
     Some(AudioFileMetadata {
         path: entry.path.clone(),
         title: tag.and_then(|t| t.title().map(|s| s.to_string())),
@@ -473,6 +539,10 @@ fn extract_dsf_metadata(
         track_number: tag.and_then(|t| t.track()),
         disc_number: tag.and_then(|t| t.disc()),
         file_size: entry.file_size,
+        replaygain_track_gain: rg_track_gain,
+        replaygain_track_peak: rg_track_peak,
+        replaygain_album_gain: rg_album_gain,
+        replaygain_album_peak: rg_album_peak,
     })
 }
 
@@ -500,6 +570,8 @@ fn extract_dff_metadata(
     });
 
     let tag = dff.id3_tag().as_ref();
+    let (rg_track_gain, rg_track_peak, rg_album_gain, rg_album_peak) =
+        id3_replaygains(tag);
     Some(AudioFileMetadata {
         path: entry.path.clone(),
         title: tag.and_then(|t| t.title().map(|s| s.to_string())),
@@ -514,6 +586,10 @@ fn extract_dff_metadata(
         track_number: tag.and_then(|t| t.track()),
         disc_number: tag.and_then(|t| t.disc()),
         file_size: entry.file_size,
+        replaygain_track_gain: rg_track_gain,
+        replaygain_track_peak: rg_track_peak,
+        replaygain_album_gain: rg_album_gain,
+        replaygain_album_peak: rg_album_peak,
     })
 }
 
