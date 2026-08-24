@@ -17,6 +17,7 @@ import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
@@ -1090,16 +1091,8 @@ class _MostPlayedCardState extends State<_MostPlayedCard>
                     imagePath: widget.song.albumArt,
                     audioSourcePath: widget.song.filePath,
                     fit: BoxFit.cover,
-                    placeholder: Icon(
-                      LucideIcons.music,
-                      color: context.adaptiveTextTertiary,
-                      size: 18,
-                    ),
-                    errorWidget: Icon(
-                      LucideIcons.music,
-                      color: context.adaptiveTextTertiary,
-                      size: 18,
-                    ),
+                    placeholder: const FlickArtworkPlaceholder(size: 22, opacity: 0.9),
+                    errorWidget: const FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                   ),
                 ),
               ),
@@ -1226,16 +1219,8 @@ class _SongTile extends StatelessWidget {
                     imagePath: song.albumArt,
                     audioSourcePath: song.filePath,
                     fit: BoxFit.cover,
-                    placeholder: Icon(
-                      LucideIcons.music,
-                      color: context.adaptiveTextTertiary,
-                      size: context.responsiveIcon(AppConstants.iconSizeMd),
-                    ),
-                    errorWidget: Icon(
-                      LucideIcons.music,
-                      color: context.adaptiveTextTertiary,
-                      size: context.responsiveIcon(AppConstants.iconSizeMd),
-                    ),
+                    placeholder: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
+                    errorWidget: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
                   ),
                 ),
               ),
