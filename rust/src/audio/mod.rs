@@ -17,6 +17,7 @@ pub mod alac_converter;
 pub mod backend;
 pub mod commands;
 pub mod convolver;
+pub mod crossfeed;
 pub mod crossfader;
 pub mod decoder;
 pub mod decoder_handle;
