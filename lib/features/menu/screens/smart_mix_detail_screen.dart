@@ -18,6 +18,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
@@ -797,16 +798,8 @@ class _SongTile extends StatelessWidget {
                     imagePath: song.albumArt,
                     audioSourcePath: song.filePath,
                     fit: BoxFit.cover,
-                    placeholder: Icon(
-                      LucideIcons.music,
-                      color: context.adaptiveTextTertiary,
-                      size: context.responsiveIcon(AppConstants.iconSizeMd),
-                    ),
-                    errorWidget: Icon(
-                      LucideIcons.music,
-                      color: context.adaptiveTextTertiary,
-                      size: context.responsiveIcon(AppConstants.iconSizeMd),
-                    ),
+                    placeholder: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
+                    errorWidget: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
                   ),
                 ),
               ),

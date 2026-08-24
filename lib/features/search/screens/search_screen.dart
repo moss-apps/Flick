@@ -8,6 +8,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/providers/providers.dart';
@@ -228,19 +229,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   thumbnailHeight: 96,
                   placeholder: const ColoredBox(
                     color: AppColors.surface,
-                    child: Icon(
-                      LucideIcons.music,
-                      color: AppColors.textTertiary,
-                      size: 18,
-                    ),
+                    child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                   ),
                   errorWidget: const ColoredBox(
                     color: AppColors.surface,
-                    child: Icon(
-                      LucideIcons.music,
-                      color: AppColors.textTertiary,
-                      size: 18,
-                    ),
+                    child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                   ),
                 ),
               ),

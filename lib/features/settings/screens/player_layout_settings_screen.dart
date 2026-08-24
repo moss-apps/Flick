@@ -10,6 +10,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 String _placementLabel(double value) {
   if (value == 0) return 'Center';
@@ -893,10 +894,8 @@ class _AlbumArtThumb extends StatelessWidget {
                 colors: [Color(0xFF4B3D7A), Color(0xFF111111)],
               ),
             ),
-            child: const Icon(
-              Icons.music_note_rounded,
-              color: Color(0xFF555555),
-              size: 32,
+            child: const Center(
+              child: FlickArtworkPlaceholder(size: 36, opacity: 0.9),
             ),
           ),
           errorWidget: Container(
@@ -907,10 +906,8 @@ class _AlbumArtThumb extends StatelessWidget {
                 colors: [Color(0xFF4B3D7A), Color(0xFF111111)],
               ),
             ),
-            child: const Icon(
-              Icons.music_note_rounded,
-              color: Color(0xFF555555),
-              size: 32,
+            child: const Center(
+              child: FlickArtworkPlaceholder(size: 36, opacity: 0.9),
             ),
           ),
         ),
