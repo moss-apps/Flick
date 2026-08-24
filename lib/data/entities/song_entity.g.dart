@@ -110,30 +110,50 @@ const SongEntitySchema = CollectionSchema(
       name: r'remoteServerId',
       type: IsarType.long,
     ),
-    r'ripper': PropertySchema(id: 25, name: r'ripper', type: IsarType.string),
-    r'sampleRate': PropertySchema(
+    r'replaygainAlbumGain': PropertySchema(
+      id: 25,
+      name: r'replaygainAlbumGain',
+      type: IsarType.double,
+    ),
+    r'replaygainAlbumPeak': PropertySchema(
       id: 26,
+      name: r'replaygainAlbumPeak',
+      type: IsarType.double,
+    ),
+    r'replaygainTrackGain': PropertySchema(
+      id: 27,
+      name: r'replaygainTrackGain',
+      type: IsarType.double,
+    ),
+    r'replaygainTrackPeak': PropertySchema(
+      id: 28,
+      name: r'replaygainTrackPeak',
+      type: IsarType.double,
+    ),
+    r'ripper': PropertySchema(id: 29, name: r'ripper', type: IsarType.string),
+    r'sampleRate': PropertySchema(
+      id: 30,
       name: r'sampleRate',
       type: IsarType.long,
     ),
     r'sourceType': PropertySchema(
-      id: 27,
+      id: 31,
       name: r'sourceType',
       type: IsarType.string,
     ),
     r'startOffsetMs': PropertySchema(
-      id: 28,
+      id: 32,
       name: r'startOffsetMs',
       type: IsarType.long,
     ),
-    r'testCrc': PropertySchema(id: 29, name: r'testCrc', type: IsarType.string),
-    r'title': PropertySchema(id: 30, name: r'title', type: IsarType.string),
+    r'testCrc': PropertySchema(id: 33, name: r'testCrc', type: IsarType.string),
+    r'title': PropertySchema(id: 34, name: r'title', type: IsarType.string),
     r'trackNumber': PropertySchema(
-      id: 31,
+      id: 35,
       name: r'trackNumber',
       type: IsarType.long,
     ),
-    r'year': PropertySchema(id: 32, name: r'year', type: IsarType.long),
+    r'year': PropertySchema(id: 36, name: r'year', type: IsarType.long),
   },
 
   estimateSize: _songEntityEstimateSize,
@@ -421,14 +441,18 @@ void _songEntitySerialize(
   writer.writeString(offsets[22], object.readMode);
   writer.writeString(offsets[23], object.remoteId);
   writer.writeLong(offsets[24], object.remoteServerId);
-  writer.writeString(offsets[25], object.ripper);
-  writer.writeLong(offsets[26], object.sampleRate);
-  writer.writeString(offsets[27], object.sourceType);
-  writer.writeLong(offsets[28], object.startOffsetMs);
-  writer.writeString(offsets[29], object.testCrc);
-  writer.writeString(offsets[30], object.title);
-  writer.writeLong(offsets[31], object.trackNumber);
-  writer.writeLong(offsets[32], object.year);
+  writer.writeDouble(offsets[25], object.replaygainAlbumGain);
+  writer.writeDouble(offsets[26], object.replaygainAlbumPeak);
+  writer.writeDouble(offsets[27], object.replaygainTrackGain);
+  writer.writeDouble(offsets[28], object.replaygainTrackPeak);
+  writer.writeString(offsets[29], object.ripper);
+  writer.writeLong(offsets[30], object.sampleRate);
+  writer.writeString(offsets[31], object.sourceType);
+  writer.writeLong(offsets[32], object.startOffsetMs);
+  writer.writeString(offsets[33], object.testCrc);
+  writer.writeString(offsets[34], object.title);
+  writer.writeLong(offsets[35], object.trackNumber);
+  writer.writeLong(offsets[36], object.year);
 }
 
 SongEntity _songEntityDeserialize(
@@ -464,14 +488,18 @@ SongEntity _songEntityDeserialize(
   object.readMode = reader.readStringOrNull(offsets[22]);
   object.remoteId = reader.readStringOrNull(offsets[23]);
   object.remoteServerId = reader.readLongOrNull(offsets[24]);
-  object.ripper = reader.readStringOrNull(offsets[25]);
-  object.sampleRate = reader.readLongOrNull(offsets[26]);
-  object.sourceType = reader.readStringOrNull(offsets[27]);
-  object.startOffsetMs = reader.readLongOrNull(offsets[28]);
-  object.testCrc = reader.readStringOrNull(offsets[29]);
-  object.title = reader.readString(offsets[30]);
-  object.trackNumber = reader.readLongOrNull(offsets[31]);
-  object.year = reader.readLongOrNull(offsets[32]);
+  object.replaygainAlbumGain = reader.readDoubleOrNull(offsets[25]);
+  object.replaygainAlbumPeak = reader.readDoubleOrNull(offsets[26]);
+  object.replaygainTrackGain = reader.readDoubleOrNull(offsets[27]);
+  object.replaygainTrackPeak = reader.readDoubleOrNull(offsets[28]);
+  object.ripper = reader.readStringOrNull(offsets[29]);
+  object.sampleRate = reader.readLongOrNull(offsets[30]);
+  object.sourceType = reader.readStringOrNull(offsets[31]);
+  object.startOffsetMs = reader.readLongOrNull(offsets[32]);
+  object.testCrc = reader.readStringOrNull(offsets[33]);
+  object.title = reader.readString(offsets[34]);
+  object.trackNumber = reader.readLongOrNull(offsets[35]);
+  object.year = reader.readLongOrNull(offsets[36]);
   return object;
 }
 
@@ -533,20 +561,28 @@ P _songEntityDeserializeProp<P>(
     case 24:
       return (reader.readLongOrNull(offset)) as P;
     case 25:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDoubleOrNull(offset)) as P;
     case 26:
-      return (reader.readLongOrNull(offset)) as P;
+      return (reader.readDoubleOrNull(offset)) as P;
     case 27:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDoubleOrNull(offset)) as P;
     case 28:
-      return (reader.readLongOrNull(offset)) as P;
+      return (reader.readDoubleOrNull(offset)) as P;
     case 29:
       return (reader.readStringOrNull(offset)) as P;
     case 30:
-      return (reader.readString(offset)) as P;
-    case 31:
       return (reader.readLongOrNull(offset)) as P;
+    case 31:
+      return (reader.readStringOrNull(offset)) as P;
     case 32:
+      return (reader.readLongOrNull(offset)) as P;
+    case 33:
+      return (reader.readStringOrNull(offset)) as P;
+    case 34:
+      return (reader.readString(offset)) as P;
+    case 35:
+      return (reader.readLongOrNull(offset)) as P;
+    case 36:
       return (reader.readLongOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -4577,6 +4613,378 @@ extension SongEntityQueryFilter
     });
   }
 
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumGainIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'replaygainAlbumGain'),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumGainIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'replaygainAlbumGain'),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumGainEqualTo(double? value, {double epsilon = Query.epsilon}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'replaygainAlbumGain',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumGainGreaterThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'replaygainAlbumGain',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumGainLessThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'replaygainAlbumGain',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumGainBetween(
+    double? lower,
+    double? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'replaygainAlbumGain',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumPeakIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'replaygainAlbumPeak'),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumPeakIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'replaygainAlbumPeak'),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumPeakEqualTo(double? value, {double epsilon = Query.epsilon}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'replaygainAlbumPeak',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumPeakGreaterThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'replaygainAlbumPeak',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumPeakLessThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'replaygainAlbumPeak',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainAlbumPeakBetween(
+    double? lower,
+    double? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'replaygainAlbumPeak',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackGainIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'replaygainTrackGain'),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackGainIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'replaygainTrackGain'),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackGainEqualTo(double? value, {double epsilon = Query.epsilon}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'replaygainTrackGain',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackGainGreaterThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'replaygainTrackGain',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackGainLessThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'replaygainTrackGain',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackGainBetween(
+    double? lower,
+    double? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'replaygainTrackGain',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackPeakIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'replaygainTrackPeak'),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackPeakIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'replaygainTrackPeak'),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackPeakEqualTo(double? value, {double epsilon = Query.epsilon}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'replaygainTrackPeak',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackPeakGreaterThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'replaygainTrackPeak',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackPeakLessThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'replaygainTrackPeak',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition>
+  replaygainTrackPeakBetween(
+    double? lower,
+    double? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'replaygainTrackPeak',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
   QueryBuilder<SongEntity, SongEntity, QAfterFilterCondition> ripperIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -5820,6 +6228,62 @@ extension SongEntityQuerySortBy
     });
   }
 
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  sortByReplaygainAlbumGain() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainAlbumGain', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  sortByReplaygainAlbumGainDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainAlbumGain', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  sortByReplaygainAlbumPeak() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainAlbumPeak', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  sortByReplaygainAlbumPeakDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainAlbumPeak', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  sortByReplaygainTrackGain() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainTrackGain', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  sortByReplaygainTrackGainDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainTrackGain', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  sortByReplaygainTrackPeak() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainTrackPeak', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  sortByReplaygainTrackPeakDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainTrackPeak', Sort.desc);
+    });
+  }
+
   QueryBuilder<SongEntity, SongEntity, QAfterSortBy> sortByRipper() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'ripper', Sort.asc);
@@ -6233,6 +6697,62 @@ extension SongEntityQuerySortThenBy
     });
   }
 
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  thenByReplaygainAlbumGain() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainAlbumGain', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  thenByReplaygainAlbumGainDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainAlbumGain', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  thenByReplaygainAlbumPeak() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainAlbumPeak', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  thenByReplaygainAlbumPeakDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainAlbumPeak', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  thenByReplaygainTrackGain() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainTrackGain', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  thenByReplaygainTrackGainDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainTrackGain', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  thenByReplaygainTrackPeak() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainTrackPeak', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QAfterSortBy>
+  thenByReplaygainTrackPeakDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'replaygainTrackPeak', Sort.desc);
+    });
+  }
+
   QueryBuilder<SongEntity, SongEntity, QAfterSortBy> thenByRipper() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'ripper', Sort.asc);
@@ -6509,6 +7029,34 @@ extension SongEntityQueryWhereDistinct
     });
   }
 
+  QueryBuilder<SongEntity, SongEntity, QDistinct>
+  distinctByReplaygainAlbumGain() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'replaygainAlbumGain');
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QDistinct>
+  distinctByReplaygainAlbumPeak() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'replaygainAlbumPeak');
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QDistinct>
+  distinctByReplaygainTrackGain() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'replaygainTrackGain');
+    });
+  }
+
+  QueryBuilder<SongEntity, SongEntity, QDistinct>
+  distinctByReplaygainTrackPeak() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'replaygainTrackPeak');
+    });
+  }
+
   QueryBuilder<SongEntity, SongEntity, QDistinct> distinctByRipper({
     bool caseSensitive = true,
   }) {
@@ -6721,6 +7269,34 @@ extension SongEntityQueryProperty
   QueryBuilder<SongEntity, int?, QQueryOperations> remoteServerIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'remoteServerId');
+    });
+  }
+
+  QueryBuilder<SongEntity, double?, QQueryOperations>
+  replaygainAlbumGainProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'replaygainAlbumGain');
+    });
+  }
+
+  QueryBuilder<SongEntity, double?, QQueryOperations>
+  replaygainAlbumPeakProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'replaygainAlbumPeak');
+    });
+  }
+
+  QueryBuilder<SongEntity, double?, QQueryOperations>
+  replaygainTrackGainProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'replaygainTrackGain');
+    });
+  }
+
+  QueryBuilder<SongEntity, double?, QQueryOperations>
+  replaygainTrackPeakProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'replaygainTrackPeak');
     });
   }
 
