@@ -4,6 +4,7 @@
 //! Now available on all platforms including Android (using CPAL with Oboe backend).
 
 use crate::audio::commands::{AudioEvent, PlaybackState};
+use crate::audio::crossfeed::CrossfeedLevel;
 use crate::audio::decoder::{probe_file, probe_http, DecoderThread};
 use crate::audio::decoder_handle::{detect_file_type, DecoderHandle};
 #[cfg(target_os = "android")]
@@ -49,6 +50,11 @@ static PENDING_XF_CURVE: AtomicU8 = AtomicU8::new(u8::MAX);
 // on the first track and silently vanished on the next (issue #211). EqBandSpec
 // is Copy but the band list is a Vec, so this needs a Mutex, not atomics.
 static PENDING_EQ: Lazy<Mutex<Option<(bool, Vec<EqBandSpec>)>>> = Lazy::new(|| Mutex::new(None));
+
+// ponytail: pending crossfeed level (0..3, u32::MAX = none) so it survives
+// engine recreation like EQ — a USB DAC rebuilds the engine on a sample-rate
+// change between tracks and would otherwise drop it.
+static PENDING_CROSSFEED: AtomicU32 = AtomicU32::new(u32::MAX);
 
 pub fn current_dsd_output_mode() -> DsdOutputMode {
     match DSD_OUTPUT_MODE.load(Ordering::Relaxed) {
@@ -268,6 +274,19 @@ pub fn set_pending_equalizer(enabled: bool, specs: Vec<EqBandSpec>) {
 
 pub fn take_pending_equalizer() -> Option<(bool, Vec<EqBandSpec>)> {
     PENDING_EQ.lock().expect("pending eq poisoned").take()
+}
+
+pub fn set_pending_crossfeed(level: u8) {
+    PENDING_CROSSFEED.store(level as u32, Ordering::Relaxed);
+}
+
+pub fn take_pending_crossfeed() -> Option<u8> {
+    let raw = PENDING_CROSSFEED.swap(u32::MAX, Ordering::Relaxed);
+    if raw == u32::MAX {
+        None
+    } else {
+        Some(raw as u8)
+    }
 }
 
 fn with_audio_engine<T>(
@@ -1300,11 +1319,38 @@ pub fn audio_set_volume(volume: f32) -> Result<(), String> {
     Ok(())
 }
 
+/// Set the effective ReplayGain (dB) for the current track and as the default
+/// for subsequently spawned sources (next track, seek re-spawn). 0.0 = off.
+///
+/// Callers compute the final value — mode gain (track/album) + preamp +
+/// clipping-prevention reduction — before calling. The engine applies it as a
+/// per-source linear gain; a non-zero value forces the DSP path.
+pub fn audio_set_replaygain(gain_db: f32) -> Result<(), String> {
+    let clamped = gain_db.clamp(-60.0, 30.0);
+    with_audio_engine(|handle| handle.set_replaygain(clamped))
+}
+
+/// Set only the spawn-time default ReplayGain (dB): the running source keeps
+/// its own gain while currently-playing. Used when pre-queueing the next
+/// gapless track, whose gain is stamped on the newly spawned source.
+pub fn audio_set_replaygain_default(gain_db: f32) -> Result<(), String> {
+    let clamped = gain_db.clamp(-60.0, 30.0);
+    with_audio_engine(|handle| handle.set_replaygain_default(clamped))
+}
+
 /// Set EQ: enabled and a variable list of band specs (real per-type biquads,
 /// up to 31 bands). Graphic mode is expressed as 10 peaking specs.
 pub fn audio_set_equalizer(enabled: bool, specs: Vec<EqBandSpec>) -> Result<(), String> {
     set_pending_equalizer(enabled, specs.clone());
     with_audio_engine(|handle| handle.set_equalizer(enabled, specs))
+}
+
+/// Set BS2B crossfeed level for the native audio engine.
+/// 0 = Off, 1 = Default (BS2B middle preset), 2 = Crossfeed (high),
+/// 3 = Crossfeed easy (gentle). 0 fully bypasses processing.
+pub fn audio_set_crossfeed(level: u8) -> Result<(), String> {
+    set_pending_crossfeed(level);
+    with_audio_engine(|handle| handle.set_crossfeed(CrossfeedLevel::from_u8(level)))
 }
 
 /// Set pitch shift in semitones for the native audio engine (tempo preserved).
