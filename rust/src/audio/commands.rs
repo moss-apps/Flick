@@ -34,6 +34,13 @@ pub enum AudioCommand {
     Seek { position_secs: f64 },
     /// Set the main volume (0.0 to 1.0)
     SetVolume { volume: f32 },
+    /// Set the effective ReplayGain (dB) for the current track and the
+    /// default applied to sources spawned afterwards (next track, seek
+    /// re-spawn). 0.0 = ReplayGain off.
+    SetReplayGain { gain_db: f32 },
+    /// Set only the spawn-time default ReplayGain (dB). Used when pre-queueing
+    /// the next gapless track: the running source keeps its own gain.
+    SetReplayGainDefault { gain_db: f32 },
     /// Enable/disable crossfade and set duration
     SetCrossfade { enabled: bool, duration_secs: f32 },
     /// Set the crossfade curve type
@@ -46,6 +53,8 @@ pub enum AudioCommand {
     SetEqualizer { enabled: bool, specs: Vec<EqBandSpec> },
     /// Set pitch shift in semitones (tempo preserved). 0 = bypass.
     SetPitchShift { semitones: f32 },
+    /// Set BS2B crossfeed level (Off/Default/Crossfeed/CrossfeedEasy).
+    SetCrossfeed { level: crate::audio::crossfeed::CrossfeedLevel },
     /// Configure compressor settings.
     SetCompressor {
         enabled: bool,
