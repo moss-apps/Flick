@@ -7,7 +7,7 @@ use ringbuf::traits::{Consumer, Observer, Producer, Split};
 use ringbuf::HeapRb;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 
 /// Size of the sample ring buffer per source (in samples, not frames)
@@ -70,6 +70,13 @@ pub struct AudioSource {
     position: Arc<AtomicU64>,
     /// Flag to signal the decoder to stop
     stop_signal: Arc<AtomicBool>,
+    /// ReplayGain multiplier (linear, f32 bits). 1.0 = neutral. Applied to
+    /// every sample this source emits, so each track (and each side of a
+    /// crossfade, and the gapless swap) keeps its own gain.
+    replaygain_gain: AtomicU32,
+    /// The dB value [replaygain_gain] was derived from (f32 bits). Kept for
+    /// seek re-spawns, which build a new source for the same track.
+    replaygain_db: AtomicU32,
 }
 
 /// Handle given to the decoder thread to write samples.
@@ -106,6 +113,8 @@ impl AudioSource {
             decoder_finished: Arc::clone(&decoder_finished),
             position: Arc::clone(&position),
             stop_signal: Arc::clone(&stop_signal),
+            replaygain_gain: AtomicU32::new(1.0f32.to_bits()),
+            replaygain_db: AtomicU32::new(0.0f32.to_bits()),
         };
 
         let producer = SourceProducer {
@@ -172,6 +181,32 @@ impl AudioSource {
         self.position.store(samples, Ordering::Relaxed);
     }
 
+    /// Current ReplayGain multiplier (linear).
+    #[inline]
+    pub fn replaygain_gain(&self) -> f32 {
+        f32::from_bits(self.replaygain_gain.load(Ordering::Relaxed))
+    }
+
+    /// Current ReplayGain value in dB (0.0 = neutral).
+    #[inline]
+    pub fn replaygain_db(&self) -> f32 {
+        f32::from_bits(self.replaygain_db.load(Ordering::Relaxed))
+    }
+
+    /// Set the ReplayGain multiplier (linear). 1.0 = neutral.
+    #[inline]
+    pub fn set_replaygain_gain(&self, gain: f32) {
+        self.replaygain_gain.store(gain.to_bits(), Ordering::Relaxed);
+    }
+
+    /// Set the ReplayGain value in dB and derive the linear multiplier.
+    #[inline]
+    pub fn set_replaygain_db(&self, gain_db: f32) {
+        self.replaygain_db.store(gain_db.to_bits(), Ordering::Relaxed);
+        let gain = 10.0f32.powf(gain_db / 20.0);
+        self.replaygain_gain.store(gain.to_bits(), Ordering::Relaxed);
+    }
+
     /// Get the buffer fill level (0.0 to 1.0).
     #[inline]
     pub fn buffer_level(&self) -> f32 {
@@ -199,6 +234,12 @@ impl AudioSource {
 
         if read > 0 {
             self.position.fetch_add(read as u64, Ordering::Relaxed);
+            let gain = self.replaygain_gain();
+            if gain != 1.0 {
+                for sample in output[..read].iter_mut() {
+                    *sample *= gain;
+                }
+            }
         }
 
         // Check if we've finished
@@ -490,5 +531,35 @@ mod tests {
         assert_eq!(read, 4);
         assert!(finished_source.is_some());
         assert!(provider.current().is_none());
+    }
+
+    #[test]
+    fn replaygain_db_applies_linear_gain_on_read() {
+        let (mut source, mut producer) = AudioSource::new(source_info("track.flac"));
+        source.set_replaygain_db(-6.0);
+
+        let written = producer.write(&[0.8, -0.8, 0.4, -0.4]);
+        assert_eq!(written, 4);
+        producer.finish();
+
+        let expected_gain = 10.0f32.powf(-6.0 / 20.0); // ≈ 0.501187
+
+        let mut output = [0.0; 4];
+        assert_eq!(source.read(&mut output), 4);
+        assert!((output[0] - 0.8 * expected_gain).abs() < 1e-6, "got {}", output[0]);
+        assert!((output[1] + 0.8 * expected_gain).abs() < 1e-6, "got {}", output[1]);
+        assert!((output[2] - 0.4 * expected_gain).abs() < 1e-6, "got {}", output[2]);
+        assert!((output[3] + 0.4 * expected_gain).abs() < 1e-6, "got {}", output[3]);
+    }
+
+    #[test]
+    fn replaygain_db_derives_linear_multiplier_and_round_trips() {
+        let (source, _producer) = AudioSource::new(source_info("track.flac"));
+        source.set_replaygain_db(6.0206); // ≈ 2x
+        assert!((source.replaygain_gain() - 2.0).abs() < 0.001);
+        assert!((source.replaygain_db() - 6.0206).abs() < 0.001);
+
+        source.set_replaygain_db(0.0);
+        assert_eq!(source.replaygain_gain(), 1.0);
     }
 }
