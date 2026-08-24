@@ -1573,6 +1573,10 @@ class LibraryScannerService {
             )
             ..bitDepth = metadata.bitDepth
             ..sampleRate = metadata.sampleRate
+            ..replaygainTrackGain = metadata.replaygainTrackGain
+            ..replaygainTrackPeak = metadata.replaygainTrackPeak
+            ..replaygainAlbumGain = metadata.replaygainAlbumGain
+            ..replaygainAlbumPeak = metadata.replaygainAlbumPeak
             ..metadataComplete = true;
 
           if (existing != null) {
