@@ -7,6 +7,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/artwork_gate.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 export 'package:flick/services/artwork_gate.dart';
 
@@ -68,11 +69,7 @@ class CachedImageWidget extends StatefulWidget {
         ),
       ),
       child: const Center(
-        child: Icon(
-          Icons.music_note_rounded,
-          color: AppColors.textTertiary,
-          size: 28,
-        ),
+        child: FlickArtworkPlaceholder(size: 42, opacity: 0.9),
       ),
     );
   }
@@ -85,8 +82,6 @@ class CachedImageWidget extends StatefulWidget {
   @override
   State<CachedImageWidget> createState() => _CachedImageWidgetState();
 }
-
-
 
 class _CachedImageWidgetState extends State<CachedImageWidget> {
   // ponytail: cache only confirmed-existing paths to keep fast-scroll stat()
