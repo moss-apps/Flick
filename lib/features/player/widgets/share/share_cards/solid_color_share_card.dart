@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flick/models/song.dart';
 
@@ -140,10 +141,6 @@ class SolidColorShareCard extends StatelessWidget {
       color: Colors.white.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(12),
     ),
-    child: const Icon(
-      Icons.music_note_rounded,
-      color: Colors.white24,
-      size: 48,
-    ),
+    child: const FlickArtworkPlaceholder(size: 62, opacity: 0.9),
   );
 }

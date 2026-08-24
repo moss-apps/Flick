@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/models/song.dart';
@@ -104,10 +105,6 @@ class MinimalShareCard extends StatelessWidget {
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(12),
     ),
-    child: const Icon(
-      Icons.music_note_rounded,
-      color: AppColors.textTertiary,
-      size: 48,
-    ),
+    child: const FlickArtworkPlaceholder(size: 52, opacity: 0.9),
   );
 }
