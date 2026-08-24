@@ -14,6 +14,7 @@ import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/replaygain_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 
 class AudioSettingsScreen extends ConsumerStatefulWidget {
@@ -73,7 +74,11 @@ class _AudioSettingsScreenState extends ConsumerState<AudioSettingsScreen> {
           const SizedBox(height: AppConstants.spacingLg),
           const _ExtendedVolumeSection(),
           const SizedBox(height: AppConstants.spacingLg),
+          const _ReplayGainSection(),
+          const SizedBox(height: AppConstants.spacingLg),
           const _CrossfadeSection(),
+          const SizedBox(height: AppConstants.spacingLg),
+          const _CrossfeedSection(),
           const SizedBox(height: AppConstants.spacingLg),
           const SizedBox(height: AppConstants.navBarHeight + 40),
         ],
@@ -126,6 +131,113 @@ class _ExtendedVolumeSection extends ConsumerWidget {
   }
 }
 
+/// ReplayGain (volume normalization): mode, pre-amp and clipping prevention.
+/// Backed by the per-track REPLAYGAIN_* tags read by the library scanner and
+/// written by the ReplayGain scan in Library Settings. The Rust engine applies
+/// the gain per source; just_audio folds it into the ExoPlayer volume +
+/// LoudnessEnhancer boost.
+class _ReplayGainSection extends ConsumerWidget {
+  const _ReplayGainSection();
+
+  Future<void> _setMode(
+    WidgetRef ref,
+    PlayerService playerService,
+    String mode,
+  ) async {
+    await ref.read(appPreferencesProvider.notifier).setReplayGainMode(mode);
+    await playerService.applyReplayGainFromSettings();
+  }
+
+  Future<void> _setPreamp(
+    WidgetRef ref,
+    PlayerService playerService,
+    double value,
+  ) async {
+    await ref.read(appPreferencesProvider.notifier).setReplayGainPreampDb(value);
+    await playerService.applyReplayGainFromSettings();
+  }
+
+  Future<void> _setPreventClipping(
+    WidgetRef ref,
+    PlayerService playerService,
+    bool value,
+  ) async {
+    await ref
+        .read(appPreferencesProvider.notifier)
+        .setReplayGainPreventClipping(value);
+    await playerService.applyReplayGainFromSettings();
+  }
+
+  String _preampLabel(double db) {
+    if (db == 0.0) return '0 dB';
+    return '${db > 0 ? '+' : ''}${db.toStringAsFixed(1)} dB';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(appPreferencesProvider);
+    final playerService = ref.read(playerServiceProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SettingsSectionHeader('ReplayGain'),
+        SettingsCard(
+          children: [
+            SelectionSetting(
+              icon: LucideIcons.volumeX,
+              title: 'Off',
+              subtitle: 'Play at the recorded level',
+              selected: prefs.replayGainMode == 'off',
+              onTap: () => _setMode(ref, playerService, 'off'),
+            ),
+            const SettingsDivider(),
+            SelectionSetting(
+              icon: LucideIcons.music,
+              title: 'Track',
+              subtitle: 'Normalize each track to match loudness',
+              selected: prefs.replayGainMode == 'track',
+              onTap: () => _setMode(ref, playerService, 'track'),
+            ),
+            const SettingsDivider(),
+            SelectionSetting(
+              icon: LucideIcons.disc3,
+              title: 'Album',
+              subtitle: 'Keep relative levels inside each album',
+              selected: prefs.replayGainMode == 'album',
+              onTap: () => _setMode(ref, playerService, 'album'),
+            ),
+            const SettingsDivider(),
+            SliderSetting(
+              icon: LucideIcons.gauge,
+              title: 'Pre-amp',
+              subtitle: 'Fine-tune the overall gain',
+              value: prefs.replayGainPreampDb.clamp(
+                replayGainPreampMinDb,
+                replayGainPreampMaxDb,
+              ),
+              displayValue: _preampLabel(prefs.replayGainPreampDb),
+              min: replayGainPreampMinDb,
+              max: replayGainPreampMaxDb,
+              divisions: 36,
+              onChanged: (v) => _setPreamp(ref, playerService, v),
+            ),
+            const SettingsDivider(),
+            ToggleSetting(
+              icon: LucideIcons.shield,
+              title: 'Prevent Clipping',
+              subtitle:
+                  'Limit positive gain so the level never exceeds full scale',
+              value: prefs.replayGainPreventClipping,
+              onChanged: (v) => _setPreventClipping(ref, playerService, v),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _CrossfadeSection extends ConsumerWidget {
   const _CrossfadeSection();
 
@@ -135,7 +247,6 @@ class _CrossfadeSection extends ConsumerWidget {
     'Square Root',
     'S-Curve',
   ];
-
   Future<void> _setEnabled(
     WidgetRef ref,
     PlayerService playerService,
@@ -271,6 +382,162 @@ class _CrossfadeSection extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _CrossfeedSection extends ConsumerWidget {
+  const _CrossfeedSection();
+
+  static const _levelLabels = <String>[
+    'Off',
+    'Default',
+    'Crossfeed',
+    'Crossfeed easy',
+  ];
+
+  Future<void> _setLevel(
+    WidgetRef ref,
+    PlayerService playerService,
+    int value,
+  ) async {
+    await ref.read(appPreferencesProvider.notifier).setCrossfeedLevel(value);
+    await playerService.applyCrossfeedSettings();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(appPreferencesProvider);
+    final playerService = ref.read(playerServiceProvider);
+
+    return ListenableBuilder(
+      listenable: playerService.bitPerfectProcessingLockedNotifier,
+      builder: (context, _) {
+        final locked = playerService.bitPerfectProcessingLockedNotifier.value;
+        final is432Hz = Uac2PreferencesService.is432HzTuningEnabledSync;
+        final controlsEnabled = !locked;
+
+        final disabledHint = is432Hz
+            ? 'Turn off 432 Hz tuning to use crossfeed'
+            : 'Not available in bit-perfect mode';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SettingsSectionHeader(
+              'Crossfeed (BS2B)',
+              tag: 'Experimental',
+            ),
+            SettingsCard(
+              children: [
+                _CrossfeedLevelPicker(
+                  selectedIndex: prefs.crossfeedLevel.clamp(0, 3),
+                  enabled: controlsEnabled,
+                  onSelect: controlsEnabled
+                      ? (i) => _setLevel(ref, playerService, i)
+                      : null,
+                ),
+              ],
+            ),
+            ListenableBuilder(
+              listenable: playerService.initializedPlaybackModeNotifier,
+              builder: (context, _) {
+                if (playerService.currentEngineType ==
+                    AudioEngineType.normalAndroid) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingMd,
+                      vertical: AppConstants.spacingXs,
+                    ),
+                    child: Text(
+                      'Crossfeed runs on the high-quality (Rust) engine only. '
+                      'The Standard engine plays without it.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.adaptiveTextTertiary,
+                          ),
+                    ),
+                  );
+                }
+                if (locked) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingMd,
+                      vertical: AppConstants.spacingXs,
+                    ),
+                    child: Text(
+                      disabledHint,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.adaptiveTextTertiary,
+                          ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CrossfeedLevelPicker extends StatelessWidget {
+  const _CrossfeedLevelPicker({
+    required this.selectedIndex,
+    required this.enabled,
+    this.onSelect,
+  });
+
+  final int selectedIndex;
+  final bool enabled;
+  final ValueChanged<int>? onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppConstants.spacingLg,
+        AppConstants.spacingMd,
+        AppConstants.spacingLg,
+        AppConstants.spacingLg,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: AppConstants.spacingXs),
+            child: Text(
+              'Level',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: enabled
+                        ? context.adaptiveTextPrimary
+                        : context.adaptiveTextTertiary,
+                  ),
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          Row(
+            children: [
+              for (
+                var i = 0;
+                i < _CrossfeedSection._levelLabels.length;
+                i++
+              ) ...[
+                if (i > 0) const SizedBox(width: AppConstants.spacingSm),
+                Expanded(
+                  child: _CurveChip(
+                    label: _CrossfeedSection._levelLabels[i],
+                    selected: i == selectedIndex,
+                    enabled: enabled,
+                    onTap: enabled ? () => onSelect?.call(i) : null,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
