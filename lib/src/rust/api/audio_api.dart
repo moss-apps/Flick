@@ -64,6 +64,23 @@ Future<void> setPendingCrossfadeCurve({required CrossfadeCurve curve}) =>
 Future<(bool, double, CrossfadeCurve)?> takePendingCrossfade() =>
     RustLib.instance.api.crateApiAudioApiTakePendingCrossfade();
 
+Future<void> setPendingEqualizer({
+  required bool enabled,
+  required List<EqBandSpec> specs,
+}) => RustLib.instance.api.crateApiAudioApiSetPendingEqualizer(
+  enabled: enabled,
+  specs: specs,
+);
+
+Future<(bool, List<EqBandSpec>)?> takePendingEqualizer() =>
+    RustLib.instance.api.crateApiAudioApiTakePendingEqualizer();
+
+Future<void> setPendingCrossfeed({required int level}) =>
+    RustLib.instance.api.crateApiAudioApiSetPendingCrossfeed(level: level);
+
+Future<int?> takePendingCrossfeed() =>
+    RustLib.instance.api.crateApiAudioApiTakePendingCrossfeed();
+
 /// Check if native audio is available on this platform.
 bool audioIsNativeAvailable() =>
     RustLib.instance.api.crateApiAudioApiAudioIsNativeAvailable();
@@ -225,6 +242,23 @@ Future<void> audioSeek({required double positionSecs}) =>
 Future<void> audioSetVolume({required double volume}) =>
     RustLib.instance.api.crateApiAudioApiAudioSetVolume(volume: volume);
 
+/// Set the effective ReplayGain (dB) for the current track and as the default
+/// for subsequently spawned sources (next track, seek re-spawn). 0.0 = off.
+///
+/// Callers compute the final value — mode gain (track/album) + preamp +
+/// clipping-prevention reduction — before calling. The engine applies it as a
+/// per-source linear gain; a non-zero value forces the DSP path.
+Future<void> audioSetReplaygain({required double gainDb}) =>
+    RustLib.instance.api.crateApiAudioApiAudioSetReplaygain(gainDb: gainDb);
+
+/// Set only the spawn-time default ReplayGain (dB): the running source keeps
+/// its own gain while currently-playing. Used when pre-queueing the next
+/// gapless track, whose gain is stamped on the newly spawned source.
+Future<void> audioSetReplaygainDefault({required double gainDb}) => RustLib
+    .instance
+    .api
+    .crateApiAudioApiAudioSetReplaygainDefault(gainDb: gainDb);
+
 /// Set EQ: enabled and a variable list of band specs (real per-type biquads,
 /// up to 31 bands). Graphic mode is expressed as 10 peaking specs.
 Future<void> audioSetEqualizer({
@@ -234,6 +268,12 @@ Future<void> audioSetEqualizer({
   enabled: enabled,
   specs: specs,
 );
+
+/// Set BS2B crossfeed level for the native audio engine.
+/// 0 = Off, 1 = Default (BS2B middle preset), 2 = Crossfeed (high),
+/// 3 = Crossfeed easy (gentle). 0 fully bypasses processing.
+Future<void> audioSetCrossfeed({required int level}) =>
+    RustLib.instance.api.crateApiAudioApiAudioSetCrossfeed(level: level);
 
 /// Set pitch shift in semitones for the native audio engine (tempo preserved).
 /// 0 = bypass. Range is clamped internally to ±12 semitones.
