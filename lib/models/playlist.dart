@@ -10,6 +10,11 @@ class Playlist {
   final DateTime? updatedAt;
   final String? sourcePath;
 
+  /// Timestamp of when each song was added to this playlist, keyed by song id.
+  /// Songs without an entry (legacy playlists, imported lists) fall back to
+  /// their position in [songIds] when sorting by "Date Added".
+  final Map<String, DateTime> songAddedAt;
+
   /// True when this playlist is a mirror of a server-side (Subsonic) playlist.
   bool get isNetworkSource {
     final path = sourcePath;
@@ -46,6 +51,7 @@ class Playlist {
     required this.createdAt,
     this.updatedAt,
     this.sourcePath,
+    this.songAddedAt = const {},
   });
 
   Playlist copyWith({
@@ -55,6 +61,7 @@ class Playlist {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? sourcePath,
+    Map<String, DateTime>? songAddedAt,
   }) {
     return Playlist(
       id: id ?? this.id,
@@ -63,6 +70,7 @@ class Playlist {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       sourcePath: sourcePath ?? this.sourcePath,
+      songAddedAt: songAddedAt ?? this.songAddedAt,
     );
   }
 
@@ -74,10 +82,15 @@ class Playlist {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'sourcePath': sourcePath,
+      'songAddedAt': {
+        for (final entry in songAddedAt.entries)
+          entry.key: entry.value.toIso8601String(),
+      },
     };
   }
 
   factory Playlist.fromJson(Map<String, dynamic> json) {
+    final rawAddedAt = json['songAddedAt'] as Map<String, dynamic>? ?? {};
     return Playlist(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -87,6 +100,10 @@ class Playlist {
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
       sourcePath: json['sourcePath'] as String?,
+      songAddedAt: {
+        for (final entry in rawAddedAt.entries)
+          entry.key: DateTime.parse(entry.value as String),
+      },
     );
   }
 
