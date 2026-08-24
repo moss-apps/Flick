@@ -1972,7 +1972,14 @@ class _HeroCardWithBlobsState extends State<_HeroCardWithBlobs>
     _blobController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
-    )..repeat(reverse: true);
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Respect reduced motion: static hero card instead of looping blobs.
+      if (!MediaQuery.of(context).disableAnimations) {
+        _blobController.repeat(reverse: true);
+      }
+    });
     widget.onColorNeeded();
   }
 

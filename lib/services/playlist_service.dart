@@ -68,9 +68,11 @@ class PlaylistService {
   /// [SubsonicService] syncs into the same instance the UI reads.
   static PlaylistService instance = PlaylistService();
 
-  PlaylistService({SongRepository? songRepository, SubsonicService? subsonicService})
-    : _songRepository = songRepository,
-      _subsonicService = subsonicService;
+  PlaylistService({
+    SongRepository? songRepository,
+    SubsonicService? subsonicService,
+  }) : _songRepository = songRepository,
+       _subsonicService = subsonicService;
 
   // ponytail: lazy init so prefs-only paths (mirror sync, tests) never touch Isar.
   SongRepository get _repo => _songRepository ??= SongRepository();
@@ -131,7 +133,10 @@ class PlaylistService {
       final server = await Database.networkServers.get(serverId);
       if (server == null) return null;
       try {
-        final created = await _subsonic.createPlaylist(server, name: trimmedName);
+        final created = await _subsonic.createPlaylist(
+          server,
+          name: trimmedName,
+        );
         final remoteId = created?['id']?.toString();
         if (remoteId == null) return null;
         return await upsertNetworkPlaylist(
@@ -253,6 +258,7 @@ class PlaylistService {
 
     final updated = playlist.copyWith(
       songIds: [...playlist.songIds, songId],
+      songAddedAt: {...playlist.songAddedAt, songId: DateTime.now()},
       updatedAt: DateTime.now(),
     );
 
@@ -349,6 +355,7 @@ class PlaylistService {
 
     final updated = playlist.copyWith(
       songIds: playlist.songIds.where((id) => id != songId).toList(),
+      songAddedAt: {...playlist.songAddedAt}..remove(songId),
       updatedAt: DateTime.now(),
     );
 

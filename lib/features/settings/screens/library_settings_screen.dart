@@ -19,6 +19,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/services/audio_preload_service.dart';
+import 'package:flick/services/replaygain_scan_service.dart';
 import 'package:flick/services/library_scan_preferences_service.dart';
 import 'package:flick/services/library_scanner_service.dart';
 import 'package:flick/services/music_folder_service.dart';
@@ -455,6 +456,59 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
           currentFile: progress.currentFile,
           currentFolder: 'Preloading Audio',
           phase: 'Analyzing audio',
+          isComplete: progress.isComplete,
+        );
+      }
+    }
+
+    _scanStopwatch.stop();
+    _vinylController.stop();
+    _elapsedTimer?.cancel();
+    _elapsedTimer = null;
+    await _loadLibraryData();
+    if (mounted) {
+      Navigator.of(context).pop();
+      _scanProgressNotifier.value = null;
+      setState(() {
+        _isScanning = false;
+        _scanProgress = null;
+      });
+      _showScanCompleteBottomSheet(
+        scanDuration: _scanStopwatch.elapsed,
+        progress: null,
+        totalSongs: _songCount,
+      );
+    }
+  }
+
+  Future<void> _scanReplayGain() async {
+    final songs = await _songRepository.getAllSongEntities();
+    if (songs.isEmpty) return;
+
+    setState(() {
+      _isScanning = true;
+      _scanProgress = null;
+    });
+    _scanStopwatch.reset();
+    _scanStopwatch.start();
+    _vinylController.repeat();
+    _elapsedTimer?.cancel();
+    _elapsedTimer = Timer.periodic(
+      const Duration(milliseconds: 200),
+      (_) => _elapsedNotifier.value = _scanStopwatch.elapsed,
+    );
+    _showScanningOverlay('Scanning ReplayGain');
+
+    final service = ReplayGainScanService();
+    await for (final progress in service.scanLibrary(songs)) {
+      if (mounted) {
+        _scanProgressNotifier.value = ScanProgress(
+          songsFound: progress.completed,
+          totalFiles: progress.total,
+          filesProcessed: progress.completed,
+          currentFile: progress.currentFile,
+          currentFolder: 'ReplayGain Scan',
+          phase: 'Analyzing loudness',
           isComplete: progress.isComplete,
         );
       }
@@ -1531,6 +1585,14 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                   title: 'Preload Library Audio',
                   subtitle: 'Cache waveforms and loudness for all songs',
                   onTap: _isScanning ? null : _preloadLibraryAudio,
+                ),
+                const SettingsDivider(),
+                ActionButton(
+                  icon: LucideIcons.gauge,
+                  title: 'Scan ReplayGain',
+                  subtitle:
+                      'Analyze loudness and write ReplayGain tags for all songs',
+                  onTap: _isScanning ? null : _scanReplayGain,
                 ),
                 const SettingsDivider(),
                 ActionButton(

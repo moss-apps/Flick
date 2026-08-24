@@ -67,6 +67,18 @@ class SongEntity {
   /// Bit depth
   int? bitDepth;
 
+  /// ReplayGain loudness gain for the track (dB).
+  double? replaygainTrackGain;
+
+  /// ReplayGain track peak (linear).
+  double? replaygainTrackPeak;
+
+  /// ReplayGain loudness gain for the whole album (dB).
+  double? replaygainAlbumGain;
+
+  /// ReplayGain album peak (linear).
+  double? replaygainAlbumPeak;
+
   /// Ripper name from log file
   String? ripper;
 

@@ -37,17 +37,20 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
   }
 
   void _scroll() async {
-    while (_scrollController.hasClients) {
-      await Future.delayed(widget.pauseDuration);
-      if (_scrollController.hasClients) {
-        await _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: widget.animationDuration,
-          curve: Curves.ease,
-        );
+    while (mounted && _scrollController.hasClients) {
+      // Respect reduced motion: keep the content static.
+      if (MediaQuery.maybeOf(context)?.disableAnimations == true) {
+        return;
       }
       await Future.delayed(widget.pauseDuration);
-      if (_scrollController.hasClients) {
+      if (!mounted || !_scrollController.hasClients) return;
+      await _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: widget.animationDuration,
+        curve: Curves.ease,
+      );
+      await Future.delayed(widget.pauseDuration);
+      if (mounted && _scrollController.hasClients) {
         await _scrollController.animateTo(
           0.0,
           duration: widget.backDuration,

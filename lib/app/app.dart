@@ -1101,6 +1101,7 @@ class _EmbeddedMiniPlayerState extends ConsumerState<_EmbeddedMiniPlayer> {
     final appPrefs = ref.watch(appPreferencesProvider);
     final albumColor = ref.watch(albumDominantColorSyncProvider);
     final playerService = ref.read(playerServiceProvider);
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
 
     return SizedBox.expand(
       key: const ValueKey('mini_player_visualizer'),
@@ -1110,7 +1111,7 @@ class _EmbeddedMiniPlayerState extends ConsumerState<_EmbeddedMiniPlayer> {
         frequencyMode: appPrefs.visualizerFrequencyMode,
         movementMode: appPrefs.visualizerMovementMode,
         albumColor: albumColor,
-        enabled: appPrefs.visualizerEnabled,
+        enabled: appPrefs.visualizerEnabled && !reducedMotion,
       ),
     );
   }
@@ -1243,7 +1244,13 @@ class _RootRouter extends ConsumerWidget {
     final appPreferences = ref.watch(appPreferencesProvider);
 
     // Apply animation and haptic preferences globally.
-    AppConstants.setAnimationsEnabled(appPreferences.animationsEnabled);
+    // When the OS requests reduced motion (e.g. Accessibility "remove
+    // animations"), that flag wins over the in-app preference so the app
+    // settles into a static state like native Android apps do.
+    final systemReducedMotion = MediaQuery.of(context).disableAnimations;
+    final animationsEnabled =
+        appPreferences.animationsEnabled && !systemReducedMotion;
+    AppConstants.setAnimationsEnabled(animationsEnabled);
     AppHaptics.setEnabled(appPreferences.hapticsEnabled);
 
     final child = onboardingComplete
@@ -1253,7 +1260,7 @@ class _RootRouter extends ConsumerWidget {
     return MediaQuery(
       data: MediaQuery.of(
         context,
-      ).copyWith(disableAnimations: !appPreferences.animationsEnabled),
+      ).copyWith(disableAnimations: !animationsEnabled),
       child: child,
     );
   }

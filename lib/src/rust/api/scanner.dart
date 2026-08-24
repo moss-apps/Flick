@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `classify_scan_work`, `collect_file_entries`, `collect_playlist_file_entries`, `collect_scan_file_entries`, `directory_is_nomedia_blocked`, `extract_dff_artwork`, `extract_dff_metadata`, `extract_dsf_artwork`, `extract_dsf_metadata`, `extract_lofty_artwork`, `extract_lofty_metadata`, `extract_text_metadata_only`, `extract_wavpack_metadata`, `is_in_nomedia_subtree`, `is_supported_audio_path`, `is_supported_playlist_path`
+// These functions are ignored because they are not marked as `pub`: `classify_scan_work`, `collect_file_entries`, `collect_playlist_file_entries`, `collect_scan_file_entries`, `directory_is_nomedia_blocked`, `extract_dff_artwork`, `extract_dff_metadata`, `extract_dsf_artwork`, `extract_dsf_metadata`, `extract_lofty_artwork`, `extract_lofty_metadata`, `extract_text_metadata_only`, `extract_wavpack_metadata`, `id3_replaygains`, `is_in_nomedia_subtree`, `is_supported_audio_path`, `is_supported_playlist_path`, `lofty_replaygains`, `parse_rg_db`, `parse_rg_peak`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `FileScanEntry`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
@@ -66,6 +66,18 @@ class AudioFileMetadata {
   final int? discNumber;
   final BigInt fileSize;
 
+  /// ReplayGain loudness gain for the track (dB).
+  final double? replaygainTrackGain;
+
+  /// ReplayGain track peak (linear, e.g. 0.977125).
+  final double? replaygainTrackPeak;
+
+  /// ReplayGain loudness gain for the whole album (dB).
+  final double? replaygainAlbumGain;
+
+  /// ReplayGain album peak (linear).
+  final double? replaygainAlbumPeak;
+
   const AudioFileMetadata({
     required this.path,
     this.title,
@@ -80,6 +92,10 @@ class AudioFileMetadata {
     this.trackNumber,
     this.discNumber,
     required this.fileSize,
+    this.replaygainTrackGain,
+    this.replaygainTrackPeak,
+    this.replaygainAlbumGain,
+    this.replaygainAlbumPeak,
   });
 
   @override
@@ -96,7 +112,11 @@ class AudioFileMetadata {
       bitrate.hashCode ^
       trackNumber.hashCode ^
       discNumber.hashCode ^
-      fileSize.hashCode;
+      fileSize.hashCode ^
+      replaygainTrackGain.hashCode ^
+      replaygainTrackPeak.hashCode ^
+      replaygainAlbumGain.hashCode ^
+      replaygainAlbumPeak.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -115,7 +135,11 @@ class AudioFileMetadata {
           bitrate == other.bitrate &&
           trackNumber == other.trackNumber &&
           discNumber == other.discNumber &&
-          fileSize == other.fileSize;
+          fileSize == other.fileSize &&
+          replaygainTrackGain == other.replaygainTrackGain &&
+          replaygainTrackPeak == other.replaygainTrackPeak &&
+          replaygainAlbumGain == other.replaygainAlbumGain &&
+          replaygainAlbumPeak == other.replaygainAlbumPeak;
 }
 
 class ScanChunk {

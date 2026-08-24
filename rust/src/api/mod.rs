@@ -3,6 +3,7 @@ pub mod audio_analysis;
 pub mod audio_api;
 pub mod logging;
 pub mod metadata_editor;
+pub mod replaygain;
 pub mod scanner;
 pub mod smb_api;
 pub mod simple;

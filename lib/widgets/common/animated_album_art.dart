@@ -34,7 +34,15 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 18),
-    )..repeat(reverse: true);
+    );
+    // Deferred so the system reduced-motion flag is available before
+    // deciding whether to keep animating.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!MediaQuery.of(context).disableAnimations) {
+        _controller.repeat(reverse: true);
+      }
+    });
   }
 
   @override

@@ -384,6 +384,13 @@ impl EngineManager {
                 let _ = handle.set_equalizer(enabled, specs);
             }
         }
+        if let Some(level) = crate::api::audio_api::take_pending_crossfeed() {
+            if let Some(handle) = state.rust_handle.as_ref() {
+                let _ = handle.set_crossfeed(crate::audio::crossfeed::CrossfeedLevel::from_u8(
+                    level,
+                ));
+            }
+        }
         Ok(())
     }
 

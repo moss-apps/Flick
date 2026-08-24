@@ -61,9 +61,11 @@ class _AudioVisualizerState extends State<AudioVisualizer>
       duration: const Duration(seconds: 1),
     );
     _controller.addListener(_onFrame);
-    if (widget.enabled && _isPlaying) {
-      _controller.repeat();
-    }
+    // Deferred so MediaQuery (system reduced motion) is available before
+    // deciding whether to run the loop.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateControllerState();
+    });
 
     widget.playerService.isPlayingNotifier.addListener(_onPlayingChanged);
     widget.playerService.positionNotifier.addListener(_onPositionChanged);
@@ -291,7 +293,8 @@ class _AudioVisualizerState extends State<AudioVisualizer>
 
   void _updateControllerState() {
     if (!mounted) return;
-    if (!widget.enabled) {
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
+    if (!widget.enabled || reducedMotion) {
       if (_controller.isAnimating) _controller.stop();
       return;
     }

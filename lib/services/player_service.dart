@@ -23,6 +23,7 @@ import 'package:flick/services/equalizer_service.dart';
 import 'package:flick/services/android_audio_processing_service.dart';
 import 'package:flick/services/last_played_service.dart';
 import 'package:flick/services/favorites_service.dart';
+import 'package:flick/services/replaygain_service.dart';
 import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/services/playlist_service.dart';
@@ -414,6 +415,12 @@ class PlayerService {
   /// and system (ExoPlayer + LoudnessEnhancer) tiers may exceed 1.0.
   bool _extendedVolumeEnabled = false;
   int _currentBoostMb = 0;
+
+  /// Effective ReplayGain for the current track ('off' | 'track' | 'album').
+  /// Pushed to the Rust engine per-source; folded into the just_audio volume
+  /// on the system tier.
+  ReplayGainAppliedState _replayGainState = ReplayGainAppliedState.neutral;
+
   final ValueNotifier<bool> extendedVolumeEnabledNotifier =
       ValueNotifier<bool>(false);
 
@@ -883,6 +890,18 @@ class PlayerService {
       } catch (e) {
         _debugLog('[crossfade] reload on enable failed: $e');
       }
+    }
+  }
+
+  /// Push the current crossfeed preference to the Rust engine.
+  ///
+  /// BS2B crossfeed is purely a Rust-engine DSP effect — just_audio has no
+  /// equivalent. The preference is persisted first by the settings UI; the
+  /// engine command is routed through [_applyRustPlaybackProcessingPolicy],
+  /// which suppresses it in bit-perfect mode and under 432 Hz tuning.
+  Future<void> applyCrossfeedSettings() async {
+    if (_usingRustBackend) {
+      await _applyRustPlaybackProcessingPolicy(currentEngineType);
     }
   }
 
@@ -1866,20 +1885,24 @@ class PlayerService {
       await setVolume(1.0);
     } else {
       await _reconcileSystemVolumeBoost(
-        _determineCurrentTier() == VolumeTier.system ? _currentVolume : 0.0,
+        _determineCurrentTier() == VolumeTier.system
+            ? math.min(_currentVolume, 1.0) * _replayGainState.linear
+            : 0.0,
       );
     }
   }
 
   /// Apply or release the LoudnessEnhancer boost on the just_audio session.
-  /// [effectiveVolume] is the volume to realise on the system tier; pass 0.0
-  /// to release (e.g. when on another tier or casting).
+  /// [effectiveVolume] is the volume to realise on the system tier (already
+  /// folded with the ReplayGain factor); pass 0.0 to release (e.g. when on
+  /// another tier or casting). Boost is used whenever the effective volume
+  /// exceeds 1.0 — from the extended-volume toggle or from ReplayGain gain.
   Future<void> _reconcileSystemVolumeBoost(double effectiveVolume) async {
     if (!Platform.isAndroid) {
       if (_currentBoostMb != 0) _currentBoostMb = 0;
       return;
     }
-    final desiredMb = _extendedVolumeEnabled
+    final desiredMb = effectiveVolume > 1.0
         ? AndroidJustAudioProcessingService.volumeToBoostMb(effectiveVolume)
         : 0;
     if (desiredMb == _currentBoostMb) return;
@@ -2673,6 +2696,11 @@ class PlayerService {
             state.currentTrack!,
             initialPosition: state.position,
           );
+          // just_audio keeps its own volume per player: fold the new track's
+          // ReplayGain in whenever playback advances (auto-advance incl.).
+          if (!_usingRustBackend) {
+            unawaited(_applyReplayGainForSystemTier(state.currentTrack!));
+          }
           unawaited(
             _syncUac2PlaybackStatus(
               state.currentTrack,
@@ -3556,6 +3584,13 @@ class PlayerService {
     }
 
     await reapplyEqualizer();
+    // Crossfeed is a headphone refinement for the Rust DSP path and has no
+    // just_audio equivalent; it is suppressed whenever DSP is locked out
+    // (bit-perfect passthrough, 432 Hz tuning).
+    final crossfeedLevel = await _appPreferencesService.getCrossfeedLevel();
+    await _rustAudioService.setCrossfeed(
+      isBitPerfectProcessingLocked ? 0 : crossfeedLevel,
+    );
     await _rustAudioService.setPitchShiftSemitones(
       pitchSemitonesNotifier.value,
     );
@@ -4082,10 +4117,16 @@ class PlayerService {
         );
         if (_usingRustBackend) {
           await _applyRustPlaybackProcessingPolicy(activeEngine);
+          // ReplayGain must reach the engine before the play command so the
+          // spawned source is stamped with this track's gain.
+          await _refreshReplayGainForSong(song, pushSpawnDefault: true);
         }
         await _runWithSuppressedSequenceStateUpdates(() async {
           await _playbackManager.playTrack(song);
         });
+        if (!_usingRustBackend) {
+          unawaited(_applyReplayGainForSystemTier(song));
+        }
         _ensurePositionSaveTimer();
         _updatePriorityAnchor();
         if (_shouldQueueNextTrack && _playlist.length > 1) {
@@ -4145,6 +4186,9 @@ class PlayerService {
         final http = await RemoteSourceService.instance
             .resolveHttpPlayback(nextSong);
         if (http != null) {
+          await _rustAudioService.setReplayGainDefault(
+            await _computeReplayGainDbFor(nextSong),
+          );
           await _rustAudioService.queueNextHttp(
             url: http.url,
             headers: http.headers,
@@ -4158,6 +4202,9 @@ class PlayerService {
 
     final nextPath = await _resolveRustPath(nextSong);
     if (nextPath != null) {
+      await _rustAudioService.setReplayGainDefault(
+        await _computeReplayGainDbFor(nextSong),
+      );
       await _rustAudioService.queueNext(nextPath);
     }
   }
@@ -4885,12 +4932,14 @@ class PlayerService {
         break;
       case VolumeTier.system:
         final player = _justAudioPlayer;
+        final effective =
+            math.min(clampedVolume, 1.0) * _replayGainState.linear;
         if (player != null) {
-          // ExoPlayer clamps at 1.0; the boost portion (>1.0) is applied via
-          // Android LoudnessEnhancer below.
-          await player.setVolume(math.min(clampedVolume, 1.0));
+          // ExoPlayer clamps at 1.0; the boost portion (>1.0, from extended
+          // volume and/or ReplayGain) is applied via Android LoudnessEnhancer.
+          await player.setVolume(math.min(effective, 1.0));
         }
-        await _reconcileSystemVolumeBoost(clampedVolume);
+        await _reconcileSystemVolumeBoost(effective);
         break;
       case VolumeTier.unavailable:
         _debugLog(
@@ -4898,6 +4947,97 @@ class PlayerService {
         );
         await _reconcileSystemVolumeBoost(0.0);
         break;
+    }
+  }
+
+  // ==================== ReplayGain ====================
+
+  ReplayGainAppliedState get replayGainState => _replayGainState;
+
+  /// Compute the effective ReplayGain (dB) for [song] from the persisted
+  /// settings. 0.0 when the mode is off or tags are missing.
+  Future<double> _computeReplayGainDbFor(Song song) async {
+    final mode = await _appPreferencesService.getReplayGainMode();
+    if (mode == ReplayGainMode.off) return 0.0;
+    final preampDb = await _appPreferencesService.getReplayGainPreampDb();
+    final preventClipping =
+        await _appPreferencesService.getReplayGainPreventClipping();
+    return computeReplayGainDbForSong(
+      song,
+      mode: mode,
+      preampDb: preampDb,
+      preventClipping: preventClipping,
+    );
+  }
+
+  /// Recompute [_replayGainState] from persisted settings for [song]. When
+  /// [pushSpawnDefault], also pushes the value as the spawn-time default to
+  /// the Rust engine (must run before [play]/[queueNext] so the spawned
+  /// source is stamped with this track's gain — the running source, if any,
+  /// keeps its own gain).
+  Future<void> _refreshReplayGainForSong(
+    Song? song, {
+    bool pushSpawnDefault = false,
+  }) async {
+    final mode = await _appPreferencesService.getReplayGainMode();
+    if (mode == ReplayGainMode.off || song == null) {
+      _replayGainState = ReplayGainAppliedState.neutral;
+    } else {
+      final preampDb = await _appPreferencesService.getReplayGainPreampDb();
+      final preventClipping =
+          await _appPreferencesService.getReplayGainPreventClipping();
+      _replayGainState = ReplayGainAppliedState(
+        mode: mode,
+        gainDb: computeReplayGainDbForSong(
+          song,
+          mode: mode,
+          preampDb: preampDb,
+          preventClipping: preventClipping,
+        ),
+      );
+    }
+    if (pushSpawnDefault && _usingRustBackend && _rustAudioService.isInitialized) {
+      try {
+        await _rustAudioService.setReplayGainDefault(_replayGainState.gainDb);
+      } catch (e) {
+        _debugLog('[RG] default push to engine failed: $e');
+      }
+    }
+  }
+
+  /// Fold [_replayGainState] into the just_audio (system tier) volume and
+  /// LoudnessEnhancer boost for [song].
+  Future<void> _applyReplayGainForSystemTier(Song? song) async {
+    await _refreshReplayGainForSong(song);
+    if (_determineCurrentTier() != VolumeTier.system) return;
+    final player = _justAudioPlayer;
+    if (player == null) return;
+    final effective =
+        math.min(_currentVolume.clamp(0.0, 1.0), 1.0) * _replayGainState.linear;
+    try {
+      await player.setVolume(math.min(effective, 1.0));
+    } catch (e) {
+      _debugLog('[RG] system-volume fold failed: $e');
+    }
+    await _reconcileSystemVolumeBoost(effective);
+  }
+
+  /// Re-apply ReplayGain to the current track after the user changes the
+  /// settings (mode / pre-amp / clipping prevention).
+  Future<void> applyReplayGainFromSettings() async {
+    final song = currentSongNotifier.value ??
+        _playbackManager.latestState?.currentTrack;
+    await _refreshReplayGainForSong(song);
+    if (_usingRustBackend && _rustAudioService.isInitialized) {
+      try {
+        // Live update: the running source must change with the settings too.
+        await _rustAudioService.setReplayGain(_replayGainState.gainDb);
+      } catch (e) {
+        _debugLog('[RG] live push to engine failed: $e');
+      }
+    }
+    if (!_usingRustBackend && _determineCurrentTier() == VolumeTier.system) {
+      await _applyReplayGainForSystemTier(song);
     }
   }
 
