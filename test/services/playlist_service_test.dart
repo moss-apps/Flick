@@ -106,9 +106,7 @@ void main() {
         name: 'Other server',
       );
 
-      await service.removeStaleNetworkPlaylists('7', {
-        'subsonic://7/keep',
-      });
+      await service.removeStaleNetworkPlaylists('7', {'subsonic://7/keep'});
 
       final playlists = await service.getPlaylists();
       expect(playlists.map((p) => p.name), ['Keep', 'Other server']);
@@ -136,6 +134,64 @@ void main() {
 
       final playlists = await service.getPlaylists();
       expect(playlists.map((p) => p.name), ['C']);
+    });
+  });
+
+  group('song added-at timestamps', () {
+    test('addSongToPlaylist records the add timestamp', () async {
+      final service = PlaylistService();
+      final playlist = await service.createPlaylist('Test');
+      expect(playlist, isNotNull);
+
+      await service.addSongToPlaylist(playlist!.id, 'song-1');
+      await service.addSongToPlaylist(playlist.id, 'song-2');
+
+      final updated = await service.getPlaylist(playlist.id);
+      expect(updated!.songIds, ['song-1', 'song-2']);
+      expect(updated.songAddedAt['song-1'], isNotNull);
+      expect(updated.songAddedAt['song-2'], isNotNull);
+      expect(
+        updated.songAddedAt['song-2']!.isAfter(updated.songAddedAt['song-1']!),
+        isTrue,
+      );
+    });
+
+    test('timestamps are pruned when a song is removed', () async {
+      final service = PlaylistService();
+      final playlist = await service.createPlaylist('Test');
+      await service.addSongToPlaylist(playlist!.id, 'song-1');
+      await service.addSongToPlaylist(playlist.id, 'song-2');
+
+      await service.removeSongFromPlaylist(playlist.id, 'song-1');
+
+      final updated = await service.getPlaylist(playlist.id);
+      expect(updated!.songIds, ['song-2']);
+      expect(updated.songAddedAt.containsKey('song-1'), isFalse);
+      expect(updated.songAddedAt.containsKey('song-2'), isTrue);
+    });
+
+    test('timestamps survive a reload from prefs', () async {
+      final service = PlaylistService();
+      final playlist = await service.createPlaylist('Test');
+      await service.addSongToPlaylist(playlist!.id, 'song-1');
+      final addedAt = (await service.getPlaylist(
+        playlist.id,
+      ))!.songAddedAt['song-1'];
+
+      final reloaded = PlaylistService();
+      final updated = await reloaded.getPlaylist(playlist.id);
+      expect(updated!.songAddedAt['song-1'], addedAt);
+    });
+
+    test('legacy playlists without timestamps stay readable', () async {
+      final legacy = Playlist.fromJson({
+        'id': 'p1',
+        'name': 'Legacy',
+        'songIds': ['song-1'],
+        'createdAt': DateTime(2024).toIso8601String(),
+      });
+      expect(legacy.songAddedAt, isEmpty);
+      expect(legacy.songIds, ['song-1']);
     });
   });
 }
