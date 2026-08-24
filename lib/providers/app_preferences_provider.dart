@@ -119,12 +119,38 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setCrossfadeCurveIndex(value);
   }
 
+  Future<void> setCrossfeedLevel(int value) async {
+    if (state.crossfeedLevel == value) return;
+    state = state.copyWith(crossfeedLevel: value);
+    await ref.read(appPreferencesServiceProvider).setCrossfeedLevel(value);
+  }
+
   Future<void> setExtendedVolumeEnabled(bool value) async {
     if (state.extendedVolumeEnabled == value) return;
     state = state.copyWith(extendedVolumeEnabled: value);
     await ref
         .read(appPreferencesServiceProvider)
         .setExtendedVolumeEnabled(value);
+  }
+
+  Future<void> setReplayGainMode(String value) async {
+    if (state.replayGainMode == value) return;
+    state = state.copyWith(replayGainMode: value);
+    await ref.read(appPreferencesServiceProvider).setReplayGainMode(value);
+  }
+
+  Future<void> setReplayGainPreampDb(double value) async {
+    if (state.replayGainPreampDb == value) return;
+    state = state.copyWith(replayGainPreampDb: value);
+    await ref.read(appPreferencesServiceProvider).setReplayGainPreampDb(value);
+  }
+
+  Future<void> setReplayGainPreventClipping(bool value) async {
+    if (state.replayGainPreventClipping == value) return;
+    state = state.copyWith(replayGainPreventClipping: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setReplayGainPreventClipping(value);
   }
 
   Future<void> setSwipeActionsEnabled(bool value) async {
