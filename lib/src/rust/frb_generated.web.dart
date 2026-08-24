@@ -11,6 +11,7 @@ import 'api/audio_analysis.dart';
 import 'api/audio_api.dart';
 import 'api/logging.dart';
 import 'api/metadata_editor.dart';
+import 'api/replaygain.dart';
 import 'api/scanner.dart';
 import 'api/simple.dart';
 import 'api/smb_api.dart';
@@ -123,6 +124,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   (bool, double, CrossfadeCurve)
   dco_decode_box_autoadd_record_bool_f_32_crossfade_curve(dynamic raw);
+
+  @protected
+  (bool, List<EqBandSpec>) dco_decode_box_autoadd_record_bool_list_eq_band_spec(
+    dynamic raw,
+  );
+
+  @protected
+  ReplayGainTagFields dco_decode_box_autoadd_replay_gain_tag_fields(
+    dynamic raw,
+  );
 
   @protected
   ScanOptions dco_decode_box_autoadd_scan_options(dynamic raw);
@@ -245,6 +256,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_opt_box_autoadd_record_bool_f_32_crossfade_curve(dynamic raw);
 
   @protected
+  (bool, List<EqBandSpec>)?
+  dco_decode_opt_box_autoadd_record_bool_list_eq_band_spec(dynamic raw);
+
+  @protected
+  ReplayGainTagFields? dco_decode_opt_box_autoadd_replay_gain_tag_fields(
+    dynamic raw,
+  );
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -265,10 +285,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  (bool, List<EqBandSpec>) dco_decode_record_bool_list_eq_band_spec(
+    dynamic raw,
+  );
+
+  @protected
   (String, PlatformInt64) dco_decode_record_string_i_64(dynamic raw);
 
   @protected
   (String, String) dco_decode_record_string_string(dynamic raw);
+
+  @protected
+  ReplayGainTagFields dco_decode_replay_gain_tag_fields(dynamic raw);
 
   @protected
   ScanChunk dco_decode_scan_chunk(dynamic raw);
@@ -457,6 +485,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  (bool, List<EqBandSpec>) sse_decode_box_autoadd_record_bool_list_eq_band_spec(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReplayGainTagFields sse_decode_box_autoadd_replay_gain_tag_fields(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ScanOptions sse_decode_box_autoadd_scan_options(SseDeserializer deserializer);
 
   @protected
@@ -601,6 +639,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  (bool, List<EqBandSpec>)?
+  sse_decode_opt_box_autoadd_record_bool_list_eq_band_spec(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReplayGainTagFields? sse_decode_opt_box_autoadd_replay_gain_tag_fields(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -621,12 +670,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  (bool, List<EqBandSpec>) sse_decode_record_bool_list_eq_band_spec(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   (String, PlatformInt64) sse_decode_record_string_i_64(
     SseDeserializer deserializer,
   );
 
   @protected
   (String, String) sse_decode_record_string_string(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReplayGainTagFields sse_decode_replay_gain_tag_fields(
     SseDeserializer deserializer,
   );
 
@@ -848,6 +907,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_record_bool_list_eq_band_spec(
+    (bool, List<EqBandSpec>) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_replay_gain_tag_fields(
+    ReplayGainTagFields self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_scan_options(
     ScanOptions self,
     SseSerializer serializer,
@@ -1028,6 +1099,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_record_bool_list_eq_band_spec(
+    (bool, List<EqBandSpec>)? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_replay_gain_tag_fields(
+    ReplayGainTagFields? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
@@ -1052,6 +1135,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_record_bool_list_eq_band_spec(
+    (bool, List<EqBandSpec>) self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_record_string_i_64(
     (String, PlatformInt64) self,
     SseSerializer serializer,
@@ -1060,6 +1149,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_record_string_string(
     (String, String) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_replay_gain_tag_fields(
+    ReplayGainTagFields self,
     SseSerializer serializer,
   );
 
