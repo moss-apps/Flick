@@ -5,6 +5,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 class AddToPlaylistSheet extends ConsumerWidget {
   final Song song;
@@ -97,9 +98,9 @@ class AddToPlaylistSheet extends ConsumerWidget {
                               color: AppColors.surfaceLight,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(
-                              LucideIcons.music,
-                              color: context.adaptiveTextSecondary,
+                            child: const FlickArtworkPlaceholder(
+                              size: 22,
+                              opacity: 0.9,
                             ),
                           ),
                           title: Text(

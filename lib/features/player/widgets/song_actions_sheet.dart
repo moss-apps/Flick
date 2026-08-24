@@ -3,14 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/features/player/widgets/player_navigation.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart';
-import 'package:flick/features/songs/screens/metadata_editor_screen.dart';
+import 'package:flick/features/songs/widgets/metadata_editor_bottom_sheet.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/player/widgets/share/share_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/song_metadata_sheet.dart';
@@ -126,18 +126,16 @@ class SongActionsSheet extends ConsumerWidget {
                             thumbnailHeight: 136,
                             placeholder: Container(
                               color: AppColors.surfaceLight,
-                              child: const Icon(
-                                LucideIcons.music,
-                                color: AppColors.textTertiary,
-                                size: 24,
+                              child: const FlickArtworkPlaceholder(
+                                size: 28,
+                                opacity: 0.9,
                               ),
                             ),
                             errorWidget: Container(
                               color: AppColors.surfaceLight,
-                              child: const Icon(
-                                LucideIcons.music,
-                                color: AppColors.textTertiary,
-                                size: 24,
+                              child: const FlickArtworkPlaceholder(
+                                size: 28,
+                                opacity: 0.9,
                               ),
                             ),
                           ),
@@ -242,19 +240,16 @@ class SongActionsSheet extends ConsumerWidget {
                               label: 'Edit Metadata',
                               onTap: () {
                                 Navigator.pop(sheetContext);
-                                NavigationHelper.pushOnRoot<bool>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => MetadataEditorScreen(
-                                      song: activeSong,
-                                    ),
-                                  ),
-                                )
-                                    .then((saved) {
-                                      if (saved == true) {
-                                        ref.invalidate(songsProvider);
-                                      }
-                                    });
+                                Future.delayed(Duration.zero, () async {
+                                  final saved =
+                                      await MetadataEditorBottomSheet.show(
+                                    context,
+                                    activeSong,
+                                  );
+                                  if (saved && context.mounted) {
+                                    ref.invalidate(songsProvider);
+                                  }
+                                });
                               },
                             ),
                           _buildSongActionTile(

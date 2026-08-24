@@ -20,6 +20,7 @@ import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/bit_perfect_capsule.dart';
 import 'package:flick/features/player/widgets/bit_perfect_indicator.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/features/player/widgets/visualizer_art_box.dart';
 import 'package:flick/features/player/widgets/album_art_box.dart';
 import 'package:flick/features/player/widgets/waveform_layer.dart';
@@ -313,10 +314,8 @@ class AnimatedSongScene extends StatelessWidget {
                         colors: [Color(0xFF181818), AppColors.background],
                       ),
                     ),
-                    child: Icon(
-                      LucideIcons.music,
-                      size: 120,
-                      color: AppColors.textTertiary.withValues(alpha: 0.2),
+                    child: const Center(
+                      child: FlickArtworkPlaceholder(size: 96, opacity: 0.22),
                     ),
                   ),
           ),
@@ -381,18 +380,14 @@ class AnimatedSongScene extends StatelessWidget {
             fit: BoxFit.cover,
             placeholder: Container(
               color: AppColors.background,
-              child: Icon(
-                LucideIcons.music,
-                size: 120,
-                color: AppColors.textTertiary.withValues(alpha: 0.3),
+              child: const Center(
+                child: FlickArtworkPlaceholder(size: 96, opacity: 0.35),
               ),
             ),
             errorWidget: Container(
               color: AppColors.background,
-              child: Icon(
-                LucideIcons.music,
-                size: 120,
-                color: AppColors.textTertiary.withValues(alpha: 0.3),
+              child: const Center(
+                child: FlickArtworkPlaceholder(size: 96, opacity: 0.35),
               ),
             ),
           ),
@@ -860,18 +855,16 @@ class AnimatedSongScene extends StatelessWidget {
                     fit: BoxFit.cover,
                     placeholder: Container(
                       color: Colors.white.withValues(alpha: 0.05),
-                      child: Icon(
-                        LucideIcons.music,
-                        color: Colors.white.withValues(alpha: 0.5),
+                      child: FlickArtworkPlaceholder(
                         size: artworkSize * 0.44,
+                        opacity: 0.92,
                       ),
                     ),
                     errorWidget: Container(
                       color: Colors.white.withValues(alpha: 0.05),
-                      child: Icon(
-                        LucideIcons.music,
-                        color: Colors.white.withValues(alpha: 0.5),
+                      child: FlickArtworkPlaceholder(
                         size: artworkSize * 0.44,
+                        opacity: 0.92,
                       ),
                     ),
                   ),
