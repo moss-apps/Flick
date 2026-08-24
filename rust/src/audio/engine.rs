@@ -14,6 +14,7 @@ use crate::audio::decoder_handle::{detect_file_type, DecoderHandle, FileType};
 use crate::audio::device::current_device_profile;
 use crate::audio::dsd_engine::DsdDecoderThread;
 use crate::audio::dynamics::DynamicsChain;
+use crate::audio::crossfeed::{Crossfeed, CrossfeedLevel};
 use crate::audio::equalizer::{EqBandSpec, Equalizer};
 use crate::audio::fx::SpatialFx;
 use crate::audio::pitch_shifter::PitchShifter;
@@ -45,7 +46,7 @@ use oboe::{
 use parking_lot::Mutex;
 use serde::Serialize;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::thread;
 
@@ -155,6 +156,10 @@ pub struct AudioCallbackData {
     equalizer: Mutex<Equalizer>,
     /// Creative spatial/time FX.
     fx: Mutex<SpatialFx>,
+    /// BS2B (Bauer stereophonic-to-binaural) crossfeed. Reduces headphone ear
+    /// fatigue by blending a low-passed opposite-channel signal into each
+    /// channel. Runs in Dsp mode like the other FX.
+    crossfeed: Mutex<Crossfeed>,
     /// Impulse-response convolver (room reverb, crossfeed, cabinet/correction
     /// IRs). Loaded off-callback; runs only in Dsp mode like the other FX.
     convolver: Mutex<Convolver>,
@@ -172,6 +177,18 @@ pub struct AudioCallbackData {
     /// output (same trick as crossfade/pitch_shift_forces_dsp). Without
     /// this, EQ is silently dropped on bit-perfect pipelines.
     eq_forces_dsp: AtomicBool,
+    /// Lock-free mirror of an active crossfeed. Forces the callback out of
+    /// passthrough so the BS2B filters run even on a verified bit-perfect USB
+    /// output (same trick as EQ).
+    crossfeed_forces_dsp: AtomicBool,
+    /// Effective ReplayGain for the current track (dB, f32 bits). New sources
+    /// are stamped with this value at spawn; [AudioCommand::SetReplayGain]
+    /// updates it live. ReplayGain != 0 dB needs the DSP path, so this also
+    /// mirrors into [replaygain_forces_dsp].
+    replaygain_db: AtomicU32,
+    /// Lock-free mirror of a non-neutral ReplayGain. Forces the callback out
+    /// of passthrough so per-source gain runs even on bit-perfect outputs.
+    replaygain_forces_dsp: AtomicBool,
     /// Channel for sending finished tracks to command thread
     finished_tracks: Sender<AudioSource>,
     /// Experimental 432 Hz tuning override. When enabled the callback leaves
@@ -231,11 +248,15 @@ impl AudioCallbackData {
             speed_frac_pos: Mutex::new(0.0),
             equalizer: Mutex::new(Equalizer::new()),
             fx: Mutex::new(SpatialFx::new(sample_rate)),
+            crossfeed: Mutex::new(Crossfeed::new(sample_rate)),
             convolver: Mutex::new(Convolver::new(sample_rate)),
             dynamics: Mutex::new(DynamicsChain::new(sample_rate)),
             pitch_shifter: Mutex::new(PitchShifter::new(sample_rate, channels)),
             pitch_shift_forces_dsp: AtomicBool::new(false),
             eq_forces_dsp: AtomicBool::new(false),
+            crossfeed_forces_dsp: AtomicBool::new(false),
+            replaygain_db: AtomicU32::new(0.0f32.to_bits()),
+            replaygain_forces_dsp: AtomicBool::new(false),
             finished_tracks,
             tuning_432hz_enabled: AtomicBool::new(tuning_enabled),
             crossfade_forces_dsp: AtomicBool::new(false),
@@ -279,6 +300,19 @@ impl AudioCallbackData {
     pub fn set_playback_speed(&self, speed: f32) {
         self.playback_speed
             .store(speed.clamp(0.5, 2.0).to_bits(), Ordering::Relaxed);
+    }
+
+    /// Effective ReplayGain (dB) applied to sources spawned afterwards.
+    #[inline]
+    pub fn get_replaygain_db(&self) -> f32 {
+        f32::from_bits(self.replaygain_db.load(Ordering::Relaxed))
+    }
+
+    #[inline]
+    pub fn set_replaygain_db(&self, gain_db: f32) {
+        self.replaygain_db.store(gain_db.to_bits(), Ordering::Relaxed);
+        self.replaygain_forces_dsp
+            .store(gain_db != 0.0, Ordering::Relaxed);
     }
 
     /// Toggle experimental 432 Hz tuning. This switches the effective pipeline
@@ -332,7 +366,15 @@ impl AudioCallbackData {
         let crossfade = self.crossfade_forces_dsp.load(Ordering::Relaxed);
         let pitch = self.pitch_shift_forces_dsp.load(Ordering::Relaxed);
         let eq = self.eq_forces_dsp.load(Ordering::Relaxed);
-        mode == PipelineMode::Passthrough as u8 && !tuning && !crossfade && !pitch && !eq
+        let crossfeed = self.crossfeed_forces_dsp.load(Ordering::Relaxed);
+        let replaygain = self.replaygain_forces_dsp.load(Ordering::Relaxed);
+        mode == PipelineMode::Passthrough as u8
+            && !tuning
+            && !crossfade
+            && !pitch
+            && !eq
+            && !crossfeed
+            && !replaygain
     }
 
     /// Whether crossfade may run. Crossfade requires the DSP path (not
@@ -366,6 +408,7 @@ impl AudioCallbackData {
         *self.speed_buffer.lock() = vec![0.0; speed_buffer_size];
         *self.speed_frac_pos.lock() = 0.0;
         self.fx.lock().reconfigure_sample_rate(sample_rate);
+        self.crossfeed.lock().rebind_sample_rate(sample_rate);
         self.convolver.lock().reconfigure_sample_rate(sample_rate);
         *self.dynamics.lock() = DynamicsChain::new(sample_rate);
         let semitones = self.pitch_shifter.lock().semitones();
@@ -479,6 +522,19 @@ impl AudioEngineHandle {
         self.send_command(AudioCommand::SetVolume { volume })
     }
 
+    /// Set the effective ReplayGain (dB) for the current track and as the
+    /// default for subsequently spawned sources. 0.0 = off.
+    pub fn set_replaygain(&self, gain_db: f32) -> Result<(), String> {
+        self.send_command(AudioCommand::SetReplayGain { gain_db })
+    }
+
+    /// Set the spawn-time default ReplayGain (dB) without touching the
+    /// currently-running source. Used when pre-queueing the next gapless
+    /// track, whose gain is stamped on the newly spawned source.
+    pub fn set_replaygain_default(&self, gain_db: f32) -> Result<(), String> {
+        self.send_command(AudioCommand::SetReplayGainDefault { gain_db })
+    }
+
     /// Configure crossfade.
     pub fn set_crossfade(&self, enabled: bool, duration_secs: f32) -> Result<(), String> {
         self.send_command(AudioCommand::SetCrossfade {
@@ -532,6 +588,11 @@ impl AudioEngineHandle {
     /// Set EQ: enabled and a variable list of band specs (real per-type biquads).
     pub fn set_equalizer(&self, enabled: bool, specs: Vec<EqBandSpec>) -> Result<(), String> {
         self.send_command(AudioCommand::SetEqualizer { enabled, specs })
+    }
+
+    /// Set BS2B crossfeed level (Off/Default/Crossfeed/CrossfeedEasy).
+    pub fn set_crossfeed(&self, level: CrossfeedLevel) -> Result<(), String> {
+        self.send_command(AudioCommand::SetCrossfeed { level })
     }
 
     /// Set pitch shift in semitones (tempo preserved). 0 = bypass.
@@ -3085,6 +3146,9 @@ pub(crate) fn audio_callback(
             if let Some(mut eq) = data.equalizer.try_lock() {
                 eq.process(output, channels);
             }
+            if let Some(mut crossfeed) = data.crossfeed.try_lock() {
+                crossfeed.process(output, channels);
+            }
             if let Some(mut fx) = data.fx.try_lock() {
                 fx.process(output, channels);
             }
@@ -3228,6 +3292,9 @@ pub(crate) fn audio_callback(
     }
     if let Some(mut eq) = data.equalizer.try_lock() {
         eq.process(output, channels);
+    }
+    if let Some(mut crossfeed) = data.crossfeed.try_lock() {
+        crossfeed.process(output, channels);
     }
     if let Some(mut fx) = data.fx.try_lock() {
         fx.process(output, channels);
@@ -3380,6 +3447,27 @@ fn command_processing_loop(
                     AudioCommand::SetVolume { volume } => {
                         callback_data.set_volume(volume.clamp(0.0, 1.0));
                     }
+                    AudioCommand::SetReplayGain { gain_db } => {
+                        // Store the default for spawns (next track, seek
+                        // re-spawn), apply live to the current source so a
+                        // settings change takes effect on the running track,
+                        // and keep the callback out of bit-perfect passthrough
+                        // whenever gain is non-neutral.
+                        callback_data.set_replaygain_db(gain_db);
+                        if let Some(current) = callback_data.sources.lock().current_mut() {
+                            current.set_replaygain_db(gain_db);
+                        }
+                        log::info!(
+                            "[replaygain] set gain_db={} forces_dsp={}",
+                            gain_db,
+                            gain_db != 0.0
+                        );
+                    }
+                    AudioCommand::SetReplayGainDefault { gain_db } => {
+                        // Pre-queueing the next gapless track: only the spawn
+                        // default changes so the running track keeps its gain.
+                        callback_data.set_replaygain_db(gain_db);
+                    }
                     AudioCommand::SetCrossfade {
                         enabled,
                         duration_secs,
@@ -3422,6 +3510,16 @@ fn command_processing_loop(
                         callback_data
                             .eq_forces_dsp
                             .store(enabled && !specs.is_empty(), Ordering::Relaxed);
+                    }
+                    AudioCommand::SetCrossfeed { level } => {
+                        callback_data.crossfeed.lock().set_level(level);
+                        // Crossfeed needs the DSP path (see EQ). Force out of
+                        // passthrough when active so it runs even on a verified
+                        // bit-perfect USB output.
+                        callback_data
+                            .crossfeed_forces_dsp
+                            .store(level.is_active(), Ordering::Relaxed);
+                        log::info!("[crossfeed] set level={level:?}");
                     }
                     AudioCommand::SetPitchShift { semitones } => {
                         log::info!("[PITCH] command handler: SetPitchShift({semitones})");
@@ -3671,6 +3769,7 @@ fn handle_play(
 
     match spawn_decoder(path.clone(), sample_rate, callback_data.channels(), None) {
         Ok((source, handle)) => {
+            source.set_replaygain_db(callback_data.get_replaygain_db());
             start_playback_source(source, handle, callback_data, state, decoders, event_tx);
         }
         Err(e) => {
@@ -3693,6 +3792,7 @@ fn handle_play_prepared(
     state.store(PlaybackState::Buffering as u8, Ordering::Relaxed);
     let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Buffering));
 
+    source.set_replaygain_db(callback_data.get_replaygain_db());
     callback_data.sources.lock().stop();
     callback_data.crossfader.lock().reset();
     callback_data.crossfade_active.store(false, Ordering::Relaxed);
@@ -3716,6 +3816,7 @@ fn handle_queue_next(
 ) {
     match spawn_decoder(path.clone(), sample_rate, callback_data.channels(), None) {
         Ok((source, handle)) => {
+            source.set_replaygain_db(callback_data.get_replaygain_db());
             queue_playback_source(source, handle, callback_data, decoders, event_tx);
         }
         Err(e) => {
@@ -3733,6 +3834,7 @@ fn handle_queue_next_prepared(
     decoders: &Arc<Mutex<Vec<DecoderHandle>>>,
     event_tx: &Sender<AudioEvent>,
 ) {
+    source.set_replaygain_db(callback_data.get_replaygain_db());
     queue_playback_source(source, decoder_handle, callback_data, decoders, event_tx);
 }
 
@@ -3852,19 +3954,24 @@ fn handle_seek(
 ) {
     let target_secs = position_secs.max(0.0);
 
-    let current = {
+    let (path, http_origin, replaygain_db) = {
         let sources = callback_data.sources.lock();
-        sources
-            .current()
-            .map(|s| (s.info.path.clone(), s.info.http_origin.clone()))
+        match sources.current() {
+            Some(s) => (
+                s.info.path.clone(),
+                s.info.http_origin.clone(),
+                s.replaygain_db(),
+            ),
+            None => (PathBuf::new(), None, 0.0),
+        }
     };
 
-    let Some((path, http_origin)) = current else {
+    if path.as_os_str().is_empty() {
         let _ = event_tx.try_send(AudioEvent::Error {
             message: "Seek failed: no track loaded".to_string(),
         });
         return;
-    };
+    }
 
     let was_paused = callback_data.is_paused();
 
@@ -3911,6 +4018,7 @@ fn handle_seek(
 
     match spawn_result {
         Ok((mut source, handle)) => {
+            source.set_replaygain_db(replaygain_db);
             source.set_ready();
             if !was_paused {
                 source.set_playing();
@@ -4023,6 +4131,51 @@ mod tests {
         let gain = volume_to_gain(0.25);
         let expected: Vec<f32> = input.iter().map(|s| s * gain).collect();
         assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn callback_applies_source_replaygain_in_dsp() {
+        let data = build_callback_data(48_000, 2);
+        let input = vec![0.8, -0.8, 0.8, -0.8];
+
+        let mut source = build_source(&input, 48_000, 2);
+        source.set_replaygain_db(-6.0);
+        data.sources.lock().set_current(source);
+
+        let output = run_callback(&data, input.len());
+
+        let expected = 0.8 * 10.0f32.powf(-0.3); // -6 dB ≈ 0.501×
+        for (got, want) in output.iter().zip(&[0.8, -0.8, 0.8, -0.8]) {
+            assert!((got - want * expected / 0.8).abs() < 1e-6, "got {got}");
+        }
+    }
+
+    #[test]
+    fn nonneutral_replaygain_forces_dsp_out_of_passthrough() {
+        let data = build_passthrough_callback_data(48_000, 2);
+        assert!(data.is_passthrough());
+
+        data.set_replaygain_db(3.0);
+        assert!(!data.is_passthrough());
+
+        data.set_replaygain_db(0.0);
+        assert!(data.is_passthrough());
+    }
+
+    #[test]
+    fn active_crossfeed_forces_dsp_out_of_passthrough() {
+        let data = build_passthrough_callback_data(48_000, 2);
+        assert!(data.is_passthrough());
+
+        data.crossfeed.lock().set_level(CrossfeedLevel::Default);
+        data.crossfeed_forces_dsp
+            .store(CrossfeedLevel::Default.is_active(), Ordering::Relaxed);
+        assert!(!data.is_passthrough());
+
+        data.crossfeed.lock().set_level(CrossfeedLevel::Off);
+        data.crossfeed_forces_dsp
+            .store(CrossfeedLevel::Off.is_active(), Ordering::Relaxed);
+        assert!(data.is_passthrough());
     }
 
     #[test]
