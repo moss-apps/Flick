@@ -117,6 +117,37 @@ class SongRepository {
     });
   }
 
+  /// Persist ReplayGain metadata for a path (written by the ReplayGain
+  /// scanner, which keeps the DB in sync with the file tags). Applies to
+  /// every entity sharing the path (CUE tracks included).
+  Future<void> updateReplayGainForPath(
+    String filePath, {
+    required double? trackGainDb,
+    required double? trackPeak,
+    required double? albumGainDb,
+    required double? albumPeak,
+  }) async {
+    if (filePath.isEmpty) return;
+
+    await _isar.writeTxn(() async {
+      final entities = await _isar.songEntitys
+          .where()
+          .filePathEqualToAnyStartOffsetMs(filePath)
+          .findAll();
+
+      for (final entity in entities) {
+        entity
+          ..replaygainTrackGain = trackGainDb
+          ..replaygainTrackPeak = trackPeak
+          ..replaygainAlbumGain = albumGainDb
+          ..replaygainAlbumPeak = albumPeak;
+      }
+      if (entities.isNotEmpty) {
+        await _isar.songEntitys.putAll(entities);
+      }
+    });
+  }
+
   /// Delete a song by ID.
   Future<void> deleteSong(int id) async {
     await _isar.writeTxn(() async {
@@ -452,6 +483,10 @@ class SongRepository {
       resolution: _buildResolutionString(entity),
       sampleRate: entity.sampleRate,
       bitDepth: entity.bitDepth,
+      replaygainTrackGain: entity.replaygainTrackGain,
+      replaygainTrackPeak: entity.replaygainTrackPeak,
+      replaygainAlbumGain: entity.replaygainAlbumGain,
+      replaygainAlbumPeak: entity.replaygainAlbumPeak,
       startOffsetMs: entity.startOffsetMs,
       endOffsetMs: entity.endOffsetMs,
       ripper: entity.ripper,
