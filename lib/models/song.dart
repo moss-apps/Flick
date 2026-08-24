@@ -27,6 +27,18 @@ class Song {
   /// Structured bit depth when available.
   final int? bitDepth;
 
+  /// ReplayGain loudness gain for the track (dB).
+  final double? replaygainTrackGain;
+
+  /// ReplayGain track peak (linear).
+  final double? replaygainTrackPeak;
+
+  /// ReplayGain loudness gain for the whole album (dB).
+  final double? replaygainAlbumGain;
+
+  /// ReplayGain album peak (linear).
+  final double? replaygainAlbumPeak;
+
   /// Start offset in milliseconds (for CUE sheet tracks)
   final int? startOffsetMs;
 
@@ -101,6 +113,10 @@ class Song {
     this.resolution,
     this.sampleRate,
     this.bitDepth,
+    this.replaygainTrackGain,
+    this.replaygainTrackPeak,
+    this.replaygainAlbumGain,
+    this.replaygainAlbumPeak,
     this.startOffsetMs,
     this.endOffsetMs,
     this.ripper,
@@ -193,6 +209,10 @@ class Song {
     String? resolution,
     int? sampleRate,
     int? bitDepth,
+    double? replaygainTrackGain,
+    double? replaygainTrackPeak,
+    double? replaygainAlbumGain,
+    double? replaygainAlbumPeak,
     int? startOffsetMs,
     int? endOffsetMs,
     String? ripper,
@@ -225,6 +245,10 @@ class Song {
       resolution: resolution ?? this.resolution,
       sampleRate: sampleRate ?? this.sampleRate,
       bitDepth: bitDepth ?? this.bitDepth,
+      replaygainTrackGain: replaygainTrackGain ?? this.replaygainTrackGain,
+      replaygainTrackPeak: replaygainTrackPeak ?? this.replaygainTrackPeak,
+      replaygainAlbumGain: replaygainAlbumGain ?? this.replaygainAlbumGain,
+      replaygainAlbumPeak: replaygainAlbumPeak ?? this.replaygainAlbumPeak,
       startOffsetMs: startOffsetMs ?? this.startOffsetMs,
       endOffsetMs: endOffsetMs ?? this.endOffsetMs,
       ripper: ripper ?? this.ripper,
