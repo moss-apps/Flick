@@ -1361,6 +1361,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     if (songs.isEmpty || !mounted) return;
 
     await showModalBottomSheet<void>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1545,6 +1546,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     if (!mounted) return;
 
     await showModalBottomSheet<void>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -2052,6 +2054,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     SongFileTypeFilter currentFilter,
   ) {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

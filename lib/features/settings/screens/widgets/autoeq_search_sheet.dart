@@ -10,6 +10,7 @@ import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 /// dismissed. The caller applies the result to the equalizer.
 Future<AutoEqEntry?> showAutoEqSearchSheet(BuildContext context) {
   return showModalBottomSheet<AutoEqEntry>(
+      useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

@@ -152,6 +152,7 @@ class PlaylistSortBottomSheet extends StatelessWidget {
     required ValueChanged<PlaylistSortOption> onSortChanged,
   }) {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,

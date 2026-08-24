@@ -30,6 +30,7 @@ class _ListenBrainzSettingsTileState
     if (!mounted) return;
 
     await showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -47,6 +48,7 @@ class _ListenBrainzSettingsTileState
 
   Future<void> _disconnect() async {
     final confirmed = await showModalBottomSheet<bool>(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
@@ -210,6 +212,7 @@ class _ListenBrainzSettingsTileState
 
   Future<void> _showConnectedBottomSheet(String username) async {
     await showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(

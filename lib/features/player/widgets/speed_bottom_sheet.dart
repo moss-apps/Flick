@@ -9,6 +9,7 @@ class SpeedBottomSheet extends StatelessWidget {
 
   static Future<void> show(BuildContext context, PlayerService playerService) {
     return showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => SpeedBottomSheet(playerService: playerService),

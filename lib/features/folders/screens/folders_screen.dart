@@ -17,7 +17,6 @@ import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/widgets/common/blurred_song_background.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
-import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 
 /// Groups songs by immediate subfolder relative to [prefix] within [folderUri].
@@ -230,6 +229,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
   void _showSortSheet() {
     final pageSize = ref.read(appPreferencesProvider).folderGridPageSize;
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _FolderRootSortSheet(
@@ -953,6 +953,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
 
   void _showSortSheet() {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _FolderBrowserSortSheet(
@@ -1074,7 +1075,6 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
             ),
           ),
         ),
-        const FloatingMiniPlayer(),
       ],
     );
   }

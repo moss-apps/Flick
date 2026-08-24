@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/player_service.dart';
@@ -51,6 +52,7 @@ class SongActionsSheet extends ConsumerWidget {
     required PlayerNavigation navigation,
   }) {
     return showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -240,14 +242,14 @@ class SongActionsSheet extends ConsumerWidget {
                               label: 'Edit Metadata',
                               onTap: () {
                                 Navigator.pop(sheetContext);
-                                Navigator.of(context)
-                                    .push<bool>(
-                                      MaterialPageRoute(
-                                        builder: (_) => MetadataEditorScreen(
-                                          song: activeSong,
-                                        ),
-                                      ),
-                                    )
+                                NavigationHelper.pushOnRoot<bool>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => MetadataEditorScreen(
+                                      song: activeSong,
+                                    ),
+                                  ),
+                                )
                                     .then((saved) {
                                       if (saved == true) {
                                         ref.invalidate(songsProvider);
@@ -345,6 +347,7 @@ class SongActionsSheet extends ConsumerWidget {
                             onTap: () {
                               Navigator.pop(sheetContext);
                               showModalBottomSheet(
+      useRootNavigator: true,
                                 context: context,
                                 backgroundColor: Colors.transparent,
                                 isScrollControlled: true,

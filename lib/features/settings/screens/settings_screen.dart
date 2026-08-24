@@ -17,6 +17,7 @@ import 'package:flick/features/settings/screens/network_sources_screen.dart';
 import 'package:flick/features/settings/screens/player_layout_settings_screen.dart';
 import 'package:flick/features/settings/screens/widget_settings_screen.dart';
 import 'package:flick/features/settings/screens/support_flick_screen.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/milestone/screens/milestones_screen.dart';
 import 'package:flick/features/manual/screens/manual_screen.dart';
@@ -318,7 +319,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           IconButton(
             onPressed: () {
-              Navigator.of(context).push(
+              NavigationHelper.pushOnRoot(
+                context,
                 MaterialPageRoute<void>(
                   builder: (_) => const SupportFlickScreen(),
                 ),
@@ -350,7 +352,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _navigate(BuildContext context, Widget screen) {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+    NavigationHelper.pushOnRoot(
+      context,
+      MaterialPageRoute<void>(builder: (_) => screen),
+    );
   }
 }
 

@@ -256,6 +256,7 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
     final unit = remaining == 1 ? type.category.unitSingular : type.unit;
     if (!mounted) return;
     await showModalBottomSheet<void>(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: false,

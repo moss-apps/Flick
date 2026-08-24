@@ -36,6 +36,7 @@ class PlayerLayoutSheet extends ConsumerStatefulWidget {
     required Song? song,
   }) {
     return showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

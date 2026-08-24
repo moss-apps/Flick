@@ -26,6 +26,7 @@ class SortFilterBottomSheet extends StatelessWidget {
     required ValueChanged<SongFileTypeFilter> onFilterChanged,
   }) {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,

@@ -145,6 +145,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
 
   void _showLongPressSheet(Song song) {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(

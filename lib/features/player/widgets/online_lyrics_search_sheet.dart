@@ -25,6 +25,7 @@ class OnlineLyricsSearchSheet extends StatefulWidget {
     required LyricsService lyricsService,
   }) {
     return showModalBottomSheet<bool>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

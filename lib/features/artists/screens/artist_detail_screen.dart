@@ -5,7 +5,6 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/adaptive_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/data/repositories/artist_repository.dart';
@@ -543,7 +542,6 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
                 ),
               ),
               _buildOverlayTopBar(context, resolvedBg),
-              const FloatingMiniPlayer(),
             ],
           );
         },

@@ -9,6 +9,7 @@ class VolumeBottomSheet extends StatelessWidget {
 
   static Future<void> show(BuildContext context, PlayerService playerService) {
     return showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => VolumeBottomSheet(playerService: playerService),

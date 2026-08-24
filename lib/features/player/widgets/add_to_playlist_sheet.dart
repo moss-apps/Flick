@@ -12,6 +12,7 @@ class AddToPlaylistSheet extends ConsumerWidget {
 
   static Future<void> show(BuildContext context, Song song) {
     return showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => AddToPlaylistSheet(song: song),

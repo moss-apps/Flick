@@ -45,6 +45,7 @@ class LyricsEditorBottomSheet extends StatefulWidget {
     LyricsData? initialLyrics,
   }) {
     return showModalBottomSheet<LyricsEditorResult>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

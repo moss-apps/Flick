@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/songs/screens/metadata_editor_screen.dart';
 import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart';
 import 'package:flick/models/song.dart';
@@ -37,6 +38,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
     VoidCallback? onSelect,
   }) {
     return showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -139,7 +141,8 @@ class SongActionsBottomSheet extends ConsumerWidget {
               label: 'Edit Metadata',
               onTap: () {
                 Navigator.pop(context);
-                Navigator.of(context).push<bool>(
+                NavigationHelper.pushOnRoot<bool>(
+                  context,
                   MaterialPageRoute(
                     builder: (_) => MetadataEditorScreen(song: song),
                   ),
@@ -355,6 +358,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
 
   void _showAddToPlaylistSheet(BuildContext context) {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -570,6 +574,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
 
   void _showMetadataSheet(BuildContext context) {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

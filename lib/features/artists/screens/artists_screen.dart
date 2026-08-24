@@ -155,6 +155,7 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
 
   void _showSortSheet() {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _ArtistSortSheet(

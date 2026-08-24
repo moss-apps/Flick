@@ -9,7 +9,6 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/adaptive_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
-import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/models/playback_context.dart';
 import 'package:flick/models/song.dart';
@@ -341,7 +340,6 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
                 ),
               ),
               _buildOverlayTopBar(context, resolvedBg),
-              const FloatingMiniPlayer(),
             ],
           );
         },

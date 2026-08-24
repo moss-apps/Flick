@@ -98,6 +98,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
 
   void _showSortSheet() {
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _AlbumSortSheet(

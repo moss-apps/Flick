@@ -677,6 +677,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       child: GestureDetector(
         onTap: () {
           showModalBottomSheet(
+      useRootNavigator: true,
             context: context,
             backgroundColor: Colors.transparent,
             isScrollControlled: true,

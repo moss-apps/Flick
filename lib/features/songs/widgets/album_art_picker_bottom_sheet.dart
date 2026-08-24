@@ -21,6 +21,7 @@ class AlbumArtPickerBottomSheet extends StatefulWidget {
   static Future<bool> show(BuildContext context, Song song) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final result = await showModalBottomSheet<_AlbumArtSheetResult>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
