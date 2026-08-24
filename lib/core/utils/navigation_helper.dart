@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/navigation/root_navigator.dart';
 import 'package:flick/features/player/screens/full_player_screen.dart';
 import 'package:flick/features/queue/screens/queue_screen.dart';
 
@@ -67,8 +68,13 @@ class NavigationHelper {
     }
 
     try {
-      // Navigate to full player screen
-      final result = await Navigator.of(context).push<int>(
+      // Navigate to full player screen on the root navigator so it covers
+      // the persistent bottom bar. Falls back to the local navigator during
+      // tests where the root key is not mounted.
+      final navigator = rootNavigatorKey.currentState != null
+          ? rootNavigatorKey.currentState!
+          : Navigator.of(context);
+      final result = await navigator.push<int>(
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
               FullPlayerScreen(heroTag: heroTag),
@@ -116,7 +122,10 @@ class NavigationHelper {
   }
 
   static Future<T?> navigateToQueue<T>(BuildContext context) {
-    return Navigator.of(context).push<T>(
+    final navigator = rootNavigatorKey.currentState != null
+        ? rootNavigatorKey.currentState!
+        : Navigator.of(context);
+    return navigator.push<T>(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             const QueueScreen(),
@@ -141,6 +150,13 @@ class NavigationHelper {
         transitionDuration: AppConstants.animationNormal,
       ),
     );
+  }
+
+  /// Push on the root navigator so the persistent bottom bar is hidden.
+  static Future<T?> pushOnRoot<T>(BuildContext context, Route<T> route) {
+    final navigator = rootNavigatorKey.currentState;
+    if (navigator != null) return navigator.push<T>(route);
+    return Navigator.of(context, rootNavigator: true).push<T>(route);
   }
 
   /// Fade-only push for screens that share the persistent blurred background.
