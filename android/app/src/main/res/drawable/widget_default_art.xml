@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Placeholder shown when no album art is available. -->
+<!-- Placeholder shown when no album art is available. Flick logo centered, larger and slightly lower. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
@@ -9,16 +9,8 @@
     </item>
     <item
         android:gravity="center"
-        android:width="40dp"
-        android:height="40dp">
-        <vector
-            android:width="40dp"
-            android:height="40dp"
-            android:viewportWidth="24"
-            android:viewportHeight="24">
-            <path
-                android:fillColor="#888888"
-                android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z" />
-        </vector>
-    </item>
+        android:width="48dp"
+        android:height="58dp"
+        android:top="4dp"
+        android:drawable="@drawable/widget_flick_logo" />
 </layer-list>
