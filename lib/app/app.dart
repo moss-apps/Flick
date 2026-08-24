@@ -33,6 +33,7 @@ import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
 import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flick/features/onboarding/widgets/tutorial_overlay.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/library_scanner_service.dart';
@@ -1111,11 +1112,18 @@ class _EmbeddedMiniPlayerState extends ConsumerState<_EmbeddedMiniPlayer> {
                           useThumbnail: true,
                           thumbnailWidth: 128,
                           thumbnailHeight: 128,
+                          placeholder: const ColoredBox(
+                            color: AppColors.surface,
+                            child: FlickArtworkPlaceholder(size: 26, opacity: 0.9),
+                          ),
+                          errorWidget: const ColoredBox(
+                            color: AppColors.surface,
+                            child: FlickArtworkPlaceholder(size: 26, opacity: 0.9),
+                          ),
                         )
-                      : const Icon(
-                          LucideIcons.music,
-                          size: 22,
-                          color: AppColors.textTertiary,
+                      : const ColoredBox(
+                          color: AppColors.surface,
+                          child: FlickArtworkPlaceholder(size: 26, opacity: 0.9),
                         ),
                 ),
               ),
