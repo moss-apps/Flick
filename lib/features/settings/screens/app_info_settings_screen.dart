@@ -384,7 +384,9 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
                         color: context.adaptiveTextTertiary,
                         fontStyle: FontStyle.italic,
                       ),
-                      tableBorder: TableBorder.all(color: AppColors.glassBorder),
+                      tableBorder: TableBorder.all(
+                        color: AppColors.glassBorder,
+                      ),
                       tableHead: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     selectable: true,
@@ -480,9 +482,8 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextButton.icon(
-                onPressed: () => _launchUrl(
-                  'https://github.com/moss-apps/Flick',
-                ),
+                onPressed: () =>
+                    _launchUrl('https://github.com/moss-apps/Flick'),
                 icon: const Icon(LucideIcons.squareCode, size: 18),
                 label: const Text(
                   'GitHub',
