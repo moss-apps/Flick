@@ -36,6 +36,7 @@ class RustAudioService {
   final ValueNotifier<double> volumeNotifier = ValueNotifier(1.0);
   final ValueNotifier<bool> crossfadeEnabledNotifier = ValueNotifier(false);
   final ValueNotifier<double> crossfadeDurationNotifier = ValueNotifier(3.0);
+  final ValueNotifier<int> crossfeedLevelNotifier = ValueNotifier(0);
   final ValueNotifier<double> playbackSpeedNotifier = ValueNotifier(1.0);
   final ValueNotifier<double> pitchSemitonesNotifier = ValueNotifier(0.0);
 
@@ -360,6 +361,21 @@ class RustAudioService {
     await rust_audio.audioSetVolume(volume: clampedVolume);
   }
 
+  /// Set the effective ReplayGain (dB) for the current track and as the
+  /// default for subsequently spawned sources. Call before [play]/[queueNext]
+  /// so the next track picks it up.
+  Future<void> setReplayGain(double gainDb) async {
+    if (!_initialized) return;
+    await rust_audio.audioSetReplaygain(gainDb: gainDb.clamp(-60.0, 30.0));
+  }
+
+  /// Set only the spawn-time default ReplayGain (dB); the currently-running
+  /// source keeps its own gain. Used when pre-queueing the next gapless track.
+  Future<void> setReplayGainDefault(double gainDb) async {
+    if (!_initialized) return;
+    await rust_audio.audioSetReplaygainDefault(gainDb: gainDb.clamp(-60.0, 30.0));
+  }
+
   /// Select the callback's base pipeline mode.
   Future<void> setPipelineModePassthrough(bool enabled) async {
     if (!_initialized) return;
@@ -392,6 +408,14 @@ class RustAudioService {
   Future<void> setCrossfadeCurve(rust_audio.CrossfadeCurveType curve) async {
     if (!_initialized) return;
     await rust_audio.audioSetCrossfadeCurve(curve: curve);
+  }
+
+  /// Set the BS2B crossfeed level.
+  /// 0 = off, 1 = default, 2 = crossfeed, 3 = crossfeed easy.
+  Future<void> setCrossfeed(int level) async {
+    if (!_initialized) return;
+    crossfeedLevelNotifier.value = level.clamp(0, 3);
+    await rust_audio.audioSetCrossfeed(level: crossfeedLevelNotifier.value);
   }
 
   /// Skip to the next queued track (with crossfade if enabled).
@@ -637,6 +661,7 @@ class RustAudioService {
     volumeNotifier.dispose();
     crossfadeEnabledNotifier.dispose();
     crossfadeDurationNotifier.dispose();
+    crossfeedLevelNotifier.dispose();
     playbackSpeedNotifier.dispose();
     positionLabelNotifier.dispose();
   }
