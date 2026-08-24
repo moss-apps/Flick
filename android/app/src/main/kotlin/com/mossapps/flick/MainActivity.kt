@@ -41,6 +41,7 @@ import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.media.AudioDeviceInfo
+import android.media.AudioDeviceCallback
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -152,6 +153,7 @@ class MainActivity: FlutterActivity() {
     /** Matches nativeGetRustDirectUsbHardwareMute: -1 unknown, 0/1; Int.MIN_VALUE = unset. */
     private var lastObservedHardwareMute: Int = Int.MIN_VALUE
     private val priorityAnchorService by lazy { PriorityAnchorService(applicationContext) }
+    private var audioDeviceCallback: AudioDeviceCallback? = null
     // private var audioConverter: AudioConverter? = null
     // Coroutine scope for background tasks
     private val mainScope = CoroutineScope(Dispatchers.Main)
@@ -185,6 +187,7 @@ class MainActivity: FlutterActivity() {
         handleUsbAttachIntent(intent)
         maybeRequestPermissionForConnectedUsbAudioDevices(reason = "activity create")
         registerBluetoothAclReceiver()
+        registerAudioDeviceCallback()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -4803,8 +4806,42 @@ class MainActivity: FlutterActivity() {
         }
     }
 
+    private fun registerAudioDeviceCallback() {
+        if (audioDeviceCallback != null) {
+            return
+        }
+        val callback = object : AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+                // Keep the priority anchor pinned to the current music route
+                // (e.g. re-pin from speaker to the 3.5mm jack when headphones
+                // are plugged in mid-playback).
+                priorityAnchorService.updateRouteDevice()
+            }
+
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+                priorityAnchorService.updateRouteDevice()
+            }
+        }
+        try {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            audioManager.registerAudioDeviceCallback(callback, Handler(Looper.getMainLooper()))
+            audioDeviceCallback = callback
+        } catch (e: Exception) {
+            Log.w("AudioDevice", "AudioDeviceCallback registration failed: ${e.message}")
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        audioDeviceCallback?.let {
+            try {
+                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                audioManager.unregisterAudioDeviceCallback(it)
+            } catch (e: Exception) {
+                Log.w("AudioDevice", "AudioDeviceCallback unregistration failed: ${e.message}")
+            }
+        }
+        audioDeviceCallback = null
         unregisterReceiverSafely(usbHotplugReceiver)
         unregisterReceiverSafely(usbPermissionReceiver)
         unregisterReceiverSafely(aclReceiver)
