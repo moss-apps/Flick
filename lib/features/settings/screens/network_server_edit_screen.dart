@@ -186,7 +186,9 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     return NetworkServerEntity()
       ..id = old?.id ?? Isar.autoIncrement
       ..lastSyncedAt = old?.lastSyncedAt
-      ..label = _labelController.text.trim()
+      ..label = _labelController.text.trim().isEmpty
+          ? (_isTidal ? 'Tidal' : '')
+          : _labelController.text.trim()
       ..protocol = _selectedProtocol
       ..baseUrl = _isTidal
           ? TidalService.tidalBaseUrl
@@ -217,28 +219,9 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       });
       return;
     }
-    // Tidal with no session token yet: drive the device-code login (opens the
-    // browser, polls until authorized), then validate.
-    if (_isTidal && (token == null || token.isEmpty)) {
-      try {
-        token = await TidalService.instance.signIn(
-          onVerificationLink: (uri) {
-            if (!mounted) return;
-            setState(() => _testVerificationUri = uri);
-          },
-        );
-        _resolvedToken = token;
-        if (!mounted) return;
-        setState(() => _testVerificationUri = null);
-      } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _testing = false;
-          _testPassed = false;
-          _testError = _humanError(e);
-        });
-        return;
-      }
+    if (_isTidal) {
+      await _testTidal(token);
+      return;
     }
     final entity = _draftEntity(token: token);
     try {
@@ -258,8 +241,47 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     }
   }
 
-  Future<void> _save() async {
-    if (!_isValid) return;
+  /// Tidal's test button means "sign in and connect": ping any stored session,
+  /// and when it's missing OR dead (expired/revoked refresh token — the old
+  /// flow could never recover from that), run the device-code login. A fresh
+  /// sign-in is persisted immediately; previously the token only lived in
+  /// [_resolvedToken] and was silently dropped unless the user also tapped
+  /// Add Server, so the account never stayed signed in.
+  Future<void> _testTidal(String? storedToken) async {
+    try {
+      var ok = storedToken != null &&
+          storedToken.isNotEmpty &&
+          await TidalService.instance.ping(_draftEntity(token: storedToken));
+      if (!ok) {
+        final token = await TidalService.instance.signIn(
+          onVerificationLink: (uri) {
+            if (!mounted) return;
+            setState(() => _testVerificationUri = uri);
+          },
+        );
+        _resolvedToken = token;
+        if (!mounted) return;
+        setState(() => _testVerificationUri = null);
+        ok = await TidalService.instance.ping(_draftEntity(token: token));
+      }
+      if (!mounted) return;
+      setState(() {
+        _testing = false;
+        _testPassed = ok;
+      });
+      if (ok && _resolvedToken != null) await _save(force: true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _testing = false;
+        _testPassed = false;
+        _testError = _humanError(e);
+      });
+    }
+  }
+
+  Future<void> _save({bool force = false}) async {
+    if (!_isValid && !force) return;
     setState(() => _saving = true);
     String? token;
     try {
