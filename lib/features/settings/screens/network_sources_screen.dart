@@ -59,7 +59,21 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
     );
     if (changed == true) {
       await _loadServers();
+      await _autoSyncFreshTidal();
     }
+  }
+
+  /// A just-connected Tidal server has favorites waiting — kick the first
+  /// sync automatically so signing in visibly leads to a library (bug report:
+  /// "signed in but nothing happens"). Only fires for servers that have
+  /// never synced.
+  Future<void> _autoSyncFreshTidal() async {
+    if (_syncingId != null) return;
+    final fresh = _servers.where(
+      (s) => s.protocol == NetworkProtocol.tidal && s.lastSyncedAt == null,
+    );
+    if (fresh.isEmpty) return;
+    await _syncServer(fresh.first);
   }
 
   // ponytail: string sniffing across the per-protocol exception types; a
