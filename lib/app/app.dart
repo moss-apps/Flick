@@ -112,8 +112,6 @@ class _MainShellState extends ConsumerState<MainShell>
   Timer? _idleTimer;
   bool _isBottomBarCollapsed = false;
 
-  final GlobalKey<NavigatorState> _nestedNavigatorKey =
-      GlobalKey<NavigatorState>();
   static const double _kNestedBarClearance = 150.0;
 
   @override
@@ -686,7 +684,12 @@ class _MainShellState extends ConsumerState<MainShell>
 
   void _handleBackPress(bool didPop, dynamic result) {
     if (didPop) return;
-    if (_nestedNavigatorKey.currentState?.canPop() == true) {
+
+    // Back events only reach the root navigator; detail screens pushed on
+    // the nested tab navigator must be popped here manually.
+    final nested = nestedNavigatorKey.currentState;
+    if (nested != null && nested.canPop()) {
+      nested.pop();
       return;
     }
 
@@ -761,7 +764,7 @@ class _MainShellState extends ConsumerState<MainShell>
                       return MediaQuery(
                         data: inflated,
                         child: Navigator(
-                          key: _nestedNavigatorKey,
+                          key: nestedNavigatorKey,
                           initialRoute: '/',
                           onGenerateRoute: (settings) {
                             if (settings.name == '/') {
@@ -963,7 +966,7 @@ class _MainShellState extends ConsumerState<MainShell>
         config: navBarConfig,
         collapsed: collapsed,
         onTap: (index) {
-          final nested = _nestedNavigatorKey.currentState;
+          final nested = nestedNavigatorKey.currentState;
           if (nested != null && nested.canPop()) {
             nested.popUntil((route) => route.isFirst);
           }
