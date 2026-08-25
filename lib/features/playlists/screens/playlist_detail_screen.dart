@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -720,12 +721,27 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
         Positioned(
           top: MediaQuery.of(context).padding.top + 20,
           left: 16,
-          child: IconButton(
-            icon: Icon(
-              LucideIcons.chevronLeft,
-              color: context.adaptiveTextPrimary,
+          child: ClipOval(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: AppConstants.glassBlurSigma,
+                sigmaY: AppConstants.glassBlurSigma,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.glassBackgroundStrong,
+                  border: Border.all(color: AppColors.glassBorder),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    LucideIcons.chevronLeft,
+                    color: context.adaptiveTextPrimary,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
             ),
-            onPressed: () => Navigator.of(context).pop(),
           ),
         ),
         Positioned(
