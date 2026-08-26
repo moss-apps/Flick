@@ -43,6 +43,10 @@ class DuplicateGroup {
   List<SongEntity> songsToRemoveFor(int keepId) =>
       songs.where((s) => s.id != keepId).toList();
 
+  /// Songs that would be removed if the set [keepIds] is kept.
+  List<SongEntity> songsToRemoveForSet(Set<int> keepIds) =>
+      songs.where((s) => !keepIds.contains(s.id)).toList();
+
   /// Default removal list (keeps the recommended song).
   List<SongEntity> get songsToRemove => songsToRemoveFor(recommendedKeep.id);
 }
