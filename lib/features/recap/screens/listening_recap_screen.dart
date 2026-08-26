@@ -557,20 +557,13 @@ class _ListeningRecapScreenState extends State<ListeningRecapScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
+          IconButton(
+            icon: Icon(
+              LucideIcons.chevronLeft,
+              color: context.adaptiveTextPrimary,
+              size: context.responsiveIcon(AppConstants.iconSizeMd),
             ),
-            child: IconButton(
-              icon: Icon(
-                LucideIcons.arrowLeft,
-                color: context.adaptiveTextPrimary,
-                size: context.responsiveIcon(AppConstants.iconSizeMd),
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
+            onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: AppConstants.spacingMd),
           Expanded(
