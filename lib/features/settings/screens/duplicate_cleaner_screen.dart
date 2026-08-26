@@ -317,7 +317,7 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
               const SizedBox(width: 6),
               const Expanded(
                 child: Text(
-                  'Tap a version to keep it — the rest will be removed',
+                  'Check versions to keep — unchecked will be removed',
                   style: TextStyle(
                     fontFamily: 'ProductSans',
                     fontSize: 12,
@@ -593,7 +593,7 @@ class _SummaryCard extends ConsumerWidget {
                 ),
                 _SummaryStat(
                   label: 'Will keep',
-                  value: result.totalGroups.toString(),
+                  value: scanState.selectedKeepCount.toString(),
                   icon: LucideIcons.shieldCheck,
                 ),
               ],
@@ -724,7 +724,7 @@ class _BottomActionBar extends ConsumerWidget {
                 child: Text(
                   isRemoving
                       ? 'Removing duplicates…'
-                      : 'Ready to remove $toRemove song${toRemove == 1 ? '' : 's'} — one copy stays per group.',
+                      : 'Ready to remove $toRemove song${toRemove == 1 ? '' : 's'} — keeping ${scanState.selectedKeepCount} in total.',
                   style: TextStyle(
                     fontFamily: 'ProductSans',
                     fontSize: 12,
@@ -813,11 +813,12 @@ class _BottomActionBar extends ConsumerWidget {
     WidgetRef ref,
     int toRemove,
   ) async {
+    final kept = ref.read(duplicateScanProvider).selectedKeepCount;
     final confirmed = await FlickDialogs.confirm(
       context,
       title: 'Remove $toRemove duplicates?',
       message:
-          'We’ll keep your chosen version in each group and remove the other ${toRemove == 1 ? 'copy' : 'copies'} from your library. Audio files on disk are not deleted.',
+          'We’ll keep your $kept checked version${kept == 1 ? '' : 's'} and remove the other ${toRemove == 1 ? 'copy' : 'copies'} from your library. Audio files on disk are not deleted.',
       confirmLabel: 'Remove',
       destructive: true,
       icon: LucideIcons.trash2,
@@ -903,7 +904,7 @@ class _BottomActionBar extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Group card — singular keep selection
+// Group card — multi-keep selection (check any versions to keep)
 // ---------------------------------------------------------------------------
 
 class _DuplicateGroupCard extends ConsumerStatefulWidget {
@@ -922,28 +923,44 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
   @override
   Widget build(BuildContext context) {
     final scanState = ref.watch(duplicateScanProvider);
-    final selectedId =
-        scanState.keepSelection[widget.group.key] ??
-            widget.group.recommendedKeep.id;
+    final keepSet = scanState.keepSelection[widget.group.key] ??
+        {widget.group.recommendedKeep.id};
+    final keptCount = keepSet.length;
+    final removeCount = widget.group.songs.length - keptCount;
     final isRemoving = scanState.isRemoving;
 
-    // Sort so selected + recommended appear first for quicker scanning.
+    // Sort so kept + recommended appear first for quicker scanning.
     final songs = List.of(widget.group.songs);
     songs.sort((a, b) {
-      if (a.id == selectedId) return -1;
-      if (b.id == selectedId) return 1;
-      if (a.id == widget.group.recommendedKeep.id) return -1;
-      if (b.id == widget.group.recommendedKeep.id) return 1;
+      final aKept = keepSet.contains(a.id);
+      final bKept = keepSet.contains(b.id);
+      if (aKept && !bKept) return -1;
+      if (!aKept && bKept) return 1;
+      final aRec = a.id == widget.group.recommendedKeep.id;
+      final bRec = b.id == widget.group.recommendedKeep.id;
+      if (aRec && !bRec) return -1;
+      if (!aRec && bRec) return 1;
       return 0;
     });
 
-    final selectedSong = songs.firstWhere(
-      (s) => s.id == selectedId,
-      orElse: () => widget.group.recommendedKeep,
-    );
-
-    final selectedLabel =
-        '${selectedSong.fileType?.toUpperCase() ?? '—'} • ${AudioMetadataUtils.formatBitrateLabel(selectedSong.bitrate, sampleRate: selectedSong.sampleRate, bitDepth: selectedSong.bitDepth) ?? 'Unknown bitrate'}';
+    final String keepingBadgeText;
+    if (keptCount == 1) {
+      final kept = widget.group.songs.firstWhere(
+        (s) => keepSet.contains(s.id),
+        orElse: () => widget.group.recommendedKeep,
+      );
+      final type = kept.fileType?.toUpperCase() ?? '—';
+      final br = AudioMetadataUtils.formatBitrateLabel(
+            kept.bitrate,
+            sampleRate: kept.sampleRate,
+            bitDepth: kept.bitDepth,
+          ) ??
+          'Unknown bitrate';
+      keepingBadgeText = 'Keeping • $type • $br';
+    } else {
+      keepingBadgeText =
+          'Keeping $keptCount of ${widget.group.songs.length} • $removeCount to remove';
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppConstants.spacingSm),
@@ -1036,7 +1053,7 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Keeping • $selectedLabel',
+                                      keepingBadgeText,
                                       style: const TextStyle(
                                         fontFamily: 'ProductSans',
                                         fontSize: 10.5,
@@ -1098,18 +1115,97 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                             color: AppColors.glassBorder,
                           ),
                           const SizedBox(height: AppConstants.spacingSm),
-                          Text(
-                            'Choose one to keep',
-                            style: const TextStyle(
-                              fontFamily: 'ProductSans',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
+                          Row(
+                            children: [
+                              const Text(
+                                'Choose which to keep',
+                                style: TextStyle(
+                                  fontFamily: 'ProductSans',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (keptCount != 1 ||
+                                  !keepSet.contains(
+                                      widget.group.recommendedKeep.id))
+                                GestureDetector(
+                                  onTap: isRemoving
+                                      ? null
+                                      : () {
+                                          AppHaptics.tap();
+                                          ref
+                                              .read(duplicateScanProvider
+                                                  .notifier)
+                                              .resetKeepToRecommended(
+                                                  widget.group.key);
+                                        },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.backgroundLight
+                                          .withValues(alpha: 0.9),
+                                      borderRadius: BorderRadius.circular(
+                                          AppConstants.radiusRound),
+                                      border: Border.all(
+                                          color: AppColors.glassBorderStrong),
+                                    ),
+                                    child: const Text(
+                                      'Recommended only',
+                                      style: TextStyle(
+                                        fontFamily: 'ProductSans',
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: isRemoving
+                                    ? null
+                                    : () {
+                                        AppHaptics.tap();
+                                        ref
+                                            .read(
+                                                duplicateScanProvider.notifier)
+                                            .setKeepSet(
+                                              widget.group.key,
+                                              widget.group.songs
+                                                  .map((s) => s.id)
+                                                  .toSet(),
+                                            );
+                                      },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.backgroundLight
+                                        .withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(
+                                        AppConstants.radiusRound),
+                                    border: Border.all(
+                                        color: AppColors.glassBorderStrong),
+                                  ),
+                                  child: const Text(
+                                    'Keep all',
+                                    style: TextStyle(
+                                      fontFamily: 'ProductSans',
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: AppConstants.spacingXs),
                           Text(
-                            'Tap any version — it becomes the one that stays. Others will be removed from your library.',
+                            'Check the versions you want to keep — unchecked ones will be removed from your library. At least one must stay.',
                             style: TextStyle(
                               fontFamily: 'ProductSans',
                               fontSize: 11.5,
@@ -1118,22 +1214,72 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                                   .withValues(alpha: 0.9),
                             ),
                           ),
+                          if (keepSet.length > 1) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              '$keptCount kept • $removeCount will be removed',
+                              style: TextStyle(
+                                fontFamily: 'ProductSans',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.green.shade300,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: AppConstants.spacingSm),
                           ...songs.map(
-                            (song) => _SongSelectRow(
-                              song: song,
-                              group: widget.group,
-                              selected: song.id == selectedId,
-                              isRecommended:
-                                  song.id == widget.group.recommendedKeep.id,
-                              enabled: !isRemoving,
-                              onTap: () {
-                                AppHaptics.selection();
-                                ref
-                                    .read(duplicateScanProvider.notifier)
-                                    .selectKeep(widget.group.key, song.id);
-                              },
-                            ),
+                            (song) {
+                              final isKept = keepSet.contains(song.id);
+                              final canToggleOff = keepSet.length > 1;
+                              return _SongSelectRow(
+                                song: song,
+                                group: widget.group,
+                                selected: isKept,
+                                isRecommended:
+                                    song.id == widget.group.recommendedKeep.id,
+                                enabled: !isRemoving,
+                                canToggleOff: canToggleOff,
+                                onTap: () {
+                                  AppHaptics.selection();
+                                  final ok = ref
+                                      .read(duplicateScanProvider.notifier)
+                                      .toggleKeep(widget.group.key, song.id);
+                                  if (!ok && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        backgroundColor:
+                                            AppColors.surfaceLight,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                              AppConstants.radiusMd),
+                                        ),
+                                        content: const Row(
+                                          children: [
+                                            Icon(LucideIcons.info,
+                                                size: 16,
+                                                color: Colors.amber),
+                                            SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                'At least one version must stay.',
+                                                style: TextStyle(
+                                                  fontFamily: 'ProductSans',
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                },
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -1155,6 +1301,7 @@ class _SongSelectRow extends StatelessWidget {
     required this.isRecommended,
     required this.enabled,
     required this.onTap,
+    this.canToggleOff = true,
   });
 
   final dynamic song;
@@ -1162,6 +1309,7 @@ class _SongSelectRow extends StatelessWidget {
   final bool selected;
   final bool isRecommended;
   final bool enabled;
+  final bool canToggleOff;
   final VoidCallback onTap;
 
   @override
@@ -1201,14 +1349,16 @@ class _SongSelectRow extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Radio
+                // Checkbox
                 Container(
                   width: 22,
                   height: 22,
                   margin: const EdgeInsets.only(top: 1),
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: selected ? Colors.green : Colors.transparent,
+                    borderRadius: BorderRadius.circular(6),
+                    color: selected
+                        ? Colors.green
+                        : Colors.transparent,
                     border: Border.all(
                       color: selected
                           ? Colors.green
