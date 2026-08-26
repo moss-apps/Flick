@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/gestures.dart';
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1473,71 +1474,36 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final songs = _selectedSongs();
     if (songs.isEmpty || !mounted) return;
 
-    final controller = TextEditingController();
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        Future<void> create(String value) async {
-          final name = value.trim();
-          if (name.isEmpty) return;
-
-          final playlist = await ref
-              .read(playlistsProvider.notifier)
-              .createPlaylist(name);
-
-          if (playlist == null) {
-            if (dialogContext.mounted) {
-              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                const SnackBar(
-                  content: Text('A playlist with this name already exists'),
-                ),
-              );
-            }
-            return;
-          }
-
-          for (final song in songs) {
-            await ref
-                .read(playlistsProvider.notifier)
-                .addSongToPlaylist(playlist.id, song.id);
-          }
-
-          if (!dialogContext.mounted) return;
-          Navigator.pop(dialogContext);
-          if (mounted) {
-            _showSongActionSnackBar(
-              'Created $name and added ${songs.length} songs',
-            );
-            _exitSelectionMode();
-          }
-        }
-
-        return AlertDialog(
-          title: const Text('Create Playlist'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Playlist name',
-              border: OutlineInputBorder(),
-            ),
-            onSubmitted: create,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => create(controller.text),
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
+    final name = await FlickDialogs.input(
+      context,
+      title: 'Create Playlist',
+      hintText: 'Playlist name',
+      confirmLabel: 'Create',
     );
-    controller.dispose();
+    if (name == null || name.isEmpty || !mounted) return;
+
+    final playlist = await ref
+        .read(playlistsProvider.notifier)
+        .createPlaylist(name);
+
+    if (playlist == null) {
+      if (!mounted) return;
+      _showSongActionSnackBar('A playlist with this name already exists');
+      return;
+    }
+
+    for (final song in songs) {
+      await ref
+          .read(playlistsProvider.notifier)
+          .addSongToPlaylist(playlist.id, song.id);
+    }
+
+    if (mounted) {
+      _showSongActionSnackBar(
+        'Created $name and added ${songs.length} songs',
+      );
+      _exitSelectionMode();
+    }
   }
 
   Future<void> _showMoreActions() async {
@@ -1629,39 +1595,41 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       (s) => s.filePath != null && s.filePath!.isNotEmpty && !s.isExternal,
     );
 
-    await showDialog<void>(
+    if (!mounted) return;
+
+    final action = await showFlickDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Delete ${songs.length} songs?'),
+      barrierLabel: 'Delete songs',
+      builder: (dialogContext) => FlickDialog(
+        title: 'Delete ${songs.length} songs?',
+        icon: Icons.warning_amber_rounded,
+        destructive: true,
         content: Text(
           canDeleteFiles
               ? 'Remove the database entries or delete the files from your device. This cannot be undone.'
               : 'Remove these songs from your library. The files on your device will not be affected.',
+          style: TextStyle(color: AppColors.textSecondary, height: 1.45),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+          FlickDialogButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.pop(dialogContext, null),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _deleteSelectedSongs(songs, deleteFiles: false);
-            },
-            child: const Text('Remove from Library'),
+          FlickDialogButton(
+            label: 'Remove from Library',
+            onPressed: () => Navigator.pop(dialogContext, 'remove'),
           ),
           if (canDeleteFiles)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _deleteSelectedSongs(songs, deleteFiles: true);
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-              child: const Text('Delete Files'),
+            FlickDialogButton(
+              label: 'Delete Files',
+              style: FlickDialogButtonStyle.destructive,
+              onPressed: () => Navigator.pop(dialogContext, 'files'),
             ),
         ],
       ),
     );
+    if (action == null || !mounted) return;
+    _deleteSelectedSongs(songs, deleteFiles: action == 'files');
   }
 
   Future<void> _deleteSelectedSongs(

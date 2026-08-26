@@ -10,59 +10,45 @@ class DuplicateGroup {
 
   DuplicateGroup({required this.key, required this.songs});
 
-  /// Get the song to keep (usually the one with better quality or earlier date)
-  SongEntity get songToKeep {
-    // Prefer songs with album art
+  SongEntity? _cachedRecommended;
+
+  /// The automatically recommended song to keep (album art first, then bitrate).
+  /// Computed once and cached — never mutates [songs].
+  SongEntity get recommendedKeep => _cachedRecommended ??= _computeRecommendedKeep();
+
+  /// Backwards-compatible alias for [recommendedKeep].
+  SongEntity get songToKeep => recommendedKeep;
+
+  SongEntity _computeRecommendedKeep() {
+    int normalizedBitrate(SongEntity s) =>
+        AudioMetadataUtils.normalizeStoredBitrateKbps(
+          s.bitrate,
+          sampleRate: s.sampleRate,
+          bitDepth: s.bitDepth,
+        ) ??
+        0;
+
     final withArt = songs.where((s) => s.albumArtPath != null).toList();
     if (withArt.isNotEmpty) {
-      // Among songs with art, prefer higher bitrate
-      withArt.sort((a, b) {
-        final bitrateA =
-            AudioMetadataUtils.normalizeStoredBitrateKbps(
-              a.bitrate,
-              sampleRate: a.sampleRate,
-              bitDepth: a.bitDepth,
-            ) ??
-            0;
-        final bitrateB =
-            AudioMetadataUtils.normalizeStoredBitrateKbps(
-              b.bitrate,
-              sampleRate: b.sampleRate,
-              bitDepth: b.bitDepth,
-            ) ??
-            0;
-        return bitrateB.compareTo(bitrateA);
-      });
+      withArt.sort((a, b) => normalizedBitrate(b).compareTo(normalizedBitrate(a)));
       return withArt.first;
     }
 
-    // If no album art, prefer higher bitrate
-    songs.sort((a, b) {
-      final bitrateA =
-          AudioMetadataUtils.normalizeStoredBitrateKbps(
-            a.bitrate,
-            sampleRate: a.sampleRate,
-            bitDepth: a.bitDepth,
-          ) ??
-          0;
-      final bitrateB =
-          AudioMetadataUtils.normalizeStoredBitrateKbps(
-            b.bitrate,
-            sampleRate: b.sampleRate,
-            bitDepth: b.bitDepth,
-          ) ??
-          0;
-      return bitrateB.compareTo(bitrateA);
-    });
-
-    return songs.first;
+    final copy = List<SongEntity>.from(songs);
+    copy.sort((a, b) => normalizedBitrate(b).compareTo(normalizedBitrate(a)));
+    return copy.first;
   }
 
-  /// Get the songs to remove (all except the one to keep)
-  List<SongEntity> get songsToRemove {
-    final keep = songToKeep;
-    return songs.where((s) => s.id != keep.id).toList();
-  }
+  /// Songs that would be removed if [keepId] (or the recommended one) is kept.
+  List<SongEntity> songsToRemoveFor(int keepId) =>
+      songs.where((s) => s.id != keepId).toList();
+
+  /// Songs that would be removed if the set [keepIds] is kept.
+  List<SongEntity> songsToRemoveForSet(Set<int> keepIds) =>
+      songs.where((s) => !keepIds.contains(s.id)).toList();
+
+  /// Default removal list (keeps the recommended song).
+  List<SongEntity> get songsToRemove => songsToRemoveFor(recommendedKeep.id);
 }
 
 /// Result of duplicate scan operation.

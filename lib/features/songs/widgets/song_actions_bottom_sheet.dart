@@ -9,6 +9,7 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart';
 import 'package:flick/features/songs/widgets/metadata_editor_bottom_sheet.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/music_folder_service.dart';
@@ -496,70 +497,39 @@ class SongActionsBottomSheet extends ConsumerWidget {
   }
 
   void _showCreatePlaylistDialog(BuildContext context) {
-    final controller = TextEditingController();
     final container = ProviderScope.containerOf(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        Future<void> createAndAddSong(String value) async {
-          final playlistName = value.trim();
-          if (playlistName.isEmpty) return;
+    unawaited(
+      FlickDialogs.input(
+        context,
+        title: 'Create Playlist',
+        hintText: 'Playlist name',
+        confirmLabel: 'Create',
+      ).then((name) async {
+        if (name == null || name.isEmpty) return;
 
-          final playlist = await container
-              .read(playlistsProvider.notifier)
-              .createPlaylist(playlistName);
+        final playlist = await container
+            .read(playlistsProvider.notifier)
+            .createPlaylist(name);
 
-          if (playlist == null) {
-            if (dialogContext.mounted) {
-              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                const SnackBar(
-                  content: Text('A playlist with this name already exists'),
-                ),
-              );
-            }
-            return;
-          }
-
-          if (!dialogContext.mounted) return;
-
-          await container
-              .read(playlistsProvider.notifier)
-              .addSongToPlaylist(playlist.id, song.id, song: song);
-
-          if (!dialogContext.mounted) return;
-
-          Navigator.pop(dialogContext);
-          ScaffoldMessenger.of(dialogContext).showSnackBar(
-            SnackBar(content: Text('Created ${playlist.name} and added song')),
+        if (playlist == null) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('A playlist with this name already exists'),
+            ),
           );
+          return;
         }
 
-        return AlertDialog(
-          title: const Text('Create Playlist'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Playlist name',
-              border: OutlineInputBorder(),
-            ),
-            onSubmitted: createAndAddSong,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await createAndAddSong(controller.text);
-              },
-              child: const Text('Create'),
-            ),
-          ],
+        await container
+            .read(playlistsProvider.notifier)
+            .addSongToPlaylist(playlist.id, song.id, song: song);
+
+        messenger.showSnackBar(
+          SnackBar(content: Text('Created ${playlist.name} and added song')),
         );
-      },
+      }),
     );
   }
 
@@ -676,25 +646,31 @@ class SongActionsBottomSheet extends ConsumerWidget {
     );
   }
 
-  void _showDeleteWarning(BuildContext sheetContext, WidgetRef ref) {
+  Future<void> _showDeleteWarning(
+    BuildContext sheetContext,
+    WidgetRef ref,
+  ) async {
     final canDeleteFile = song.filePath != null &&
         song.filePath!.isNotEmpty &&
         !song.isExternal;
 
-    showDialog(
+    final action = await showFlickDialog<String>(
       context: sheetContext,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Song?'),
+      barrierLabel: 'Delete song',
+      builder: (dialogContext) => FlickDialog(
+        title: 'Delete Song?',
+        icon: Icons.warning_amber_rounded,
+        destructive: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              Text(
+            Text(
               '"${song.title}" by ${song.artist}',
               style: TextStyle(
-                fontFamily: 'ProductSans',
                 fontSize: 13,
-                color: sheetContext.adaptiveTextSecondary,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: AppConstants.spacingSm),
@@ -702,36 +678,30 @@ class SongActionsBottomSheet extends ConsumerWidget {
               canDeleteFile
                   ? 'Remove the database entry or delete the file from your device. This cannot be undone.'
                   : 'Remove this song from your library. The file on your device will not be affected.',
-              style: const TextStyle(fontSize: 13),
+              style: TextStyle(color: AppColors.textSecondary, height: 1.45),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+          FlickDialogButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.pop(dialogContext, null),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _deleteSong(ref, sheetContext, deleteFile: false);
-            },
-            child: const Text('Remove from Library'),
+          FlickDialogButton(
+            label: 'Remove from Library',
+            onPressed: () => Navigator.pop(dialogContext, 'remove'),
           ),
           if (canDeleteFile)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _deleteSong(ref, sheetContext, deleteFile: true);
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.redAccent,
-              ),
-              child: const Text('Delete File'),
+            FlickDialogButton(
+              label: 'Delete File',
+              style: FlickDialogButtonStyle.destructive,
+              onPressed: () => Navigator.pop(dialogContext, 'files'),
             ),
         ],
       ),
     );
+    if (action == null) return;
+    await _deleteSong(ref, sheetContext, deleteFile: action == 'files');
   }
 
   Future<void> _deleteSong(

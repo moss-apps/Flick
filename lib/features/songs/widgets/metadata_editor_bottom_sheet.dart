@@ -1,3 +1,4 @@
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/constants/app_constants.dart';
@@ -619,36 +620,17 @@ class _MetadataEditorBottomSheetState
     );
   }
 
-  void _showDiscardDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surfaceLight,
-        title: Text('Discard Changes?',
-            style: TextStyle(
-                fontFamily: 'ProductSans',
-                color: context.adaptiveTextPrimary)),
-        content: Text(
+  Future<void> _showDiscardDialog(BuildContext context) async {
+    final confirmed = await FlickDialogs.confirm(
+      context,
+      title: 'Discard Changes?',
+      message:
           'You have unsaved changes. Are you sure you want to discard them?',
-          style: TextStyle(
-              fontFamily: 'ProductSans',
-              color: context.adaptiveTextSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              Navigator.of(context).pop();
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Discard'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Discard',
+      destructive: true,
     );
+    if (confirmed && context.mounted) {
+      Navigator.of(context).pop();
+    }
   }
 }

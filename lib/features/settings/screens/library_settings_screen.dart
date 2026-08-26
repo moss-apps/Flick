@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' show pi;
 import 'dart:ui';
 
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -25,7 +26,6 @@ import 'package:flick/services/library_scanner_service.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/services/permission_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
-import 'package:flick/widgets/common/glass_dialog.dart';
 import 'package:flick/widgets/common/vinyl_record.dart';
 
 class LibrarySettingsScreen extends ConsumerStatefulWidget {
@@ -202,28 +202,17 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   void _confirmClearArtworkCache() {
-    showDialog(
-      context: context,
-      builder: (context) => GlassDialog(
+    unawaited(
+      FlickDialogs.confirm(
+        context,
         title: 'Clear Artwork Cache?',
-        content: Text(
-          'Cached album art (${_formatBytes(_artworkCacheBytes)}) will be removed. '
-          'Artwork reloads automatically as you browse.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _clearArtworkCache();
-            },
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+        message:
+            'Cached album art (${_formatBytes(_artworkCacheBytes)}) will be removed. '
+            'Artwork reloads automatically as you browse.',
+        confirmLabel: 'Clear',
+      ).then((confirmed) {
+        if (confirmed) _clearArtworkCache();
+      }),
     );
   }
 
@@ -241,28 +230,18 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   void _confirmRemoveAllSongs() {
-    showDialog(
-      context: context,
-      builder: (context) => GlassDialog(
+    unawaited(
+      FlickDialogs.confirm(
+        context,
         title: 'Remove All Songs?',
-        content: const Text(
-          'Every song is removed from your library. Files on disk are kept; '
-          'rescan your folders to add them again.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _removeAllSongs();
-            },
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+        message:
+            'Every song is removed from your library. Files on disk are kept; '
+            'rescan your folders to add them again.',
+        confirmLabel: 'Remove',
+        destructive: true,
+      ).then((confirmed) {
+        if (confirmed) _removeAllSongs();
+      }),
     );
   }
 
@@ -535,28 +514,18 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   void _confirmRemoveFolder(MusicFolder folder) {
-    showDialog(
-      context: context,
-      builder: (context) => GlassDialog(
+    unawaited(
+      FlickDialogs.confirm(
+        context,
         title: 'Remove Folder?',
-        content: Text(
-          'Remove "${folder.displayName}" and all of its songs from your '
-          'library? Files on disk are not deleted.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _removeFolder(folder);
-            },
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+        message:
+            'Remove "${folder.displayName}" and all of its songs from your '
+            'library? Files on disk are not deleted.',
+        confirmLabel: 'Remove',
+        destructive: true,
+      ).then((confirmed) {
+        if (confirmed) _removeFolder(folder);
+      }),
     );
   }
 

@@ -1,5 +1,5 @@
-import 'dart:ui';
 
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -101,51 +101,30 @@ class _StreakPopupState extends State<StreakPopup>
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: AppConstants.glassBlurSigma,
-            sigmaY: AppConstants.glassBlurSigma,
-          ),
-          child: Container(
-            width: 340,
-            padding: const EdgeInsets.fromLTRB(
-              AppConstants.spacingLg,
-              AppConstants.spacingXl,
-              AppConstants.spacingLg,
-              AppConstants.spacingLg,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-              border: Border.all(color: AppColors.glassBorder, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.4),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _buildFlameIcon(),
-                const SizedBox(height: AppConstants.spacingLg),
-                _buildHeader(context),
-                const SizedBox(height: AppConstants.spacingXl),
-                _buildDayRow(),
-                const SizedBox(height: AppConstants.spacingLg),
-                _buildMessage(context),
-                const SizedBox(height: AppConstants.spacingLg),
-                _buildContinueButton(context),
-                const SizedBox(height: AppConstants.spacingXs),
-                _buildSnoozeButton(context),
-              ],
-            ),
-          ),
+      child: FlickDialogSurface(
+        width: 340,
+        padding: const EdgeInsets.fromLTRB(
+          AppConstants.spacingLg,
+          AppConstants.spacingXl,
+          AppConstants.spacingLg,
+          AppConstants.spacingLg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _buildFlameIcon(),
+            const SizedBox(height: AppConstants.spacingLg),
+            _buildHeader(context),
+            const SizedBox(height: AppConstants.spacingXl),
+            _buildDayRow(),
+            const SizedBox(height: AppConstants.spacingLg),
+            _buildMessage(context),
+            const SizedBox(height: AppConstants.spacingLg),
+            _buildContinueButton(context),
+            const SizedBox(height: AppConstants.spacingXs),
+            _buildSnoozeButton(context),
+          ],
         ),
       ),
     );

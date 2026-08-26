@@ -1,6 +1,6 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -117,54 +117,33 @@ class _MilestoneCardState extends State<MilestoneCard>
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: AppConstants.glassBlurSigma,
-            sigmaY: AppConstants.glassBlurSigma,
-          ),
-          child: Container(
-            width: 320,
-            padding: const EdgeInsets.fromLTRB(
-              AppConstants.spacingLg,
-              AppConstants.spacingXl,
-              AppConstants.spacingLg,
-              AppConstants.spacingLg,
+      child: FlickDialogSurface(
+        width: 320,
+        padding: const EdgeInsets.fromLTRB(
+          AppConstants.spacingLg,
+          AppConstants.spacingXl,
+          AppConstants.spacingLg,
+          AppConstants.spacingLg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: _buildDisc(tierColor)),
+            const SizedBox(height: AppConstants.spacingLg),
+            FadeTransition(
+              opacity: _contentFade,
+              child: SlideTransition(
+                position: _contentSlide,
+                child: _buildContent(context, tierColor),
+              ),
             ),
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-              border: Border.all(color: AppColors.glassBorder, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.4),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+            const SizedBox(height: AppConstants.spacingLg),
+            FadeTransition(
+              opacity: _actionsFade,
+              child: _buildActions(context),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(child: _buildDisc(tierColor)),
-                const SizedBox(height: AppConstants.spacingLg),
-                FadeTransition(
-                  opacity: _contentFade,
-                  child: SlideTransition(
-                    position: _contentSlide,
-                    child: _buildContent(context, tierColor),
-                  ),
-                ),
-                const SizedBox(height: AppConstants.spacingLg),
-                FadeTransition(
-                  opacity: _actionsFade,
-                  child: _buildActions(context),
-                ),
-              ],
-            ),
-          ),
+          ],
         ),
       ),
     );

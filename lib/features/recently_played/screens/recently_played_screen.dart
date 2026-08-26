@@ -14,7 +14,7 @@ import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
-import 'package:flick/widgets/common/glass_dialog.dart';
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 
 /// Number of history entries fetched per page.
@@ -191,25 +191,13 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
   }
 
   Future<void> _clearHistory() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => GlassDialog(
-        title: 'Clear History',
-        content: const Text(
+    final confirmed = await FlickDialogs.confirm(
+      context,
+      title: 'Clear History',
+      message:
           'Are you sure you want to clear your entire listening history? This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Clear',
+      destructive: true,
     );
 
     if (confirmed == true) {

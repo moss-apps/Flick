@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +6,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/theme/adaptive_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
@@ -26,6 +24,9 @@ import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
+import 'package:flick/widgets/common/detail_header.dart';
+import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
+import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/features/playlists/widgets/playlist_sort_bottom_sheet.dart';
 
@@ -327,6 +328,62 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
     );
   }
 
+  bool get _isAllFavorites {
+    final favs = ref.watch(favoritesProvider).value;
+    if (favs == null || _songs.isEmpty) return false;
+    return _songs.every((s) => favs.isFavorite(s.id));
+  }
+
+  Future<void> _toggleFavoriteAll() async {
+    if (_songs.isEmpty) return;
+    final favIds = ref.read(favoritesProvider).value?.favoriteIds ?? const <String>{};
+    final notifier = ref.read(favoritesProvider.notifier);
+    final isAll = _songs.every((s) => favIds.contains(s.id));
+    if (isAll) {
+      for (final song in _songs) {
+        await notifier.removeFavorite(song.id);
+      }
+    } else {
+      for (final song in _songs) {
+        if (!favIds.contains(song.id)) {
+          await notifier.addFavorite(song.id);
+        }
+      }
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isAll
+              ? 'Removed ${_songs.length} songs from favorites'
+              : 'Added ${_songs.length} songs to favorites',
+        ),
+      ),
+    );
+  }
+
+  void _showMore() {
+    DetailMoreSheet.show(
+      context,
+      items: [
+        DetailMoreSheetItem(
+          icon: LucideIcons.arrowDownAZ,
+          label: 'Sort songs',
+          onTap: () => PlaylistSortBottomSheet.show(
+            context,
+            currentSort: _sortOption,
+            onSortChanged: _setSortOption,
+          ),
+        ),
+        DetailMoreSheetItem(
+          icon: LucideIcons.moonStar,
+          label: 'Sleep timer',
+          onTap: () => SleepTimerBottomSheet.show(context, _playerService),
+        ),
+      ],
+    );
+  }
+
   void _openPlaylist(Playlist playlist) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -344,6 +401,14 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
         .where((p) => p.id != playlist.id)
         .toList();
     final bgColor = _tintBackground(_backgroundBlend);
+    final meta = [
+      if (_songs.isNotEmpty) '${_songs.length} songs',
+      if (_songs.isNotEmpty) _formattedTotalDuration,
+      'Created ${_formatDate(playlist.createdAt)}',
+      if (playlist.updatedAt != null &&
+          playlist.updatedAt != playlist.createdAt)
+        'Updated ${_formatDate(playlist.updatedAt)}',
+    ].join(' · ');
 
     return TweenAnimationBuilder<Color?>(
       tween: ColorTween(begin: AppColors.background, end: bgColor),
@@ -351,6 +416,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
       curve: Curves.easeOut,
       builder: (context, animatedBg, _) {
         final resolvedBg = animatedBg ?? AppColors.background;
+        final prefs = ref.watch(appPreferencesProvider);
         return Stack(
           children: [
             Scaffold(
@@ -363,20 +429,16 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
                   child: CustomScrollView(
                     controller: _scrollController,
                     slivers: [
-                      SliverToBoxAdapter(
-                        child: SizedBox(
-                          height:
-                              ref
-                                  .watch(appPreferencesProvider)
-                                  .detailHeaderArtExpanded
-                              ? 360
-                              : 280,
-                          child: _buildAppBarBackground(
-                            context,
-                            playlist,
-                            resolvedBg,
-                          ),
-                        ),
+                      DetailHeader(
+                        expanded: prefs.detailHeaderArtExpanded,
+                        centeredTitle: prefs.detailHeaderCenteredTitle,
+                        artBuilder: (_) => _buildCollageBackground(),
+                        title: playlist.name,
+                        subtitle: null,
+                        meta: meta,
+                        lossless: _hasLossless,
+                        fadeTo: resolvedBg,
+                        onBack: () => Navigator.of(context).pop(),
                       ),
                       const SliverToBoxAdapter(
                         child: SizedBox(height: AppConstants.spacingMd),
@@ -385,75 +447,16 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppConstants.spacingLg,
-                          ),
-                          child: Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: AppConstants.spacingSm,
-                            runSpacing: AppConstants.spacingSm,
-                            children: [
-                              _InfoChip(
-                                icon: LucideIcons.music,
-                                label: '${_songs.length} tracks',
-                              ),
-                              if (_songs.isNotEmpty)
-                                _InfoChip(
-                                  icon: LucideIcons.clock,
-                                  label: _formattedTotalDuration,
-                                ),
-                              _InfoChip(
-                                icon: LucideIcons.calendar,
-                                label:
-                                    'Created ${_formatDate(playlist.createdAt)}',
-                              ),
-                              if (playlist.updatedAt != null &&
-                                  playlist.updatedAt != playlist.createdAt)
-                                _InfoChip(
-                                  icon: LucideIcons.pencil,
-                                  label:
-                                      'Updated ${_formatDate(playlist.updatedAt)}',
-                                ),
-                              if (_hasLossless)
-                                _InfoChip(
-                                  icon: LucideIcons.audioWaveform,
-                                  label: 'Lossless',
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SliverToBoxAdapter(
-                        child: SizedBox(height: AppConstants.spacingLg),
-                      ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppConstants.spacingLg,
                             vertical: AppConstants.spacingXxs,
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _ActionButton(
-                                icon: LucideIcons.shuffle,
-                                tooltip: 'Shuffle',
-                                onTap: _shuffleAll,
-                              ),
-                              const SizedBox(width: AppConstants.spacingXl),
-                              _ActionButton(
-                                icon: LucideIcons.play,
-                                tooltip: 'Play',
-                                onTap: _playAll,
-                                isPrimary: true,
-                                label: 'Play',
-                                primaryColor: _playlistColor,
-                              ),
-                              const SizedBox(width: AppConstants.spacingXl),
-                              _ActionButton(
-                                icon: LucideIcons.listMusic,
-                                tooltip: 'Queue',
-                                onTap: _queueAll,
-                              ),
-                            ],
+                          child: DetailActionCapsule(
+                            isFavorite: _isAllFavorites,
+                            onToggleFavorite: _toggleFavoriteAll,
+                            onShuffle: _shuffleAll,
+                            onPlay: _playAll,
+                            onQueue: _queueAll,
+                            onMore: _showMore,
+                            primaryColor: _playlistColor,
                           ),
                         ),
                       ),
@@ -678,102 +681,6 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
     );
   }
 
-  Widget _buildAppBarBackground(
-    BuildContext context,
-    Playlist playlist,
-    Color fadeTo,
-  ) {
-    final prefs = ref.watch(appPreferencesProvider);
-    final gradientColors = prefs.detailHeaderArtExpanded
-        ? [
-            Colors.transparent,
-            Colors.transparent,
-            fadeTo.withValues(alpha: 0.9),
-            fadeTo,
-          ]
-        : [Colors.transparent, fadeTo.withValues(alpha: 0.8), fadeTo];
-    // ponytail: solid base + 1px overlap seal; same-color adjacent paints hairline otherwise
-    return Stack(
-      fit: StackFit.expand,
-      clipBehavior: Clip.none,
-      children: [
-        ColoredBox(color: fadeTo),
-        _buildCollageBackground(),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: gradientColors,
-              stops: prefs.detailHeaderArtExpanded
-                  ? const [0.0, 0.7, 0.92, 1.0]
-                  : const [0.0, 0.5, 1.0],
-            ),
-          ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: -1,
-          height: 3,
-          child: ColoredBox(color: fadeTo),
-        ),
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 20,
-          left: 16,
-          child: ClipOval(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: AppConstants.glassBlurSigma,
-                sigmaY: AppConstants.glassBlurSigma,
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.glassBackgroundStrong,
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    LucideIcons.chevronLeft,
-                    color: context.adaptiveTextPrimary,
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left: AppConstants.spacingLg,
-          right: AppConstants.spacingLg,
-          bottom: 4,
-          child: Column(
-            crossAxisAlignment: prefs.detailHeaderCenteredTitle
-                ? CrossAxisAlignment.center
-                : CrossAxisAlignment.start,
-            children: [
-              Text(
-                playlist.name,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${_songs.length} songs${_songs.isNotEmpty ? ' • $_formattedTotalDuration' : ''}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.adaptiveTextSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildCollageBackground() {
     final fallback = Container(
       color: AppColors.surface,
@@ -867,146 +774,6 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
           onSortChanged: _setSortOption,
         );
       },
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final bool isPrimary;
-  final String? label;
-  final Color? primaryColor;
-
-  const _ActionButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.isPrimary = false,
-    this.label,
-    this.primaryColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (!isPrimary) {
-      return Tooltip(
-        message: tooltip,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(23),
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.glassBackgroundStrong,
-                border: Border.all(color: AppColors.glassBorder),
-              ),
-              child: Icon(icon, color: context.adaptiveTextPrimary, size: 20),
-            ),
-          ),
-        ),
-      );
-    }
-
-    final color = primaryColor ?? AppColors.accent;
-    final fg = AdaptiveColors.textPrimaryOn(color);
-    final decoration = BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color.lerp(color, Colors.white, 0.18)!, color],
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: color.withValues(alpha: 0.45),
-          blurRadius: 20,
-          offset: const Offset(0, 6),
-        ),
-      ],
-    );
-
-    if (label != null) {
-      return Tooltip(
-        message: tooltip,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(26),
-            child: Container(
-              height: 52,
-              padding: const EdgeInsets.symmetric(horizontal: 26),
-              decoration: decoration.copyWith(
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, color: fg, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    label!,
-                    style: TextStyle(
-                      color: fg,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(30),
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: decoration.copyWith(shape: BoxShape.circle),
-            child: Icon(icon, color: fg, size: 26),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _InfoChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: context.adaptiveTextSecondary),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: context.adaptiveTextSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 }

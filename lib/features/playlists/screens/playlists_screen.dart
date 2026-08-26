@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -325,36 +326,13 @@ class PlaylistsScreen extends ConsumerWidget {
     );
   }
 
-  Future<bool?> _showDeleteDialog(BuildContext context, WidgetRef ref) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        title: Text(
-          'Delete Playlist',
-          style: TextStyle(color: context.adaptiveTextPrimary),
-        ),
-        content: Text(
-          'Are you sure you want to delete this playlist?',
-          style: TextStyle(color: context.adaptiveTextTertiary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: context.adaptiveTextTertiary),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+  Future<bool> _showDeleteDialog(BuildContext context, WidgetRef ref) {
+    return FlickDialogs.confirm(
+      context,
+      title: 'Delete Playlist',
+      message: 'Are you sure you want to delete this playlist?',
+      confirmLabel: 'Delete',
+      destructive: true,
     );
   }
 
@@ -368,94 +346,77 @@ class PlaylistsScreen extends ConsumerWidget {
     // ponytail: 0 = "this device"; Isar ids start at 1 so it never collides.
     var serverId = 0;
 
-    showDialog(
+    showFlickDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        title: Text(
-          'Create Playlist',
-          style: TextStyle(color: context.adaptiveTextPrimary),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              style: TextStyle(color: context.adaptiveTextPrimary),
-              decoration: InputDecoration(
-                hintText: 'Playlist name',
-                hintStyle: TextStyle(color: context.adaptiveTextTertiary),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.glassBorder),
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: context.adaptiveTextSecondary),
+      barrierLabel: 'Create Playlist',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (innerContext, setDialogState) => FlickDialog(
+          title: 'Create Playlist',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FlickTextField(
+                controller: controller,
+                hint: 'Playlist name',
+                autofocus: true,
+                onSubmitted: (_) => _createPlaylist(
+                  context,
+                  ref,
+                  controller.text,
+                  controller,
+                  dialogContext: dialogContext,
+                  serverId: serverId,
                 ),
               ),
-              onSubmitted: (value) => _createPlaylist(
+              if (servers.isNotEmpty) ...[
+                const SizedBox(height: AppConstants.spacingMd),
+                DropdownButtonFormField<int>(
+                  initialValue: serverId,
+                  decoration: InputDecoration(
+                    labelText: 'Store on',
+                    labelStyle: TextStyle(color: context.adaptiveTextTertiary),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.glassBorder),
+                    ),
+                  ),
+                  style: TextStyle(color: context.adaptiveTextPrimary),
+                  dropdownColor: AppColors.surface,
+                  items: [
+                    const DropdownMenuItem(
+                      value: 0,
+                      child: Text('This device'),
+                    ),
+                    for (final server in servers)
+                      DropdownMenuItem(
+                        value: server.id,
+                        child: Text(server.label),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => serverId = value ?? 0),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            FlickDialogButton(
+              label: 'Cancel',
+              onPressed: () => Navigator.pop(dialogContext),
+            ),
+            FlickDialogButton(
+              label: 'Create',
+              style: FlickDialogButtonStyle.primary,
+              onPressed: () => _createPlaylist(
                 context,
                 ref,
-                value,
+                controller.text,
                 controller,
+                dialogContext: dialogContext,
                 serverId: serverId,
               ),
             ),
-            if (servers.isNotEmpty) ...[
-              const SizedBox(height: AppConstants.spacingMd),
-              DropdownButtonFormField<int>(
-                initialValue: serverId,
-                decoration: InputDecoration(
-                  labelText: 'Store on',
-                  labelStyle: TextStyle(color: context.adaptiveTextTertiary),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.glassBorder),
-                  ),
-                ),
-                style: TextStyle(color: context.adaptiveTextPrimary),
-                dropdownColor: AppColors.surface,
-                items: [
-                  const DropdownMenuItem(
-                    value: 0,
-                    child: Text('This device'),
-                  ),
-                  for (final server in servers)
-                    DropdownMenuItem(
-                      value: server.id,
-                      child: Text(server.label),
-                    ),
-                ],
-                onChanged: (value) => serverId = value ?? 0,
-              ),
-            ],
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: context.adaptiveTextTertiary),
-            ),
-          ),
-          TextButton(
-            onPressed: () => _createPlaylist(
-              context,
-              ref,
-              controller.text,
-              controller,
-              dialogContext: dialogContext,
-              serverId: serverId,
-            ),
-            child: Text(
-              'Create',
-              style: TextStyle(color: context.adaptiveTextPrimary),
-            ),
-          ),
-        ],
       ),
     );
   }

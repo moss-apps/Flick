@@ -35,6 +35,11 @@ class AppColors {
   static const Color activeState = Color(0xFFFFFFFF);
   static const Color inactiveState = Color(0xFF606060);
 
+  // Error / destructive colors
+  static const Color error = Color(0xFFCF6679);
+  static const Color errorDim = Color(0x29CF6679); // 16% for fills
+  static const Color errorBorder = Color(0x59CF6679); // 35% for borders
+
   // Gradient definitions
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.topCenter,

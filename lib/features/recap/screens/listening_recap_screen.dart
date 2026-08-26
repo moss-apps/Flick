@@ -39,6 +39,7 @@ class _ListeningRecapScreenState extends State<ListeningRecapScreen> {
   final GlobalKey _topArtistsPosterBoundaryKey = GlobalKey();
 
   ListeningRecapPeriod _selectedPeriod = ListeningRecapPeriod.daily;
+  int _switchDirection = 1;
   _RecapPosterBackgroundMode _posterBackgroundMode =
       _RecapPosterBackgroundMode.defaultArt;
   Map<ListeningRecapPeriod, ListeningRecap> _recaps = {};
@@ -70,6 +71,14 @@ class _ListeningRecapScreenState extends State<ListeningRecapScreen> {
   void _watchHistory() {
     _historySubscription = _recentlyPlayedRepository.watchHistory().listen((_) {
       _loadRecaps(showLoadingState: false);
+    });
+  }
+
+  void _selectPeriod(ListeningRecapPeriod period) {
+    if (period == _selectedPeriod) return;
+    setState(() {
+      _switchDirection = period.index >= _selectedPeriod.index ? 1 : -1;
+      _selectedPeriod = period;
     });
   }
 
@@ -377,6 +386,31 @@ class _ListeningRecapScreenState extends State<ListeningRecapScreen> {
                                 duration: AppConstants.animationNormal,
                                 switchInCurve: Curves.easeOutCubic,
                                 switchOutCurve: Curves.easeInCubic,
+                                transitionBuilder: (child, animation) {
+                                  final isEntering =
+                                      child.key == ValueKey(_selectedPeriod);
+                                  final curved = CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeOutCubic,
+                                    reverseCurve: Curves.easeInCubic,
+                                  );
+                                  final slideOffset = Tween<Offset>(
+                                    begin: Offset(
+                                      0.028 *
+                                          _switchDirection *
+                                          (isEntering ? 1 : -1),
+                                      0,
+                                    ),
+                                    end: Offset.zero,
+                                  ).animate(curved);
+                                  return FadeTransition(
+                                    opacity: curved,
+                                    child: SlideTransition(
+                                      position: slideOffset,
+                                      child: RepaintBoundary(child: child),
+                                    ),
+                                  );
+                                },
                                 child: Column(
                                   key: ValueKey(_selectedPeriod),
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,11 +572,12 @@ class _ListeningRecapScreenState extends State<ListeningRecapScreen> {
                 ],
               ),
             ),
-            _HiddenRankingPosterCaptureHost(
-              recap: recap,
-              topSongsBoundaryKey: _topSongsPosterBoundaryKey,
-              topArtistsBoundaryKey: _topArtistsPosterBoundaryKey,
-            ),
+            if (_savingPosterType != null)
+              _HiddenRankingPosterCaptureHost(
+                recap: recap,
+                topSongsBoundaryKey: _topSongsPosterBoundaryKey,
+                topArtistsBoundaryKey: _topArtistsPosterBoundaryKey,
+              ),
           ],
         ),
       ),
@@ -557,20 +592,13 @@ class _ListeningRecapScreenState extends State<ListeningRecapScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorder),
+          IconButton(
+            icon: Icon(
+              LucideIcons.chevronLeft,
+              color: context.adaptiveTextPrimary,
+              size: context.responsiveIcon(AppConstants.iconSizeMd),
             ),
-            child: IconButton(
-              icon: Icon(
-                LucideIcons.arrowLeft,
-                color: context.adaptiveTextPrimary,
-                size: context.responsiveIcon(AppConstants.iconSizeMd),
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
+            onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: AppConstants.spacingMd),
           Expanded(
@@ -599,68 +627,7 @@ class _ListeningRecapScreenState extends State<ListeningRecapScreen> {
   }
 
   Widget _buildPeriodPicker(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingLg),
-        scrollDirection: Axis.horizontal,
-        itemBuilder: (context, index) {
-          final period = ListeningRecapPeriod.values[index];
-          final isSelected = period == _selectedPeriod;
-
-          return GestureDetector(
-            onTap: () => setState(() => _selectedPeriod = period),
-            child: AnimatedContainer(
-              duration: AppConstants.animationFast,
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.spacingMd,
-                vertical: AppConstants.spacingSm,
-              ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-                gradient: isSelected
-                    ? const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFFEDF6FF), Color(0xFF8AB7FF)],
-                      )
-                    : null,
-                color: isSelected ? null : AppColors.glassBackground,
-                border: Border.all(
-                  color: isSelected
-                      ? Colors.white.withValues(alpha: 0.28)
-                      : AppColors.glassBorder,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: const Color(
-                            0xFF8AB7FF,
-                          ).withValues(alpha: 0.25),
-                          blurRadius: 18,
-                          offset: const Offset(0, 10),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Center(
-                child: Text(
-                  period.label,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: isSelected ? AppColors.background : Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-        separatorBuilder: (_, _) =>
-            const SizedBox(width: AppConstants.spacingSm),
-        itemCount: ListeningRecapPeriod.values.length,
-      ),
-    );
+    return _PeriodPicker(selected: _selectedPeriod, onSelected: _selectPeriod);
   }
 
   Widget _buildActionRow(ListeningRecap recap) {
@@ -1604,40 +1571,366 @@ class _HiddenRankingPosterCaptureHost extends StatelessWidget {
   }
 }
 
-class _RecapBackdrop extends StatelessWidget {
+class _RecapBackdrop extends StatefulWidget {
   const _RecapBackdrop();
+
+  @override
+  State<_RecapBackdrop> createState() => _RecapBackdropState();
+}
+
+class _RecapBackdropState extends State<_RecapBackdrop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _driftController;
+
+  bool get _animationsEnabled => AppConstants.animationNormal != Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _driftController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 26),
+    );
+    if (_animationsEnabled) {
+      _driftController.repeat();
+    } else {
+      _driftController.value = 0.35;
+    }
+  }
+
+  @override
+  void dispose() {
+    _driftController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      child: Stack(
-        children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF040608), Color(0xFF0A0A0A)],
+      child: RepaintBoundary(
+        child: Stack(
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF060913), Color(0xFF0A0A0A)],
+                ),
               ),
             ),
-          ),
-          Positioned(
-            top: -160,
-            left: -80,
-            child: _GlowOrb(
-              size: 360,
-              colors: const [Color(0xFF1B3258), Color(0x001B3258)],
+            AnimatedBuilder(
+              animation: _driftController,
+              builder: (context, _) {
+                final t = _driftController.value * 2 * math.pi;
+                return Stack(
+                  children: [
+                    Positioned(
+                      top: -170,
+                      left: -90,
+                      child: Transform.translate(
+                        offset: Offset(
+                          math.sin(t * 0.9) * 46,
+                          math.cos(t * 0.7) * 34,
+                        ),
+                        child: Transform.scale(
+                          scale: 1 + 0.07 * math.sin(t * 1.1),
+                          child: const _GlowOrb(
+                            size: 400,
+                            colors: [Color(0xFF1E4788), Color(0x001E4788)],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: context.screenHeight * 0.24,
+                      right: -130,
+                      child: Transform.translate(
+                        offset: Offset(
+                          math.cos(t * 0.8 + 2.1) * 52,
+                          math.sin(t * 1.05 + 0.6) * 40,
+                        ),
+                        child: Transform.scale(
+                          scale: 1 + 0.06 * math.cos(t * 0.9 + 1.2),
+                          child: const _GlowOrb(
+                            size: 340,
+                            colors: [Color(0xFF55288C), Color(0x0055288C)],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: -140,
+                      left: -60,
+                      child: Transform.translate(
+                        offset: Offset(
+                          math.sin(t * 0.65 + 4.2) * 44,
+                          math.cos(t * 0.85 + 1.8) * 30,
+                        ),
+                        child: Transform.scale(
+                          scale: 1 + 0.08 * math.sin(t * 0.75 + 2.4),
+                          child: const _GlowOrb(
+                            size: 320,
+                            colors: [Color(0xFF6E3A24), Color(0x006E3A24)],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-          ),
-          Positioned(
-            top: context.screenHeight * 0.28,
-            right: -120,
-            child: _GlowOrb(
-              size: 320,
-              colors: const [Color(0xFF4A2A1F), Color(0x004A2A1F)],
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _ParticleFieldPainter(drift: _driftController),
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ParticleFieldPainter extends CustomPainter {
+  final Animation<double> drift;
+
+  _ParticleFieldPainter({required this.drift}) : super(repaint: drift);
+
+  static const int _particleCount = 42;
+  static const double _linkDistance = 110;
+
+  static final List<_DriftParticle> _particles = () {
+    final random = math.Random(7);
+    return List.generate(_particleCount, (_) => _DriftParticle(random));
+  }();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = drift.value;
+    final positions = <Offset>[];
+    final alphas = <double>[];
+
+    for (final particle in _particles) {
+      final x =
+          (particle.baseX +
+              0.018 * math.sin(2 * math.pi * (t * particle.sway + particle.phase)))
+              .clamp(0.0, 1.0);
+      var y = (particle.baseY - t * particle.speed) % 1.0;
+      if (y < 0) y += 1.0;
+      final twinkle =
+          0.45 +
+          0.55 *
+              (0.5 +
+                  0.5 *
+                      math.sin(
+                        2 * math.pi * (t * particle.twinkleSpeed + particle.phase),
+                      ));
+
+      positions.add(Offset(x * size.width, y * size.height));
+      alphas.add(twinkle);
+    }
+
+    final linkPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (var i = 0; i < positions.length; i++) {
+      for (var j = i + 1; j < positions.length; j++) {
+        final distance = (positions[i] - positions[j]).distance;
+        if (distance >= _linkDistance) continue;
+        final strength = (1 - distance / _linkDistance) * 0.055;
+        linkPaint.color = Colors.white.withValues(
+          alpha: strength * (alphas[i] + alphas[j]) / 2,
+        );
+        canvas.drawLine(positions[i], positions[j], linkPaint);
+      }
+    }
+
+    final dotPaint = Paint()..style = PaintingStyle.fill;
+    for (var i = 0; i < positions.length; i++) {
+      final particle = _particles[i];
+      dotPaint.color = Colors.white.withValues(
+        alpha: particle.maxAlpha * alphas[i],
+      );
+      canvas.drawCircle(positions[i], particle.radius, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ParticleFieldPainter oldDelegate) {
+    return oldDelegate.drift != drift;
+  }
+}
+
+class _DriftParticle {
+  final double baseX;
+  final double baseY;
+  final double speed;
+  final double sway;
+  final double twinkleSpeed;
+  final double phase;
+  final double radius;
+  final double maxAlpha;
+
+  _DriftParticle(math.Random random)
+    : baseX = random.nextDouble(),
+      baseY = random.nextDouble(),
+      speed = 0.18 + random.nextDouble() * 0.32,
+      sway = 0.6 + random.nextDouble() * 1.2,
+      twinkleSpeed = 1.5 + random.nextDouble() * 3,
+      phase = random.nextDouble(),
+      radius = 0.8 + random.nextDouble() * 1.4,
+      maxAlpha = 0.12 + random.nextDouble() * 0.16;
+}
+
+class _PeriodPicker extends StatefulWidget {
+  final ListeningRecapPeriod selected;
+  final ValueChanged<ListeningRecapPeriod> onSelected;
+
+  const _PeriodPicker({required this.selected, required this.onSelected});
+
+  @override
+  State<_PeriodPicker> createState() => _PeriodPickerState();
+}
+
+class _PeriodPickerState extends State<_PeriodPicker> {
+  final GlobalKey _trackKey = GlobalKey();
+  final Map<ListeningRecapPeriod, GlobalKey> _chipKeys = {
+    for (final period in ListeningRecapPeriod.values) period: GlobalKey(),
+  };
+  double? _indicatorLeft;
+  double? _indicatorWidth;
+  bool _indicatorReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureIndicator());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureIndicator());
+  }
+
+  @override
+  void didUpdateWidget(covariant _PeriodPicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selected != widget.selected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _measureIndicator());
+    }
+  }
+
+  void _measureIndicator() {
+    if (!mounted) return;
+    final chipContext = _chipKeys[widget.selected]?.currentContext;
+    final trackContext = _trackKey.currentContext;
+    if (chipContext == null || trackContext == null) return;
+
+    final chipBox = chipContext.findRenderObject() as RenderBox;
+    final trackBox = trackContext.findRenderObject() as RenderBox;
+    final origin = chipBox.localToGlobal(Offset.zero, ancestor: trackBox);
+    if (!mounted) return;
+
+    setState(() {
+      _indicatorLeft = origin.dx;
+      _indicatorWidth = chipBox.size.width;
+      _indicatorReady = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final periods = ListeningRecapPeriod.values;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingLg),
+      child: Container(
+        height: 52,
+        padding: const EdgeInsets.all(AppConstants.spacingXxs),
+        decoration: BoxDecoration(
+          color: AppColors.glassBackground,
+          border: Border.all(color: AppColors.glassBorder),
+          borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Stack(
+            key: _trackKey,
+            children: [
+              if (_indicatorLeft != null && _indicatorWidth != null)
+                AnimatedPositioned(
+                  duration: AppConstants.animationNormal,
+                  curve: Curves.easeOutCubic,
+                  left: _indicatorLeft,
+                  width: _indicatorWidth,
+                  top: 0,
+                  bottom: 0,
+                  child: AnimatedOpacity(
+                    duration: AppConstants.animationFast,
+                    opacity: _indicatorReady ? 1 : 0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(
+                          AppConstants.radiusRound,
+                        ),
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFFEDF6FF), Color(0xFF8AB7FF)],
+                        ),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.28),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(
+                              0xFF8AB7FF,
+                            ).withValues(alpha: 0.25),
+                            blurRadius: 18,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var index = 0; index < periods.length; index++) ...[
+                    if (index > 0)
+                      const SizedBox(width: AppConstants.spacingXs),
+                    GestureDetector(
+                      key: _chipKeys[periods[index]],
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => widget.onSelected(periods[index]),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppConstants.spacingMd,
+                          vertical: AppConstants.spacingSm,
+                        ),
+                        child: AnimatedDefaultTextStyle(
+                          duration: AppConstants.animationFast,
+                          curve: Curves.easeOutCubic,
+                          style:
+                              Theme.of(context).textTheme.titleSmall!.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: periods[index] == widget.selected
+                                    ? AppColors.background
+                                    : Colors.white.withValues(alpha: 0.72),
+                              ),
+                          child: Text(periods[index].label),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
