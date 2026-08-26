@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/providers/uac2_provider.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/uac2_service.dart';
-import 'package:flick/widgets/common/glass_dialog.dart';
+import 'package:flick/widgets/common/flick_dialog.dart';
 
 /// Pure gate: prompt only for an external USB route in a live state while
 /// bit-perfect is off.
@@ -83,17 +84,19 @@ class _UsbBitPerfectPromptState extends ConsumerState<UsbBitPerfectPrompt> {
     Uac2DeviceStatus status, {
     required bool switchEngine,
   }) async {
-    final accepted = await showDialog<bool>(
+    final accepted = await showFlickDialog<bool>(
       context: context,
-      builder: (context) => GlassDialog(
+      barrierLabel: 'USB DAC detected',
+      builder: (dialogContext) => FlickDialog(
         title: 'USB DAC detected',
+        icon: LucideIcons.usb,
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '${status.device.productName} is connected.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
@@ -103,21 +106,19 @@ class _UsbBitPerfectPromptState extends ConsumerState<UsbBitPerfectPrompt> {
               switchEngine
                   ? "Switch to the Bit-perfect (USB DAC) engine? Flick takes exclusive control of the USB path and bypasses Android's audio processing for unaltered sound."
                   : 'Enable Bit-perfect (USB DAC) mode? Flick takes exclusive control of the USB path for unaltered sound.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, height: 1.45),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Not now'),
+          FlickDialogButton(
+            label: 'Not now',
+            onPressed: () => Navigator.of(dialogContext).pop(false),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Enable'),
+          FlickDialogButton(
+            label: 'Enable',
+            style: FlickDialogButtonStyle.primary,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
           ),
         ],
       ),
