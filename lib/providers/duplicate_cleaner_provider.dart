@@ -12,9 +12,10 @@ class DuplicateScanState {
   final bool isScanning;
   final bool isRemoving;
   final String? error;
-  /// Per-group keep selection: group key → song id to keep.
+  /// Per-group keep selection: group key → set of song ids to keep.
   /// Seeded from each group's recommended keep after a scan.
-  final Map<String, int> keepSelection;
+  /// Multi-select: any number of copies can be kept per group, at least one.
+  final Map<String, Set<int>> keepSelection;
 
   const DuplicateScanState({
     this.result,
@@ -24,14 +25,26 @@ class DuplicateScanState {
     this.keepSelection = const {},
   });
 
-  /// Total duplicates that will be removed given the current selection.
-  /// Always equals sum(songs.length - 1) — kept count is one per group.
+  Set<int> _keepSetFor(DuplicateGroup g) =>
+      keepSelection[g.key] ?? {g.recommendedKeep.id};
+
+  /// Total duplicates that will be removed given the current multi-selection.
   int get selectedRemoveCount {
     if (result == null) return 0;
     var count = 0;
     for (final g in result!.duplicateGroups) {
-      // one kept per group, regardless of which one
-      count += g.songs.length - 1;
+      final keep = _keepSetFor(g);
+      count += (g.songs.length - keep.length).clamp(0, g.songs.length);
+    }
+    return count;
+  }
+
+  /// Total songs that will be kept.
+  int get selectedKeepCount {
+    if (result == null) return 0;
+    var count = 0;
+    for (final g in result!.duplicateGroups) {
+      count += _keepSetFor(g).length;
     }
     return count;
   }
@@ -41,7 +54,8 @@ class DuplicateScanState {
     if (result == null) return false;
     for (final g in result!.duplicateGroups) {
       final sel = keepSelection[g.key];
-      if (sel != null && sel != g.recommendedKeep.id) return true;
+      if (sel == null) continue;
+      if (sel.length != 1 || !sel.contains(g.recommendedKeep.id)) return true;
     }
     return false;
   }
@@ -53,7 +67,7 @@ class DuplicateScanState {
     String? error,
     bool clearError = false,
     bool clearResult = false,
-    Map<String, int>? keepSelection,
+    Map<String, Set<int>>? keepSelection,
   }) {
     return DuplicateScanState(
       result: clearResult ? null : (result ?? this.result),
@@ -77,8 +91,8 @@ class DuplicateScanNotifier extends Notifier<DuplicateScanState> {
       final service = ref.read(duplicateCleanerServiceProvider);
       final result = await service.scanForDuplicates();
 
-      final selection = <String, int>{
-        for (final g in result.duplicateGroups) g.key: g.recommendedKeep.id,
+      final selection = <String, Set<int>>{
+        for (final g in result.duplicateGroups) g.key: {g.recommendedKeep.id},
       };
 
       state = DuplicateScanState(
@@ -95,12 +109,44 @@ class DuplicateScanNotifier extends Notifier<DuplicateScanState> {
     }
   }
 
-  /// Update which song to keep for a single group (singular selection).
+  /// Toggle whether [songId] is kept for [groupKey] (multi-select).
+  /// At least one song must stay per group — toggling off the last kept is ignored.
+  /// Returns true if the toggle succeeded.
+  bool toggleKeep(String groupKey, int songId) {
+    if (state.result == null) return false;
+    if (state.isRemoving) return false;
+    final group = state.result!.duplicateGroups
+        .where((g) => g.key == groupKey)
+        .firstOrNull;
+    if (group == null) return false;
+    final current =
+        Set<int>.from(state.keepSelection[groupKey] ?? {group.recommendedKeep.id});
+    if (current.contains(songId)) {
+      if (current.length == 1) return false;
+      current.remove(songId);
+    } else {
+      current.add(songId);
+    }
+    final next = Map<String, Set<int>>.from(state.keepSelection);
+    next[groupKey] = current;
+    state = state.copyWith(keepSelection: next);
+    return true;
+  }
+
+  /// Backwards-compat alias — sets a singular keep (replaces the set).
   void selectKeep(String groupKey, int songId) {
     if (state.result == null) return;
     if (state.isRemoving) return;
-    final next = Map<String, int>.from(state.keepSelection);
-    next[groupKey] = songId;
+    final next = Map<String, Set<int>>.from(state.keepSelection);
+    next[groupKey] = {songId};
+    state = state.copyWith(keepSelection: next);
+  }
+
+  /// Explicitly set the keep set for a group (must be non-empty subset of group).
+  void setKeepSet(String groupKey, Set<int> keepIds) {
+    if (state.result == null || keepIds.isEmpty) return;
+    final next = Map<String, Set<int>>.from(state.keepSelection);
+    next[groupKey] = Set<int>.from(keepIds);
     state = state.copyWith(keepSelection: next);
   }
 
@@ -110,14 +156,16 @@ class DuplicateScanNotifier extends Notifier<DuplicateScanState> {
         .where((g) => g.key == groupKey)
         .firstOrNull;
     if (group == null) return;
-    selectKeep(groupKey, group.recommendedKeep.id);
+    final next = Map<String, Set<int>>.from(state.keepSelection);
+    next[groupKey] = {group.recommendedKeep.id};
+    state = state.copyWith(keepSelection: next);
   }
 
   /// Reset all groups to recommended keeps.
   void resetAllToRecommended() {
     if (state.result == null) return;
-    final selection = <String, int>{
-      for (final g in state.result!.duplicateGroups) g.key: g.recommendedKeep.id,
+    final selection = <String, Set<int>>{
+      for (final g in state.result!.duplicateGroups) g.key: {g.recommendedKeep.id},
     };
     state = state.copyWith(keepSelection: selection);
   }
@@ -143,7 +191,7 @@ class DuplicateScanNotifier extends Notifier<DuplicateScanState> {
     }
   }
 
-  /// Remove duplicates respecting the per-group singular selection.
+  /// Remove duplicates respecting the per-group multi-keep selection.
   Future<DuplicateRemovalResult?> removeSelected() async {
     if (state.result == null) return null;
 
@@ -152,20 +200,22 @@ class DuplicateScanNotifier extends Notifier<DuplicateScanState> {
     try {
       final service = ref.read(duplicateCleanerServiceProvider);
       final idsToRemove = <int>[];
+      var kept = 0;
       for (final group in state.result!.duplicateGroups) {
-        final keepId = state.keepSelection[group.key] ?? group.recommendedKeep.id;
+        final keepIds =
+            state.keepSelection[group.key] ?? {group.recommendedKeep.id};
+        kept += keepIds.length;
         idsToRemove.addAll(
-          group.songs.where((s) => s.id != keepId).map((s) => s.id),
+          group.songs.where((s) => !keepIds.contains(s.id)).map((s) => s.id),
         );
       }
 
       if (idsToRemove.isEmpty) {
         state = state.copyWith(isRemoving: false);
-        return DuplicateRemovalResult(removedCount: 0, keptCount: 0, errors: []);
+        return DuplicateRemovalResult(removedCount: 0, keptCount: kept, errors: []);
       }
 
       final removed = await service.removeSpecificDuplicates(idsToRemove);
-      final kept = state.result!.totalGroups;
 
       await scanForDuplicates();
 
