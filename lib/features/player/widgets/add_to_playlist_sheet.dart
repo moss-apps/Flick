@@ -8,15 +8,21 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 class AddToPlaylistSheet extends ConsumerWidget {
-  final Song song;
-  const AddToPlaylistSheet({super.key, required this.song});
+  final List<Song> songs;
+  const AddToPlaylistSheet({super.key, required this.songs});
+
+  Song get song => songs.first;
 
   static Future<void> show(BuildContext context, Song song) {
+    return showSongs(context, [song]);
+  }
+
+  static Future<void> showSongs(BuildContext context, List<Song> songs) {
     return showModalBottomSheet(
       useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => AddToPlaylistSheet(song: song),
+      builder: (context) => AddToPlaylistSheet(songs: songs),
     );
   }
 
@@ -41,7 +47,9 @@ class AddToPlaylistSheet extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                'Add to Playlist',
+                songs.length == 1
+                    ? 'Add to Playlist'
+                    : 'Add ${songs.length} Songs to Playlist',
                 style: TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 18,
@@ -87,9 +95,11 @@ class AddToPlaylistSheet extends ConsumerWidget {
                       itemCount: state.playlists.length,
                       itemBuilder: (context, index) {
                         final playlist = state.playlists[index];
-                        final isAlreadyAdded = playlist.songIds.contains(
-                          song.id,
-                        );
+                        final songIds = songs.map((s) => s.id).toSet();
+                        final isAlreadyAdded = playlist.songIds
+                            .where((id) => songIds.contains(id))
+                            .length >=
+                            songs.length;
                         return ListTile(
                           leading: Container(
                             width: 48,
@@ -126,13 +136,16 @@ class AddToPlaylistSheet extends ConsumerWidget {
                           onTap: isAlreadyAdded
                               ? null
                               : () async {
-                                  await ref
-                                      .read(playlistsProvider.notifier)
-                                      .addSongToPlaylist(
-                                        playlist.id,
-                                        song.id,
-                                        song: song,
-                                      );
+                                  final notifier = ref.read(
+                                    playlistsProvider.notifier,
+                                  );
+                                  for (final s in songs) {
+                                    await notifier.addSongToPlaylist(
+                                      playlist.id,
+                                      s.id,
+                                      song: s,
+                                    );
+                                  }
                                   if (context.mounted) {
                                     Navigator.pop(context);
                                     ScaffoldMessenger.of(
@@ -140,7 +153,9 @@ class AddToPlaylistSheet extends ConsumerWidget {
                                     ).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          'Added to "${playlist.name}"',
+                                          songs.length == 1
+                                              ? 'Added to "${playlist.name}"'
+                                              : 'Added ${songs.length} songs to "${playlist.name}"',
                                         ),
                                       ),
                                     );
