@@ -1,3 +1,4 @@
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -735,88 +736,16 @@ Future<void> _showManualScaleDialog(
   required double max,
   required ValueChanged<double> onChanged,
 }) async {
-  final controller = TextEditingController(
-    text: (value * 100).round().toString(),
+  final submitted = await FlickDialogs.input(
+    context,
+    title: 'Font Scale',
+    message:
+        'Enter a value from ${(min * 100).round()}% to ${(max * 100).round()}%',
+    initialValue: (value * 100).round().toString(),
+    confirmLabel: 'Apply',
+    keyboardType: const TextInputType.numberWithOptions(decimal: true),
   );
-  final submitted = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-      ),
-      title: Text(
-        'Font Scale',
-        style: TextStyle(color: context.adaptiveTextPrimary),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Enter a value from ${(min * 100).round()}% to ${(max * 100).round()}%',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.adaptiveTextTertiary,
-                ),
-          ),
-          const SizedBox(height: AppConstants.spacingMd),
-          TextField(
-            controller: controller,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            textInputAction: TextInputAction.done,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: context.adaptiveTextPrimary,
-                  fontFamily: 'ProductSans',
-                ),
-            decoration: InputDecoration(
-              isDense: true,
-              suffixText: '%',
-              suffixStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
-              border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppConstants.radiusSm),
-                borderSide: BorderSide(color: AppColors.glassBorder),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppConstants.radiusSm),
-                borderSide: BorderSide(color: AppColors.glassBorder),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppConstants.radiusSm),
-                borderSide: BorderSide(color: context.adaptiveTextPrimary),
-              ),
-            ),
-            onSubmitted: (_) => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: Text(
-            'Cancel',
-            style: TextStyle(color: context.adaptiveTextSecondary),
-          ),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: Text(
-            'Apply',
-            style: TextStyle(color: context.adaptiveTextPrimary),
-          ),
-        ),
-      ],
-    ),
-  );
-  final parsed = submitted == true
-      ? double.tryParse(controller.text.trim())
-      : null;
-  controller.dispose();
+  final parsed = submitted == null ? null : double.tryParse(submitted);
   if (parsed != null) {
     onChanged((parsed / 100).clamp(min, max).toDouble());
   }

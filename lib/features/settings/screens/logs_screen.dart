@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,23 +104,16 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   // of building a lossy scrubber that would strip diagnostic file paths.
   Future<void> _uploadAsLink(List<LogEntry> entries) async {
     if (entries.isEmpty) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text('Upload logs as a link?', style: TextStyle(color: context.adaptiveTextPrimary)),
-        content: Text(
+    final ok = await FlickDialogs.confirm(
+      context,
+      title: 'Upload logs as a link?',
+      message:
           'Your logs are uploaded to dpaste.com as an unlisted link that expires in 30 days. '
           'Anyone you share the link with can read them — logs may contain file paths and device details.',
-          style: TextStyle(color: context.adaptiveTextSecondary),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Upload')),
-        ],
-      ),
+      confirmLabel: 'Upload',
+      icon: Icons.warning_amber_rounded,
     );
-    if (ok != true) return;
+    if (!ok) return;
 
     setState(() => _isUploading = true);
     try {
@@ -150,31 +144,38 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   }
 
   void _showLinkDialog(String url) {
-    showDialog<void>(
+    showFlickDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text('Link ready', style: TextStyle(color: context.adaptiveTextPrimary)),
+      barrierLabel: 'Link ready',
+      builder: (ctx) => FlickDialog(
+        title: 'Link ready',
         content: SelectableText(
           url,
-          style: TextStyle(color: context.adaptiveAccent, fontFamily: 'monospace'),
+          style: TextStyle(
+            color: AppColors.accent,
+            fontFamily: 'monospace',
+          ),
         ),
         actions: [
-          TextButton(
+          FlickDialogButton(
+            label: 'Copy',
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: url));
-              Navigator.pop(ctx);
+              if (ctx.mounted) Navigator.pop(ctx);
             },
-            child: const Text('Copy'),
           ),
-          TextButton(
+          FlickDialogButton(
+            label: 'Share',
             onPressed: () {
               Navigator.pop(ctx);
               Share.share(url, subject: 'Flick logs');
             },
-            child: const Text('Share'),
           ),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+          FlickDialogButton(
+            label: 'Done',
+            style: FlickDialogButtonStyle.primary,
+            onPressed: () => Navigator.pop(ctx),
+          ),
         ],
       ),
     );
@@ -192,46 +193,28 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
     );
     if (path == null || !mounted) return;
 
-    final share = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text('Saved', style: TextStyle(color: context.adaptiveTextPrimary)),
-        content: Text(
-          'Saved to:\n$path\n\nShare it now?',
-          style: TextStyle(color: context.adaptiveTextSecondary),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Share')),
-        ],
-      ),
+    final share = await FlickDialogs.confirm(
+      context,
+      title: 'Saved',
+      message: 'Saved to:\n$path\n\nShare it now?',
+      confirmLabel: 'Share',
+      cancelLabel: 'No',
     );
-    if (share == true && mounted) {
+    if (share && mounted) {
       await Share.shareXFiles([XFile(path)], subject: 'Flick logs');
     }
   }
 
   Future<void> _confirmClear() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text('Clear logs?', style: TextStyle(color: context.adaptiveTextPrimary)),
-        content: Text(
+    final ok = await FlickDialogs.confirm(
+      context,
+      title: 'Clear logs?',
+      message:
           'This removes all ${AppLog.instance.entries.length} entries from memory.',
-          style: TextStyle(color: context.adaptiveTextSecondary),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clear', style: TextStyle(color: Color(0xFFFF6B6B))),
-          ),
-        ],
-      ),
+      confirmLabel: 'Clear',
+      destructive: true,
     );
-    if (ok == true) {
+    if (ok) {
       AppLog.instance.clear();
     }
   }

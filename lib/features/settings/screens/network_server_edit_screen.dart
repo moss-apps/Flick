@@ -1,4 +1,5 @@
 // Main sources
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:isar_community/isar.dart';
@@ -313,27 +314,15 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     final server = widget.server;
     if (server == null) return;
     AppHaptics.tap();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove server?'),
-      content: Text(
-          'Delete "${server.label}" and all songs and playlists synced from '
-          'it? Cached downloads are kept.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final confirmed = await FlickDialogs.confirm(
+      context,
+      title: 'Remove server?',
+      message:
+          'Delete "${server.label}" and all songs and playlists synced from it? Cached downloads are kept.',
+      confirmLabel: 'Delete',
+      destructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await Database.instance.writeTxn(() async {
       await Database.networkServers.delete(server.id);
     });

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/widgets/common/floating_mini_player.dart';
@@ -399,80 +400,15 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
     });
   }
 
-  Future<String?> _askForName(BuildContext context, {String? initial}) async {
-    final controller = TextEditingController(text: initial ?? '');
-    final result = await showDialog<String?>(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingLg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                initial == null ? 'Save Preset' : 'Rename Preset',
-                style: TextStyle(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingMd),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackgroundStrong,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: TextField(
-                  controller: controller,
-                  autofocus: true,
-                  style: TextStyle(color: context.adaptiveTextPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Preset name',
-                    hintStyle: TextStyle(color: context.adaptiveTextTertiary),
-                    contentPadding: const EdgeInsets.all(
-                      AppConstants.spacingMd,
-                    ),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingLg),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(null),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(color: context.adaptiveTextSecondary),
-                    ),
-                  ),
-                  const SizedBox(width: AppConstants.spacingSm),
-                  TextButton(
-                    onPressed: () =>
-                        Navigator.of(context).pop(controller.text.trim()),
-                    child: Text(
-                      'Save',
-                      style: TextStyle(color: context.adaptiveTextPrimary),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+  Future<String?> _askForName(BuildContext context, {String? initial}) {
+    final result = FlickDialogs.input(
+      context,
+      title: initial == null ? 'Save Preset' : 'Rename Preset',
+      hintText: 'Preset name',
+      initialValue: initial,
+      confirmLabel: 'Save',
     );
-    controller.dispose();
-    final trimmed = result?.trim();
-    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+    return result;
   }
 
   EqPreset _currentAsPreset({required String id, required String name}) {
@@ -639,41 +575,29 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
   }
 
   Future<_PresetFileFormat?> _askForExportFormat() async {
-    return showDialog<_PresetFileFormat>(
+    return showFlickDialog<_PresetFileFormat>(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingLg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Format',
-                style: TextStyle(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingMd),
-              _FormatOption(
-                label: 'JSON',
-                description: 'Native Flick preset format',
-                onTap: () => Navigator.of(context).pop(_PresetFileFormat.json),
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              _FormatOption(
-                label: 'TXT',
-                description: 'Compatible with Poweramp EQ',
-                onTap: () => Navigator.of(context).pop(_PresetFileFormat.txt),
-              ),
-            ],
-          ),
+      barrierLabel: 'Export format',
+      builder: (dialogContext) => FlickDialog(
+        title: 'Format',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _FormatOption(
+              label: 'JSON',
+              description: 'Native Flick preset format',
+              onTap: () =>
+                  Navigator.of(dialogContext).pop(_PresetFileFormat.json),
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            _FormatOption(
+              label: 'TXT',
+              description: 'Compatible with Poweramp EQ',
+              onTap: () =>
+                  Navigator.of(dialogContext).pop(_PresetFileFormat.txt),
+            ),
+          ],
         ),
       ),
     );
@@ -703,65 +627,14 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
   }
 
   Future<void> _deletePreset(EqPreset preset) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingLg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Delete Preset?',
-                style: TextStyle(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              Text(
-                'Delete "${preset.name}"? This cannot be undone.',
-                style: TextStyle(
-                  color: context.adaptiveTextSecondary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingLg),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(color: context.adaptiveTextSecondary),
-                    ),
-                  ),
-                  const SizedBox(width: AppConstants.spacingSm),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text(
-                      'Delete',
-                      style: TextStyle(
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+    final confirmed = await FlickDialogs.confirm(
+      context,
+      title: 'Delete Preset?',
+      message: 'Delete "${preset.name}"? This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await _service.deleteCustomPreset(preset.id);
     await _load();
   }
@@ -2561,12 +2434,12 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
     required double max,
     required ValueChanged<double> onSubmitted,
   }) {
-    showGeneralDialog(
+    showFlickDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Dismiss',
       barrierColor: Colors.black.withValues(alpha: 0.3),
-      pageBuilder: (_, __, ___) => _InlineValueEditor(
+      builder: (_) => _InlineValueEditor(
         initialValue: value,
         unit: unit,
         label: label,
@@ -2574,18 +2447,6 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
         max: max,
         onSubmitted: onSubmitted,
       ),
-      transitionBuilder: (context, anim, __, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
-          child: ScaleTransition(
-            scale: CurvedAnimation(
-              parent: anim,
-              curve: Curves.easeOutBack,
-            ),
-            child: child,
-          ),
-        );
-      },
     );
   }
 

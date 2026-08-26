@@ -1,3 +1,4 @@
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -320,60 +321,20 @@ class _DuplicateCleanerScreenState
     );
   }
 
-  void _showRemoveAllConfirmation(BuildContext context) {
+  Future<void> _showRemoveAllConfirmation(BuildContext context) async {
     final result = ref.read(duplicateScanProvider).result!;
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        title: const Text(
-          'Remove All Duplicates?',
-          style: TextStyle(
-            fontFamily: 'ProductSans',
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        content: Text(
+    final confirmed = await FlickDialogs.confirm(
+      context,
+      title: 'Remove All Duplicates?',
+      message:
           'This will remove ${result.totalDuplicates} duplicate songs, keeping the best quality version of each. This action cannot be undone.',
-          style: const TextStyle(
-            fontFamily: 'ProductSans',
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                fontFamily: 'ProductSans',
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              ref.read(duplicateScanProvider.notifier).removeAllDuplicates();
-            },
-            child: const Text(
-              'Remove',
-              style: TextStyle(
-                fontFamily: 'ProductSans',
-                color: Colors.red,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
+      confirmLabel: 'Remove',
+      destructive: true,
     );
+    if (confirmed) {
+      ref.read(duplicateScanProvider.notifier).removeAllDuplicates();
+    }
   }
 }
 

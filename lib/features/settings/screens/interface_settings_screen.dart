@@ -1,3 +1,4 @@
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -13,26 +14,15 @@ class InterfaceSettingsScreen extends ConsumerWidget {
   const InterfaceSettingsScreen({super.key});
 
   Future<void> _confirmResetStreak(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reset streak data?'),
-        content: const Text(
+    final confirmed = await FlickDialogs.confirm(
+      context,
+      title: 'Reset streak data?',
+      message:
           'This clears your current day streak and any unlocked streak milestones. This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Reset',
+      destructive: true,
     );
-    if (confirmed == true) {
+    if (confirmed) {
       await MilestoneService().clearStreakData();
     }
   }

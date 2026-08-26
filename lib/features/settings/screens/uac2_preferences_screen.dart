@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flick/widgets/common/flick_dialog.dart';
+import 'package:flick/widgets/common/flick_option_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -570,18 +572,12 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     Uac2PreferencesService service,
     AudioApiPreference current,
   ) async {
-    await showDialog<void>(
+    await showFlickDialog<void>(
       context: context,
+      barrierLabel: 'Android Audio API',
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-          ),
-          title: Text(
-            'Android Audio API',
-            style: TextStyle(color: context.adaptiveTextPrimary),
-          ),
+        return FlickDialog(
+          title: 'Android Audio API',
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -670,18 +666,12 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       ref.invalidate(audioEnginePreferenceProvider);
     }
 
-    await showDialog<void>(
+    await showFlickDialog<void>(
       context: context,
+      barrierLabel: 'Playback Engine',
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-          ),
-          title: Text(
-            'Playback Engine',
-            style: TextStyle(color: context.adaptiveTextPrimary),
-          ),
+        return FlickDialog(
+          title: 'Playback Engine',
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1158,18 +1148,11 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     Uac2PreferencesService service,
     Uac2FormatPreference current,
   ) {
-    showDialog(
+    showFlickDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        scrollable: true,
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        title: Text(
-          'Format Strategy',
-          style: TextStyle(color: context.adaptiveTextPrimary),
-        ),
+      barrierLabel: 'Format Strategy',
+      builder: (context) => FlickDialog(
+        title: 'Format Strategy',
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1219,60 +1202,19 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     Uac2PreferencesService service,
   ) {
     final isSelected = preference == current;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () async {
-          final changed = preference != current;
-          await service.setFormatPreference(preference);
-          ref.invalidate(uac2FormatPreferenceProvider);
-          if (context.mounted) Navigator.of(context).pop();
-          if (changed && mounted) {
-            _showDeviceRestartRequiredToast(this.context);
-          }
-        },
-        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        child: Container(
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppColors.accent.withValues(alpha: 0.1)
-                : AppColors.glassBackground,
-            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-            border: Border.all(
-              color: isSelected ? AppColors.accent : AppColors.glassBorder,
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: context.adaptiveTextPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.adaptiveTextTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isSelected)
-                Icon(Icons.check_circle, color: AppColors.accent, size: 20),
-            ],
-          ),
-        ),
-      ),
+    return FlickOptionTile(
+      title: title,
+      description: description,
+      selected: isSelected,
+      onTap: () async {
+        final changed = preference != current;
+        await service.setFormatPreference(preference);
+        ref.invalidate(uac2FormatPreferenceProvider);
+        if (context.mounted) Navigator.of(context).pop();
+        if (changed && mounted) {
+          _showDeviceRestartRequiredToast(this.context);
+        }
+      },
     );
   }
 
@@ -1285,19 +1227,12 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     int bitDepth = current?.bitDepth ?? 16;
     int channels = current?.channels ?? 2;
 
-    showDialog(
+    showFlickDialog<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          scrollable: true,
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-          ),
-          title: Text(
-            'Custom Format',
-            style: TextStyle(color: context.adaptiveTextPrimary),
-          ),
+      barrierLabel: 'Custom Format',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => FlickDialog(
+          title: 'Custom Format',
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1382,14 +1317,13 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: TextStyle(color: context.adaptiveTextSecondary),
-              ),
+            FlickDialogButton(
+              label: 'Cancel',
+              onPressed: () => Navigator.of(dialogContext).pop(),
             ),
-            TextButton(
+            FlickDialogButton(
+              label: 'Save',
+              style: FlickDialogButtonStyle.primary,
               onPressed: () async {
                 final formatChanged =
                     current?.sampleRate != sampleRate ||
@@ -1405,17 +1339,15 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                 await service.setFormatPreference(Uac2FormatPreference.custom);
                 ref.invalidate(uac2PreferredFormatProvider);
                 ref.invalidate(uac2FormatPreferenceProvider);
-                if (context.mounted) Navigator.of(context).pop();
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
                 if ((formatChanged ||
                         previousPreference != Uac2FormatPreference.custom) &&
                     mounted) {
                   _showDeviceRestartRequiredToast(this.context);
                 }
               },
-              child: const Text(
-                'Save',
-                style: TextStyle(color: AppColors.accent),
-              ),
             ),
           ],
         ),
@@ -1427,52 +1359,32 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     BuildContext context,
     Uac2PreferencesService service,
   ) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        title: Text(
-          'Reset Preferences',
-          style: TextStyle(color: context.adaptiveTextPrimary),
-        ),
-        content: Text(
-          'Are you sure you want to reset all UAC2 preferences? This action cannot be undone.',
-          style: TextStyle(color: context.adaptiveTextSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: context.adaptiveTextSecondary),
+    unawaited(
+      FlickDialogs.confirm(
+        context,
+        title: 'Reset Preferences',
+        message:
+            'Are you sure you want to reset all UAC2 preferences? This action cannot be undone.',
+        confirmLabel: 'Reset',
+        destructive: true,
+      ).then((confirmed) async {
+        if (!confirmed) return;
+        await service.clearAllPreferences();
+        await ref
+            .read(uac2ServiceProvider)
+            .setBitPerfectEnabled(false, persist: false);
+        ref.invalidate(uac2FormatPreferenceProvider);
+        ref.invalidate(uac2PreferredFormatProvider);
+        ref.invalidate(uac2BitPerfectEnabledProvider);
+        ref.invalidate(uac2ExclusiveDacModeProvider);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('UAC2 preferences reset successfully'),
             ),
-          ),
-          TextButton(
-            onPressed: () async {
-              await service.clearAllPreferences();
-              await ref
-                  .read(uac2ServiceProvider)
-                  .setBitPerfectEnabled(false, persist: false);
-              ref.invalidate(uac2FormatPreferenceProvider);
-              ref.invalidate(uac2PreferredFormatProvider);
-              ref.invalidate(uac2BitPerfectEnabledProvider);
-              ref.invalidate(uac2ExclusiveDacModeProvider);
-              if (context.mounted) {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('UAC2 preferences reset successfully'),
-                  ),
-                );
-              }
-            },
-            child: Text('Reset', style: TextStyle(color: Colors.red.shade400)),
-          ),
-        ],
-      ),
+          );
+        }
+      }),
     );
   }
 
@@ -1481,37 +1393,22 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     String featureName,
     String message,
   ) {
-    showDialog(
+    showFlickDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        title: Row(
-          children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              color: Colors.amber.shade300,
-              size: 24,
-            ),
-            const SizedBox(width: AppConstants.spacingSm),
-            Expanded(
-              child: Text(
-                '$featureName Unavailable',
-                style: TextStyle(color: context.adaptiveTextPrimary),
-              ),
-            ),
-          ],
-        ),
+      barrierLabel: '$featureName Unavailable',
+      builder: (dialogContext) => FlickDialog(
+        title: '$featureName Unavailable',
+        icon: Icons.warning_amber_rounded,
+        iconColor: Colors.amber.shade300,
         content: Text(
           message,
-          style: TextStyle(color: context.adaptiveTextSecondary),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK', style: TextStyle(color: AppColors.accent)),
+          FlickDialogButton(
+            label: 'OK',
+            style: FlickDialogButtonStyle.primary,
+            onPressed: () => Navigator.of(dialogContext).pop(),
           ),
         ],
       ),
@@ -1587,50 +1484,19 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
   Future<bool> _confirmEnable432HzTuning(BuildContext context) {
     if (_awaiting432HzConfirm) return Future.value(false);
     _awaiting432HzConfirm = true;
-    const warnColor = Colors.amber;
-    return showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: warnColor, size: 22),
-            const SizedBox(width: AppConstants.spacingSm),
-            Expanded(
-              child: Text(
-                'Enable 432 Hz Tuning?',
-                style: TextStyle(color: context.adaptiveTextPrimary),
-              ),
-            ),
-          ],
-        ),
-        content: Text(
+    return FlickDialogs.confirm(
+      context,
+      title: 'Enable 432 Hz Tuning?',
+      message:
           'This slows playback to 432/440 (~1.8% lower pitch and tempo) and '
           'disables bit-perfect passthrough. Music will sound slightly lower '
           'in tone. Only enable this if you intentionally want A=432 tuning.',
-          style: TextStyle(color: context.adaptiveTextSecondary, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.accent)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: warnColor,
-              foregroundColor: Colors.black,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Enable'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Enable',
+      icon: Icons.warning_amber_rounded,
+      iconColor: Colors.amber,
     ).then((result) {
       _awaiting432HzConfirm = false;
-      return result ?? false;
+      return result;
     });
   }
 
@@ -1689,17 +1555,11 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     Uac2PreferencesService service,
     DsdOutputMode current,
   ) {
-    showDialog<void>(
+    showFlickDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        title: Text(
-          'DSD Output Mode',
-          style: TextStyle(color: context.adaptiveTextPrimary),
-        ),
+      barrierLabel: 'DSD Output Mode',
+      builder: (dialogContext) => FlickDialog(
+        title: 'DSD Output Mode',
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1746,9 +1606,9 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
           ],
         ),
         actions: [
-          TextButton(
+          FlickDialogButton(
+            label: 'Cancel',
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.accent)),
           ),
         ],
       ),
