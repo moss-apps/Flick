@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/core/constants/app_constants.dart';
 import 'app_colors.dart';
 
 /// App theme configuration with Product Sans font and dark theme.
@@ -137,7 +138,7 @@ class AppTheme {
         onSecondary: AppColors.background,
         surface: AppColors.surface,
         onSurface: AppColors.textPrimary,
-        error: Color(0xFFCF6679),
+        error: AppColors.error,
         onError: AppColors.background,
       ),
 
@@ -192,6 +193,38 @@ class AppTheme {
         color: AppColors.glassBorder,
         thickness: 1,
         space: 1,
+      ),
+
+      // Monochrome chips (format pickers, filters)
+      chipTheme: const ChipThemeData(
+        backgroundColor: AppColors.glassBackgroundStrong,
+        selectedColor: Color(0x1AE0E0E0), // 10% accent
+        checkmarkColor: AppColors.textPrimary,
+        labelStyle: TextStyle(
+          fontFamily: _fontFamily,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textPrimary,
+        ),
+        side: BorderSide(color: AppColors.glassBorder),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
+        ),
+      ),
+
+      // Dialog theme — safety net so any stray Material dialog still reads
+      // as Flick. Prefer FlickDialog for new code.
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface.withValues(alpha: 0.98),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+          side: const BorderSide(color: AppColors.glassBorder),
+        ),
+        titleTextStyle: _textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+        contentTextStyle: _textTheme.bodyMedium,
       ),
     );
   }
