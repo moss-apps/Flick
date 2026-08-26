@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -183,26 +184,14 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   void _showStreakDialog() {
     final streak = _current[MilestoneCategory.dayStreak] ?? 0;
     if (streak < 1) return;
-    showGeneralDialog(
+    showFlickDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Day streak',
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.9, end: 1.0).animate(
-              CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-            ),
-            child: StreakPopup(
-              streak: streak,
-              onSnooze: () => _service.snoozeStreakPopup(),
-            ),
-          ),
-        );
-      },
+      builder: (context) => StreakPopup(
+        streak: streak,
+        onSnooze: () => _service.snoozeStreakPopup(),
+      ),
     );
   }
 
@@ -223,30 +212,18 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   }) async {
     final next = await _service.getNextMilestone();
     if (!mounted) return;
-    showGeneralDialog(
+    await showFlickDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Milestone',
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.92, end: 1.0).animate(
-              CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-            ),
-            child: MilestoneCard(
-              milestone: type,
-              achievedAt: achievedAt,
-              nextMilestone: next.next,
-              nextRemaining: next.next == null ? null : next.remaining,
-              supportLabel: 'Close',
-              dismissLabel: 'Done',
-            ),
-          ),
-        );
-      },
+      builder: (context) => MilestoneCard(
+        milestone: type,
+        achievedAt: achievedAt,
+        nextMilestone: next.next,
+        nextRemaining: next.next == null ? null : next.remaining,
+        supportLabel: 'Close',
+        dismissLabel: 'Done',
+      ),
     );
   }
 
