@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -361,32 +362,20 @@ class _MainShellState extends ConsumerState<MainShell>
     final next = await service.getNextMilestone();
     if (!mounted) return;
 
-    showGeneralDialog(
+    await showFlickDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Milestone',
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.9, end: 1.0).animate(
-              CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-            ),
-            child: MilestoneCard(
-              milestone: milestone,
-              nextMilestone: next.next,
-              nextRemaining: next.next == null ? null : next.remaining,
-              onSupportTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SupportFlickScreen()),
-                );
-              },
-            ),
-          ),
-        );
-      },
+      builder: (context) => MilestoneCard(
+        milestone: milestone,
+        nextMilestone: next.next,
+        nextRemaining: next.next == null ? null : next.remaining,
+        onSupportTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SupportFlickScreen()),
+          );
+        },
+      ),
     );
   }
 
@@ -394,26 +383,14 @@ class _MainShellState extends ConsumerState<MainShell>
     final streak = _playerService.streakPopupNotifier.value;
     if (streak == null || streak < 1 || !mounted) return;
     _playerService.streakPopupNotifier.value = null;
-    showGeneralDialog(
+    showFlickDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Day streak',
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.9, end: 1.0).animate(
-              CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-            ),
-            child: StreakPopup(
-              streak: streak,
-              onSnooze: () => MilestoneService().snoozeStreakPopup(),
-            ),
-          ),
-        );
-      },
+      builder: (context) => StreakPopup(
+        streak: streak,
+        onSnooze: () => MilestoneService().snoozeStreakPopup(),
+      ),
     );
   }
 
