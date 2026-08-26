@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/theme/adaptive_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
@@ -21,6 +19,10 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
+import 'package:flick/widgets/common/detail_header.dart';
+import 'package:flick/features/player/widgets/add_to_playlist_sheet.dart';
+import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
+import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 
 /// Detail screen for generated smart mixes (On Repeat, Heavy Rotation, etc.),
@@ -110,6 +112,14 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
       if ((song.sampleRate ?? 0) >= 88200) return true;
     }
     return false;
+  }
+
+  String? get _metaLine {
+    final parts = [
+      if (widget.songs.isNotEmpty) '${widget.songs.length} songs',
+      if (widget.songs.isNotEmpty) _formattedTotalDuration,
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
   }
 
   String? _getArt(List<Song> songs) {
@@ -213,6 +223,58 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
     );
   }
 
+  bool get _isAllFavorites {
+    final favs = ref.watch(favoritesProvider).value;
+    if (favs == null || widget.songs.isEmpty) return false;
+    return widget.songs.every((s) => favs.isFavorite(s.id));
+  }
+
+  Future<void> _toggleFavoriteAll() async {
+    if (widget.songs.isEmpty) return;
+    final favIds = ref.read(favoritesProvider).value?.favoriteIds ?? const <String>{};
+    final notifier = ref.read(favoritesProvider.notifier);
+    final isAll = widget.songs.every((s) => favIds.contains(s.id));
+    if (isAll) {
+      for (final song in widget.songs) {
+        await notifier.removeFavorite(song.id);
+      }
+    } else {
+      for (final song in widget.songs) {
+        if (!favIds.contains(song.id)) {
+          await notifier.addFavorite(song.id);
+        }
+      }
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isAll
+              ? 'Removed ${widget.songs.length} songs from favorites'
+              : 'Added ${widget.songs.length} songs to favorites',
+        ),
+      ),
+    );
+  }
+
+  void _showMore() {
+    DetailMoreSheet.show(
+      context,
+      items: [
+        DetailMoreSheetItem(
+          icon: LucideIcons.listPlus,
+          label: 'Add to playlist',
+          onTap: () => AddToPlaylistSheet.showSongs(context, widget.songs),
+        ),
+        DetailMoreSheetItem(
+          icon: LucideIcons.moonStar,
+          label: 'Sleep timer',
+          onTap: () => SleepTimerBottomSheet.show(context, _playerService),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bgColor = _tintBackground(_backgroundBlend);
@@ -224,6 +286,7 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
         curve: Curves.easeOut,
         builder: (context, animatedBg, _) {
           final resolvedBg = animatedBg ?? AppColors.background;
+          final prefs = ref.watch(appPreferencesProvider);
           return Stack(
             children: [
               Scaffold(
@@ -236,16 +299,17 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
                     child: CustomScrollView(
                       controller: _scrollController,
                       slivers: [
-                        SliverToBoxAdapter(
-                          child: SizedBox(
-                            height:
-                                ref
-                                    .watch(appPreferencesProvider)
-                                    .detailHeaderArtExpanded
-                                ? 360
-                                : 280,
-                            child: _buildAppBarBackground(context, resolvedBg),
-                          ),
+                        DetailHeader(
+                          expanded: prefs.detailHeaderArtExpanded,
+                          centeredTitle: prefs.detailHeaderCenteredTitle,
+                          artBuilder: _buildArtLayer,
+                          title: widget.title,
+                          subtitle: widget.description,
+                          subtitleMaxLines: 2,
+                          meta: _metaLine,
+                          lossless: _hasLossless,
+                          fadeTo: resolvedBg,
+                          onBack: () => Navigator.of(context).pop(),
                         ),
                         const SliverToBoxAdapter(
                           child: SizedBox(height: AppConstants.spacingMd),
@@ -254,63 +318,16 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: AppConstants.spacingLg,
-                            ),
-                            child: Wrap(
-                              alignment: WrapAlignment.center,
-                              spacing: AppConstants.spacingSm,
-                              runSpacing: AppConstants.spacingSm,
-                              children: [
-                                _InfoChip(
-                                  icon: LucideIcons.music,
-                                  label: '${widget.songs.length} tracks',
-                                ),
-                                if (widget.songs.isNotEmpty)
-                                  _InfoChip(
-                                    icon: LucideIcons.clock,
-                                    label: _formattedTotalDuration,
-                                  ),
-                                if (_hasLossless)
-                                  _InfoChip(
-                                    icon: LucideIcons.audioWaveform,
-                                    label: 'Lossless',
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: AppConstants.spacingLg),
-                        ),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppConstants.spacingLg,
                               vertical: AppConstants.spacingXxs,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _ActionButton(
-                                  icon: LucideIcons.shuffle,
-                                  tooltip: 'Shuffle',
-                                  onTap: _shuffleAll,
-                                ),
-                                const SizedBox(width: AppConstants.spacingXl),
-                                _ActionButton(
-                                  icon: LucideIcons.play,
-                                  tooltip: 'Play',
-                                  onTap: _playAll,
-                                  isPrimary: true,
-                                  label: 'Play',
-                                  primaryColor: _mixColor,
-                                ),
-                                const SizedBox(width: AppConstants.spacingXl),
-                                _ActionButton(
-                                  icon: LucideIcons.listMusic,
-                                  tooltip: 'Queue',
-                                  onTap: _queueAll,
-                                ),
-                              ],
+                            child: DetailActionCapsule(
+                              isFavorite: _isAllFavorites,
+                              onToggleFavorite: _toggleFavoriteAll,
+                              onShuffle: _shuffleAll,
+                              onPlay: _playAll,
+                              onQueue: _queueAll,
+                              onMore: _showMore,
+                              primaryColor: _mixColor,
                             ),
                           ),
                         ),
@@ -496,111 +513,6 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
     );
   }
 
-  Widget _buildAppBarBackground(BuildContext context, Color fadeTo) {
-    final prefs = ref.watch(appPreferencesProvider);
-    final gradientColors = prefs.detailHeaderArtExpanded
-        ? [
-            Colors.transparent,
-            Colors.transparent,
-            fadeTo.withValues(alpha: 0.9),
-            fadeTo,
-          ]
-        : [
-            Colors.transparent,
-            fadeTo.withValues(alpha: 0.8),
-            fadeTo,
-          ];
-    // ponytail: solid base + 1px overlap seal; same-color adjacent paints hairline otherwise
-    return Stack(
-      fit: StackFit.expand,
-      clipBehavior: Clip.none,
-      children: [
-        ColoredBox(color: fadeTo),
-        _buildArtLayer(context),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: gradientColors,
-              stops: prefs.detailHeaderArtExpanded
-                  ? const [0.0, 0.7, 0.92, 1.0]
-                  : const [0.0, 0.5, 1.0],
-            ),
-          ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: -1,
-          height: 3,
-          child: ColoredBox(color: fadeTo),
-        ),
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 20,
-          left: 16,
-          child: ClipOval(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: AppConstants.glassBlurSigma,
-                sigmaY: AppConstants.glassBlurSigma,
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.glassBackgroundStrong,
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    LucideIcons.chevronLeft,
-                    color: context.adaptiveTextPrimary,
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left: AppConstants.spacingLg,
-          right: AppConstants.spacingLg,
-          bottom: 4,
-          child: Column(
-            crossAxisAlignment: prefs.detailHeaderCenteredTitle
-                ? CrossAxisAlignment.center
-                : CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.title,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.description,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.adaptiveTextSecondary,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${widget.songs.length} songs${widget.songs.isNotEmpty ? ' • $_formattedTotalDuration' : ''}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.adaptiveTextSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildSectionTitle(BuildContext context, String title) {
     return SliverToBoxAdapter(
       child: Padding(
@@ -618,150 +530,6 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final bool isPrimary;
-  final String? label;
-  final Color? primaryColor;
-
-  const _ActionButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.isPrimary = false,
-    this.label,
-    this.primaryColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (!isPrimary) {
-      return Tooltip(
-        message: tooltip,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(23),
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.glassBackgroundStrong,
-                border: Border.all(color: AppColors.glassBorder),
-              ),
-              child: Icon(
-                icon,
-                color: context.adaptiveTextPrimary,
-                size: 20,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    final color = primaryColor ?? AppColors.accent;
-    final fg = AdaptiveColors.textPrimaryOn(color);
-    final decoration = BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color.lerp(color, Colors.white, 0.18)!, color],
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: color.withValues(alpha: 0.45),
-          blurRadius: 20,
-          offset: const Offset(0, 6),
-        ),
-      ],
-    );
-
-    if (label != null) {
-      return Tooltip(
-        message: tooltip,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(26),
-            child: Container(
-              height: 52,
-              padding: const EdgeInsets.symmetric(horizontal: 26),
-              decoration: decoration.copyWith(
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, color: fg, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    label!,
-                    style: TextStyle(
-                      color: fg,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(30),
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: decoration.copyWith(shape: BoxShape.circle),
-            child: Icon(icon, color: fg, size: 26),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _InfoChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: context.adaptiveTextSecondary),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: context.adaptiveTextSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 }
