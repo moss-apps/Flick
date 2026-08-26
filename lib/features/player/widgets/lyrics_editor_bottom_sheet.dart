@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
@@ -389,24 +390,26 @@ class _LyricsEditorBottomSheetState extends State<LyricsEditorBottomSheet> {
     );
     final sidecarPath = widget.lyricsService.suggestSidecarLrcPath(widget.song);
 
-    final choice = await showDialog<String>(
+    final choice = await showFlickDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Save LRC File'),
+      barrierLabel: 'Save LRC File',
+      builder: (ctx) => FlickDialog(
+        title: 'Save LRC File',
         content: const Text('Where should the .lrc file be saved?'),
         actions: [
-          TextButton(
+          FlickDialogButton(
+            label: 'Choose location\u2026',
             onPressed: () => Navigator.pop(ctx, 'custom'),
-            child: const Text('Choose location\u2026'),
           ),
           if (sidecarPath != null)
-            TextButton(
+            FlickDialogButton(
+              label: 'Beside the song',
               onPressed: () => Navigator.pop(ctx, 'beside'),
-              child: const Text('Beside the song'),
             ),
-          TextButton(
+          FlickDialogButton(
+            label: 'Save in Flick',
+            style: FlickDialogButtonStyle.primary,
             onPressed: () => Navigator.pop(ctx, 'managed'),
-            child: const Text('Save in Flick'),
           ),
         ],
       ),
@@ -485,82 +488,68 @@ class _LyricsEditorBottomSheetState extends State<LyricsEditorBottomSheet> {
   }
 
   Future<void> _showInstructions() async {
-    await showDialog<void>(
+    await showFlickDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        ),
-        title: const Text('Lyrics Sync Help'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Simple mode',
-                style: TextStyle(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
+      barrierLabel: 'Lyrics Sync Help',
+      builder: (dialogContext) => FlickDialog(
+        title: 'Lyrics Sync Help',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Simple mode',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 6),
-              Text(
-                '1. Paste or type one lyric line per row.\n'
-                '2. Play the song.\n'
-                '3. Select the current lyric line.\n'
-                '4. Tap "Stamp & Next" when you hear that line.\n'
-                '5. Save when done.',
-                style: TextStyle(
-                  color: context.adaptiveTextSecondary,
-                  height: 1.5,
-                ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '1. Paste or type one lyric line per row.\n'
+              '2. Play the song.\n'
+              '3. Select the current lyric line.\n'
+              '4. Tap "Stamp & Next" when you hear that line.\n'
+              '5. Save when done.',
+              style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Advanced mode',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Advanced mode',
-                style: TextStyle(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '1. Edit timestamps directly for each line.\n'
+              '2. Use "Use Current Time" to capture the live playback time.\n'
+              '3. Use the shift controls to move all stamped lyrics together.\n'
+              '4. Save to generate the final `.lrc` file.',
+              style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Tips',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 6),
-              Text(
-                '1. Edit timestamps directly for each line.\n'
-                '2. Use "Use Current Time" to capture the live playback time.\n'
-                '3. Use the shift controls to move all stamped lyrics together.\n'
-                '4. Save to generate the final `.lrc` file.',
-                style: TextStyle(
-                  color: context.adaptiveTextSecondary,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Tips',
-                style: TextStyle(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '- "Use Existing File" links an `.lrc`, `.txt`, or `.xml` file.\n'
-                '- If some lines are not stamped, Flick fills their times automatically.\n'
-                '- Save writes beside the song when possible, otherwise Flick stores a linked copy.',
-                style: TextStyle(
-                  color: context.adaptiveTextSecondary,
-                  height: 1.5,
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '- "Use Existing File" links an `.lrc`, `.txt`, or `.xml` file.\n'
+              '- If some lines are not stamped, Flick fills their times automatically.\n'
+              '- Save writes beside the song when possible, otherwise Flick stores a linked copy.',
+              style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+            ),
+          ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Got it'),
+          FlickDialogButton(
+            label: 'Got it',
+            onPressed: () => Navigator.of(dialogContext).pop(),
           ),
         ],
       ),
