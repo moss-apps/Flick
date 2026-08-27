@@ -1,17 +1,20 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:fading_marquee_widget/fading_marquee_widget.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/features/player/widgets/album_color_helpers.dart';
+import 'package:flick/features/player/widgets/lyrics_alignment.dart';
 import 'package:flick/features/player/widgets/lyrics_editor_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/online_lyrics_search_sheet.dart';
-class InlineLyricsPanel extends StatefulWidget {
+import 'package:flick/features/player/widgets/synced_lyrics_view.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
+class InlineLyricsPanel extends ConsumerStatefulWidget {
   final PlayerService playerService;
   final LyricsService lyricsService;
   final Song song;
@@ -25,28 +28,19 @@ class InlineLyricsPanel extends StatefulWidget {
   });
 
   @override
-  State<InlineLyricsPanel> createState() => _InlineLyricsPanelState();
+  ConsumerState<InlineLyricsPanel> createState() => _InlineLyricsPanelState();
 }
 
-class _InlineLyricsPanelState extends State<InlineLyricsPanel> {
-  static const double _lineHeight = 116;
-  static const double _centerFactor = 0.35;
-
+class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
   final ScrollController _scrollController = ScrollController();
   LyricsData? _lyricsData;
   bool _isLoading = true;
   bool _hasManualLyricsSelection = false;
-  int _activeLineIndex = -1;
   bool _isMetaCollapsed = false;
-  bool _isScrollAnimating = false;
-  double? _pendingScrollTarget;
-  Duration _lastTrackedPosition = Duration.zero;
-  static const int _seekBackThresholdMs = 500;
 
   @override
   void initState() {
     super.initState();
-    widget.playerService.positionNotifier.addListener(_onPositionChanged);
     _loadLyricsForSong(widget.song);
   }
 
@@ -60,36 +54,8 @@ class _InlineLyricsPanelState extends State<InlineLyricsPanel> {
 
   @override
   void dispose() {
-    widget.playerService.positionNotifier.removeListener(_onPositionChanged);
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _onPositionChanged() {
-    final data = _lyricsData;
-    if (data == null || !data.isSynchronized || data.lines.isEmpty) return;
-
-    final position = widget.playerService.positionNotifier.value;
-    final newIndex = widget.lyricsService.findCurrentLineIndex(data, position);
-    if (newIndex == _activeLineIndex) {
-      _lastTrackedPosition = position;
-      return;
-    }
-
-    // Forward playback only ever advances the active line. The audio engine
-    // occasionally reports a transiently lower position (post-seek/buffer dip,
-    // rounding), which would make the list scroll up then snap back. Treat a
-    // backward change as jitter unless the position dropped by a real amount.
-    final isSeekBack =
-        position.inMilliseconds <
-        _lastTrackedPosition.inMilliseconds - _seekBackThresholdMs;
-    _lastTrackedPosition = position;
-
-    if (newIndex < _activeLineIndex && !isSeekBack) return;
-
-    _activeLineIndex = newIndex;
-    _scrollToActiveLine(newIndex);
-    setState(() {});
   }
 
   Future<void> _loadLyricsForSong(Song song) async {
@@ -97,8 +63,6 @@ class _InlineLyricsPanelState extends State<InlineLyricsPanel> {
     setState(() {
       _isLoading = true;
       _lyricsData = null;
-      _activeLineIndex = -1;
-      _lastTrackedPosition = Duration.zero;
     });
 
     final loaded = await widget.lyricsService.loadLyricsForSong(
@@ -117,69 +81,6 @@ class _InlineLyricsPanelState extends State<InlineLyricsPanel> {
           manualSource != null && manualSource.isNotEmpty;
       _isLoading = false;
     });
-
-    _onPositionChanged();
-  }
-
-  void _scrollToActiveLine(int index) {
-    if (!_scrollController.hasClients || index < 0) return;
-
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    final target = (index * _lineHeight) + (_lineHeight / 2);
-    final clampedTarget = target.clamp(0.0, maxScroll);
-
-    _pendingScrollTarget = clampedTarget;
-
-    if (!_isScrollAnimating) {
-      _performScroll();
-    }
-  }
-
-  void _performScroll() {
-    if (!_scrollController.hasClients || _pendingScrollTarget == null) {
-      _isScrollAnimating = false;
-      return;
-    }
-
-    final target = _pendingScrollTarget!;
-    _pendingScrollTarget = null;
-
-    final delta = (_scrollController.offset - target).abs();
-    if (delta < _lineHeight * 0.08) {
-      _performScroll();
-      return;
-    }
-
-    _isScrollAnimating = true;
-    _scrollController
-        .animateTo(
-          target,
-          duration: AppConstants.animationNormal,
-          curve: Curves.easeOutCubic,
-        )
-        .then((_) {
-          _isScrollAnimating = false;
-          _performScroll();
-        });
-  }
-
-  Future<void> _seekToLyricLine(int index) async {
-    final lyrics = _lyricsData;
-    if (lyrics == null || !lyrics.isSynchronized || index < 0) return;
-
-    final target = lyrics.lines[index].timestamp;
-    widget.playerService.positionNotifier.value = target;
-
-    if (mounted && _activeLineIndex != index) {
-      setState(() {
-        _activeLineIndex = index;
-      });
-    }
-
-    _isScrollAnimating = false;
-    _pendingScrollTarget = null;
-    _scrollToActiveLine(index);
-    await widget.playerService.seek(target);
   }
 
   String? _lyricsSourceLabel(String? source) {
@@ -329,7 +230,36 @@ class _InlineLyricsPanelState extends State<InlineLyricsPanel> {
     final sourceLabel = _lyricsSourceLabel(lyrics.source);
     final textColor = Colors.white.withValues(alpha: 0.82);
 
-    Widget chip(IconData icon, String label, {bool accent = false}) {
+    Widget chip(
+      IconData icon,
+      String label, {
+      bool accent = false,
+      bool marqueeLabel = false,
+    }) {
+      final labelStyle = TextStyle(
+        fontFamily: 'ProductSans',
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: accent ? AppColors.accent : textColor,
+      );
+      final labelWidget = marqueeLabel
+          ? SizedBox(
+              width: 132,
+              child: FadingMarqueeWidget(
+                id: label,
+                gap: 20,
+                delay: const Duration(milliseconds: 1200),
+                pause: const Duration(milliseconds: 800),
+                duration: const Duration(seconds: 6),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: labelStyle,
+                ),
+              ),
+            )
+          : Text(label, style: labelStyle);
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
@@ -348,15 +278,7 @@ class _InlineLyricsPanelState extends State<InlineLyricsPanel> {
           children: [
             Icon(icon, size: 14, color: accent ? AppColors.accent : textColor),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'ProductSans',
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: accent ? AppColors.accent : textColor,
-              ),
-            ),
+            labelWidget,
           ],
         ),
       );
@@ -382,7 +304,7 @@ class _InlineLyricsPanelState extends State<InlineLyricsPanel> {
                 ),
                 const SizedBox(width: 8),
                 if (sourceLabel != null) ...[
-                  chip(LucideIcons.badgeInfo, sourceLabel),
+                  chip(LucideIcons.badgeInfo, sourceLabel, marqueeLabel: true),
                   const SizedBox(width: 8),
                 ],
                 AnimatedRotation(
@@ -404,50 +326,24 @@ class _InlineLyricsPanelState extends State<InlineLyricsPanel> {
               ? CrossFadeState.showFirst
               : CrossFadeState.showSecond,
           firstChild: const SizedBox(width: double.infinity),
-          secondChild: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    chip(
-                      lyrics.isSynchronized
-                          ? LucideIcons.touchpad
-                          : Icons.notes_rounded,
-                      lyrics.isSynchronized
-                          ? 'Tap any line to seek'
-                          : 'Static lyrics — no timestamps',
-                    ),
-                    chip(LucideIcons.pencilLine, 'Edit & Sync Studio'),
-                    if (lyrics.lines.isNotEmpty)
-                      chip(
-                        Icons.format_align_left,
-                        '${lyrics.lines.length} lines',
-                      ),
-                  ],
-                ),
-              ),
-              _buildActionButtons(),
-            ],
-          ),
+          secondChild: _buildActionButtons(),
         ),
       ],
     );
   }
 
   Widget _buildPlainLyricsView(LyricsData lyrics) {
-    return Align(
-      alignment: Alignment.center,
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+    final alignment = resolveLyricsAlignment(
+      ref.watch(appPreferencesProvider).lyricsTextAlign,
+    );
+    return SingleChildScrollView(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+      child: SizedBox(
+        width: double.infinity,
         child: Text(
           lyrics.lines.map((line) => line.text).join('\n'),
-          textAlign: TextAlign.center,
+          textAlign: alignment.textAlign,
           style: TextStyle(
             fontFamily: 'ProductSans',
             fontSize: 18,
@@ -459,125 +355,13 @@ class _InlineLyricsPanelState extends State<InlineLyricsPanel> {
     );
   }
 
-  double _lyricOpacityForIndex(int index) {
-    if (_activeLineIndex < 0) return 0.72;
-
-    final distance = (index - _activeLineIndex).abs();
-    switch (distance) {
-      case 0:
-        return 1;
-      case 1:
-        return 0.56;
-      case 2:
-        return 0.36;
-      case 3:
-        return 0.24;
-      default:
-        return 0.18;
-    }
-  }
-
-  TextStyle _lyricTextStyle(bool isActive, double opacity) {
-    return TextStyle(
-      fontFamily: 'ProductSans',
-      fontSize: isActive ? 22 : 17,
-      height: isActive ? 1.18 : 1.24,
-      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-      color: Colors.white.withValues(alpha: opacity),
-    );
-  }
-
-  StrutStyle _lyricStrutStyle(bool isActive) {
-    return StrutStyle(
-      fontFamily: 'ProductSans',
-      fontSize: isActive ? 22 : 17,
-      height: isActive ? 1.18 : 1.24,
-      forceStrutHeight: true,
-    );
-  }
-
   Widget _buildSynchronizedLyricsView(LyricsData lyrics) {
     return Expanded(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final centerPadding = constraints.maxHeight * _centerFactor;
-          return ListView.builder(
-            scrollCacheExtent: ScrollCacheExtent.pixels(_lineHeight * 8),
-            controller: _scrollController,
-            padding: EdgeInsets.fromLTRB(10, centerPadding, 10, centerPadding),
-            itemCount: lyrics.lines.length,
-            itemExtent: _lineHeight,
-            itemBuilder: (context, index) {
-              final line = lyrics.lines[index];
-              final isActive = index == _activeLineIndex;
-              final lineOpacity = _lyricOpacityForIndex(index);
-
-              return RepaintBoundary(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(22),
-                      onTap: () => unawaited(_seekToLyricLine(index)),
-                      child: Center(
-                        child: isActive
-                            ? AnimatedContainer(
-                                duration: AppConstants.animationFast,
-                                curve: Curves.easeOutCubic,
-                                alignment: Alignment.center,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 18,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(22),
-                                  color: widget.albumColor != null
-                                      ? albumAccent(
-                                          widget.albumColor!,
-                                          0.3,
-                                        ).withValues(alpha: 0.16)
-                                      : Colors.white.withValues(alpha: 0.16),
-                                  border: Border.all(
-                                    color: widget.albumColor != null
-                                        ? albumAccent(
-                                            widget.albumColor!,
-                                            0.3,
-                                          ).withValues(alpha: 0.22)
-                                        : Colors.white.withValues(alpha: 0.22),
-                                  ),
-                                ),
-                                child: Text(
-                                  line.text,
-                                  maxLines: 3,
-                                  overflow: TextOverflow.fade,
-                                  textAlign: TextAlign.center,
-                                  style: _lyricTextStyle(true, lineOpacity),
-                                  strutStyle: _lyricStrutStyle(true),
-                                ),
-                              )
-                            : Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                child: Text(
-                                  line.text,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.fade,
-                                  textAlign: TextAlign.center,
-                                  style: _lyricTextStyle(false, lineOpacity),
-                                  strutStyle: _lyricStrutStyle(false),
-                                ),
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
-        },
+      child: SyncedLyricsView(
+        playerService: widget.playerService,
+        lyricsService: widget.lyricsService,
+        lyrics: lyrics,
+        albumColor: widget.albumColor,
       ),
     );
   }
@@ -658,7 +442,3 @@ class _InlineLyricsPanelState extends State<InlineLyricsPanel> {
     );
   }
 }
-
-/// Extracted waveform layer widget.
-/// Owns a ValueListenableBuilder on [positionNotifier] so that 50ms position
-/// ticks **never** cause the parent [_FullPlayerScreenState] to rebuild.
