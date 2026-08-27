@@ -108,6 +108,7 @@ class AppPreferences {
   final bool detailHeaderCenteredTitle;
   final bool extendedVolumeEnabled;
   final String replayGainMode; // 'off', 'track', or 'album'
+  final String lyricsTextAlign; // 'left', 'center', or 'right'
   final double replayGainPreampDb;
   final bool replayGainPreventClipping;
 
@@ -219,6 +220,7 @@ class AppPreferences {
     this.detailHeaderCenteredTitle = false,
     this.extendedVolumeEnabled = false,
     this.replayGainMode = 'off',
+    this.lyricsTextAlign = 'center',
     this.replayGainPreampDb = 0.0,
     this.replayGainPreventClipping = true,
   });
@@ -331,6 +333,7 @@ class AppPreferences {
     bool? detailHeaderCenteredTitle,
     bool? extendedVolumeEnabled,
     String? replayGainMode,
+    String? lyricsTextAlign,
     double? replayGainPreampDb,
     bool? replayGainPreventClipping,
   }) {
@@ -490,6 +493,7 @@ class AppPreferences {
       extendedVolumeEnabled:
           extendedVolumeEnabled ?? this.extendedVolumeEnabled,
       replayGainMode: replayGainMode ?? this.replayGainMode,
+      lyricsTextAlign: lyricsTextAlign ?? this.lyricsTextAlign,
       replayGainPreampDb: replayGainPreampDb ?? this.replayGainPreampDb,
       replayGainPreventClipping:
           replayGainPreventClipping ?? this.replayGainPreventClipping,
@@ -612,6 +616,7 @@ class AppPreferencesService {
   static const _detailHeaderCenteredTitleKey = 'detail_header_centered_title';
   static const _extendedVolumeEnabledKey = 'audio_extended_volume_enabled';
   static const _replayGainModeKey = 'audio_replaygain_mode';
+  static const _lyricsTextAlignKey = 'lyrics_text_align';
   static const _replayGainPreampKey = 'audio_replaygain_preamp_db';
   static const _replayGainPreventClippingKey =
       'audio_replaygain_prevent_clipping';
@@ -777,6 +782,7 @@ class AppPreferencesService {
       extendedVolumeEnabled:
           prefs.getBool(_extendedVolumeEnabledKey) ?? false,
       replayGainMode: prefs.getString(_replayGainModeKey) ?? 'off',
+      lyricsTextAlign: prefs.getString(_lyricsTextAlignKey) ?? 'center',
       replayGainPreampDb: prefs.getDouble(_replayGainPreampKey) ?? 0.0,
       replayGainPreventClipping:
           prefs.getBool(_replayGainPreventClippingKey) ?? true,
@@ -951,6 +957,16 @@ class AppPreferencesService {
   Future<void> setReplayGainMode(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_replayGainModeKey, value);
+  }
+
+  Future<String> getLyricsTextAlign() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_lyricsTextAlignKey) ?? 'center';
+  }
+
+  Future<void> setLyricsTextAlign(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lyricsTextAlignKey, value);
   }
 
   Future<double> getReplayGainPreampDb() async {

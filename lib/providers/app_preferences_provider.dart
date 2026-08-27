@@ -139,6 +139,12 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setReplayGainMode(value);
   }
 
+  Future<void> setLyricsTextAlign(String value) async {
+    if (state.lyricsTextAlign == value) return;
+    state = state.copyWith(lyricsTextAlign: value);
+    await ref.read(appPreferencesServiceProvider).setLyricsTextAlign(value);
+  }
+
   Future<void> setReplayGainPreampDb(double value) async {
     if (state.replayGainPreampDb == value) return;
     state = state.copyWith(replayGainPreampDb: value);
