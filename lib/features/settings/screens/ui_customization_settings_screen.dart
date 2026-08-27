@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/progress_bar_style.dart';
+import 'package:flick/models/song_tile_thumbnail_mode.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 
@@ -197,6 +198,36 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                 },
               ),
             ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
+          const SettingsSectionHeader('Track Thumbnails'),
+          SettingsCard(
+            children: SongTileThumbnailMode.values.map((mode) {
+              final isSelected =
+                  appPreferences.songTileThumbnailMode == mode.storageValue;
+              final icon = switch (mode) {
+                SongTileThumbnailMode.artwork => LucideIcons.image,
+                SongTileThumbnailMode.trackNumber => LucideIcons.hash,
+                SongTileThumbnailMode.trackNumberOnArt => LucideIcons.layers,
+              };
+              return Column(
+                children: [
+                  if (mode != SongTileThumbnailMode.values.first)
+                    const SettingsDivider(),
+                  SelectionSetting(
+                    icon: icon,
+                    title: mode.label,
+                    subtitle: mode.description,
+                    selected: isSelected,
+                    onTap: () {
+                      ref
+                          .read(appPreferencesProvider.notifier)
+                          .setSongTileThumbnailMode(mode.storageValue);
+                    },
+                  ),
+                ],
+              );
+            }).toList(),
           ),
           const SizedBox(height: AppConstants.spacingLg),
           const SettingsSectionHeader('Progress Bar'),
