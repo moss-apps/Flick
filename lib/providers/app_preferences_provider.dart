@@ -799,6 +799,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setDetailHeaderCenteredTitle(value);
   }
 
+  Future<void> setSongTileThumbnailMode(String value) async {
+    if (state.songTileThumbnailMode == value) return;
+    state = state.copyWith(songTileThumbnailMode: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setSongTileThumbnailMode(value);
+  }
+
   Future<void> resetOrbitSettings() async {
     state = state.copyWith(
       orbitRadiusRatio: 1.0,
