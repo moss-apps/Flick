@@ -259,6 +259,25 @@ class AnimatedSongScene extends StatelessWidget {
   }
 
   Widget _buildBackground(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(child: _buildBaseBackground(context)),
+        // Lyrics readability scrim: fades in over any background variant so
+        // white lyric text keeps contrast against bright album art.
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              duration: AppConstants.animationNormal,
+              opacity: lyricsMode ? 1.0 : 0.0,
+              child: ColoredBox(color: Colors.black.withValues(alpha: 0.45)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBaseBackground(BuildContext context) {
     final bgBlend = albumColorMode.backgroundBlend;
     final hasAlbumTint = albumColor != null && bgBlend > 0;
 
