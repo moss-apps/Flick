@@ -6,11 +6,11 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/utils/app_log.dart';
-import '../../data/entities/network_server_entity.dart';
-import '../../data/entities/song_entity.dart';
+import '../../data/database.dart';
 import '../../data/repositories/song_repository.dart';
 import '../library_scanner_service.dart' show ScanProgress;
 import '../network_cache_service.dart';
+import 'jellyfin_password_store.dart';
 import 'network_source_service.dart';
 
 /// Jellyfin / Emby REST client (JSON).
@@ -18,12 +18,22 @@ import 'network_source_service.dart';
 /// Auth: `POST /Users/AuthenticateByName` exchanges a plaintext password for
 /// an access token. The stored [NetworkServerEntity.token] is a JSON blob
 /// `{"userId":..., "token":...}` because every library call is scoped to the
-/// authenticated user id. The plaintext password is never persisted.
+/// authenticated user id. The plaintext password lives only in the platform
+/// keystore ([JellyfinPasswordStore]) so a dead token can be silently
+/// exchanged for a fresh one on the next 401.
 class JellyfinService implements NetworkSourceService {
-  JellyfinService._({http.Client? client, SongRepository? songRepository, NetworkCacheService? networkCache})
-      : _client = client ?? http.Client(),
+  JellyfinService._({
+    http.Client? client,
+    SongRepository? songRepository,
+    NetworkCacheService? networkCache,
+    JellyfinPasswordStore? passwordStore,
+    Future<void> Function(NetworkServerEntity server, String token)?
+        persistToken,
+  })  : _client = client ?? http.Client(),
         _songRepository = songRepository,
-        _networkCache = networkCache;
+        _networkCache = networkCache,
+        _passwordStore = passwordStore,
+        _persistToken = persistToken ?? _persistTokenToDatabase;
 
   static JellyfinService instance = JellyfinService._();
 
@@ -32,11 +42,16 @@ class JellyfinService implements NetworkSourceService {
     http.Client? client,
     SongRepository? songRepository,
     NetworkCacheService? networkCache,
+    JellyfinPasswordStore? passwordStore,
+    Future<void> Function(NetworkServerEntity server, String token)?
+        persistToken,
   }) =>
       JellyfinService._(
         client: client,
         songRepository: songRepository,
         networkCache: networkCache,
+        passwordStore: passwordStore,
+        persistToken: persistToken,
       );
 
   static const String _clientName = 'flick';
@@ -51,9 +66,14 @@ class JellyfinService implements NetworkSourceService {
   final http.Client _client;
   SongRepository? _songRepository;
   NetworkCacheService? _networkCache;
+  JellyfinPasswordStore? _passwordStore;
+  final Future<void> Function(NetworkServerEntity server, String token)
+      _persistToken;
 
   SongRepository get _repo => _songRepository ??= SongRepository();
   NetworkCacheService get _cache => _networkCache ??= NetworkCacheService();
+  JellyfinPasswordStore get _passwords =>
+      _passwordStore ??= JellyfinPasswordStore();
 
   @override
   String get protocol => NetworkProtocol.jellyfin;
@@ -82,6 +102,46 @@ class JellyfinService implements NetworkSourceService {
       if (uid == null || tok == null) return null;
       return _JellyfinCredentials(uid, tok);
     } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _persistTokenToDatabase(
+    NetworkServerEntity server,
+    String token,
+  ) async {
+    await Database.instance.writeTxn(() async {
+      final stored = await Database.networkServers.get(server.id);
+      if (stored != null) {
+        stored.token = token;
+        await Database.networkServers.put(stored);
+      }
+    });
+  }
+
+  /// Remember the password in the platform keystore for silent re-auth.
+  Future<void> persistPassword(NetworkServerEntity server, String password) =>
+      _passwords.write(server.id, password);
+
+  Future<void> forgetPassword(int serverId) => _passwords.delete(serverId);
+
+  /// Exchange the stored password for a fresh access token after a 401.
+  /// Persists the new token and updates [server] in place. Returns the new
+  /// access token, or null when no password is stored or the exchange fails.
+  Future<String?> _reauth(NetworkServerEntity server) async {
+    final password = await _passwords.read(server.id);
+    if (password == null || password.isEmpty) return null;
+    try {
+      final fresh = await resolveToken(server, password);
+      if (fresh == null) return null;
+      await _persistToken(server, fresh);
+      server.token = fresh;
+      final creds = _creds(fresh);
+      if (creds == null) return null;
+      AppLog.instance.add('Jellyfin re-authenticated ${server.label}');
+      return creds.token;
+    } catch (e) {
+      AppLog.instance.add('Jellyfin re-auth failed for ${server.label}: $e');
       return null;
     }
   }
@@ -150,18 +210,28 @@ class JellyfinService implements NetworkSourceService {
     String? accessToken,
     Duration timeout = const Duration(seconds: 20),
   }) async {
-    var uri = Uri.parse('${_base(server)}$path');
-    if (query != null) uri = uri.replace(queryParameters: query);
-    final response = await _client
-        .get(uri, headers: {
-          'Authorization': _authHeader(accessToken),
-          'Accept': 'application/json',
-        })
-        .timeout(timeout);
-    if (response.statusCode != 200) {
+    var token = accessToken;
+    for (var attempt = 0; ; attempt++) {
+      var uri = Uri.parse('${_base(server)}$path');
+      if (query != null) uri = uri.replace(queryParameters: query);
+      final response = await _client
+          .get(uri, headers: {
+            'Authorization': _authHeader(token),
+            'Accept': 'application/json',
+          })
+          .timeout(timeout);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      if (response.statusCode == 401 && attempt == 0) {
+        final fresh = await _reauth(server);
+        if (fresh != null) {
+          token = fresh;
+          continue;
+        }
+      }
       throw JellyfinNetworkException('HTTP ${response.statusCode} for $path');
     }
-    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> _allAudio(
@@ -190,17 +260,25 @@ class JellyfinService implements NetworkSourceService {
     String marker,
   ) async {
     final creds = _creds(server.token);
-    var uri = Uri.parse('${_base(server)}/Items/$marker/Images/Primary');
-    uri = uri.replace(queryParameters: {
-      if (creds != null) 'api_key': creds.token,
-    });
-    final response =
-        await _client.get(uri).timeout(const Duration(seconds: 30));
-    if (response.statusCode != 200) {
+    var token = creds?.token;
+    for (var attempt = 0; ; attempt++) {
+      var uri = Uri.parse('${_base(server)}/Items/$marker/Images/Primary');
+      uri = uri.replace(queryParameters: {
+        'api_key': ?token,
+      });
+      final response =
+          await _client.get(uri).timeout(const Duration(seconds: 30));
+      if (response.statusCode == 200) return response.bodyBytes;
+      if (response.statusCode == 401 && attempt == 0) {
+        final fresh = await _reauth(server);
+        if (fresh != null) {
+          token = fresh;
+          continue;
+        }
+      }
       throw JellyfinNetworkException(
           'HTTP ${response.statusCode} for cover $marker');
     }
-    return response.bodyBytes;
   }
 
   @override
@@ -218,14 +296,21 @@ class JellyfinService implements NetworkSourceService {
     if (creds == null) {
       throw StateError('Jellyfin server "${server.label}" has no stored token');
     }
-    final uri = Uri.parse('${_base(server)}/Audio/$songId/stream')
-        .replace(queryParameters: {
-      'static': 'true',
-      'api_key': creds.token,
-    });
-    final request = http.Request('GET', uri);
-    final response =
-        await _client.send(request).timeout(const Duration(minutes: 5));
+    var token = creds.token;
+    http.StreamedResponse response;
+    for (var attempt = 0; ; attempt++) {
+      final uri = Uri.parse('${_base(server)}/Audio/$songId/stream')
+          .replace(queryParameters: {
+        'static': 'true',
+        'api_key': token,
+      });
+      final request = http.Request('GET', uri);
+      response = await _client.send(request).timeout(const Duration(minutes: 5));
+      if (response.statusCode != 401 || attempt > 0) break;
+      final fresh = await _reauth(server);
+      if (fresh == null) break;
+      token = fresh;
+    }
     if (response.statusCode != 200) {
       throw JellyfinNetworkException(
           'HTTP ${response.statusCode} for stream $songId');
