@@ -106,6 +106,7 @@ class AppPreferences {
   final bool showMoreArtists;
   final bool detailHeaderArtExpanded;
   final bool detailHeaderCenteredTitle;
+  final String songTileThumbnailMode; // 'artwork', 'trackNumber', or 'trackNumberOnArt'
   final bool extendedVolumeEnabled;
   final String replayGainMode; // 'off', 'track', or 'album'
   final String lyricsTextAlign; // 'left', 'center', or 'right'
@@ -218,6 +219,7 @@ class AppPreferences {
     this.showMoreArtists = true,
     this.detailHeaderArtExpanded = true,
     this.detailHeaderCenteredTitle = false,
+    this.songTileThumbnailMode = 'artwork',
     this.extendedVolumeEnabled = false,
     this.replayGainMode = 'off',
     this.lyricsTextAlign = 'center',
@@ -331,6 +333,7 @@ class AppPreferences {
     bool? showMoreArtists,
     bool? detailHeaderArtExpanded,
     bool? detailHeaderCenteredTitle,
+    String? songTileThumbnailMode,
     bool? extendedVolumeEnabled,
     String? replayGainMode,
     String? lyricsTextAlign,
@@ -490,6 +493,8 @@ class AppPreferences {
           detailHeaderArtExpanded ?? this.detailHeaderArtExpanded,
       detailHeaderCenteredTitle:
           detailHeaderCenteredTitle ?? this.detailHeaderCenteredTitle,
+      songTileThumbnailMode:
+          songTileThumbnailMode ?? this.songTileThumbnailMode,
       extendedVolumeEnabled:
           extendedVolumeEnabled ?? this.extendedVolumeEnabled,
       replayGainMode: replayGainMode ?? this.replayGainMode,
@@ -614,6 +619,7 @@ class AppPreferencesService {
   static const _showMoreArtistsKey = 'album_show_more_artists';
   static const _detailHeaderArtExpandedKey = 'detail_header_art_expanded';
   static const _detailHeaderCenteredTitleKey = 'detail_header_centered_title';
+  static const _songTileThumbnailModeKey = 'song_tile_thumbnail_mode';
   static const _extendedVolumeEnabledKey = 'audio_extended_volume_enabled';
   static const _replayGainModeKey = 'audio_replaygain_mode';
   static const _lyricsTextAlignKey = 'lyrics_text_align';
@@ -779,6 +785,8 @@ class AppPreferencesService {
           prefs.getBool(_detailHeaderArtExpandedKey) ?? true,
       detailHeaderCenteredTitle:
           prefs.getBool(_detailHeaderCenteredTitleKey) ?? false,
+      songTileThumbnailMode:
+          prefs.getString(_songTileThumbnailModeKey) ?? 'artwork',
       extendedVolumeEnabled:
           prefs.getBool(_extendedVolumeEnabledKey) ?? false,
       replayGainMode: prefs.getString(_replayGainModeKey) ?? 'off',
@@ -1816,6 +1824,16 @@ class AppPreferencesService {
   Future<void> setDetailHeaderCenteredTitle(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_detailHeaderCenteredTitleKey, value);
+  }
+
+  Future<String> getSongTileThumbnailMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_songTileThumbnailModeKey) ?? 'artwork';
+  }
+
+  Future<void> setSongTileThumbnailMode(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_songTileThumbnailModeKey, value);
   }
 
   Future<void> clearOrbitSettings() async {
