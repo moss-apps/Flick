@@ -12,7 +12,6 @@ import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/models/playback_context.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/models/playlist.dart';
-import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
@@ -24,6 +23,7 @@ import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
+import 'package:flick/widgets/common/song_tile_thumbnail.dart';
 import 'package:flick/widgets/common/detail_header.dart';
 import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:flick/providers/favorites_provider.dart';
@@ -817,29 +817,9 @@ class _SongTile extends StatelessWidget {
                     ),
                   ),
                 ),
-              Container(
-                width: context.scaleSize(AppConstants.containerSizeMd),
-                height: context.scaleSize(AppConstants.containerSizeMd),
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackground,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                  child: CachedImageWidget(
-                    imagePath: song.albumArt,
-                    audioSourcePath: song.filePath,
-                    fit: BoxFit.cover,
-                    placeholder: const FlickArtworkPlaceholder(
-                      size: 28,
-                      opacity: 0.9,
-                    ),
-                    errorWidget: const FlickArtworkPlaceholder(
-                      size: 28,
-                      opacity: 0.9,
-                    ),
-                  ),
-                ),
+              SongTileThumbnail(
+                song: song,
+                trackNumber: index != null ? index! + 1 : null,
               ),
               const SizedBox(width: AppConstants.spacingMd),
               Expanded(
