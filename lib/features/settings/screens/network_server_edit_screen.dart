@@ -17,6 +17,7 @@ import '../../../core/utils/responsive.dart';
 import '../../../data/database.dart';
 import '../../../data/repositories/song_repository.dart';
 import '../../../services/playlist_service.dart';
+import '../../../services/sources/jellyfin_service.dart';
 import '../../../services/sources/network_source_service.dart';
 import '../../../services/sources/tidal_service.dart';
 import '../widgets/settings_widgets.dart';
@@ -65,7 +66,7 @@ const List<_ProtocolMeta> _protocols = [
     subtitle: 'Jellyfin · Emby',
     icon: LucideIcons.clapperboard,
     urlHint: 'https://jf.example.com',
-    passwordHelper: 'Sent once to sign in; an access token is stored',
+    passwordHelper: 'Kept in secure storage to re-sign in when the token expires',
   ),
   _ProtocolMeta(
     id: NetworkProtocol.webdav,
@@ -296,6 +297,13 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       });
       return;
     }
+    final password = _passwordController.text;
+    if (_selectedProtocol == NetworkProtocol.jellyfin &&
+        token != null &&
+        password.isNotEmpty) {
+      await JellyfinService.instance
+          .persistPassword(_draftEntity(token: token), password);
+    }
     await Database.instance.writeTxn(() async {
       await Database.networkServers.put(_draftEntity(token: token));
     });
@@ -323,6 +331,9 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       destructive: true,
     );
     if (!confirmed) return;
+    if (server.protocol == NetworkProtocol.jellyfin) {
+      await JellyfinService.instance.forgetPassword(server.id);
+    }
     await Database.instance.writeTxn(() async {
       await Database.networkServers.delete(server.id);
     });

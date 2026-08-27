@@ -35,6 +35,47 @@ class LyricsSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
+          const SettingsSectionHeader('Display'),
+          SettingsCard(
+            children: [
+              SelectionSetting(
+                icon: Icons.format_align_left_rounded,
+                title: 'Left',
+                subtitle: 'Align lyric text to the left edge',
+                selected: appPrefs.lyricsTextAlign == 'left',
+                onTap: () {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setLyricsTextAlign('left');
+                },
+              ),
+              const SettingsDivider(),
+              SelectionSetting(
+                icon: Icons.format_align_center_rounded,
+                title: 'Center',
+                subtitle: 'Align lyric text to the center',
+                selected: appPrefs.lyricsTextAlign == 'center',
+                onTap: () {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setLyricsTextAlign('center');
+                },
+              ),
+              const SettingsDivider(),
+              SelectionSetting(
+                icon: Icons.format_align_right_rounded,
+                title: 'Right',
+                subtitle: 'Align lyric text to the right edge',
+                selected: appPrefs.lyricsTextAlign == 'right',
+                onTap: () {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setLyricsTextAlign('right');
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
           const SizedBox(height: AppConstants.navBarHeight + 40),
         ],
       ),

@@ -139,6 +139,12 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setReplayGainMode(value);
   }
 
+  Future<void> setLyricsTextAlign(String value) async {
+    if (state.lyricsTextAlign == value) return;
+    state = state.copyWith(lyricsTextAlign: value);
+    await ref.read(appPreferencesServiceProvider).setLyricsTextAlign(value);
+  }
+
   Future<void> setReplayGainPreampDb(double value) async {
     if (state.replayGainPreampDb == value) return;
     state = state.copyWith(replayGainPreampDb: value);
@@ -791,6 +797,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref
         .read(appPreferencesServiceProvider)
         .setDetailHeaderCenteredTitle(value);
+  }
+
+  Future<void> setSongTileThumbnailMode(String value) async {
+    if (state.songTileThumbnailMode == value) return;
+    state = state.copyWith(songTileThumbnailMode: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setSongTileThumbnailMode(value);
   }
 
   Future<void> resetOrbitSettings() async {

@@ -5,7 +5,6 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
-import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/data/repositories/artist_repository.dart';
 import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
@@ -19,6 +18,7 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
+import 'package:flick/widgets/common/song_tile_thumbnail.dart';
 import 'package:flick/widgets/common/detail_header.dart';
 import 'package:flick/features/player/widgets/add_to_playlist_sheet.dart';
 import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
@@ -983,24 +983,7 @@ class _SongTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: context.scaleSize(AppConstants.containerSizeMd),
-                height: context.scaleSize(AppConstants.containerSizeMd),
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackground,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                  child: CachedImageWidget(
-                    imagePath: song.albumArt,
-                    audioSourcePath: song.filePath,
-                    fit: BoxFit.cover,
-                    placeholder: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
-                    errorWidget: const FlickArtworkPlaceholder(size: 28, opacity: 0.9),
-                  ),
-                ),
-              ),
+              SongTileThumbnail(song: song, trackNumber: song.trackNumber),
               const SizedBox(width: AppConstants.spacingMd),
               Expanded(
                 child: Column(

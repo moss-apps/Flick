@@ -8,12 +8,33 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flick/models/song.dart';
 
+/// A single word (or whitespace-joined token) within a lyric line, with an
+/// optional timing window for karaoke-style highlighting.
+class LyricsWord {
+  final Duration start;
+  final Duration end;
+  final String text;
+
+  const LyricsWord({
+    required this.start,
+    required this.end,
+    required this.text,
+  });
+}
+
 /// A single lyric line, optionally timestamped for synchronized display.
+/// [words] carries per-word timings when the source was enhanced LRC;
+/// otherwise it is null and word timings are interpolated at render time.
 class LyricsLine {
   final Duration timestamp;
   final String text;
+  final List<LyricsWord>? words;
 
-  const LyricsLine({required this.timestamp, required this.text});
+  const LyricsLine({
+    required this.timestamp,
+    required this.text,
+    this.words,
+  });
 }
 
 /// Parsed lyrics payload.
@@ -49,6 +70,9 @@ class LyricsService {
   );
   static const String _manualLyricsOverridesKey = 'lyrics_manual_overrides_v1';
   static const String _managedLyricsDirectoryName = 'lyrics';
+  static final RegExp _wordTimestampPattern = RegExp(
+    r'<(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?)>',
+  );
 
   final Map<String, LyricsData?> _cache = {};
 
@@ -248,6 +272,108 @@ class LyricsService {
     return result;
   }
 
+  /// Fill progress (0..1) of a word at [position]. Values below the window
+  /// are unsung, above fully sung.
+  static double fillForWord(LyricsWord word, Duration position) {
+    final startMs = word.start.inMilliseconds;
+    final endMs = word.end.inMilliseconds;
+    if (endMs <= startMs) return position >= word.end ? 1.0 : 0.0;
+    final ratio =
+        (position.inMilliseconds - startMs).toDouble() / (endMs - startMs);
+    return ratio.clamp(0.0, 1.0);
+  }
+
+  /// Per-word timing windows for the given line. Enhanced-LRC lines chain
+  /// their real timestamps. Plain synced lines carry no word data, so they
+  /// get a single whole-line window instead of guessed per-word timing —
+  /// the karaoke sweep then tracks real data only.
+  List<LyricsWord> resolveWords(LyricsData lyrics, int lineIndex) {
+    final line = lyrics.lines[lineIndex];
+    final lineEnd = _lineEndTime(lyrics, lineIndex);
+
+    final existing = line.words;
+    if (existing != null && existing.isNotEmpty) {
+      return [
+        for (var i = 0; i < existing.length; i++)
+          LyricsWord(
+            start: existing[i].start,
+            end: i + 1 < existing.length
+                ? existing[i + 1].start > existing[i].start
+                      ? existing[i + 1].start
+                      : existing[i].start
+                : _tailTrimmedEnd(existing[i].start, lineEnd),
+            text: existing[i].text,
+          ),
+      ];
+    }
+
+    if (line.text.trim().isEmpty) return const [];
+
+    var end = _tailTrimmedEnd(line.timestamp, lineEnd);
+    final maxWindow = const Duration(seconds: 6);
+    if (end - line.timestamp > maxWindow) {
+      end = line.timestamp + maxWindow;
+    }
+    return [LyricsWord(start: line.timestamp, end: end, text: line.text)];
+  }
+
+  Duration _lineEndTime(LyricsData lyrics, int index) {
+    final ts = lyrics.lines[index].timestamp;
+    if (index + 1 < lyrics.lines.length) {
+      final next = lyrics.lines[index + 1].timestamp;
+      if (next > ts) return next;
+    }
+    return ts + const Duration(seconds: 5);
+  }
+
+  /// Fraction of a line's lifetime the karaoke sweep spans. The remaining
+  /// tail rests fully filled, so the scroll to the next line never starts
+  /// while words are still filling.
+  static const double _sweepWindowFactor = 0.85;
+
+  Duration _tailTrimmedEnd(Duration start, Duration lineEnd) {
+    final remainingMs = (lineEnd - start).inMilliseconds;
+    if (remainingMs <= 0) return start + const Duration(seconds: 4);
+    return start +
+        Duration(milliseconds: (remainingMs * _sweepWindowFactor).round());
+  }
+
+  List<LyricsWord>? _extractWords(String body, int offsetMs) {
+    final times = <Duration>[];
+    final starts = <int>[];
+    final ends = <int>[];
+
+    for (final match in _wordTimestampPattern.allMatches(body)) {
+      final parsed = _parseTimestamp(match.group(1) ?? '');
+      if (parsed == null) continue;
+      final adjustedMs = parsed.inMilliseconds + offsetMs;
+      times.add(
+        Duration(milliseconds: adjustedMs < 0 ? 0 : adjustedMs),
+      );
+      starts.add(match.start);
+      ends.add(match.end);
+    }
+    if (times.isEmpty) return null;
+
+    final words = <LyricsWord>[];
+    for (var i = 0; i < times.length; i++) {
+      final segStart = i == 0 ? 0 : ends[i];
+      final segEnd = i + 1 < times.length ? starts[i + 1] : body.length;
+      final segment = body
+          .substring(segStart, segEnd)
+          .replaceAll(_wordTimestampPattern, '');
+      if (segment.isEmpty && i > 0) continue;
+      words.add(
+        LyricsWord(
+          start: times[i],
+          end: times[i],
+          text: segment,
+        ),
+      );
+    }
+    return words.isEmpty ? null : words;
+  }
+
   LyricsData parseLyricsText(String raw, {String? source}) {
     return _parseLyrics(raw, source: source);
   }
@@ -256,18 +382,19 @@ class LyricsService {
     return _parseTimestamp(timestamp);
   }
 
-  String formatTimestamp(Duration duration) {
+  String _formatClock(Duration duration) {
     final totalMinutes = duration.inMinutes;
     final seconds = duration.inSeconds.remainder(60);
     final centiseconds = (duration.inMilliseconds.remainder(1000) ~/ 10);
-    return '[${totalMinutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}.${centiseconds.toString().padLeft(2, '0')}]';
+    return '${totalMinutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}.${centiseconds.toString().padLeft(2, '0')}';
+  }
+
+  String formatTimestamp(Duration duration) {
+    return '[${_formatClock(duration)}]';
   }
 
   String formatLengthTag(Duration duration) {
-    final totalMinutes = duration.inMinutes;
-    final seconds = duration.inSeconds.remainder(60);
-    final centiseconds = (duration.inMilliseconds.remainder(1000) ~/ 10);
-    return '[length:${totalMinutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}.${centiseconds.toString().padLeft(2, '0')}]';
+    return '[length:${_formatClock(duration)}]';
   }
 
   String buildLrcContent({
@@ -293,7 +420,15 @@ class LyricsService {
     }
 
     for (final line in lines) {
-      buffer.writeln('${formatTimestamp(line.timestamp)}${line.text}');
+      final words = line.words;
+      if (words != null && words.isNotEmpty) {
+        final enhanced = words
+            .map((w) => '<${_formatClock(w.start)}>${w.text}')
+            .join();
+        buffer.writeln('${formatTimestamp(line.timestamp)}$enhanced');
+      } else {
+        buffer.writeln('${formatTimestamp(line.timestamp)}${line.text}');
+      }
     }
     return buffer.toString().trimRight();
   }
@@ -443,7 +578,6 @@ class LyricsService {
     final rows = normalized.split('\n');
 
     final timestampPattern = RegExp(r'\[(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?)\]');
-    final wordTimestampPattern = RegExp(r'<(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?)>');
     final offsetPattern = RegExp(
       r'^\s*\[offset:([+-]?\d+)\]\s*$',
       caseSensitive: false,
@@ -467,9 +601,10 @@ class LyricsService {
       final matches = timestampPattern.allMatches(line).toList();
       if (matches.isNotEmpty) {
         hasTimestamps = true;
-        final lyricText = line
-            .replaceAll(timestampPattern, '')
-            .replaceAll(wordTimestampPattern, '')
+        final body = line.replaceAll(timestampPattern, '');
+        final words = _extractWords(body, offsetMs);
+        final lyricText = body
+            .replaceAll(_wordTimestampPattern, '')
             .trim();
         for (final match in matches) {
           final parsedTime = _parseTimestamp(match.group(1) ?? '');
@@ -480,7 +615,9 @@ class LyricsService {
             milliseconds: adjustedMs < 0 ? 0 : adjustedMs,
           );
           if (lyricText.isEmpty) continue;
-          parsedLines.add(LyricsLine(timestamp: clamped, text: lyricText));
+          parsedLines.add(
+            LyricsLine(timestamp: clamped, text: lyricText, words: words),
+          );
         }
         continue;
       }

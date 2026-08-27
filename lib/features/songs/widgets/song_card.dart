@@ -5,7 +5,6 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/models/song.dart';
-import 'package:flick/widgets/common/marquee_widget.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
@@ -402,7 +401,10 @@ class _SongCardState extends State<SongCard> {
         if (isSelected)
           SizedBox(
             height: 24,
-            child: MarqueeWidget(
+            width: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
               child: Text(
                 widget.song.title,
                 style: const TextStyle(
@@ -411,6 +413,9 @@ class _SongCardState extends State<SongCard> {
                   color: Colors.white,
                   letterSpacing: 0.2,
                 ),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
               ),
             ),
           )

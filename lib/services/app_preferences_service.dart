@@ -106,8 +106,10 @@ class AppPreferences {
   final bool showMoreArtists;
   final bool detailHeaderArtExpanded;
   final bool detailHeaderCenteredTitle;
+  final String songTileThumbnailMode; // 'artwork', 'trackNumber', or 'trackNumberOnArt'
   final bool extendedVolumeEnabled;
   final String replayGainMode; // 'off', 'track', or 'album'
+  final String lyricsTextAlign; // 'left', 'center', or 'right'
   final double replayGainPreampDb;
   final bool replayGainPreventClipping;
 
@@ -217,8 +219,10 @@ class AppPreferences {
     this.showMoreArtists = true,
     this.detailHeaderArtExpanded = true,
     this.detailHeaderCenteredTitle = false,
+    this.songTileThumbnailMode = 'artwork',
     this.extendedVolumeEnabled = false,
     this.replayGainMode = 'off',
+    this.lyricsTextAlign = 'center',
     this.replayGainPreampDb = 0.0,
     this.replayGainPreventClipping = true,
   });
@@ -329,8 +333,10 @@ class AppPreferences {
     bool? showMoreArtists,
     bool? detailHeaderArtExpanded,
     bool? detailHeaderCenteredTitle,
+    String? songTileThumbnailMode,
     bool? extendedVolumeEnabled,
     String? replayGainMode,
+    String? lyricsTextAlign,
     double? replayGainPreampDb,
     bool? replayGainPreventClipping,
   }) {
@@ -487,9 +493,12 @@ class AppPreferences {
           detailHeaderArtExpanded ?? this.detailHeaderArtExpanded,
       detailHeaderCenteredTitle:
           detailHeaderCenteredTitle ?? this.detailHeaderCenteredTitle,
+      songTileThumbnailMode:
+          songTileThumbnailMode ?? this.songTileThumbnailMode,
       extendedVolumeEnabled:
           extendedVolumeEnabled ?? this.extendedVolumeEnabled,
       replayGainMode: replayGainMode ?? this.replayGainMode,
+      lyricsTextAlign: lyricsTextAlign ?? this.lyricsTextAlign,
       replayGainPreampDb: replayGainPreampDb ?? this.replayGainPreampDb,
       replayGainPreventClipping:
           replayGainPreventClipping ?? this.replayGainPreventClipping,
@@ -610,8 +619,10 @@ class AppPreferencesService {
   static const _showMoreArtistsKey = 'album_show_more_artists';
   static const _detailHeaderArtExpandedKey = 'detail_header_art_expanded';
   static const _detailHeaderCenteredTitleKey = 'detail_header_centered_title';
+  static const _songTileThumbnailModeKey = 'song_tile_thumbnail_mode';
   static const _extendedVolumeEnabledKey = 'audio_extended_volume_enabled';
   static const _replayGainModeKey = 'audio_replaygain_mode';
+  static const _lyricsTextAlignKey = 'lyrics_text_align';
   static const _replayGainPreampKey = 'audio_replaygain_preamp_db';
   static const _replayGainPreventClippingKey =
       'audio_replaygain_prevent_clipping';
@@ -774,9 +785,12 @@ class AppPreferencesService {
           prefs.getBool(_detailHeaderArtExpandedKey) ?? true,
       detailHeaderCenteredTitle:
           prefs.getBool(_detailHeaderCenteredTitleKey) ?? false,
+      songTileThumbnailMode:
+          prefs.getString(_songTileThumbnailModeKey) ?? 'artwork',
       extendedVolumeEnabled:
           prefs.getBool(_extendedVolumeEnabledKey) ?? false,
       replayGainMode: prefs.getString(_replayGainModeKey) ?? 'off',
+      lyricsTextAlign: prefs.getString(_lyricsTextAlignKey) ?? 'center',
       replayGainPreampDb: prefs.getDouble(_replayGainPreampKey) ?? 0.0,
       replayGainPreventClipping:
           prefs.getBool(_replayGainPreventClippingKey) ?? true,
@@ -951,6 +965,16 @@ class AppPreferencesService {
   Future<void> setReplayGainMode(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_replayGainModeKey, value);
+  }
+
+  Future<String> getLyricsTextAlign() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_lyricsTextAlignKey) ?? 'center';
+  }
+
+  Future<void> setLyricsTextAlign(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lyricsTextAlignKey, value);
   }
 
   Future<double> getReplayGainPreampDb() async {
@@ -1800,6 +1824,16 @@ class AppPreferencesService {
   Future<void> setDetailHeaderCenteredTitle(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_detailHeaderCenteredTitleKey, value);
+  }
+
+  Future<String> getSongTileThumbnailMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_songTileThumbnailModeKey) ?? 'artwork';
+  }
+
+  Future<void> setSongTileThumbnailMode(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_songTileThumbnailModeKey, value);
   }
 
   Future<void> clearOrbitSettings() async {
