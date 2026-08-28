@@ -145,6 +145,56 @@ class LibraryScannerService {
     }
   }
 
+  /// Scan engine routing decision (pure; unit-tested).
+  static String chooseAndroidScanEngine({
+    required bool allFilesAccess,
+    required bool hasReadableFsPath,
+    required bool useDeepScan,
+    required bool isRemovable,
+  }) {
+    if (allFilesAccess && hasReadableFsPath) return 'rust';
+    if (useDeepScan) {
+      if (isRemovable) {
+        return hasReadableFsPath ? 'mediaStore' : 'saf';
+      }
+      return hasReadableFsPath ? 'rust' : 'saf';
+    }
+    return hasReadableFsPath ? 'mediaStore' : 'saf';
+  }
+
+  static const _safDocumentsPrefix =
+      'content://com.android.externalstorage.documents';
+
+  /// Songs keyed by a SAF document URI belong to the SAF engine's URI space;
+  /// raw-path engines (MediaStore DATA, Rust walk) can neither match nor
+  /// confirm them and must not report them as deleted.
+  bool _isSafUri(String filePath) => filePath.startsWith(_safDocumentsPrefix);
+
+  /// Maps a SAF document URI
+  /// (content://com.android.externalstorage.documents/tree/.../document/
+  /// primary%3AMusic%2Ftrack.dsf) to its raw filesystem path
+  /// (/storage/emulated/0/Music/track.dsf), or null when unmappable.
+  /// Pure; unit-tested.
+  static String? rawPathFromSafUri(String uriString) {
+    if (!uriString.startsWith('$_safDocumentsPrefix/')) return null;
+    final uri = Uri.tryParse(uriString);
+    if (uri == null) return null;
+    final segments = uri.pathSegments;
+    String? docId;
+    for (var i = 0; i + 1 < segments.length; i++) {
+      if (segments[i] == 'document') docId = segments[i + 1];
+    }
+    if (docId == null) return null;
+    final colon = docId.indexOf(':');
+    if (colon <= 0 || colon == docId.length - 1) return null;
+    final volume = docId.substring(0, colon);
+    final relative = docId.substring(colon + 1);
+    final volumeRoot = volume == 'primary'
+        ? '/storage/emulated/0'
+        : '/storage/$volume';
+    return '$volumeRoot/$relative';
+  }
+
   /// Scan a single folder using appropriate method for platform.
   Stream<ScanProgress> scanFolder(String folderUri, String displayName) async* {
     final scanStopwatch = Stopwatch()..start();
@@ -198,6 +248,43 @@ class LibraryScannerService {
             unavailable: true,
           );
           return;
+        }
+
+        // All Files Access: raw filesystem walk covers every volume and every
+        // format the OEM's MediaScanner may have skipped (DSD/DSF/WV). This is
+        // the UAPP/Neutron parity path and collapses the deep/normal split.
+        final hasReadableFsPath =
+            resolvedScanRoot != null && resolvedScanRoot.isNotEmpty;
+        final scanEngineChoice = chooseAndroidScanEngine(
+          allFilesAccess: storageInfo.allFilesAccess,
+          hasReadableFsPath: hasReadableFsPath,
+          useDeepScan: useDeepScan,
+          isRemovable: storageInfo.isRemovable,
+        );
+        // The null re-check is required for Dart promotion even though the
+        // all-files 'rust' choice implies hasReadableFsPath.
+        if (scanEngineChoice == 'rust' &&
+            storageInfo.allFilesAccess &&
+            resolvedScanRoot != null) {
+          try {
+            yield* _scanFolderRust(
+              resolvedScanRoot,
+              folderUri,
+              displayName,
+              scanPreferences,
+            );
+            _logScanTiming(
+              displayName,
+              'scan folder (Rust, all-files access)',
+              scanStopwatch.elapsed,
+            );
+            return;
+          } catch (e) {
+            devLog(
+              'All-files scan failed for $displayName at $resolvedScanRoot: '
+              '$e, falling back to MediaStore/SAF',
+            );
+          }
         }
 
         if (useDeepScan) {
@@ -389,9 +476,11 @@ class LibraryScannerService {
 
     final rawExistingMap = <String, SongEntity>{};
     final existingByContentUri = <String, SongEntity>{};
+    final safKeyedSongs = <SongEntity>[];
     for (var s in existingSongs) {
       if (s.startOffsetMs == null) {
         rawExistingMap[s.filePath] = s;
+        if (_isSafUri(s.filePath)) safKeyedSongs.add(s);
       }
       if (s.filePath.startsWith('content://')) {
         existingByContentUri[s.filePath] = s;
@@ -424,6 +513,10 @@ class LibraryScannerService {
     final idsToDelete = <int>[];
     for (final song in existingSongs) {
       if (filteredSongIds.contains(song.id)) continue;
+
+      // SAF-keyed songs live in a URI space MediaStore results can't speak
+      // for; they're superseded below instead of reported as deleted.
+      if (_isSafUri(song.filePath)) continue;
 
       final mediaStoreUri = song.mediaStoreUri;
       final isKnown =
@@ -546,6 +639,22 @@ class LibraryScannerService {
         'upsert ${batch.length} songs',
         stopwatch.elapsed,
       );
+    }
+
+    // SAF-scanned rows superseded by the raw-path rows just upserted; drop
+    // the old URI-keyed rows only when the replacement actually exists.
+    if (safKeyedSongs.isNotEmpty) {
+      final supersededIds = safKeyedSongs
+          .where((s) {
+            final raw = rawPathFromSafUri(s.filePath);
+            return raw != null && scannedByPath.containsKey(raw);
+          })
+          .map((s) => s.id)
+          .toList();
+      if (supersededIds.isNotEmpty) {
+        await _songRepository.deleteSongsByIds(supersededIds);
+        deletedSongs += supersededIds.length;
+      }
     }
 
     yield ScanProgress(
@@ -1113,10 +1222,34 @@ class LibraryScannerService {
     // Calculate variations
     final scannedUris = fastScanMap.keys.toSet();
 
-    // Deletions: in DB but not in scan
+    // Deletions: in DB but not in scan. Raw-path songs belong to filesystem
+    // engines (MediaStore DATA / Rust walk) whose URI space the SAF walk can't
+    // see — they're superseded below rather than reported as deleted.
     final urisToDelete = existingMap.keys
-        .where((uri) => !scannedUris.contains(uri))
+        .where(
+          (uri) => !scannedUris.contains(uri) && uri.startsWith('content://'),
+        )
         .toList();
+
+    // Raw-path rows whose files this SAF scan also found are superseded (the
+    // scan re-adds them keyed by SAF URI); drop the stale raw rows.
+    final scannedRawPaths = fastScanFiles
+        .map((f) => rawPathFromSafUri(f.uri))
+        .whereType<String>()
+        .toSet();
+    final supersededRawIds = existingSongs
+        .where(
+          (s) =>
+              s.startOffsetMs == null &&
+              !s.filePath.startsWith('content://') &&
+              scannedRawPaths.contains(s.filePath),
+        )
+        .map((s) => s.id)
+        .toList();
+    if (supersededRawIds.isNotEmpty) {
+      await _songRepository.deleteSongsByIds(supersededRawIds);
+    }
+    deletedSongs += supersededRawIds.length;
 
     if (urisToDelete.isNotEmpty) {
       final idsToDelete = urisToDelete
@@ -1460,12 +1593,20 @@ class LibraryScannerService {
     final existingMap = <String, SongEntity>{};
     final newOrModifiedFingerprints = <String, int>{};
     final deletedPaths = <String>[];
+    final safKeyedSongs = <SongEntity>[];
 
     // Load fingerprint cache — supplements DB with faster lookup
     final cachedFingerprints = await _fingerprintCache.load(folderUri);
 
     for (var song in existingSongs) {
       if (filteredExistingSongs.contains(song)) {
+        continue;
+      }
+      // SAF document-URI songs live in a URI space the raw-path walker can't
+      // see; passing them as known files would make Rust report them all as
+      // deleted. They're superseded explicitly after a successful scan.
+      if (song.filePath.startsWith('content://')) {
+        if (song.startOffsetMs == null) safKeyedSongs.add(song);
         continue;
       }
       existingMap[song.filePath] = song;
@@ -1508,19 +1649,10 @@ class LibraryScannerService {
       totalFiles = chunk.totalFiles;
 
       if (!initialProgressSent) {
+        // Deletions are collected here and applied only after the walk
+        // finishes: an interrupted or failed scan must never leave the
+        // folder emptied (files are re-verified by the next scan).
         deletedPaths.addAll(chunk.deletedPaths);
-        if (chunk.deletedPaths.isNotEmpty) {
-          final idsToDelete = chunk.deletedPaths
-              .map((path) => existingMap[path]?.id)
-              .whereType<int>()
-              .toList();
-          if (idsToDelete.isNotEmpty) {
-            await _songRepository.deleteSongsByIds(idsToDelete);
-          } else {
-            await _songRepository.deleteSongsByPath(chunk.deletedPaths);
-          }
-        }
-
         initialSongCount = existingMap.length - chunk.deletedPaths.length;
         deletedSongs += chunk.deletedPaths.length;
         initialProgressSent = true;
@@ -1629,6 +1761,41 @@ class LibraryScannerService {
       }
     }
     _logScanTiming(displayName, 'Rust scan stream', rustScanStopwatch.elapsed);
+
+    // Apply deletions only now that the walk completed successfully.
+    if (!_isCancelled && deletedPaths.isNotEmpty) {
+      final idsToDelete = deletedPaths
+          .map((path) => existingMap[path]?.id)
+          .whereType<int>()
+          .toList();
+      if (idsToDelete.isNotEmpty) {
+        await _songRepository.deleteSongsByIds(idsToDelete);
+      } else {
+        await _songRepository.deleteSongsByPath(deletedPaths);
+      }
+    }
+
+    // SAF-scanned rows the walker re-added with raw paths are superseded;
+    // drop the old URI-keyed rows only when the replacement actually exists.
+    if (!_isCancelled && safKeyedSongs.isNotEmpty) {
+      final rawPathsNow = (await _songRepository.getSongEntitiesByFolder(
+        folderUri,
+      ))
+          .where((s) => !s.filePath.startsWith('content://'))
+          .map((s) => s.filePath)
+          .toSet();
+      final supersededIds = safKeyedSongs
+          .where((s) {
+            final raw = rawPathFromSafUri(s.filePath);
+            return raw != null && rawPathsNow.contains(raw);
+          })
+          .map((s) => s.id)
+          .toList();
+      if (supersededIds.isNotEmpty) {
+        await _songRepository.deleteSongsByIds(supersededIds);
+        deletedSongs += supersededIds.length;
+      }
+    }
 
     // Post-process CUE and log files (single walk, both collected in one pass)
     if (!_isCancelled) {
@@ -2061,7 +2228,11 @@ class LibraryScannerService {
           scanPreferences.filterNonMusicFilesAndFolders,
     );
     final scannedUris = fastScanFiles.map((f) => f.uri).toSet();
+    // The SAF walk only speaks in SAF document URIs, so it can only vouch
+    // for rows keyed the same way. Raw-path rows belong to the filesystem
+    // engines and must not be judged here.
     return existingSongs
+        .where((s) => _isSafUri(s.filePath))
         .where((s) => !scannedUris.contains(s.filePath))
         .map((s) => s.filePath)
         .toList();
@@ -2074,6 +2245,11 @@ class LibraryScannerService {
   ) async {
     final knownFiles = <String, int>{};
     for (final song in existingSongs) {
+      // SAF-keyed rows live in a URI space the Rust walker cannot see;
+      // handing them over would mark every one of them as deleted.
+      if (song.filePath.startsWith('content://')) {
+        continue;
+      }
       if (song.lastModified != null) {
         knownFiles[song.filePath] = song.lastModified!.millisecondsSinceEpoch;
       }
