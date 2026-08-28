@@ -572,7 +572,7 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                   setState(() => _collapsed = !_collapsed);
                 },
                 child: AnimatedRotation(
-                  turns: _collapsed ? -0.25 : 0,
+                  turns: _collapsed ? 0.0 : 0.5,
                   duration: AppConstants.animationNormal,
                   child: Container(
                     width: 28,
