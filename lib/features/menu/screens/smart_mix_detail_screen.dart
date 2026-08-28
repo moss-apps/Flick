@@ -392,17 +392,20 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.title,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(
-                              color: context.adaptiveTextPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          widget.title,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: context.adaptiveTextPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                          maxLines: 1,
+                        ),
                       ),
                       Text(
                         '${widget.songs.length} songs${widget.songs.isNotEmpty ? ' • $_formattedTotalDuration' : ''}',

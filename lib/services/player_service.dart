@@ -338,6 +338,7 @@ class PlayerService {
   bool _priorityAnchorActive = false;
   bool _priorityAnchorEnabled = true;
   bool _midStreamUsbFallbackActive = false;
+  bool _deadRustEngineRecoveryActive = false;
   late final AudioSessionManager _sessionManager;
   late final AudioEngineManager _playbackManager;
   RustAudioEngine? _rustEngine;
@@ -2756,6 +2757,23 @@ class PlayerService {
         }());
         return;
       }
+      if (message.toLowerCase().contains('audio engine thread crashed')) {
+        final song = currentSongNotifier.value;
+        final position = _lastPlaybackState?.position ?? Duration.zero;
+        unawaited(() async {
+          final revived = await _handleDeadRustEngineFailure(
+            StateError(message),
+            song: song,
+            initialPosition: position,
+          );
+          if (!revived) {
+            await _refreshAudioOutputDiagnostics(
+              reason: 'Rust engine thread crash',
+            );
+          }
+        }());
+        return;
+      }
       unawaited(_refreshAudioOutputDiagnostics(reason: 'Rust backend error'));
     };
   }
@@ -4287,6 +4305,14 @@ class PlayerService {
       if (recovered) {
         return;
       }
+      final rustRecovered = await _handleDeadRustEngineFailure(
+        e,
+        song: song,
+        initialPosition: Duration.zero,
+      );
+      if (rustRecovered) {
+        return;
+      }
       _debugLog(
         '[Playback] play() failed for ${song.title} '
         'on ${currentEngineType.logLabel}: $e',
@@ -4662,6 +4688,79 @@ class PlayerService {
     }
 
     return true;
+  }
+
+  /// Recovery for a Rust engine whose command thread died mid-session
+  /// (FRB "disconnected channel" errors or a thread-crash event). The
+  /// service layer already retried once against a respawned engine; if we
+  /// land here the failure is persistent, so try one more explicit respawn
+  /// and, failing that, fall back to the plain Android engine.
+  Future<bool> _handleDeadRustEngineFailure(
+    Object error, {
+    required Song? song,
+    required Duration initialPosition,
+  }) async {
+    if (!Platform.isAndroid || !_usingRustBackend) {
+      return false;
+    }
+
+    final message = error.toString();
+    final normalized = message.toLowerCase();
+    if (!normalized.contains('disconnected channel') &&
+        !normalized.contains('audio engine thread crashed')) {
+      return false;
+    }
+    if (_deadRustEngineRecoveryActive) {
+      return false;
+    }
+
+    _deadRustEngineRecoveryActive = true;
+    try {
+      _debugLog(
+        '[Engine] Rust engine unreachable ($message); attempting respawn',
+      );
+      var revived = false;
+      try {
+        await _rustAudioService.prepareEngine();
+        revived = true;
+      } catch (e) {
+        _debugLog('[Engine] Rust engine respawn failed: $e');
+      }
+
+      if (!revived) {
+        await _rustAudioService.setHighResMode(false);
+        await _sessionManager.recordFallback(
+          requestedMode: currentEngineType,
+          fallbackMode: AudioEngineType.normalAndroid,
+          reason: 'rust audio engine unrecoverable: $message',
+        );
+        await _sessionManager.switchMode(
+          AudioEngineType.normalAndroid,
+          initializeNewEngine: true,
+          reason: 'rust audio engine command channel dead',
+        );
+      }
+
+      if (song != null) {
+        await _prepareImmediatePlaybackAsset(song);
+        await _runWithSuppressedSequenceStateUpdates(() async {
+          await _playbackManager.playTrack(
+            song,
+            initialPosition: initialPosition,
+          );
+        });
+        _ensurePositionSaveTimer();
+        await _refreshAudioOutputDiagnostics(
+          reason: revived
+              ? 'rust engine respawned'
+              : 'rust engine fallback to NORMAL_ANDROID',
+          activeSong: song,
+        );
+      }
+      return true;
+    } finally {
+      _deadRustEngineRecoveryActive = false;
+    }
   }
 
   Future<void> togglePlayPause() {

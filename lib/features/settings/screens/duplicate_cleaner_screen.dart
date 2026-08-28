@@ -480,14 +480,23 @@ class _Header extends StatelessWidget {
 // Summary card
 // ---------------------------------------------------------------------------
 
-class _SummaryCard extends ConsumerWidget {
+class _SummaryCard extends ConsumerStatefulWidget {
   const _SummaryCard({required this.scanState, required this.result});
 
   final DuplicateScanState scanState;
   final DuplicateScanResult result;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SummaryCard> createState() => _SummaryCardState();
+}
+
+class _SummaryCardState extends ConsumerState<_SummaryCard> {
+  bool _collapsed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scanState = widget.scanState;
+    final result = widget.result;
     final toRemove = scanState.selectedRemoveCount;
 
     return Container(
@@ -542,7 +551,9 @@ class _SummaryCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Only library entries are removed — your audio files stay on disk.',
+                      _collapsed
+                          ? '${result.totalGroups} groups • $toRemove to remove'
+                          : 'Only library entries are removed — your audio files stay on disk.',
                       style: TextStyle(
                         fontFamily: 'ProductSans',
                         fontSize: 12,
@@ -554,74 +565,119 @@ class _SummaryCard extends ConsumerWidget {
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingMd),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConstants.spacingMd,
-              vertical: AppConstants.spacingSm,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundLight.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorderStrong),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _SummaryStat(
-                  label: 'Groups',
-                  value: result.totalGroups.toString(),
-                  icon: LucideIcons.layers,
-                ),
-                Container(
-                  width: 1,
-                  height: 36,
-                  color: AppColors.glassBorder,
-                ),
-                _SummaryStat(
-                  label: 'To remove',
-                  value: toRemove.toString(),
-                  icon: LucideIcons.trash2,
-                  highlight: true,
-                ),
-                Container(
-                  width: 1,
-                  height: 36,
-                  color: AppColors.glassBorder,
-                ),
-                _SummaryStat(
-                  label: 'Will keep',
-                  value: scanState.selectedKeepCount.toString(),
-                  icon: LucideIcons.shieldCheck,
-                ),
-              ],
-            ),
-          ),
-          if (scanState.hasCustomSelection) ...[
-            const SizedBox(height: AppConstants.spacingSm),
-            Row(
-              children: [
-                const Icon(
-                  LucideIcons.info,
-                  size: 13,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                const Expanded(
-                  child: Text(
-                    'You customized which versions to keep. Nice — you’re in control.',
-                    style: TextStyle(
-                      fontFamily: 'ProductSans',
-                      fontSize: 11.5,
-                      color: AppColors.textSecondary,
+              const SizedBox(width: AppConstants.spacingSm),
+              GestureDetector(
+                onTap: () {
+                  AppHaptics.tap();
+                  setState(() => _collapsed = !_collapsed);
+                },
+                child: AnimatedRotation(
+                  turns: _collapsed ? 0.0 : 0.5,
+                  duration: AppConstants.animationNormal,
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.glassBackgroundStrong,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.glassBorder),
+                    ),
+                    child: Icon(
+                      LucideIcons.chevronDown,
+                      color: context.adaptiveTextSecondary,
+                      size: 16,
                     ),
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          AnimatedSize(
+            duration: AppConstants.animationNormal,
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: AnimatedOpacity(
+              duration: AppConstants.animationNormal,
+              opacity: _collapsed ? 0.0 : 1.0,
+              child: _collapsed
+                  ? const SizedBox.shrink()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: AppConstants.spacingMd),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppConstants.spacingMd,
+                            vertical: AppConstants.spacingSm,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.backgroundLight
+                                .withValues(alpha: 0.9),
+                            borderRadius:
+                                BorderRadius.circular(AppConstants.radiusMd),
+                            border: Border.all(
+                                color: AppColors.glassBorderStrong),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _SummaryStat(
+                                label: 'Groups',
+                                value: result.totalGroups.toString(),
+                                icon: LucideIcons.layers,
+                              ),
+                              Container(
+                                width: 1,
+                                height: 36,
+                                color: AppColors.glassBorder,
+                              ),
+                              _SummaryStat(
+                                label: 'To remove',
+                                value: toRemove.toString(),
+                                icon: LucideIcons.trash2,
+                                highlight: true,
+                              ),
+                              Container(
+                                width: 1,
+                                height: 36,
+                                color: AppColors.glassBorder,
+                              ),
+                              _SummaryStat(
+                                label: 'Will keep',
+                                value: scanState.selectedKeepCount
+                                    .toString(),
+                                icon: LucideIcons.shieldCheck,
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (scanState.hasCustomSelection) ...[
+                          const SizedBox(height: AppConstants.spacingSm),
+                          Row(
+                            children: [
+                              const Icon(
+                                LucideIcons.info,
+                                size: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 6),
+                              const Expanded(
+                                child: Text(
+                                  "You customized which versions to keep. Nice — you're in control.",
+                                  style: TextStyle(
+                                    fontFamily: 'ProductSans',
+                                    fontSize: 11.5,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
             ),
-          ],
+          ),
         ],
       ),
     );

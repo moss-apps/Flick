@@ -295,6 +295,16 @@ impl EngineManager {
         {
             let mut state = self.state.lock();
             let should_reuse = state.rust_handle.as_ref().is_some_and(|handle| {
+                // A dead command thread drops the channel receiver, so every
+                // later command fails with "disconnected channel" and the
+                // engine can never recover. Never reuse a dead handle.
+                if !handle.is_alive() {
+                    crate::dev_eprintln!(
+                        "[MANAGER] rust engine command thread is dead; forcing recreation"
+                    );
+                    return false;
+                }
+
                 if handle.output_signature() == desired_signature {
                     return true;
                 }

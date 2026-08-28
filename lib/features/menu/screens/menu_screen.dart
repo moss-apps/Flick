@@ -461,63 +461,67 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
     await GlassBottomSheet.show<void>(
       context: context,
       title: 'Choose Audio Engine',
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'The audio engine determines how your music is played back. Each option balances reliability, quality, and compatibility differently.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.adaptiveTextTertiary,
-              height: 1.45,
+      // Pop via the sheet's own context; the caller's context would pop the
+      // nested tab navigator and wipe every tab.
+      content: Builder(
+        builder: (sheetContext) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'The audio engine determines how your music is played back. Each option balances reliability, quality, and compatibility differently.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.adaptiveTextTertiary,
+                height: 1.45,
+              ),
             ),
-          ),
-          const SizedBox(height: AppConstants.spacingMd),
-          _buildEngineOption(
-            context,
-            title: 'Standard',
-            subtitle:
-                'Default Android player — plays everything reliably. The safest choice for most listeners.',
-            icon: LucideIcons.smartphone,
-            selected: current == AudioEnginePreference.exoPlayer,
-            onTap: () => _selectEngine(
+            const SizedBox(height: AppConstants.spacingMd),
+            _buildEngineOption(
               context,
-              service,
-              AudioEnginePreference.exoPlayer,
-              current,
+              title: 'Standard',
+              subtitle:
+                  'Default Android player — plays everything reliably. The safest choice for most listeners.',
+              icon: LucideIcons.smartphone,
+              selected: current == AudioEnginePreference.exoPlayer,
+              onTap: () => _selectEngine(
+                sheetContext,
+                service,
+                AudioEnginePreference.exoPlayer,
+                current,
+              ),
             ),
-          ),
-          const SizedBox(height: AppConstants.spacingSm),
-          _buildEngineOption(
-            context,
-            title: 'High Quality',
-            subtitle:
-                'Our Rust-powered engine. Cleaner sound and smoother playback — recommended for daily listening.',
-            icon: LucideIcons.audioLines,
-            selected: current == AudioEnginePreference.rustOboe,
-            onTap: () => _selectEngine(
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildEngineOption(
               context,
-              service,
-              AudioEnginePreference.rustOboe,
-              current,
+              title: 'High Quality',
+              subtitle:
+                  'Our Rust-powered engine. Cleaner sound and smoother playback — recommended for daily listening.',
+              icon: LucideIcons.audioLines,
+              selected: current == AudioEnginePreference.rustOboe,
+              onTap: () => _selectEngine(
+                sheetContext,
+                service,
+                AudioEnginePreference.rustOboe,
+                current,
+              ),
             ),
-          ),
-          const SizedBox(height: AppConstants.spacingSm),
-          _buildEngineOption(
-            context,
-            title: 'Bit-perfect (USB DAC)',
-            subtitle:
-                'Studio-grade output for external DACs and headphone amps. Bypasses Android\'s audio processing for pure sound.',
-            icon: LucideIcons.usb,
-            selected: current == AudioEnginePreference.isochronousUsb,
-            onTap: () => _selectEngine(
+            const SizedBox(height: AppConstants.spacingSm),
+            _buildEngineOption(
               context,
-              service,
-              AudioEnginePreference.isochronousUsb,
-              current,
+              title: 'Bit-perfect (USB DAC)',
+              subtitle:
+                  "Studio-grade output for external DACs and headphone amps. Bypasses Android's audio processing for pure sound.",
+              icon: LucideIcons.usb,
+              selected: current == AudioEnginePreference.isochronousUsb,
+              onTap: () => _selectEngine(
+                sheetContext,
+                service,
+                AudioEnginePreference.isochronousUsb,
+                current,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

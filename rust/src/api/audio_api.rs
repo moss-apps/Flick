@@ -327,6 +327,10 @@ fn resolve_requested_output_sample_rate(
 fn resolve_track_playback_output_sample_rate(
     preferred_sample_rate: Option<u32>,
 ) -> Result<Option<u32>, String> {
+    // Lying container headers (1 Hz ALAC stsd) must not become output configs.
+    let preferred_sample_rate =
+        preferred_sample_rate.filter(|rate| crate::audio::decoder::plausible_sample_rate(*rate));
+
     #[cfg(target_os = "android")]
     {
         let route_type = ENGINE_MANAGER.capability_route_type();
@@ -339,10 +343,12 @@ fn resolve_track_playback_output_sample_rate(
             && matches!(route_type.as_str(), "unknown" | "internal" | "wired")
             && current_device_profile().is_some_and(|profile| profile.is_dap())
             && !usb_direct_active;
-        if should_preserve_existing_rate {
-            if let Some(existing_rate) = read_audio_engine(|handle| handle.sample_rate()) {
-                return Ok(Some(existing_rate));
-            }
+        if let Some(existing_rate) = should_preserve_existing_rate
+            .then(|| read_audio_engine(|handle| handle.sample_rate()))
+            .flatten()
+            .filter(|rate| crate::audio::decoder::plausible_sample_rate(*rate))
+        {
+            return Ok(Some(existing_rate));
         }
     }
 

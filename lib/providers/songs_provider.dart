@@ -298,11 +298,7 @@ class SongsState {
       final albumName = song.album?.trim().isNotEmpty == true
           ? song.album!.trim()
           : 'Unknown Album';
-      final albumArtist = song.albumArtist?.trim().isNotEmpty == true
-          ? song.albumArtist!.trim()
-          : (song.artist.trim().isNotEmpty
-                ? song.artist.trim()
-                : 'Unknown Artist');
+      final albumArtist = SongRepository.albumArtistForSong(song);
       final key = albumName;
 
       groupedSongs.putIfAbsent(key, () => []).add(song);

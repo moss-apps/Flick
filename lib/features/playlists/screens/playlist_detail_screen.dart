@@ -637,14 +637,17 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        playlist.name,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: context.adaptiveTextPrimary,
-                          fontWeight: FontWeight.w600,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          playlist.name,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.adaptiveTextPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         '${_songs.length} songs${_songs.isNotEmpty ? ' • $_formattedTotalDuration' : ''}',
