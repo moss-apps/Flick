@@ -212,6 +212,24 @@ class RustAudioService {
     }
   }
 
+  /// A failed command carrying "disconnected channel" means the Rust audio
+  /// thread died — it owns the command receiver, so its death breaks every
+  /// subsequent send. Re-preparing forces the manager to recreate the engine
+  /// (the Rust-side liveness gate refuses to reuse dead handles).
+  static bool _isDeadEngineError(Object error) =>
+      error.toString().toLowerCase().contains('disconnected channel');
+
+  Future<T> _reviveAndRetry<T>(Future<T> Function() call) async {
+    try {
+      return await call();
+    } catch (e) {
+      if (!_isDeadEngineError(e)) rethrow;
+      devLog('[RustAudio] Command channel dead; respawning engine and retrying');
+      await prepareEngine();
+      return await call();
+    }
+  }
+
   /// Get the current playback state.
   RustPlaybackState get state => stateNotifier.value;
 
@@ -239,7 +257,7 @@ class RustAudioService {
 
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
-    await rust_audio.audioPlay(path: path);
+    await _reviveAndRetry(() => rust_audio.audioPlay(path: path));
     _currentPath = path;
     // Also sync from Rust engine to ensure accuracy
     _currentPath = rust_audio.audioGetCurrentPath() ?? path;
@@ -258,7 +276,9 @@ class RustAudioService {
     }
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
-    await rust_audio.audioPlayFromHttp(url: url, headers: headers);
+    await _reviveAndRetry(
+      () => rust_audio.audioPlayFromHttp(url: url, headers: headers),
+    );
     _currentPath = rust_audio.audioGetCurrentPath() ?? url;
     _startProgressUpdates(fast: true);
   }
@@ -273,7 +293,7 @@ class RustAudioService {
     _nextPath = path;
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
-    await rust_audio.audioQueueNext(path: path);
+    await _reviveAndRetry(() => rust_audio.audioQueueNext(path: path));
   }
 
   /// Queue a remote HTTP stream as the next track for gapless playback.
@@ -287,7 +307,9 @@ class RustAudioService {
     _nextPath = url;
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
-    await rust_audio.audioQueueNextFromHttp(url: url, headers: headers);
+    await _reviveAndRetry(
+      () => rust_audio.audioQueueNextFromHttp(url: url, headers: headers),
+    );
   }
 
   void _syncDsdOutputMode() {
@@ -429,7 +451,9 @@ class RustAudioService {
     if (!_initialized) return;
     final clampedSpeed = speed.clamp(0.5, 2.0);
     playbackSpeedNotifier.value = clampedSpeed;
-    await rust_audio.audioSetPlaybackSpeed(speed: clampedSpeed);
+    await _reviveAndRetry(
+      () => rust_audio.audioSetPlaybackSpeed(speed: clampedSpeed),
+    );
   }
 
   /// Set pitch shift in semitones (tempo preserved). 0 = bypass.
