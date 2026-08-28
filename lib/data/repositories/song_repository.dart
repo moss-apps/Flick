@@ -405,7 +405,7 @@ class SongRepository {
 
     for (final song in songs) {
       final albumName = _albumNameForSong(song);
-      final albumArtist = _albumArtistForSong(song);
+      final albumArtist = albumArtistForSong(song);
       final key = _albumGroupKey(albumName);
 
       groupedSongs.putIfAbsent(key, () => []).add(song);
@@ -572,9 +572,18 @@ class SongRepository {
     return albumName;
   }
 
-  String _albumArtistForSong(Song song) {
+  static bool _isVariousArtistsTag(String value) =>
+      value.toLowerCase() == 'various artists';
+
+  static String albumArtistForSong(Song song) {
     final albumArtist = song.albumArtist?.trim();
     if (albumArtist != null && albumArtist.isNotEmpty) {
+      // A literal "Various Artists" albumartist tag is a placeholder, not a
+      // name; prefer the per-track artist so real names surface.
+      if (_isVariousArtistsTag(albumArtist)) {
+        final artist = song.artist.trim();
+        if (artist.isNotEmpty && !_isVariousArtistsTag(artist)) return artist;
+      }
       return albumArtist;
     }
 
@@ -584,12 +593,19 @@ class SongRepository {
   }
 
   // ponytail: >1 distinct albumArtist ⇒ untagged compilation (scanner bakes
-  // per-track artist in when the tag's missing). Ceiling: a regular album
-  // with a few mistagged tracks mislabels as "Various Artists"; upgrade to
-  // grouping by MediaStore ALBUM_ID if that bites.
+  // per-track artist in when the tag's missing). Show the actual names
+  // comma-joined; only an explicit "Various Artists" tag collapses to itself.
+  // Ceiling: a regular album with a few mistagged tracks shows a noisy
+  // artist list; upgrade to grouping by MediaStore ALBUM_ID if that bites.
   static String resolveGroupArtist(Set<String> artists) {
-    final distinct = artists.where((a) => a.trim().isNotEmpty).toSet();
-    if (distinct.length > 1) return 'Various Artists';
+    final distinct = artists
+        .map((a) => a.trim())
+        .where((a) => a.isNotEmpty)
+        .toSet();
+    if (distinct.length > 1) {
+      if (distinct.contains('Various Artists')) return 'Various Artists';
+      return (distinct.toList()..sort()).join(', ');
+    }
     if (distinct.length == 1) return distinct.first;
     return 'Unknown Artist';
   }
