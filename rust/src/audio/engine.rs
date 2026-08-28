@@ -221,8 +221,9 @@ impl AudioCallbackData {
     ) -> Self {
         // Pre-allocate mix buffers for 1 second of audio — large enough
         // for any platform's output callback (cpal can deliver up to 8k
-        // frames; Oboe typically ~1k).
-        let buffer_size = sample_rate as usize * channels;
+        // frames; Oboe typically ~1k). The floor keeps a bogus sample rate
+        // from collapsing the scratch buffers to callback-hostile sizes.
+        let buffer_size = (sample_rate as usize * channels).max(8192 * channels.max(1));
         // Speed buffer needs to be larger to handle 2x speed (need 2x input for 1x output)
         let speed_buffer_size = buffer_size * 3;
 
@@ -397,7 +398,10 @@ impl AudioCallbackData {
     }
 
     pub fn reconfigure_sample_rate(&self, sample_rate: u32) {
-        let buffer_size = (sample_rate as usize / 10) * self.channels;
+        // Floor keeps a bogus rate from collapsing the scratch buffers below
+        // a usable callback size (see the buffer guard in the callback).
+        let buffer_size =
+            ((sample_rate as usize / 10) * self.channels).max(8192 * self.channels.max(1));
         let speed_buffer_size = buffer_size * 3;
 
         self.crossfader.lock().rebind_sample_rate(sample_rate);
@@ -416,6 +420,27 @@ impl AudioCallbackData {
         shifter.set_semitones(semitones);
         *self.pitch_shifter.lock() = shifter;
     }
+}
+
+/// Surface an audio-thread panic as an Error event so release builds can
+/// still see why commands started failing (a dead thread otherwise only
+/// shows up as "sending on a disconnected channel").
+fn report_thread_panic(
+    event_tx: &Sender<AudioEvent>,
+    result: Result<(), Box<dyn std::any::Any + Send>>,
+) {
+    let Err(panic) = result else { return };
+    let detail = if let Some(s) = panic.downcast_ref::<String>() {
+        s.clone()
+    } else if let Some(s) = panic.downcast_ref::<&str>() {
+        (*s).to_string()
+    } else {
+        "unknown panic payload".to_string()
+    };
+    dev_eprintln!("[ENGINE] audio command thread panicked: {}", detail);
+    let _ = event_tx.try_send(AudioEvent::Error {
+        message: format!("Audio engine thread crashed: {}", detail),
+    });
 }
 
 /// Handle for controlling the audio engine from any thread.
@@ -461,6 +486,17 @@ impl AudioEngineHandle {
         self.command_tx
             .try_send(command)
             .map_err(|e| format!("Failed to send command: {}", e))
+    }
+
+    /// True while the audio command thread (owner of the command channel) is
+    /// still running. If it panicked or exited, every send_command fails with
+    /// "sending on a disconnected channel" forever, so the engine must be
+    /// recreated.
+    pub fn is_alive(&self) -> bool {
+        self._audio_thread
+            .lock()
+            .as_ref()
+            .is_some_and(|handle| !handle.is_finished())
     }
 
     /// Play a track.
@@ -858,44 +894,56 @@ pub fn create_audio_engine(
     let audio_thread = thread::Builder::new()
         .name("audio-engine".to_string())
         .spawn(move || {
-            // Build the stream in this thread
-            let stream = match device.build_output_stream(
-                &config,
-                move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    audio_callback(data, &callback_data_clone, &event_tx_clone);
-                },
-                |err| {
-                    dev_eprintln!("Audio stream error: {}", err);
-                },
-                None,
-            ) {
-                Ok(s) => s,
-                Err(e) => {
-                    dev_eprintln!("Failed to build audio stream: {}", e);
+            let event_tx_panic = event_tx.clone();
+            let event_tx_build_err = event_tx.clone();
+            let thread_body = move || {
+                // Build the stream in this thread
+                let stream = match device.build_output_stream(
+                    &config,
+                    move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                        audio_callback(data, &callback_data_clone, &event_tx_clone);
+                    },
+                    |err| {
+                        dev_eprintln!("Audio stream error: {}", err);
+                    },
+                    None,
+                ) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        dev_eprintln!("Failed to build audio stream: {}", e);
+                        let _ = event_tx_build_err.try_send(AudioEvent::Error {
+                            message: format!("Failed to build audio stream: {}", e),
+                        });
+                        return;
+                    }
+                };
+
+                // Start the stream
+                if let Err(e) = stream.play() {
+                    dev_eprintln!("Failed to start audio stream: {}", e);
                     return;
                 }
+
+                // Run command processing loop
+                command_processing_loop(
+                    command_rx,
+                    finished_rx,
+                    event_tx,
+                    callback_data_for_thread,
+                    state_clone,
+                    decoders_clone,
+                    target_sample_rate,
+                    shutdown_clone,
+                    None,
+                );
+
+                // Stream will be dropped here when the loop exits
             };
 
-            // Start the stream
-            if let Err(e) = stream.play() {
-                dev_eprintln!("Failed to start audio stream: {}", e);
-                return;
-            }
-
-            // Run command processing loop
-            command_processing_loop(
-                command_rx,
-                finished_rx,
-                event_tx,
-                callback_data_for_thread,
-                state_clone,
-                decoders_clone,
-                target_sample_rate,
-                shutdown_clone,
-                None,
+            report_thread_panic(
+                &event_tx_panic,
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(thread_body)),
             );
-
-            // Stream will be dropped here when the loop exits
         });
 
     let audio_thread = audio_thread.map_err(|e| format!("Failed to spawn audio thread: {}", e))?;
@@ -1288,6 +1336,12 @@ pub fn create_audio_engine(
     let will_attempt_usb = debug_state.registered;
     #[cfg(not(feature = "uac2"))]
     let will_attempt_usb = false;
+
+    // Bogus track rates (lying M4A headers advertise 1 Hz) must never reach
+    // an output stream config: the callback buffers collapse and the audio
+    // thread dies. Treat them as "no preference" and use the platform default.
+    let preferred_sample_rate =
+        preferred_sample_rate.filter(|rate| crate::audio::decoder::plausible_sample_rate(*rate));
 
     // When a DAP device has bit-perfect disabled, force the output to
     // 48 kHz so that all DSP runs at a fixed rate and the in-app rubato
@@ -2010,6 +2064,10 @@ pub fn create_audio_engine(
     let audio_thread = thread::Builder::new()
         .name("audio-engine".to_string())
         .spawn(move || {
+            let event_tx_panic = event_tx.clone();
+            // Body stays at original indentation; wrapping it just to re-indent
+            // 130 lines would churn the diff.
+            let thread_body = std::panic::AssertUnwindSafe(move || {
             #[cfg(feature = "uac2")]
             let mut direct_usb_backend = direct_usb_backend;
             let mut dsd_native_backend = dsd_native_backend;
@@ -2144,6 +2202,11 @@ pub fn create_audio_engine(
             );
 
             supervisor.stop();
+            });
+            report_thread_panic(
+                &event_tx_panic,
+                std::panic::catch_unwind(thread_body),
+            );
         });
 
     let audio_thread = audio_thread.map_err(|e| format!("Failed to spawn audio thread: {}", e))?;
