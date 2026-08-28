@@ -13,6 +13,10 @@
         android:maxSdkVersion="28" />
     <!-- Android 13+ media permission -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- All Files Access: raw filesystem library scanning (DSD/DSF/ISO support on OEMs
+         whose MediaScanner never indexes DSD). Scoped storage stays fully functional
+         without it; this only unlocks the faster, more complete filesystem scan path. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Camera permission for Flick Replay custom poster backgrounds -->
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Background playback permissions -->
@@ -30,6 +34,7 @@
         android:label="Flick"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
+        android:requestLegacyExternalStorage="true"
         android:usesCleartextTraffic="true">
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
