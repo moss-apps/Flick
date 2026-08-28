@@ -4,6 +4,11 @@
 
 Changes landing on top of the current pre-release are tracked here and folded into the release notes as they ship.
 
+### Library Scanning & Permissions
+- Optional **Full Library Access** (`MANAGE_EXTERNAL_STORAGE`) mode: when granted, library scans walk the filesystem directly via the Rust scanner on every volume (internal storage, SD cards, USB drives) — same approach as Poweramp/USB Audio Player PRO — so no file can hide behind an incomplete system media index. Degrades gracefully to MediaStore/SAF when not granted. Toggle + status in Settings → Library → Scan Settings.
+- **DSD/DSF/WavPack now always scanned** even in scoped-storage mode: on devices whose media indexer skips DSD entirely (Xiaomi/MIUI, Vivo, Honor and similar), a stat-only reconciliation walk finds the missing `.dsf`/`.dff`/`.wv` files during every scan, plus a best-effort MediaStore re-index nudge; live-change watching now covers the Files collection too.
+- **Fixed library wipe when switching scan engines** (e.g. after granting Full Library Access): each scan engine now only deletes rows in the URI space it can actually see — SAF `content://` rows are superseded by their raw-path equivalents (never dropped before the replacement exists), and Rust/MediaStore scans no longer feed SAF-keyed rows into filesystem deletion checks. Also protects periodic background deletion refreshes.
+
 ### Headphone Crossfeed
 - BS2B (Bauer stereophonic-to-binaural) 3-stage crossfeed with selectable presets — Default, Crossfeed (strong), and Crossfeed easy (gentle), plus Off. Blends a low-passed opposite-channel signal into each channel to reduce ear fatigue on headphones; runs in the native Rust DSP chain, bypassed on bit-perfect passthrough.
 - Crossfeed level persists across engine recreation (e.g. sample-rate changes between tracks).
