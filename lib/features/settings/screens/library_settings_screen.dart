@@ -37,7 +37,7 @@ class LibrarySettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final MusicFolderService _folderService = MusicFolderService();
   final LibraryScannerService _scannerService = LibraryScannerService();
   final SongRepository _songRepository = SongRepository();
@@ -48,6 +48,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   bool _isScanning = false;
   ScanProgress? _scanProgress;
   bool _showBatteryOptimizationNotice = false;
+  bool _showAllFilesAccessNotice = false;
+  bool _allFilesAccessGranted = false;
   bool _isXiaomiDevice = false;
   bool _scanSettingsExpanded = false;
   bool _libraryExpanded = false;
@@ -66,6 +68,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _vinylController = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: this,
@@ -77,7 +80,17 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // All Files Access is granted from the system settings screen; refresh
+      // status when the user comes back.
+      _loadAndroidDeviceNotices();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _elapsedTimer?.cancel();
     _elapsedNotifier.dispose();
     _scanProgressNotifier.dispose();
@@ -131,20 +144,29 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         AndroidAudioDeviceService.instance.refresh(),
         permissionService.isIgnoringBatteryOptimizations(),
         permissionService.isBatteryNoticeDismissed(),
+        permissionService.hasAllFilesAccess(),
+        permissionService.isAllFilesNoticeDismissed(),
       ]);
       final deviceInfo = results[0] as AndroidPlaybackDeviceInfo;
       final isIgnoringBatteryOptimizations = results[1] as bool;
       final isNoticeDismissed = results[2] as bool;
+      final allFilesAccess = results[3] as bool;
+      final isAllFilesNoticeDismissed = results[4] as bool;
 
       if (!mounted) return;
       setState(() {
         _isXiaomiDevice = deviceInfo.isXiaomiDevice;
         _showBatteryOptimizationNotice =
             !isIgnoringBatteryOptimizations && !isNoticeDismissed;
+        _allFilesAccessGranted = allFilesAccess;
+        _showAllFilesAccessNotice = !allFilesAccess && !isAllFilesNoticeDismissed;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _showBatteryOptimizationNotice = false);
+      setState(() {
+        _showBatteryOptimizationNotice = false;
+        _showAllFilesAccessNotice = false;
+      });
     }
   }
 
@@ -168,6 +190,27 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     await permissionService.dismissBatteryNotice();
     if (!mounted) return;
     setState(() => _showBatteryOptimizationNotice = false);
+  }
+
+  Future<void> _openAllFilesAccessSettings() async {
+    final permissionService = PermissionService();
+    try {
+      final launched = await permissionService.openAllFilesAccessSettings();
+      if (!mounted) return;
+      if (!launched) {
+        _showToast('Unable to open All Files Access settings');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showToast('Failed to open All Files Access settings: $e');
+    }
+  }
+
+  Future<void> _dismissAllFilesNotice() async {
+    final permissionService = PermissionService();
+    await permissionService.dismissAllFilesNotice();
+    if (!mounted) return;
+    setState(() => _showAllFilesAccessNotice = false);
   }
 
   void _showToast(String message) {
@@ -1389,6 +1432,19 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                                 .setUseDeepScan(value);
                           },
                         ),
+                        const SettingsDivider(),
+                        NavigationSetting(
+                          icon: _allFilesAccessGranted
+                              ? LucideIcons.shieldCheck
+                              : LucideIcons.folderSearch,
+                          title: 'Full Library Access',
+                          subtitle: _allFilesAccessGranted
+                              ? 'Granted — scans read every volume directly, '
+                                    'including DSD/DSF/WavPack'
+                              : 'Not granted — enable so scans cover DSD/DSF/WavPack '
+                                    'files the system index may skip',
+                          onTap: _openAllFilesAccessSettings,
+                        ),
                       ],
                       const SettingsDivider(),
                       ToggleSetting(
@@ -1498,6 +1554,87 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                             ),
                             tooltip: 'Dismiss',
                             onPressed: _dismissBatteryNotice,
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              if (_showAllFilesAccessNotice) ...[
+                const SettingsDivider(),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _openAllFilesAccessSettings,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppConstants.spacingMd),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: context.scaleSize(
+                              AppConstants.containerSizeSm,
+                            ),
+                            height: context.scaleSize(
+                              AppConstants.containerSizeSm,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.glassBackgroundStrong,
+                              borderRadius: BorderRadius.circular(
+                                AppConstants.radiusSm,
+                              ),
+                            ),
+                            child: Icon(
+                              LucideIcons.folderSearch,
+                              color: context.adaptiveTextSecondary,
+                              size: context.responsiveIcon(
+                                AppConstants.iconSizeMd,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppConstants.spacingMd),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Enable Full Library Access',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        color: context.adaptiveTextPrimary,
+                                      ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Lets Flick scan your entire library directly, '
+                                  'including DSD/DSF/WavPack files some devices '
+                                  'hide from the system media index',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: context.adaptiveTextTertiary,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppConstants.spacingSm),
+                          IconButton(
+                            icon: Icon(
+                              LucideIcons.x,
+                              size: context.responsiveIcon(
+                                AppConstants.iconSizeSm,
+                              ),
+                              color: context.adaptiveTextTertiary,
+                            ),
+                            tooltip: 'Dismiss',
+                            onPressed: _dismissAllFilesNotice,
                             visualDensity: VisualDensity.compact,
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
