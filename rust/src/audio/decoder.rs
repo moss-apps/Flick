@@ -147,27 +147,75 @@ fn build_probe_result(
     probed: symphonia::core::probe::ProbeResult,
     name_path: PathBuf,
 ) -> Result<ProbeResult, DecoderError> {
-    let format = probed.format;
+    let mut format = probed.format;
 
     // Find the first audio track
-    let track = format
-        .tracks()
-        .iter()
-        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
-        .ok_or(DecoderError::NoAudioTrack)?;
+    let (track_id, codec_params) = {
+        let track = format
+            .tracks()
+            .iter()
+            .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+            .ok_or(DecoderError::NoAudioTrack)?;
+        (track.id, track.codec_params.clone())
+    };
 
-    let track_id = track.id;
-    let codec_params = &track.codec_params;
+    let declared_sample_rate = codec_params.sample_rate.unwrap_or(44100);
+    let declared_channels = codec_params.channels.map(|c| c.count()).unwrap_or(2);
 
-    let sample_rate = codec_params.sample_rate.unwrap_or(44100);
-    let channels = codec_params.channels.map(|c| c.count()).unwrap_or(2);
+    let decoder_opts = DecoderOptions::default();
+    let is_opus = codec_params.codec == CODEC_TYPE_OPUS;
+    let mut decoder: Box<dyn Decoder> = if is_opus {
+        Box::new(
+            opus_decoder::OpusDecoder::try_new(&codec_params, &decoder_opts)
+                .map_err(|e| DecoderError::UnsupportedFormat(e.to_string()))?,
+        )
+    } else {
+        symphonia::default::get_codecs()
+            .make(&codec_params, &decoder_opts)
+            .map_err(|e| DecoderError::UnsupportedFormat(e.to_string()))?
+    };
 
-    // Calculate duration
+    // Container headers can lie: M4A stsd entries for ALAC have been seen
+    // advertising a 1 Hz sample rate. A bogus rate here propagates straight
+    // into the audio engine output config, so trust one decoded packet when
+    // the header looks impossible, then rewind to frame zero.
+    let header_lies = implausible_layout(declared_sample_rate, declared_channels);
+    let (sample_rate, channels) = if header_lies {
+        match peek_decoded_layout(&mut format, decoder.as_mut(), track_id) {
+            Some((rate, ch)) => {
+                dev_eprintln!(
+                    "[DECODER] header sr={} ch={} implausible; using decoded sr={} ch={}",
+                    declared_sample_rate,
+                    declared_channels,
+                    rate,
+                    ch
+                );
+                (rate, ch)
+            }
+            None => {
+                dev_eprintln!(
+                    "[DECODER] header sr={} ch={} implausible and peek failed; trusting header",
+                    declared_sample_rate,
+                    declared_channels
+                );
+                (declared_sample_rate, declared_channels)
+            }
+        }
+    } else {
+        (declared_sample_rate, declared_channels)
+    };
+
+    // Calculate duration. A lying header also carries a lying time_base
+    // (derived from the fake rate), so only use it for plausible headers.
     let duration_secs = if let Some(n_frames) = codec_params.n_frames {
-        if let Some(time_base) = codec_params.time_base {
-            time_base.calc_time(n_frames).seconds as f64
-        } else {
+        if header_lies || codec_params.time_base.is_none() {
             n_frames as f64 / sample_rate as f64
+        } else {
+            codec_params
+                .time_base
+                .unwrap()
+                .calc_time(n_frames)
+                .seconds as f64
         }
     } else {
         0.0
@@ -177,8 +225,6 @@ fn build_probe_result(
     // it selects an output rate for the active stream.
     let total_samples = (duration_secs * sample_rate as f64 * channels as f64) as u64;
 
-    let decoder_opts = DecoderOptions::default();
-    let is_opus = codec_params.codec == CODEC_TYPE_OPUS;
     dev_eprintln!(
         "[DECODER] codec={} sr={} ch={} dur={:.1}s -> {}",
         codec_params.codec,
@@ -187,16 +233,6 @@ fn build_probe_result(
         duration_secs,
         if is_opus { "OpusDecoder (custom)" } else { "symphonia default" },
     );
-    let decoder: Box<dyn Decoder> = if is_opus {
-        Box::new(
-            opus_decoder::OpusDecoder::try_new(codec_params, &decoder_opts)
-                .map_err(|e| DecoderError::UnsupportedFormat(e.to_string()))?,
-        )
-    } else {
-        symphonia::default::get_codecs()
-            .make(&codec_params, &decoder_opts)
-            .map_err(|e| DecoderError::UnsupportedFormat(e.to_string()))?
-    };
 
     let source_info = SourceInfo {
         path: name_path,
@@ -214,6 +250,63 @@ fn build_probe_result(
         decoder,
         track_id,
     })
+}
+
+/// Rates outside this window cannot be real audio — they are lying container
+/// headers (e.g. 1 Hz ALAC stsd) and must never reach an output stream config.
+/// The ceiling clears DSD-over-PCM byte rates (DSD1024 ≈ 2.82 MHz) and 1536k
+/// USB links while still rejecting nonsense.
+pub(crate) const MIN_PLAUSIBLE_SAMPLE_RATE: u32 = 8_000;
+pub(crate) const MAX_PLAUSIBLE_SAMPLE_RATE: u32 = 3_528_000;
+
+/// True when the declared layout is impossible for real audio.
+fn implausible_layout(sample_rate: u32, channels: usize) -> bool {
+    !plausible_sample_rate(sample_rate) || !(1..=8).contains(&channels)
+}
+
+/// Guard against bogus track/header rates (lying container metadata) ever
+/// being used as an output stream rate.
+pub(crate) fn plausible_sample_rate(rate: u32) -> bool {
+    (MIN_PLAUSIBLE_SAMPLE_RATE..=MAX_PLAUSIBLE_SAMPLE_RATE).contains(&rate)
+}
+
+/// Decode one packet to read the true rate/channel count, then rewind the
+/// format reader to the start so playback still decodes from frame zero.
+/// Returns `None` (with a best-effort rewind) when the peek cannot be trusted.
+fn peek_decoded_layout(
+    format: &mut Box<dyn FormatReader>,
+    decoder: &mut dyn Decoder,
+    track_id: u32,
+) -> Option<(u32, usize)> {
+    let peeked = (|| -> Option<(u32, usize)> {
+        let packet = format.next_packet().ok()?;
+        if packet.track_id() != track_id {
+            return None;
+        }
+        let decoded = decoder.decode(&packet).ok()?;
+        let spec = decoded.spec();
+        if spec.rate == 0 || spec.channels.count() == 0 {
+            return None;
+        }
+        Some((spec.rate, spec.channels.count()))
+    })();
+
+    decoder.reset();
+    if format
+        .seek(
+            SeekMode::Accurate,
+            SeekTo::Time {
+                time: Time::new(0, 0.0),
+                track_id: Some(track_id),
+            },
+        )
+        .is_err()
+    {
+        dev_eprintln!("[DECODER] rewind after layout peek failed; first packet may be skipped");
+    }
+    decoder.reset();
+
+    peeked
 }
 
 /// Lowercased, ogg-normalized extension hint derived from an HTTP URL's path
@@ -759,5 +852,31 @@ impl SeekContext {
         self.decoder.reset();
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{implausible_layout, plausible_sample_rate};
+
+    #[test]
+    fn bogus_container_rates_are_rejected() {
+        // The Galaxy A52s ALAC-in-M4A case: stsd cookie declares 1 Hz.
+        assert!(implausible_layout(1, 2));
+        assert!(implausible_layout(0, 2));
+        assert!(implausible_layout(7_999, 2));
+        assert!(implausible_layout(3_528_001, 2));
+        assert!(implausible_layout(44_100, 0));
+        assert!(implausible_layout(44_100, 9));
+    }
+
+    #[test]
+    fn real_layouts_pass_through() {
+        for rate in [8_000u32, 44_100, 48_000, 96_000, 192_000, 768_000] {
+            assert!(!implausible_layout(rate, 2), "rate {rate}");
+            assert!(plausible_sample_rate(rate));
+        }
+        // DSD-over-PCM byte rates stay plausible.
+        assert!(plausible_sample_rate(2_822_400));
     }
 }
