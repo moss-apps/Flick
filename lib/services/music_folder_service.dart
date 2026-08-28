@@ -169,6 +169,7 @@ class StorageVolumeInfo {
   final bool isRemovable;
   final bool isPrimary;
   final String state;
+  final bool allFilesAccess;
 
   const StorageVolumeInfo({
     this.fsPath,
@@ -176,6 +177,7 @@ class StorageVolumeInfo {
     this.isRemovable = false,
     this.isPrimary = false,
     this.state = 'unknown',
+    this.allFilesAccess = false,
   });
 
   bool get isMounted => state == 'mounted';
@@ -187,6 +189,7 @@ class StorageVolumeInfo {
       isRemovable: map['isRemovable'] as bool? ?? false,
       isPrimary: map['isPrimary'] as bool? ?? false,
       state: map['state'] as String? ?? 'unknown',
+      allFilesAccess: map['allFilesAccess'] as bool? ?? false,
     );
   }
 }
@@ -488,8 +491,14 @@ class MusicFolderService {
   /// MediaStore volume for external drives.
   Future<StorageVolumeInfo> resolveStorageInfo(String uri) async {
     try {
+      final allFiles = await hasAllFilesAccess();
       if (!uri.startsWith('content://')) {
-        return StorageVolumeInfo(fsPath: uri, isPrimary: true, state: 'mounted');
+        return StorageVolumeInfo(
+          fsPath: uri,
+          isPrimary: true,
+          state: 'mounted',
+          allFilesAccess: allFiles,
+        );
       }
 
       final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
@@ -497,11 +506,32 @@ class MusicFolderService {
         {'uri': uri},
       );
       if (result == null) {
-        return const StorageVolumeInfo();
+        return StorageVolumeInfo(allFilesAccess: allFiles);
       }
       return StorageVolumeInfo.fromMap(result.cast<String, dynamic>());
     } catch (e) {
       return const StorageVolumeInfo();
+    }
+  }
+
+  /// Whether the app holds All Files Access (Android 11+) or legacy storage
+  /// permission (Android 10-). Unlocks raw-filesystem scanning of all volumes.
+  Future<bool> hasAllFilesAccess() async {
+    try {
+      return await _channel.invokeMethod<bool>('hasAllFilesAccess') ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Opens the system All Files Access settings screen. Returns false when the
+  /// screen is unavailable (Android 10-) or launching failed.
+  Future<bool> requestAllFilesAccess() async {
+    try {
+      return await _channel.invokeMethod<bool>('requestAllFilesAccess') ??
+          false;
+    } catch (e) {
+      return false;
     }
   }
 
