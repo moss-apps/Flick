@@ -21,6 +21,7 @@ import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/services/audio_preload_service.dart';
 import 'package:flick/services/replaygain_scan_service.dart';
+import 'package:flick/services/scan_session_controller.dart';
 import 'package:flick/services/library_scan_preferences_service.dart';
 import 'package:flick/services/library_scanner_service.dart';
 import 'package:flick/services/music_folder_service.dart';
@@ -64,6 +65,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   final Stopwatch _scanStopwatch = Stopwatch();
   Timer? _elapsedTimer;
   final ValueNotifier<Duration> _elapsedNotifier = ValueNotifier(Duration.zero);
+  bool _scanOverlayOpen = false;
 
   @override
   void initState() {
@@ -368,8 +370,14 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       (_) => _elapsedNotifier.value = _scanStopwatch.elapsed,
     );
     _showScanningOverlay(displayName);
+    ScanSessionController.instance.begin(
+      title: displayName,
+      kind: ScanSessionKind.scan,
+      onCancel: _scannerService.cancelScan,
+    );
 
     await for (final progress in _scannerService.scanFolder(uri, displayName)) {
+      ScanSessionController.instance.update(progress);
       if (mounted) {
         setState(() => _scanProgress = progress);
         _scanProgressNotifier.value = progress;
@@ -380,9 +388,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     _vinylController.stop();
     _elapsedTimer?.cancel();
     _elapsedTimer = null;
+    ScanSessionController.instance.end();
     await _loadLibraryData();
     if (mounted) {
-      Navigator.of(context).pop();
+      if (_scanOverlayOpen) Navigator.of(context).pop();
       _scanProgressNotifier.value = null;
       final lastProgress = _scanProgress;
       setState(() {
@@ -413,8 +422,14 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       (_) => _elapsedNotifier.value = _scanStopwatch.elapsed,
     );
     _showScanningOverlay('All Folders');
+    ScanSessionController.instance.begin(
+      title: 'All Folders',
+      kind: ScanSessionKind.scan,
+      onCancel: _scannerService.cancelScan,
+    );
 
     await for (final progress in _scannerService.scanAllFolders()) {
+      ScanSessionController.instance.update(progress);
       if (mounted) {
         setState(() => _scanProgress = progress);
         _scanProgressNotifier.value = progress;
@@ -425,9 +440,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     _vinylController.stop();
     _elapsedTimer?.cancel();
     _elapsedTimer = null;
+    ScanSessionController.instance.end();
     await _loadLibraryData();
     if (mounted) {
-      Navigator.of(context).pop();
+      if (_scanOverlayOpen) Navigator.of(context).pop();
       _scanProgressNotifier.value = null;
       final lastProgress = _scanProgress;
       setState(() {
@@ -467,19 +483,26 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       (_) => _elapsedNotifier.value = _scanStopwatch.elapsed,
     );
     _showScanningOverlay('Preloading Audio');
+    final service = AudioPreloadService.instance;
+    ScanSessionController.instance.begin(
+      title: 'Preloading Audio',
+      kind: ScanSessionKind.preload,
+      onCancel: service.cancel,
+    );
 
-    final service = AudioPreloadService();
     await for (final progress in service.preloadSongs(songs, forceAll: false)) {
+      final snapshot = ScanProgress(
+        songsFound: progress.completed,
+        totalFiles: progress.total,
+        filesProcessed: progress.completed,
+        currentFile: progress.currentFile,
+        currentFolder: 'Preloading Audio',
+        phase: 'Analyzing audio',
+        isComplete: progress.isComplete,
+      );
+      ScanSessionController.instance.update(snapshot);
       if (mounted) {
-        _scanProgressNotifier.value = ScanProgress(
-          songsFound: progress.completed,
-          totalFiles: progress.total,
-          filesProcessed: progress.completed,
-          currentFile: progress.currentFile,
-          currentFolder: 'Preloading Audio',
-          phase: 'Analyzing audio',
-          isComplete: progress.isComplete,
-        );
+        _scanProgressNotifier.value = snapshot;
       }
     }
 
@@ -487,9 +510,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     _vinylController.stop();
     _elapsedTimer?.cancel();
     _elapsedTimer = null;
+    ScanSessionController.instance.end();
     await _loadLibraryData();
     if (mounted) {
-      Navigator.of(context).pop();
+      if (_scanOverlayOpen) Navigator.of(context).pop();
       _scanProgressNotifier.value = null;
       setState(() {
         _isScanning = false;
@@ -519,20 +543,27 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       const Duration(milliseconds: 200),
       (_) => _elapsedNotifier.value = _scanStopwatch.elapsed,
     );
-    _showScanningOverlay('Scanning ReplayGain');
-
     final service = ReplayGainScanService();
+    _showScanningOverlay('Scanning ReplayGain');
+    ScanSessionController.instance.begin(
+      title: 'ReplayGain Scan',
+      kind: ScanSessionKind.replayGain,
+      onCancel: service.cancel,
+    );
+
     await for (final progress in service.scanLibrary(songs)) {
+      final snapshot = ScanProgress(
+        songsFound: progress.completed,
+        totalFiles: progress.total,
+        filesProcessed: progress.completed,
+        currentFile: progress.currentFile,
+        currentFolder: 'ReplayGain Scan',
+        phase: 'Analyzing loudness',
+        isComplete: progress.isComplete,
+      );
+      ScanSessionController.instance.update(snapshot);
       if (mounted) {
-        _scanProgressNotifier.value = ScanProgress(
-          songsFound: progress.completed,
-          totalFiles: progress.total,
-          filesProcessed: progress.completed,
-          currentFile: progress.currentFile,
-          currentFolder: 'ReplayGain Scan',
-          phase: 'Analyzing loudness',
-          isComplete: progress.isComplete,
-        );
+        _scanProgressNotifier.value = snapshot;
       }
     }
 
@@ -540,9 +571,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     _vinylController.stop();
     _elapsedTimer?.cancel();
     _elapsedTimer = null;
+    ScanSessionController.instance.end();
     await _loadLibraryData();
     if (mounted) {
-      Navigator.of(context).pop();
+      if (_scanOverlayOpen) Navigator.of(context).pop();
       _scanProgressNotifier.value = null;
       setState(() {
         _isScanning = false;
@@ -573,7 +605,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   void _showScanningOverlay(String folderName) {
-    showGeneralDialog(
+    _scanOverlayOpen = true;
+    showGeneralDialog<void>(
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withValues(alpha: 0.55),
@@ -606,7 +639,12 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
           ),
         );
       },
-    );
+    ).whenComplete(() {
+      // Covers minimize, system-back, cancel, and natural completion: if the
+      // work is still running, the floating pill takes over.
+      _scanOverlayOpen = false;
+      ScanSessionController.instance.overlayDismissed();
+    });
   }
 
   Widget _buildScanDashboard(ScanProgress? progress, String folderName) {
@@ -742,34 +780,55 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                   ),
                 ],
                 const SizedBox(height: AppConstants.spacingXl),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: () {
-                      _scannerService.cancelScan();
-                      _vinylController.stop();
-                      _scanStopwatch.stop();
-                      _elapsedTimer?.cancel();
-                      _elapsedTimer = null;
-                      Navigator.of(context).pop();
-                      _scanProgressNotifier.value = null;
-                      setState(() {
-                        _isScanning = false;
-                        _scanProgress = null;
-                      });
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontFamily: 'ProductSans',
-                        fontWeight: FontWeight.w500,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.textSecondary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text(
+                          'Minimize',
+                          style: TextStyle(
+                            fontFamily: 'ProductSans',
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: AppConstants.spacingMd),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          ScanSessionController.instance.cancel();
+                          ScanSessionController.instance.end();
+                          _vinylController.stop();
+                          _scanStopwatch.stop();
+                          _elapsedTimer?.cancel();
+                          _elapsedTimer = null;
+                          Navigator.of(context).pop();
+                          _scanProgressNotifier.value = null;
+                          setState(() {
+                            _isScanning = false;
+                            _scanProgress = null;
+                          });
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.textSecondary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontFamily: 'ProductSans',
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -961,6 +1020,63 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             const SizedBox(height: AppConstants.spacingMd),
             _buildEngineInfoChip(progress),
           ],
+          ValueListenableBuilder<PreloadProgress?>(
+            valueListenable: AudioPreloadService.instance.progress,
+            builder: (context, preload, _) {
+              if (preload == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: AppConstants.spacingMd),
+                child: Container(
+                  padding: const EdgeInsets.all(AppConstants.spacingSm),
+                  decoration: BoxDecoration(
+                    color: AppColors.glassBackground,
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                    border: Border.all(color: AppColors.glassBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        LucideIcons.activity,
+                        color: AppColors.accent,
+                        size: 18,
+                      ),
+                      const SizedBox(width: AppConstants.spacingXs),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Preloading audio ${preload.completed}/${preload.total}',
+                              style: const TextStyle(
+                                fontFamily: 'ProductSans',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (preload.currentFile != null)
+                              Text(
+                                preload.currentFile!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'ProductSans',
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: AudioPreloadService.instance.cancel,
+                        child: const Text('Stop'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
           if (songs == 0) ...[
             const SizedBox(height: AppConstants.spacingMd),
             Container(
