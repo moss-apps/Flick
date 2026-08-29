@@ -377,11 +377,12 @@ class MainActivity: FlutterActivity() {
                 "cacheUriForPlayback" -> {
                     val uri = call.argument<String>("uri")
                     val extensionHint = call.argument<String>("extensionHint")
+                    val maxSizeBytes = call.argument<Long>("maxSizeBytes")
                     if (uri != null) {
                         mainScope.launch {
                             try {
                                 val stagedPath = withContext(Dispatchers.IO) {
-                                    cacheUriForPlayback(uri, extensionHint)
+                                    cacheUriForPlayback(uri, extensionHint, maxSizeBytes)
                                 }
                                 result.success(stagedPath)
                             } catch (e: Exception) {
@@ -2448,7 +2449,11 @@ class MainActivity: FlutterActivity() {
         mediaFilesContentObserver = null
     }
 
-    private fun cacheUriForPlayback(uriString: String, extensionHint: String?): String? {
+    private fun cacheUriForPlayback(
+        uriString: String,
+        extensionHint: String?,
+        maxSizeBytes: Long? = null,
+    ): String? {
         val uri = Uri.parse(uriString)
         val normalizedExt = normalizeAudioExtension(extensionHint)
         val stagingDir = java.io.File(cacheDir, "playback_staging").apply { mkdirs() }
@@ -2469,6 +2474,12 @@ class MainActivity: FlutterActivity() {
                 if (expectedLength == null || stagedFile.length() == expectedLength) {
                     return stagedFile.absolutePath
                 }
+            }
+
+            // Optional caller-supplied cap (metadata enrichment on huge files):
+            // bail before copying when the source is larger than allowed.
+            if (maxSizeBytes != null && expectedLength != null && expectedLength > maxSizeBytes) {
+                return null
             }
 
             if (tempFile.exists()) {
