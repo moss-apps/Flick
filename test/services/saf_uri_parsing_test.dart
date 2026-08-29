@@ -80,4 +80,49 @@ void main() {
       );
     });
   });
+
+  group('rawPathFromFileUri', () {
+    test('maps file URIs to plain paths', () {
+      expect(
+        LibraryScannerService.rawPathFromFileUri(
+          'file:///storage/emulated/0/Music/track.wv',
+        ),
+        '/storage/emulated/0/Music/track.wv',
+      );
+    });
+
+    test('decodes percent-encoded characters', () {
+      expect(
+        LibraryScannerService.rawPathFromFileUri(
+          'file:///storage/emulated/0/Music/Deep%20House/a%20track.dsf',
+        ),
+        '/storage/emulated/0/Music/Deep House/a track.dsf',
+      );
+    });
+
+    test('passes plain absolute paths through', () {
+      expect(
+        LibraryScannerService.rawPathFromFileUri(
+          '/storage/1A2B-3C4D/Music/album.dff',
+        ),
+        '/storage/1A2B-3C4D/Music/album.dff',
+      );
+    });
+
+    test('returns null for content URIs', () {
+      expect(
+        LibraryScannerService.rawPathFromFileUri(
+          'content://media/external/audio/media/42',
+        ),
+        isNull,
+      );
+    });
+
+    test('returns null for relative paths', () {
+      expect(
+        LibraryScannerService.rawPathFromFileUri('Music/track.wv'),
+        isNull,
+      );
+    });
+  });
 }
