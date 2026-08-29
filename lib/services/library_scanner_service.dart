@@ -125,6 +125,9 @@ class LibraryScannerService {
 
   void cancelScan() {
     _isCancelled = true;
+    // A detached preload pass outlives the scan stream; stop it too or it
+    // keeps decoding (and holding the artwork gate) against the next scan.
+    AudioPreloadService.instance.cancel();
   }
 
   /// Backfill volume metadata onto a folder entity resolved before this
@@ -193,6 +196,18 @@ class LibraryScannerService {
         ? '/storage/emulated/0'
         : '/storage/$volume';
     return '$volumeRoot/$relative';
+  }
+
+  /// Maps a `file://` URI (or passes through a plain absolute path) to its
+  /// raw filesystem path, or null for anything else. Synthesized fallback
+  /// rows are keyed `file:///storage/...`; the Rust parser needs raw paths.
+  /// Pure; unit-tested.
+  static String? rawPathFromFileUri(String uriString) {
+    if (uriString.startsWith('file://')) {
+      return Uri.tryParse(uriString)?.toFilePath();
+    }
+    if (uriString.startsWith('/')) return uriString;
+    return null;
   }
 
   /// Scan a single folder using appropriate method for platform.
@@ -770,12 +785,35 @@ class LibraryScannerService {
 
         existing.sampleRate = meta.sampleRate ?? existing.sampleRate;
         existing.bitDepth = meta.bitDepth ?? existing.bitDepth;
+        if ((existing.durationMs ?? 0) <= 0) {
+          existing.durationMs = meta.duration ?? existing.durationMs;
+        }
+        if (existing.bitrate == null && meta.bitrate != null) {
+          existing.bitrate = AudioMetadataUtils.bitrateFromBitsPerSecond(
+            int.tryParse(meta.bitrate!),
+          );
+        }
         if (!existing.hasLocalEdits) {
           existing.discNumber = meta.discNumber ?? existing.discNumber;
           existing.albumArtist =
               (meta.albumArtist?.trim().isNotEmpty ?? false)
                   ? meta.albumArtist!.trim()
                   : existing.albumArtist;
+          // Synthesized fallback rows (unindexed DSD/WavPack) start with
+          // empty text and filename-derived titles; fill from real tags.
+          if (existing.title.trim().isEmpty &&
+              (meta.title?.trim().isNotEmpty ?? false)) {
+            existing.title = meta.title!.trim();
+          }
+          if (existing.artist.trim().isEmpty &&
+              (meta.artist?.trim().isNotEmpty ?? false)) {
+            existing.artist = meta.artist!.trim();
+          }
+          if ((existing.album ?? '').trim().isEmpty &&
+              (meta.album?.trim().isNotEmpty ?? false)) {
+            existing.album = meta.album!.trim();
+          }
+          existing.trackNumber = meta.trackNumber ?? existing.trackNumber;
         }
         existing.metadataComplete = true;
         updateBatch.add(existing);
@@ -2316,17 +2354,133 @@ class LibraryScannerService {
     return name.trim().replaceAll(RegExp(r'\s+'), ' ');
   }
 
+  /// Extensions MediaMetadataRetriever cannot reliably decode (WavPack:
+  /// never, on any device; DSD: most OEM builds). Rows of these types get a
+  /// second chance through the Rust parsers.
+  static const _rustFallbackExtensions = {'wv', 'dsf', 'dff'};
+
+  /// Upper bound for staging a SAF document just to read its tags (256 MB).
+  /// Larger files stay sparse in the SAF tier; playback staging is unaffected.
+  static const _metadataStagingMaxBytes = 256 * 1024 * 1024;
+
   Future<List<AudioFileInfo>?> _fetchMetadataChunk(
     List<String> chunkUris,
   ) async {
     try {
-      return await _musicFolderService.fetchMetadata(chunkUris);
+      final metadataList = await _musicFolderService.fetchMetadata(chunkUris);
+      return _fillRustMetadataFallback(metadataList, chunkUris);
     } catch (e) {
       devLog(
         'Error fetching metadata chunk (${chunkUris.length} files): $e',
       );
       return null;
     }
+  }
+
+  /// For wv/dsf/dff URIs whose retriever metadata came back unsolved
+  /// (missing duration/sampleRate), retry with the Rust parser (lofty /
+  /// dsf-meta / dff-meta). Raw-path URIs are read directly; SAF document
+  /// URIs go through the shared staging cache with a size cap. Degrades
+  /// silently — retriever results stand when Rust also fails.
+  Future<List<AudioFileInfo>> _fillRustMetadataFallback(
+    List<AudioFileInfo> metadataList,
+    List<String> chunkUris,
+  ) async {
+    if (chunkUris.isEmpty || !Platform.isAndroid) return metadataList;
+
+    final byUri = {for (final m in metadataList) m.uri: m};
+    var changed = false;
+
+    for (final uri in chunkUris) {
+      if (_isCancelled) break;
+      if (!_rustFallbackExtensions.contains(_extensionOfUri(uri))) continue;
+
+      final meta = byUri[uri];
+      final retrieverSolved =
+          meta != null &&
+          meta.duration != null &&
+          meta.sampleRate != null;
+      if (retrieverSolved) continue;
+
+      final rustMeta = await _extractRustMetadataForUri(uri);
+      if (rustMeta == null) continue;
+
+      byUri[uri] = _mergeRustMetadata(meta, uri, rustMeta);
+      changed = true;
+    }
+
+    if (!changed) return metadataList;
+
+    // Preserve the original order; append entries for URIs the retriever
+    // never returned (defensive — Kotlin always emits a row per URI).
+    final result = <AudioFileInfo>[];
+    final seen = <String>{};
+    for (final m in metadataList) {
+      result.add(byUri[m.uri] ?? m);
+      seen.add(m.uri);
+    }
+    for (final uri in chunkUris) {
+      if (!seen.contains(uri) && byUri.containsKey(uri)) {
+        result.add(byUri[uri]!);
+      }
+    }
+    return result;
+  }
+
+  String _extensionOfUri(String uri) {
+    final path = rawPathFromFileUri(uri) ?? rawPathFromSafUri(uri) ?? uri;
+    final dot = path.lastIndexOf('.');
+    if (dot < 0 || dot == path.length - 1) return '';
+    return path.substring(dot + 1).toLowerCase();
+  }
+
+  Future<AudioFileMetadata?> _extractRustMetadataForUri(String uri) async {
+    var rawPath = rawPathFromFileUri(uri) ?? rawPathFromSafUri(uri);
+    if (rawPath == null && uri.startsWith('content://')) {
+      rawPath = await _musicFolderService.cacheUriForPlayback(
+        uri,
+        extensionHint: _extensionOfUri(uri),
+        maxSizeBytes: _metadataStagingMaxBytes,
+      );
+    }
+    if (rawPath == null) return null;
+    try {
+      return await extractFileMetadata(path: rawPath);
+    } catch (e) {
+      devLog('Rust metadata fallback failed for $uri: $e');
+      return null;
+    }
+  }
+
+  AudioFileInfo _mergeRustMetadata(
+    AudioFileInfo? base,
+    String uri,
+    AudioFileMetadata rust,
+  ) {
+    return AudioFileInfo(
+      uri: uri,
+      name: base?.name ?? '',
+      size: base?.size ?? rust.fileSize.toInt(),
+      lastModified: base?.lastModified ?? rust.lastModified.toInt(),
+      mimeType: base?.mimeType,
+      extension: base?.extension ?? rust.format,
+      title: base?.title ?? rust.title,
+      artist: base?.artist ?? rust.artist,
+      album: base?.album ?? rust.album,
+      albumArtist: base?.albumArtist,
+      trackNumber: base?.trackNumber ?? rust.trackNumber,
+      discNumber: base?.discNumber ?? rust.discNumber,
+      duration: base?.duration ?? rust.durationMs?.toInt(),
+      albumArtPath: base?.albumArtPath,
+      // Call sites parse this as bits-per-second (retriever convention);
+      // the Rust parsers report bits-per-second too.
+      bitrate: base?.bitrate ?? rust.bitrate?.toString(),
+      bitDepth: base?.bitDepth ?? rust.bitDepth,
+      sampleRate: base?.sampleRate ?? rust.sampleRate,
+      filePath: base?.filePath,
+      year: base?.year,
+      dateAdded: base?.dateAdded,
+    );
   }
 
   Future<void> _runDetachedScanTask(
@@ -2355,15 +2509,9 @@ class LibraryScannerService {
     );
   }
 
-  /// Runs the audio preload pass on newly scanned songs.
+  /// Queues newly scanned songs onto the shared auto preload pass.
   Future<void> _preloadAudioData(List<SongEntity> songs) async {
-    final service = AudioPreloadService();
-    await for (final _ in service.preloadSongs(songs, forceAll: false)) {
-      if (_isCancelled) {
-        service.cancel();
-        break;
-      }
-    }
+    await AudioPreloadService.instance.enqueueAutoPreload(songs);
   }
 
   AudioFileInfo _audioInfoFromNonAudioMap(Map<String, dynamic> map) {
