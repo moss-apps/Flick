@@ -107,6 +107,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AudioEventType dco_decode_box_autoadd_audio_event_type(dynamic raw);
 
   @protected
+  AudioFileMetadata dco_decode_box_autoadd_audio_file_metadata(dynamic raw);
+
+  @protected
   AudioProgress dco_decode_box_autoadd_audio_progress(dynamic raw);
 
   @protected
@@ -235,6 +238,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AudioEventType? dco_decode_opt_box_autoadd_audio_event_type(dynamic raw);
+
+  @protected
+  AudioFileMetadata? dco_decode_opt_box_autoadd_audio_file_metadata(
+    dynamic raw,
+  );
 
   @protected
   AudioProgress? dco_decode_opt_box_autoadd_audio_progress(dynamic raw);
@@ -462,6 +470,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AudioFileMetadata sse_decode_box_autoadd_audio_file_metadata(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   AudioProgress sse_decode_box_autoadd_audio_progress(
     SseDeserializer deserializer,
   );
@@ -612,6 +625,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AudioEventType? sse_decode_opt_box_autoadd_audio_event_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AudioFileMetadata? sse_decode_opt_box_autoadd_audio_file_metadata(
     SseDeserializer deserializer,
   );
 
@@ -883,6 +901,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_audio_file_metadata(
+    AudioFileMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_audio_progress(
     AudioProgress self,
     SseSerializer serializer,
@@ -1068,6 +1092,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_audio_event_type(
     AudioEventType? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_audio_file_metadata(
+    AudioFileMetadata? self,
     SseSerializer serializer,
   );
 
