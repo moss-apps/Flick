@@ -234,6 +234,12 @@ Surfaces: `_RootFolderCard` (`folders_screen.dart`), `_buildFolderItem` (`librar
 
 Android's MediaStore does not classify WavPack or DSD as audio under `MediaStore.Audio.Media`, so the primary audio query misses them. `queryMediaStoreAudio()` runs a secondary query against `MediaStore.Files` for `.dsf`/`.dff`/`.wv` and merges the rows, deduplicating by filesystem path against the audio rows already collected. This recovers DSD on OEM MediaScanners (ColorOS/Oppo/Realme, HiOS/Tecno/Infinix) that never index DSD as audio. Metadata (title/artist/album/duration) is empty at this stage and filled in by the metadata parser. On OEMs whose MediaScanner skips DSD from the Files collection too, the DSD reconciliation walk (above) recovers the files directly from disk; granting All Files Access makes the Rust walk the scan engine outright and sidesteps OEM indexing entirely.
 
+### Rust metadata fallback (WavPack/DSD enrichment)
+
+`MediaMetadataRetriever` cannot decode WavPack on any device and often lacks DSD decoders, so every metadata chunk fetched by the MediaStore/SAF tiers gets a second pass (`_fillRustMetadataFallback` in `library_scanner_service.dart`): rows with a `.wv`/`.dsf`/`.dff` extension whose retriever result is missing duration or sample rate are re-read by the Rust parsers via the FRB `extractFileMetadata` API (same per-format extractors the deep scanner uses). Raw-path URIs (`file://` or plain paths) are read directly; SAF document URIs are staged through the shared `playback_staging` cache with a 256 MB cap so Rust can open them as plain files. Failures degrade silently — retriever results stand.
+
+Album art follows the same rule in `album_art_service.dart`: `.wv`/`.dsf`/`.dff` sources skip the retriever's `embeddedPicture` (always null for them) and extract via Rust lofty on the raw or staged path; `file://`-keyed sources are normalized to plain paths first.
+
 ## Extension Filter Locations
 
 Four extension allowlists must be updated when adding a format:
