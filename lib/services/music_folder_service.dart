@@ -435,6 +435,26 @@ class MusicFolderService {
     }
   }
 
+  /// Stages a content URI into the shared playback cache and returns the
+  /// absolute staged path. [maxSizeBytes] optionally refuses to copy
+  /// oversized sources (returns null) — used by metadata enrichment, not
+  /// playback.
+  Future<String?> cacheUriForPlayback(
+    String uri, {
+    String? extensionHint,
+    int? maxSizeBytes,
+  }) async {
+    try {
+      return await _channel.invokeMethod<String>('cacheUriForPlayback', {
+        'uri': uri,
+        'extensionHint': ?extensionHint,
+        'maxSizeBytes': ?maxSizeBytes,
+      });
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Scan all saved folders for audio files.
   Stream<AudioFileInfo> scanAllFolders() async* {
     final folders = await getSavedFolders();
