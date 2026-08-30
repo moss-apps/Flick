@@ -208,10 +208,58 @@ class AlbumArtService {
     }
 
     if (Platform.isAndroid && audioSourcePath.startsWith('content://')) {
+      // MediaMetadataRetriever cannot decode WavPack/DSD covers on any
+      // device; route those through the Rust parser via the shared staging
+      // cache. Other content URIs keep the direct retriever path.
+      if (_isRustOnlyAudioUri(audioSourcePath)) {
+        final staged = await _musicFolderService.cacheUriForPlayback(
+          audioSourcePath,
+          extensionHint: _extensionOf(audioSourcePath),
+          maxSizeBytes: _artworkStagingMaxBytes,
+        );
+        if (staged != null) {
+          try {
+            final bytes = await rust_scanner.extractEmbeddedArtwork(
+              path: staged,
+            );
+            if (bytes != null && bytes.isNotEmpty) return bytes;
+          } catch (_) {
+            // Fall through to the retriever attempt below.
+          }
+        }
+      }
       return _musicFolderService.fetchEmbeddedArtwork(audioSourcePath);
     }
 
-    return rust_scanner.extractEmbeddedArtwork(path: audioSourcePath);
+    // Synthesized scan rows are keyed `file:///storage/...`; Rust needs the
+    // plain path or fs::open fails on the scheme.
+    return rust_scanner.extractEmbeddedArtwork(
+      path: _plainPathOf(audioSourcePath),
+    );
+  }
+
+  /// Extensions whose embedded art only the Rust parsers can read.
+  static const _rustOnlyArtExtensions = {'wv', 'dsf', 'dff'};
+
+  /// Upper bound for staging a document just to extract its cover (256 MB).
+  static const _artworkStagingMaxBytes = 256 * 1024 * 1024;
+
+  bool _isRustOnlyAudioUri(String source) {
+    final path = _plainPathOf(source);
+    return _rustOnlyArtExtensions.contains(_extensionOf(path));
+  }
+
+  String _plainPathOf(String source) {
+    if (source.startsWith('file://')) {
+      return Uri.tryParse(source)?.toFilePath() ?? source;
+    }
+    return source;
+  }
+
+  String _extensionOf(String path) {
+    final dot = path.lastIndexOf('.');
+    if (dot < 0 || dot == path.length - 1) return '';
+    return path.substring(dot + 1).toLowerCase();
   }
 
   Future<Uint8List> _normalizeArtworkBytes(Uint8List raw) {

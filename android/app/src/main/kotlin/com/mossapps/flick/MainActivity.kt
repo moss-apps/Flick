@@ -46,6 +46,7 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaMetadataRetriever
+import android.media.MediaScannerConnection
 import android.media.audiofx.Visualizer
 import android.database.ContentObserver
 import android.os.Handler
@@ -141,6 +142,7 @@ class MainActivity: FlutterActivity() {
     private var pendingExternalPlaybackPayload: Map<String, Any?>? = null
     private var volumeContentObserver: ContentObserver? = null
     private var mediaStoreContentObserver: ContentObserver? = null
+    private var mediaFilesContentObserver: ContentObserver? = null
     private var mediaStoreEventSink: EventChannel.EventSink? = null
     private val volumeObserverHandler = Handler(Looper.getMainLooper())
     private var volumeObserverDebounceRunnable: Runnable? = null
@@ -375,11 +377,12 @@ class MainActivity: FlutterActivity() {
                 "cacheUriForPlayback" -> {
                     val uri = call.argument<String>("uri")
                     val extensionHint = call.argument<String>("extensionHint")
+                    val maxSizeBytes = call.argument<Long>("maxSizeBytes")
                     if (uri != null) {
                         mainScope.launch {
                             try {
                                 val stagedPath = withContext(Dispatchers.IO) {
-                                    cacheUriForPlayback(uri, extensionHint)
+                                    cacheUriForPlayback(uri, extensionHint, maxSizeBytes)
                                 }
                                 result.success(stagedPath)
                             } catch (e: Exception) {
@@ -448,6 +451,12 @@ class MainActivity: FlutterActivity() {
                     } else {
                         result.error("INVALID_ARGUMENT", "URI is required", null)
                     }
+                }
+                "hasAllFilesAccess" -> {
+                    result.success(hasAllFilesAccess())
+                }
+                "requestAllFilesAccess" -> {
+                    result.success(openAllFilesAccessSettings())
                 }
                 "isIgnoringBatteryOptimizations" -> {
                     result.success(isIgnoringBatteryOptimizations())
@@ -1419,13 +1428,14 @@ class MainActivity: FlutterActivity() {
     // Single source of truth for filesystem path + MediaStore-volume routing, including
     // removable (USB/SD) volumes which queryMediaStoreAudio must target by their own name.
     private fun resolveStorageInfo(uriString: String): Map<String, Any?> {
+        val allFiles = mapOf("allFilesAccess" to hasAllFilesAccess())
         val unknown = mapOf<String, Any?>(
             "fsPath" to null,
             "mediaStoreVolume" to null,
             "isRemovable" to false,
             "isPrimary" to false,
             "state" to "unknown",
-        )
+        ) + allFiles
         return try {
             val uri = Uri.parse(uriString)
             if (uri.scheme == "file") {
@@ -1435,7 +1445,7 @@ class MainActivity: FlutterActivity() {
                     "isRemovable" to false,
                     "isPrimary" to true,
                     "state" to "mounted",
-                )
+                ) + allFiles
             }
             if (uri.scheme != "content" ||
                 uri.authority != "com.android.externalstorage.documents"
@@ -1470,7 +1480,7 @@ class MainActivity: FlutterActivity() {
                     "isRemovable" to matched.isRemovable,
                     "isPrimary" to matched.isPrimary,
                     "state" to matched.state,
-                )
+                ) + allFiles
             }
 
             // Legacy fallback when StorageManager didn't enumerate the volume.
@@ -1491,7 +1501,7 @@ class MainActivity: FlutterActivity() {
                 "isRemovable" to !isPrimaryDoc,
                 "isPrimary" to isPrimaryDoc,
                 "state" to "mounted",
-            )
+            ) + allFiles
         } catch (e: Exception) {
             Log.w("MainActivity", "resolveStorageInfo failed: ${e.message}", e)
             unknown
@@ -1696,6 +1706,48 @@ class MainActivity: FlutterActivity() {
         } catch (e: Exception) {
             Log.w("MainActivity", "Failed to open battery optimization settings", e)
             return false
+        }
+    }
+
+    // All Files Access (MANAGE_EXTERNAL_STORAGE): raw filesystem reads on every volume,
+    // i.e. the UAPP/Neutron-style scanning precondition. Below Android 11 the legacy
+    // storage permissions already give equivalent broad read access.
+    private fun hasAllFilesAccess(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                Environment.isExternalStorageManager()
+            } catch (e: Exception) {
+                Log.w("MainActivity", "isExternalStorageManager() failed: ${e.message}")
+                false
+            }
+        } else {
+            checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
+                PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun openAllFilesAccessSettings(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return false
+        }
+        return try {
+            var intent = Intent(
+                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.parse("package:$packageName"),
+            )
+            try {
+                startActivity(intent)
+                return true
+            } catch (e: Exception) {
+                Log.w("MainActivity", "App-specific all-files settings screen unavailable, trying global")
+            }
+            intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            true
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Failed to open all-files-access settings", e)
+            false
         }
     }
 
@@ -2161,12 +2213,70 @@ class MainActivity: FlutterActivity() {
             }
         } catch (e: Exception) {
             Log.w("MainActivity", "MediaStore audio query failed: ${e.message}", e)
-        } finally {
-            val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000
-            Log.d("MainActivity", "MediaStore audio query returned ${result.size} rows in ${elapsedMs}ms")
         }
 
+        // Reconciliation walk: some OEM MediaScanners (MIUI/HyperOS, Vivo/
+        // Funtouch, Honor) never index DSD into Audio.Media OR the Files
+        // collection, so both queries above come back empty for .dsf/.dff/.wv
+        // while FLAC scans fine. Stat-only raw walk recovers exactly those
+        // files (readable paths only; primary always, removable under All
+        // Files Access or a legacy grant) and a fire-and-forget scanFile lets
+        // the indexer catch up for future scans.
+        try {
+            val missing = DsdReconciliation.findUnindexedDsdFiles(folderPaths, seenPaths)
+            for (f in missing) {
+                val data = f.absolutePath
+                if (!seenPaths.add(data)) continue
+                result.add(mapOf(
+                    "uri" to "file://$data",
+                    "filePath" to data,
+                    "name" to f.name,
+                    "title" to "",
+                    "artist" to "",
+                    "album" to "",
+                    "albumArtist" to null,
+                    "duration" to 0L,
+                    "trackNumber" to null,
+                    "discNumber" to null,
+                    "year" to null,
+                    "mimeType" to null,
+                    "extension" to f.extension.lowercase(),
+                    "size" to f.length(),
+                    "lastModified" to f.lastModified(),
+                    "dateAdded" to f.lastModified(),
+                    "bitrate" to null,
+                ))
+            }
+            if (missing.isNotEmpty()) {
+                Log.d("MainActivity", "DSD reconciliation walk found ${missing.size} unindexed file(s)")
+                healMediaStoreIndex(missing.map { it.absolutePath })
+            }
+        } catch (e: Exception) {
+            Log.w("MainActivity", "DSD reconciliation walk failed: ${e.message}", e)
+        }
+
+        val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000
+        Log.d("MainActivity", "MediaStore audio query + DSD reconciliation returned ${result.size} rows in ${elapsedMs}ms")
         return result
+    }
+
+    /**
+     * Best-effort index heal: ask MediaScanner to pick up files it missed.
+     * OEMs that hard-skip DSD at the MIME layer will keep skipping — this is
+     * a bonus, the reconciliation walk already covers correctness.
+     */
+    private fun healMediaStoreIndex(paths: List<String>) {
+        if (paths.isEmpty()) return
+        try {
+            MediaScannerConnection.scanFile(
+                applicationContext,
+                paths.toTypedArray(),
+                null,
+                null,
+            )
+        } catch (e: Exception) {
+            Log.w("MainActivity", "MediaScanner heal failed: ${e.message}")
+        }
     }
 
     private fun queryMediaStoreNonAudio(folderPaths: List<String>, volumeName: String? = null): List<Map<String, Any?>> {
@@ -2279,20 +2389,53 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun registerMediaStoreObserver() {
-        if (mediaStoreContentObserver != null) return
-        mediaStoreContentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean) {
-                super.onChange(selfChange)
-                try {
-                    mediaStoreEventSink?.success(mapOf("type" to "changed"))
-                } catch (_: Exception) {}
+        val notify = {
+            try {
+                mediaStoreEventSink?.success(mapOf("type" to "changed"))
+            } catch (_: Exception) {}
+        }
+        if (mediaStoreContentObserver == null) {
+            mediaStoreContentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) {
+                    super.onChange(selfChange)
+                    notify()
+                }
+            }
+            try {
+                contentResolver.registerContentObserver(
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    true,
+                    mediaStoreContentObserver!!
+                )
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Audio observer registration failed: ${e.message}")
+                mediaStoreContentObserver = null
             }
         }
-        contentResolver.registerContentObserver(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            true,
-            mediaStoreContentObserver!!
-        )
+        // Some DSD lands in the Files collection (never in Audio.Media on these
+        // OEMs), so watch it too for live-change nudges.
+        if (mediaFilesContentObserver == null) {
+            val filesUri =
+                MediaStore.Files.getContentUri(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        MediaStore.VOLUME_EXTERNAL
+                    } else {
+                        "external"
+                    }
+                )
+            mediaFilesContentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) {
+                    super.onChange(selfChange)
+                    notify()
+                }
+            }
+            try {
+                contentResolver.registerContentObserver(filesUri, true, mediaFilesContentObserver!!)
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Files observer registration failed: ${e.message}")
+                mediaFilesContentObserver = null
+            }
+        }
     }
 
     private fun unregisterMediaStoreObserver() {
@@ -2300,9 +2443,17 @@ class MainActivity: FlutterActivity() {
             contentResolver.unregisterContentObserver(it)
         }
         mediaStoreContentObserver = null
+        mediaFilesContentObserver?.let {
+            contentResolver.unregisterContentObserver(it)
+        }
+        mediaFilesContentObserver = null
     }
 
-    private fun cacheUriForPlayback(uriString: String, extensionHint: String?): String? {
+    private fun cacheUriForPlayback(
+        uriString: String,
+        extensionHint: String?,
+        maxSizeBytes: Long? = null,
+    ): String? {
         val uri = Uri.parse(uriString)
         val normalizedExt = normalizeAudioExtension(extensionHint)
         val stagingDir = java.io.File(cacheDir, "playback_staging").apply { mkdirs() }
@@ -2323,6 +2474,12 @@ class MainActivity: FlutterActivity() {
                 if (expectedLength == null || stagedFile.length() == expectedLength) {
                     return stagedFile.absolutePath
                 }
+            }
+
+            // Optional caller-supplied cap (metadata enrichment on huge files):
+            // bail before copying when the source is larger than allowed.
+            if (maxSizeBytes != null && expectedLength != null && expectedLength > maxSizeBytes) {
+                return null
             }
 
             if (tempFile.exists()) {

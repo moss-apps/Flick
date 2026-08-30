@@ -229,3 +229,46 @@ Register in `rust/src/api/mod.rs`, regenerate FRB
 - **Peak bucket resolution.** ~240 chosen to sit above the seek bar's current
   `_cachedSampleCount = 180` (`waveform_seek_bar.dart:33`) with headroom for
   pinch-zoom. Adjustable in one constant if zoom needs more.
+
+## H. Post-launch fixes (HiBy R4 feedback)
+
+Report: with preload enabled, a 1570-file scan appeared wedged at 1561 while
+the pass crawled at ~4 files/s. Root causes and fixes:
+
+- **Invisible grind.** The auto pass was detached with its progress discarded
+  while the scan UI already reported completion. The pass is now a singleton
+  (`AudioPreloadService.instance`) exposing a `progress` notifier; the
+  scan-complete sheet shows live `completed/total` with a Stop button.
+- **Uncancellable / stacking passes.** Scanner cancellation now stops the
+  preload; per-folder auto passes merge into one drain queue instead of
+  superseding or stacking; a manual "Preload Audio" run takes over
+  exclusively. Overlapping passes previously stacked decoders and held
+  overlapping artwork-gate refcounts (freezing artwork extraction).
+- **DSD/WavPack re-probed every pass.** `analyze_audio_file` returns `None`
+  for `dsf`/`dff`/`wv` (no symphonia decoder yet) and no cache row was
+  written, so every pass re-probed them. Misses for those extensions are now
+  negative-cached (empty peaks, current version); bump `_currentVersion`
+  when decode support lands to force recompute.
+
+## I. Floating scan progress (minimizable overlay)
+
+The full-screen scan/preload/ReplayGain overlay previously locked the user
+into staring at it; dismissing it by back-press lost all progress UI while
+the work kept running.
+
+- **Session controller.** `ScanSessionController.instance`
+  (`lib/services/scan_session_controller.dart`) is the app-level singleton
+  holding the one user-visible session (title, kind, startedAt, cancel hook,
+  `progress`, `minimized`). Silent background work (auto library sync,
+  post-scan auto preload) never touches it.
+- **Minimize button.** The overlay dashboard now offers Minimize + Cancel.
+  Minimize (or system-back) pops the dialog; the controller flips to
+  `minimized` and the work continues.
+- **Floating pill.** `FloatingScanProgress` (`lib/widgets/common/`) sits in
+  the main shell above the bottom bar. Collapsed pill: title + counts +
+  mini progress bar. Tap to expand: elapsed, current file, failed count,
+  Stop (dispatches the session's cancel hook — scan, preload, or
+  ReplayGain) and collapse. With no active session it also surfaces a
+  running post-scan auto preload pass (from
+  `AudioPreloadService.instance.progress`) with its own Stop.
+- **Status: done.** Covered by `test/services/scan_session_controller_test.dart`.

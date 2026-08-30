@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PermissionService {
   static const _channel = MethodChannel('com.mossapps.flick/storage');
   static const _batteryNoticeDismissedKey = 'battery_optimization_notice_dismissed';
+  static const _allFilesNoticeDismissedKey = 'all_files_access_notice_dismissed';
 
   /// Request storage permission based on Android version.
   /// Returns true if permission is granted.
@@ -143,6 +144,34 @@ class PermissionService {
     }
   }
 
+  /// All Files Access (Android 11+) or legacy storage permission (Android 10-).
+  /// Unlocks raw-filesystem scanning of every volume, including DSD formats
+  /// the OEM MediaScanner refuses to index.
+  Future<bool> hasAllFilesAccess() async {
+    if (!Platform.isAndroid) {
+      return true;
+    }
+    try {
+      return await _channel.invokeMethod<bool>('hasAllFilesAccess') ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  /// Opens the system "All files access" settings screen. Returns false when
+  /// unavailable (Android 10-).
+  Future<bool> openAllFilesAccessSettings() async {
+    if (!Platform.isAndroid) {
+      return false;
+    }
+    try {
+      return await _channel.invokeMethod<bool>('requestAllFilesAccess') ??
+          false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   Future<bool> isBatteryNoticeDismissed() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_batteryNoticeDismissedKey) ?? false;
@@ -151,6 +180,16 @@ class PermissionService {
   Future<void> dismissBatteryNotice() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_batteryNoticeDismissedKey, true);
+  }
+
+  Future<bool> isAllFilesNoticeDismissed() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_allFilesNoticeDismissedKey) ?? false;
+  }
+
+  Future<void> dismissAllFilesNotice() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_allFilesNoticeDismissedKey, true);
   }
 }
 

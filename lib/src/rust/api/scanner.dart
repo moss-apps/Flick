@@ -48,6 +48,12 @@ Future<List<String>> checkDeletedPaths({
   scanOptions: scanOptions,
 );
 
+/// Extract metadata for a single file on demand (used by the Dart metadata
+/// fallback for formats MediaMetadataRetriever cannot decode). Returns None
+/// when the file cannot be read or parsed.
+Future<AudioFileMetadata?> extractFileMetadata({required String path}) =>
+    RustLib.instance.api.crateApiScannerExtractFileMetadata(path: path);
+
 Future<Uint8List?> extractEmbeddedArtwork({required String path}) =>
     RustLib.instance.api.crateApiScannerExtractEmbeddedArtwork(path: path);
 

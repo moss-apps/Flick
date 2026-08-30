@@ -222,4 +222,6 @@ dependencies {
     // Google Cast SDK for Chromecast casting
     implementation("com.google.android.gms:play-services-cast-framework:21.5.0")
     implementation("com.google.android.gms:play-services-cast:21.5.0")
+
+    testImplementation("junit:junit:4.13.2")
 }

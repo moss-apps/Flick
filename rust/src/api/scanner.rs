@@ -3,9 +3,10 @@ use dff_meta::DffFile;
 use dsf_meta::DsfFile;
 use id3::TagLike;
 use lofty::config::ParseOptions;
-use lofty::picture::PictureType;
+use lofty::picture::{PictureType, APE_PICTURE_TYPES};
 use lofty::prelude::*;
 use lofty::probe::Probe;
+use lofty::tag::Tag;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -177,6 +178,26 @@ pub fn check_deleted_paths(
     deleted_paths
 }
 
+/// Extract metadata for a single file on demand (used by the Dart metadata
+/// fallback for formats MediaMetadataRetriever cannot decode). Returns None
+/// when the file cannot be read or parsed.
+pub fn extract_file_metadata(path: String) -> Option<AudioFileMetadata> {
+    let p = PathBuf::from(&path);
+    let metadata = std::fs::metadata(&p).ok()?;
+    let last_modified = metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+
+    extract_text_metadata_only(&FileScanEntry {
+        path,
+        last_modified,
+        file_size: metadata.len(),
+    })
+}
+
 pub fn extract_embedded_artwork(path: String) -> Option<Vec<u8>> {
     let p = PathBuf::from(&path);
     let ext = p
@@ -204,11 +225,43 @@ fn extract_lofty_artwork(path: &Path) -> Option<Vec<u8>> {
     let tag = tagged_file
         .primary_tag()
         .or_else(|| tagged_file.first_tag())?;
-    let picture = tag
+    if let Some(picture) = tag
         .get_picture_type(PictureType::CoverFront)
-        .or_else(|| tag.pictures().first())?;
+        .or_else(|| tag.pictures().first())
+    {
+        return Some(picture.data().to_vec());
+    }
+    ape_cover_item(tag)
+}
 
-    Some(picture.data().to_vec())
+/// APE-tagged formats (WavPack) store cover art as binary tag items under
+/// keys like "Cover Art (Front)", which never surface through
+/// `Tag::pictures()`. Prefer the front cover, then any picture item.
+fn ape_cover_item(tag: &Tag) -> Option<Vec<u8>> {
+    for front_only in [true, false] {
+        for item in tag.items() {
+            let ItemKey::Unknown(key) = item.key() else {
+                continue;
+            };
+            if !APE_PICTURE_TYPES.contains(&key.as_str()) {
+                continue;
+            }
+            if front_only && key != "Cover Art (Front)" {
+                continue;
+            }
+            // APE cover values are "description\0image bytes".
+            let Some(bytes) = item.value().binary() else {
+                continue;
+            };
+            if let Some(split) = bytes.iter().position(|&b| b == 0) {
+                let start = split + 1;
+                if start < bytes.len() {
+                    return Some(bytes[start..].to_vec());
+                }
+            }
+        }
+    }
+    None
 }
 
 fn extract_dsf_artwork(path: &Path) -> Option<Vec<u8>> {
@@ -221,9 +274,53 @@ fn extract_dsf_artwork(path: &Path) -> Option<Vec<u8>> {
     Some(cover.data.clone())
 }
 
+/// Tolerant DSDIFF (DFF) chunk walker that locates the trailing "ID3 "
+/// chunk. Unlike `dff_meta::DffFile`, it survives unexpected chunk ordering
+/// and keeps partially parsed ID3 tags.
+fn find_dff_id3_tag(path: &Path) -> Option<id3::Tag> {
+    use std::io::{Read, Seek, SeekFrom};
+
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut container = [0u8; 12];
+    file.read_exact(&mut container).ok()?;
+    if &container[..4] != b"FRM8" {
+        return None;
+    }
+    let mut form_type = [0u8; 4];
+    file.read_exact(&mut form_type).ok()?;
+    if &form_type != b"DSD " {
+        return None;
+    }
+
+    const MAX_ID3_CHUNK_BYTES: u64 = 64 * 1024 * 1024;
+    loop {
+        let mut chunk = [0u8; 12];
+        if file.read_exact(&mut chunk).is_err() {
+            return None;
+        }
+        let size = u64::from_be_bytes(chunk[4..].try_into().ok()?);
+        if &chunk[..4] == b"ID3 " {
+            if size > MAX_ID3_CHUNK_BYTES {
+                return None;
+            }
+            let mut buf = vec![0u8; size as usize];
+            if file.read_exact(&mut buf).is_err() {
+                return None;
+            }
+            return match id3::Tag::read_from2(std::io::Cursor::new(buf)) {
+                Ok(tag) => Some(tag),
+                Err(err) => err.partial_tag,
+            };
+        }
+        let skip = size.checked_add(size & 1)?;
+        file.seek(SeekFrom::Current(skip as i64)).ok()?;
+    }
+}
+
 fn extract_dff_artwork(path: &Path) -> Option<Vec<u8>> {
-    let dff = DffFile::open(path).ok()?;
-    let tag = dff.id3_tag().as_ref()?;
+    // dff-meta aborts the whole open() when the trailing ID3 chunk fails to
+    // parse, so read artwork through the tolerant walker instead.
+    let tag = find_dff_id3_tag(path)?;
     let cover = tag
         .pictures()
         .find(|p| p.picture_type == id3::frame::PictureType::CoverFront)
@@ -516,7 +613,7 @@ fn extract_dsf_metadata(
     };
     let bitrate = duration_ms.and_then(|ms| {
         if ms > 0 {
-            Some((entry.file_size * 8 / 1000 / ms) as u32)
+            Some((entry.file_size * 8 * 1000 / ms) as u32)
         } else {
             None
         }
@@ -551,25 +648,39 @@ fn extract_dff_metadata(
     path: &Path,
     format: String,
 ) -> Option<AudioFileMetadata> {
-    let dff = DffFile::open(path).ok()?;
-    let sample_rate = dff.get_sample_rate().ok()?;
-    let num_channels = dff.get_num_channels().ok()?;
-    let audio_length = dff.get_audio_length();
-    let duration_ms = if sample_rate > 0 && num_channels > 0 {
-        let total_samples = audio_length * 8 / num_channels as u64;
-        Some((total_samples * 1000 / sample_rate as u64) as u64)
-    } else {
-        None
-    };
+    // dff-meta requires a strict chunk order and fails the whole open() on
+    // ID3 parse errors, so tolerate an unusable file object and recover text
+    // tags through the tolerant walker.
+    let dff = DffFile::open(path).ok();
+    let sample_rate = dff.as_ref().and_then(|d| d.get_sample_rate().ok());
+    let duration_ms = sample_rate.and_then(|rate| {
+        if rate == 0 {
+            return None;
+        }
+        let dff = dff.as_ref()?;
+        let num_channels = dff.get_num_channels().ok()?;
+        if num_channels == 0 {
+            return None;
+        }
+        let total_samples = dff.get_audio_length() * 8 / num_channels as u64;
+        Some((total_samples * 1000 / rate as u64) as u64)
+    });
     let bitrate = duration_ms.and_then(|ms| {
         if ms > 0 {
-            Some((entry.file_size * 8 / 1000 / ms) as u32)
+            Some((entry.file_size * 8 * 1000 / ms) as u32)
         } else {
             None
         }
     });
 
-    let tag = dff.id3_tag().as_ref();
+    let recovered_tag;
+    let tag = match dff.as_ref().and_then(|d| d.id3_tag().as_ref()) {
+        Some(tag) => Some(tag),
+        None => {
+            recovered_tag = find_dff_id3_tag(path);
+            recovered_tag.as_ref()
+        }
+    };
     let (rg_track_gain, rg_track_peak, rg_album_gain, rg_album_peak) =
         id3_replaygains(tag);
     Some(AudioFileMetadata {
@@ -581,7 +692,7 @@ fn extract_dff_metadata(
         format,
         last_modified: entry.last_modified,
         bit_depth: Some(1),
-        sample_rate: Some(sample_rate),
+        sample_rate,
         bitrate,
         track_number: tag.and_then(|t| t.track()),
         disc_number: tag.and_then(|t| t.disc()),
@@ -631,6 +742,43 @@ mod tests {
 
     fn write_bytes(path: &Path, contents: &[u8]) {
         fs::write(path, contents).unwrap();
+    }
+
+    #[test]
+    fn extract_file_metadata_missing_file_is_none() {
+        assert!(extract_file_metadata("/nonexistent/track.wv".to_string()).is_none());
+    }
+
+    #[test]
+    fn extract_file_metadata_reads_minimal_wav() {
+        let dir = TestDir::new("single-meta");
+        let path = dir.path().join("track.wav");
+        // Canonical WAV header with a tiny data chunk (lofty rejects files
+        // with no audio data at all).
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"RIFF");
+        bytes.extend_from_slice(&40u32.to_le_bytes());
+        bytes.extend_from_slice(b"WAVE");
+        bytes.extend_from_slice(b"fmt ");
+        bytes.extend_from_slice(&16u32.to_le_bytes());
+        bytes.extend_from_slice(&1u16.to_le_bytes());
+        bytes.extend_from_slice(&1u16.to_le_bytes());
+        bytes.extend_from_slice(&44100u32.to_le_bytes());
+        bytes.extend_from_slice(&44100u32.to_le_bytes());
+        bytes.extend_from_slice(&2u16.to_le_bytes());
+        bytes.extend_from_slice(&16u16.to_le_bytes());
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&4u32.to_le_bytes());
+        bytes.extend_from_slice(&[0u8; 4]);
+        write_bytes(&path, &bytes);
+
+        let meta = extract_file_metadata(path.to_string_lossy().to_string());
+
+        assert!(meta.is_some());
+        let meta = meta.unwrap();
+        assert_eq!(meta.format, "wav");
+        assert_eq!(meta.sample_rate, Some(44100));
+        assert_eq!(meta.bit_depth, Some(16));
     }
 
     #[test]
@@ -734,5 +882,95 @@ mod tests {
         );
 
         assert_eq!(entries.len(), 1);
+    }
+
+    /// Minimal DSDIFF container: FRM8 header, one DSD chunk, one ID3 chunk.
+    /// Deliberately omits the FVER/PROP chunks dff-meta requires so the
+    /// tolerant walker paths are exercised.
+    fn build_dff_bytes(id3_bytes: &[u8]) -> Vec<u8> {
+        let body_len = 4 + (12 + 4) + (12 + id3_bytes.len());
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"FRM8");
+        bytes.extend_from_slice(&(body_len as u64).to_be_bytes());
+        bytes.extend_from_slice(b"DSD ");
+        bytes.extend_from_slice(b"DSD ");
+        bytes.extend_from_slice(&4u64.to_be_bytes());
+        bytes.extend_from_slice(&[0u8; 4]);
+        bytes.extend_from_slice(b"ID3 ");
+        bytes.extend_from_slice(&(id3_bytes.len() as u64).to_be_bytes());
+        bytes.extend_from_slice(id3_bytes);
+        bytes
+    }
+
+    #[test]
+    fn extract_artwork_from_dff_id3_chunk() {
+        let dir = TestDir::new("dff-art");
+        let path = dir.path().join("track.dff");
+        let cover_data = b"\x89PNG\r\n\x1a\nfake-cover-bytes".to_vec();
+        let mut tag = id3::Tag::new();
+        tag.set_title("Dff Title");
+        tag.add_frame(id3::frame::Picture {
+            mime_type: "image/png".to_string(),
+            picture_type: id3::frame::PictureType::CoverFront,
+            description: String::new(),
+            data: cover_data.clone(),
+        });
+        let mut id3_bytes = Vec::new();
+        tag.write_to(&mut id3_bytes, id3::Version::Id3v24).unwrap();
+        write_bytes(&path, &build_dff_bytes(&id3_bytes));
+
+        let artwork = extract_embedded_artwork(path.to_string_lossy().to_string());
+        assert_eq!(artwork.as_deref(), Some(cover_data.as_slice()));
+
+        // dff-meta cannot open this fixture (no FVER/PROP), so the metadata
+        // result only carries tags through the recovery walker.
+        let meta = extract_file_metadata(path.to_string_lossy().to_string());
+        assert!(meta.is_some());
+        let meta = meta.unwrap();
+        assert_eq!(meta.title.as_deref(), Some("Dff Title"));
+        assert_eq!(meta.sample_rate, None);
+    }
+
+    /// WavPack file with a footer-only APEv2 tag containing a binary
+    /// "Cover Art (Front)" item. The wvpk prefix is padding: lofty never
+    /// parses audio blocks when properties are disabled.
+    fn build_wv_bytes_with_ape_cover(cover_data: &[u8]) -> Vec<u8> {
+        let mut bytes = vec![0u8; 32];
+        bytes[..4].copy_from_slice(b"wvpk");
+
+        let mut value = Vec::new();
+        value.extend_from_slice(b"cover\x00");
+        value.extend_from_slice(cover_data);
+
+        let mut item = Vec::new();
+        item.extend_from_slice(&(value.len() as u32).to_le_bytes());
+        item.extend_from_slice(&2u32.to_le_bytes());
+        item.extend_from_slice(b"Cover Art (Front)\x00");
+        item.extend_from_slice(&value);
+
+        let tag_size = item.len() + 32;
+        let mut footer = Vec::new();
+        footer.extend_from_slice(b"APETAGEX");
+        footer.extend_from_slice(&2000u32.to_le_bytes());
+        footer.extend_from_slice(&(tag_size as u32).to_le_bytes());
+        footer.extend_from_slice(&1u32.to_le_bytes());
+        footer.extend_from_slice(&0u32.to_le_bytes());
+        footer.extend_from_slice(&[0u8; 8]);
+
+        bytes.extend_from_slice(&item);
+        bytes.extend_from_slice(&footer);
+        bytes
+    }
+
+    #[test]
+    fn extract_artwork_from_wavpack_ape_cover_item() {
+        let dir = TestDir::new("wv-art");
+        let path = dir.path().join("track.wv");
+        let cover_data = b"\x89PNG\r\n\x1a\nape-cover-payload".to_vec();
+        write_bytes(&path, &build_wv_bytes_with_ape_cover(&cover_data));
+
+        let artwork = extract_embedded_artwork(path.to_string_lossy().to_string());
+
+        assert_eq!(artwork.as_deref(), Some(cover_data.as_slice()));
     }
 }
