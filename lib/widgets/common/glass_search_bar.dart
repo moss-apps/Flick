@@ -22,6 +22,15 @@ class GlassSearchBar extends StatefulWidget {
   /// Whether to show the glass background (default: true)
   final bool showBackground;
 
+  /// Optional focus node for external focus control (e.g. autoFocusSearch).
+  final FocusNode? focusNode;
+
+  /// Whether to autofocus the field.
+  final bool autofocus;
+
+  /// Text input action for keyboard.
+  final TextInputAction? textInputAction;
+
   const GlassSearchBar({
     super.key,
     required this.controller,
@@ -29,6 +38,9 @@ class GlassSearchBar extends StatefulWidget {
     this.hintText = 'Search...',
     this.onClear,
     this.showBackground = true,
+    this.focusNode,
+    this.autofocus = false,
+    this.textInputAction,
   });
 
   @override
@@ -80,6 +92,9 @@ class _GlassSearchBarState extends State<GlassSearchBar> {
           Expanded(
             child: TextField(
               controller: widget.controller,
+              focusNode: widget.focusNode,
+              autofocus: widget.autofocus,
+              textInputAction: widget.textInputAction,
               onChanged: widget.onChanged,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
               style: TextStyle(
