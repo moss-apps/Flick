@@ -2368,7 +2368,7 @@ class LibraryScannerService {
   ) async {
     try {
       final metadataList = await _musicFolderService.fetchMetadata(chunkUris);
-      return _fillRustMetadataFallback(metadataList, chunkUris);
+      return await _fillRustMetadataFallback(metadataList, chunkUris);
     } catch (e) {
       devLog(
         'Error fetching metadata chunk (${chunkUris.length} files): $e',
