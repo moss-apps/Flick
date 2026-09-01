@@ -356,11 +356,12 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
     return Colors.white;
   }
 
-  Widget _buildLine(BuildContext context, int index, LyricsAlignment alignment) {
+  Widget _buildLine(BuildContext context, int index, LyricsAlignment alignment,
+      {required bool karaokeEnabled}) {
     final line = widget.lyrics.lines[index];
     final isActive = index == _activeLineIndex;
 
-    final content = isActive
+    final content = isActive && karaokeEnabled
         ? Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: KaraokeLyricLine(
@@ -375,14 +376,16 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
             ),
           )
         : Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: isActive ? 8 : 10),
             child: Text(
               line.text,
               maxLines: 2,
               overflow: TextOverflow.fade,
               textAlign: alignment.textAlign,
-              style: _textStyle(false, _opacityForIndex(index)),
-              strutStyle: _strutStyle(false),
+              style: _textStyle(isActive, isActive ? 1 : _opacityForIndex(index)),
+              strutStyle: _strutStyle(isActive),
             ),
           );
 
@@ -408,6 +411,8 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
     final alignment = resolveLyricsAlignment(
       ref.watch(appPreferencesProvider).lyricsTextAlign,
     );
+    final karaokeEnabled =
+        ref.watch(appPreferencesProvider).karaokeEnabled;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -432,8 +437,12 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
               right: 10,
             ),
             itemCount: widget.lyrics.lines.length,
-            itemBuilder: (context, index) =>
-                _buildLine(context, index, alignment),
+            itemBuilder: (context, index) => _buildLine(
+                context,
+                index,
+                alignment,
+                karaokeEnabled: karaokeEnabled,
+              ),
           ),
         );
       },

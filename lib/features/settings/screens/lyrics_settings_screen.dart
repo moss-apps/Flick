@@ -38,6 +38,19 @@ class LyricsSettingsScreen extends ConsumerWidget {
           const SettingsSectionHeader('Display'),
           SettingsCard(
             children: [
+              ToggleSetting(
+                icon: LucideIcons.music,
+                title: 'Karaoke effect',
+                subtitle:
+                    'Sweep a highlight through words as they are sung',
+                value: appPrefs.karaokeEnabled,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setKaraokeEnabled(value);
+                },
+              ),
+              const SettingsDivider(),
               SelectionSetting(
                 icon: Icons.format_align_left_rounded,
                 title: 'Left',

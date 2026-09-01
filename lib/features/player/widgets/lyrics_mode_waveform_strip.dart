@@ -51,6 +51,7 @@ class LyricsModeWaveformStrip extends StatefulWidget {
   final String Function(Duration) formatDuration;
   final double horizontalPadding;
   final VoidCallback onSwipeUp;
+  final bool showTimeLabels;
 
   const LyricsModeWaveformStrip({super.key,
     required this.playerService,
@@ -59,6 +60,7 @@ class LyricsModeWaveformStrip extends StatefulWidget {
     required this.formatDuration,
     required this.horizontalPadding,
     required this.onSwipeUp,
+    this.showTimeLabels = true,
   });
 
   @override
@@ -143,13 +145,15 @@ class _LyricsModeWaveformStripState extends State<LyricsModeWaveformStrip>
               currentSong: widget.currentSong,
             ),
           ),
-          SizedBox(height: context.responsive(4.0, 6.0, 8.0)),
-          _PlaybackTimeRow(
-            playerService: widget.playerService,
-            formatDuration: widget.formatDuration,
-            currentSong: widget.currentSong,
-            horizontalPadding: widget.horizontalPadding,
-          ),
+          if (widget.showTimeLabels) ...[
+            SizedBox(height: context.responsive(4.0, 6.0, 8.0)),
+            _PlaybackTimeRow(
+              playerService: widget.playerService,
+              formatDuration: widget.formatDuration,
+              currentSong: widget.currentSong,
+              horizontalPadding: widget.horizontalPadding,
+            ),
+          ],
           SizedBox(height: context.responsive(14.0, 18.0, 22.0)),
         ],
       ),

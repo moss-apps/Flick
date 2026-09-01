@@ -77,7 +77,15 @@ class ExternalPlaybackService {
     }
 
     try {
-      final metadataList = await _musicFolderService.fetchMetadata([uri]);
+      // Metadata enrichment is optional for playback. On some devices
+      // MediaMetadataRetriever hangs indefinitely on exotic formats (DSD),
+      // so bound the wait and play on without metadata.
+      final metadataList = await _musicFolderService
+          .fetchMetadata([uri])
+          .timeout(
+            const Duration(seconds: 8),
+            onTimeout: () => const <Never>[],
+          );
       final metadata = metadataList.isNotEmpty ? metadataList.first : null;
       final displayName = payload['displayName'] as String?;
       final mimeType = payload['mimeType'] as String?;

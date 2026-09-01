@@ -20,6 +20,7 @@ class PlayerControls extends StatelessWidget {
   final double timelineHorizontalPadding;
   final AlbumColorMode albumColorMode;
   final Color? albumColor;
+  final bool showTimeLabels;
 
   const PlayerControls({super.key,
     required this.playerService,
@@ -30,6 +31,7 @@ class PlayerControls extends StatelessWidget {
     this.timelineHorizontalPadding = 0,
     this.albumColorMode = AlbumColorMode.off,
     this.albumColor,
+    this.showTimeLabels = true,
   });
 
   @override
@@ -59,13 +61,15 @@ class PlayerControls extends StatelessWidget {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  PlaybackTimeLabels(
-                    position: position,
-                    duration: duration,
-                    formatDuration: formatDuration,
-                    horizontalPadding: timelineHorizontalPadding,
-                  ),
-                  const SizedBox(height: 12),
+                  if (showTimeLabels) ...[
+                    PlaybackTimeLabels(
+                      position: position,
+                      duration: duration,
+                      formatDuration: formatDuration,
+                      horizontalPadding: timelineHorizontalPadding,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

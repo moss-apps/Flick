@@ -2389,6 +2389,8 @@ class PlayerService {
           (pathManagement == AudioPathManagement.directUsbExperimental ||
               outputStrategy == 'mixer_bit_perfect' ||
               outputStrategy == 'dap_native' ||
+              outputStrategy == 'dsd_native' ||
+              outputStrategy == 'dsd_dop' ||
               outputStrategy == 'usb_dsd_native'),
       supportsAndroidManagedHighResOnly:
           activeEngineType == AudioEngineType.dapInternalHighRes,
@@ -4873,14 +4875,20 @@ class PlayerService {
     await _handleQueueEnd();
   }
 
-  Future<void> previous() {
-    _debugLog('[PlayerService] previous() called');
-    return _enqueuePlaybackRequest(_previousInternal);
+  Future<void> previous({bool allowRestart = true}) {
+    _debugLog('[PlayerService] previous() called (allowRestart=$allowRestart)');
+    return _enqueuePlaybackRequest(
+      () => _previousInternal(allowRestart: allowRestart),
+    );
   }
 
-  Future<void> _previousInternal() async {
+  /// Swipe/slide to previous: always goes to previous track, ignoring >3s restart rule.
+  /// Use this for carousel swipe gestures.
+  Future<void> previousBySwipe() => previous(allowRestart: false);
+
+  Future<void> _previousInternal({required bool allowRestart}) async {
     _debugLog(
-      '[PlayerService] _previousInternal() called, playlist.length=${_playlist.length}, currentIndex=$_currentIndex',
+      '[PlayerService] _previousInternal() called, playlist.length=${_playlist.length}, currentIndex=$_currentIndex, allowRestart=$allowRestart',
     );
     if (_playlist.isEmpty) {
       _debugLog(
@@ -4889,7 +4897,7 @@ class PlayerService {
       return;
     }
 
-    if (positionNotifier.value.inSeconds > 3) {
+    if (allowRestart && positionNotifier.value.inSeconds > 3) {
       await seek(Duration.zero);
       return;
     }
@@ -4909,6 +4917,49 @@ class PlayerService {
 
     await seek(Duration.zero);
   }
+
+  // ========== Carousel peek helpers (Poweramp-style swipe) ==========
+  // Lightweight, synchronous peek into the *linear* queue order. Mirrors the
+  // core of _nextInternal/_previousInternal without side-effects so the UI
+  // can render adjacent stages during a drag. Shuffle random is approximated
+  // linearly (heavy category/advance modes return null -> rubber-band).
+  Song? get peekNext {
+    if (_playlist.isEmpty) return null;
+    final shuffle = shuffleModeNotifier.value;
+    // Random shuffle: next is non-deterministic; approximate with linear next
+    // so the user still sees a peek. Visual mismatch is preferable to no peek.
+    if (shuffle == ShuffleMode.random) {
+      if (_currentIndex < _playlist.length - 1) return _playlist[_currentIndex + 1];
+      if (loopModeNotifier.value == LoopMode.all) return _playlist.first;
+      return null;
+    }
+    // Category shuffles / advance modes are complex (async repo lookups);
+    // peek returns linear next; commit will resolve via real _nextInternal.
+    if (shuffle == ShuffleMode.categories ||
+        shuffle == ShuffleMode.songsAndCategories) {
+      if (_currentIndex < _playlist.length - 1) return _playlist[_currentIndex + 1];
+      return null;
+    }
+    if (_currentIndex < _playlist.length - 1) return _playlist[_currentIndex + 1];
+    if (loopModeNotifier.value == LoopMode.all) return _playlist.first;
+    if (loopModeNotifier.value.isAdvanceMode) return null; // async advance
+    return null;
+  }
+
+  Song? get peekPrevious {
+    if (_playlist.isEmpty) return null;
+    // For swipe/slide (previousBySwipe / allowRestart=false) the peek always
+    // shows the previous track so the carousel can slide. For the control
+    // button (allowRestart=true) the 3s restart is handled inside
+    // _previousInternal and FullPlayerScreen avoids animating when it would
+    // restart, so peek remains unconditional for the slide gesture.
+    if (_currentIndex > 0) return _playlist[_currentIndex - 1];
+    if (wrapAroundQueue && _playlist.length > 1) return _playlist.last;
+    return null;
+  }
+
+  bool get hasNext => peekNext != null;
+  bool get hasPrevious => peekPrevious != null;
 
   /// Rebuild the current playlist with updated settings
   Future<void> _rebuildPlaylist() async {
