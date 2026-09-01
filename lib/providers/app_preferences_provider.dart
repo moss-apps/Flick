@@ -433,6 +433,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setLyricsMatchAudioFilename(value);
   }
 
+  Future<void> setKaraokeEnabled(bool value) async {
+    if (state.karaokeEnabled == value) return;
+    state = state.copyWith(karaokeEnabled: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setLyricsKaraokeEnabled(value);
+  }
+
   Future<void> setLeftActionButton(String value) async {
     if (state.leftActionButton == value) return;
     state = state.copyWith(leftActionButton: value);
