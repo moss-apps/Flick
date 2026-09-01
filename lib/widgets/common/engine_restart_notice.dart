@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/menu/screens/restarting_screen.dart';
 
 /// Inline "restart required" prompt shown after the audio engine is changed.
@@ -61,7 +62,8 @@ class EngineRestartNotice extends StatelessWidget {
           ),
           const SizedBox(width: AppConstants.spacingSm),
           FilledButton(
-            onPressed: () => Navigator.of(context).push(
+            onPressed: () => NavigationHelper.pushOnRoot(
+              context,
               PageRouteBuilder(
                 opaque: true,
                 transitionDuration: const Duration(milliseconds: 300),
