@@ -25,10 +25,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
     }
@@ -69,12 +65,6 @@ android {
         }
     }
 
-    sourceSets {
-        getByName("main") {
-            jniLibs.srcDirs("src/main/jniLibs")
-        }
-    }
-
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
@@ -86,6 +76,12 @@ android {
 
 flutter {
     source = "../.."
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
 }
 
 // Copy libc++_shared.so from NDK before building
@@ -175,14 +171,13 @@ tasks.register("copyNdkLibs") {
 
                 if (llvmStrip != null) {
                     val sizeBeforeBytes = outputLib.length()
-                    val stripResult =
-                        project.exec {
-                            executable = llvmStrip
-                            args("--strip-debug", outputLib.absolutePath)
-                            isIgnoreExitValue = true
-                        }
+                    val exitCode =
+                        ProcessBuilder(llvmStrip, "--strip-debug", outputLib.absolutePath)
+                            .redirectErrorStream(true)
+                            .start()
+                            .waitFor()
 
-                    if (stripResult.exitValue == 0) {
+                    if (exitCode == 0) {
                         val sizeAfterBytes = outputLib.length()
                         logger.lifecycle(
                             "Stripped libc++_shared.so for $abi: ${sizeBeforeBytes / 1024} KB -> ${sizeAfterBytes / 1024} KB",
