@@ -76,10 +76,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   void _goToNext() {
     if (_currentPage < _totalPages - 1) {
-      _pageController.nextPage(
-        duration: AppConstants.animationNormal,
-        curve: Curves.easeOutCubic,
-      );
+      final next = _currentPage + 1;
+      if (AppConstants.animationNormal == Duration.zero) {
+        _pageController.jumpToPage(next);
+      } else {
+        _pageController.animateToPage(
+          next,
+          duration: AppConstants.animationNormal,
+          curve: Curves.easeOutCubic,
+        );
+      }
     } else {
       _complete();
     }
