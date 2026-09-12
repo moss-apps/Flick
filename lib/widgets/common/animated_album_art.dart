@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 
 import 'package:flick/features/player/widgets/motion_art_widget.dart';
@@ -118,40 +116,15 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
     final artist = widget.artistName?.trim() ?? '';
     if (album.isEmpty || artist.isEmpty) return kenBurns;
 
-    final motion = MotionArtView(
+    return MotionArtView(
       title: album,
       album: album,
       artist: artist,
       albumMode: true,
       representativeSongTitle: widget.representativeSongTitle,
       preferVertical: widget.preferVertical,
-      fit: widget.preferVertical ? BoxFit.contain : BoxFit.cover,
       enabled: !MediaQuery.of(context).disableAnimations,
       fallback: kenBurns,
-    );
-
-    if (!widget.preferVertical) return motion;
-
-    // Portrait art is letterboxed on a tall screen; a blurred, zoomed copy of
-    // the same cover fills the exposed edges so there are no black bars.
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-          child: Transform.scale(
-            scale: 1.2,
-            child: CachedImageWidget(
-              imagePath: widget.imagePath,
-              audioSourcePath: widget.audioSourcePath,
-              fit: BoxFit.cover,
-              placeholder: widget.placeholder,
-              errorWidget: widget.errorWidget,
-            ),
-          ),
-        ),
-        motion,
-      ],
     );
   }
 }
