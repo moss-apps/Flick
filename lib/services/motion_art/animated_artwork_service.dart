@@ -56,6 +56,20 @@ class AnimatedArtwork {
     return null;
   }
 
+  /// Portrait variant for full-bleed backgrounds, falling back to the square
+  /// playlist when the album only has square motion art.
+  String? get verticalPlaybackUrl {
+    for (final url in [
+      animatedVerticalUrl,
+      videoUrlVertical,
+      animatedUrl,
+      videoUrl,
+    ]) {
+      if (_has(url)) return url;
+    }
+    return null;
+  }
+
   factory AnimatedArtwork.fromJson(Map<String, dynamic> json) {
     String? str(Object? v) => v is String && v.trim().isNotEmpty ? v : null;
     return AnimatedArtwork(

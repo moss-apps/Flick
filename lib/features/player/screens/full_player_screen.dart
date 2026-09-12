@@ -512,6 +512,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 ? song.albumArtist
                 : song.artist,
             representativeSongTitle: song.title,
+            preferVertical: true,
           )
         : CachedImageWidget(
             imagePath: song.albumArt,

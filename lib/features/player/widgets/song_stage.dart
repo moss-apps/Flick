@@ -517,7 +517,7 @@ class SongStage extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isShortHeight = constraints.maxHeight < 620;
-        final isVeryShortHeight = constraints.maxHeight < 540;
+        final isVeryShortHeight = constraints.maxHeight < 400;
         final horizontalPadding = constraints.maxWidth < 360
             ? 16.0
             : context.responsive(20.0, 28.0, 36.0);

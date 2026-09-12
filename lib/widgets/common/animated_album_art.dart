@@ -21,6 +21,9 @@ class AnimatedAlbumArt extends StatefulWidget {
   final String? artistName;
   final String? representativeSongTitle;
 
+  /// Prefer the portrait motion-art variant (full-bleed backgrounds).
+  final bool preferVertical;
+
   const AnimatedAlbumArt({
     super.key,
     this.imagePath,
@@ -31,6 +34,7 @@ class AnimatedAlbumArt extends StatefulWidget {
     this.albumName,
     this.artistName,
     this.representativeSongTitle,
+    this.preferVertical = false,
   });
 
   @override
@@ -118,6 +122,7 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
       artist: artist,
       albumMode: true,
       representativeSongTitle: widget.representativeSongTitle,
+      preferVertical: widget.preferVertical,
       enabled: !MediaQuery.of(context).disableAnimations,
       fallback: kenBurns,
     );
