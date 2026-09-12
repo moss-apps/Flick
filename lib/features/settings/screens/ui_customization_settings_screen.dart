@@ -164,7 +164,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                 icon: LucideIcons.sparkles,
                 title: 'Animated Album Art',
                 subtitle:
-                    'Pan/zoom, ambient glow and smooth fade on album, artist and playlist heroes',
+                    'Apple Music Motion Art on albums plus pan/zoom, ambient glow and smooth fade on heroes',
                 value: appPreferences.animatedAlbumArt,
                 onChanged: (value) {
                   ref
