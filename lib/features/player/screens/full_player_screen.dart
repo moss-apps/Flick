@@ -27,6 +27,7 @@ import 'package:flick/services/external_playback_service.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_screen_mode_preference_service.dart';
+import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
@@ -328,6 +329,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     String visStyle,
     String visFreq,
     String visMove,
+    bool animatedArtwork,
   ) {
     final bgBlend = albumColorMode.backgroundBlend;
     final hasAlbumTint = albumColor != null && bgBlend > 0;
@@ -350,6 +352,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             visStyle,
             visFreq,
             visMove,
+            animatedArtwork,
           ),
         ),
         Positioned.fill(
@@ -377,6 +380,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     String visStyle,
     String visFreq,
     String visMove,
+    bool animatedArtwork,
   ) {
     final bgBlend = albumColorMode.backgroundBlend;
     final hasAlbumTint = albumColor != null && bgBlend > 0;
@@ -488,27 +492,37 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             gradientBase.withValues(alpha: 0.3),
             Colors.transparent,
           ];
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: CachedImageWidget(
+    final placeholder = Container(
+      color: AppColors.background,
+      child: const Center(
+        child: FlickArtworkPlaceholder(size: 96, opacity: 0.35),
+      ),
+    );
+    final hasArtwork = song.albumArt != null || song.filePath != null;
+    final artLayer = animatedArtwork && hasArtwork
+        ? AnimatedAlbumArt(
+            imagePath: song.albumArt,
+            audioSourcePath: song.filePath,
+            dominantColor: albumColor,
+            placeholder: placeholder,
+            errorWidget: placeholder,
+            albumName: song.album,
+            artistName:
+                (song.albumArtist != null && song.albumArtist!.trim().isNotEmpty)
+                ? song.albumArtist
+                : song.artist,
+            representativeSongTitle: song.title,
+          )
+        : CachedImageWidget(
             imagePath: song.albumArt,
             audioSourcePath: song.filePath,
             fit: BoxFit.cover,
-            placeholder: Container(
-              color: AppColors.background,
-              child: const Center(
-                child: FlickArtworkPlaceholder(size: 96, opacity: 0.35),
-              ),
-            ),
-            errorWidget: Container(
-              color: AppColors.background,
-              child: const Center(
-                child: FlickArtworkPlaceholder(size: 96, opacity: 0.35),
-              ),
-            ),
-          ),
-        ),
+            placeholder: placeholder,
+            errorWidget: placeholder,
+          );
+    return Stack(
+      children: [
+        Positioned.fill(child: artLayer),
         Positioned.fill(
           child: AnimatedContainer(
             duration: AppConstants.animationNormal,
@@ -1009,6 +1023,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       visStyle,
       visFreq,
       visMove,
+      appPrefs.animatedAlbumArt && appPrefs.animationsEnabled,
     );
 
     if (showVisualizerOnly) {
