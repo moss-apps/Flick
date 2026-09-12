@@ -623,7 +623,8 @@ class LibraryScannerService {
         ..ripper = existing?.ripper
         ..readMode = existing?.readMode
         ..accurateRip = existing?.accurateRip
-        ..metadataComplete = !needsSparseMetadata;
+        ..metadataComplete =
+            (existing?.metadataComplete ?? false) || !needsSparseMetadata;
 
       if (existing != null) {
         song.id = existing.id;
@@ -1140,7 +1141,8 @@ class LibraryScannerService {
         existing.bitDepth = meta.bitDepth ?? existing.bitDepth;
         existing.sampleRate = meta.sampleRate ?? existing.sampleRate;
         existing.metadataComplete =
-            meta.sampleRate != null && meta.bitDepth != null;
+            existing.metadataComplete ||
+            (meta.sampleRate != null && meta.bitDepth != null);
 
         // Text fields respect manual edits.
         if (!existing.hasLocalEdits) {
@@ -2399,7 +2401,9 @@ class LibraryScannerService {
       final retrieverSolved =
           meta != null &&
           meta.duration != null &&
-          meta.sampleRate != null;
+          meta.sampleRate != null &&
+          meta.bitDepth != null &&
+          meta.bitrate != null;
       if (retrieverSolved) continue;
 
       final rustMeta = await _extractRustMetadataForUri(uri);
