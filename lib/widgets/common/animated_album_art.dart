@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
 
+import 'package:flick/features/player/widgets/motion_art_widget.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 
 /// Apple Music-style hero art: slow Ken Burns pan/zoom with a soft
 /// pulsing glow derived from the art's dominant color.
+///
+/// When [albumName] and [artistName] are supplied (album detail heroes), real
+/// Apple Music Motion Art is played instead, falling back to the Ken Burns
+/// effect whenever no motion art exists for the album.
 class AnimatedAlbumArt extends StatefulWidget {
   final String? imagePath;
   final String? audioSourcePath;
   final Color? dominantColor;
   final Widget? placeholder;
   final Widget? errorWidget;
+
+  /// Album metadata enabling the edition-aware Motion Art lookup.
+  final String? albumName;
+  final String? artistName;
+  final String? representativeSongTitle;
 
   const AnimatedAlbumArt({
     super.key,
@@ -18,6 +28,9 @@ class AnimatedAlbumArt extends StatefulWidget {
     this.dominantColor,
     this.placeholder,
     this.errorWidget,
+    this.albumName,
+    this.artistName,
+    this.representativeSongTitle,
   });
 
   @override
@@ -60,7 +73,7 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
       placeholder: widget.placeholder,
       errorWidget: widget.errorWidget,
     );
-    return ClipRect(
+    final kenBurns = ClipRect(
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
@@ -93,6 +106,20 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
         },
         child: image,
       ),
+    );
+
+    final album = widget.albumName?.trim() ?? '';
+    final artist = widget.artistName?.trim() ?? '';
+    if (album.isEmpty || artist.isEmpty) return kenBurns;
+
+    return MotionArtView(
+      title: album,
+      album: album,
+      artist: artist,
+      albumMode: true,
+      representativeSongTitle: widget.representativeSongTitle,
+      enabled: !MediaQuery.of(context).disableAnimations,
+      fallback: kenBurns,
     );
   }
 }
