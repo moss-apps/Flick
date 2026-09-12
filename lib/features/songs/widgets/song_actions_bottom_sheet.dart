@@ -712,8 +712,10 @@ class SongActionsBottomSheet extends ConsumerWidget {
     final songId = int.tryParse(song.id);
     if (songId == null) return;
 
-    // Capture repository before async work so we don't need `ref` later.
+    // Capture repository and container before async work so we don't need
+    // `ref`/context after the sheet is popped.
     final repository = ref.read(songRepositoryProvider);
+    final container = ProviderScope.containerOf(sheetContext, listen: false);
 
     if (sheetContext.mounted) {
       Navigator.pop(sheetContext);
@@ -756,8 +758,10 @@ class SongActionsBottomSheet extends ConsumerWidget {
       }
     }
 
+    container.invalidate(songsProvider);
+
     if (rootContext.mounted) {
-      Navigator.of(rootContext).pop();
+      Navigator.of(rootContext, rootNavigator: true).pop();
     }
 
     if (rootContext.mounted) {

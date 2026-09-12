@@ -1563,8 +1563,8 @@ class MainActivity: FlutterActivity() {
                 }
             }
 
-            if (removeFromMediaStore(filePath)) return true
-
+            // Delete the physical file first. Removing only the MediaStore row
+            // leaves the bytes on disk, so the track reappears on the next scan.
             try {
                 val treeUri = Uri.parse(folderTreeUri)
                 val treeDocId = DocumentsContract.getTreeDocumentId(treeUri)
@@ -1589,16 +1589,16 @@ class MainActivity: FlutterActivity() {
                     val canonicalBase = folderBase.canonicalPath.trimEnd('/')
                     val canonicalFile = File(filePath).canonicalPath.trimEnd('/')
 
-                    if (canonicalFile.startsWith("$canonicalBase/") || canonicalFile == canonicalBase) {
-                        val relativePath = if (canonicalFile == canonicalBase) {
-                            ""
-                        } else {
-                            canonicalFile.removePrefix("$canonicalBase/")
-                        }
-
-                        val childDocId = if (relativePath.isEmpty()) treeDocId else "$treeDocId/$relativePath"
+                    // Only delete descendants of the tree root, never the root.
+                    if (canonicalFile != canonicalBase &&
+                        canonicalFile.startsWith("$canonicalBase/")) {
+                        val relativePath = canonicalFile.removePrefix("$canonicalBase/")
+                        val childDocId = "$treeDocId/$relativePath"
                         val childUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, childDocId)
-                        if (DocumentsContract.deleteDocument(contentResolver, childUri)) return true
+                        if (DocumentsContract.deleteDocument(contentResolver, childUri)) {
+                            removeFromMediaStore(filePath)
+                            return true
+                        }
                     }
                 }
             } catch (safEx: Exception) {
@@ -1607,13 +1607,23 @@ class MainActivity: FlutterActivity() {
 
             try {
                 val file = File(filePath)
-                if (file.exists()) {
-                    if (file.delete()) return true
-                } else {
+                if (!file.exists()) {
+                    removeFromMediaStore(filePath)
+                    return true
+                }
+                if (file.delete()) {
+                    removeFromMediaStore(filePath)
                     return true
                 }
             } catch (fileEx: Exception) {
                 Log.w("MainActivity", "File.delete failed: ${fileEx.message}")
+            }
+
+            // Last resort: dropping the MediaStore row removes the track from
+            // the library even if the file itself could not be deleted.
+            if (removeFromMediaStore(filePath)) {
+                Log.w("MainActivity", "File not removed, dropped MediaStore entry only: $filePath")
+                return true
             }
 
             false

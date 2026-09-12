@@ -1684,7 +1684,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     }
 
     ref.invalidate(songsProvider);
-    if (rootContext.mounted) Navigator.of(rootContext).pop();
+    if (rootContext.mounted) {
+      Navigator.of(rootContext, rootNavigator: true).pop();
+    }
     if (mounted) {
       _exitSelectionMode();
       _showSongActionSnackBar(
