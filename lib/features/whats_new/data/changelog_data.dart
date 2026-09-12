@@ -44,6 +44,94 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
+    version: '0.22.0-beta.1',
+    date: '2026-09-10',
+    sections: [
+      ChangelogSection(
+        title: 'DSD Native Playback',
+        bullets: [
+          '**DSD-NATIVE output** via SAS offload shim (HiBy devices) with ALSA direct fallback.',
+          'DoP packer bit-reversal; short reads handled; wire silence padding fixes audio pops.',
+          'DSD wire format and grouping settings in UAC2 preferences; restored output mode and transport overrides.',
+          'DSD reconciliation finds unindexed DSD files; decoder crash dumps captured offline.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'ReplayGain & Crossfeed',
+        bullets: [
+          '**ReplayGain** Track/Album modes with pre-amp and clipping prevention.',
+          'Scanner analyzes loudness (EBU R128 / BS.1770), writes `REPLAYGAIN_*` tags, and updates the library.',
+          '**BS2B crossfeed** with Default/strong/gentle presets; persists across engine recreation; bypassed on bit-perfect.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Karaoke Lyrics',
+        bullets: [
+          'Word-level **karaoke sync** with gradient sweep and a toggle in lyrics settings.',
+          'Full-screen **Lyrics Sync Studio**: tap-along word stamping, enhanced LRC export, video-style word timeline, syllable splitting.',
+          'Lyrics from **MP4/M4A and OGG/Opus** containers; text alignment options and readability scrim.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Global Search',
+        bullets: [
+          'Unified search across songs, albums, artists, and playlists.',
+          'Filter chips with persisted selection; refined search screen.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Smarter Library Scanning',
+        bullets: [
+          'Optional **Full Library Access** — Rust scanner walks every volume directly; falls back to MediaStore/SAF.',
+          '**DSD/DSF/WavPack always scanned**, even on devices whose media indexer skips them (Xiaomi/MIUI, Vivo, Honor).',
+          '**WavPack/DSD tags & album art everywhere** via Rust parser fallback; fixed DFF/WavPack embedded covers.',
+          '**Fixed library wipe when switching scan engines** — each engine only deletes rows it can see.',
+          'Floating minimizable scan progress pill; preload runs as one cancellable pass with a Stop button.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Engine Recovery & Accuracy',
+        bullets: [
+          'Rust engine **crash recovery** — revives on dead channels with panic reporting.',
+          'Lying container headers detected and corrected; implausible sample rates filtered.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Navigation & UI Refresh',
+        bullets: [
+          'Nested navigators per tab; full player and queue routed via root navigator.',
+          'New **FlickDialog** system and **FlickArtworkPlaceholder** across the app.',
+          'Shared detail headers with glass blur back buttons; landscape mode support.',
+          'System **reduced-motion** preference respected globally.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'USB & Bluetooth',
+        bullets: [
+          'Bit-perfect **auto-prompt on DAC attach**, with per-device decline memory.',
+          'UAC1: refuses direct USB when SET_CUR fails; better sampling-frequency negotiation.',
+          'USB route monitoring at boot; Hi-Res Direct for the Bluetooth Rust Oboe path.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Network Sources',
+        bullets: [
+          'Jellyfin **silent re-auth** via secure password store; auth failure detection.',
+          'Tidal sign-in fix with persisted session token.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Player & Library',
+        bullets: [
+          'Rebuilt full player with song stage carousel; swipe-down previous-track gesture.',
+          'Metadata editor moved to a bottom sheet with instant sync.',
+          'Playlist sorting; bulk favorites; duplicate cleaner with per-group multi-keep.',
+          'EQ knobs: double-tap to reset.',
+        ],
+      ),
+    ],
+  ),
+  ChangelogEntry(
     version: '0.21.0-beta.1',
     date: '2026-07-10',
     sections: [

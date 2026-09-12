@@ -394,6 +394,23 @@ class MainActivity: FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "URI is required", null)
                     }
                 }
+                "readSiblingArtwork" -> {
+                    val uri = call.argument<String>("uri")
+                    if (uri != null) {
+                        mainScope.launch {
+                            try {
+                                val artwork = withContext(Dispatchers.IO) {
+                                    readSiblingArtwork(uri)
+                                }
+                                result.success(artwork)
+                            } catch (e: Exception) {
+                                result.error("ARTWORK_ERROR", "Failed to read sibling artwork: ${e.message}", null)
+                            }
+                        }
+                    } else {
+                        result.error("INVALID_ARGUMENT", "URI is required", null)
+                    }
+                }
                 "readSiblingLyrics" -> {
                     val audioUri = call.argument<String>("audioUri")
                     if (audioUri != null) {
@@ -2543,6 +2560,110 @@ class MainActivity: FlutterActivity() {
             }
         } catch (e: Exception) {
             android.util.Log.w("FlickLyrics", "readSiblingLyrics failed for $audioUriString: ${e.message}")
+            null
+        }
+    }
+
+    private val siblingArtworkStems = listOf("cover", "folder", "album", "albumart", "front")
+    private val siblingArtworkExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
+
+    private fun readSiblingArtwork(sourceUriString: String): ByteArray? {
+        return try {
+            val sourceUri = Uri.parse(sourceUriString)
+            when (sourceUri.scheme) {
+                "content" -> readSiblingArtworkFromContentUri(sourceUri)
+                "file" -> readSiblingArtworkFromFilePath(sourceUri.path)
+                null, "" -> readSiblingArtworkFromFilePath(sourceUriString)
+                else -> null
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("FlickArtwork", "readSiblingArtwork failed for $sourceUriString: ${e.message}")
+            null
+        }
+    }
+
+    private fun readSiblingArtworkFromContentUri(audioUri: Uri): ByteArray? {
+        val authority = audioUri.authority ?: return null
+        val documentId = try {
+            DocumentsContract.getDocumentId(audioUri)
+        } catch (e: Exception) {
+            return null
+        }
+        val slashIndex = documentId.lastIndexOf('/')
+        if (slashIndex <= 0) return null
+        val parentDocumentId = documentId.substring(0, slashIndex)
+
+        val childrenUri = try {
+            DocumentsContract.buildChildDocumentsUri(authority, parentDocumentId)
+        } catch (e: Exception) {
+            return null
+        }
+
+        contentResolver.query(
+            childrenUri,
+            arrayOf(
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            ),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+            val nameIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            if (idIndex == -1 || nameIndex == -1) return null
+
+            val matches = mutableListOf<Pair<String, String>>()
+            while (cursor.moveToNext()) {
+                val displayName = cursor.getString(nameIndex) ?: continue
+                if (!isSiblingArtworkName(displayName)) continue
+                val childDocumentId = cursor.getString(idIndex) ?: continue
+                matches.add(displayName to childDocumentId)
+            }
+            matches.sortBy { it.first.lowercase() }
+
+            for ((_, childDocumentId) in matches) {
+                val childUri = DocumentsContract.buildDocumentUri(authority, childDocumentId)
+                val bytes = readBytesFromUri(childUri)
+                if (bytes != null && bytes.isNotEmpty()) return bytes
+            }
+        }
+
+        return null
+    }
+
+    private fun readSiblingArtworkFromFilePath(audioPath: String?): ByteArray? {
+        if (audioPath.isNullOrBlank()) return null
+        val parent = java.io.File(audioPath).parentFile ?: return null
+        val covers = parent.listFiles()
+            ?.filter { it.isFile && isSiblingArtworkName(it.name) }
+            ?.sortedBy { it.name.lowercase() }
+            ?: return null
+
+        for (cover in covers) {
+            try {
+                return cover.readBytes()
+            } catch (_: Exception) {
+                // try the next candidate
+            }
+        }
+        return null
+    }
+
+    private fun isSiblingArtworkName(name: String): Boolean {
+        val dot = name.lastIndexOf('.')
+        if (dot <= 0) return false
+        val stem = name.substring(0, dot).lowercase()
+        if (!siblingArtworkExtensions.contains(name.substring(dot + 1).lowercase())) {
+            return false
+        }
+        return siblingArtworkStems.any { stem == it || stem.startsWith("$it.") }
+    }
+
+    private fun readBytesFromUri(uri: Uri): ByteArray? {
+        return try {
+            contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        } catch (_: Exception) {
             null
         }
     }

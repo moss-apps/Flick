@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -13,6 +15,7 @@ import 'package:flick/features/albums/screens/album_detail_screen.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/motion_art/animated_artwork_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
@@ -78,6 +81,28 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
         _applySorting();
         _isLoading = false;
       });
+      unawaited(_prefetchMotionArt(albums));
+    }
+  }
+
+  // Warm a bounded set of album lookups so opening an album hero or playing a
+  // track does not wait on a cold network call. Only metadata is fetched here;
+  // the video itself streams lazily when a widget actually becomes visible.
+  // Sequential with a gap because boidu's upstream rate-limits bursts.
+  Future<void> _prefetchMotionArt(List<AlbumGroup> albums) async {
+    final prefs = ref.read(appPreferencesProvider);
+    if (!prefs.animatedAlbumArt || !prefs.animationsEnabled) return;
+    final service = AnimatedArtworkService.instance;
+    for (final album in albums.take(8)) {
+      if (!mounted) return;
+      await service.getAnimatedArtworkForAlbum(
+        albumName: album.albumName,
+        artist: album.albumArtist,
+        representativeSongTitle: album.songs.isNotEmpty
+            ? album.songs.first.title
+            : null,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 400));
     }
   }
 

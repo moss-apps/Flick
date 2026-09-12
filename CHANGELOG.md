@@ -1,35 +1,62 @@
 # Changelog
 
+## 0.22.0-beta.1 (2026-09-10)
+
+### DSD Native Playback
+- **DSD-NATIVE output** via SAS offload shim (HiBy devices) with ALSA direct fallback.
+- DoP packer bit-reversal; short reads handled; wire silence padding fixes audio pops.
+- DSD wire format and grouping settings in UAC2 preferences; restored output mode and transport overrides.
+- DSD reconciliation finds unindexed DSD files; decoder crash dumps captured offline.
+
+### ReplayGain & Crossfeed
+- **ReplayGain** Track/Album modes with pre-amp and clipping prevention.
+- Scanner analyzes loudness (EBU R128 / BS.1770), writes `REPLAYGAIN_*` tags, and updates the library.
+- **BS2B crossfeed** with Default/strong/gentle presets; persists across engine recreation; bypassed on bit-perfect.
+
+### Karaoke Lyrics
+- Word-level **karaoke sync** with gradient sweep and a toggle in lyrics settings.
+- Full-screen **Lyrics Sync Studio**: tap-along word stamping, enhanced LRC export, video-style word timeline, syllable splitting.
+- Lyrics from **MP4/M4A and OGG/Opus** containers; text alignment options and readability scrim.
+
+### Global Search
+- Unified search across songs, albums, artists, and playlists.
+- Filter chips with persisted selection; refined search screen.
+
+### Library Scanning & Permissions
+- Optional **Full Library Access** — Rust scanner walks every volume directly; falls back to MediaStore/SAF.
+- **DSD/DSF/WavPack always scanned**, even on devices whose media indexer skips them (Xiaomi/MIUI, Vivo, Honor).
+- **WavPack/DSD tags & album art everywhere** via Rust parser fallback; fixed DFF/WavPack embedded covers.
+- **Fixed library wipe when switching scan engines** — each engine only deletes rows it can see.
+- Floating minimizable scan progress pill; preload runs as one cancellable pass with a Stop button.
+
+### Engine Recovery & Accuracy
+- Rust engine **crash recovery** — revives on dead channels with panic reporting.
+- Lying container headers detected and corrected; implausible sample rates filtered.
+
+### Navigation & UI Refresh
+- Nested navigators per tab; full player and queue routed via root navigator.
+- New **FlickDialog** system and **FlickArtworkPlaceholder** across the app.
+- Shared detail headers with glass blur back buttons; landscape mode support.
+- System **reduced-motion** preference respected globally.
+
+### USB & Bluetooth
+- Bit-perfect **auto-prompt on DAC attach**, with per-device decline memory.
+- UAC1: refuses direct USB when SET_CUR fails; better sampling-frequency negotiation.
+- USB route monitoring at boot; Hi-Res Direct for the Bluetooth Rust Oboe path.
+
+### Network Sources
+- Jellyfin **silent re-auth** via secure password store; auth failure detection.
+- Tidal sign-in fix with persisted session token.
+
+### Player & Library
+- Rebuilt full player with song stage carousel; swipe-down previous-track gesture.
+- Metadata editor moved to a bottom sheet with instant sync.
+- Playlist sorting; bulk favorites; duplicate cleaner with per-group multi-keep.
+- Folder tree view toggle; EQ knobs double-tap to reset.
+
 ## Currently on Pre-release
 
 Changes landing on top of the current pre-release are tracked here and folded into the release notes as they ship.
-
-### Library Scanning & Permissions
-- Optional **Full Library Access** (`MANAGE_EXTERNAL_STORAGE`) mode: when granted, library scans walk the filesystem directly via the Rust scanner on every volume (internal storage, SD cards, USB drives) — same approach as Poweramp/USB Audio Player PRO — so no file can hide behind an incomplete system media index. Degrades gracefully to MediaStore/SAF when not granted. Toggle + status in Settings → Library → Scan Settings.
-- **DSD/DSF/WavPack now always scanned** even in scoped-storage mode: on devices whose media indexer skips DSD entirely (Xiaomi/MIUI, Vivo, Honor and similar), a stat-only reconciliation walk finds the missing `.dsf`/`.dff`/`.wv` files during every scan, plus a best-effort MediaStore re-index nudge; live-change watching now covers the Files collection too.
-- **Fixed library wipe when switching scan engines** (e.g. after granting Full Library Access): each scan engine now only deletes rows in the URI space it can actually see — SAF `content://` rows are superseded by their raw-path equivalents (never dropped before the replacement exists), and Rust/MediaStore scans no longer feed SAF-keyed rows into filesystem deletion checks. Also protects periodic background deletion refreshes.
-- **WavPack/DSD tags & album art everywhere**: Android's metadata reader cannot decode WavPack at all (and often not DSD), so `.wv`/`.dsf`/`.dff` tracks scanned via MediaStore/SAF used to land with no title, duration, or cover. Metadata enrichment now falls back to the app's own Rust parsers (lofty/dsf-meta/dff-meta) for those formats — including SAF locations, staged through the shared playback cache — and embedded covers are extracted the same way. Also fixes DSD bitrate being stored ~1000× too low in deep scans.
-- **Fixed DFF/WavPack embedded covers**: WavPack stores its APE cover art as binary tag items (invisible to lofty's picture API) and dff-meta aborts on imperfect DFF ID3 chunks — covers for both now extract through a direct APE-item scan and a tolerant DSDIFF chunk walker, with DFF text tags recovered the same way when dff-meta gives up.
-- **Fixed post-scan audio preload grinding invisibly**: the background decode pass (waveform/loudness) now runs as a single cancellable pass — cancelling or restarting a scan stops it, overlapping passes can no longer stack decoders or freeze artwork extraction, live progress with a Stop button appears on the scan-complete sheet, and undecodable formats (DSD/WavPack) are negative-cached instead of being re-probed on every pass.
-- **Minimizable scan progress**: the scanning overlay (library scan, preload, ReplayGain) gains a Minimize button; a floating pill above the bottom bar keeps showing live progress (counts, current file, elapsed, Stop) while you keep using the app, and also surfaces post-scan preload passes running in the background.
-
-### Headphone Crossfeed
-- BS2B (Bauer stereophonic-to-binaural) 3-stage crossfeed with selectable presets — Default, Crossfeed (strong), and Crossfeed easy (gentle), plus Off. Blends a low-passed opposite-channel signal into each channel to reduce ear fatigue on headphones; runs in the native Rust DSP chain, bypassed on bit-perfect passthrough.
-- Crossfeed level persists across engine recreation (e.g. sample-rate changes between tracks).
-
-### ReplayGain
-- ReplayGain playback (Track & Album modes) with pre-amp and clipping prevention — applied per source by the native engine and folded into the just_audio volume path.
-- ReplayGain scanner in Library settings: analyzes loudness (EBU R128 / BS.1770), writes `REPLAYGAIN_*` tags back into files, and updates the library database.
-- Library scans now read existing `REPLAYGAIN_*` tags (FLAC/Vorbis, MP3/ID3, MP4, WAV/AIFF, plus DSF/DFF ID3 tags).
-
-### Folders
-- Hierarchy (tree) view now available inside folders via the grid/list toggle — matches the root Folders screen; view mode persists across screens.
-
-### Lyrics
-- **Lyrics Sync Studio is now a full screen** instead of a cramped bottom sheet: a pinned playback bar (play/pause, ±2s, live position with a song progress line), a slim Lines/Stamped/Words status strip, and a Lines/Tools split — side-by-side panes on tablet/desktop, two tabs on phone. The raw lyrics text editor moved into a dedicated "Edit Text" action, Simple mode pins "Stamp & Next" under the line list, and Advanced mode edits the selected line's timestamp in a focused workspace. Leaving with unsaved stamps now asks for confirmation instead of silently discarding.
-- **Word Sync (karaoke) editing** in the Lyrics Sync Studio: play the song and tap along to stamp each word; fully stamped lines export as enhanced LRC (`<mm:ss.xx>` word tags) that drives the karaoke sweep. Word chips support per-word nudge/re-time/clear, a live karaoke preview shows the real sweep while editing, and existing word timings now survive editing — re-stamping a line shifts its words by the same delta instead of discarding them.
-- **Video-style word timeline** in Advanced mode: each word renders as a clip whose length you control — drag a boundary to stretch or shrink the adjacent words (all edits snap to the 10ms LRC grid), drag the line-end boundary (or use Length ± buttons) to retime the next line, set exact start times numerically, and Auto-fill seeds evenly spaced words as a drag starting point. Words can also be split into separately timed syllables (tap-a-letter splitter) for slow-then-fast pacing inside a single word — saved as adjacent enhanced-LRC word tags.
-- Embedded lyrics now read from MP4/M4A `©lyr` atoms (UTF-8 and UTF-16) and OGG/Opus Vorbis comments, joining existing ID3 (USLT/SYLT) and FLAC support.
 
 ## 0.21.0-beta.1 (2026-07-10)
 

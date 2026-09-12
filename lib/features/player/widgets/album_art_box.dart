@@ -2,14 +2,18 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/responsive.dart';
+import 'package:flick/features/player/widgets/motion_art_widget.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
+import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
-class AlbumArtBox extends StatefulWidget {
+class AlbumArtBox extends ConsumerStatefulWidget {
   final Song song;
   final double? size;
   final PlayerService? playerService;
@@ -30,10 +34,10 @@ class AlbumArtBox extends StatefulWidget {
   });
 
   @override
-  State<AlbumArtBox> createState() => _AlbumArtBoxState();
+  ConsumerState<AlbumArtBox> createState() => _AlbumArtBoxState();
 }
 
-class _AlbumArtBoxState extends State<AlbumArtBox>
+class _AlbumArtBoxState extends ConsumerState<AlbumArtBox>
     with TickerProviderStateMixin {
   static const double _labelRatio = 0.44;
   static const Duration _spinDuration = Duration(seconds: 4);
@@ -318,10 +322,68 @@ class _AlbumArtBoxState extends State<AlbumArtBox>
     }
   }
 
+  Widget _buildArtContent({
+    required double iconSize,
+    required double t,
+    required bool motionEnabled,
+  }) {
+    final placeholder = Container(
+      color: Colors.white.withValues(alpha: 0.05),
+      child: Transform.translate(
+        offset: Offset(0, 6 * (1 - t)),
+        child: FlickArtworkPlaceholder(
+          size: iconSize * (1 - t * 0.5) * 1.42,
+          opacity: 0.92,
+        ),
+      ),
+    );
+    final staticArt = CachedImageWidget(
+      imagePath: widget.song.albumArt,
+      audioSourcePath: widget.song.filePath,
+      fit: BoxFit.cover,
+      placeholder: placeholder,
+      errorWidget: placeholder,
+    );
+    // No Apple Motion Art: keep the art alive with the same Ken Burns treatment
+    // the detail heroes use. Static while the disc is spinning so the pan does
+    // not fight the rotation.
+    final fallback = _isVinyl
+        ? staticArt
+        : AnimatedAlbumArt(
+            imagePath: widget.song.albumArt,
+            audioSourcePath: widget.song.filePath,
+            placeholder: placeholder,
+            errorWidget: placeholder,
+          );
+    final album = widget.song.album;
+    final albumArtist = widget.song.albumArtist;
+    final useAlbum = album != null && album.trim().isNotEmpty;
+    return MotionArtView(
+      title: useAlbum ? album : widget.song.title,
+      artist: (albumArtist != null && albumArtist.trim().isNotEmpty)
+          ? albumArtist
+          : widget.song.artist,
+      album: album,
+      albumMode: useAlbum,
+      representativeSongTitle: useAlbum ? widget.song.title : null,
+      duration: widget.song.duration,
+      enabled: motionEnabled && !_isVinyl,
+      fallback: fallback,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final double resolvedSize =
         widget.size ?? context.responsive(280.0, 320.0, 360.0);
+
+    final motionEnabled =
+        ref.watch(
+          appPreferencesProvider.select(
+            (p) => p.animatedAlbumArt && p.animationsEnabled,
+          ),
+        ) &&
+        !MediaQuery.of(context).disableAnimations;
 
     // Update the disc center for rotation detection
     _rotationRecognizer.discCenter = () =>
@@ -464,30 +526,10 @@ class _AlbumArtBoxState extends State<AlbumArtBox>
                               borderRadius: BorderRadius.circular(
                                 artInnerRadius,
                               ),
-                              child: CachedImageWidget(
-                                imagePath: widget.song.albumArt,
-                                audioSourcePath: widget.song.filePath,
-                                fit: BoxFit.cover,
-                                placeholder: Container(
-                                  color: Colors.white.withValues(alpha: 0.05),
-                                  child: Transform.translate(
-                                    offset: Offset(0, 6 * (1 - t)),
-                                    child: FlickArtworkPlaceholder(
-                                      size: iconSize * (1 - t * 0.5) * 1.42,
-                                      opacity: 0.92,
-                                    ),
-                                  ),
-                                ),
-                                errorWidget: Container(
-                                  color: Colors.white.withValues(alpha: 0.05),
-                                  child: Transform.translate(
-                                    offset: Offset(0, 6 * (1 - t)),
-                                    child: FlickArtworkPlaceholder(
-                                      size: iconSize * (1 - t * 0.5) * 1.42,
-                                      opacity: 0.92,
-                                    ),
-                                  ),
-                                ),
+                              child: _buildArtContent(
+                                iconSize: iconSize,
+                                t: t,
+                                motionEnabled: motionEnabled,
                               ),
                             ),
                           )
@@ -496,30 +538,10 @@ class _AlbumArtBoxState extends State<AlbumArtBox>
                             child: SizedBox(
                               width: artSize,
                               height: artSize,
-                              child: CachedImageWidget(
-                                imagePath: widget.song.albumArt,
-                                audioSourcePath: widget.song.filePath,
-                                fit: BoxFit.cover,
-                                placeholder: Container(
-                                  color: Colors.white.withValues(alpha: 0.05),
-                                  child: Transform.translate(
-                                    offset: Offset(0, 6 * (1 - t)),
-                                    child: FlickArtworkPlaceholder(
-                                      size: iconSize * (1 - t * 0.5) * 1.42,
-                                      opacity: 0.92,
-                                    ),
-                                  ),
-                                ),
-                                errorWidget: Container(
-                                  color: Colors.white.withValues(alpha: 0.05),
-                                  child: Transform.translate(
-                                    offset: Offset(0, 6 * (1 - t)),
-                                    child: FlickArtworkPlaceholder(
-                                      size: iconSize * (1 - t * 0.5) * 1.42,
-                                      opacity: 0.92,
-                                    ),
-                                  ),
-                                ),
+                              child: _buildArtContent(
+                                iconSize: iconSize,
+                                t: t,
+                                motionEnabled: motionEnabled,
                               ),
                             ),
                           ),
