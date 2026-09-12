@@ -435,6 +435,19 @@ class MusicFolderService {
     }
   }
 
+  /// Reads a folder-cover image (cover.jpg, folder.png, …) sitting next to
+  /// [uri]. Needed for SAF `content://` sources, whose sibling files dart:io
+  /// cannot enumerate. Returns null when no cover exists.
+  Future<Uint8List?> fetchSiblingArtwork(String uri) async {
+    try {
+      return await _channel.invokeMethod<Uint8List>('readSiblingArtwork', {
+        'uri': uri,
+      });
+    } on PlatformException catch (e) {
+      throw StorageException('Failed to fetch sibling artwork: ${e.message}');
+    }
+  }
+
   /// Stages a content URI into the shared playback cache and returns the
   /// absolute staged path. [maxSizeBytes] optionally refuses to copy
   /// oversized sources (returns null) — used by metadata enrichment, not
