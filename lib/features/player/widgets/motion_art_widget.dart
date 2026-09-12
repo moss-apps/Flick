@@ -22,6 +22,7 @@ class MotionArtView extends StatefulWidget {
     this.enabled = true,
     this.albumMode = false,
     this.representativeSongTitle,
+    this.preferVertical = false,
     this.fit = BoxFit.cover,
     this.borderRadius,
   });
@@ -40,6 +41,9 @@ class MotionArtView extends StatefulWidget {
   /// Resolve by album (edition-aware) rather than by song.
   final bool albumMode;
   final String? representativeSongTitle;
+
+  /// Prefer the portrait motion-art variant (full-bleed backgrounds).
+  final bool preferVertical;
 
   final BoxFit fit;
   final BorderRadius? borderRadius;
@@ -75,6 +79,7 @@ class _MotionArtViewState extends State<MotionArtView> {
         oldWidget.album != widget.album ||
         oldWidget.albumMode != widget.albumMode ||
         oldWidget.representativeSongTitle != widget.representativeSongTitle ||
+        oldWidget.preferVertical != widget.preferVertical ||
         oldWidget.enabled != widget.enabled;
     if (changed) _restart();
   }
@@ -142,7 +147,9 @@ class _MotionArtViewState extends State<MotionArtView> {
     }
 
     if (!mounted || generation != _generation) return;
-    final url = artwork?.playbackUrl;
+    final url = widget.preferVertical
+        ? artwork?.verticalPlaybackUrl
+        : artwork?.playbackUrl;
     if (url == null) {
       // Could be a definitive "no motion art" (cache hit, no network) or a
       // transient boidu 503; a bounded retry covers the transient case and is
