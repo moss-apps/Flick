@@ -34,6 +34,10 @@ class AlbumArtService {
   final MusicFolderService _musicFolderService = MusicFolderService();
   final Map<String, Future<String?>> _inFlightResolutions = {};
 
+  // ponytail: album tracks share one folder cover; cache the raw bytes so a
+  // 20-track album reads cover.jpg once, not 20 times.
+  final Map<String, Uint8List?> _folderCoverCache = {};
+
   Future<String?> resolveArtworkPath({
     String? existingPath,
     required String audioSourcePath,
@@ -180,7 +184,8 @@ class AlbumArtService {
 
   /// Fetch raw artwork bytes. Network songs resolve through their protocol
   /// service's cover endpoint using the `<proto>-cover://<marker>` stored in
-  /// the entity's albumArtPath; local songs extract embedded art as before.
+  /// the entity's albumArtPath. Local songs try embedded art first, then fall
+  /// back to a nearby folder cover (`cover.jpg`, `folder.png`, …).
   Future<Uint8List?> _loadArtworkBytes(
     String audioSourcePath, {
     String? existingPath,
@@ -207,6 +212,16 @@ class AlbumArtService {
       }
     }
 
+    final embedded = await _loadEmbeddedArtworkBytes(audioSourcePath);
+    if (embedded != null && embedded.isNotEmpty) {
+      return embedded;
+    }
+
+    // No embedded cover: many libraries ship a sibling cover/folder image.
+    return _loadFolderCoverBytes(audioSourcePath);
+  }
+
+  Future<Uint8List?> _loadEmbeddedArtworkBytes(String audioSourcePath) async {
     if (Platform.isAndroid && audioSourcePath.startsWith('content://')) {
       // MediaMetadataRetriever cannot decode WavPack/DSD covers on any
       // device; route those through the Rust parser via the shared staging
@@ -236,6 +251,63 @@ class AlbumArtService {
     return rust_scanner.extractEmbeddedArtwork(
       path: _plainPathOf(audioSourcePath),
     );
+  }
+
+  /// Bounded memory cache for per-folder cover bytes.
+  static const int _folderCoverCacheMaxEntries = 64;
+
+  Future<Uint8List?> _loadFolderCoverBytes(String audioSourcePath) async {
+    if (audioSourcePath.startsWith('content://')) {
+      if (!Platform.isAndroid) return null;
+      try {
+        return await _musicFolderService.fetchSiblingArtwork(audioSourcePath);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final plainPath = _plainPathOf(audioSourcePath);
+    final dir = File(plainPath).parent.path;
+    if (_folderCoverCache.containsKey(dir)) {
+      return _folderCoverCache[dir];
+    }
+
+    final bytes = await _readFolderCoverFromFilesystem(plainPath);
+    _rememberFolderCover(dir, bytes);
+    return bytes;
+  }
+
+  void _rememberFolderCover(String dir, Uint8List? bytes) {
+    if (_folderCoverCache.length >= _folderCoverCacheMaxEntries) {
+      _folderCoverCache.remove(_folderCoverCache.keys.first);
+    }
+    _folderCoverCache[dir] = bytes;
+  }
+
+  Future<Uint8List?> _readFolderCoverFromFilesystem(String audioPath) async {
+    if (audioPath.isEmpty) return null;
+    final parent = File(audioPath).parent;
+    if (!await parent.exists()) return null;
+
+    final matches = <File>[];
+    try {
+      await for (final entity in parent.list(followLinks: false)) {
+        if (entity is! File) continue;
+        final name = entity.uri.pathSegments.last.toLowerCase();
+        if (!isFolderCoverImageName(name)) continue;
+        matches.add(entity);
+      }
+    } catch (_) {
+      return null;
+    }
+    if (matches.isEmpty) return null;
+
+    matches.sort((a, b) => a.path.compareTo(b.path));
+    try {
+      return await matches.first.readAsBytes();
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Extensions whose embedded art only the Rust parsers can read.
@@ -299,6 +371,38 @@ class AlbumArtService {
 const int _artworkMaxDimension = 1000;
 const int _artworkPassthroughBytes = 512 * 1024;
 const int _artworkJpegQuality = 85;
+
+/// Sibling cover stems, matching the SMB/WebDAV scanners so local folders
+/// behave the same.
+const List<String> _folderCoverStems = [
+  'cover',
+  'folder',
+  'album',
+  'albumart',
+  'front',
+];
+
+const Set<String> _folderCoverExtensions = {
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'gif',
+  'bmp',
+};
+
+/// Whether [name] looks like a folder-cover image: `cover.jpg`, `folder.png`,
+/// `front.webp`, `album.1.jpg`, …. Case-insensitive.
+bool isFolderCoverImageName(String name) {
+  final lower = name.toLowerCase();
+  final dot = lower.lastIndexOf('.');
+  if (dot <= 0) return false;
+  final stem = lower.substring(0, dot);
+  if (!_folderCoverExtensions.contains(lower.substring(dot + 1))) {
+    return false;
+  }
+  return _folderCoverStems.any((c) => stem == c || stem.startsWith('$c.'));
+}
 
 Uint8List _normalizeArtworkIsolate(Uint8List raw) {
   if (raw.length < _artworkPassthroughBytes) {
