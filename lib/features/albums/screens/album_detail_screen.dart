@@ -604,6 +604,11 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
         dominantColor: _albumColor,
         placeholder: fallback,
         errorWidget: fallback,
+        albumName: widget.albumName,
+        artistName: widget.albumArtist,
+        representativeSongTitle: widget.songs.isNotEmpty
+            ? widget.songs.first.title
+            : null,
       ),
     );
   }
