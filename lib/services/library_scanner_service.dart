@@ -624,7 +624,10 @@ class LibraryScannerService {
             : null
         ..bitDepth = file.bitDepth ?? existing?.bitDepth
         ..sampleRate = file.sampleRate ?? existing?.sampleRate
-        ..year = file.year
+        ..genre = (file.genre?.trim().isNotEmpty ?? false)
+            ? file.genre!.trim()
+            : existing?.genre
+        ..year = file.year ?? existing?.year
         ..ripper = existing?.ripper
         ..readMode = existing?.readMode
         ..accurateRip = existing?.accurateRip
@@ -2530,6 +2533,7 @@ class LibraryScannerService {
       albumArtist: base?.albumArtist,
       trackNumber: base?.trackNumber ?? rust.trackNumber,
       discNumber: base?.discNumber ?? rust.discNumber,
+      genre: base?.genre ?? rust.genre,
       duration: base?.duration ?? rust.durationMs?.toInt(),
       albumArtPath: base?.albumArtPath,
       // Call sites parse this as bits-per-second (retriever convention);
@@ -2541,7 +2545,7 @@ class LibraryScannerService {
       sampleRate:
           _positiveOrNull(base?.sampleRate) ?? _positiveOrNull(rust.sampleRate),
       filePath: base?.filePath,
-      year: base?.year,
+      year: base?.year ?? rust.year,
       dateAdded: base?.dateAdded,
     );
   }
