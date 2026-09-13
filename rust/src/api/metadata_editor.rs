@@ -1,3 +1,4 @@
+use dsf_meta::DsfFile;
 use lofty::config::{ParseOptions, WriteOptions};
 use lofty::file::AudioFile;
 use lofty::prelude::*;
@@ -40,6 +41,12 @@ pub struct TagEditFields {
 }
 
 pub fn read_tags(path: String) -> Result<TagReadResult, String> {
+    // lofty cannot parse DSD containers (.dsf/.dff), but both carry plain
+    // ID3v2 tags; read those directly so DSD tracks expose the same fields.
+    if let Some(tag) = read_dsd_id3_tag(&path) {
+        return Ok(tag_read_result_from_id3(&tag));
+    }
+
     let parse_options = ParseOptions::new().read_cover_art(false);
     let tagged_file = Probe::open(&path)
         .map_err(|e| format!("Failed to open file: {e}"))?
@@ -179,11 +186,46 @@ pub fn write_tags_to_temp(
     })
 }
 
+/// Returns the ID3v2 tag for DSD containers, which lofty cannot open.
+fn read_dsd_id3_tag(path: &str) -> Option<id3::Tag> {
+    let p = Path::new(path);
+    let ext = p.extension()?.to_str()?.to_ascii_lowercase();
+    match ext.as_str() {
+        "dsf" => DsfFile::open(p).ok().and_then(|f| f.id3_tag().clone()),
+        "dff" => crate::api::scanner::find_dff_id3_tag(p),
+        _ => None,
+    }
+}
+
+fn id3_text_frame(tag: &id3::Tag, id: &str) -> Option<String> {
+    tag.frames()
+        .find(|f| f.id() == id)
+        .and_then(|f| f.content().text())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+fn tag_read_result_from_id3(tag: &id3::Tag) -> TagReadResult {
+    use id3::TagLike;
+    TagReadResult {
+        title: tag.title().map(|s| s.to_string()),
+        artist: tag.artist().map(|s| s.to_string()),
+        album: tag.album().map(|s| s.to_string()),
+        album_artist: tag.album_artist().map(|s| s.to_string()),
+        genre: tag.genre_parsed().map(|s| s.to_string()),
+        year: tag.year().filter(|y| *y > 0).map(|y| y as u32),
+        track_number: tag.track().map(|u| u as u32),
+        disc_number: tag.disc().map(|u| u as u32),
+        date: tag.date_recorded().map(|t| t.to_string()),
+        copyright: id3_text_frame(tag, "TCOP"),
+        label: id3_text_frame(tag, "TPUB"),
+    }
+}
+
 fn apply_tag_fields(
     tagged_file: &mut lofty::file::TaggedFile,
     fields: &TagEditFields,
-) -> Result<(), String> {
-    let tag = tagged_file.primary_tag_mut();
+) -> Result<(), String> {    let tag = tagged_file.primary_tag_mut();
     let tag = match tag {
         Some(t) => Some(t),
         None => tagged_file.first_tag_mut(),
@@ -295,6 +337,63 @@ mod tests {
         assert_eq!(tags.label.as_deref(), Some("Test Label"));
         assert_eq!(tags.track_number, Some(7));
         assert_eq!(tags.disc_number, Some(2));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Minimal DSDIFF container (FRM8 + DSD + ID3 chunks) exercising the
+    /// non-lofty DSD branch of read_tags.
+    #[test]
+    fn read_tags_parses_dff_id3_tag() {
+        let mut tag = id3::Tag::new();
+        use id3::TagLike;
+        tag.set_title("Dsd Title");
+        tag.set_artist("Dsd Artist");
+        tag.set_genre("Ambient");
+        tag.set_year(2021);
+        tag.set_track(3);
+        tag.set_disc(1);
+        tag.set_date_recorded(id3::Timestamp {
+            year: 2021,
+            month: Some(6),
+            day: Some(1),
+            hour: None,
+            minute: None,
+            second: None,
+        });
+        tag.set_text("TCOP", "2021 Dsd Label");
+        tag.set_text("TPUB", "Dsd Label");
+        let mut id3_bytes = Vec::new();
+        tag.write_to(&mut id3_bytes, id3::Version::Id3v24).unwrap();
+
+        let body_len = 4 + (12 + 4) + (12 + id3_bytes.len());
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"FRM8");
+        bytes.extend_from_slice(&(body_len as u64).to_be_bytes());
+        bytes.extend_from_slice(b"DSD ");
+        bytes.extend_from_slice(b"DSD ");
+        bytes.extend_from_slice(&4u64.to_be_bytes());
+        bytes.extend_from_slice(&[0u8; 4]);
+        bytes.extend_from_slice(b"ID3 ");
+        bytes.extend_from_slice(&(id3_bytes.len() as u64).to_be_bytes());
+        bytes.extend_from_slice(&id3_bytes);
+
+        let dir = std::env::temp_dir().join(format!("flick_dff_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("track.dff");
+        std::fs::write(&path, &bytes).unwrap();
+
+        let tags = read_tags(path.to_string_lossy().to_string()).unwrap();
+
+        assert_eq!(tags.title.as_deref(), Some("Dsd Title"));
+        assert_eq!(tags.artist.as_deref(), Some("Dsd Artist"));
+        assert_eq!(tags.genre.as_deref(), Some("Ambient"));
+        assert_eq!(tags.year, Some(2021));
+        assert_eq!(tags.track_number, Some(3));
+        assert_eq!(tags.disc_number, Some(1));
+        assert_eq!(tags.date.as_deref(), Some("2021-06-01"));
+        assert_eq!(tags.copyright.as_deref(), Some("2021 Dsd Label"));
+        assert_eq!(tags.label.as_deref(), Some("Dsd Label"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }
