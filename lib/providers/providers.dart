@@ -28,3 +28,4 @@ export 'milestone_provider.dart';
 export 'tutorial_provider.dart';
 export 'whats_new_provider.dart';
 export 'cast_provider.dart';
+export 'detail_description_provider.dart';
