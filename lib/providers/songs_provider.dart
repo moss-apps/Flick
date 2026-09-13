@@ -40,7 +40,24 @@ class FolderGroup {
 }
 
 /// Filter options for file types.
-enum SongFileTypeFilter { all, flac, mp3, wav, aac, ogg, alac, dsd }
+///
+/// The set of extensions recognized by the scanner is defined in
+/// `library_scanner_service.dart` (`_looksLikeSupportedAudioExtension`) and the
+/// Rust scanner. Every supported extension must be matched by one of these
+/// filters.
+enum SongFileTypeFilter {
+  all,
+  flac,
+  mp3,
+  wav,
+  aac,
+  alac,
+  ogg,
+  opus,
+  aiff,
+  dsd,
+  wavpack,
+}
 
 extension SongFileTypeFilterExtension on SongFileTypeFilter {
   String get displayName {
@@ -55,50 +72,56 @@ extension SongFileTypeFilterExtension on SongFileTypeFilter {
         return 'WAV';
       case SongFileTypeFilter.aac:
         return 'AAC';
-      case SongFileTypeFilter.ogg:
-        return 'OGG';
       case SongFileTypeFilter.alac:
         return 'ALAC';
+      case SongFileTypeFilter.ogg:
+        return 'OGG';
+      case SongFileTypeFilter.opus:
+        return 'OPUS';
+      case SongFileTypeFilter.aiff:
+        return 'AIFF';
       case SongFileTypeFilter.dsd:
         return 'DSD';
+      case SongFileTypeFilter.wavpack:
+        return 'WAVPACK';
+    }
+  }
+
+  /// Extensions (lower-case, no dot) this filter matches. `null` means the
+  /// filter matches every file type.
+  Set<String>? get extensions {
+    switch (this) {
+      case SongFileTypeFilter.all:
+        return null;
+      case SongFileTypeFilter.flac:
+        return const {'flac'};
+      case SongFileTypeFilter.mp3:
+        return const {'mp3', 'mpeg'};
+      case SongFileTypeFilter.wav:
+        return const {'wav', 'wave'};
+      case SongFileTypeFilter.aac:
+        return const {'aac', 'm4a', 'mp4'};
+      case SongFileTypeFilter.alac:
+        return const {'alac', 'm4a'};
+      case SongFileTypeFilter.ogg:
+        return const {'ogg', 'oga', 'ogx', 'vorbis'};
+      case SongFileTypeFilter.opus:
+        return const {'opus', 'spx'};
+      case SongFileTypeFilter.aiff:
+        return const {'aif', 'aiff'};
+      case SongFileTypeFilter.dsd:
+        return const {'dsf', 'dff', 'wv-dsd', 'dsd'};
+      case SongFileTypeFilter.wavpack:
+        return const {'wv', 'wavpack'};
     }
   }
 
   bool matches(String fileType) {
-    if (this == SongFileTypeFilter.all) return true;
+    final extensions = this.extensions;
+    if (extensions == null) return true;
 
-    final normalized = fileType.replaceAll('.', '').toUpperCase().trim();
-    final filterName = displayName.toUpperCase();
-
-    if (normalized == filterName) return true;
-
-    switch (this) {
-      case SongFileTypeFilter.mp3:
-        return normalized == 'MP3' || normalized == 'MPEG';
-      case SongFileTypeFilter.aac:
-        return normalized == 'AAC' ||
-            normalized == 'M4A' ||
-            normalized == 'MP4';
-      case SongFileTypeFilter.ogg:
-        return normalized == 'OGG' ||
-            normalized == 'OGX' ||
-            normalized == 'OPUS' ||
-            normalized == 'VORBIS' ||
-            normalized == 'OGA';
-      case SongFileTypeFilter.alac:
-        return normalized == 'ALAC' || normalized == 'M4A';
-      case SongFileTypeFilter.wav:
-        return normalized == 'WAV' || normalized == 'WAVE';
-      case SongFileTypeFilter.flac:
-        return normalized == 'FLAC';
-      case SongFileTypeFilter.dsd:
-        return normalized == 'DSF' ||
-            normalized == 'DFF' ||
-            normalized == 'WV-DSD' ||
-            normalized == 'DSD';
-      case SongFileTypeFilter.all:
-        return true;
-    }
+    final normalized = fileType.replaceAll('.', '').toLowerCase().trim();
+    return extensions.contains(normalized);
   }
 }
 
