@@ -20,6 +20,9 @@ import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
 import 'package:flick/widgets/common/song_tile_thumbnail.dart';
 import 'package:flick/widgets/common/detail_header.dart';
+import 'package:flick/widgets/common/detail_description.dart';
+import 'package:flick/widgets/common/flick_dialog.dart';
+import 'package:flick/providers/detail_description_provider.dart';
 import 'package:flick/features/player/widgets/add_to_playlist_sheet.dart';
 import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:flick/features/songs/widgets/song_actions_button.dart';
@@ -344,10 +347,36 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
     );
   }
 
+  String get _descriptionKey => 'artist|${widget.artistName.toLowerCase()}';
+
+  Future<void> _editDescription() async {
+    final current = ref.read(detailDescriptionProvider(_descriptionKey));
+    final result = await FlickDialogs.input(
+      context,
+      title: current.isEmpty ? 'Add Description' : 'Edit Description',
+      hintText: 'Write a description',
+      initialValue: current,
+      confirmLabel: 'Save',
+      keyboardType: TextInputType.multiline,
+      validator: (_) => null,
+    );
+    if (result == null) return;
+    await ref
+        .read(detailDescriptionsProvider.notifier)
+        .save(_descriptionKey, result);
+  }
+
   void _showMore() {
     DetailMoreSheet.show(
       context,
       items: [
+        DetailMoreSheetItem(
+          icon: LucideIcons.alignLeft,
+          label: ref.read(detailDescriptionProvider(_descriptionKey)).isEmpty
+              ? 'Add description'
+              : 'Edit description',
+          onTap: _editDescription,
+        ),
         DetailMoreSheetItem(
           icon: LucideIcons.listPlus,
           label: 'Add to playlist',
@@ -457,14 +486,18 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
                               onQueue: _queueAll,
                               onMore: _showMore,
                               primaryColor: _artistColor,
-                            ),
-                          ),
-                        ),
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: AppConstants.spacingLg),
-                        ),
-                        if (_artistAlbums.length > 1)
-                          _buildSectionTitle(context, 'Albums'),
+                             ),
+                           ),
+                         ),
+                         SliverToBoxAdapter(
+                           child:
+                               DetailDescription(descriptionKey: _descriptionKey),
+                         ),
+                         const SliverToBoxAdapter(
+                           child: SizedBox(height: AppConstants.spacingLg),
+                         ),
+                         if (_artistAlbums.length > 1)
+                           _buildSectionTitle(context, 'Albums'),
                         if (_artistAlbums.length > 1)
                           SliverToBoxAdapter(
                             child: SizedBox(
