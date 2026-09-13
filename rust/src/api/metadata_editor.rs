@@ -22,6 +22,9 @@ pub struct TagReadResult {
     pub year: Option<u32>,
     pub track_number: Option<u32>,
     pub disc_number: Option<u32>,
+    pub date: Option<String>,
+    pub copyright: Option<String>,
+    pub label: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,6 +63,11 @@ pub fn read_tags(path: String) -> Result<TagReadResult, String> {
             year: t.year(),
             track_number: t.track(),
             disc_number: t.disk(),
+            date: t.get_string(&ItemKey::RecordingDate).map(|s| s.to_string()),
+            copyright: t
+                .get_string(&ItemKey::CopyrightMessage)
+                .map(|s| s.to_string()),
+            label: t.get_string(&ItemKey::Label).map(|s| s.to_string()),
         }),
         None => Ok(TagReadResult {
             title: None,
@@ -70,6 +78,9 @@ pub fn read_tags(path: String) -> Result<TagReadResult, String> {
             year: None,
             track_number: None,
             disc_number: None,
+            date: None,
+            copyright: None,
+            label: None,
         }),
     }
 }
@@ -207,5 +218,84 @@ fn apply_tag_fields(
             Ok(())
         }
         None => Err("No tag found in file".to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Hand-builds a minimal FLAC: a STREAMINFO block followed by a
+    /// VORBIS_COMMENT block carrying `comments` as "KEY=value" pairs.
+    fn write_minimal_flac(path: &Path, comments: &[&str]) {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"fLaC");
+
+        // STREAMINFO is 34 bytes; only the 18-byte header matters here, the
+        // trailing 16-byte MD5 can stay zero.
+        let mut streaminfo = vec![0u8; 34];
+        streaminfo[0..2].copy_from_slice(&4096u16.to_be_bytes());
+        streaminfo[2..4].copy_from_slice(&4096u16.to_be_bytes());
+        let mut packed: u64 = 0;
+        packed |= (44100u64 & 0xFFFFF) << 44; // sample rate
+        packed |= (1u64 & 0x7) << 41; // channels - 1
+        packed |= (15u64 & 0x1F) << 36; // bits per sample - 1
+        streaminfo[10..18].copy_from_slice(&packed.to_be_bytes());
+        bytes.push(0x00); // STREAMINFO, not last
+        bytes.extend_from_slice(&34u32.to_be_bytes()[1..]);
+        bytes.extend_from_slice(&streaminfo);
+
+        let mut vorbis = Vec::new();
+        let vendor = b"flick-test";
+        vorbis.extend_from_slice(&(vendor.len() as u32).to_le_bytes());
+        vorbis.extend_from_slice(vendor);
+        vorbis.extend_from_slice(&(comments.len() as u32).to_le_bytes());
+        for comment in comments {
+            vorbis.extend_from_slice(&(comment.len() as u32).to_le_bytes());
+            vorbis.extend_from_slice(comment.as_bytes());
+        }
+        bytes.push(0x80 | 0x04); // VORBIS_COMMENT, last block
+        bytes.extend_from_slice(&(vorbis.len() as u32).to_be_bytes()[1..]);
+        bytes.extend_from_slice(&vorbis);
+
+        std::fs::write(path, bytes).unwrap();
+    }
+
+    #[test]
+    fn read_tags_exposes_date_copyright_and_label() {
+        let dir = std::env::temp_dir().join(format!("flick_meta_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("sample.flac");
+        write_minimal_flac(
+            &path,
+            &[
+                "TITLE=Test Title",
+                "ARTIST=Test Artist",
+                "ALBUM=Test Album",
+                "ALBUMARTIST=Test Album Artist",
+                "GENRE=Jazz",
+                "DATE=2024-03-15",
+                "COPYRIGHT=2024 Test Label",
+                "LABEL=Test Label",
+                "TRACKNUMBER=7",
+                "DISCNUMBER=2",
+            ],
+        );
+
+        let tags = read_tags(path.to_string_lossy().to_string()).unwrap();
+
+        assert_eq!(tags.title.as_deref(), Some("Test Title"));
+        assert_eq!(tags.artist.as_deref(), Some("Test Artist"));
+        assert_eq!(tags.album.as_deref(), Some("Test Album"));
+        assert_eq!(tags.genre.as_deref(), Some("Jazz"));
+        // DATE drives the year fallback even without a YEAR tag.
+        assert_eq!(tags.year, Some(2024));
+        assert_eq!(tags.date.as_deref(), Some("2024-03-15"));
+        assert_eq!(tags.copyright.as_deref(), Some("2024 Test Label"));
+        assert_eq!(tags.label.as_deref(), Some("Test Label"));
+        assert_eq!(tags.track_number, Some(7));
+        assert_eq!(tags.disc_number, Some(2));
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

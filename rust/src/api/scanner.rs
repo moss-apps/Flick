@@ -33,6 +33,8 @@ pub struct AudioFileMetadata {
     pub bitrate: Option<u32>,
     pub track_number: Option<u32>,
     pub disc_number: Option<u32>,
+    pub genre: Option<String>,
+    pub year: Option<u32>,
     pub file_size: u64,
     /// ReplayGain loudness gain for the track (dB).
     pub replaygain_track_gain: Option<f64>,
@@ -566,6 +568,8 @@ fn extract_lofty_metadata(
         bitrate: properties.audio_bitrate(),
         track_number: tag.and_then(|t| t.track()),
         disc_number: tag.and_then(|t| t.disk()),
+        genre: tag.and_then(|t| t.genre().map(|s| s.to_string())),
+        year: tag.and_then(|t| t.year()),
         file_size: entry.file_size,
         replaygain_track_gain: rg_track_gain,
         replaygain_track_peak: rg_track_peak,
@@ -635,6 +639,11 @@ fn extract_dsf_metadata(
         bitrate,
         track_number: tag.and_then(|t| t.track()),
         disc_number: tag.and_then(|t| t.disc()),
+        genre: tag.and_then(|t| t.genre_parsed().map(|s| s.to_string())),
+        year: tag
+            .and_then(|t| t.year())
+            .filter(|y| *y > 0)
+            .map(|y| y as u32),
         file_size: entry.file_size,
         replaygain_track_gain: rg_track_gain,
         replaygain_track_peak: rg_track_peak,
@@ -696,6 +705,11 @@ fn extract_dff_metadata(
         bitrate,
         track_number: tag.and_then(|t| t.track()),
         disc_number: tag.and_then(|t| t.disc()),
+        genre: tag.and_then(|t| t.genre_parsed().map(|s| s.to_string())),
+        year: tag
+            .and_then(|t| t.year())
+            .filter(|y| *y > 0)
+            .map(|y| y as u32),
         file_size: entry.file_size,
         replaygain_track_gain: rg_track_gain,
         replaygain_track_peak: rg_track_peak,
@@ -909,6 +923,8 @@ mod tests {
         let cover_data = b"\x89PNG\r\n\x1a\nfake-cover-bytes".to_vec();
         let mut tag = id3::Tag::new();
         tag.set_title("Dff Title");
+        tag.set_genre("Jazz");
+        tag.set_year(2024);
         tag.add_frame(id3::frame::Picture {
             mime_type: "image/png".to_string(),
             picture_type: id3::frame::PictureType::CoverFront,
@@ -928,6 +944,8 @@ mod tests {
         assert!(meta.is_some());
         let meta = meta.unwrap();
         assert_eq!(meta.title.as_deref(), Some("Dff Title"));
+        assert_eq!(meta.genre.as_deref(), Some("Jazz"));
+        assert_eq!(meta.year, Some(2024));
         assert_eq!(meta.sample_rate, None);
     }
 
