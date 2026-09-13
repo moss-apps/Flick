@@ -53,10 +53,9 @@ void main() {
   });
 
   group('SongFileTypeFilter.ogg', () {
-    test('matches ogg container formats and opus streams', () {
+    test('matches ogg container formats', () {
       expect(SongFileTypeFilter.ogg.matches('OGG'), isTrue);
       expect(SongFileTypeFilter.ogg.matches('ogx'), isTrue);
-      expect(SongFileTypeFilter.ogg.matches('OpUs'), isTrue);
       expect(SongFileTypeFilter.ogg.matches('vorbis'), isTrue);
       expect(SongFileTypeFilter.ogg.matches('oga'), isTrue);
     });
@@ -64,6 +63,62 @@ void main() {
     test('does not match unrelated formats', () {
       expect(SongFileTypeFilter.ogg.matches('FLAC'), isFalse);
       expect(SongFileTypeFilter.ogg.matches('M4A'), isFalse);
+      expect(SongFileTypeFilter.ogg.matches('OpUs'), isFalse);
+    });
+  });
+
+  group('SongFileTypeFilter extension coverage', () {
+    const supportedExtensions = {
+      'mp3',
+      'flac',
+      'ogg',
+      'oga',
+      'ogx',
+      'opus',
+      'm4a',
+      'wav',
+      'aif',
+      'aiff',
+      'alac',
+      'aac',
+      'dsf',
+      'dff',
+      'wv',
+    };
+
+    test('every supported extension is matched by a filter', () {
+      for (final extension in supportedExtensions) {
+        final matched = SongFileTypeFilter.values.any(
+          (filter) => filter.matches(extension),
+        );
+        expect(matched, isTrue, reason: 'no filter matches .$extension');
+      }
+    });
+
+    test('opus filter matches opus streams only', () {
+      expect(SongFileTypeFilter.opus.matches('opus'), isTrue);
+      expect(SongFileTypeFilter.opus.matches('OPUS'), isTrue);
+      expect(SongFileTypeFilter.opus.matches('spx'), isTrue);
+      expect(SongFileTypeFilter.opus.matches('ogg'), isFalse);
+    });
+
+    test('aiff filter matches aiff and aif', () {
+      expect(SongFileTypeFilter.aiff.matches('aiff'), isTrue);
+      expect(SongFileTypeFilter.aiff.matches('AIF'), isTrue);
+      expect(SongFileTypeFilter.aiff.matches('wav'), isFalse);
+    });
+
+    test('wavpack filter matches wv but not wv-dsd', () {
+      expect(SongFileTypeFilter.wavpack.matches('wv'), isTrue);
+      expect(SongFileTypeFilter.wavpack.matches('wavpack'), isTrue);
+      expect(SongFileTypeFilter.wavpack.matches('wv-dsd'), isFalse);
+      expect(SongFileTypeFilter.dsd.matches('wv-dsd'), isTrue);
+      expect(SongFileTypeFilter.dsd.matches('dsf'), isTrue);
+      expect(SongFileTypeFilter.dsd.matches('dff'), isTrue);
+    });
+
+    test('all filter matches any extension', () {
+      expect(SongFileTypeFilter.all.matches('anything'), isTrue);
     });
   });
 }
