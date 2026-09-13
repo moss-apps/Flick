@@ -385,11 +385,14 @@ fn resolve_track_playback_output_sample_rate(
     resolve_requested_output_sample_rate(preferred_sample_rate)
 }
 
+/// Resolve the engine output rate for an already-resolved effective DSD mode.
+/// Callers must pass a mode derived from the *track being planned*
+/// (`effective_dsd_output_mode_for_rate`), not from the global/current-track
+/// state — otherwise a queue-time plan can drift from what playback needs.
 fn resolve_dsd_engine_sample_rate(
     path: &PathBuf,
-    output_mode: DsdOutputMode,
+    effective_mode: DsdOutputMode,
 ) -> Result<Option<u32>, String> {
-    let effective_mode = effective_dsd_output_mode(output_mode);
     if effective_mode == DsdOutputMode::Dop {
         let decoder = open_dsd_decoder(path)
             .map_err(|e| format!("Failed to probe DSD rate for {}: {}", path.display(), e))?;
@@ -535,14 +538,94 @@ fn verify_dop_passthrough(engine_rate: u32) -> Result<(), String> {
     ))
 }
 
+/// Engine default when no rate preference is known — mirrors
+/// `create_audio_engine`'s `preferred_sample_rate.unwrap_or(48_000)`.
+const DEFAULT_ENGINE_SAMPLE_RATE: u32 = 48_000;
+
+/// Output configuration a track needs if it is started with the full
+/// `audio_play` negotiation. Gapless queueing is only valid when the live
+/// engine already matches this plan; otherwise the engine must be
+/// renegotiated (recreated) at the track boundary.
+#[derive(Debug, Clone, Copy)]
+struct TrackEnginePlan {
+    /// Output rate the engine would run at for this track.
+    sample_rate: u32,
+    /// True when the track's samples must be pushed as raw DSD wire words
+    /// (DoP carrier or native byte stream).
+    is_raw: bool,
+    /// Effective DSD delivery mode for DSD tracks; None for PCM.
+    dsd_mode: Option<DsdOutputMode>,
+}
+
+/// Compute the engine configuration a track would require, mirroring the
+/// negotiation `audio_play` performs for the same file.
+fn plan_track_engine_config(path: &PathBuf) -> Result<TrackEnginePlan, String> {
+    match detect_file_type(path) {
+        crate::audio::decoder_handle::FileType::Dsd => {
+            let decoder = open_dsd_decoder(path)
+                .map_err(|e| format!("Failed to probe DSD rate for {}: {}", path.display(), e))?;
+            let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
+                .ok_or_else(|| format!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
+            let mode =
+                effective_dsd_output_mode_for_rate(current_dsd_output_mode(), Some(dsd_rate));
+            let sample_rate =
+                resolve_dsd_engine_sample_rate(path, mode)?.unwrap_or(DEFAULT_ENGINE_SAMPLE_RATE);
+            Ok(TrackEnginePlan {
+                sample_rate,
+                is_raw: matches!(mode, DsdOutputMode::Dop | DsdOutputMode::Native),
+                dsd_mode: Some(mode),
+            })
+        }
+        crate::audio::decoder_handle::FileType::Standard => {
+            let probe_result = probe_file(path.as_path())
+                .map_err(|error| format!("Failed to probe {}: {}", path.display(), error))?;
+            let sample_rate = resolve_track_playback_output_sample_rate(Some(
+                probe_result.source_info.original_sample_rate,
+            ))?
+            .unwrap_or(DEFAULT_ENGINE_SAMPLE_RATE);
+            Ok(TrackEnginePlan {
+                sample_rate,
+                is_raw: false,
+                dsd_mode: None,
+            })
+        }
+        crate::audio::decoder_handle::FileType::WavPack => {
+            let sample_rate =
+                resolve_requested_output_sample_rate(None)?.unwrap_or(DEFAULT_ENGINE_SAMPLE_RATE);
+            Ok(TrackEnginePlan {
+                sample_rate,
+                is_raw: false,
+                dsd_mode: None,
+            })
+        }
+    }
+}
+
+/// True when a track can ride the live engine's fixed clock and pipeline
+/// state without renegotiation. DSD↔PCM and rate-changing boundaries cannot
+/// be gapless: queueing them would push the decoder into the old clock or
+/// raw-DSD pipeline (audible distortion). The caller skips the queue and the
+/// track-ended fallback replays with full renegotiation instead.
+fn queue_compatible_with_engine(
+    engine_sample_rate: u32,
+    engine_is_raw: bool,
+    plan: &TrackEnginePlan,
+) -> bool {
+    engine_sample_rate == plan.sample_rate && engine_is_raw == plan.is_raw
+}
+
 fn prepare_decoder_source(
     path: &PathBuf,
+    planned_dsd_mode: Option<DsdOutputMode>,
     output_sample_rate: u32,
     output_channels: usize,
 ) -> Result<(crate::audio::source::AudioSource, DecoderHandle), String> {
     match detect_file_type(path) {
         crate::audio::decoder_handle::FileType::Dsd => {
-            let effective_mode = effective_dsd_output_mode(current_dsd_output_mode());
+            // Use the per-track mode from the plan when available; fall back
+            // to the current-track-derived mode for callers without a plan.
+            let effective_mode = planned_dsd_mode
+                .unwrap_or_else(|| effective_dsd_output_mode(current_dsd_output_mode()));
             verify_dsd_engine_rate(path, effective_mode, output_sample_rate)?;
             let (source, thread) = DsdDecoderThread::spawn(
                 path.clone(),
@@ -1107,6 +1190,7 @@ pub fn audio_play(path: String) -> Result<(), String> {
             })
         }
         crate::audio::decoder_handle::FileType::Standard => {
+            clear_dsd_track_rate();
             let probe_result = probe_file(path.as_path())
                 .map_err(|error| format!("Failed to probe {}: {}", path.display(), error))?;
             ensure_audio_engine(resolve_track_playback_output_sample_rate(Some(
@@ -1226,6 +1310,7 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
                 });
             }
             crate::audio::decoder_handle::FileType::WavPack => {
+                clear_dsd_track_rate();
                 ensure_audio_engine(resolve_requested_output_sample_rate(None)?)?;
                 let (output_sample_rate, output_channels) =
                     with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
@@ -1274,13 +1359,25 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
         }
     }
 
-    let (output_sample_rate, output_channels) =
-        with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
-    let (source, handle) = prepare_decoder_source(&path, output_sample_rate, output_channels)?;
-    let effective_mode = effective_dsd_output_mode(current_dsd_output_mode());
-    let is_raw = matches!(effective_mode, DsdOutputMode::Dop | DsdOutputMode::Native);
+    let (output_sample_rate, output_channels, engine_is_raw) =
+        with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels(), handle.is_dop())))?;
+    let plan = plan_track_engine_config(&path)?;
+    if !queue_compatible_with_engine(output_sample_rate, engine_is_raw, &plan) {
+        log_info!(
+            "[AUDIO] queue_next: skipping {} — needs {} Hz raw_dsd={}, engine runs {} Hz raw_dsd={}; \
+             the track-ended fallback will renegotiate the output",
+            path.display(),
+            plan.sample_rate,
+            plan.is_raw,
+            output_sample_rate,
+            engine_is_raw
+        );
+        return Ok(());
+    }
+    let (source, handle) =
+        prepare_decoder_source(&path, plan.dsd_mode, output_sample_rate, output_channels)?;
     with_audio_engine(|engine| {
-        engine.set_dop_override(is_raw)?;
+        engine.set_dop_override(plan.is_raw)?;
         engine.queue_next_prepared(source, handle)
     })
 }
@@ -1290,6 +1387,7 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
 /// Auth is carried via `headers` (e.g. WebDAV Basic) — Subsonic/Jellyfin embed
 /// credentials in the URL query and pass an empty header map.
 pub fn audio_play_from_http(url: String, headers: HashMap<String, String>) -> Result<(), String> {
+    clear_dsd_track_rate();
     let probe_result = probe_http(&url, headers)
         .map_err(|e| format!("Failed to probe HTTP stream: {}", e))?;
     let file_rate = probe_result.source_info.original_sample_rate;
@@ -1322,6 +1420,7 @@ pub fn audio_queue_next_from_http(
     headers: HashMap<String, String>,
 ) -> Result<(), String> {
     if !audio_is_initialized() {
+        clear_dsd_track_rate();
         let probe_result = probe_http(&url, headers)
             .map_err(|e| format!("Failed to probe HTTP stream: {}", e))?;
         let file_rate = probe_result.source_info.original_sample_rate;
@@ -1341,11 +1440,29 @@ pub fn audio_queue_next_from_http(
         });
     }
 
-    // Engine already live at a fixed rate: probe + queue without rate negotiation.
-    let probe_result = probe_http(&url, headers)
-        .map_err(|e| format!("Failed to probe HTTP stream: {}", e))?;
-    let (output_sample_rate, output_channels) =
-        with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
+    // Engine already live at a fixed rate: probe and only queue when the
+    // stream needs the same clock/pipeline. A rate change or a raw-DSD
+    // engine cannot be reused gaplessly — let the track-ended fallback
+    // renegotiate instead of resampling the stream into the old config.
+    let probe_result =
+        probe_http(&url, headers).map_err(|e| format!("Failed to probe HTTP stream: {}", e))?;
+    let planned_rate = resolve_track_playback_output_sample_rate(Some(
+        probe_result.source_info.original_sample_rate,
+    ))?
+    .unwrap_or(DEFAULT_ENGINE_SAMPLE_RATE);
+    let (output_sample_rate, output_channels, engine_is_raw) =
+        with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels(), handle.is_dop())))?;
+    if engine_is_raw || planned_rate != output_sample_rate {
+        log_info!(
+            "[AUDIO] queue_next(http): skipping {} — needs {} Hz, engine runs {} Hz raw_dsd={}; \
+             the track-ended fallback will renegotiate the output",
+            url,
+            planned_rate,
+            output_sample_rate,
+            engine_is_raw
+        );
+        return Ok(());
+    }
     let (source, decoder_thread) = DecoderThread::spawn_from_probe_result(
         probe_result,
         output_sample_rate,
@@ -1683,5 +1800,108 @@ mod tests {
         let (enabled, got) = take_pending_equalizer().unwrap();
         assert!(!enabled, "disabled state must round-trip");
         assert!(got.is_empty());
+    }
+
+    #[test]
+    fn queue_compat_rejects_pcm_track_on_dsd_engine() {
+        // The original bug: after a DSF track the engine is raw at the DSD
+        // carrier/byte rate; queueing a FLAC onto it would resample the PCM
+        // into the DSD wire pipeline → distortion.
+        let flac_plan = TrackEnginePlan {
+            sample_rate: 44_100,
+            is_raw: false,
+            dsd_mode: None,
+        };
+        assert!(!queue_compatible_with_engine(176_400, true, &flac_plan));
+        assert!(!queue_compatible_with_engine(2_822_400, true, &flac_plan));
+    }
+
+    #[test]
+    fn queue_compat_rejects_dsd_track_on_pcm_engine() {
+        // The reverse direction: a queued DSF cannot ride a PCM engine.
+        let dsd_plan = TrackEnginePlan {
+            sample_rate: 2_822_400,
+            is_raw: true,
+            dsd_mode: Some(DsdOutputMode::Native),
+        };
+        assert!(!queue_compatible_with_engine(44_100, false, &dsd_plan));
+        assert!(!queue_compatible_with_engine(176_400, false, &dsd_plan));
+    }
+
+    #[test]
+    fn queue_compat_accepts_matching_configs() {
+        let pcm = TrackEnginePlan {
+            sample_rate: 44_100,
+            is_raw: false,
+            dsd_mode: None,
+        };
+        assert!(queue_compatible_with_engine(44_100, false, &pcm));
+
+        let dop = TrackEnginePlan {
+            sample_rate: 176_400,
+            is_raw: true,
+            dsd_mode: Some(DsdOutputMode::Dop),
+        };
+        assert!(queue_compatible_with_engine(176_400, true, &dop));
+    }
+
+    #[test]
+    fn queue_compat_rejects_rate_change_and_raw_flip() {
+        let pcm_96 = TrackEnginePlan {
+            sample_rate: 96_000,
+            is_raw: false,
+            dsd_mode: None,
+        };
+        assert!(
+            !queue_compatible_with_engine(44_100, false, &pcm_96),
+            "rate change must skip"
+        );
+
+        let dop = TrackEnginePlan {
+            sample_rate: 44_100,
+            is_raw: true,
+            dsd_mode: Some(DsdOutputMode::Dop),
+        };
+        assert!(
+            !queue_compatible_with_engine(44_100, false, &dop),
+            "raw flip must skip"
+        );
+    }
+
+    fn write_test_wav(path: &std::path::Path, sample_rate: u32, channels: u16, frames: u32) {
+        let bits: u16 = 16;
+        let block_align = channels * bits / 8;
+        let data_len = frames * u32::from(block_align);
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + data_len).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&channels.to_le_bytes());
+        wav.extend_from_slice(&sample_rate.to_le_bytes());
+        wav.extend_from_slice(&(sample_rate * u32::from(block_align)).to_le_bytes());
+        wav.extend_from_slice(&block_align.to_le_bytes());
+        wav.extend_from_slice(&bits.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&data_len.to_le_bytes());
+        wav.resize(wav.len() + data_len as usize, 0);
+        std::fs::write(path, &wav).expect("write wav");
+    }
+
+    #[test]
+    fn plan_pcm_file_targets_file_rate_without_raw() {
+        let dir = std::env::temp_dir().join(format!("flick_plan_test_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("tone.wav");
+        write_test_wav(&path, 44_100, 2, 64);
+
+        let plan = plan_track_engine_config(&path).expect("plan");
+        assert!(!plan.is_raw);
+        assert_eq!(plan.dsd_mode, None);
+        #[cfg(not(target_os = "android"))]
+        assert_eq!(plan.sample_rate, 44_100);
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

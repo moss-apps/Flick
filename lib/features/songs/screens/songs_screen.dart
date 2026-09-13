@@ -901,7 +901,24 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       case SongSortOption.genre:
         return [];
       case SongSortOption.fileType:
-        return ['FLAC', 'MP3', 'WAV', 'AAC', 'OGG', 'OGX', 'OPUS', 'ALAC', '#'];
+        return [
+          'FLAC',
+          'MP3',
+          'WAV',
+          'AAC',
+          'M4A',
+          'ALAC',
+          'AIFF',
+          'AIF',
+          'OGG',
+          'OGA',
+          'OGX',
+          'OPUS',
+          'DSF',
+          'DFF',
+          'WV',
+          '#',
+        ];
       default:
         return SongFastIndexOverlay.defaultTokens;
     }

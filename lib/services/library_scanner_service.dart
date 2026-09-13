@@ -557,7 +557,12 @@ class LibraryScannerService {
 
       if (existing != null) {
         final existingTime = existing.lastModified?.millisecondsSinceEpoch ?? 0;
-        if (file.lastModified == existingTime && existing.metadataComplete) {
+        // Rows without a sample rate are re-extracted: the sparse pass marks
+        // them complete after one attempt, but the Rust fallback may only
+        // succeed on a later scan (retriever failures on hi-res files).
+        if (file.lastModified == existingTime &&
+            existing.metadataComplete &&
+            existing.sampleRate != null) {
           continue;
         }
       }
@@ -617,9 +622,12 @@ class LibraryScannerService {
                 int.tryParse(file.bitrate!),
               )
             : null
-        ..bitDepth = file.bitDepth
-        ..sampleRate = file.sampleRate
-        ..year = file.year
+        ..bitDepth = file.bitDepth ?? existing?.bitDepth
+        ..sampleRate = file.sampleRate ?? existing?.sampleRate
+        ..genre = (file.genre?.trim().isNotEmpty ?? false)
+            ? file.genre!.trim()
+            : existing?.genre
+        ..year = file.year ?? existing?.year
         ..ripper = existing?.ripper
         ..readMode = existing?.readMode
         ..accurateRip = existing?.accurateRip
@@ -758,11 +766,19 @@ class LibraryScannerService {
     final metadataChunks = _chunkList(contentUris, metadataBatchSize);
     final songsByUri = await _songRepository.getSongEntitiesByFolder(folderUri);
     final pathMap = <String, SongEntity>{};
+    // MediaStore content URIs carry no filesystem path the Rust fallback
+    // could use; hand it the row's raw path so retries read the file
+    // directly instead of staging a full copy through the cache.
+    final rawPathByUri = <String, String>{};
     for (final s in songsByUri) {
       pathMap[s.filePath] = s;
       final mediaStoreUri = s.mediaStoreUri;
       if (mediaStoreUri != null && mediaStoreUri.isNotEmpty) {
         pathMap[mediaStoreUri] = s;
+        final raw = rawPathFromFileUri(s.filePath);
+        if (raw != null && mediaStoreUri.startsWith('content://')) {
+          rawPathByUri[mediaStoreUri] = raw;
+        }
       }
     }
 
@@ -770,7 +786,10 @@ class LibraryScannerService {
       if (_isCancelled) break;
 
       final stopwatch = Stopwatch()..start();
-      final metadataList = await _fetchMetadataChunk(chunkUris);
+      final metadataList = await _fetchMetadataChunk(
+        chunkUris,
+        rawPathByUri: rawPathByUri,
+      );
       _logScanTiming(
         displayName,
         'sparse metadata chunk ${chunkUris.length}',
@@ -815,6 +834,10 @@ class LibraryScannerService {
             existing.album = meta.album!.trim();
           }
           existing.trackNumber = meta.trackNumber ?? existing.trackNumber;
+          existing.genre = (meta.genre?.trim().isNotEmpty ?? false)
+              ? meta.genre!.trim()
+              : existing.genre;
+          existing.year = meta.year ?? existing.year;
         }
         existing.metadataComplete = true;
         updateBatch.add(existing);
@@ -1161,6 +1184,10 @@ class LibraryScannerService {
                   : existing.artist;
           existing.trackNumber = meta.trackNumber ?? existing.trackNumber;
           existing.discNumber = meta.discNumber ?? existing.discNumber;
+          existing.genre = (meta.genre?.trim().isNotEmpty ?? false)
+              ? meta.genre!.trim()
+              : existing.genre;
+          existing.year = meta.year ?? existing.year;
         }
 
         updateBatch.add(existing);
@@ -1342,6 +1369,7 @@ class LibraryScannerService {
         final missingMetadata =
             !existing.metadataComplete ||
             existing.bitrate == null ||
+            existing.sampleRate == null ||
             fileTypeMismatch;
 
         if (file.lastModified != existingTime || missingMetadata) {
@@ -1512,6 +1540,10 @@ class LibraryScannerService {
               : null
           ..bitDepth = meta?.bitDepth
           ..sampleRate = meta?.sampleRate
+          ..genre = (meta?.genre?.trim().isNotEmpty ?? false)
+              ? meta!.genre!.trim()
+              : existing?.genre
+          ..year = meta?.year ?? existing?.year
           ..ripper = ripLog?.ripper
           ..readMode = ripLog?.readMode
           ..accurateRip = ripLog?.accurateRipEnabled
@@ -2361,16 +2393,38 @@ class LibraryScannerService {
   /// second chance through the Rust parsers.
   static const _rustFallbackExtensions = {'wv', 'dsf', 'dff'};
 
+  /// Decides whether a retriever result warrants a Rust parser retry.
+  ///
+  /// WavPack/DSD always retry. Other formats retry when the retriever could
+  /// not establish the core stream layout (missing sample rate or duration) —
+  /// OEM extractors have been seen failing on hi-res FLAC (HiOS, 192 kHz)
+  /// while reporting the container bitrate. Missing bit depth alone is normal
+  /// for lossy codecs and must not trigger a parse. Pure; unit-tested.
+  static bool shouldRustRetryMetadata({
+    required String extension,
+    required bool hasMetadata,
+    required bool hasSampleRate,
+    required bool hasDuration,
+  }) {
+    if (_rustFallbackExtensions.contains(extension)) return true;
+    return !hasMetadata || !hasSampleRate || !hasDuration;
+  }
+
   /// Upper bound for staging a SAF document just to read its tags (256 MB).
   /// Larger files stay sparse in the SAF tier; playback staging is unaffected.
   static const _metadataStagingMaxBytes = 256 * 1024 * 1024;
 
   Future<List<AudioFileInfo>?> _fetchMetadataChunk(
-    List<String> chunkUris,
-  ) async {
+    List<String> chunkUris, {
+    Map<String, String>? rawPathByUri,
+  }) async {
     try {
       final metadataList = await _musicFolderService.fetchMetadata(chunkUris);
-      return await _fillRustMetadataFallback(metadataList, chunkUris);
+      return await _fillRustMetadataFallback(
+        metadataList,
+        chunkUris,
+        rawPathByUri: rawPathByUri,
+      );
     } catch (e) {
       devLog(
         'Error fetching metadata chunk (${chunkUris.length} files): $e',
@@ -2379,15 +2433,18 @@ class LibraryScannerService {
     }
   }
 
-  /// For wv/dsf/dff URIs whose retriever metadata came back unsolved
-  /// (missing duration/sampleRate), retry with the Rust parser (lofty /
-  /// dsf-meta / dff-meta). Raw-path URIs are read directly; SAF document
-  /// URIs go through the shared staging cache with a size cap. Degrades
-  /// silently — retriever results stand when Rust also fails.
+  /// For URIs whose retriever metadata came back unsolved, retry with the
+  /// Rust parser (lofty / dsf-meta / dff-meta). WavPack and DSD always go
+  /// through Rust; other formats escalate when the retriever failed to
+  /// establish the stream layout (missing sample rate or duration). Raw-path
+  /// URIs are read directly; content URIs stage through the shared cache
+  /// with a size cap (or use a caller-supplied raw path when the DB row has
+  /// one). Degrades silently — retriever results stand when Rust also fails.
   Future<List<AudioFileInfo>> _fillRustMetadataFallback(
     List<AudioFileInfo> metadataList,
-    List<String> chunkUris,
-  ) async {
+    List<String> chunkUris, {
+    Map<String, String>? rawPathByUri,
+  }) async {
     if (chunkUris.isEmpty || !Platform.isAndroid) return metadataList;
 
     final byUri = {for (final m in metadataList) m.uri: m};
@@ -2395,7 +2452,6 @@ class LibraryScannerService {
 
     for (final uri in chunkUris) {
       if (_isCancelled) break;
-      if (!_rustFallbackExtensions.contains(_extensionOfUri(uri))) continue;
 
       final meta = byUri[uri];
       final retrieverSolved =
@@ -2406,7 +2462,19 @@ class LibraryScannerService {
           meta.bitrate != null;
       if (retrieverSolved) continue;
 
-      final rustMeta = await _extractRustMetadataForUri(uri);
+      if (!shouldRustRetryMetadata(
+        extension: _extensionOfUri(uri),
+        hasMetadata: meta != null,
+        hasSampleRate: meta?.sampleRate != null,
+        hasDuration: meta?.duration != null,
+      )) {
+        continue;
+      }
+
+      final rustMeta = await _extractRustMetadataForUri(
+        uri,
+        rawPath: rawPathByUri?[uri],
+      );
       if (rustMeta == null) continue;
 
       byUri[uri] = _mergeRustMetadata(meta, uri, rustMeta);
@@ -2438,18 +2506,21 @@ class LibraryScannerService {
     return path.substring(dot + 1).toLowerCase();
   }
 
-  Future<AudioFileMetadata?> _extractRustMetadataForUri(String uri) async {
-    var rawPath = rawPathFromFileUri(uri) ?? rawPathFromSafUri(uri);
-    if (rawPath == null && uri.startsWith('content://')) {
-      rawPath = await _musicFolderService.cacheUriForPlayback(
+  Future<AudioFileMetadata?> _extractRustMetadataForUri(
+    String uri, {
+    String? rawPath,
+  }) async {
+    var path = rawPathFromFileUri(uri) ?? rawPathFromSafUri(uri) ?? rawPath;
+    if (path == null && uri.startsWith('content://')) {
+      path = await _musicFolderService.cacheUriForPlayback(
         uri,
         extensionHint: _extensionOfUri(uri),
         maxSizeBytes: _metadataStagingMaxBytes,
       );
     }
-    if (rawPath == null) return null;
+    if (path == null) return null;
     try {
-      return await extractFileMetadata(path: rawPath);
+      return await extractFileMetadata(path: path);
     } catch (e) {
       devLog('Rust metadata fallback failed for $uri: $e');
       return null;
@@ -2474,18 +2545,25 @@ class LibraryScannerService {
       albumArtist: base?.albumArtist,
       trackNumber: base?.trackNumber ?? rust.trackNumber,
       discNumber: base?.discNumber ?? rust.discNumber,
+      genre: base?.genre ?? rust.genre,
       duration: base?.duration ?? rust.durationMs?.toInt(),
       albumArtPath: base?.albumArtPath,
       // Call sites parse this as bits-per-second (retriever convention);
       // the Rust parsers report bits-per-second too.
       bitrate: base?.bitrate ?? rust.bitrate?.toString(),
-      bitDepth: base?.bitDepth ?? rust.bitDepth,
-      sampleRate: base?.sampleRate ?? rust.sampleRate,
+      // Lofty reports plain-u32 rates for MP4, where a failed ALAC cookie
+      // parse yields 0 — treat that as unsolved rather than "0 kHz".
+      bitDepth: _positiveOrNull(base?.bitDepth) ?? _positiveOrNull(rust.bitDepth),
+      sampleRate:
+          _positiveOrNull(base?.sampleRate) ?? _positiveOrNull(rust.sampleRate),
       filePath: base?.filePath,
-      year: base?.year,
+      year: base?.year ?? rust.year,
       dateAdded: base?.dateAdded,
     );
   }
+
+  static int? _positiveOrNull(int? value) =>
+      value != null && value > 0 ? value : null;
 
   Future<void> _runDetachedScanTask(
     String displayName,
@@ -2908,8 +2986,12 @@ class LibraryScannerService {
             : null
         ..bitDepth = meta?.bitDepth
         ..sampleRate = meta?.sampleRate
-        ..genre = cueSheet.genre
-        ..year = int.tryParse(cueSheet.date ?? '')
+        ..genre = (cueSheet.genre?.trim().isNotEmpty ?? false)
+            ? cueSheet.genre!.trim()
+            : (meta?.genre?.trim().isNotEmpty ?? false)
+            ? meta!.genre!.trim()
+            : null
+        ..year = int.tryParse(cueSheet.date ?? '') ?? meta?.year
         ..ripper = ripLog?.ripper
         ..readMode = ripLog?.readMode
         ..accurateRip = trackLog?.trackNumber == track.trackNumber

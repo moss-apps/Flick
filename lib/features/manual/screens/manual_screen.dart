@@ -6,6 +6,7 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/manual/data/manual_data.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/widgets/common/glass_search_bar.dart';
 
 class ManualScreen extends ConsumerStatefulWidget {
   final String? initialSection;
@@ -123,15 +124,7 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
         vertical: AppConstants.spacingSm,
       ),
       child: _searching
-          ? _SearchField(
-              controller: _searchController,
-              onChanged: (v) => setState(() => _query = v),
-              onClose: () => setState(() {
-                _searching = false;
-                _query = '';
-                _searchController.clear();
-              }),
-            )
+          ? _buildSearchBar()
           : Stack(
               alignment: Alignment.center,
               children: [
@@ -162,6 +155,53 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(LucideIcons.chevronLeft, size: 22),
+          onPressed: () => setState(() {
+            _searching = false;
+            _query = '';
+            _searchController.clear();
+          }),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xBF1E1E1E),
+                  Color(0xD9141414),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+              border: Border.all(color: AppColors.glassBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 16,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: GlassSearchBar(
+              controller: _searchController,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              hintText: 'Search the manual...',
+              showBackground: false,
+              onChanged: (v) => setState(() => _query = v),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -225,44 +265,6 @@ class _SearchHit {
   final ManualSection section;
   final ManualEntry entry;
   const _SearchHit({required this.section, required this.entry});
-}
-
-class _SearchField extends StatelessWidget {
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClose;
-
-  const _SearchField({
-    required this.controller,
-    required this.onChanged,
-    required this.onClose,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      autofocus: true,
-      onChanged: onChanged,
-      style: const TextStyle(
-        fontFamily: 'ProductSans',
-        color: AppColors.textPrimary,
-        fontSize: 16,
-      ),
-      decoration: InputDecoration(
-        hintText: 'Search the manual...',
-        hintStyle: const TextStyle(
-          fontFamily: 'ProductSans',
-          color: AppColors.textTertiary,
-        ),
-        border: InputBorder.none,
-        suffixIcon: IconButton(
-          icon: const Icon(LucideIcons.x, size: 18),
-          onPressed: onClose,
-        ),
-      ),
-    );
-  }
 }
 
 class _ManualSectionCard extends StatefulWidget {

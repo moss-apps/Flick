@@ -99,4 +99,93 @@ void main() {
       );
     });
   });
+
+  group('shouldRustRetryMetadata', () {
+    test('wavpack and dsd always retry through the rust parsers', () {
+      for (final ext in ['wv', 'dsf', 'dff']) {
+        expect(
+          LibraryScannerService.shouldRustRetryMetadata(
+            extension: ext,
+            hasMetadata: true,
+            hasSampleRate: true,
+            hasDuration: true,
+          ),
+          isTrue,
+          reason: ext,
+        );
+      }
+    });
+
+    test('flac without a sample rate retries (hi-res retriever failure)', () {
+      expect(
+        LibraryScannerService.shouldRustRetryMetadata(
+          extension: 'flac',
+          hasMetadata: true,
+          hasSampleRate: false,
+          hasDuration: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('flac without a duration retries', () {
+      expect(
+        LibraryScannerService.shouldRustRetryMetadata(
+          extension: 'flac',
+          hasMetadata: true,
+          hasSampleRate: true,
+          hasDuration: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('missing retriever row retries for any extension', () {
+      expect(
+        LibraryScannerService.shouldRustRetryMetadata(
+          extension: 'm4a',
+          hasMetadata: false,
+          hasSampleRate: false,
+          hasDuration: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('solved stream layout does not retry', () {
+      expect(
+        LibraryScannerService.shouldRustRetryMetadata(
+          extension: 'flac',
+          hasMetadata: true,
+          hasSampleRate: true,
+          hasDuration: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('missing bit depth alone does not retry (lossy codecs)', () {
+      expect(
+        LibraryScannerService.shouldRustRetryMetadata(
+          extension: 'mp3',
+          hasMetadata: true,
+          hasSampleRate: true,
+          hasDuration: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('extension-less content uris still retry when unsolved', () {
+      expect(
+        LibraryScannerService.shouldRustRetryMetadata(
+          extension: '',
+          hasMetadata: true,
+          hasSampleRate: false,
+          hasDuration: true,
+        ),
+        isTrue,
+      );
+    });
+  });
 }

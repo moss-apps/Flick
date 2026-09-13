@@ -70,6 +70,8 @@ class AudioFileMetadata {
   final int? bitrate;
   final int? trackNumber;
   final int? discNumber;
+  final String? genre;
+  final int? year;
   final BigInt fileSize;
 
   /// ReplayGain loudness gain for the track (dB).
@@ -97,6 +99,8 @@ class AudioFileMetadata {
     this.bitrate,
     this.trackNumber,
     this.discNumber,
+    this.genre,
+    this.year,
     required this.fileSize,
     this.replaygainTrackGain,
     this.replaygainTrackPeak,
@@ -118,6 +122,8 @@ class AudioFileMetadata {
       bitrate.hashCode ^
       trackNumber.hashCode ^
       discNumber.hashCode ^
+      genre.hashCode ^
+      year.hashCode ^
       fileSize.hashCode ^
       replaygainTrackGain.hashCode ^
       replaygainTrackPeak.hashCode ^
@@ -141,6 +147,8 @@ class AudioFileMetadata {
           bitrate == other.bitrate &&
           trackNumber == other.trackNumber &&
           discNumber == other.discNumber &&
+          genre == other.genre &&
+          year == other.year &&
           fileSize == other.fileSize &&
           replaygainTrackGain == other.replaygainTrackGain &&
           replaygainTrackPeak == other.replaygainTrackPeak &&

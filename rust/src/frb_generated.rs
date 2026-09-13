@@ -4414,6 +4414,8 @@ impl SseDecode for crate::api::scanner::AudioFileMetadata {
         let mut var_bitrate = <Option<u32>>::sse_decode(deserializer);
         let mut var_trackNumber = <Option<u32>>::sse_decode(deserializer);
         let mut var_discNumber = <Option<u32>>::sse_decode(deserializer);
+        let mut var_genre = <Option<String>>::sse_decode(deserializer);
+        let mut var_year = <Option<u32>>::sse_decode(deserializer);
         let mut var_fileSize = <u64>::sse_decode(deserializer);
         let mut var_replaygainTrackGain = <Option<f64>>::sse_decode(deserializer);
         let mut var_replaygainTrackPeak = <Option<f64>>::sse_decode(deserializer);
@@ -4432,6 +4434,8 @@ impl SseDecode for crate::api::scanner::AudioFileMetadata {
             bitrate: var_bitrate,
             track_number: var_trackNumber,
             disc_number: var_discNumber,
+            genre: var_genre,
+            year: var_year,
             file_size: var_fileSize,
             replaygain_track_gain: var_replaygainTrackGain,
             replaygain_track_peak: var_replaygainTrackPeak,
@@ -5158,6 +5162,9 @@ impl SseDecode for crate::api::metadata_editor::TagReadResult {
         let mut var_year = <Option<u32>>::sse_decode(deserializer);
         let mut var_trackNumber = <Option<u32>>::sse_decode(deserializer);
         let mut var_discNumber = <Option<u32>>::sse_decode(deserializer);
+        let mut var_date = <Option<String>>::sse_decode(deserializer);
+        let mut var_copyright = <Option<String>>::sse_decode(deserializer);
+        let mut var_label = <Option<String>>::sse_decode(deserializer);
         return crate::api::metadata_editor::TagReadResult {
             title: var_title,
             artist: var_artist,
@@ -5167,6 +5174,9 @@ impl SseDecode for crate::api::metadata_editor::TagReadResult {
             year: var_year,
             track_number: var_trackNumber,
             disc_number: var_discNumber,
+            date: var_date,
+            copyright: var_copyright,
+            label: var_label,
         };
     }
 }
@@ -5962,6 +5972,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::scanner::AudioFileMetadata {
             self.bitrate.into_into_dart().into_dart(),
             self.track_number.into_into_dart().into_dart(),
             self.disc_number.into_into_dart().into_dart(),
+            self.genre.into_into_dart().into_dart(),
+            self.year.into_into_dart().into_dart(),
             self.file_size.into_into_dart().into_dart(),
             self.replaygain_track_gain.into_into_dart().into_dart(),
             self.replaygain_track_peak.into_into_dart().into_dart(),
@@ -6398,6 +6410,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::metadata_editor::TagReadResul
             self.year.into_into_dart().into_dart(),
             self.track_number.into_into_dart().into_dart(),
             self.disc_number.into_into_dart().into_dart(),
+            self.date.into_into_dart().into_dart(),
+            self.copyright.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -6760,6 +6775,8 @@ impl SseEncode for crate::api::scanner::AudioFileMetadata {
         <Option<u32>>::sse_encode(self.bitrate, serializer);
         <Option<u32>>::sse_encode(self.track_number, serializer);
         <Option<u32>>::sse_encode(self.disc_number, serializer);
+        <Option<String>>::sse_encode(self.genre, serializer);
+        <Option<u32>>::sse_encode(self.year, serializer);
         <u64>::sse_encode(self.file_size, serializer);
         <Option<f64>>::sse_encode(self.replaygain_track_gain, serializer);
         <Option<f64>>::sse_encode(self.replaygain_track_peak, serializer);
@@ -7352,6 +7369,9 @@ impl SseEncode for crate::api::metadata_editor::TagReadResult {
         <Option<u32>>::sse_encode(self.year, serializer);
         <Option<u32>>::sse_encode(self.track_number, serializer);
         <Option<u32>>::sse_encode(self.disc_number, serializer);
+        <Option<String>>::sse_encode(self.date, serializer);
+        <Option<String>>::sse_encode(self.copyright, serializer);
+        <Option<String>>::sse_encode(self.label, serializer);
     }
 }
 

@@ -4317,8 +4317,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AudioFileMetadata dco_decode_audio_file_metadata(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 17)
-      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
+    if (arr.length != 19)
+      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
     return AudioFileMetadata(
       path: dco_decode_String(arr[0]),
       title: dco_decode_opt_String(arr[1]),
@@ -4332,11 +4332,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       bitrate: dco_decode_opt_box_autoadd_u_32(arr[9]),
       trackNumber: dco_decode_opt_box_autoadd_u_32(arr[10]),
       discNumber: dco_decode_opt_box_autoadd_u_32(arr[11]),
-      fileSize: dco_decode_u_64(arr[12]),
-      replaygainTrackGain: dco_decode_opt_box_autoadd_f_64(arr[13]),
-      replaygainTrackPeak: dco_decode_opt_box_autoadd_f_64(arr[14]),
-      replaygainAlbumGain: dco_decode_opt_box_autoadd_f_64(arr[15]),
-      replaygainAlbumPeak: dco_decode_opt_box_autoadd_f_64(arr[16]),
+      genre: dco_decode_opt_String(arr[12]),
+      year: dco_decode_opt_box_autoadd_u_32(arr[13]),
+      fileSize: dco_decode_u_64(arr[14]),
+      replaygainTrackGain: dco_decode_opt_box_autoadd_f_64(arr[15]),
+      replaygainTrackPeak: dco_decode_opt_box_autoadd_f_64(arr[16]),
+      replaygainAlbumGain: dco_decode_opt_box_autoadd_f_64(arr[17]),
+      replaygainAlbumPeak: dco_decode_opt_box_autoadd_f_64(arr[18]),
     );
   }
 
@@ -4955,8 +4957,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TagReadResult dco_decode_tag_read_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return TagReadResult(
       title: dco_decode_opt_String(arr[0]),
       artist: dco_decode_opt_String(arr[1]),
@@ -4966,6 +4968,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       year: dco_decode_opt_box_autoadd_u_32(arr[5]),
       trackNumber: dco_decode_opt_box_autoadd_u_32(arr[6]),
       discNumber: dco_decode_opt_box_autoadd_u_32(arr[7]),
+      date: dco_decode_opt_String(arr[8]),
+      copyright: dco_decode_opt_String(arr[9]),
+      label: dco_decode_opt_String(arr[10]),
     );
   }
 
@@ -5294,6 +5299,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_bitrate = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_trackNumber = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_discNumber = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_genre = sse_decode_opt_String(deserializer);
+    var var_year = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_fileSize = sse_decode_u_64(deserializer);
     var var_replaygainTrackGain = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_replaygainTrackPeak = sse_decode_opt_box_autoadd_f_64(deserializer);
@@ -5312,6 +5319,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       bitrate: var_bitrate,
       trackNumber: var_trackNumber,
       discNumber: var_discNumber,
+      genre: var_genre,
+      year: var_year,
       fileSize: var_fileSize,
       replaygainTrackGain: var_replaygainTrackGain,
       replaygainTrackPeak: var_replaygainTrackPeak,
@@ -6130,6 +6139,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_year = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_trackNumber = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_discNumber = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_date = sse_decode_opt_String(deserializer);
+    var var_copyright = sse_decode_opt_String(deserializer);
+    var var_label = sse_decode_opt_String(deserializer);
     return TagReadResult(
       title: var_title,
       artist: var_artist,
@@ -6139,6 +6151,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       year: var_year,
       trackNumber: var_trackNumber,
       discNumber: var_discNumber,
+      date: var_date,
+      copyright: var_copyright,
+      label: var_label,
     );
   }
 
@@ -6502,6 +6517,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_u_32(self.bitrate, serializer);
     sse_encode_opt_box_autoadd_u_32(self.trackNumber, serializer);
     sse_encode_opt_box_autoadd_u_32(self.discNumber, serializer);
+    sse_encode_opt_String(self.genre, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.year, serializer);
     sse_encode_u_64(self.fileSize, serializer);
     sse_encode_opt_box_autoadd_f_64(self.replaygainTrackGain, serializer);
     sse_encode_opt_box_autoadd_f_64(self.replaygainTrackPeak, serializer);
@@ -7257,6 +7274,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_u_32(self.year, serializer);
     sse_encode_opt_box_autoadd_u_32(self.trackNumber, serializer);
     sse_encode_opt_box_autoadd_u_32(self.discNumber, serializer);
+    sse_encode_opt_String(self.date, serializer);
+    sse_encode_opt_String(self.copyright, serializer);
+    sse_encode_opt_String(self.label, serializer);
   }
 
   @protected

@@ -78,6 +78,7 @@ class AudioFileInfo {
   final int? bitDepth;
   final int? sampleRate;
   final String? filePath;
+  final String? genre;
   final int? year;
   final int? dateAdded;
 
@@ -100,6 +101,7 @@ class AudioFileInfo {
     this.bitDepth,
     this.sampleRate,
     this.filePath,
+    this.genre,
     this.year,
     this.dateAdded,
   });
@@ -128,6 +130,7 @@ class AudioFileInfo {
       bitDepth: (map['bitDepth'] as num?)?.toInt(),
       sampleRate: (map['sampleRate'] as num?)?.toInt(),
       filePath: map['filePath'] as String?,
+      genre: map['genre'] as String?,
       year: (map['year'] as num?)?.toInt(),
       dateAdded: (map['dateAdded'] as num?)?.toInt(),
     );

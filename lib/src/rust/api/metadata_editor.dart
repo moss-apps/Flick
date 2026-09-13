@@ -86,6 +86,9 @@ class TagReadResult {
   final int? year;
   final int? trackNumber;
   final int? discNumber;
+  final String? date;
+  final String? copyright;
+  final String? label;
 
   const TagReadResult({
     this.title,
@@ -96,6 +99,9 @@ class TagReadResult {
     this.year,
     this.trackNumber,
     this.discNumber,
+    this.date,
+    this.copyright,
+    this.label,
   });
 
   @override
@@ -107,7 +113,10 @@ class TagReadResult {
       genre.hashCode ^
       year.hashCode ^
       trackNumber.hashCode ^
-      discNumber.hashCode;
+      discNumber.hashCode ^
+      date.hashCode ^
+      copyright.hashCode ^
+      label.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -121,7 +130,10 @@ class TagReadResult {
           genre == other.genre &&
           year == other.year &&
           trackNumber == other.trackNumber &&
-          discNumber == other.discNumber;
+          discNumber == other.discNumber &&
+          date == other.date &&
+          copyright == other.copyright &&
+          label == other.label;
 }
 
 class TagWriteResult {
