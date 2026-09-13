@@ -1694,10 +1694,20 @@ class MainActivity: FlutterActivity() {
                 return false
             }
 
-            val bytes = tempFile.readBytes()
+            // Stream in fixed-size chunks: hi-res/DSD files can be hundreds of
+            // MB, and readBytes() would need the whole file as one contiguous
+            // heap array (OutOfMemoryError kills the process — it is an Error,
+            // not an Exception, so the catch below must also cover Throwable).
             contentResolver.openOutputStream(childUri, "wt")?.use { output ->
-                output.write(bytes)
-                output.flush()
+                tempFile.inputStream().use { input ->
+                    val buffer = ByteArray(1024 * 1024)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        output.write(buffer, 0, read)
+                    }
+                    output.flush()
+                }
             } ?: run {
                 Log.w("MainActivity", "writeFileBytesViaSaf: failed to open output stream for $childUri")
                 return false
@@ -1705,7 +1715,7 @@ class MainActivity: FlutterActivity() {
 
             tempFile.delete()
             true
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.w("MainActivity", "writeFileBytesViaSaf failed: ${e.message}", e)
             false
         }
@@ -2023,6 +2033,11 @@ class MainActivity: FlutterActivity() {
         )
         metadata["bitrate"] = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
         metadata["mimeType"] = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
+        metadata["genre"] = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
+            ?.takeIf { it.isNotBlank() }
+        metadata["year"] = parseMetadataNumber(
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
+        )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val sampleRateStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)
