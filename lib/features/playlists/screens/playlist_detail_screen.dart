@@ -29,6 +29,7 @@ import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/features/playlists/widgets/playlist_sort_bottom_sheet.dart';
+import 'package:flick/features/songs/widgets/song_actions_button.dart';
 
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final Playlist playlist;
@@ -856,33 +857,9 @@ class _SongTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              PopupMenuButton<String>(
-                icon: Icon(
-                  LucideIcons.ellipsisVertical,
-                  color: context.adaptiveTextTertiary,
-                  size: context.responsiveIcon(AppConstants.iconSizeSm),
-                ),
-                color: AppColors.surface,
-                onSelected: (value) {
-                  if (value == 'remove') {
-                    onRemove();
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'remove',
-                    child: Row(
-                      children: [
-                        Icon(LucideIcons.trash2, color: Colors.red, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Remove from playlist',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              SongActionsButton(
+                song: song,
+                onRemoveFromPlaylist: onRemove,
               ),
             ],
           ),

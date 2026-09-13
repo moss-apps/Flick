@@ -26,12 +26,14 @@ class SongActionsBottomSheet extends ConsumerWidget {
   final Song song;
   final BuildContext rootContext;
   final VoidCallback? onSelect;
+  final VoidCallback? onRemoveFromPlaylist;
 
   const SongActionsBottomSheet({
     super.key,
     required this.song,
     required this.rootContext,
     this.onSelect,
+    this.onRemoveFromPlaylist,
   });
 
   /// Show the song actions bottom sheet
@@ -39,6 +41,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
     BuildContext context,
     Song song, {
     VoidCallback? onSelect,
+    VoidCallback? onRemoveFromPlaylist,
   }) {
     return showModalBottomSheet(
       useRootNavigator: true,
@@ -50,6 +53,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
           song: song,
           rootContext: context,
           onSelect: onSelect,
+          onRemoveFromPlaylist: onRemoveFromPlaylist,
         ),
       ),
     );
@@ -67,6 +71,16 @@ class SongActionsBottomSheet extends ConsumerWidget {
           const SizedBox(height: AppConstants.spacingMd),
           _buildSongHeader(context),
           const SizedBox(height: AppConstants.spacingMd),
+          if (onRemoveFromPlaylist != null)
+            _buildActionTile(
+              context: context,
+              icon: LucideIcons.listMinus,
+              label: 'Remove from Playlist',
+              onTap: () {
+                Navigator.pop(context);
+                onRemoveFromPlaylist!.call();
+              },
+            ),
           _buildActionTile(
             context: context,
             icon: LucideIcons.heart,

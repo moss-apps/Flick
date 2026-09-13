@@ -19,6 +19,7 @@ import 'package:flick/widgets/common/song_tile_thumbnail.dart';
 import 'package:flick/widgets/common/detail_header.dart';
 import 'package:flick/features/player/widgets/add_to_playlist_sheet.dart';
 import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
+import 'package:flick/features/songs/widgets/song_actions_button.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
@@ -685,6 +686,8 @@ class _SongTile extends StatelessWidget {
                   color: context.adaptiveTextTertiary,
                 ),
               ),
+              const SizedBox(width: AppConstants.spacingXs),
+              SongActionsButton(song: song),
             ],
           ),
         ),
