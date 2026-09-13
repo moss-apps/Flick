@@ -834,6 +834,10 @@ class LibraryScannerService {
             existing.album = meta.album!.trim();
           }
           existing.trackNumber = meta.trackNumber ?? existing.trackNumber;
+          existing.genre = (meta.genre?.trim().isNotEmpty ?? false)
+              ? meta.genre!.trim()
+              : existing.genre;
+          existing.year = meta.year ?? existing.year;
         }
         existing.metadataComplete = true;
         updateBatch.add(existing);
@@ -1180,6 +1184,10 @@ class LibraryScannerService {
                   : existing.artist;
           existing.trackNumber = meta.trackNumber ?? existing.trackNumber;
           existing.discNumber = meta.discNumber ?? existing.discNumber;
+          existing.genre = (meta.genre?.trim().isNotEmpty ?? false)
+              ? meta.genre!.trim()
+              : existing.genre;
+          existing.year = meta.year ?? existing.year;
         }
 
         updateBatch.add(existing);
@@ -1532,6 +1540,10 @@ class LibraryScannerService {
               : null
           ..bitDepth = meta?.bitDepth
           ..sampleRate = meta?.sampleRate
+          ..genre = (meta?.genre?.trim().isNotEmpty ?? false)
+              ? meta!.genre!.trim()
+              : existing?.genre
+          ..year = meta?.year ?? existing?.year
           ..ripper = ripLog?.ripper
           ..readMode = ripLog?.readMode
           ..accurateRip = ripLog?.accurateRipEnabled
@@ -2974,8 +2986,12 @@ class LibraryScannerService {
             : null
         ..bitDepth = meta?.bitDepth
         ..sampleRate = meta?.sampleRate
-        ..genre = cueSheet.genre
-        ..year = int.tryParse(cueSheet.date ?? '')
+        ..genre = (cueSheet.genre?.trim().isNotEmpty ?? false)
+            ? cueSheet.genre!.trim()
+            : (meta?.genre?.trim().isNotEmpty ?? false)
+            ? meta!.genre!.trim()
+            : null
+        ..year = int.tryParse(cueSheet.date ?? '') ?? meta?.year
         ..ripper = ripLog?.ripper
         ..readMode = ripLog?.readMode
         ..accurateRip = trackLog?.trackNumber == track.trackNumber
