@@ -279,7 +279,7 @@ fn extract_dsf_artwork(path: &Path) -> Option<Vec<u8>> {
 /// Tolerant DSDIFF (DFF) chunk walker that locates the trailing "ID3 "
 /// chunk. Unlike `dff_meta::DffFile`, it survives unexpected chunk ordering
 /// and keeps partially parsed ID3 tags.
-fn find_dff_id3_tag(path: &Path) -> Option<id3::Tag> {
+pub(crate) fn find_dff_id3_tag(path: &Path) -> Option<id3::Tag> {
     use std::io::{Read, Seek, SeekFrom};
 
     let mut file = std::fs::File::open(path).ok()?;
@@ -569,7 +569,7 @@ fn extract_lofty_metadata(
         track_number: tag.and_then(|t| t.track()),
         disc_number: tag.and_then(|t| t.disk()),
         genre: tag.and_then(|t| t.genre().map(|s| s.to_string())),
-        year: tag.and_then(|t| t.year()),
+        year: tag.and_then(|t| t.year()).filter(|y| *y > 0),
         file_size: entry.file_size,
         replaygain_track_gain: rg_track_gain,
         replaygain_track_peak: rg_track_peak,
