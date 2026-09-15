@@ -58,6 +58,21 @@
 
 Changes landing on top of the current pre-release are tracked here and folded into the release notes as they ship.
 
+### New
+- **Motion Art album art** — Apple Music-style animated artwork in the full player, with vertical motion art, silent looping, prefetching, and folder-cover fallback.
+- **Casting upgrades** — cast from the system media route picker; DLNA and Chromecast volume control from the app and media notification.
+- **Editable descriptions** on album, artist, playlist, and smart mix detail pages, with a song actions button.
+- Album, artist, song, and folder lists now sort **case-insensitively**.
+- Extended metadata: genre parsing, more audio metadata fields, and track metadata from CUE sheets.
+
+### Fixed
+- WavPack DSD detection and decoding (libwavpack qualify mode).
+- DSDIFF ID3 metadata extraction; invalid years rejected.
+- Opus files no longer misdetected as OGG; broader extension coverage.
+- Metadata recovery for sparse/failed retriever results; existing genre and year preserved during scans.
+- Gapless queueing disabled across incompatible engine configs to prevent playback glitches.
+- Deleted songs no longer reappear — MediaStore entries are removed on deletion; dialogs close from the root navigator.
+
 ## 0.21.0-beta.1 (2026-07-10)
 
 Shipped while continuously keeping up with improvements and bug fixing across the app.
