@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import '../core/utils/string_sort_utils.dart';
 import '../data/repositories/song_repository.dart';
 import '../models/song.dart';
 
@@ -382,7 +383,7 @@ class AlbumArtImportService {
       if (scoreCompare != 0) {
         return scoreCompare;
       }
-      return a.title.compareTo(b.title);
+      return compareCaseInsensitive(a.title, b.title);
     });
 
     return matches;
