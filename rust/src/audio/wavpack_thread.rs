@@ -22,15 +22,20 @@ pub fn is_wavpack_dsd(path: &std::path::Path) -> bool {
 
     let mut error_buf = [0u8; 256];
     let context = unsafe {
-        WavpackOpenFileInput(c_path.as_ptr(), error_buf.as_mut_ptr() as *mut c_char, 0, 0)
+        WavpackOpenFileInput(
+            c_path.as_ptr(),
+            error_buf.as_mut_ptr() as *mut c_char,
+            OPEN_DSD_NATIVE as i32,
+            0,
+        )
     };
 
     if context.is_null() {
         return false;
     }
 
-    let mode = unsafe { WavpackGetMode(context) };
-    let is_dsd = (mode as u32 & 0x80000000) != 0;
+    let qmode = unsafe { WavpackGetQualifyMode(context) } as u32;
+    let is_dsd = (qmode & QMODE_DSD_AUDIO) != 0;
     unsafe { WavpackCloseFile(context) };
     is_dsd
 }
@@ -69,7 +74,12 @@ impl WavpackDecoderThread {
 
         let mut error_buf = [0u8; 256];
         let context = unsafe {
-            WavpackOpenFileInput(c_path.as_ptr(), error_buf.as_mut_ptr() as *mut c_char, 0, 0)
+            WavpackOpenFileInput(
+                c_path.as_ptr(),
+                error_buf.as_mut_ptr() as *mut c_char,
+                OPEN_DSD_NATIVE as i32,
+                0,
+            )
         };
 
         if context.is_null() {
@@ -81,20 +91,22 @@ impl WavpackDecoderThread {
             return Err(anyhow!("WavPack open failed: {}", error_msg));
         }
 
-        let mode = unsafe { WavpackGetMode(context) };
-        let is_dsd = (mode as u32 & 0x80000000) != 0;
+        let qmode = unsafe { WavpackGetQualifyMode(context) } as u32;
+        let is_dsd = (qmode & QMODE_DSD_AUDIO) != 0;
 
         if is_dsd {
             unsafe { WavpackCloseFile(context) };
             return Err(anyhow!("WavPack DSD file should use DSD pipeline, not PCM"));
         }
 
+        let mode = unsafe { WavpackGetMode(context) };
+
         let file_sample_rate = unsafe { WavpackGetSampleRate(context) };
         let file_channels = unsafe { WavpackGetNumChannels(context) } as usize;
         let total_samples_file = unsafe { WavpackGetNumSamples64(context) };
         let bytes_per_sample = unsafe { WavpackGetBytesPerSample(context) } as usize;
         let bits_per_sample = unsafe { WavpackGetBitsPerSample(context) } as usize;
-        let is_float = (mode as u32 & 0x02) != 0;
+        let is_float = (mode as u32 & MODE_FLOAT) != 0;
 
         let duration_secs = if file_sample_rate > 0 {
             total_samples_file as f64 / file_sample_rate as f64
