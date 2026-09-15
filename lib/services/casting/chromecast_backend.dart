@@ -53,6 +53,16 @@ class ChromecastBackend {
   Future<void> seek(Duration position) => _invoke('seek', {'position': position.inMilliseconds});
   Future<void> setVolume(double volume) => _invoke('setVolume', {'volume': volume});
 
+  Future<double?> getVolume() async {
+    try {
+      return await _channel.invokeMethod<double>('getVolume');
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
   Future<void> disconnect() => _invoke('disconnect');
 
   Future<List<Map<String, dynamic>>> getOutputRoutes() async {
