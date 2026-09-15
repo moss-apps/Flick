@@ -9,6 +9,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/core/utils/string_sort_utils.dart';
 import 'package:flick/core/utils/uri_display_utils.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/music_folder_service.dart';
@@ -68,8 +69,8 @@ import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
   }
 
   final sortedFolders = subfolderMap.values.toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
-  directSongs.sort((a, b) => a.title.compareTo(b.title));
+    ..sort((a, b) => compareCaseInsensitive(a.name, b.name));
+  directSongs.sort((a, b) => compareCaseInsensitive(a.title, b.title));
 
   return (subfolders: sortedFolders, songs: directSongs);
 }
@@ -394,11 +395,17 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
       ..sort((a, b) {
         switch (_sortOption) {
           case FolderRootSortOption.name:
-            return a.folder.displayName.compareTo(b.folder.displayName);
+            return compareCaseInsensitive(
+              a.folder.displayName,
+              b.folder.displayName,
+            );
           case FolderRootSortOption.songCount:
             final countCompare = b.songs.length.compareTo(a.songs.length);
             if (countCompare != 0) return countCompare;
-            return a.folder.displayName.compareTo(b.folder.displayName);
+            return compareCaseInsensitive(
+              a.folder.displayName,
+              b.folder.displayName,
+            );
         }
       });
 
@@ -514,11 +521,11 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
     roots.sort((a, b) {
       switch (_sortOption) {
         case FolderRootSortOption.name:
-          return a.name.compareTo(b.name);
+          return compareCaseInsensitive(a.name, b.name);
         case FolderRootSortOption.songCount:
           final countCompare = b.songCount.compareTo(a.songCount);
           if (countCompare != 0) return countCompare;
-          return a.name.compareTo(b.name);
+          return compareCaseInsensitive(a.name, b.name);
       }
     });
 
@@ -1021,18 +1028,18 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
 
     switch (_sortOption) {
       case FolderBrowserSortOption.name:
-        subfolders.sort((a, b) => a.key.compareTo(b.key));
+        subfolders.sort((a, b) => compareCaseInsensitive(a.key, b.key));
       case FolderBrowserSortOption.songCount:
         subfolders.sort((a, b) {
           final c = b.songs.length.compareTo(a.songs.length);
-          return c != 0 ? c : a.key.compareTo(b.key);
+          return c != 0 ? c : compareCaseInsensitive(a.key, b.key);
         });
       case FolderBrowserSortOption.title:
-        songs.sort((a, b) => a.title.compareTo(b.title));
+        songs.sort((a, b) => compareCaseInsensitive(a.title, b.title));
       case FolderBrowserSortOption.artist:
         songs.sort((a, b) {
-          final c = a.artist.compareTo(b.artist);
-          return c != 0 ? c : a.title.compareTo(b.title);
+          final c = compareCaseInsensitive(a.artist, b.artist);
+          return c != 0 ? c : compareCaseInsensitive(a.title, b.title);
         });
       case FolderBrowserSortOption.dateAdded:
         songs.sort((a, b) {

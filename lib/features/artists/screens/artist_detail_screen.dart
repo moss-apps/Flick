@@ -5,6 +5,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/core/utils/string_sort_utils.dart';
 import 'package:flick/data/repositories/artist_repository.dart';
 import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
@@ -204,7 +205,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
       return hasTrackA ? -1 : 1;
     }
 
-    return a.title.compareTo(b.title);
+    return compareCaseInsensitive(a.title, b.title);
   }
 
   String? _getArt(List<Song> songs) {

@@ -9,6 +9,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/core/utils/string_sort_utils.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/screens/album_detail_screen.dart';
@@ -109,12 +110,17 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   void _applySorting() {
     switch (_sortOption) {
       case AlbumSortOption.name:
-        _sortedAlbums.sort((a, b) => a.albumName.compareTo(b.albumName));
+        _sortedAlbums.sort(
+          (a, b) => compareCaseInsensitive(a.albumName, b.albumName),
+        );
       case AlbumSortOption.artist:
         _sortedAlbums.sort((a, b) {
-          final artistCompare = a.albumArtist.compareTo(b.albumArtist);
+          final artistCompare = compareCaseInsensitive(
+            a.albumArtist,
+            b.albumArtist,
+          );
           if (artistCompare != 0) return artistCompare;
-          return a.albumName.compareTo(b.albumName);
+          return compareCaseInsensitive(a.albumName, b.albumName);
         });
       case AlbumSortOption.tracks:
         _sortedAlbums.sort((a, b) => b.songs.length.compareTo(a.songs.length));

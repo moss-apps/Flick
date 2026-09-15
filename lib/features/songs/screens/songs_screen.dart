@@ -14,6 +14,7 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/core/utils/string_sort_utils.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/models/song_view_mode.dart';
 import 'package:flick/features/songs/widgets/orbit_scroll.dart';
@@ -570,16 +571,18 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final sorted = List<AlbumGroup>.from(albums);
     switch (_albumSortOption) {
       case _AlbumGridSortOption.name:
-        sorted.sort((a, b) => a.albumName.compareTo(b.albumName));
+        sorted.sort(
+          (a, b) => compareCaseInsensitive(a.albumName, b.albumName),
+        );
       case _AlbumGridSortOption.artist:
         sorted.sort((a, b) {
-          final c = a.albumArtist.compareTo(b.albumArtist);
-          return c != 0 ? c : a.albumName.compareTo(b.albumName);
+          final c = compareCaseInsensitive(a.albumArtist, b.albumArtist);
+          return c != 0 ? c : compareCaseInsensitive(a.albumName, b.albumName);
         });
       case _AlbumGridSortOption.tracks:
         sorted.sort((a, b) {
           final c = b.songs.length.compareTo(a.songs.length);
-          return c != 0 ? c : a.albumName.compareTo(b.albumName);
+          return c != 0 ? c : compareCaseInsensitive(a.albumName, b.albumName);
         });
     }
     return sorted;
