@@ -565,7 +565,10 @@ class PlayerService {
       onSeek: seek,
       onToggleShuffle: toggleShuffle,
       onToggleFavorite: _toggleFavoriteFromNotification,
+      onDisconnectCast: () => unawaited(_castingService.disconnect()),
+      onSetCastVolume: (volume) => unawaited(setVolume(volume)),
     );
+    _castingService.remoteVolumeNotifier.addListener(_onRemoteVolumeChanged);
     _sessionManager.selectedModeNotifier.addListener(() {
       unawaited(
         _refreshAudioOutputDiagnostics(
@@ -2931,6 +2934,19 @@ class PlayerService {
     return _updateNotificationState();
   }
 
+  // ponytail: remote volume ticks can be rapid (slider drags); keep them on the
+  // lightweight cast-only notification path instead of a full metadata refresh.
+  void _onRemoteVolumeChanged() {
+    final v = _castingService.remoteVolumeNotifier.value;
+    unawaited(
+      _notificationService.updateCastState(
+        isCasting: _castingService.isActive,
+        castDeviceName: _castingService.activeDevice?.name,
+        castVolumePercent: v == null ? null : (v * 100).round(),
+      ),
+    );
+  }
+
   Future<void> _toggleFavoriteFromNotification() async {
     final song = currentSongNotifier.value;
     if (_allowsFavoriteActions(song)) {
@@ -2986,6 +3002,11 @@ class PlayerService {
       isShuffle: isShuffleNotifier.value,
       isFavorite: isFav,
       color: notificationColor,
+      isCasting: _castingService.isActive,
+      castDeviceName: _castingService.activeDevice?.name,
+      castVolumePercent: _castingService.remoteVolumeNotifier.value == null
+          ? null
+          : (_castingService.remoteVolumeNotifier.value! * 100).round(),
     );
 
     await _showFloatingPlayerOverlay();
