@@ -297,9 +297,11 @@ class _AboutBody extends StatelessWidget {
       padding: const EdgeInsets.all(AppConstants.spacingLg),
       child: Text(
         'DLNA and UPnP receivers are controlled directly in pure Dart — no extra '
-        'dependencies. Chromecast support uses the native Cast SDK. Only network '
-        'sources (Subsonic, WebDAV, Jellyfin, UPnP) can be cast; local files are '
-        'not yet supported for casting.',
+        'dependencies. Chromecast support uses the native Cast SDK. Network '
+        'sources (Subsonic, WebDAV, Jellyfin, UPnP), local files, and cached '
+        'songs can all be cast — locals are served straight from this phone. '
+        'While casting, volume keys and the system volume panel control the '
+        'connected device.',
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: context.adaptiveTextSecondary,
               height: 1.4,
