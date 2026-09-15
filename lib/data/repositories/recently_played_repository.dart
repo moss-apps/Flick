@@ -1,6 +1,7 @@
 import 'package:isar_community/isar.dart';
 
 import '../../core/utils/audio_metadata_utils.dart';
+import '../../core/utils/string_sort_utils.dart';
 import '../database.dart';
 import '../../models/song.dart';
 import 'song_repository.dart';
@@ -660,7 +661,7 @@ class RecentlyPlayedRepository {
     final recentCompare = right.lastPlayedAt.compareTo(left.lastPlayedAt);
     if (recentCompare != 0) return recentCompare;
 
-    return left.song.title.compareTo(right.song.title);
+    return compareCaseInsensitive(left.song.title, right.song.title);
   }
 
   int _compareRankedArtists(RankedRecapArtist left, RankedRecapArtist right) {
@@ -675,7 +676,7 @@ class RecentlyPlayedRepository {
     final recentCompare = right.lastPlayedAt.compareTo(left.lastPlayedAt);
     if (recentCompare != 0) return recentCompare;
 
-    return left.artist.compareTo(right.artist);
+    return compareCaseInsensitive(left.artist, right.artist);
   }
 
   int _compareRankedAlbums(RankedRecapAlbum left, RankedRecapAlbum right) {
@@ -690,10 +691,10 @@ class RecentlyPlayedRepository {
     final recentCompare = right.lastPlayedAt.compareTo(left.lastPlayedAt);
     if (recentCompare != 0) return recentCompare;
 
-    final albumCompare = left.album.compareTo(right.album);
+    final albumCompare = compareCaseInsensitive(left.album, right.album);
     if (albumCompare != 0) return albumCompare;
 
-    return left.artist.compareTo(right.artist);
+    return compareCaseInsensitive(left.artist, right.artist);
   }
 
   /// Convert entity to Song model.
