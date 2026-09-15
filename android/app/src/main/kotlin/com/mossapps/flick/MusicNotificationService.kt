@@ -18,6 +18,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.support.v4.media.MediaMetadataCompat
+import androidx.media.VolumeProviderCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
@@ -37,6 +38,7 @@ class MusicNotificationService : Service() {
         const val ACTION_STOP = "com.mossapps.flick.STOP"
         const val ACTION_SHUFFLE = "com.mossapps.flick.SHUFFLE"
         const val ACTION_FAVORITE = "com.mossapps.flick.FAVORITE"
+        const val ACTION_DISCONNECT_CAST = "com.mossapps.flick.DISCONNECT_CAST"
 
         private const val PLAYER_CHANNEL = "com.mossapps.flick/player"
     }
@@ -56,6 +58,10 @@ class MusicNotificationService : Service() {
     private var isShuffleMode: Boolean = false
     private var isFavorite: Boolean = false
     private var currentColor: Int? = null
+    private var isCasting: Boolean = false
+    private var castDeviceName: String? = null
+    private var castVolumePercent: Int = 70
+    private var castVolumeProvider: VolumeProviderCompat? = null
 
     private var cachedAlbumArt: Bitmap? = null
     private var cachedAlbumArtPath: String? = null
@@ -102,6 +108,10 @@ class MusicNotificationService : Service() {
                     val notification = buildNotification()
                     notificationManager.notify(NOTIFICATION_ID, notification)
                 }
+                ACTION_DISCONNECT_CAST -> {
+                    android.util.Log.d("MusicNotification", "Disconnect cast action triggered")
+                    sendCommandToFlutter("disconnectCast")
+                }
             }
         }
     }
@@ -109,6 +119,15 @@ class MusicNotificationService : Service() {
     private val noisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                // ponytail: audio is on the TV while casting — headphone unplug
+                // says nothing about remote playback.
+                if (isCasting) {
+                    android.util.Log.d(
+                        "MusicNotification",
+                        "ACTION_AUDIO_BECOMING_NOISY ignored while casting"
+                    )
+                    return
+                }
                 if (isPauseOnDisconnectEnabled()) {
                     android.util.Log.d(
                         "MusicNotification",
@@ -138,6 +157,7 @@ class MusicNotificationService : Service() {
             addAction(ACTION_STOP)
             addAction(ACTION_SHUFFLE)
             addAction(ACTION_FAVORITE)
+            addAction(ACTION_DISCONNECT_CAST)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -175,6 +195,11 @@ class MusicNotificationService : Service() {
             if (it.hasExtra("isShuffle")) isShuffleMode = it.getBooleanExtra("isShuffle", false)
             if (it.hasExtra("isFavorite")) isFavorite = it.getBooleanExtra("isFavorite", false)
             if (it.hasExtra("color")) currentColor = it.getIntExtra("color", 0)
+            if (it.hasExtra("isCasting")) isCasting = it.getBooleanExtra("isCasting", false)
+            if (it.hasExtra("castDeviceName")) castDeviceName = it.getStringExtra("castDeviceName")
+            if (it.hasExtra("castVolume")) {
+                castVolumePercent = it.getIntExtra("castVolume", 70).coerceIn(0, 100)
+            }
 
             it.getStringExtra("floating")?.let { action ->
                 when (action) {
@@ -192,6 +217,7 @@ class MusicNotificationService : Service() {
         }
 
         syncAudioFocusState()
+        syncCastRouting()
 
         val notification = buildNotification()
 
@@ -253,6 +279,7 @@ class MusicNotificationService : Service() {
             wakeLock?.release()
         }
         wakeLock = null
+        detachCastVolume()
         mediaSession.release()
         isForegroundServiceStarted = false
         hideFloatingOverlay()
@@ -490,6 +517,46 @@ class MusicNotificationService : Service() {
         )
     }
 
+    // ponytail: setPlaybackToRemote is what flips the system volume panel to the
+    // cast target (TV icon, remote slider, hardware keys forwarded to us).
+    // Route descriptor publishing alone doesn't do that.
+    private fun syncCastRouting() {
+        if (isCasting && castVolumeProvider == null) {
+            attachCastVolume()
+        } else if (!isCasting && castVolumeProvider != null) {
+            detachCastVolume()
+        }
+        castVolumeProvider?.setCurrentVolume(castVolumePercent)
+    }
+
+    private fun attachCastVolume() {
+        val provider = object : VolumeProviderCompat(
+            VOLUME_CONTROL_ABSOLUTE,
+            100,
+            castVolumePercent
+        ) {
+            override fun onSetVolumeTo(volumeIndex: Int) {
+                val clamped = volumeIndex.coerceIn(0, 100)
+                castVolumePercent = clamped
+                sendCommandToFlutter("setCastVolume", mapOf("volume" to clamped / 100.0))
+            }
+
+            override fun onAdjustVolume(direction: Int) {
+                onSetVolumeTo(castVolumePercent + direction * 10)
+            }
+        }
+        castVolumeProvider = provider
+        mediaSession.setPlaybackToRemote(provider)
+        android.util.Log.d("MusicNotification", "[Cast] MediaSession → remote volume (${castDeviceName ?: "unknown"})")
+    }
+
+    private fun detachCastVolume() {
+        if (castVolumeProvider == null) return
+        mediaSession.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+        castVolumeProvider = null
+        android.util.Log.d("MusicNotification", "[Cast] MediaSession → local volume")
+    }
+
     private fun buildNotification(): Notification {
         updateMediaSessionMetadata()
         updatePlaybackState()
@@ -507,7 +574,10 @@ class MusicNotificationService : Service() {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentTitle)
             .setContentText(currentArtist)
-            .setSubText("${formatTime(currentPosition)} / ${formatTime(currentDuration)}")
+            .setSubText(
+                if (isCasting) "Casting to ${castDeviceName ?: "device"}"
+                else "${formatTime(currentPosition)} / ${formatTime(currentDuration)}"
+            )
             .setSmallIcon(R.drawable.ic_notification)
             .setLargeIcon(albumArt)
             .setContentIntent(contentIntent)
@@ -526,20 +596,34 @@ class MusicNotificationService : Service() {
             val playPauseIntent = pendingBroadcast(100, ACTION_PLAY_PAUSE)
             val prevIntent = pendingBroadcast(101, ACTION_PREVIOUS)
             val nextIntent = pendingBroadcast(102, ACTION_NEXT)
-            
+
             val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
             val playPauseText = if (isPlaying) "Pause" else "Play"
 
-            builder
-                .addAction(R.drawable.ic_previous, "Previous", prevIntent)
-                .addAction(playPauseIcon, playPauseText, playPauseIntent)
-                .addAction(R.drawable.ic_next, "Next", nextIntent)
-                .setStyle(
-                    MediaNotificationCompat.MediaStyle()
-                        .setMediaSession(mediaSession.sessionToken)
-                        .setShowActionsInCompactView(0, 1, 2)
-                        .setShowCancelButton(true)
-                )
+            if (isCasting) {
+                val disconnectIntent = pendingBroadcast(105, ACTION_DISCONNECT_CAST)
+                builder
+                    .addAction(R.drawable.ic_previous, "Previous", prevIntent)
+                    .addAction(playPauseIcon, playPauseText, playPauseIntent)
+                    .addAction(R.drawable.ic_cast, "Disconnect", disconnectIntent)
+                    .setStyle(
+                        MediaNotificationCompat.MediaStyle()
+                            .setMediaSession(mediaSession.sessionToken)
+                            .setShowActionsInCompactView(0, 1, 2)
+                            .setShowCancelButton(true)
+                    )
+            } else {
+                builder
+                    .addAction(R.drawable.ic_previous, "Previous", prevIntent)
+                    .addAction(playPauseIcon, playPauseText, playPauseIntent)
+                    .addAction(R.drawable.ic_next, "Next", nextIntent)
+                    .setStyle(
+                        MediaNotificationCompat.MediaStyle()
+                            .setMediaSession(mediaSession.sessionToken)
+                            .setShowActionsInCompactView(0, 1, 2)
+                            .setShowCancelButton(true)
+                    )
+            }
         } else {
             val playPauseIntent = pendingBroadcast(100, ACTION_PLAY_PAUSE)
             val prevIntent = pendingBroadcast(101, ACTION_PREVIOUS)
@@ -554,18 +638,33 @@ class MusicNotificationService : Service() {
             val shuffleIcon = if (isShuffleMode) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle
             val shuffleText = if (isShuffleMode) "Shuffle On" else "Shuffle Off"
 
-            builder
-                .addAction(R.drawable.ic_previous, "Previous", prevIntent)
-                .addAction(playPauseIcon, playPauseText, playPauseIntent)
-                .addAction(R.drawable.ic_next, "Next", nextIntent)
-                .addAction(shuffleIcon, shuffleText, shuffleIntent)
-                .addAction(favoriteIcon, favoriteText, favoriteIntent)
-                .setStyle(
-                    MediaNotificationCompat.MediaStyle()
-                        .setMediaSession(mediaSession.sessionToken)
-                        .setShowActionsInCompactView(0, 1, 2)
-                        .setShowCancelButton(true)
-                )
+            if (isCasting) {
+                val disconnectIntent = pendingBroadcast(105, ACTION_DISCONNECT_CAST)
+                builder
+                    .addAction(R.drawable.ic_previous, "Previous", prevIntent)
+                    .addAction(playPauseIcon, playPauseText, playPauseIntent)
+                    .addAction(R.drawable.ic_next, "Next", nextIntent)
+                    .addAction(R.drawable.ic_cast, "Disconnect", disconnectIntent)
+                    .setStyle(
+                        MediaNotificationCompat.MediaStyle()
+                            .setMediaSession(mediaSession.sessionToken)
+                            .setShowActionsInCompactView(0, 1, 2)
+                            .setShowCancelButton(true)
+                    )
+            } else {
+                builder
+                    .addAction(R.drawable.ic_previous, "Previous", prevIntent)
+                    .addAction(playPauseIcon, playPauseText, playPauseIntent)
+                    .addAction(R.drawable.ic_next, "Next", nextIntent)
+                    .addAction(shuffleIcon, shuffleText, shuffleIntent)
+                    .addAction(favoriteIcon, favoriteText, favoriteIntent)
+                    .setStyle(
+                        MediaNotificationCompat.MediaStyle()
+                            .setMediaSession(mediaSession.sessionToken)
+                            .setShowActionsInCompactView(0, 1, 2)
+                            .setShowCancelButton(true)
+                    )
+            }
         }
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && currentDuration > 0) {
@@ -592,7 +691,8 @@ class MusicNotificationService : Service() {
     fun updateNotification(
         title: String?, artist: String?, albumArtPath: String?,
         playing: Boolean?, duration: Long?, position: Long?,
-        shuffle: Boolean?, favorite: Boolean?, color: Int? = null
+        shuffle: Boolean?, favorite: Boolean?, color: Int? = null,
+        casting: Boolean? = null, castName: String? = null, castVolume: Int? = null
     ) {
         title?.let { currentTitle = it }
         artist?.let { currentArtist = it }
@@ -603,6 +703,9 @@ class MusicNotificationService : Service() {
         shuffle?.let { isShuffleMode = it }
         favorite?.let { isFavorite = it }
         color?.let { currentColor = it }
+        casting?.let { isCasting = it }
+        castName?.let { castDeviceName = it }
+        castVolume?.let { castVolumePercent = it.coerceIn(0, 100) }
 
         val notification = buildNotification()
         notificationManager.notify(NOTIFICATION_ID, notification)
