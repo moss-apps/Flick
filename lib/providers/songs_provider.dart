@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/utils/string_sort_utils.dart';
 import '../core/utils/uri_display_utils.dart';
 import '../models/song.dart';
 import '../data/repositories/song_repository.dart';
@@ -185,9 +186,12 @@ class SongsState {
         result.sort((a, b) {
           final artistA = a.albumArtist ?? a.artist;
           final artistB = b.albumArtist ?? b.artist;
-          final artistCompare = artistA.compareTo(artistB);
+          final artistCompare = compareCaseInsensitive(artistA, artistB);
           if (artistCompare != 0) return artistCompare;
-          final albumCompare = (a.album ?? '').compareTo(b.album ?? '');
+          final albumCompare = compareCaseInsensitive(
+            a.album ?? '',
+            b.album ?? '',
+          );
           if (albumCompare != 0) return albumCompare;
 
           final discA = (a.discNumber != null && a.discNumber! > 0)
@@ -214,12 +218,12 @@ class SongsState {
             return hasTrackA ? -1 : 1;
           }
 
-          return a.title.compareTo(b.title);
+          return compareCaseInsensitive(a.title, b.title);
         });
       case SongSortOption.title:
-        result.sort((a, b) => a.title.compareTo(b.title));
+        result.sort((a, b) => compareCaseInsensitive(a.title, b.title));
       case SongSortOption.artist:
-        result.sort((a, b) => a.artist.compareTo(b.artist));
+        result.sort((a, b) => compareCaseInsensitive(a.artist, b.artist));
       case SongSortOption.dateAdded:
         result.sort((a, b) {
           final dateA = a.dateAdded ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -236,7 +240,7 @@ class SongsState {
           final albumB = b.album?.trim().isNotEmpty == true
               ? b.album!.trim()
               : 'Unknown Album';
-          final albumCompare = albumA.compareTo(albumB);
+          final albumCompare = compareCaseInsensitive(albumA, albumB);
           if (albumCompare != 0) return albumCompare;
 
           final artistA = a.albumArtist?.trim().isNotEmpty == true
@@ -245,7 +249,7 @@ class SongsState {
           final artistB = b.albumArtist?.trim().isNotEmpty == true
               ? b.albumArtist!.trim()
               : b.artist.trim();
-          final artistCompare = artistA.compareTo(artistB);
+          final artistCompare = compareCaseInsensitive(artistA, artistB);
           if (artistCompare != 0) return artistCompare;
 
           final discA = (a.discNumber != null && a.discNumber! > 0)
@@ -272,7 +276,7 @@ class SongsState {
             return hasTrackA ? -1 : 1;
           }
 
-          return a.title.compareTo(b.title);
+          return compareCaseInsensitive(a.title, b.title);
         });
       case SongSortOption.year:
         result.sort((a, b) {
@@ -280,7 +284,7 @@ class SongsState {
           final yearB = b.year ?? 0;
           final yearCompare = yearB.compareTo(yearA);
           if (yearCompare != 0) return yearCompare;
-          return a.title.compareTo(b.title);
+          return compareCaseInsensitive(a.title, b.title);
         });
       case SongSortOption.genre:
         result.sort((a, b) {
@@ -290,9 +294,9 @@ class SongsState {
           final genreB = b.genre?.trim().isNotEmpty == true
               ? b.genre!.trim()
               : '\u{10FFFF}';
-          final genreCompare = genreA.compareTo(genreB);
+          final genreCompare = compareCaseInsensitive(genreA, genreB);
           if (genreCompare != 0) return genreCompare;
-          return a.title.compareTo(b.title);
+          return compareCaseInsensitive(a.title, b.title);
         });
     }
     return result;
@@ -356,10 +360,10 @@ class SongsState {
             return hasTrackA ? -1 : 1;
           }
 
-          final titleCompare = a.title.compareTo(b.title);
+          final titleCompare = compareCaseInsensitive(a.title, b.title);
           if (titleCompare != 0) return titleCompare;
 
-          return a.artist.compareTo(b.artist);
+          return compareCaseInsensitive(a.artist, b.artist);
         });
 
       return AlbumGroup(
@@ -373,9 +377,12 @@ class SongsState {
     }).toList();
 
     groups.sort((a, b) {
-      final artistCompare = a.albumArtist.compareTo(b.albumArtist);
+      final artistCompare = compareCaseInsensitive(
+        a.albumArtist,
+        b.albumArtist,
+      );
       if (artistCompare != 0) return artistCompare;
-      return a.albumName.compareTo(b.albumName);
+      return compareCaseInsensitive(a.albumName, b.albumName);
     });
 
     return groups;
