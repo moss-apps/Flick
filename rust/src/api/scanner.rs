@@ -466,8 +466,6 @@ fn classify_scan_work(
     (to_process, deleted_paths, found_paths)
 }
 
-const DSD_SAMPLE_RATE_THRESHOLD: u32 = 2_822_400;
-
 /// Parse a ReplayGain tag value like "-6.53 dB" (or a bare "-6.53" / "-6.53dB").
 /// Returns None for anything that isn't a finite float.
 fn parse_rg_db(value: Option<&str>) -> Option<f64> {
@@ -583,17 +581,93 @@ fn extract_wavpack_metadata(
     path: &Path,
     format: String,
 ) -> Option<AudioFileMetadata> {
-    let result = extract_lofty_metadata(entry, path, format);
-    result.map(|mut meta| {
-        let is_dsd = meta
-            .sample_rate
-            .map_or(false, |sr| sr >= DSD_SAMPLE_RATE_THRESHOLD)
-            || meta.bit_depth == Some(1);
-        if is_dsd {
+    let lofty_meta = extract_lofty_metadata(entry, path, format);
+
+    // lofty misreports DSD wv properties; wavpack-sys is authoritative
+    let dsd_props = wavpack_dsd_properties(path);
+
+    match dsd_props {
+        Some((native_rate, duration_ms)) => {
+            let bitrate = duration_ms.and_then(|ms| {
+                if ms > 0 {
+                    Some((entry.file_size * 8 * 1000 / ms) as u32)
+                } else {
+                    None
+                }
+            });
+            let mut meta = lofty_meta.unwrap_or_else(|| AudioFileMetadata {
+                path: entry.path.clone(),
+                title: None,
+                artist: None,
+                album: None,
+                duration_ms: None,
+                format: String::new(),
+                last_modified: entry.last_modified,
+                bit_depth: None,
+                sample_rate: None,
+                bitrate: None,
+                track_number: None,
+                disc_number: None,
+                genre: None,
+                year: None,
+                file_size: entry.file_size,
+                replaygain_track_gain: None,
+                replaygain_track_peak: None,
+                replaygain_album_gain: None,
+                replaygain_album_peak: None,
+            });
             meta.format = "wv-dsd".to_string();
+            meta.sample_rate = Some(native_rate);
+            meta.bit_depth = Some(1);
+            meta.duration_ms = duration_ms;
+            meta.bitrate = bitrate;
+            Some(meta)
         }
-        meta
-    })
+        None => lofty_meta,
+    }
+}
+
+/// DSD detection + core properties via libwavpack itself.
+/// Returns (native DSD bit rate, duration_ms) for DSD files, None otherwise.
+fn wavpack_dsd_properties(path: &Path) -> Option<(u32, Option<u64>)> {
+    use std::ffi::CString;
+    use std::os::raw::c_char;
+    use wavpack_sys::{
+        WavpackCloseFile, WavpackGetNativeSampleRate, WavpackGetNumSamples64,
+        WavpackGetQualifyMode, WavpackOpenFileInput, OPEN_DSD_NATIVE, QMODE_DSD_AUDIO,
+    };
+
+    let path_str = path.to_str()?;
+    let c_path = CString::new(path_str).ok()?;
+    let mut error_buf = [0u8; 256];
+    let context = unsafe {
+        WavpackOpenFileInput(
+            c_path.as_ptr(),
+            error_buf.as_mut_ptr() as *mut c_char,
+            OPEN_DSD_NATIVE as i32,
+            0,
+        )
+    };
+    if context.is_null() {
+        return None;
+    }
+
+    let qmode = unsafe { WavpackGetQualifyMode(context) } as u32;
+    let props = if qmode & QMODE_DSD_AUDIO != 0 {
+        let native_rate = unsafe { WavpackGetNativeSampleRate(context) };
+        let total_bytes = unsafe { WavpackGetNumSamples64(context) } as u64;
+        let duration_ms = if native_rate > 0 {
+            Some(total_bytes * 8 * 1000 / native_rate as u64)
+        } else {
+            None
+        };
+        Some((native_rate, duration_ms))
+    } else {
+        None
+    };
+
+    unsafe { WavpackCloseFile(context) };
+    props
 }
 
 fn extract_dsf_metadata(

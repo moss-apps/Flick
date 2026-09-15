@@ -1,6 +1,7 @@
 import 'package:isar_community/isar.dart';
 
 import '../../core/utils/audio_metadata_utils.dart';
+import '../../core/utils/string_sort_utils.dart';
 import '../database.dart';
 import '../../models/song.dart';
 
@@ -27,7 +28,9 @@ class SongRepository {
   /// Get all songs ordered by title.
   Future<List<Song>> getAllSongs() async {
     final entities = await _isar.songEntitys.where().sortByTitle().findAll();
-    return entities.map(_entityToSong).toList();
+    final songs = entities.map(_entityToSong).toList();
+    songs.sort((a, b) => compareCaseInsensitive(a.title, b.title));
+    return songs;
   }
 
   /// Get songs by folder URI.
@@ -37,7 +40,9 @@ class SongRepository {
         .folderUriEqualTo(folderUri)
         .sortByTitle()
         .findAll();
-    return entities.map(_entityToSong).toList();
+    final songs = entities.map(_entityToSong).toList();
+    songs.sort((a, b) => compareCaseInsensitive(a.title, b.title));
+    return songs;
   }
 
   /// Get song entities by folder URI (internal use for scanning).
@@ -77,7 +82,7 @@ class SongRepository {
       for (final s in yearMatches) {
         if (!seen.contains(s.id)) results.add(s);
       }
-      results.sort((a, b) => a.title.compareTo(b.title));
+      results.sort((a, b) => compareCaseInsensitive(a.title, b.title));
     }
     // Folder name matches are handled via GlobalSearchResults; kept minimal here.
     return results;
@@ -447,9 +452,12 @@ class SongRepository {
     }).toList();
 
     groups.sort((a, b) {
-      final artistCompare = a.albumArtist.compareTo(b.albumArtist);
+      final artistCompare = compareCaseInsensitive(
+        a.albumArtist,
+        b.albumArtist,
+      );
       if (artistCompare != 0) return artistCompare;
-      return a.albumName.compareTo(b.albumName);
+      return compareCaseInsensitive(a.albumName, b.albumName);
     });
 
     return groups;
@@ -539,7 +547,8 @@ class SongRepository {
       albumMap.putIfAbsent(albumName, () => []).add(song);
     }
     final sorted = <Song>[];
-    final albumNames = albumMap.keys.toList()..sort();
+    final albumNames = albumMap.keys.toList()
+      ..sort(compareCaseInsensitive);
     for (final albumName in albumNames) {
       final albumSongs = albumMap[albumName]!;
       albumSongs.sort(SongRepository._compareAlbumSongs);
@@ -578,10 +587,10 @@ class SongRepository {
       return hasTrackA ? -1 : 1;
     }
 
-    final titleCompare = a.title.compareTo(b.title);
+    final titleCompare = compareCaseInsensitive(a.title, b.title);
     if (titleCompare != 0) return titleCompare;
 
-    return a.artist.compareTo(b.artist);
+    return compareCaseInsensitive(a.artist, b.artist);
   }
 
   String _albumNameForSong(Song song) {

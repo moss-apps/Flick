@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flick/core/utils/string_sort_utils.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/models/playlist.dart';
 import 'package:flick/models/song.dart';
@@ -31,7 +32,7 @@ final globalSearchResultsProvider =
   final songs = allSongs
       .where((s) => s.title.toLowerCase().contains(lower))
       .toList()
-    ..sort((a, b) => a.title.compareTo(b.title));
+    ..sort((a, b) => compareCaseInsensitive(a.title, b.title));
 
   // --- Artists: distinct artist names where artist contains ---
   final artistMap = <String, List<Song>>{};
@@ -42,10 +43,10 @@ final globalSearchResultsProvider =
     artistMap.putIfAbsent(artist, () => []).add(s);
   }
   for (final list in artistMap.values) {
-    list.sort((a, b) => a.title.compareTo(b.title));
+    list.sort((a, b) => compareCaseInsensitive(a.title, b.title));
   }
   final artists = artistMap.entries.toList()
-    ..sort((a, b) => a.key.compareTo(b.key));
+    ..sort((a, b) => compareCaseInsensitive(a.key, b.key));
 
   // --- Album Artists: distinct resolved albumArtist ---
   final albumArtistMap = <String, List<Song>>{};
@@ -55,10 +56,10 @@ final globalSearchResultsProvider =
     albumArtistMap.putIfAbsent(resolved, () => []).add(s);
   }
   for (final list in albumArtistMap.values) {
-    list.sort((a, b) => a.title.compareTo(b.title));
+    list.sort((a, b) => compareCaseInsensitive(a.title, b.title));
   }
   final albumArtists = albumArtistMap.entries.toList()
-    ..sort((a, b) => a.key.compareTo(b.key));
+    ..sort((a, b) => compareCaseInsensitive(a.key, b.key));
 
   // --- Albums: grouped AlbumGroup where albumName contains ---
   final albumGroupsRaw = <String, List<Song>>{};
@@ -88,9 +89,9 @@ final globalSearchResultsProvider =
     );
   }).toList()
     ..sort((a, b) {
-      final c = a.albumArtist.compareTo(b.albumArtist);
+      final c = compareCaseInsensitive(a.albumArtist, b.albumArtist);
       if (c != 0) return c;
-      return a.albumName.compareTo(b.albumName);
+      return compareCaseInsensitive(a.albumName, b.albumName);
     });
 
   // --- Folders: FolderGroup where folder display name contains ---
@@ -128,7 +129,7 @@ final globalSearchResultsProvider =
   final folders = folderGroups.values
       .where((g) => g.name.toLowerCase().contains(lower))
       .toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
+    ..sort((a, b) => compareCaseInsensitive(a.name, b.name));
 
   // --- Year: songs where year string contains query ---
   final yearMatches = allSongs.where((s) {
@@ -141,14 +142,14 @@ final globalSearchResultsProvider =
       final yB = b.year ?? 0;
       final cmp = yB.compareTo(yA);
       if (cmp != 0) return cmp;
-      return a.title.compareTo(b.title);
+      return compareCaseInsensitive(a.title, b.title);
     });
 
   // --- Playlists: name contains ---
   final playlists = allPlaylists
       .where((p) => p.name.toLowerCase().contains(lower))
       .toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
+    ..sort((a, b) => compareCaseInsensitive(a.name, b.name));
 
   return GlobalSearchResults(
     query: query,
@@ -175,7 +176,7 @@ int _compareAlbumSongs(Song a, Song b) {
   } else if (trackA != null || trackB != null) {
     return trackA != null ? -1 : 1;
   }
-  final t = a.title.compareTo(b.title);
+  final t = compareCaseInsensitive(a.title, b.title);
   if (t != 0) return t;
-  return a.artist.compareTo(b.artist);
+  return compareCaseInsensitive(a.artist, b.artist);
 }

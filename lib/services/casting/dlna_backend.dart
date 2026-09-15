@@ -12,7 +12,9 @@ class DlnaBackend {
   static const _ssdpAddress = '239.255.255.250';
   static const _ssdpPort = 1900;
   static const _st = 'urn:schemas-upnp-org:device:MediaRenderer:1';
-  static const _serviceType = 'urn:schemas-upnp-org:service:AVTransport:1';
+  static const _avTransportType = 'urn:schemas-upnp-org:service:AVTransport:1';
+  static const _renderingControlType =
+      'urn:schemas-upnp-org:service:RenderingControl:1';
 
   DlnaBackend();
 
@@ -87,22 +89,30 @@ class DlnaBackend {
       final udn =
           doc.findAllElements('UDN', namespace: '*').firstOrNull?.innerText ??
           locationUrl;
-      String? controlUrl = _findAvTransportControlUrl(doc, locationUrl);
+      String? controlUrl = _findServiceControlUrl(doc, locationUrl, 'AVTransport');
       if (controlUrl == null) return null;
       return CastDevice(
         id: udn,
         name: friendlyName,
         backend: CastBackend.dlna,
         locationUrl: locationUrl,
-        iconUrl:
-            controlUrl, // ponytail: reuse iconUrl slot for controlURL; renderer session resolves fresh
+        controlUrl: controlUrl,
+        renderingControlUrl: _findServiceControlUrl(
+          doc,
+          locationUrl,
+          'RenderingControl',
+        ),
       );
     } catch (_) {
       return null;
     }
   }
 
-  String? _findAvTransportControlUrl(xml.XmlDocument doc, String locationUrl) {
+  String? _findServiceControlUrl(
+    xml.XmlDocument doc,
+    String locationUrl,
+    String serviceName,
+  ) {
     for (final svc in doc.findAllElements('service', namespace: '*')) {
       final st =
           svc
@@ -110,7 +120,7 @@ class DlnaBackend {
               .firstOrNull
               ?.innerText ??
           '';
-      if (!st.contains('AVTransport')) continue;
+      if (!st.contains(serviceName)) continue;
       final cu = svc
           .findElements('controlURL', namespace: '*')
           .firstOrNull
@@ -137,29 +147,55 @@ class DlnaBackend {
         '$current</item></DIDL-Lite>';
     await _soap(
       controlUrl,
+      _avTransportType,
       'SetAVTransportURI',
       '<InstanceID>0</InstanceID><CurrentURI>${_esc(mediaUrl)}</CurrentURI><CurrentURIMetaData>$meta</CurrentURIMetaData>',
     );
   }
 
   Future<void> play(String controlUrl) =>
-      _soap(controlUrl, 'Play', '<InstanceID>0</InstanceID><Speed>1</Speed>');
+      _soap(controlUrl, _avTransportType, 'Play', '<InstanceID>0</InstanceID><Speed>1</Speed>');
   Future<void> pause(String controlUrl) =>
-      _soap(controlUrl, 'Pause', '<InstanceID>0</InstanceID>');
+      _soap(controlUrl, _avTransportType, 'Pause', '<InstanceID>0</InstanceID>');
   Future<void> stop(String controlUrl) =>
-      _soap(controlUrl, 'Stop', '<InstanceID>0</InstanceID>');
+      _soap(controlUrl, _avTransportType, 'Stop', '<InstanceID>0</InstanceID>');
 
   Future<void> seek(String controlUrl, Duration position) => _soap(
     controlUrl,
+    _avTransportType,
     'Seek',
     '<InstanceID>0</InstanceID><Unit>REL_TIME</Unit><Target>${_fmtTime(position)}</Target>',
   );
 
-  Future<void> setVolume(String controlUrl, int volume) => _soap(
-    controlUrl,
-    'SetVolume',
-    '<InstanceID>0</InstanceID><Channel>Master</Channel><DesiredVolume>$volume</DesiredVolume>',
-  );
+  // ponytail: volume lives in RenderingControl per UPnP spec, not AVTransport.
+  // Some renderers tolerate it on the wrong service; most reject it silently.
+  Future<void> setVolume(String renderingControlUrl, int volume) async {
+    await _soap(
+      renderingControlUrl,
+      _renderingControlType,
+      'SetVolume',
+      '<InstanceID>0</InstanceID><Channel>Master</Channel><DesiredVolume>$volume</DesiredVolume>',
+    );
+  }
+
+  Future<int?> getVolume(String renderingControlUrl) async {
+    try {
+      final res = await _soap(
+        renderingControlUrl,
+        _renderingControlType,
+        'GetVolume',
+        '<InstanceID>0</InstanceID><Channel>Master</Channel>',
+      );
+      final doc = xml.XmlDocument.parse(res);
+      final v = doc
+          .findAllElements('CurrentVolume', namespace: '*')
+          .firstOrNull
+          ?.innerText;
+      return v == null ? null : int.tryParse(v.trim())?.clamp(0, 100);
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<({Duration position, Duration duration, bool playing})?> getPosition(
     String controlUrl,
@@ -167,6 +203,7 @@ class DlnaBackend {
     try {
       final res = await _soap(
         controlUrl,
+        _avTransportType,
         'GetPositionInfo',
         '<InstanceID>0</InstanceID>',
       );
@@ -181,6 +218,7 @@ class DlnaBackend {
           ?.innerText;
       final tiRes = await _soap(
         controlUrl,
+        _avTransportType,
         'GetTransportInfo',
         '<InstanceID>0</InstanceID>',
       );
@@ -201,18 +239,23 @@ class DlnaBackend {
     }
   }
 
-  Future<String> _soap(String controlUrl, String action, String args) async {
+  Future<String> _soap(
+    String controlUrl,
+    String serviceType,
+    String action,
+    String args,
+  ) async {
     final body =
         '<?xml version="1.0" encoding="utf-8"?>'
         '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" '
         's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
-        '<s:Body><u:$action xmlns:u="$_serviceType">$args</u:$action></s:Body></s:Envelope>';
+        '<s:Body><u:$action xmlns:u="$serviceType">$args</u:$action></s:Body></s:Envelope>';
     final res = await http
         .post(
           Uri.parse(controlUrl),
           headers: {
             'Content-Type': 'text/xml; charset="utf-8"',
-            'SOAPAction': '"$_serviceType#$action"',
+            'SOAPAction': '"$serviceType#$action"',
           },
           body: body,
         )
@@ -224,7 +267,7 @@ class DlnaBackend {
           RegExp(r'<errorDescription>([^<]*)').firstMatch(res.body)?.group(1) ??
           res.body;
       throw StateError(
-        'AVTransport $action failed '
+        '$serviceType $action failed '
         '(HTTP ${res.statusCode}): $desc',
       );
     }

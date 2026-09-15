@@ -90,6 +90,15 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
+        <!-- Publishes DLNA renderers as MediaRouter routes for system UI -->
+        <service
+            android:name=".DlnaRouteProviderService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.MediaRouteProviderService" />
+            </intent-filter>
+        </service>
+
         <!-- Home-screen widgets -->
         <receiver
             android:name=".widgets.WidgetActionReceiver"

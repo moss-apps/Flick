@@ -9,6 +9,7 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/core/utils/string_sort_utils.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
@@ -1609,7 +1610,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
         }).toList()..sort((left, right) {
           final playCompare = right.plays.compareTo(left.plays);
           if (playCompare != 0) return playCompare;
-          return left.name.compareTo(right.name);
+          return compareCaseInsensitive(left.name, right.name);
         });
 
     return items.where((artist) => artist.songs.isNotEmpty).take(8).toList();
@@ -1714,7 +1715,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
           return rightPlayed.compareTo(leftPlayed);
         }
 
-        return left.title.compareTo(right.title);
+        return compareCaseInsensitive(left.title, right.title);
       });
 
     final heavyRotationSongs = _takeDistinctSongs([

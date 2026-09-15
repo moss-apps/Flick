@@ -6,6 +6,8 @@ class CastDevice {
   final CastBackend backend;
   final String? locationUrl;
   final String? iconUrl;
+  final String? controlUrl;
+  final String? renderingControlUrl;
   final bool supportsVolume;
 
   const CastDevice({
@@ -14,6 +16,8 @@ class CastDevice {
     required this.backend,
     this.locationUrl,
     this.iconUrl,
+    this.controlUrl,
+    this.renderingControlUrl,
     this.supportsVolume = true,
   });
 

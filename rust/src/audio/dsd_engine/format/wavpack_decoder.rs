@@ -7,12 +7,13 @@ use std::os::raw::c_char;
 use std::path::Path;
 use wavpack_sys::*;
 
-const OPEN_DSD_NATIVE: i32 = 0x100;
-
 pub struct WavpackDsdDecoder {
     context: *mut WavpackContext,
     sample_rate: u32,
     channels: u16,
+    // libwavpack counts native DSD "samples" as bytes per channel; the trait
+    // contract (see DsfDecoder) wants bits.
+    total_byte_samples: u64,
     total_samples: u64,
     is_dsd: bool,
     dsd_rate: Option<DsdRate>,
@@ -33,7 +34,7 @@ impl WavpackDsdDecoder {
             WavpackOpenFileInput(
                 c_path.as_ptr(),
                 error_buf.as_mut_ptr() as *mut c_char,
-                OPEN_DSD_NATIVE,
+                OPEN_DSD_NATIVE as i32,
                 0,
             )
         };
@@ -47,24 +48,26 @@ impl WavpackDsdDecoder {
             return Err(anyhow!("WavPack open failed: {}", error_msg));
         }
 
-        let mode = unsafe { WavpackGetMode(context) };
-        let is_dsd = (mode as u32 & 0x80000000) != 0;
+        let qmode = unsafe { WavpackGetQualifyMode(context) } as u32;
+        let is_dsd = (qmode & QMODE_DSD_AUDIO) != 0;
 
-        let sample_rate = unsafe { WavpackGetSampleRate(context) };
+        if !is_dsd {
+            unsafe { WavpackCloseFile(context) };
+            return Err(anyhow!("WavPack file is not DSD"));
+        }
+
+        let sample_rate = unsafe { WavpackGetNativeSampleRate(context) };
         let channels = unsafe { WavpackGetNumChannels(context) } as u16;
-        let total_samples = unsafe { WavpackGetNumSamples64(context) };
+        let total_byte_samples = unsafe { WavpackGetNumSamples64(context) } as u64;
 
-        let dsd_rate = if is_dsd {
-            DsdRate::from_sample_rate(sample_rate)
-        } else {
-            None
-        };
+        let dsd_rate = DsdRate::from_sample_rate(sample_rate);
 
         Ok(Self {
             context,
             sample_rate,
             channels,
-            total_samples: total_samples as u64,
+            total_byte_samples,
+            total_samples: total_byte_samples * 8,
             is_dsd,
             dsd_rate,
             _file,
@@ -101,7 +104,8 @@ impl DsdFormatDecoder for WavpackDsdDecoder {
     }
 
     fn seek(&mut self, sample: u64) -> Result<()> {
-        let result = unsafe { WavpackSeekSample64(self.context, sample as i64) };
+        // sample is DSD bits per channel; libwavpack wants bytes
+        let result = unsafe { WavpackSeekSample64(self.context, (sample / 8) as i64) };
         if result == 0 {
             return Err(anyhow!("WavPack seek failed"));
         }
@@ -113,8 +117,15 @@ impl DsdFormatDecoder for WavpackDsdDecoder {
             return Err(anyhow!("WavPackDsdDecoder used for non-DSD WavPack file"));
         }
 
-        let samples_to_read = buf.len() as u32;
-        let mut int_buf = vec![0i32; buf.len()];
+        let channels = self.channels as usize;
+        if channels == 0 || buf.len() < channels {
+            return Ok(0);
+        }
+
+        // One libwavpack "sample" spans all channels; DSD bytes land interleaved
+        // in the low 8 bits of each 32-bit word.
+        let samples_to_read = (buf.len() / channels) as u32;
+        let mut int_buf = vec![0i32; samples_to_read as usize * channels];
         let unpacked =
             unsafe { WavpackUnpackSamples(self.context, int_buf.as_mut_ptr(), samples_to_read) };
 
@@ -122,11 +133,12 @@ impl DsdFormatDecoder for WavpackDsdDecoder {
             return Ok(0);
         }
 
-        for (i, byte_val) in buf.iter_mut().enumerate().take(unpacked as usize) {
-            *byte_val = int_buf[i] as u8;
+        let bytes_read = unpacked as usize * channels;
+        for (dst, src) in buf.iter_mut().take(bytes_read).zip(int_buf.iter()) {
+            *dst = *src as u8;
         }
 
-        Ok(unpacked as usize)
+        Ok(bytes_read)
     }
 
     fn is_finished(&self) -> bool {
@@ -134,7 +146,7 @@ impl DsdFormatDecoder for WavpackDsdDecoder {
             return true;
         }
         let index = unsafe { WavpackGetSampleIndex64(self.context) };
-        index >= self.total_samples as i64
+        index >= self.total_byte_samples as i64
     }
 
     fn channel_layout(&self) -> DsdChannelLayout {

@@ -7,6 +7,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/core/utils/string_sort_utils.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/artists/screens/artist_detail_screen.dart';
@@ -93,7 +94,9 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
   void _applySorting() {
     switch (_sortOption) {
       case ArtistSortOption.name:
-        _sortedArtists.sort((a, b) => a.key.compareTo(b.key));
+        _sortedArtists.sort(
+          (a, b) => compareCaseInsensitive(a.key, b.key),
+        );
       case ArtistSortOption.songs:
         _sortedArtists.sort(
           (a, b) => b.value.length.compareTo(a.value.length),
