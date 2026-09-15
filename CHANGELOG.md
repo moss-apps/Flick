@@ -7,6 +7,7 @@
 - DoP packer bit-reversal; short reads handled; wire silence padding fixes audio pops.
 - DSD wire format and grouping settings in UAC2 preferences; restored output mode and transport overrides.
 - DSD reconciliation finds unindexed DSD files; decoder crash dumps captured offline.
+- Fixed WavPack DSD detection and decoding (libwavpack qualify mode); DSDIFF ID3 extraction fixed and invalid years rejected.
 
 ### ReplayGain & Crossfeed
 - **ReplayGain** Track/Album modes with pre-amp and clipping prevention.
@@ -28,10 +29,14 @@
 - **WavPack/DSD tags & album art everywhere** via Rust parser fallback; fixed DFF/WavPack embedded covers.
 - **Fixed library wipe when switching scan engines** — each engine only deletes rows it can see.
 - Floating minimizable scan progress pill; preload runs as one cancellable pass with a Stop button.
+- Opus files no longer misdetected as OGG; broader extension coverage.
+- Metadata recovery for sparse/failed retriever results; existing genre and year preserved; track metadata from CUE sheets.
+- Deleted songs no longer reappear — their MediaStore entries are removed on deletion.
 
 ### Engine Recovery & Accuracy
 - Rust engine **crash recovery** — revives on dead channels with panic reporting.
 - Lying container headers detected and corrected; implausible sample rates filtered.
+- Gapless queueing disabled across incompatible engine configs to prevent playback glitches.
 
 ### Navigation & UI Refresh
 - Nested navigators per tab; full player and queue routed via root navigator.
@@ -53,6 +58,13 @@
 - Metadata editor moved to a bottom sheet with instant sync.
 - Playlist sorting; bulk favorites; duplicate cleaner with per-group multi-keep.
 - Folder tree view toggle; EQ knobs double-tap to reset.
+- **Motion Art album art** — Apple Music-style animated artwork in the full player, with vertical motion art and silent looping.
+- Editable descriptions on detail pages plus a song actions button.
+- Case-insensitive sorting for album, artist, song, and folder lists.
+
+### Casting
+- Cast from the **system media route picker**; DLNA routes surfaced in the app.
+- DLNA (RenderingControl) and Chromecast volume control from the app and **media notification**.
 
 ## Currently on Pre-release
 
