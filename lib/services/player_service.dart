@@ -39,6 +39,7 @@ import 'package:flick/services/album_color_mode_preference_service.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/alac_converter_service.dart';
+import 'package:flick/services/playback_cache_preferences_service.dart';
 import 'package:flick/services/remote_source_service.dart';
 import 'package:flick/services/casting/casting_service.dart';
 import 'package:flick/core/utils/dev_log.dart';
@@ -3287,9 +3288,15 @@ class PlayerService {
     }
 
     try {
+      final maxStagingBytes = await PlaybackCachePreferencesService()
+          .getMaxCacheBytes();
       final stagedPath = await _storageChannel.invokeMethod<String>(
         'cacheUriForPlayback',
-        {'uri': uri, 'extensionHint': extensionHint},
+        {
+          'uri': uri,
+          'extensionHint': extensionHint,
+          'maxStagingBytes': maxStagingBytes,
+        },
       );
       if (stagedPath != null && stagedPath.isNotEmpty) {
         _stagedPlaybackPathCache[uri] = stagedPath;
@@ -5872,9 +5879,9 @@ class PlayerService {
     for (final stagedPath in _stagedPlaybackPathCache.values) {
       unawaited(_deleteTemporaryPlaybackFile(stagedPath));
     }
-    for (final convertedPath in _convertedPlaybackPathCache.values) {
-      unawaited(_deleteTemporaryPlaybackFile(convertedPath));
-    }
+    // Converted WAVs in _convertedPlaybackPathCache all live in the persistent
+    // wav_cache (manifest-tracked) since 0.21.0; deleting them here silently
+    // defeated persistence. Size is bounded by enforceCacheCap instead.
   }
 
   Future<T> _runWithSuppressedSequenceStateUpdates<T>(
