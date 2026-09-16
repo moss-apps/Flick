@@ -11,6 +11,7 @@ import 'package:flick/data/database.dart';
 import 'package:flick/services/external_playback_service.dart';
 import 'package:flick/services/permission_service.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/playback_cache_maintenance.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
@@ -79,6 +80,11 @@ Future<void> _bootstrapAppAfterFirstFrame() async {
   unawaited(
     PlayerService().prepareForAppLaunch().catchError(
       (Object e) => devLog('Audio prewarm failed: $e'),
+    ),
+  );
+  unawaited(
+    runPlaybackCacheMaintenance().catchError(
+      (Object e) => devLog('Playback cache maintenance failed: $e'),
     ),
   );
 }
