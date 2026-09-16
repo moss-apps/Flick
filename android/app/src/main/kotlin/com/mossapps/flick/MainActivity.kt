@@ -382,11 +382,12 @@ class MainActivity: FlutterActivity() {
                     val uri = call.argument<String>("uri")
                     val extensionHint = call.argument<String>("extensionHint")
                     val maxSizeBytes = call.argument<Long>("maxSizeBytes")
+                    val maxStagingBytes = call.argument<Long>("maxStagingBytes")
                     if (uri != null) {
                         mainScope.launch {
                             try {
                                 val stagedPath = withContext(Dispatchers.IO) {
-                                    cacheUriForPlayback(uri, extensionHint, maxSizeBytes)
+                                    cacheUriForPlayback(uri, extensionHint, maxSizeBytes, maxStagingBytes)
                                 }
                                 result.success(stagedPath)
                             } catch (e: Exception) {
@@ -395,6 +396,19 @@ class MainActivity: FlutterActivity() {
                         }
                     } else {
                         result.error("INVALID_ARGUMENT", "URI is required", null)
+                    }
+                }
+                "prunePlaybackStaging" -> {
+                    val maxBytes = call.argument<Long>("maxBytes")
+                    mainScope.launch {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                prunePlaybackStaging(maxBytes, null)
+                            }
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("PRUNE_STAGING_ERROR", "Failed to prune playback staging: ${e.message}", null)
+                        }
                     }
                 }
                 "readSiblingArtwork" -> {
@@ -2577,6 +2591,7 @@ class MainActivity: FlutterActivity() {
         uriString: String,
         extensionHint: String?,
         maxSizeBytes: Long? = null,
+        maxStagingBytes: Long? = null,
     ): String? {
         val uri = Uri.parse(uriString)
         val normalizedExt = resolveStagedExtension(uri, extensionHint)
@@ -2596,6 +2611,7 @@ class MainActivity: FlutterActivity() {
             }
             if (stagedFile.exists() && stagedFile.length() > 0L) {
                 if (expectedLength == null || stagedFile.length() == expectedLength) {
+                    prunePlaybackStaging(maxStagingBytes, stagedFile)
                     return stagedFile.absolutePath
                 }
             }
@@ -2644,6 +2660,7 @@ class MainActivity: FlutterActivity() {
             }
 
             if (stagedFile.length() <= 0L) return null
+            prunePlaybackStaging(maxStagingBytes, stagedFile)
             return stagedFile.absolutePath
         } catch (e: Exception) {
             android.util.Log.e("FlickPlayback", "cacheUriForPlayback failed for $uriString: ${e.message}", e)
@@ -2652,6 +2669,33 @@ class MainActivity: FlutterActivity() {
             if (tempFile.exists()) {
                 tempFile.delete()
             }
+        }
+    }
+
+    /// Keeps the SAF staging dir under [maxBytes] by deleting the oldest
+    /// staged files (by mtime) until it fits. null or <= 0 disables pruning.
+    /// [protect] (the file just staged, or null for a maintenance pass) is
+    /// never deleted.
+    private fun prunePlaybackStaging(maxBytes: Long?, protect: java.io.File?) {
+        if (maxBytes == null || maxBytes <= 0L) return
+        try {
+            val stagingDir = java.io.File(cacheDir, "playback_staging")
+            if (!stagingDir.isDirectory) return
+            val files = stagingDir.listFiles { f -> f.isFile && !f.name.endsWith(".tmp") }
+                ?: return
+            var total = files.sumOf { it.length() }
+            if (total <= maxBytes) return
+            val byOldest = files.sortedBy { it.lastModified() }
+            for (file in byOldest) {
+                if (total <= maxBytes) break
+                if (protect != null && file.absolutePath == protect.absolutePath) continue
+                val len = file.length()
+                if (file.delete()) {
+                    total -= len
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("FlickPlayback", "prunePlaybackStaging failed: ${e.message}")
         }
     }
 
