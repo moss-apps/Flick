@@ -44,6 +44,20 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
+    version: '0.22.0-beta.2',
+    date: '2026-09-16',
+    sections: [
+      ChangelogSection(
+        title: 'Storage',
+        bullets: [
+          '**Bounded playback caches** — WAV conversions and SAF staging copies are now capped (default 1 GB, configurable in Library → Storage) instead of growing without limit.',
+          'Least-recently-used eviction keeps the newest conversions; a one-time sweep removes multi-GB leftovers from earlier versions.',
+          'Fixed a regression where quitting could delete persisted WAV conversions.',
+        ],
+      ),
+    ],
+  ),
+  ChangelogEntry(
     version: '0.22.0-beta.1',
     date: '2026-09-10',
     sections: [
