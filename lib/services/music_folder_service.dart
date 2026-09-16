@@ -6,6 +6,7 @@ import 'package:flick/core/utils/uri_display_utils.dart';
 
 import 'permission_service.dart';
 import 'fingerprint_cache_service.dart';
+import 'playback_cache_preferences_service.dart';
 import '../data/repositories/folder_repository.dart';
 import '../data/repositories/song_repository.dart';
 import '../data/entities/folder_entity.dart';
@@ -454,17 +455,23 @@ class MusicFolderService {
   /// Stages a content URI into the shared playback cache and returns the
   /// absolute staged path. [maxSizeBytes] optionally refuses to copy
   /// oversized sources (returns null) — used by metadata enrichment, not
-  /// playback.
+  /// playback. [maxStagingBytes] bounds the whole staging dir (oldest files
+  /// pruned after the copy); defaults to the playback cache preference.
   Future<String?> cacheUriForPlayback(
     String uri, {
     String? extensionHint,
     int? maxSizeBytes,
+    int? maxStagingBytes,
   }) async {
     try {
+      final stagingCap =
+          maxStagingBytes ??
+          await PlaybackCachePreferencesService().getMaxCacheBytes();
       return await _channel.invokeMethod<String>('cacheUriForPlayback', {
         'uri': uri,
         'extensionHint': ?extensionHint,
         'maxSizeBytes': ?maxSizeBytes,
+        'maxStagingBytes': stagingCap,
       });
     } catch (e) {
       return null;

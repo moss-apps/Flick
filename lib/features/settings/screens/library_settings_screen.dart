@@ -18,8 +18,10 @@ import 'package:flick/features/settings/screens/duplicate_cleaner_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/album_art_service.dart';
+import 'package:flick/services/alac_converter_service.dart';
 import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/services/audio_preload_service.dart';
+import 'package:flick/services/playback_cache_preferences_service.dart';
 import 'package:flick/services/replaygain_scan_service.dart';
 import 'package:flick/services/scan_session_controller.dart';
 import 'package:flick/services/library_scan_preferences_service.dart';
@@ -56,6 +58,9 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   bool _libraryExpanded = false;
   int _artworkCacheBytes = -1;
   bool _isClearingCache = false;
+  int _wavCacheBytes = -1;
+  bool _isClearingWavCache = false;
+  int _cacheCapBytes = kPlaybackCacheDefaultMaxBytes;
 
   late final AnimationController _vinylController;
 
@@ -79,6 +84,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     _syncFoldersToDatabase();
     _loadAndroidDeviceNotices();
     _refreshCacheSize();
+    _refreshWavCacheSize();
+    _loadCacheCap();
   }
 
   @override
@@ -271,6 +278,134 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       if (mounted) _showToast('Failed to clear cache: $e');
     } finally {
       if (mounted) setState(() => _isClearingCache = false);
+    }
+  }
+
+  Future<void> _refreshWavCacheSize() async {
+    final bytes = await AlacConverterService.getCacheSize();
+    if (mounted) setState(() => _wavCacheBytes = bytes);
+  }
+
+  Future<void> _loadCacheCap() async {
+    final cap = await PlaybackCachePreferencesService().getMaxCacheBytes();
+    if (mounted) setState(() => _cacheCapBytes = cap);
+  }
+
+  String get _wavCacheSizeLabel {
+    if (_isClearingWavCache) return 'Clearing...';
+    if (_wavCacheBytes < 0) return 'Calculating size...';
+    return 'Using ${_formatBytes(_wavCacheBytes)}';
+  }
+
+  String get _cacheCapLabel {
+    for (final (label, bytes) in kPlaybackCacheCapPresets) {
+      if (bytes == _cacheCapBytes) return label;
+    }
+    return _formatBytes(_cacheCapBytes);
+  }
+
+  Future<void> _setCacheCap(int bytes) async {
+    await PlaybackCachePreferencesService().setMaxCacheBytes(bytes);
+    if (!mounted) return;
+    setState(() => _cacheCapBytes = bytes);
+    // Shrinking the cap evicts immediately; staging prunes on next stage.
+    await AlacConverterService.enforceCacheCap(bytes);
+    await _refreshWavCacheSize();
+    if (mounted) {
+      _showToast(
+        bytes == kPlaybackCacheUnlimited
+            ? 'Playback cache unlimited'
+            : 'Playback cache limit: ${_formatBytes(bytes)}',
+      );
+    }
+  }
+
+  void _showCacheCapSheet() {
+    GlassBottomSheet.show(
+      context: context,
+      title: 'Playback Cache Limit',
+      isDismissible: true,
+      enableDrag: true,
+      maxHeightRatio: 0.5,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: AppConstants.spacingSm),
+          for (final (label, bytes) in kPlaybackCacheCapPresets)
+            _buildCapOption(label, bytes),
+          const SizedBox(height: AppConstants.spacingLg),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCapOption(String label, int bytes) {
+    final selected = _cacheCapBytes == bytes;
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+      onTap: () {
+        Navigator.of(context).pop();
+        unawaited(_setCacheCap(bytes));
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppConstants.spacingMd,
+          vertical: AppConstants.spacingMd,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              LucideIcons.hardDrive,
+              size: context.responsiveIcon(AppConstants.iconSizeSm),
+              color: selected ? AppColors.accent : context.adaptiveTextTertiary,
+            ),
+            const SizedBox(width: AppConstants.spacingMd),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: selected ? AppColors.accent : context.adaptiveTextPrimary,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+            if (selected)
+              Icon(
+                LucideIcons.check,
+                size: context.responsiveIcon(AppConstants.iconSizeSm),
+                color: AppColors.accent,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmClearWavCache() {
+    unawaited(
+      FlickDialogs.confirm(
+        context,
+        title: 'Clear Converted Audio Cache?',
+        message:
+            'Cached WAV conversions (${_formatBytes(_wavCacheBytes < 0 ? 0 : _wavCacheBytes)}) '
+            'will be removed. Files convert again on next playback.',
+        confirmLabel: 'Clear',
+      ).then((confirmed) {
+        if (confirmed) _clearWavCache();
+      }),
+    );
+  }
+
+  Future<void> _clearWavCache() async {
+    setState(() => _isClearingWavCache = true);
+    try {
+      await AlacConverterService.clearCache();
+      await _refreshWavCacheSize();
+      if (mounted) _showToast('Converted audio cache cleared');
+    } catch (e) {
+      if (mounted) _showToast('Failed to clear cache: $e');
+    } finally {
+      if (mounted) setState(() => _isClearingWavCache = false);
     }
   }
 
@@ -1837,6 +1972,20 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 title: 'Clear Artwork Cache',
                 subtitle: _cacheSizeLabel,
                 onTap: _isClearingCache ? null : _confirmClearArtworkCache,
+              ),
+              const SettingsDivider(),
+              ActionButton(
+                icon: LucideIcons.database,
+                title: 'Playback Cache Limit',
+                subtitle: _cacheCapLabel,
+                onTap: _showCacheCapSheet,
+              ),
+              const SettingsDivider(),
+              ActionButton(
+                icon: LucideIcons.fileAudio,
+                title: 'Clear Converted Audio',
+                subtitle: _wavCacheSizeLabel,
+                onTap: _isClearingWavCache ? null : _confirmClearWavCache,
               ),
               const SettingsDivider(),
               ActionButton(
