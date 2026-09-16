@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../src/rust/api/alac_converter_api.dart' as alac_api;
 import 'package:flick/core/utils/dev_log.dart';
+import 'playback_cache_preferences_service.dart';
 
 /// Service for converting ALAC/M4A/AIFF files to WAV/PCM format
 ///
@@ -18,8 +19,38 @@ class AlacConverterService {
   static const _manifestName = 'manifest.json';
   static Map<String, _WavCacheEntry>? _manifest;
   static bool _manifestLoaded = false;
+  static String? _cacheRootOverride;
+  static final PlaybackCachePreferencesService _prefs =
+      PlaybackCachePreferencesService();
+  // Manifest rewrites on cache hits are throttled; entry bookkeeping still
+  // updates in memory so eviction order stays correct between writes.
+  static DateTime? _lastManifestPersist;
+  static const _manifestPersistThrottle = Duration(minutes: 5);
+
+  /// Tests point the cache at a throwaway directory.
+  @visibleForTesting
+  static void setCacheRootForTesting(String? path) {
+    _cacheRootOverride = path;
+    resetForTesting();
+  }
+
+  /// Clears in-memory cache state; tests call between cases.
+  @visibleForTesting
+  static void resetForTesting() {
+    _manifest = null;
+    _manifestLoaded = false;
+    _lastManifestPersist = null;
+  }
 
   static Future<Directory> _wavCacheDir() async {
+    final override = _cacheRootOverride;
+    if (override != null) {
+      final dir = Directory(override);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return dir;
+    }
     final support = await getApplicationSupportDirectory();
     final dir = Directory('${support.path}/$_cacheDirName');
     if (!await dir.exists()) {
@@ -40,6 +71,7 @@ class AlacConverterService {
           _manifest = raw.map(
             (k, v) => MapEntry(k, _WavCacheEntry.fromJson(v as Map<String, dynamic>)),
           );
+          await _backfillLastUsedFromDisk();
           return;
         }
       }
@@ -49,9 +81,30 @@ class AlacConverterService {
     }
   }
 
+  /// Manifests written before LRU tracking existed carry lastUsedAt = 0.
+  /// Recover real usage order from file mtimes once at load.
+  static Future<void> _backfillLastUsedFromDisk() async {
+    final manifest = _manifest;
+    if (manifest == null) return;
+    for (final entry in manifest.entries) {
+      if (entry.value.lastUsedAt > 0) continue;
+      try {
+        final mtime = await File(entry.value.wavPath).lastModified();
+        manifest[entry.key] = _WavCacheEntry(
+          wavPath: entry.value.wavPath,
+          sourceSize: entry.value.sourceSize,
+          lastUsedAt: mtime.millisecondsSinceEpoch,
+        );
+      } catch (_) {
+        // Missing file: entry gets evicted on the next cap pass anyway.
+      }
+    }
+  }
+
   static Future<void> _persistManifest() async {
     final manifest = _manifest;
     if (manifest == null) return;
+    _lastManifestPersist = DateTime.now();
     try {
       final dir = await _wavCacheDir();
       final file = File('${dir.path}/$_manifestName');
@@ -63,12 +116,19 @@ class AlacConverterService {
     }
   }
 
+  static Future<void> _persistManifestThrottled() async {
+    final last = _lastManifestPersist;
+    final now = DateTime.now();
+    if (last != null && now.difference(last) < _manifestPersistThrottle) {
+      return;
+    }
+    await _persistManifest();
+  }
+
   /// Returns the persisted WAV path for [sourcePath] if a valid converted copy
   /// already exists on disk, otherwise null.
   // ponytail: validity keyed on source byte size only. A replaced source with
   // identical size would reuse a stale WAV; add content hashing if that bites.
-  // Uncompressed WAVs are ~10x the source; no eviction yet, add LRU if the dir
-  // grows too large.
   static Future<String?> tryGetCachedWav(String sourcePath) async {
     await _ensureManifest();
     final entry = _manifest?[sourcePath];
@@ -79,6 +139,12 @@ class AlacConverterService {
       if (await srcFile.length() != entry.sourceSize) return null;
       final wavFile = File(entry.wavPath);
       if (!await wavFile.exists()) return null;
+      _manifest![sourcePath] = _WavCacheEntry(
+        wavPath: entry.wavPath,
+        sourceSize: entry.sourceSize,
+        lastUsedAt: DateTime.now().millisecondsSinceEpoch,
+      );
+      await _persistManifestThrottled();
       return entry.wavPath;
     } catch (_) {
       return null;
@@ -88,7 +154,9 @@ class AlacConverterService {
   /// Convert a supported source file to WAV and save to the persistent cache.
   ///
   /// Returns the path to the converted WAV file. Reuses an existing cached
-  /// copy when valid, so repeated launches skip re-conversion.
+  /// copy when valid, so repeated launches skip re-conversion. After a fresh
+  /// conversion the cache cap is enforced (LRU eviction; the new file is
+  /// never the one evicted).
   static Future<String> convertToWavFile(String sourcePath) async {
     final cached = await tryGetCachedWav(sourcePath);
     if (cached != null) return cached;
@@ -103,9 +171,123 @@ class AlacConverterService {
     _manifest![sourcePath] = _WavCacheEntry(
       wavPath: wavPath,
       sourceSize: await File(sourcePath).length(),
+      lastUsedAt: DateTime.now().millisecondsSinceEpoch,
     );
     await _persistManifest();
+    final cap = await _prefs.getMaxCacheBytes();
+    await enforceCacheCap(cap, protectPath: wavPath);
     return wavPath;
+  }
+
+  /// Evicts least-recently-used cached WAVs until the cache is at or under
+  /// [maxBytes]. Values <= 0 mean unlimited (no-op). [protectPath] is never
+  /// deleted — used for the file that triggered enforcement. Also drops
+  /// manifest rows whose files vanished and orphans on disk the manifest
+  /// doesn't know about.
+  static Future<void> enforceCacheCap(
+    int maxBytes, {
+    String? protectPath,
+  }) async {
+    if (maxBytes <= 0) return;
+    await _ensureManifest();
+    final manifest = _manifest;
+    if (manifest == null) return;
+
+    var total = 0;
+    final liveEntries = <MapEntry<String, _WavCacheEntry>>[];
+    for (final entry in manifest.entries.toList()) {
+      final file = File(entry.value.wavPath);
+      final length = await file.exists() ? await file.length() : -1;
+      if (length < 0) {
+        manifest.remove(entry.key);
+        continue;
+      }
+      liveEntries.add(entry);
+      total += length;
+    }
+
+    if (total > maxBytes) {
+      liveEntries.sort(
+        (a, b) => a.value.lastUsedAt.compareTo(b.value.lastUsedAt),
+      );
+      for (final entry in liveEntries) {
+        if (total <= maxBytes) break;
+        if (entry.value.wavPath == protectPath) continue;
+        try {
+          final file = File(entry.value.wavPath);
+          final length = await file.length();
+          await file.delete();
+          total -= length;
+        } catch (_) {
+          continue;
+        }
+        manifest.remove(entry.key);
+      }
+    }
+
+    await _deleteOrphanedWavFiles();
+    await _persistManifest();
+  }
+
+  /// Deletes files in the cache dir the manifest doesn't reference (crash
+  /// leftovers); the manifest itself is kept.
+  static Future<void> _deleteOrphanedWavFiles() async {
+    try {
+      final dir = await _wavCacheDir();
+      final referenced = _manifest?.values.map((e) => e.wavPath).toSet() ?? {};
+      await for (final entity in dir.list()) {
+        if (entity is! File) continue;
+        if (entity.path.endsWith(_manifestName)) continue;
+        if (referenced.contains(entity.path)) continue;
+        await entity.delete();
+      }
+    } catch (_) {
+      // best-effort
+    }
+  }
+
+  /// Total size of cached WAV files on disk (excludes the manifest).
+  static Future<int> getCacheSize() async {
+    try {
+      final dir = await _wavCacheDir();
+      if (!await dir.exists()) return 0;
+      var total = 0;
+      await for (final entity in dir.list()) {
+        if (entity is! File) continue;
+        if (entity.path.endsWith(_manifestName)) continue;
+        try {
+          total += await entity.length();
+        } catch (_) {
+          // raced with eviction
+        }
+      }
+      return total;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Deletes every cached WAV and resets the manifest.
+  static Future<void> clearCache() async {
+    await _ensureManifest();
+    try {
+      final dir = await _wavCacheDir();
+      if (await dir.exists()) {
+        await for (final entity in dir.list()) {
+          if (entity is File) {
+            try {
+              await entity.delete();
+            } catch (_) {
+              // possibly held open by playback; skip
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // best-effort
+    }
+    _manifest = {};
+    await _persistManifest();
   }
 
   static Future<String> _convertToWavFile({
@@ -184,13 +366,26 @@ class _WavCacheEntry {
   final String wavPath;
   final int sourceSize;
 
-  _WavCacheEntry({required this.wavPath, required this.sourceSize});
+  /// Epoch ms of the last cache hit/conversion; drives LRU eviction.
+  /// Zero for manifests predating LRU (backfilled from file mtime on load).
+  final int lastUsedAt;
 
-  Map<String, dynamic> toJson() => {'wavPath': wavPath, 'sourceSize': sourceSize};
+  _WavCacheEntry({
+    required this.wavPath,
+    required this.sourceSize,
+    this.lastUsedAt = 0,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'wavPath': wavPath,
+        'sourceSize': sourceSize,
+        'lastUsedAt': lastUsedAt,
+      };
 
   factory _WavCacheEntry.fromJson(Map<String, dynamic> json) => _WavCacheEntry(
         wavPath: json['wavPath'] as String,
         sourceSize: json['sourceSize'] as int,
+        lastUsedAt: (json['lastUsedAt'] as num?)?.toInt() ?? 0,
       );
 }
 
