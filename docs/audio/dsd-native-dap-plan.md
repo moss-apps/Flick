@@ -201,6 +201,44 @@ public shim; full wire protocol + shim ABI reverse-engineered from
   Also: `supportsVerifiedBitPerfect` was missing the `dsd_native` /
   `dsd_dop` strategies → verified capsule/indicator never lit on the DSD
   path (fixed in player_service.dart).
+- **Residual-crackle round 3 (2026-09-19):** four fixes aimed at the
+  remaining continuous light ticks on wired HP (U8+MSB):
+  1. **Dump capture gated (was unconditional):** the SAS render loop
+     wrote 5 MiB `dsd_wire_full.bin` to `/storage/6438-6261/...` inline at
+     session start, and the decoder wrote `dsd_raw_full.bin` /
+     `dsd_prod_full.bin` (5 MiB each) — blocking FUSE/external-storage I/O
+     inside the audio-driving loops. All three now run only when
+     `dsd_engine::set_dsd_dumps_enabled(true)` is set (default off;
+     diagnostic).
+  2. **Native DSD ring 480 000 → 1 048 576 samples** (4 MiB;
+     `AudioSource::new_with_capacity`, selected when
+     `output_mode == Native`) and the SAS prefill gate waits for
+     `2 ×` one wire chunk instead of `has_enough_buffer()` alone. Before,
+     a single 262 144-sample pull drained 55 % of the ring; now one
+     stall has ≥¾ chunk of slack.
+  3. **Thread priorities:** new `audio::thread_priority` module —
+     `raise_audio_render_priority()` (SCHED_FIFO prio 2, fallback
+     nice −16) on the DSD render threads and
+     `raise_audio_decode_priority()` (nice −16 only; the decoder does
+     blocking I/O) on the DSD decoder thread. Previously only the UAC2
+     direct path set priorities.
+  4. **Decoder read chunk 16 KiB → 256 KiB** (`DSD_READ_CHUNK_SIZE`),
+     cutting per-read syscalls 16×.
+- **TRUE ROOT CAUSE — DSF data offset (2026-09-19):** `DsfDecoder::open`
+  probed a u64 at byte 92 and accepted it only if in `[100, 2^40)`,
+  otherwise seeking to 100. But byte 92 *is* the first audio byte per the
+  DSF spec: the probe read actual DSD audio (SACD silence `4B 4B 4B …`)
+  and always failed, so every DSF was decoded 8 bytes late. With
+  `SequentialBlocks { block_size: 4096 }` each 8192-byte macro block
+  spliced 4088 correct bytes + 8 foreign bytes from the other channel —
+  a periodic seam every ~11.6 ms = ~86 Hz clicks at DSD64 (172 Hz at
+  DSD128). That matches the "continuous light ticks", applies to every
+  DSF, and is DSF-only (DFF/WavPack parse offsets correctly), which is
+  why WavPack was always clear. Fix: seek to
+  `dsf_meta::DSF_SAMPLE_DATA_OFFSET` (92) directly and derive bit order
+  from the header's `bits_per_sample` flag (1 = LSB-first, 8 = MSB-first)
+  instead of hardcoding LsbFirst. Covered by unit tests with a synthetic
+  DSF fixture.
 
 ### Phase 4 — Settings  ✅ complete (2026-08-30)
 
@@ -264,9 +302,16 @@ Success = our track row matches HiBy's golden capture (§G.3): format
 
 Kernel/HAL accepts any bit order; wrong order = loud static. Quiet solo piano
 DSD64; flip variant if noisy; confirm silence floor A/B vs stock player.
-Remaining: confirm the short-read + lock-retry fixes remove the residual
-light crackle on U8+MSB (watch for `starvation telemetry` warns in logcat —
-growth mid-track marks any remaining starve/lock-miss source).
+Remaining: confirm the round-2 + round-3 fixes plus the DSF data-offset
+fix remove the residual light crackle on U8+MSB with wired HP (watch for
+`starvation telemetry` warns in logcat — growth mid-track marks any
+remaining starve/lock-miss source). Round 3 removed the inline dump I/O,
+enlarged the native ring to 1 048 576 samples and raised render/decode
+thread priority; dump capture is now off by default — call
+`set_dsd_dumps_enabled(true)` before playback when a wire/raw capture is
+needed. R4 A/B (2026-09-19, build with the offset fix): DSD64 native
+plays with clean telemetry (no starvation/prefill/lock logs); listening
+confirmation pending.
 
 ### E.4 Regressions
 
