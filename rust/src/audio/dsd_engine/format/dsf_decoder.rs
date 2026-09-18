@@ -4,8 +4,6 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
-const DSF_FALLBACK_SAMPLE_DATA_OFFSET: u64 = 100;
-
 pub struct DsfDecoder {
     file: File,
     sample_rate: u32,
@@ -14,6 +12,7 @@ pub struct DsfDecoder {
     data_offset: u64,
     block_size: u32,
     current_position: u64,
+    bit_order: DsdBitOrder,
     finished: bool,
 }
 
@@ -27,6 +26,13 @@ impl DsfDecoder {
         let channels = fmt.channel_num() as u16;
         let total_samples = fmt.sample_count();
         let block_size = fmt.block_size_per_channel();
+        // DSF's `bits per sample` field is really a bit-order flag:
+        // 1 = LSB-first (the common case), 8 = MSB-first.
+        let bit_order = if fmt.bits_per_sample() == 8 {
+            DsdBitOrder::MsbFirst
+        } else {
+            DsdBitOrder::LsbFirst
+        };
 
         let mut file = dsf
             .file()
@@ -34,9 +40,7 @@ impl DsfDecoder {
             .map_err(|e| anyhow!("Failed to clone DSF file handle: {}", e))?;
         drop(dsf);
 
-        let data_offset =
-            Self::read_sample_data_offset(&mut file).unwrap_or(DSF_FALLBACK_SAMPLE_DATA_OFFSET);
-
+        let data_offset = dsf_meta::DSF_SAMPLE_DATA_OFFSET;
         file.seek(SeekFrom::Start(data_offset))?;
 
         Ok(Self {
@@ -47,20 +51,9 @@ impl DsfDecoder {
             data_offset,
             block_size,
             current_position: 0,
+            bit_order,
             finished: false,
         })
-    }
-
-    fn read_sample_data_offset(file: &mut File) -> Option<u64> {
-        file.seek(SeekFrom::Start(92)).ok()?;
-        let mut buf = [0u8; 8];
-        file.read_exact(&mut buf).ok()?;
-        let offset = u64::from_le_bytes(buf);
-        if offset >= DSF_FALLBACK_SAMPLE_DATA_OFFSET && offset < (1 << 40) {
-            Some(offset)
-        } else {
-            None
-        }
     }
 
     pub fn block_size_per_channel(&self) -> u32 {
@@ -144,6 +137,81 @@ impl DsdFormatDecoder for DsfDecoder {
     }
 
     fn bit_order(&self) -> DsdBitOrder {
-        DsdBitOrder::LsbFirst
+        self.bit_order
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    fn put_u32(buf: &mut [u8], off: usize, value: u32) {
+        buf[off..off + 4].copy_from_slice(&value.to_le_bytes());
+    }
+
+    fn put_u64(buf: &mut [u8], off: usize, value: u64) {
+        buf[off..off + 8].copy_from_slice(&value.to_le_bytes());
+    }
+
+    fn synthetic_dsf(bits_per_sample: u32, audio: &[u8]) -> Vec<u8> {
+        let mut buf = vec![0u8; 92];
+        buf[0..4].copy_from_slice(b"DSD ");
+        put_u64(&mut buf, 4, 28);
+        put_u64(&mut buf, 12, 92 + audio.len() as u64);
+        put_u64(&mut buf, 20, 0);
+        buf[28..32].copy_from_slice(b"fmt ");
+        put_u64(&mut buf, 32, 52);
+        put_u32(&mut buf, 40, 1);
+        put_u32(&mut buf, 44, 0);
+        put_u32(&mut buf, 48, 2);
+        put_u32(&mut buf, 52, 2);
+        put_u32(&mut buf, 56, 2_822_400);
+        put_u32(&mut buf, 60, bits_per_sample);
+        put_u64(&mut buf, 64, ((audio.len() / 2) * 8) as u64);
+        put_u32(&mut buf, 72, 4096);
+        put_u32(&mut buf, 76, 0);
+        buf[80..84].copy_from_slice(b"data");
+        put_u64(&mut buf, 84, 12 + audio.len() as u64);
+        buf.extend_from_slice(audio);
+        buf
+    }
+
+    fn write_temp(name: &str, bytes: &[u8]) -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(format!("flick_dsf_{}_{}.dsf", name, std::process::id()));
+        std::fs::File::create(&path)
+            .unwrap()
+            .write_all(bytes)
+            .unwrap();
+        path
+    }
+
+    #[test]
+    fn read_starts_at_spec_data_offset() {
+        let audio: Vec<u8> = (0..8192).map(|i| (i * 7 + 3) as u8).collect();
+        let path = write_temp("offset", &synthetic_dsf(1, &audio));
+
+        let mut decoder = DsfDecoder::open(&path).unwrap();
+        let mut out = vec![0u8; 8192];
+        let read = decoder.read_dsd_bytes(&mut out).unwrap();
+        let _ = std::fs::remove_file(&path);
+
+        assert_eq!(read, 8192);
+        assert_eq!(out, audio, "DSF sample data must start at byte 92");
+    }
+
+    #[test]
+    fn bit_order_follows_header_flag() {
+        let audio = vec![0u8; 8192];
+        let lsb_path = write_temp("lsb", &synthetic_dsf(1, &audio));
+        let msb_path = write_temp("msb", &synthetic_dsf(8, &audio));
+
+        let lsb = DsfDecoder::open(&lsb_path).unwrap();
+        let msb = DsfDecoder::open(&msb_path).unwrap();
+        let _ = std::fs::remove_file(&lsb_path);
+        let _ = std::fs::remove_file(&msb_path);
+
+        assert_eq!(lsb.bit_order(), DsdBitOrder::LsbFirst);
+        assert_eq!(msb.bit_order(), DsdBitOrder::MsbFirst);
     }
 }
