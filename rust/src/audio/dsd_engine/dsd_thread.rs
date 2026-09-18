@@ -10,7 +10,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
-const DSD_READ_CHUNK_SIZE: usize = 16384;
+/// Read granularity on the decoder side. Large reads keep FUSE/external
+/// storage syscall latency out of the producer's critical path; back-pressure
+/// in `write_to_ring_buffer` handles the flow.
+const DSD_READ_CHUNK_SIZE: usize = 262_144;
+
+/// Ring capacity for DSD native sources. The offload transport pulls a whole
+/// 256 KiB sample chunk per write (~half of the default 480k ring), so the
+/// default leaves no slack: one producer hiccup pads the rest of the chunk
+/// with silence (audible tick). 1 Mi f32 = 4 MiB holds four chunks.
+const DSD_WIRE_BUFFER_SIZE: usize = 1_048_576;
 
 pub struct DsdDecoderThread {
     handle: Option<JoinHandle<Result<()>>>,
@@ -78,7 +87,16 @@ impl DsdDecoderThread {
             http_origin: None,
         };
 
-        let (source, producer) = AudioSource::new(source_info);
+        let (source, producer) = if output_mode == DsdOutputMode::Native {
+            AudioSource::new_with_capacity(source_info, DSD_WIRE_BUFFER_SIZE)
+        } else {
+            AudioSource::new(source_info)
+        };
+        if matches!(output_mode, DsdOutputMode::Native | DsdOutputMode::Dop) {
+            // f32 bits carry the DSD payload in these modes; a ReplayGain
+            // multiply would corrupt it.
+            source.set_bit_exact(true);
+        }
         if let Some(pos) = start_position_secs {
             if pos > 0.0 {
                 source.set_position_secs(pos);
@@ -99,6 +117,7 @@ impl DsdDecoderThread {
         let handle = thread::Builder::new()
             .name(format!("dsd-decoder-{}", path.display()))
             .spawn(move || {
+                crate::audio::thread_priority::raise_audio_decode_priority();
                 dsd_decode_thread(
                     decoder,
                     producer,
@@ -192,12 +211,14 @@ fn dsd_decode_thread(
     };
 
     let mut dsd_buf = vec![0u8; read_size];
-    let mut output_buf: Vec<f32> = Vec::with_capacity(DSD_READ_CHUNK_SIZE);
+    let mut output_buf: Vec<f32> = Vec::with_capacity(read_size);
 
-    // Offline wire-vs-reference diffing. Only the first decoder thread to
-    // claim the flag dumps, so a gapless preload decoder can't interleave.
+    // Offline wire-vs-reference diffing, opt-in via `set_dsd_dumps_enabled`.
+    // Only the first decoder thread to claim the flag dumps, so a gapless
+    // preload decoder can't interleave.
     static DUMP_CLAIMED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    let dump_enabled = !DUMP_CLAIMED.swap(true, Ordering::AcqRel);
+    let dump_enabled =
+        crate::audio::dsd_engine::dsd_dumps_enabled() && !DUMP_CLAIMED.swap(true, Ordering::AcqRel);
     let mut dump_raw: Option<std::fs::File> = None;
     let mut dump_prod: Option<std::fs::File> = None;
     let mut dump_raw_n: usize = 0;

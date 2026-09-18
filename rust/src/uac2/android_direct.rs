@@ -32,23 +32,7 @@ use std::time::{Duration, Instant};
 
 #[cfg(target_os = "android")]
 fn set_audio_thread_priority() -> Result<(), std::io::Error> {
-    let param = libc::sched_param { sched_priority: 2 };
-    unsafe {
-        let result = libc::sched_setscheduler(0, libc::SCHED_FIFO, &param);
-        if result != 0 {
-            let err = std::io::Error::last_os_error();
-            dev_eprintln!(
-                "[AudioSched] SCHED_FIFO failed (errno={}): {}",
-                err.raw_os_error().unwrap_or(-1),
-                err
-            );
-            libc::setpriority(libc::PRIO_PROCESS, 0, -16);
-            dev_eprintln!("[AudioSched] set nice=-16");
-            return Err(err);
-        }
-    }
-    dev_eprintln!("[AudioSched] SCHED_FIFO priority=2 acquired");
-    Ok(())
+    crate::audio::thread_priority::raise_audio_render_priority()
 }
 
 const USB_CLASS_AUDIO: u8 = 0x01;

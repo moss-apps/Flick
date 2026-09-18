@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### DSD Native Playback
+- Fixed DSF files decoding 8 bytes late (wrong data offset probe) — the cause of the continuous light ticks on all DSF playback; bit order now follows the DSF header flag (1 = LSB, 8 = MSB).
+- ReplayGain is ignored on native DSD/DoP sources (a gain multiply would corrupt the DSD bits).
+- Reduced residual DSD native crackle: debug dump capture is now opt-in (no blocking storage I/O in the audio loops), native ring buffer enlarged with a stricter prefill gate, render/decoder threads get raised priority, and decoder reads use 256 KiB chunks.
+
 ## 0.22.0-beta.1 (2026-09-10)
 
 ### DSD Native Playback

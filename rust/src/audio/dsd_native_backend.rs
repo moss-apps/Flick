@@ -53,6 +53,7 @@ impl DsdNativeBackend {
                     let spawn_result = thread::Builder::new()
                         .name("dsd-native-render".to_string())
                         .spawn(move || {
+                            let _ = crate::audio::thread_priority::raise_audio_render_priority();
                             if let Some(track) = holder_for_thread.lock().unwrap().take() {
                                 dsd_sas_render_loop(
                                     track,
@@ -129,6 +130,7 @@ impl DsdNativeBackend {
     let handle = thread::Builder::new()
         .name("dsd-native-render".to_string())
         .spawn(move || {
+            let _ = crate::audio::thread_priority::raise_audio_render_priority();
             dsd_native_render_loop(callback_data, event_tx, sample_rate, channels, stop_clone);
             super::dsd_alsa_direct::dsd_alsa_close();
         })
@@ -209,7 +211,7 @@ fn dsd_sas_render_loop(
     track: super::dsd_sas_shim::SasTrack,
     callback_data: Arc<AudioCallbackData>,
     event_tx: Sender<AudioEvent>,
-    byte_rate: u32,
+    _byte_rate: u32,
     channels: usize,
     stop: Arc<AtomicBool>,
 ) {
@@ -235,26 +237,24 @@ fn dsd_sas_render_loop(
     );
 
     // Prefill gate: pulling early injects a whole chunk of 0x69 silence
-    // (audible pop on play/seek). Wait for one chunk first.
+    // (audible pop on play/seek). Wait for two chunks so the producer keeps a
+    // full chunk of slack in the ring while the first one drains.
     {
         use std::time::{Duration, Instant};
-        let min_level =
-            chunk_samples as f32 / crate::audio::source::SOURCE_BUFFER_SIZE as f32;
+        let prefill_samples = 2 * chunk_samples;
         let deadline = Instant::now() + Duration::from_millis(2_000);
         while !stop.load(Ordering::Acquire) {
-            let ready = callback_data
-                .lock_sources_rt()
-                .and_then(|sources| {
-                    sources
-                        .current()
-                        .map(|s| s.has_enough_buffer() || s.buffer_level() >= min_level)
-                });
+            let ready = callback_data.lock_sources_rt().and_then(|sources| {
+                sources
+                    .current()
+                    .map(|s| s.has_enough_buffer() || s.buffered_samples() >= prefill_samples)
+            });
             match ready {
                 Some(true) => break,
                 _ if Instant::now() >= deadline => {
                     log::warn!(
-                        "[DSD-NATIVE] prefill gate timeout (level < {:.2}); proceeding",
-                        min_level
+                        "[DSD-NATIVE] prefill gate timeout (buffered < {} samples); proceeding",
+                        prefill_samples
                     );
                     break;
                 }
@@ -266,15 +266,16 @@ fn dsd_sas_render_loop(
     // Starvation telemetry: growth mid-track = crackle signature; a one-time
     // jump at start/end is benign drain.
     let mut last_stats = callback_data.dsd_starve_stats();
+    let dumps_enabled = crate::audio::dsd_engine::dsd_dumps_enabled();
 
     while !stop.load(Ordering::Acquire) {
         audio_callback(&mut render_buffer, &callback_data, &event_tx);
 
         super::dsd_sas_shim::pack_wire_frames(&render_buffer, channels, &mut wire_buf);
 
-        // Wire capture for offline diffing against a reference decode:
-        // continuous dump of the first 5 MiB of wire bytes.
-        {
+        // Wire capture for offline diffing, opt-in via the DSD dumps flag:
+        // blocking multi-MiB storage writes here starve the ring.
+        if dumps_enabled {
             use std::fs::OpenOptions;
             use std::io::Write;
             use std::path::Path;

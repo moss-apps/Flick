@@ -64,6 +64,8 @@ pub struct AudioSource {
     state: SourceState,
     /// Ring buffer consumer (receives samples from decoder)
     consumer: ringbuf::HeapCons<f32>,
+    /// Ring buffer capacity in samples (interleaved)
+    capacity: usize,
     /// Flag indicating decoder has finished writing all samples
     decoder_finished: Arc<AtomicBool>,
     /// Current playback position in samples
@@ -77,6 +79,10 @@ pub struct AudioSource {
     /// The dB value [replaygain_gain] was derived from (f32 bits). Kept for
     /// seek re-spawns, which build a new source for the same track.
     replaygain_db: AtomicU32,
+    /// When true, `read()` must not multiply samples: the f32 bit patterns
+    /// are the payload (native DSD bytes / DoP words), so any gain would
+    /// corrupt the bitstream.
+    bit_exact: AtomicBool,
 }
 
 /// Handle given to the decoder thread to write samples.
@@ -99,7 +105,15 @@ impl AudioSource {
     ///
     /// Returns the source (for the audio thread) and producer (for the decoder thread).
     pub fn new(info: SourceInfo) -> (Self, SourceProducer) {
-        let ring = HeapRb::<f32>::new(SOURCE_BUFFER_SIZE);
+        Self::new_with_capacity(info, SOURCE_BUFFER_SIZE)
+    }
+
+    /// Create a new audio source with an explicit ring capacity (samples,
+    /// interleaved). DSD native playback needs a larger ring: each offload
+    /// write pulls a whole 256 KiB chunk, over half of the default ring, so
+    /// any producer hiccup turns into an injected silence gap (crackle).
+    pub fn new_with_capacity(info: SourceInfo, capacity: usize) -> (Self, SourceProducer) {
+        let ring = HeapRb::<f32>::new(capacity);
         let (producer, consumer) = ring.split();
 
         let decoder_finished = Arc::new(AtomicBool::new(false));
@@ -110,11 +124,13 @@ impl AudioSource {
             info,
             state: SourceState::Loading,
             consumer,
+            capacity,
             decoder_finished: Arc::clone(&decoder_finished),
             position: Arc::clone(&position),
             stop_signal: Arc::clone(&stop_signal),
             replaygain_gain: AtomicU32::new(1.0f32.to_bits()),
             replaygain_db: AtomicU32::new(0.0f32.to_bits()),
+            bit_exact: AtomicBool::new(false),
         };
 
         let producer = SourceProducer {
@@ -207,10 +223,30 @@ impl AudioSource {
         self.replaygain_gain.store(gain.to_bits(), Ordering::Relaxed);
     }
 
+    /// Mark this source as carrying bit-exact payload (native DSD / DoP):
+    /// ReplayGain is ignored on `read()` because multiplying the f32 bit
+    /// patterns would corrupt the DSD bits.
+    #[inline]
+    pub fn set_bit_exact(&self, exact: bool) {
+        self.bit_exact.store(exact, Ordering::Relaxed);
+    }
+
     /// Get the buffer fill level (0.0 to 1.0).
     #[inline]
     pub fn buffer_level(&self) -> f32 {
-        self.consumer.occupied_len() as f32 / SOURCE_BUFFER_SIZE as f32
+        self.consumer.occupied_len() as f32 / self.capacity as f32
+    }
+
+    /// Ring buffer capacity in samples (interleaved).
+    #[inline]
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    /// Samples currently buffered (interleaved).
+    #[inline]
+    pub fn buffered_samples(&self) -> usize {
+        self.consumer.occupied_len()
     }
 
     /// Check if there are enough samples buffered for playback.
@@ -234,7 +270,11 @@ impl AudioSource {
 
         if read > 0 {
             self.position.fetch_add(read as u64, Ordering::Relaxed);
-            let gain = self.replaygain_gain();
+            let gain = if self.bit_exact.load(Ordering::Relaxed) {
+                1.0
+            } else {
+                self.replaygain_gain()
+            };
             if gain != 1.0 {
                 for sample in output[..read].iter_mut() {
                     *sample *= gain;
@@ -561,5 +601,19 @@ mod tests {
 
         source.set_replaygain_db(0.0);
         assert_eq!(source.replaygain_gain(), 1.0);
+    }
+
+    #[test]
+    fn bit_exact_source_ignores_replaygain() {
+        let (mut source, mut producer) = AudioSource::new(source_info("track.dsf"));
+        source.set_bit_exact(true);
+        source.set_replaygain_db(-6.0);
+
+        assert_eq!(producer.write(&[0.8, -0.8, 0.4, -0.4]), 4);
+        producer.finish();
+
+        let mut output = [0.0; 4];
+        assert_eq!(source.read(&mut output), 4);
+        assert_eq!(output, [0.8, -0.8, 0.4, -0.4]);
     }
 }
