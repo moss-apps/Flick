@@ -153,6 +153,25 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
     await _artistRepository.setArt(widget.artistName, resolved);
   }
 
+  /// The song whose artwork is the hero image, if it is library album art.
+  /// A custom artist image saved in the repository matches no song, so those
+  /// pages keep the plain Ken Burns treatment instead of a mismatched album.
+  Song? _artistHeroSong() {
+    final art = _artistArt;
+    if (art != null && art.isNotEmpty) {
+      for (final song in widget.songs) {
+        if (song.albumArt == art) return song;
+      }
+    }
+    final source = _artistArtSourcePath;
+    if (source != null && source.isNotEmpty) {
+      for (final song in widget.songs) {
+        if (song.filePath == source) return song;
+      }
+    }
+    return null;
+  }
+
   Future<void> _extractArtistColor() async {
     final source = _artistArt;
     if (source == null || source.isEmpty) return;
@@ -693,6 +712,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
         errorWidget: fallback,
       );
     }
+    final heroSong = _artistHeroSong();
     return ScrollFadeWrapper(
       scrollController: _scrollController,
       child: AnimatedAlbumArt(
@@ -701,6 +721,9 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
         dominantColor: _artistColor,
         placeholder: fallback,
         errorWidget: fallback,
+        albumName: heroSong?.album,
+        artistName: heroSong?.albumArtist ?? heroSong?.artist,
+        representativeSongTitle: heroSong?.title,
       ),
     );
   }

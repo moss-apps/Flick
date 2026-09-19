@@ -131,6 +131,17 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
     return null;
   }
 
+  /// First song that contributes artwork, so the motion art lookup can use the
+  /// same album the hero image came from.
+  Song? _getArtSong() {
+    for (final song in widget.songs) {
+      if (song.albumArt != null && song.albumArt!.isNotEmpty) {
+        return song;
+      }
+    }
+    return null;
+  }
+
   String? _getSourcePath() {
     for (final song in widget.songs) {
       if (song.albumArt != null && song.albumArt!.isNotEmpty) {
@@ -481,6 +492,7 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
       final prefs = ref.watch(appPreferencesProvider);
       final animated = prefs.animatedAlbumArt && prefs.animationsEnabled;
       if (animated) {
+        final artSong = _getArtSong();
         return ScrollFadeWrapper(
           scrollController: _scrollController,
           child: AnimatedAlbumArt(
@@ -489,6 +501,9 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
             dominantColor: _mixColor,
             placeholder: fallback,
             errorWidget: fallback,
+            albumName: artSong?.album,
+            artistName: artSong?.albumArtist ?? artSong?.artist,
+            representativeSongTitle: artSong?.title,
           ),
         );
       }

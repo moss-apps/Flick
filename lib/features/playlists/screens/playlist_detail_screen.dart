@@ -117,10 +117,12 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
     return '${minutes}m';
   }
 
-  String? _getArt(List<Song> songs) {
+  /// First song that contributes artwork, so motion art can match the same
+  /// album the hero image came from.
+  Song? _getArtSong(List<Song> songs) {
     for (final song in songs) {
       if (song.albumArt != null && song.albumArt!.isNotEmpty) {
-        return song.albumArt;
+        return song;
       }
     }
     return null;
@@ -731,7 +733,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
       return fallback;
     }
 
-    final firstArt = _getArt(_songs);
+    final firstArtSong = _getArtSong(_songs);
+    final firstArt = firstArtSong?.albumArt;
     final firstSource = _getSourcePath(_songs);
     if (firstArt != null) {
       final prefs = ref.watch(appPreferencesProvider);
@@ -745,6 +748,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
             dominantColor: _playlistColor,
             placeholder: fallback,
             errorWidget: fallback,
+            albumName: firstArtSong?.album,
+            artistName: firstArtSong?.albumArtist ?? firstArtSong?.artist,
+            representativeSongTitle: firstArtSong?.title,
           ),
         );
       }
