@@ -22,6 +22,13 @@ AlacAudioMetadata alacProbeMetadata({required List<int> fileBytes}) => RustLib
 BigInt alacCreateSession({required List<int> fileBytes}) => RustLib.instance.api
     .crateApiAlacConverterApiAlacCreateSession(fileBytes: fileBytes);
 
+/// Create a conversion session straight from a file path.
+///
+/// Preferred over [`alac_create_session`] for playback: the file never crosses
+/// the FFI boundary.
+BigInt alacCreateSessionFromPath({required String path}) => RustLib.instance.api
+    .crateApiAlacConverterApiAlacCreateSessionFromPath(path: path);
+
 /// Get metadata for an active session
 AlacAudioMetadata alacGetMetadata({required BigInt sessionId}) => RustLib
     .instance
@@ -46,6 +53,26 @@ void alacSeek({required BigInt sessionId, required double timeSeconds}) =>
       sessionId: sessionId,
       timeSeconds: timeSeconds,
     );
+
+/// Seek to an exact PCM frame, returning the frame the session landed on.
+BigInt alacSeekFrame({required BigInt sessionId, required BigInt frame}) =>
+    RustLib.instance.api.crateApiAlacConverterApiAlacSeekFrame(
+      sessionId: sessionId,
+      frame: frame,
+    );
+
+/// Read exactly `frame_count` interleaved PCM frames starting at `start_frame`.
+///
+/// Returns fewer bytes at end of stream.
+Uint8List alacReadPcm({
+  required BigInt sessionId,
+  required BigInt startFrame,
+  required BigInt frameCount,
+}) => RustLib.instance.api.crateApiAlacConverterApiAlacReadPcm(
+  sessionId: sessionId,
+  startFrame: startFrame,
+  frameCount: frameCount,
+);
 
 /// Close and cleanup a conversion session
 void alacCloseSession({required BigInt sessionId}) => RustLib.instance.api

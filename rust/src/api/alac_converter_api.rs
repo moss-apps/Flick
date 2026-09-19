@@ -79,6 +79,17 @@ pub fn alac_create_session(file_bytes: Vec<u8>) -> Result<u64> {
     Ok(manager.create_session(session))
 }
 
+/// Create a conversion session straight from a file path.
+///
+/// Preferred over [`alac_create_session`] for playback: the file never crosses
+/// the FFI boundary.
+#[frb(sync)]
+pub fn alac_create_session_from_path(path: String) -> Result<u64> {
+    let session = ConversionSession::new_from_path(std::path::Path::new(&path))?;
+    let mut manager = SESSION_MANAGER.lock().unwrap();
+    Ok(manager.create_session(session))
+}
+
 /// Get metadata for an active session
 #[frb(sync)]
 pub fn alac_get_metadata(session_id: u64) -> Result<AlacAudioMetadata> {
@@ -119,6 +130,28 @@ pub fn alac_seek(session_id: u64, time_seconds: f64) -> Result<()> {
         .get_session(session_id)
         .ok_or_else(|| anyhow::anyhow!("Invalid session ID"))?;
     session.seek(time_seconds)
+}
+
+/// Seek to an exact PCM frame, returning the frame the session landed on.
+#[frb(sync)]
+pub fn alac_seek_frame(session_id: u64, frame: u64) -> Result<u64> {
+    let mut manager = SESSION_MANAGER.lock().unwrap();
+    let session = manager
+        .get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Invalid session ID"))?;
+    session.seek_frame(frame)
+}
+
+/// Read exactly `frame_count` interleaved PCM frames starting at `start_frame`.
+///
+/// Returns fewer bytes at end of stream.
+#[frb(sync)]
+pub fn alac_read_pcm(session_id: u64, start_frame: u64, frame_count: u64) -> Result<Vec<u8>> {
+    let mut manager = SESSION_MANAGER.lock().unwrap();
+    let session = manager
+        .get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Invalid session ID"))?;
+    session.read_pcm(start_frame, frame_count)
 }
 
 /// Close and cleanup a conversion session
