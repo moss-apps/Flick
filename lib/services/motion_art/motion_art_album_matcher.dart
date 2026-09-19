@@ -94,6 +94,26 @@ class MotionArtAlbumMatcher {
     return reqTokens.every(candTokens.contains);
   }
 
+  static final RegExp _artistSeparator = RegExp(
+    r'\s*&\s*|\s*,\s*|\s*×\s*|\s+(?:x|with|feat\.?|featuring|vs\.?)\s+',
+    caseSensitive: false,
+  );
+
+  /// Artist strings to try against search APIs, most specific first.
+  ///
+  /// Collab credits ("Tiësto & Tate McRae") resolve to the wrong catalog on
+  /// boidu's text search; the primary artist is the reliable fallback. Single
+  /// artists return just themselves so no extra request is made.
+  static List<String> artistVariants(String artist) {
+    final full = artist.trim();
+    if (full.isEmpty) return const [];
+    final primary = full.split(_artistSeparator).first.trim();
+    if (primary.length < 2 || normalize(primary) == normalize(full)) {
+      return [full];
+    }
+    return [full, primary];
+  }
+
   /// Loose artist comparison that tolerates `feat.`, `&`, and local variants.
   static bool artistMatches(String requested, String candidate) {
     final req = normalize(requested);
@@ -115,16 +135,37 @@ class MotionArtAlbumMatcher {
     required String artist,
     required List<Map<String, dynamic>> results,
   }) {
+    final ids = rankCollectionIds(
+      album: album,
+      artist: artist,
+      results: results,
+    );
+    return ids.isEmpty ? null : ids.first;
+  }
+
+  /// All matching album `collectionId`s ordered best-first, deduped.
+  ///
+  /// [pickCollectionId] only needs the winner, but motion art may live on a
+  /// sibling edition, so the service probes every candidate. Ties keep the
+  /// original iTunes result order.
+  static List<String> rankCollectionIds({
+    required String album,
+    required String artist,
+    required List<Map<String, dynamic>> results,
+  }) {
     final reqBase = baseName(album);
-    if (reqBase.isEmpty) return null;
+    if (reqBase.isEmpty) return const [];
     final reqTokens = editionTokens(album);
-    String? bestId;
-    var bestScore = 0; // require a positive score
-    for (final r in results) {
+    final scored = <({int index, int score, String id})>[];
+    final seen = <String>{};
+    for (var i = 0; i < results.length; i++) {
+      final r = results[i];
       final cName = (r['collectionName'] as String?) ?? '';
       final aName = (r['artistName'] as String?) ?? '';
       if (!artistMatches(artist, aName)) continue;
       if (baseName(cName) != reqBase) continue;
+      final id = r['collectionId']?.toString() ?? '';
+      if (id.isEmpty || !seen.add(id)) continue;
       var score = 30;
       final candTokens = editionTokens(cName);
       for (final token in reqTokens) {
@@ -134,11 +175,48 @@ class MotionArtAlbumMatcher {
       for (final token in candTokens) {
         if (!reqTokens.contains(token)) score -= 3;
       }
-      if (score > bestScore) {
-        bestScore = score;
-        bestId = r['collectionId']?.toString();
+      if (score > 0) scored.add((index: i, score: score, id: id));
+    }
+    scored.sort((a, b) {
+      final byScore = b.score.compareTo(a.score);
+      return byScore != 0 ? byScore : a.index.compareTo(b.index);
+    });
+    return [for (final s in scored) s.id];
+  }
+
+  /// Album `collectionId`s extracted from iTunes *song* search [results].
+  ///
+  /// Songs are only a backup way to discover collection ids (album search can
+  /// miss an album entirely, see DRIVE/Tiësto). Only collections that still
+  /// match [album] via [nameMatchesAlbum] qualify; the collection containing
+  /// [representativeSongTitle] ranks first and the rest keep iTunes order.
+  static List<String> rankCollectionIdsFromSongs({
+    required String album,
+    required String artist,
+    String? representativeSongTitle,
+    required List<Map<String, dynamic>> results,
+  }) {
+    final wantedSong = normalize(representativeSongTitle ?? '');
+    final preferred = <String>[];
+    final rest = <String>[];
+    final seen = <String>{};
+    for (final r in results) {
+      final aName = (r['artistName'] as String?) ?? '';
+      if (!artistMatches(artist, aName)) continue;
+      final cName = (r['collectionName'] as String?) ?? '';
+      if (cName.isNotEmpty &&
+          !nameMatchesAlbum(requested: album, candidate: cName)) {
+        continue;
+      }
+      final id = r['collectionId']?.toString() ?? '';
+      if (id.isEmpty || !seen.add(id)) continue;
+      final songName = normalize((r['trackName'] as String?) ?? '');
+      if (wantedSong.isNotEmpty && songName == wantedSong) {
+        preferred.add(id);
+      } else {
+        rest.add(id);
       }
     }
-    return bestId;
+    return [...preferred, ...rest];
   }
 }

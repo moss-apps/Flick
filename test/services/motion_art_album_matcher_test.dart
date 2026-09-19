@@ -148,6 +148,137 @@ void main() {
     });
   });
 
+  group('MotionArtAlbumMatcher.rankCollectionIds', () {
+    test('returns every matching edition best-first, deduped', () {
+      final ids = MotionArtAlbumMatcher.rankCollectionIds(
+        album: "Fearless (Taylor's Version)",
+        artist: 'Taylor Swift',
+        results: const [
+          {
+            'collectionId': 1440924803,
+            'collectionName': 'Fearless',
+            'artistName': 'Taylor Swift',
+          },
+          {
+            'collectionId': 1552791073,
+            'collectionName': "Fearless (Taylor's Version)",
+            'artistName': 'Taylor Swift',
+          },
+          {
+            'collectionId': 1552791073,
+            'collectionName': "Fearless (Taylor's Version)",
+            'artistName': 'Taylor Swift',
+          },
+          {
+            'collectionId': 1,
+            'collectionName': "Fearless (Taylor's Version)",
+            'artistName': 'Someone Else',
+          },
+        ],
+      );
+      expect(ids, ['1552791073', '1440924803']);
+    });
+
+    test('plain request keeps the original ahead of extra editions', () {
+      final ids = MotionArtAlbumMatcher.rankCollectionIds(
+        album: 'Fearless',
+        artist: 'Taylor Swift',
+        results: const [
+          {
+            'collectionId': 1552791073,
+            'collectionName': "Fearless (Taylor's Version)",
+            'artistName': 'Taylor Swift',
+          },
+          {
+            'collectionId': 1440924803,
+            'collectionName': 'Fearless',
+            'artistName': 'Taylor Swift',
+          },
+        ],
+      );
+      expect(ids, ['1440924803', '1552791073']);
+    });
+  });
+
+  group('MotionArtAlbumMatcher.rankCollectionIdsFromSongs', () {
+    const songs = [
+      {
+        'collectionId': 111,
+        'collectionName': 'DRIVE',
+        'artistName': 'Tiësto',
+        'trackName': 'All Nighter',
+      },
+      {
+        'collectionId': 222,
+        'collectionName': 'DRIVE',
+        'artistName': 'Tiësto',
+        'trackName': '10:35',
+      },
+      {
+        'collectionId': 111,
+        'collectionName': 'DRIVE',
+        'artistName': 'Tiësto',
+        'trackName': 'All Nighter',
+      },
+      {
+        'collectionId': 333,
+        'collectionName': 'Other Album',
+        'artistName': 'Tiësto',
+        'trackName': '10:35',
+      },
+      {
+        'collectionId': 444,
+        'collectionName': 'DRIVE',
+        'artistName': 'Someone Else',
+        'trackName': '10:35',
+      },
+    ];
+
+    test('prefers the collection holding the representative song', () {
+      final ids = MotionArtAlbumMatcher.rankCollectionIdsFromSongs(
+        album: 'DRIVE',
+        artist: 'Tiësto & Tate McRae',
+        representativeSongTitle: '10:35',
+        results: songs,
+      );
+      expect(ids, ['222', '111']);
+    });
+
+    test('keeps result order without a representative song', () {
+      final ids = MotionArtAlbumMatcher.rankCollectionIdsFromSongs(
+        album: 'DRIVE',
+        artist: 'Tiësto',
+        results: songs,
+      );
+      expect(ids, ['111', '222']);
+    });
+  });
+
+  group('MotionArtAlbumMatcher.artistVariants', () {
+    test('appends the primary artist for collab credits', () {
+      expect(MotionArtAlbumMatcher.artistVariants('Tiësto & Tate McRae'), [
+        'Tiësto & Tate McRae',
+        'Tiësto',
+      ]);
+      expect(MotionArtAlbumMatcher.artistVariants('Tiësto feat. Ava Max'), [
+        'Tiësto feat. Ava Max',
+        'Tiësto',
+      ]);
+      expect(MotionArtAlbumMatcher.artistVariants('Ariana Grande, Doja Cat'), [
+        'Ariana Grande, Doja Cat',
+        'Ariana Grande',
+      ]);
+    });
+
+    test('keeps single artists unchanged', () {
+      expect(MotionArtAlbumMatcher.artistVariants('Tiësto'), ['Tiësto']);
+      expect(MotionArtAlbumMatcher.artistVariants('X Ambassadors'), [
+        'X Ambassadors',
+      ]);
+      expect(MotionArtAlbumMatcher.artistVariants('  '), isEmpty);
+    });
+  });
+
   group('MotionArtAlbumMatcher.artistMatches', () {
     test('matches identical and prefixed names', () {
       expect(
