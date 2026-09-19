@@ -53,6 +53,7 @@ const List<ChangelogEntry> kChangelogEntries = [
           '**Bounded playback caches** — WAV conversions and SAF staging copies are now capped (default 1 GB, configurable in Library → Storage) instead of growing without limit.',
           'Least-recently-used eviction keeps the newest conversions; a one-time sweep removes multi-GB leftovers from earlier versions.',
           'Fixed a regression where quitting could delete persisted WAV conversions.',
+          '**Streamed conversion** — ALAC/M4A/AIFF tracks are decoded on demand and streamed to the player instead of converting the whole queue to WAV, so caches stay flat while you browse and play.',
         ],
       ),
     ],
