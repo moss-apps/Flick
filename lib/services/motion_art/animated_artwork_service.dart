@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/services/motion_art/motion_art_album_matcher.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -115,17 +116,26 @@ class _MotionArtTransientException implements Exception {
 /// Fetches Apple Music Motion Art (animated album artwork) from the public
 /// boidu.dev proxy.
 ///
-/// No token is required. The correct Apple collection id is resolved through
-/// the iTunes Search API first so edition qualifiers survive (e.g.
-/// "Fearless (Taylor's Version)" must never resolve to the original
-/// "Fearless"), then boidu is queried by `?id=`. Song-text search is only a
-/// fallback when the album is unknown or the id lookup misses.
+/// No token is required. Collection ids are resolved through the iTunes
+/// Search API first so edition qualifiers survive (e.g. "Fearless (Taylor's
+/// Version)" must never resolve to the original "Fearless"), then every
+/// candidate is probed through boidu's `?id=` until one has motion — motion
+/// art often lives on a sibling edition of the same album. Validated text
+/// search is the fallback when search misses the album entirely.
 ///
 /// Positive results are cached 24h, negative results 6h, both in memory and on
 /// disk, so albums without motion art are not re-queried on every launch.
 class AnimatedArtworkService {
-  AnimatedArtworkService._();
+  AnimatedArtworkService._({http.Client? client})
+    : _client = client ?? http.Client();
+
   static final AnimatedArtworkService instance = AnimatedArtworkService._();
+
+  @visibleForTesting
+  static AnimatedArtworkService create({http.Client? client}) =>
+      AnimatedArtworkService._(client: client);
+
+  final http.Client _client;
 
   static const String _boiduBase = 'https://artwork.boidu.dev/';
   static const String _itunesBase = 'https://itunes.apple.com/search';
@@ -139,6 +149,14 @@ class AnimatedArtworkService {
   /// cached as "no artwork" for the full negative TTL.
   static const Duration _transientTtl = Duration(seconds: 30);
   static const int _itunesLimit = 25;
+
+  /// Cap on iTunes collection candidates probed per lookup so a bad album
+  /// search cannot turn into a boidu request storm.
+  static const int _maxCollectionCandidates = 3;
+
+  /// Bump when resolution logic changes: the version is part of the cache key
+  /// so stale negative entries stop hiding a now-resolvable album.
+  static const String _cacheVersion = 'v3';
 
   /// boidu rate-limits its upstream, so cap concurrent requests.
   static const int _boiduMaxConcurrent = 2;
@@ -187,7 +205,12 @@ class AnimatedArtworkService {
     return _resolve(
       key,
       () async {
-        final byAlbum = await _resolveAlbum(albumName, artist, storefront);
+        final byAlbum = await _resolveAlbum(
+          albumName,
+          artist,
+          storefront,
+          representativeSongTitle: representativeSongTitle,
+        );
         if (byAlbum != null) return byAlbum;
         final song = representativeSongTitle?.trim() ?? '';
         if (song.isEmpty) return null;
@@ -208,7 +231,12 @@ class AnimatedArtworkService {
     required String storefront,
   }) async {
     if (albumName.isNotEmpty) {
-      final byAlbum = await _resolveAlbum(albumName, artist, storefront);
+      final byAlbum = await _resolveAlbum(
+        albumName,
+        artist,
+        storefront,
+        representativeSongTitle: songTitle,
+      );
       if (byAlbum != null) return byAlbum;
     }
     return _fetchBoiduSong(
@@ -219,61 +247,130 @@ class AnimatedArtworkService {
     );
   }
 
-  /// iTunes collection id -> boidu `?id=`, then a validated text fallback.
+  /// Resolves collection candidates from iTunes, probes each through boidu's
+  /// `?id=` until one has motion, then falls back to validated text search.
+  ///
+  /// Album search runs first and only when it finds no motion is the song
+  /// search consulted — it is a discovery backup for albums iTunes misses,
+  /// not a per-lookup cost.
   Future<AnimatedArtwork?> _resolveAlbum(
     String album,
     String artist,
-    String storefront,
-  ) async {
-    final collectionId = await _resolveCollectionId(album, artist, storefront);
-    if (collectionId != null) {
-      final art = await _fetchBoiduById(collectionId);
+    String storefront, {
+    String? representativeSongTitle,
+  }) async {
+    final albumIds = await _albumCollectionIds(album, artist, storefront);
+    for (final id in albumIds) {
+      final art = await _fetchBoiduById(id);
       if (art != null && art.hasMotion) return art;
+    }
+    if (albumIds.length < _maxCollectionCandidates) {
+      final songIds = await _songCollectionIds(
+        album,
+        artist,
+        representativeSongTitle,
+        storefront,
+        exclude: albumIds.toSet(),
+      );
+      for (final id in songIds) {
+        final art = await _fetchBoiduById(id);
+        if (art != null && art.hasMotion) return art;
+      }
     }
     return _fetchBoiduAlbumText(album, artist, storefront);
   }
 
-  Future<String?> _resolveCollectionId(
+  /// Ranked album-entity candidates, best edition first.
+  Future<List<String>> _albumCollectionIds(
     String album,
     String artist,
     String storefront,
   ) async {
-    final storefronts = <String>[
-      storefront,
-      if (storefront != 'us') 'us',
-    ];
-    for (final sf in storefronts) {
-      try {
-        final uri = Uri.parse(_itunesBase).replace(
-          queryParameters: {
-            'term': '$artist $album',
-            'media': 'music',
-            'entity': 'album',
-            'limit': '$_itunesLimit',
-            'country': sf,
-          },
-        );
-        final response = await http
-            .get(uri, headers: {'User-Agent': _userAgent})
-            .timeout(_requestTimeout);
-        if (response.statusCode != 200) continue;
-        final decoded = jsonDecode(response.body);
-        if (decoded is! Map<String, dynamic>) continue;
-        final results = (decoded['results'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList();
-        if (results == null || results.isEmpty) continue;
-        final id = MotionArtAlbumMatcher.pickCollectionId(
-          album: album,
-          artist: artist,
-          results: results,
-        );
-        if (id != null && id.isNotEmpty) return id;
-      } catch (error) {
-        devLog('[MotionArt] iTunes lookup "$artist - $album" ($sf): $error');
+    final ids = <String>[];
+    final seen = <String>{};
+    for (final sf in _storefronts(storefront)) {
+      if (ids.length >= _maxCollectionCandidates) break;
+      final results = await _itunesSearch(
+        term: '$artist $album',
+        entity: 'album',
+        storefront: sf,
+      );
+      for (final id in MotionArtAlbumMatcher.rankCollectionIds(
+        album: album,
+        artist: artist,
+        results: results,
+      )) {
+        if (seen.add(id)) ids.add(id);
       }
     }
-    return null;
+    return ids;
+  }
+
+  /// Ranked collection ids harvested from song-entity results, with the
+  /// collection holding [representativeSongTitle] first.
+  Future<List<String>> _songCollectionIds(
+    String album,
+    String artist,
+    String? representativeSongTitle,
+    String storefront, {
+    Set<String> exclude = const {},
+  }) async {
+    final song = representativeSongTitle?.trim() ?? '';
+    final ids = <String>[];
+    final seen = <String>{...exclude};
+    for (final sf in _storefronts(storefront)) {
+      if (ids.length >= _maxCollectionCandidates) break;
+      final results = await _itunesSearch(
+        term: song.isEmpty ? '$artist $album' : '$artist $song',
+        entity: 'song',
+        storefront: sf,
+      );
+      for (final id in MotionArtAlbumMatcher.rankCollectionIdsFromSongs(
+        album: album,
+        artist: artist,
+        representativeSongTitle: song,
+        results: results,
+      )) {
+        if (seen.add(id)) ids.add(id);
+      }
+    }
+    return ids;
+  }
+
+  List<String> _storefronts(String storefront) => [
+    storefront,
+    if (storefront != 'us') 'us',
+  ];
+
+  Future<List<Map<String, dynamic>>> _itunesSearch({
+    required String term,
+    required String entity,
+    required String storefront,
+  }) async {
+    try {
+      final uri = Uri.parse(_itunesBase).replace(
+        queryParameters: {
+          'term': term,
+          'media': 'music',
+          'entity': entity,
+          'limit': '$_itunesLimit',
+          'country': storefront,
+        },
+      );
+      final response = await _client
+          .get(uri, headers: {'User-Agent': _userAgent})
+          .timeout(_requestTimeout);
+      if (response.statusCode != 200) return const [];
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) return const [];
+      return (decoded['results'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          const [];
+    } catch (error) {
+      devLog('[MotionArt] iTunes $entity search "$term" ($storefront): $error');
+      return const [];
+    }
   }
 
   Future<AnimatedArtwork?> _fetchBoiduById(String collectionId) async {
@@ -292,7 +389,21 @@ class AnimatedArtworkService {
     }
   }
 
+  /// Text-search fallback, retried with the primary artist when a collab
+  /// credit ("Tiësto & Tate McRae") sends boidu into another artist's catalog.
   Future<AnimatedArtwork?> _fetchBoiduAlbumText(
+    String album,
+    String artist,
+    String storefront,
+  ) async {
+    for (final candidate in MotionArtAlbumMatcher.artistVariants(artist)) {
+      final art = await _fetchBoiduAlbumTextOnce(album, candidate, storefront);
+      if (art != null) return art;
+    }
+    return null;
+  }
+
+  Future<AnimatedArtwork?> _fetchBoiduAlbumTextOnce(
     String album,
     String artist,
     String storefront,
@@ -305,14 +416,33 @@ class AnimatedArtworkService {
       // A valid response with no motion is definitive: stop, don't retry.
       if (art == null || !art.hasMotion) return null;
       final name = art.name.isNotEmpty ? art.name : album;
-      if (!MotionArtAlbumMatcher.nameMatchesAlbum(
+      if (MotionArtAlbumMatcher.nameMatchesAlbum(
         requested: album,
         candidate: name,
       )) {
-        devLog('[MotionArt] rejected edition mismatch: "$album" -> "$name"');
-        return null;
+        return art;
       }
-      return art;
+      // boidu's `?s=` is a SONG search: it can label the right collection with
+      // a track name ("All Nighter" for DRIVE). Before treating this as an
+      // edition mismatch, ask by id and trust the canonical title.
+      if (art.albumId.isNotEmpty &&
+          MotionArtAlbumMatcher.baseName(name) !=
+              MotionArtAlbumMatcher.baseName(album)) {
+        final canonical = await _fetchBoiduById(art.albumId);
+        if (canonical != null &&
+            canonical.hasMotion &&
+            MotionArtAlbumMatcher.nameMatchesAlbum(
+              requested: album,
+              candidate: canonical.name,
+            ) &&
+            MotionArtAlbumMatcher.artistMatches(artist, canonical.artist)) {
+          return canonical;
+        }
+      }
+      devLog(
+        '[MotionArt] rejected edition mismatch: "$artist" "$album" -> "$name"',
+      );
+      return null;
     } on _MotionArtTransientException {
       rethrow;
     } catch (error) {
@@ -387,7 +517,7 @@ class AnimatedArtworkService {
     return _withBoiduSlot(() async {
       final http.Response response;
       try {
-        response = await http
+        response = await _client
             .get(uri, headers: {'User-Agent': _userAgent})
             .timeout(_requestTimeout);
       } on TimeoutException {
@@ -462,7 +592,7 @@ class AnimatedArtworkService {
   }
 
   String _cacheKey(String prefix, String artist, String album, String sf) {
-    final raw = '$prefix|${artist.toLowerCase()}|'
+    final raw = '$_cacheVersion|$prefix|${artist.toLowerCase()}|'
         '${album.toLowerCase()}|$sf';
     return sha1.convert(utf8.encode(raw)).toString();
   }
