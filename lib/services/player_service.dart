@@ -41,6 +41,7 @@ import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/alac_converter_service.dart';
 import 'package:flick/services/playback_cache_preferences_service.dart';
 import 'package:flick/services/remote_source_service.dart';
+import 'package:flick/services/wav_stream_audio_source.dart';
 import 'package:flick/services/casting/casting_service.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
@@ -3152,6 +3153,13 @@ class PlayerService {
       return just_audio.AudioSource.uri(Uri.parse(''));
     }
 
+    final streamSource = _streamSourceForSong(song);
+    if (streamSource != null) {
+      // Clipping is folded into the virtual WAV layout; ClippingAudioSource
+      // cannot wrap a StreamAudioSource (it requires a UriAudioSource).
+      return streamSource;
+    }
+
     final uri = await _resolvePlaybackUri(song);
 
     if (song.startOffsetMs != null && song.startOffsetMs! > 0) {
@@ -3167,6 +3175,31 @@ class PlayerService {
     }
 
     return just_audio.AudioSource.uri(uri);
+  }
+
+  /// Decodes ALAC/M4A/AIFF through the Rust engine without writing a WAV.
+  ///
+  /// Everything else keeps the existing direct-URI path: only formats that
+  /// previously forced an eager `wav_cache` conversion are streamed, so
+  /// external handoffs and unsupported content URIs are untouched.
+  just_audio.AudioSource? _streamSourceForSong(Song song) {
+    if (kIsWeb || song.isNetworkSource || !_shouldConvertToWav(song)) {
+      return null;
+    }
+    final filePath = song.filePath;
+    if (filePath == null || filePath.isEmpty) return null;
+    final startOffsetMs = song.startOffsetMs;
+    return WavStreamAudioSource(
+      filePath: filePath,
+      durationHint: song.duration,
+      extensionHint: _preferredExtension(song),
+      startOffset: startOffsetMs != null && startOffsetMs > 0
+          ? Duration(milliseconds: startOffsetMs)
+          : null,
+      endOffset: song.endOffsetMs != null && song.endOffsetMs! > 0
+          ? Duration(milliseconds: song.endOffsetMs!)
+          : null,
+    );
   }
 
   Future<void> _insertIntoAudioSequence(int playlistIndex, Song song) async {
@@ -3446,6 +3479,11 @@ class PlayerService {
   }
 
   Future<void> _prepareImmediatePlaybackAsset(Song song) async {
+    if (!_usingRustBackend && _streamSourceForSong(song) != null) {
+      // The just_audio stream source stages/decodes lazily; pre-converting
+      // here would write the WAV that source exists to avoid.
+      return;
+    }
     if (!_shouldStageContentUriForPlayback(song) &&
         !_shouldConvertToWav(song)) {
       return;
