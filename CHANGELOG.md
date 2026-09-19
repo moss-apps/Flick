@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Storage
+- Playback no longer converts ALAC/M4A/AIFF tracks to WAV files: they are decoded on demand and streamed to the player, so the playback cache stops growing with queue size (issue #212).
+
 ### DSD Native Playback
 - Fixed DSF files decoding 8 bytes late (wrong data offset probe) — the cause of the continuous light ticks on all DSF playback; bit order now follows the DSF header flag (1 = LSB, 8 = MSB).
 - ReplayGain is ignored on native DSD/DoP sources (a gain multiply would corrupt the DSD bits).
