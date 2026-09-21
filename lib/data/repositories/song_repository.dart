@@ -25,6 +25,8 @@ class SongRepository {
 
   SongRepository({Isar? isar}) : _isar = isar ?? Database.instance;
 
+  Isar get isar => _isar;
+
   /// Get all songs ordered by title.
   Future<List<Song>> getAllSongs() async {
     final entities = await _isar.songEntitys.where().sortByTitle().findAll();
