@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../core/utils/audio_metadata_utils.dart';
 import '../data/database.dart';
@@ -14,6 +15,7 @@ import '../services/fingerprint_cache_service.dart';
 import '../services/uac2_preferences_service.dart';
 import '../services/audio_preload_service.dart';
 import '../services/album_art_service.dart';
+import '../services/artwork_backfill_tracker.dart';
 import '../src/rust/api/scanner.dart'; // Rust bridge
 import 'package:flick/core/utils/dev_log.dart';
 
@@ -154,6 +156,19 @@ class LibraryScannerService {
   bool _isCancelled = false;
   final Set<String> _currentlyScanning = {};
   final Map<String, Future<void>> _folderFinalization = {};
+  final ArtworkBackfillTracker _artworkBackfill = ArtworkBackfillTracker();
+
+  /// Aggregate progress of post-scan artwork backfill; null when idle.
+  ValueListenable<ArtworkBackfillProgress?> get artworkBackfillProgress =>
+      _artworkBackfill.progress;
+
+  /// Resolves when artwork backfill for [folderUri] has finished (immediately
+  /// when no backfill is pending for it).
+  Future<void> awaitArtworkBackfill(String folderUri) =>
+      _artworkBackfill.awaitFolder(normalizeFolderIdentifier(folderUri));
+
+  /// Resolves when every currently pending artwork backfill has finished.
+  Future<void> awaitAllArtworkBackfill() => _artworkBackfill.awaitAll();
 
   void _trackFinalization(String folderUri, Future<void> task) {
     _folderFinalization[folderUri] = task;
@@ -297,6 +312,7 @@ class LibraryScannerService {
     }
 
     _currentlyScanning.add(scanKey);
+    final artworkBackfillToken = _artworkBackfill.begin(scanKey);
     try {
       if (Platform.isAndroid) {
         final storageInfo = await _musicFolderService.resolveStorageInfo(
@@ -502,25 +518,40 @@ class LibraryScannerService {
       }
     } finally {
       _currentlyScanning.remove(scanKey);
-      if (!_isCancelled) {
+      if (_isCancelled) {
+        // Cancelled: no backfill will run, so release anyone awaiting covers.
+        _artworkBackfill.finish(scanKey, artworkBackfillToken);
+      } else {
         // Detached artwork backfill: resolve covers the lazy tile path hasn't
         // reached yet, so art persists after the scan instead of appearing
         // only when tiles are tapped. Runs unpaused — tiles may resolve
-        // concurrently; _inFlightResolutions dedupes.
+        // concurrently; _inFlightResolutions dedupes. The tracker lets the
+        // manual scan session wait for covers before reporting "done".
+        final task = _runDetachedScanTask(displayName, 'artwork resolve', () async {
+          // CUE/log finalization upserts entities it loaded before artwork
+          // existed; wait for it so it cannot clobber freshly resolved art
+          // and so CUE-created tracks get resolved too.
+          final pending = _folderFinalization[folderUri];
+          if (pending != null) {
+            await pending;
+          }
+          final songs = await _songRepository.getSongEntitiesByFolder(
+            folderUri,
+          );
+          await AlbumArtService.instance.resolveMissingArtwork(
+            songs,
+            onProgress: (completed, total) => _artworkBackfill.setProgress(
+              scanKey,
+              artworkBackfillToken,
+              completed,
+              total,
+            ),
+          );
+        });
         unawaited(
-          _runDetachedScanTask(displayName, 'artwork resolve', () async {
-            // CUE/log finalization upserts entities it loaded before artwork
-            // existed; wait for it so it cannot clobber freshly resolved art
-            // and so CUE-created tracks get resolved too.
-            final pending = _folderFinalization[folderUri];
-            if (pending != null) {
-              await pending;
-            }
-            final songs = await _songRepository.getSongEntitiesByFolder(
-              folderUri,
-            );
-            await AlbumArtService.instance.resolveMissingArtwork(songs);
-          }),
+          task.whenComplete(
+            () => _artworkBackfill.finish(scanKey, artworkBackfillToken),
+          ),
         );
       }
     }
@@ -2244,17 +2275,25 @@ class LibraryScannerService {
         );
 
         _logScanTiming(displayName, 'Rust scan total', totalStopwatch.elapsed);
+      },
+    );
+    _trackFinalization(folderUri, finalization);
 
-        // Re-read the pref at spawn time so a mid-scan toggle is honored instead
-        // of using the snapshot captured at scan start.
+    // Audio preload runs after finalization (CUE/log upserts must exist first)
+    // but detached from the artwork wait, so cover resolution is not delayed
+    // by the decode pass — which holds the artwork gate for its whole run.
+    unawaited(
+      _runDetachedScanTask(displayName, 'scan preload', () async {
+        await finalization;
+        // Re-read the pref at spawn time so a mid-scan toggle is honored
+        // instead of using the snapshot captured at scan start.
         final currentPrefs = await _scanPreferencesService.getPreferences();
         if (_isCancelled) return;
         if (currentPrefs.preloadAudioData && preloadCandidates.isNotEmpty) {
           await _preloadAudioData(preloadCandidates);
         }
-      },
+      }),
     );
-    _trackFinalization(folderUri, finalization);
 
     yield ScanProgress(
       songsFound: finalCount,
