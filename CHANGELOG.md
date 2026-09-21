@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Library Scanning & Artwork
+- Scans and rescans now finish with album art ready: after metadata completes, a skippable **Loading artwork** phase shows cover progress (`n / N covers`); skipping lets resolution continue in the background.
+- Albums, Artists, and folder screens reload as post-scan artwork writes land, so covers no longer appear only after scrolling.
+- Post-scan audio preload no longer blocks artwork resolution.
+
+### Floating Progress & Preload
+- Fixed the floating progress pill getting stuck after a scan showing "Preloading audio" while nothing was preloading; Stop now clears it immediately even during the artwork phase.
+- Stopping preload interrupts the in-flight decode chunk instead of waiting for it to finish, so the pill and preload card can't outlive the cancel.
+- Fixed a race where the preload toggle could display off while a stale persisted value still triggered preload after scanning; toggles now wait for the stored preferences before writing.
+- Turning preload off now cancels a pass that is already decoding and suppresses the ones a scan would spawn; turning it back on lifts the suppression.
+- The floating pill no longer stays stuck after leaving Settings mid-scan; it now plays a short check-mark animation when the scan and its artwork loading finish, then disappears. A post-scan preload pass that is still running no longer pops the pill back up after the check.
+
 ### Storage
 - Playback no longer converts ALAC/M4A/AIFF tracks to WAV files: they are decoded on demand and streamed to the player, so the playback cache stops growing with queue size (issue #212).
 
