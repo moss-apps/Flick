@@ -5167,11 +5167,15 @@ impl SseDecode for crate::api::scanner::ScanChunk {
             <Vec<crate::api::scanner::AudioFileMetadata>>::sse_decode(deserializer);
         let mut var_deletedPaths = <Vec<String>>::sse_decode(deserializer);
         let mut var_totalFiles = <u32>::sse_decode(deserializer);
+        let mut var_filesWalked = <u32>::sse_decode(deserializer);
+        let mut var_filesProcessed = <u32>::sse_decode(deserializer);
         let mut var_isComplete = <bool>::sse_decode(deserializer);
         return crate::api::scanner::ScanChunk {
             new_or_modified: var_newOrModified,
             deleted_paths: var_deletedPaths,
             total_files: var_totalFiles,
+            files_walked: var_filesWalked,
+            files_processed: var_filesProcessed,
             is_complete: var_isComplete,
         };
     }
@@ -5181,8 +5185,10 @@ impl SseDecode for crate::api::scanner::ScanOptions {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_filterNonMusicFilesAndFolders = <bool>::sse_decode(deserializer);
+        let mut var_forceFullRescan = <bool>::sse_decode(deserializer);
         return crate::api::scanner::ScanOptions {
             filter_non_music_files_and_folders: var_filterNonMusicFilesAndFolders,
+            force_full_rescan: var_forceFullRescan,
         };
     }
 }
@@ -6384,6 +6390,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::scanner::ScanChunk {
             self.new_or_modified.into_into_dart().into_dart(),
             self.deleted_paths.into_into_dart().into_dart(),
             self.total_files.into_into_dart().into_dart(),
+            self.files_walked.into_into_dart().into_dart(),
+            self.files_processed.into_into_dart().into_dart(),
             self.is_complete.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -6403,10 +6411,12 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::scanner::ScanChunk>
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::scanner::ScanOptions {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self
-            .filter_non_music_files_and_folders
-            .into_into_dart()
-            .into_dart()]
+        [
+            self.filter_non_music_files_and_folders
+                .into_into_dart()
+                .into_dart(),
+            self.force_full_rescan.into_into_dart().into_dart(),
+        ]
         .into_dart()
     }
 }
@@ -7419,6 +7429,8 @@ impl SseEncode for crate::api::scanner::ScanChunk {
         <Vec<crate::api::scanner::AudioFileMetadata>>::sse_encode(self.new_or_modified, serializer);
         <Vec<String>>::sse_encode(self.deleted_paths, serializer);
         <u32>::sse_encode(self.total_files, serializer);
+        <u32>::sse_encode(self.files_walked, serializer);
+        <u32>::sse_encode(self.files_processed, serializer);
         <bool>::sse_encode(self.is_complete, serializer);
     }
 }
@@ -7427,6 +7439,7 @@ impl SseEncode for crate::api::scanner::ScanOptions {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.filter_non_music_files_and_folders, serializer);
+        <bool>::sse_encode(self.force_full_rescan, serializer);
     }
 }
 
