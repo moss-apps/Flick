@@ -30,7 +30,9 @@ class AlbumArtService {
   Directory? _artworkDir;
   DateTime _lastPrune = DateTime.fromMillisecondsSinceEpoch(0);
 
-  final SongRepository _songRepository = SongRepository();
+  // Lazy so constructing the singleton (or resolving for skipped songs) does
+  // not require an initialized database.
+  late final SongRepository _songRepository = SongRepository();
   final MusicFolderService _musicFolderService = MusicFolderService();
   final Map<String, Future<String?>> _inFlightResolutions = {};
 
@@ -91,21 +93,35 @@ class AlbumArtService {
   /// run detached after a scan: already-resolved songs short-circuit on the
   /// [resolveArtworkPath] existence check, network songs are skipped (their
   /// covers resolve lazily via the marker).
-  Future<void> resolveMissingArtwork(List<SongEntity> songs) async {
+  ///
+  /// [onProgress] reports `(completed, total)` after every song, including
+  /// skipped and failed ones, so callers can show a deterministic count.
+  Future<void> resolveMissingArtwork(
+    List<SongEntity> songs, {
+    void Function(int completed, int total)? onProgress,
+  }) async {
+    final total = songs.length;
+    var completed = 0;
+    onProgress?.call(completed, total);
     for (final song in songs) {
-      final path = song.filePath;
-      if (path.isEmpty) continue;
-      final scheme = Uri.tryParse(path)?.scheme;
-      if (isSupportedNetworkProtocol(scheme)) continue;
-      // One unreadable/corrupt file must not abort artwork backfill for the
-      // rest of the folder.
       try {
-        await resolveArtworkPath(
-          existingPath: song.albumArtPath,
-          audioSourcePath: path,
-        );
-      } catch (error) {
-        debugPrint('Artwork resolve failed for $path: $error');
+        final path = song.filePath;
+        if (path.isEmpty) continue;
+        final scheme = Uri.tryParse(path)?.scheme;
+        if (isSupportedNetworkProtocol(scheme)) continue;
+        // One unreadable/corrupt file must not abort artwork backfill for the
+        // rest of the folder.
+        try {
+          await resolveArtworkPath(
+            existingPath: song.albumArtPath,
+            audioSourcePath: path,
+          );
+        } catch (error) {
+          debugPrint('Artwork resolve failed for $path: $error');
+        }
+      } finally {
+        completed++;
+        onProgress?.call(completed, total);
       }
     }
   }
