@@ -1,8 +1,45 @@
 import 'package:test/test.dart';
 
+import 'package:flick/data/entities/song_entity.dart';
 import 'package:flick/services/audio_preload_service.dart';
 
 void main() {
+  group('AudioPreloadService auto suppression', () {
+    late AudioPreloadService service;
+
+    setUp(() {
+      service = AudioPreloadService();
+      service.clearAutoSuppression();
+    });
+
+    SongEntity song() => SongEntity()
+      ..id = 1
+      ..filePath = '/music/track.flac'
+      ..title = 'Track'
+      ..artist = 'Artist';
+
+    test('starts unsuppressed', () {
+      expect(service.isAutoSuppressed, isFalse);
+    });
+
+    test('cancel suppresses later auto passes', () async {
+      service.cancel();
+
+      expect(service.isAutoSuppressed, isTrue);
+      await service.enqueueAutoPreload([song()]);
+
+      expect(service.isRunning, isFalse);
+      expect(service.progress.value, isNull);
+    });
+
+    test('clearAutoSuppression lifts the block', () {
+      service.cancel();
+      service.clearAutoSuppression();
+
+      expect(service.isAutoSuppressed, isFalse);
+    });
+  });
+
   group('AudioPreloadService.shouldNegativeCache', () {
     test('negative-caches undecodable formats case-insensitively', () {
       expect(AudioPreloadService.shouldNegativeCache('/a/b/track.dsf'), isTrue);
