@@ -39,6 +39,30 @@ class ScanSessionController {
   final ValueNotifier<ScanProgress?> progress = ValueNotifier(null);
   final ValueNotifier<bool> minimized = ValueNotifier(false);
 
+  /// True while the owning flow is doing post-scan work (artwork backfill)
+  /// after the scan stream completed. Stop actions should ask to skip that
+  /// work instead of cancelling the scan.
+  final ValueNotifier<bool> postProcessing = ValueNotifier(false);
+
+  /// Incremented every time the user asks to skip post-processing. The owning
+  /// flow listens and proceeds without waiting for the background work.
+  final ValueNotifier<int> skipRequests = ValueNotifier(0);
+
+  /// Latches true when the owning flow finishes all work for the session.
+  /// [end] does not reset it: the pill uses it to play a short completion
+  /// outro even though the session is already gone. [begin] resets it.
+  final ValueNotifier<bool> completed = ValueNotifier(false);
+
+  void markCompleted() {
+    if (session.value == null) return;
+    completed.value = true;
+  }
+
+  void requestSkip() {
+    if (!postProcessing.value) return;
+    skipRequests.value++;
+  }
+
   int _generation = 0;
 
   bool get isActive => session.value != null;
@@ -69,6 +93,8 @@ class ScanSessionController {
     );
     progress.value = null;
     minimized.value = false;
+    postProcessing.value = false;
+    completed.value = false;
     // A visible session means the user started work again; lift the sticky
     // auto-preload suppression a previous Stop installed.
     AudioPreloadService.instance.clearAutoSuppression();
@@ -108,5 +134,6 @@ class ScanSessionController {
     session.value = null;
     progress.value = null;
     minimized.value = false;
+    postProcessing.value = false;
   }
 }
