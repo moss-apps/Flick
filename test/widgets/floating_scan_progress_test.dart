@@ -43,6 +43,7 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     controller.end();
+    controller.completed.value = false;
     autoProgress = ValueNotifier<PreloadProgress?>(null);
   });
 
@@ -199,6 +200,36 @@ void main() {
     expect(_opacity(tester, _bubbleKey), 1);
   });
 
+  testWidgets('Skip while loading artwork ends the session and hides the pill', (
+    tester,
+  ) async {
+    final generation = controller.begin(
+      title: 'All Folders',
+      kind: ScanSessionKind.scan,
+      onCancel: () {},
+    );
+    controller.update(
+      generation,
+      _progress(3, 10).copyWith(phase: 'Loading artwork'),
+    );
+    controller.overlayDismissed(generation);
+    controller.postProcessing.value = true;
+    await pumpHost(tester);
+
+    await tester.tap(find.byKey(_bubbleKey));
+    await tester.pumpAndSettle();
+    expect(find.text('Skip'), findsOneWidget);
+
+    await tester.tap(find.text('Skip'));
+    await tester.pumpAndSettle();
+
+    expect(controller.skipRequests.value, greaterThan(0));
+    expect(controller.isActive, isFalse);
+    expect(controller.postProcessing.value, isFalse);
+    expect(_opacity(tester, _bubbleKey), 0);
+    expect(_opacity(tester, _cardKey), 0);
+  });
+
   testWidgets('shows for silent auto preload without a session', (
     tester,
   ) async {
@@ -208,6 +239,82 @@ void main() {
 
     expect(_opacity(tester, _bubbleKey), 1);
     expect(controller.isActive, isFalse);
+  });
+
+  testWidgets('completion plays a check outro and then hides the pill', (
+    tester,
+  ) async {
+    await startMinimizedSession(tester);
+    expect(_opacity(tester, _bubbleKey), 1);
+
+    controller.markCompleted();
+    controller.end();
+    await tester.pump();
+
+    expect(_opacity(tester, _bubbleKey), 1);
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
+    expect(_opacity(tester, _bubbleKey), 0);
+    expect(_opacity(tester, _cardKey), 0);
+    expect(controller.isActive, isFalse);
+  });
+
+  testWidgets('completion does not play the outro when the overlay is open', (
+    tester,
+  ) async {
+    final generation = controller.begin(
+      title: 'All Folders',
+      kind: ScanSessionKind.scan,
+      onCancel: () {},
+    );
+    controller.update(generation, _progress(3, 10));
+    await pumpHost(tester);
+
+    controller.markCompleted();
+    controller.end(generation);
+    await tester.pumpAndSettle();
+
+    expect(_opacity(tester, _bubbleKey), 0);
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
+  });
+
+  testWidgets('preload stays hidden after the check until a new session', (
+    tester,
+  ) async {
+    autoProgress.value = const PreloadProgress(completed: 1, total: 8);
+    await startMinimizedSession(tester);
+    expect(_opacity(tester, _bubbleKey), 1);
+
+    controller.markCompleted();
+    controller.end();
+    await tester.pump();
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
+    expect(_opacity(tester, _bubbleKey), 0);
+
+    autoProgress.value = null;
+    autoProgress.value = const PreloadProgress(completed: 1, total: 4);
+    await tester.pumpAndSettle();
+
+    expect(_opacity(tester, _bubbleKey), 0);
+
+    final generation = controller.begin(
+      title: 'All Folders',
+      kind: ScanSessionKind.scan,
+      onCancel: () {},
+    );
+    controller.end(generation);
+    await tester.pumpAndSettle();
+
+    expect(_opacity(tester, _bubbleKey), 1);
   });
 
   testWidgets('drag snaps to the left edge and persists the side', (

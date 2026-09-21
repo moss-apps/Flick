@@ -43,7 +43,7 @@ class FloatingScanProgress extends StatefulWidget {
 }
 
 class _FloatingScanProgressState extends State<FloatingScanProgress>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   static const double _bubbleSize = 52;
   static const double _edgeMargin = 8;
   static const double _cardGap = 8;
@@ -55,8 +55,16 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
   bool _expanded = false;
   bool _pressed = false;
   bool _autoStopped = false;
+
+  /// Set once the completion check has played. Background preload stays silent
+  /// (no pill) until a new session starts, so a scan-spawned pass or a
+  /// straggler enqueued right after the scan can't resurrect the pill.
+  bool _autoSuppressedAfterCompletion = false;
   DateTime? _autoPreloadSince;
   Timer? _elapsedTimer;
+
+  late final AnimationController _completionController;
+  bool _completionOutro = false;
 
   FloatingScanIndicatorSide _side = FloatingScanIndicatorSide.right;
   double? _yFraction;
@@ -75,18 +83,26 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
   bool get _autoVisible =>
       !ScanSessionController.instance.isActive &&
       _autoPreloadProgress.value != null &&
-      !_autoStopped;
+      !_autoStopped &&
+      !_autoSuppressedAfterCompletion;
 
-  bool get _visible => _sessionVisible || _autoVisible;
+  bool get _visible => _sessionVisible || _autoVisible || _completionOutro;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _completionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _completionController.addStatusListener(_onCompletionStatus);
     final controller = ScanSessionController.instance;
     controller.session.addListener(_onChanged);
     controller.progress.addListener(_onChanged);
     controller.minimized.addListener(_onChanged);
+    controller.postProcessing.addListener(_onChanged);
+    controller.completed.addListener(_onCompletedChanged);
     _autoPreloadProgress.addListener(_onChanged);
     if (_autoVisible) _autoPreloadSince = DateTime.now();
     _syncTimer();
@@ -101,8 +117,45 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
     controller.session.removeListener(_onChanged);
     controller.progress.removeListener(_onChanged);
     controller.minimized.removeListener(_onChanged);
+    controller.postProcessing.removeListener(_onChanged);
+    controller.completed.removeListener(_onCompletedChanged);
     _autoPreloadProgress.removeListener(_onChanged);
+    _completionController.dispose();
     super.dispose();
+  }
+
+  void _onCompletedChanged() {
+    if (!ScanSessionController.instance.completed.value) {
+      _cancelCompletionOutro();
+      return;
+    }
+    if (_sessionVisible) _startCompletionOutro();
+  }
+
+  void _startCompletionOutro() {
+    _completionController.forward(from: 0);
+    setState(() {
+      _completionOutro = true;
+      _expanded = false;
+    });
+  }
+
+  void _cancelCompletionOutro() {
+    if (!_completionOutro) return;
+    _completionController.stop();
+    _completionController.value = 0;
+    setState(() => _completionOutro = false);
+  }
+
+  void _onCompletionStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    if (!mounted) return;
+    setState(() {
+      _completionOutro = false;
+      // The scan's preload pass can outlive the check animation, and a late
+      // enqueue can start another one right after; keep all of it silent.
+      _autoSuppressedAfterCompletion = true;
+    });
   }
 
   @override
@@ -121,6 +174,9 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
   }
 
   void _onChanged() {
+    if (ScanSessionController.instance.isActive) {
+      _autoSuppressedAfterCompletion = false;
+    }
     if (_autoPreloadProgress.value == null) _autoStopped = false;
     if (_autoVisible) {
       _autoPreloadSince ??= DateTime.now();
@@ -148,6 +204,19 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
     final controller = ScanSessionController.instance;
     final session = controller.session.value;
     if (session != null) {
+      // Scan metadata is done and the flow is waiting on artwork backfill:
+      // Stop means "stop waiting", not "cancel the backfill". Tell the flow to
+      // stop waiting, then clear the session ourselves so the bubble always
+      // leaves the screen even if the owning flow is gone or wedged.
+      if (controller.postProcessing.value) {
+        setState(() {
+          _autoStopped = true;
+          _expanded = false;
+        });
+        controller.requestSkip();
+        controller.end();
+        return;
+      }
       // The owning flow only reaches its end() once the scan stream drains,
       // which lags the cancel hook; clear the session now so the bubble
       // leaves the screen the moment Stop is pressed.
@@ -333,16 +402,19 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
         final folderStatus = foldersTotal > 1
             ? 'Folder ${scanProgress?.foldersCompleted ?? 0} of $foldersTotal'
             : null;
+        final loadingArtwork =
+            session != null && scanProgress?.phase == 'Loading artwork';
         // All files counted but the stream has not finished yet: say so instead
         // of letting the card look done.
         final finishingUp =
             session != null &&
+            !loadingArtwork &&
             total > 0 &&
             processed >= total &&
             scanProgress?.isComplete != true;
 
         return IgnorePointer(
-          ignoring: !_visible,
+          ignoring: !_visible || _completionOutro,
           child: TickerMode(
             enabled: _visible,
             child: Stack(
@@ -381,6 +453,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                   failed: preloadProgress?.failed ?? 0,
                   folderStatus: folderStatus,
                   finishingUp: finishingUp,
+                  loadingArtwork: loadingArtwork,
                 ),
               ],
             ),
@@ -436,25 +509,50 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                   ),
                 ],
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Positioned.fill(
-                    child: Padding(
-                      padding: const EdgeInsets.all(1.5),
-                      child: CircularProgressIndicator(
-                        value: total > 0 ? fraction : null,
-                        strokeWidth: 3,
-                        strokeCap: StrokeCap.round,
-                        backgroundColor: AppColors.glassBackground,
-                        valueColor: const AlwaysStoppedAnimation(
-                          AppColors.accent,
+              child: AnimatedBuilder(
+                animation: _completionController,
+                builder: (context, _) {
+                  if (_completionOutro) {
+                    final t = _completionController.value;
+                    final checkScale = Curves.easeOutBack.transform(
+                      (t / 0.6).clamp(0.0, 1.0),
+                    );
+                    final fadeOut = t <= 0.8
+                        ? 1.0
+                        : (1.0 - (t - 0.8) / 0.2).clamp(0.0, 1.0);
+                    return Opacity(
+                      opacity: fadeOut,
+                      child: Transform.scale(
+                        scale: 0.5 + 0.5 * checkScale,
+                        child: const Icon(
+                          Icons.check_rounded,
+                          size: 26,
+                          color: AppColors.accent,
                         ),
                       ),
-                    ),
-                  ),
-                  Icon(icon, size: 20, color: AppColors.textPrimary),
-                ],
+                    );
+                  }
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.all(1.5),
+                          child: CircularProgressIndicator(
+                            value: total > 0 ? fraction : null,
+                            strokeWidth: 3,
+                            strokeCap: StrokeCap.round,
+                            backgroundColor: AppColors.glassBackground,
+                            valueColor: const AlwaysStoppedAnimation(
+                              AppColors.accent,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Icon(icon, size: 20, color: AppColors.textPrimary),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -476,6 +574,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
     required int failed,
     String? folderStatus,
     bool finishingUp = false,
+    bool loadingArtwork = false,
   }) {
     final cardWidth = math.min(_cardMaxWidth, size.width - _edgeMargin * 2);
     final bubbleTop = _resolvedPosition.dy;
@@ -523,6 +622,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                   failed: failed,
                   folderStatus: folderStatus,
                   finishingUp: finishingUp,
+                  loadingArtwork: loadingArtwork,
                 ),
               ),
             ),
@@ -543,6 +643,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
     required int failed,
     String? folderStatus,
     bool finishingUp = false,
+    bool loadingArtwork = false,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -610,7 +711,9 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
             const SizedBox(height: 6),
             Text(
               total > 0
-                  ? '$processed / $total files${finishingUp ? ' · Finishing up…' : ''}${folderStatus != null ? ' · $folderStatus' : ''}${failed > 0 ? ' · $failed failed' : ''}'
+                  ? '$processed / $total ${loadingArtwork ? 'covers' : 'files'}${finishingUp ? ' · Finishing up…' : ''}${folderStatus != null ? ' · $folderStatus' : ''}${failed > 0 ? ' · $failed failed' : ''}'
+                  : loadingArtwork
+                  ? 'Loading artwork…'
                   : 'Counting files…',
               style: const TextStyle(
                 fontFamily: 'ProductSans',
@@ -644,9 +747,9 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                       vertical: 8,
                     ),
                   ),
-                  child: const Text(
-                    'Stop',
-                    style: TextStyle(
+                  child: Text(
+                    loadingArtwork ? 'Skip' : 'Stop',
+                    style: const TextStyle(
                       fontFamily: 'ProductSans',
                       fontWeight: FontWeight.w500,
                     ),
