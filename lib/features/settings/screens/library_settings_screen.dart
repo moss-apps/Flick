@@ -168,7 +168,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         _showBatteryOptimizationNotice =
             !isIgnoringBatteryOptimizations && !isNoticeDismissed;
         _allFilesAccessGranted = allFilesAccess;
-        _showAllFilesAccessNotice = !allFilesAccess && !isAllFilesNoticeDismissed;
+        _showAllFilesAccessNotice =
+            !allFilesAccess && !isAllFilesNoticeDismissed;
       });
     } catch (_) {
       if (!mounted) return;
@@ -364,7 +365,9 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
               child: Text(
                 label,
                 style: TextStyle(
-                  color: selected ? AppColors.accent : context.adaptiveTextPrimary,
+                  color: selected
+                      ? AppColors.accent
+                      : context.adaptiveTextPrimary,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
@@ -491,7 +494,13 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     }
   }
 
-  Future<void> _scanFolder(String uri, String displayName) async {
+  Future<void> _runScanSession({
+    required String title,
+    required ScanSessionKind kind,
+    required VoidCallback onCancel,
+    required Stream<ScanProgress> Function() run,
+    bool includeProgressInSummary = true,
+  }) async {
     setState(() {
       _isScanning = true;
       _scanProgress = null;
@@ -504,95 +513,167 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       const Duration(milliseconds: 200),
       (_) => _elapsedNotifier.value = _scanStopwatch.elapsed,
     );
-    _showScanningOverlay(displayName);
-    ScanSessionController.instance.begin(
-      title: displayName,
-      kind: ScanSessionKind.scan,
-      onCancel: _scannerService.cancelScan,
+    final generation = ScanSessionController.instance.begin(
+      title: title,
+      kind: kind,
+      onCancel: onCancel,
     );
+    _showScanningOverlay(title, generation);
 
-    await for (final progress in _scannerService.scanFolder(uri, displayName)) {
-      ScanSessionController.instance.update(progress);
+    // The stream's `isComplete` event is the real finish line: stop consuming
+    // as soon as it arrives so post-scan bookkeeping can finish in the
+    // background instead of holding the overlay open.
+    var completed = false;
+    ScanProgress? lastProgress;
+    try {
+      await for (final progress in run()) {
+        if (!ScanSessionController.instance.isCurrent(generation)) break;
+        lastProgress = progress;
+        ScanSessionController.instance.update(generation, progress);
+        if (mounted) {
+          setState(() => _scanProgress = progress);
+          _scanProgressNotifier.value = progress;
+        }
+        if (progress.isComplete) {
+          completed = true;
+          break;
+        }
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Scan session "$title" failed: $error\n$stackTrace');
       if (mounted) {
-        setState(() => _scanProgress = progress);
-        _scanProgressNotifier.value = progress;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Scan failed. Please try again.')),
+        );
       }
     }
+
+    // A Stop action ends the session before the stream drains; the completion
+    // sheet would misreport cancelled work as finished.
+    final wasCancelled = !ScanSessionController.instance.isCurrent(generation);
 
     _scanStopwatch.stop();
     _vinylController.stop();
     _elapsedTimer?.cancel();
     _elapsedTimer = null;
-    ScanSessionController.instance.end();
+    ScanSessionController.instance.end(generation);
     await _loadLibraryData();
     if (mounted) {
       if (_scanOverlayOpen) Navigator.of(context).pop();
       _scanProgressNotifier.value = null;
-      final lastProgress = _scanProgress;
+      final finalProgress = lastProgress ?? _scanProgress;
       setState(() {
         _isScanning = false;
         _scanProgress = null;
       });
-      if (lastProgress?.unavailable != true) {
+      if (!wasCancelled && completed && finalProgress?.unavailable != true) {
         _showScanCompleteBottomSheet(
           scanDuration: _scanStopwatch.elapsed,
-          progress: lastProgress,
+          progress: includeProgressInSummary ? finalProgress : null,
           totalSongs: _songCount,
         );
       }
     }
   }
 
-  Future<void> _rescanAllFolders() async {
-    setState(() {
-      _isScanning = true;
-      _scanProgress = null;
-    });
-    _scanStopwatch.reset();
-    _scanStopwatch.start();
-    _vinylController.repeat();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = Timer.periodic(
-      const Duration(milliseconds: 200),
-      (_) => _elapsedNotifier.value = _scanStopwatch.elapsed,
+  Future<void> _scanFolder(String uri, String displayName) {
+    return _runScanSession(
+      title: displayName,
+      kind: ScanSessionKind.scan,
+      onCancel: _scannerService.cancelScan,
+      run: () => _scannerService.scanFolder(uri, displayName),
     );
-    _showScanningOverlay('All Folders');
-    ScanSessionController.instance.begin(
+  }
+
+  Future<void> _rescanAllFolders({ScanMode mode = ScanMode.quick}) {
+    return _runScanSession(
       title: 'All Folders',
       kind: ScanSessionKind.scan,
       onCancel: _scannerService.cancelScan,
+      run: () => _scannerService.scanAllFolders(mode: mode),
+    );
+  }
+
+  Future<void> _showRescanModeChooser() async {
+    final mode = await GlassBottomSheet.show<ScanMode>(
+      context: context,
+      title: 'Rescan Library',
+      maxHeightRatio: 0.4,
+      content: Builder(
+        builder: (sheetContext) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildRescanModeTile(
+              icon: LucideIcons.zap,
+              title: 'Quick scan',
+              subtitle: 'Only re-read files that are new or changed.',
+              onTap: () => Navigator.of(sheetContext).pop(ScanMode.quick),
+            ),
+            const SettingsDivider(),
+            _buildRescanModeTile(
+              icon: LucideIcons.refreshCw,
+              title: 'Full scan',
+              subtitle:
+                  'Re-read metadata for every file. Slower; use when tags look stale.',
+              onTap: () => Navigator.of(sheetContext).pop(ScanMode.full),
+            ),
+          ],
+        ),
+      ),
     );
 
-    await for (final progress in _scannerService.scanAllFolders()) {
-      ScanSessionController.instance.update(progress);
-      if (mounted) {
-        setState(() => _scanProgress = progress);
-        _scanProgressNotifier.value = progress;
-      }
+    if (mode != null && mounted) {
+      await _rescanAllFolders(mode: mode);
     }
+  }
 
-    _scanStopwatch.stop();
-    _vinylController.stop();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = null;
-    ScanSessionController.instance.end();
-    await _loadLibraryData();
-    if (mounted) {
-      if (_scanOverlayOpen) Navigator.of(context).pop();
-      _scanProgressNotifier.value = null;
-      final lastProgress = _scanProgress;
-      setState(() {
-        _isScanning = false;
-        _scanProgress = null;
-      });
-      if (lastProgress?.unavailable != true) {
-        _showScanCompleteBottomSheet(
-          scanDuration: _scanStopwatch.elapsed,
-          progress: lastProgress,
-          totalSongs: _songCount,
-        );
-      }
-    }
+  Widget _buildRescanModeTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppConstants.spacingMd,
+          vertical: AppConstants.spacingMd,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.accent, size: 22),
+            const SizedBox(width: AppConstants.spacingMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: 12,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _openDuplicateCleaner() {
@@ -604,123 +685,55 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   Future<void> _preloadLibraryAudio() async {
     final songs = await _songRepository.getAllSongEntities();
     if (songs.isEmpty) return;
+    if (!mounted) return;
 
-    setState(() {
-      _isScanning = true;
-      _scanProgress = null;
-    });
-    _scanStopwatch.reset();
-    _scanStopwatch.start();
-    _vinylController.repeat();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = Timer.periodic(
-      const Duration(milliseconds: 200),
-      (_) => _elapsedNotifier.value = _scanStopwatch.elapsed,
-    );
-    _showScanningOverlay('Preloading Audio');
     final service = AudioPreloadService.instance;
-    ScanSessionController.instance.begin(
+    await _runScanSession(
       title: 'Preloading Audio',
       kind: ScanSessionKind.preload,
       onCancel: service.cancel,
+      includeProgressInSummary: false,
+      run: () => service
+          .preloadSongs(songs, forceAll: false)
+          .map(
+            (progress) => ScanProgress(
+              songsFound: progress.completed,
+              totalFiles: progress.total,
+              filesProcessed: progress.completed,
+              currentFile: progress.currentFile,
+              currentFolder: 'Preloading Audio',
+              phase: 'Analyzing audio',
+              isComplete: progress.isComplete,
+            ),
+          ),
     );
-
-    await for (final progress in service.preloadSongs(songs, forceAll: false)) {
-      final snapshot = ScanProgress(
-        songsFound: progress.completed,
-        totalFiles: progress.total,
-        filesProcessed: progress.completed,
-        currentFile: progress.currentFile,
-        currentFolder: 'Preloading Audio',
-        phase: 'Analyzing audio',
-        isComplete: progress.isComplete,
-      );
-      ScanSessionController.instance.update(snapshot);
-      if (mounted) {
-        _scanProgressNotifier.value = snapshot;
-      }
-    }
-
-    _scanStopwatch.stop();
-    _vinylController.stop();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = null;
-    ScanSessionController.instance.end();
-    await _loadLibraryData();
-    if (mounted) {
-      if (_scanOverlayOpen) Navigator.of(context).pop();
-      _scanProgressNotifier.value = null;
-      setState(() {
-        _isScanning = false;
-        _scanProgress = null;
-      });
-      _showScanCompleteBottomSheet(
-        scanDuration: _scanStopwatch.elapsed,
-        progress: null,
-        totalSongs: _songCount,
-      );
-    }
   }
 
   Future<void> _scanReplayGain() async {
     final songs = await _songRepository.getAllSongEntities();
     if (songs.isEmpty) return;
+    if (!mounted) return;
 
-    setState(() {
-      _isScanning = true;
-      _scanProgress = null;
-    });
-    _scanStopwatch.reset();
-    _scanStopwatch.start();
-    _vinylController.repeat();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = Timer.periodic(
-      const Duration(milliseconds: 200),
-      (_) => _elapsedNotifier.value = _scanStopwatch.elapsed,
-    );
     final service = ReplayGainScanService();
-    _showScanningOverlay('Scanning ReplayGain');
-    ScanSessionController.instance.begin(
+    await _runScanSession(
       title: 'ReplayGain Scan',
       kind: ScanSessionKind.replayGain,
       onCancel: service.cancel,
+      includeProgressInSummary: false,
+      run: () => service
+          .scanLibrary(songs)
+          .map(
+            (progress) => ScanProgress(
+              songsFound: progress.completed,
+              totalFiles: progress.total,
+              filesProcessed: progress.completed,
+              currentFile: progress.currentFile,
+              currentFolder: 'ReplayGain Scan',
+              phase: 'Analyzing loudness',
+              isComplete: progress.isComplete,
+            ),
+          ),
     );
-
-    await for (final progress in service.scanLibrary(songs)) {
-      final snapshot = ScanProgress(
-        songsFound: progress.completed,
-        totalFiles: progress.total,
-        filesProcessed: progress.completed,
-        currentFile: progress.currentFile,
-        currentFolder: 'ReplayGain Scan',
-        phase: 'Analyzing loudness',
-        isComplete: progress.isComplete,
-      );
-      ScanSessionController.instance.update(snapshot);
-      if (mounted) {
-        _scanProgressNotifier.value = snapshot;
-      }
-    }
-
-    _scanStopwatch.stop();
-    _vinylController.stop();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = null;
-    ScanSessionController.instance.end();
-    await _loadLibraryData();
-    if (mounted) {
-      if (_scanOverlayOpen) Navigator.of(context).pop();
-      _scanProgressNotifier.value = null;
-      setState(() {
-        _isScanning = false;
-        _scanProgress = null;
-      });
-      _showScanCompleteBottomSheet(
-        scanDuration: _scanStopwatch.elapsed,
-        progress: null,
-        totalSongs: _songCount,
-      );
-    }
   }
 
   void _confirmRemoveFolder(MusicFolder folder) {
@@ -739,7 +752,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     );
   }
 
-  void _showScanningOverlay(String folderName) {
+  void _showScanningOverlay(String folderName, int generation) {
     _scanOverlayOpen = true;
     showGeneralDialog<void>(
       context: context,
@@ -778,7 +791,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       // Covers minimize, system-back, cancel, and natural completion: if the
       // work is still running, the floating pill takes over.
       _scanOverlayOpen = false;
-      ScanSessionController.instance.overlayDismissed();
+      ScanSessionController.instance.overlayDismissed(generation);
     });
   }
 
@@ -787,6 +800,13 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     final bgRunning = progress?.backgroundTasksRunning ?? false;
     final displayFraction = bgRunning ? 1.0 : fraction;
     final totalFiles = progress?.totalFiles ?? 0;
+    // Every file is accounted for but the stream has not sent its completion
+    // event yet: keep telling the user something is still happening.
+    final finishingUp =
+        !bgRunning &&
+        totalFiles > 0 &&
+        (progress?.filesProcessed ?? 0) >= totalFiles &&
+        progress?.isComplete != true;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -839,7 +859,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: AppConstants.spacingSm),
-                _buildPhaseRow(progress?.phase, bgRunning),
+                _buildPhaseRow(
+                  finishingUp ? 'Finishing up…' : progress?.phase,
+                  bgRunning,
+                ),
                 const SizedBox(height: AppConstants.spacingLg),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppConstants.radiusRound),
@@ -854,6 +877,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 Text(
                   totalFiles > 0
                       ? '${progress?.filesProcessed ?? 0} / $totalFiles files'
+                      : (progress?.filesProcessed ?? 0) > 0
+                      ? '${progress!.filesProcessed} files checked…'
                       : 'Counting files…',
                   style: const TextStyle(
                     fontFamily: 'ProductSans',
@@ -861,6 +886,20 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                     color: AppColors.textTertiary,
                   ),
                 ),
+                if (progress?.folders != null &&
+                    progress!.folders!.length > 1) ...[
+                  const SizedBox(height: AppConstants.spacingMd),
+                  Text(
+                    'Folder ${progress.foldersCompleted ?? 0} of ${progress.foldersTotal ?? progress.folders!.length}',
+                    style: const TextStyle(
+                      fontFamily: 'ProductSans',
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppConstants.spacingSm),
+                  ...progress.folders!.map(_buildFolderProgressRow),
+                ],
                 const SizedBox(height: AppConstants.spacingLg),
                 _buildStatRow([
                   _buildScanStat(
@@ -902,18 +941,6 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                     ]);
                   },
                 ),
-                if (progress?.foldersTotal != null &&
-                    progress!.foldersTotal! > 1) ...[
-                  const SizedBox(height: AppConstants.spacingMd),
-                  Text(
-                    'Folder ${progress.foldersCompleted ?? 0} of ${progress.foldersTotal}',
-                    style: const TextStyle(
-                      fontFamily: 'ProductSans',
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
                 const SizedBox(height: AppConstants.spacingXl),
                 Row(
                   children: [
@@ -937,8 +964,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                     Expanded(
                       child: TextButton(
                         onPressed: () {
-                          ScanSessionController.instance.cancel();
-                          ScanSessionController.instance.end();
+                          ScanSessionController.instance.stop();
                           _vinylController.stop();
                           _scanStopwatch.stop();
                           _elapsedTimer?.cancel();
@@ -969,6 +995,63 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFolderProgressRow(FolderScanProgress folder) {
+    final status = folder.unavailable
+        ? 'Unavailable'
+        : folder.totalFiles > 0
+        ? '${folder.filesProcessed}/${folder.totalFiles}'
+        : folder.isComplete
+        ? 'Done'
+        : 'Checking…';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppConstants.spacingXs),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              folder.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: 'ProductSans',
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingSm),
+          Expanded(
+            flex: 4,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+              child: LinearProgressIndicator(
+                value: folder.totalFiles > 0 ? folder.progressFraction : null,
+                backgroundColor: AppColors.glassBackground,
+                valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                minHeight: 4,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingSm),
+          SizedBox(
+            width: 76,
+            child: Text(
+              status,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontFamily: 'ProductSans',
+                fontSize: 11,
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1397,19 +1480,19 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                      Text(
-                        'Library',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: context.adaptiveTextPrimary,
-                        ),
+                    Text(
+                      'Library',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: context.adaptiveTextPrimary,
                       ),
+                    ),
                     const SizedBox(height: 2),
-                     Text(
-                       '$_songCount songs in ${_folders.length} ${_folders.length == 1 ? 'folder' : 'folders'}',
-                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                         color: context.adaptiveTextTertiary,
-                       ),
-                     ),
+                    Text(
+                      '$_songCount songs in ${_folders.length} ${_folders.length == 1 ? 'folder' : 'folders'}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.adaptiveTextTertiary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1582,13 +1665,13 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                         Text(
                           'Scanning Settings',
                           style: Theme.of(context).textTheme.titleMedium
-                               ?.copyWith(color: context.adaptiveTextPrimary),
+                              ?.copyWith(color: context.adaptiveTextPrimary),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Filter files, size limits, and playlist import options',
                           style: Theme.of(context).textTheme.bodyMedium
-                               ?.copyWith(color: context.adaptiveTextTertiary),
+                              ?.copyWith(color: context.adaptiveTextTertiary),
                         ),
                       ],
                     ),
@@ -1772,25 +1855,25 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                 Text(
-                                   _isXiaomiDevice
-                                       ? 'Disable Battery Optimization (Recommended)'
-                                       : 'Disable Battery Optimization',
-                                   style: Theme.of(context).textTheme.titleMedium
-                                       ?.copyWith(
-                                         color: context.adaptiveTextPrimary,
-                                       ),
-                                 ),
-                                 const SizedBox(height: 2),
-                                 Text(
-                                   _isXiaomiDevice
-                                       ? 'Required on many Xiaomi, Redmi, and POCO devices so rescans and background features keep working'
-                                       : 'Allow Flick to run without aggressive background limits so rescans and background features keep working',
-                                   style: Theme.of(context).textTheme.bodyMedium
-                                       ?.copyWith(
-                                         color: context.adaptiveTextTertiary,
-                                       ),
-                                 ),
+                                Text(
+                                  _isXiaomiDevice
+                                      ? 'Disable Battery Optimization (Recommended)'
+                                      : 'Disable Battery Optimization',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        color: context.adaptiveTextPrimary,
+                                      ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _isXiaomiDevice
+                                      ? 'Required on many Xiaomi, Redmi, and POCO devices so rescans and background features keep working'
+                                      : 'Allow Flick to run without aggressive background limits so rescans and background features keep working',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: context.adaptiveTextTertiary,
+                                      ),
+                                ),
                               ],
                             ),
                           ),
@@ -1853,9 +1936,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                               children: [
                                 Text(
                                   'Enable Full Library Access',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
+                                  style: Theme.of(context).textTheme.titleMedium
                                       ?.copyWith(
                                         color: context.adaptiveTextPrimary,
                                       ),
@@ -1865,9 +1946,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                                   'Lets Flick scan your entire library directly, '
                                   'including DSD/DSF/WavPack files some devices '
                                   'hide from the system media index',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
+                                  style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(
                                         color: context.adaptiveTextTertiary,
                                       ),
@@ -1933,8 +2012,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 ActionButton(
                   icon: LucideIcons.refreshCw,
                   title: 'Rescan Library',
-                  subtitle: 'Re-index all folders',
-                  onTap: _isScanning ? null : _rescanAllFolders,
+                  subtitle: 'Quick or full re-index of all folders',
+                  onTap: _isScanning ? null : _showRescanModeChooser,
                 ),
                 const SettingsDivider(),
                 ActionButton(
