@@ -48,6 +48,17 @@ const List<ChangelogEntry> kChangelogEntries = [
     date: '2026-09-16',
     sections: [
       ChangelogSection(
+        title: 'Interface',
+        bullets: [
+          '**Pinned scan bubble** — minimized scan, preload, and ReplayGain progress is now a small draggable bubble instead of a full-width pill; it snaps to either screen edge and remembers its position.',
+          'Tap the bubble to see progress details in a compact card without leaving the screen you are on.',
+          '**Stop means stop** — stopping a rescan now clears the progress UI at once and halts the scan plus the automatic audio preload that follows it, instead of letting them run on in the background.',
+          '**Honest scan progress** — the bar counts every checked file, including unchanged ones, so a rescan no longer sits at zero until the final moment.',
+          '**Per-folder progress** — rescanning multiple folders now keeps one combined bar plus a small progress row for each folder.',
+          '**Quick or Full rescan** — Rescan Library now asks whether to re-read only new or changed files (quick) or re-read metadata for every file (full).',
+        ],
+      ),
+      ChangelogSection(
         title: 'Storage',
         bullets: [
           '**Bounded playback caches** — WAV conversions and SAF staging copies are now capped (default 1 GB, configurable in Library → Storage) instead of growing without limit.',
