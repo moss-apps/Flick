@@ -304,7 +304,10 @@ individually.
   Stop/Skip during the Loading-artwork phase ends the session itself so the
   pill always leaves the screen even if the owning flow is gone. The preload
   toggle waits for the persisted preferences to load before writing, so it
-  can no longer show off while the scanner still reads a stale true.
+  can no longer show off while the scanner still reads a stale true. Turning
+  the toggle off also cancels a pass that is already decoding and suppresses
+  the auto passes a scan would spawn — a scan that read the old value can no
+  longer leave a preload pill behind after the setting is switched off.
 - **Status: done.** Covered by `test/services/artwork_backfill_tracker_test.dart`,
   `test/providers/library_change_revision_provider_test.dart`, and progress
   cases in `test/services/album_art_service_test.dart`.
