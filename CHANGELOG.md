@@ -12,7 +12,7 @@
 - Stopping preload interrupts the in-flight decode chunk instead of waiting for it to finish, so the pill and preload card can't outlive the cancel.
 - Fixed a race where the preload toggle could display off while a stale persisted value still triggered preload after scanning; toggles now wait for the stored preferences before writing.
 - Turning preload off now cancels a pass that is already decoding and suppresses the ones a scan would spawn; turning it back on lifts the suppression.
-- The floating pill no longer stays stuck after leaving Settings mid-scan; it now plays a short check-mark animation when the scan and its artwork loading finish, then disappears. A post-scan preload pass that is still running no longer pops the pill back up after the check.
+- The floating pill no longer stays stuck after leaving Settings mid-scan; it now plays a short check-mark animation when the scan and its artwork loading finish, then disappears. After the check, background preload stays silent until a new scan starts, so the pill no longer pops back up.
 
 ### Storage
 - Playback no longer converts ALAC/M4A/AIFF tracks to WAV files: they are decoded on demand and streamed to the player, so the playback cache stops growing with queue size (issue #212).

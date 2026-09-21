@@ -312,10 +312,10 @@ individually.
   ending it; the pill latches that flag, plays a ~1.2 s check-mark scale/fade
   animation, then disappears. The settings flow also guards its teardown when
   the screen was popped mid-scan — a disposed vinyl controller used to throw
-  before `end()` ran and stranded the pill on screen. If a scan-spawned
-  preload pass is still draining when the outro ends, the pill keeps it
-  hidden (the pass runs silently) instead of popping back up as
-  "Preloading audio"; the next pass shows normally.
+  before `end()` ran and stranded the pill on screen. Once the outro has
+  played, background preload is suppressed from the pill entirely (a
+  scan-spawned pass or a late enqueue can't resurrect it); it runs silently
+  until a new session starts.
 - **Status: done.** Covered by `test/services/artwork_backfill_tracker_test.dart`,
   `test/providers/library_change_revision_provider_test.dart`, and progress
   cases in `test/services/album_art_service_test.dart`.
