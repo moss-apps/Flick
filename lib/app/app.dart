@@ -868,13 +868,8 @@ class _MainShellState extends ConsumerState<MainShell>
                 // Floating island mini-player (draggable pill)
                 const FloatingMiniPlayer(),
 
-                // Floating scan/preload progress pill (overlay minimized)
-                const Positioned(
-                  left: AppConstants.spacingMd,
-                  right: AppConstants.spacingMd,
-                  bottom: 104,
-                  child: FloatingScanProgress(),
-                ),
+                // Pinned scan/preload progress bubble (overlay minimized)
+                const Positioned.fill(child: FloatingScanProgress()),
 
                 // Interactive tutorial overlay
                 const Positioned.fill(child: TutorialOverlay()),
