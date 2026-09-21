@@ -51,8 +51,10 @@ class AlbumArtService {
     }
 
     final future = _inFlightResolutions.putIfAbsent(audioSourcePath, () async {
-      final raw = await _loadArtworkBytes(audioSourcePath,
-          existingPath: existingPath);
+      final raw = await _loadArtworkBytes(
+        audioSourcePath,
+        existingPath: existingPath,
+      );
       if (raw == null || raw.isEmpty) {
         await _persistArtworkPath(audioSourcePath, null);
         return null;
@@ -95,10 +97,16 @@ class AlbumArtService {
       if (path.isEmpty) continue;
       final scheme = Uri.tryParse(path)?.scheme;
       if (isSupportedNetworkProtocol(scheme)) continue;
-      await resolveArtworkPath(
-        existingPath: song.albumArtPath,
-        audioSourcePath: path,
-      );
+      // One unreadable/corrupt file must not abort artwork backfill for the
+      // rest of the folder.
+      try {
+        await resolveArtworkPath(
+          existingPath: song.albumArtPath,
+          audioSourcePath: path,
+        );
+      } catch (error) {
+        debugPrint('Artwork resolve failed for $path: $error');
+      }
     }
   }
 
@@ -106,8 +114,10 @@ class AlbumArtService {
     final dir = await _ensureArtworkDir();
     var total = 0;
     try {
-      await for (final entity
-          in dir.list(recursive: false, followLinks: false)) {
+      await for (final entity in dir.list(
+        recursive: false,
+        followLinks: false,
+      )) {
         if (entity is File) total += await entity.length();
       }
     } catch (_) {}
@@ -193,8 +203,8 @@ class AlbumArtService {
     final uri = Uri.tryParse(audioSourcePath);
     if (uri != null && isSupportedNetworkProtocol(uri.scheme)) {
       final service = networkSourceServiceFor(uri.scheme);
-      final marker = existingPath != null &&
-              existingPath.startsWith(service.coverScheme)
+      final marker =
+          existingPath != null && existingPath.startsWith(service.coverScheme)
           ? existingPath.substring(service.coverScheme.length)
           : null;
       if (marker == null || marker.isEmpty) return null;
@@ -247,10 +257,15 @@ class AlbumArtService {
     }
 
     // Synthesized scan rows are keyed `file:///storage/...`; Rust needs the
-    // plain path or fs::open fails on the scheme.
-    return rust_scanner.extractEmbeddedArtwork(
-      path: _plainPathOf(audioSourcePath),
-    );
+    // plain path or fs::open fails on the scheme. A corrupt/unsupported file
+    // must fall through to the folder-cover attempt, not abort the caller.
+    try {
+      return await rust_scanner.extractEmbeddedArtwork(
+        path: _plainPathOf(audioSourcePath),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Bounded memory cache for per-folder cover bytes.
@@ -272,8 +287,18 @@ class AlbumArtService {
       return _folderCoverCache[dir];
     }
 
-    final bytes = await _readFolderCoverFromFilesystem(plainPath);
-    _rememberFolderCover(dir, bytes);
+    Uint8List? bytes;
+    var cacheable = true;
+    try {
+      bytes = await _readFolderCoverFromFilesystem(plainPath);
+    } catch (_) {
+      // Transient I/O error (e.g. SD card not ready): do not poison the
+      // folder cache with a miss, so the next attempt can still find cover.
+      cacheable = false;
+    }
+    if (cacheable) {
+      _rememberFolderCover(dir, bytes);
+    }
     return bytes;
   }
 
@@ -290,15 +315,11 @@ class AlbumArtService {
     if (!await parent.exists()) return null;
 
     final matches = <File>[];
-    try {
-      await for (final entity in parent.list(followLinks: false)) {
-        if (entity is! File) continue;
-        final name = entity.uri.pathSegments.last.toLowerCase();
-        if (!isFolderCoverImageName(name)) continue;
-        matches.add(entity);
-      }
-    } catch (_) {
-      return null;
+    await for (final entity in parent.list(followLinks: false)) {
+      if (entity is! File) continue;
+      final name = entity.uri.pathSegments.last.toLowerCase();
+      if (!isFolderCoverImageName(name)) continue;
+      matches.add(entity);
     }
     if (matches.isEmpty) return null;
 
@@ -346,8 +367,9 @@ class AlbumArtService {
       // Network songs keep their cover-art marker in the DB so a cache
       // eviction can always re-resolve; only the in-memory playlist is
       // updated with the resolved local path.
-      final isNetwork =
-          isSupportedNetworkProtocol(Uri.tryParse(audioSourcePath)?.scheme);
+      final isNetwork = isSupportedNetworkProtocol(
+        Uri.tryParse(audioSourcePath)?.scheme,
+      );
       if (!isNetwork) {
         await _songRepository.updateAlbumArtPath(audioSourcePath, albumArtPath);
       }
