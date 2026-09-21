@@ -568,11 +568,20 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       );
     }
 
+    // This flow keeps running after the user leaves the screen, and dispose()
+    // already tore the vinyl controller down; touching it would throw and
+    // strand the session (the pill would never be told to leave).
     _scanStopwatch.stop();
-    _vinylController.stop();
     _elapsedTimer?.cancel();
     _elapsedTimer = null;
+    if (mounted) {
+      _vinylController.stop();
+    }
+    if (!wasCancelled && completed) {
+      ScanSessionController.instance.markCompleted();
+    }
     ScanSessionController.instance.end(generation);
+    if (!mounted) return;
     await _loadLibraryData();
     if (mounted) {
       if (_scanOverlayOpen) Navigator.of(context).pop();
