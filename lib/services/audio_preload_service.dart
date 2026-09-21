@@ -79,6 +79,11 @@ class AudioPreloadService {
   bool _cancelRequested = false;
   bool _manualPassActive = false;
 
+  /// Completed by [cancel] so a pass can abandon an in-flight decode chunk
+  /// immediately instead of waiting for a slow (or wedged) Rust call. Null
+  /// while no pass is running.
+  Completer<void>? _cancelSignal;
+
   /// Sticky after [cancel]: blocks new auto passes until the user starts a
   /// scan session or a manual preload. Prevents a post-scan straggler from
   /// resurrecting the pill right after the user stopped it.
@@ -104,11 +109,18 @@ class AudioPreloadService {
   /// Stops the active pass (auto or manual) at the next chunk boundary and
   /// drops everything still queued. Also suppresses later auto passes so an
   /// in-flight scan can't immediately enqueue a new one.
+  ///
+  /// Clears [progress] and fires [_cancelSignal] synchronously: the floating
+  /// pill and the preload card must not outlive the cancel waiting for a slow
+  /// decode chunk to notice `_cancelRequested`.
   void cancel() {
     _cancelRequested = true;
     _autoSuppressed = true;
     _pending.clear();
     _queuedIds.clear();
+    progress.value = null;
+    final signal = _cancelSignal;
+    if (signal != null && !signal.isCompleted) signal.complete();
   }
 
   /// Lifts the sticky [cancel] suppression. Called when the user starts work
@@ -126,6 +138,12 @@ class AudioPreloadService {
     final cacheMap = await _songRepository.getAudioCacheMap(
       songs.map((s) => s.id).toList(),
     );
+
+    // The await above is a gap: a Stop (or a manual pass) can land while we
+    // read the cache. Re-check before repopulating the queue, or the pass
+    // resurrects itself right after being cancelled.
+    if (_autoSuppressed || _manualPassActive) return;
+
     for (final song in songs) {
       if (_queuedIds.contains(song.id)) continue;
       final cache = cacheMap[song.id];
@@ -140,6 +158,7 @@ class AudioPreloadService {
 
     if (!_runnerActive) {
       _runnerActive = true;
+      _cancelSignal = Completer<void>();
       unawaited(_drainAutoQueue());
     }
   }
@@ -165,6 +184,7 @@ class AudioPreloadService {
     _manualPassActive = true;
     _cancelRequested = false;
     _autoSuppressed = false;
+    _cancelSignal = Completer<void>();
 
     // ponytail: hold the artwork gate for the whole pass so scroll-side
     // extraction steps aside. Preload owns the shared compute() isolate
@@ -209,9 +229,8 @@ class AudioPreloadService {
         final end = (i + _concurrency).clamp(0, toProcess.length);
         final chunk = toProcess.sublist(i, end);
 
-        final results = await Future.wait(
-          chunk.map((s) => _processSong(s).then((_) => true).catchError((_) => false)),
-        );
+        final results = await _waitForChunk(chunk);
+        if (_cancelRequested) break;
 
         completed += results.where((r) => r).length;
         failed += results.where((r) => !r).length;
@@ -239,6 +258,7 @@ class AudioPreloadService {
       pauseArtworkExtraction(false);
       _manualPassActive = false;
       _cancelRequested = false;
+      _cancelSignal = null;
     }
   }
 
@@ -255,9 +275,7 @@ class AudioPreloadService {
         final chunk = _pending.sublist(0, chunkSize);
         _pending.removeRange(0, chunkSize);
 
-        final results = await Future.wait(
-          chunk.map((s) => _processSong(s).then((_) => true).catchError((_) => false)),
-        );
+        final results = await _waitForChunk(chunk);
 
         // Stop landed while this chunk decoded; don't publish its counters.
         if (_cancelRequested) break;
@@ -272,6 +290,7 @@ class AudioPreloadService {
       final cancelled = _cancelRequested;
       final processed = _completed + _failed;
       _cancelRequested = false;
+      _cancelSignal = null;
       _pending.clear();
       _queuedIds.clear();
       _completed = 0;
@@ -284,6 +303,23 @@ class AudioPreloadService {
         '$processed processed',
       );
     }
+  }
+
+  /// Runs one decode chunk, returning early once [cancel] fires. A hung Rust
+  /// decode otherwise keeps the pass (and its progress) alive forever; the
+  /// abandoned work may still finish in the background and is ignored.
+  Future<List<bool>> _waitForChunk(List<SongEntity> chunk) {
+    final signal = _cancelSignal;
+    final work = Future.wait(
+      chunk.map(
+        (s) => _processSong(s).then((_) => true).catchError((_) => false),
+      ),
+    );
+    if (signal == null) return work;
+    return Future.any([
+      work,
+      signal.future.then((_) => List<bool>.filled(chunk.length, false)),
+    ]);
   }
 
   void _emitAutoProgress({String? currentFile}) {

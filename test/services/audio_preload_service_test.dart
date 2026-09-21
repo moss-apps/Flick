@@ -38,6 +38,20 @@ void main() {
 
       expect(service.isAutoSuppressed, isFalse);
     });
+
+    test('cancel clears visible progress immediately', () {
+      service.progress.value = const PreloadProgress(completed: 1, total: 5);
+
+      service.cancel();
+
+      expect(service.progress.value, isNull);
+      expect(service.isRunning, isFalse);
+    });
+
+    test('cancel while idle is a no-op', () {
+      expect(() => service.cancel(), returnsNormally);
+      expect(service.progress.value, isNull);
+    });
   });
 
   group('AudioPreloadService.shouldNegativeCache', () {
