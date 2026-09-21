@@ -102,6 +102,32 @@ class WebdavService implements NetworkSourceService {
   String _origin(NetworkServerEntity server) =>
       Uri.parse(server.baseUrl).origin;
 
+  // --- Path encoding ------------------------------------------------------
+  //
+  // Invariant: every path inside this service is stored decoded exactly once
+  // (at PROPFIND parse time) and re-encoded only when building a request URL.
+  // Decoding twice throws ArgumentError on non-ASCII or literal `%` names,
+  // which used to abort sync; skipping the re-encode lets `#`/`?` in names be
+  // reparsed as fragment/query.
+
+  /// Single-pass decode. Falls back to the raw string when the server returns
+  /// non-conformant hrefs (raw UTF-8, bare `%`), so one odd entry can't abort
+  /// a whole directory walk.
+  static String _tryDecode(String value) {
+    try {
+      return Uri.decodeComponent(value);
+    } on ArgumentError {
+      return value;
+    }
+  }
+
+  /// Percent-encodes each path segment, preserving `/` separators.
+  static String _encodePath(String decodedPath) =>
+      decodedPath.split('/').map(Uri.encodeComponent).join('/');
+
+  Uri _requestUri(NetworkServerEntity server, String decodedPath) =>
+      Uri.parse('${_origin(server)}${_encodePath(decodedPath)}');
+
   // --- PROPFIND -----------------------------------------------------------
 
   static const _propfindBody = '<?xml version="1.0" encoding="utf-8"?>'
@@ -142,7 +168,7 @@ class WebdavService implements NetworkSourceService {
           ?.innerText
           .trim();
       if (href == null) continue;
-      final decoded = Uri.decodeComponent(href);
+      final decoded = _tryDecode(href);
       // Skip the self entry (the requested collection itself).
       if (_samePath(decoded, requestedHref)) continue;
 
@@ -216,7 +242,7 @@ class WebdavService implements NetworkSourceService {
     String marker,
   ) async {
     final href = utf8.decode(base64Decode(marker));
-    final uri = Uri.parse('${_origin(server)}$href');
+    final uri = _requestUri(server, href);
     final response = await _client.get(
       uri,
       headers: {'Authorization': _basicAuth(server)},
@@ -239,9 +265,9 @@ class WebdavService implements NetworkSourceService {
     if (cached != null) return cached;
 
     // remoteId is stored url-encoded so the cache key is filesystem-safe;
-    // decode to build the request URL.
-    final href = remoteId.contains('%') ? Uri.decodeComponent(remoteId) : remoteId;
-    final uri = Uri.parse('${_origin(server)}$href');
+    // decode once, then re-encode at the request boundary.
+    final href = _tryDecode(remoteId);
+    final uri = _requestUri(server, href);
     final request = http.Request('GET', uri)
       ..headers['Authorization'] = _basicAuth(server);
     final response =
@@ -269,11 +295,10 @@ class WebdavService implements NetworkSourceService {
     String remoteId, {
     String? extension,
   }) async {
-    // remoteId is stored url-encoded (cache-key-safe); decode for the URL.
-    final href = remoteId.contains('%')
-        ? Uri.decodeComponent(remoteId)
-        : remoteId;
-    final uri = Uri.parse('${_origin(server)}$href');
+    // remoteId is stored url-encoded (cache-key-safe); decode once, then
+    // re-encode at the request boundary.
+    final href = _tryDecode(remoteId);
+    final uri = _requestUri(server, href);
     return (url: uri.toString(), headers: {'Authorization': _basicAuth(server)});
   }
 
@@ -292,7 +317,7 @@ class WebdavService implements NetworkSourceService {
 
     String rootPath;
     try {
-      rootPath = Uri.parse(server.baseUrl).path;
+      rootPath = _tryDecode(Uri.parse(server.baseUrl).path);
     } catch (_) {
       rootPath = '';
     }
@@ -326,7 +351,7 @@ class WebdavService implements NetworkSourceService {
       for (final e in entries) {
         if (e.isCollection) {
           allDirs.add(e.href);
-          queue.add(_DavDir(url: '$origin${e.href}', path: e.href));
+          queue.add(_DavDir(url: '$origin${_encodePath(e.href)}', path: e.href));
         } else if (_isCoverName(e.href)) {
           coverHref ??= e.href;
         } else if (_isAudio(e.href)) {
@@ -359,7 +384,11 @@ class WebdavService implements NetworkSourceService {
           server, songsFound, allDirs.length, filesProcessed, dir.path);
     }
 
-    await purgeAndStampNetworkSync(server, syncedRemoteIds);
+    await purgeAndStampNetworkSync(
+      server,
+      syncedRemoteIds,
+      repo: _songRepository,
+    );
 
     yield ScanProgress(
       songsFound: songsFound,
@@ -444,7 +473,7 @@ class WebdavService implements NetworkSourceService {
       p = p.substring(0, p.length - 1);
     }
     final slash = p.lastIndexOf('/');
-    return slash >= 0 ? Uri.decodeComponent(p.substring(slash + 1)) : Uri.decodeComponent(p);
+    return slash >= 0 ? p.substring(slash + 1) : p;
   }
 
   String _grandparentSegment(String path) {
