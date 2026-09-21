@@ -3160,7 +3160,9 @@ class PlayerService {
       return streamSource;
     }
 
-    final uri = await _resolvePlaybackUri(song);
+    final resolved = await _resolvePlaybackUri(song);
+    final uri = resolved.uri;
+    final headers = resolved.headers;
 
     if (song.startOffsetMs != null && song.startOffsetMs! > 0) {
       final start = Duration(milliseconds: song.startOffsetMs!);
@@ -3168,13 +3170,13 @@ class PlayerService {
           ? Duration(milliseconds: song.endOffsetMs!)
           : null;
       return just_audio.ClippingAudioSource(
-        child: just_audio.AudioSource.uri(uri),
+        child: just_audio.AudioSource.uri(uri, headers: headers),
         start: start,
         end: end,
       );
     }
 
-    return just_audio.AudioSource.uri(uri);
+    return just_audio.AudioSource.uri(uri, headers: headers);
   }
 
   /// Decodes ALAC/M4A/AIFF through the Rust engine without writing a WAV.
@@ -3215,18 +3217,24 @@ class PlayerService {
     }
   }
 
-  Future<Uri> _resolvePlaybackUri(Song song) async {
+  Future<({Uri uri, Map<String, String> headers})> _resolvePlaybackUri(
+    Song song,
+  ) async {
     // ponytail: HTTP-first for network sources. Hand ExoPlayer the ranged URL
     // so playback starts while bytes stream in, instead of blocking on a full
     // cache download before the first frame. Falls back to cache-then-play
     // (ensureLocal) for protocols without byte-range support (SMB/UPnP) or on
     // resolve failure. Matches the Rust backend's existing strategy.
+    // Headers must travel with the URL: WebDAV returns Basic auth and
+    // ExoPlayer fetches the stream itself.
     if (song.isNetworkSource) {
       try {
         final http = await RemoteSourceService.instance.resolveHttpPlayback(
           song,
         );
-        if (http != null) return Uri.parse(http.url);
+        if (http != null) {
+          return (uri: Uri.parse(http.url), headers: http.headers);
+        }
       } catch (e) {
         _debugLog(
           '[Playback] HTTP-first resolve failed for "${song.title}": $e',
@@ -3235,10 +3243,13 @@ class PlayerService {
     }
     final resolvedPath = await _resolvePreparedPlaybackPath(song);
     if (resolvedPath == null || resolvedPath.isEmpty) {
-      return Uri.parse('');
+      return (uri: Uri.parse(''), headers: const <String, String>{});
     }
 
-    return _toPlaybackUri(resolvedPath);
+    return (
+      uri: _toPlaybackUri(resolvedPath),
+      headers: const <String, String>{},
+    );
   }
 
   Future<String?> _resolvePreparedPlaybackPath(Song song) async {
