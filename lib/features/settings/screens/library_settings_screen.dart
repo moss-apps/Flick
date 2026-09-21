@@ -20,6 +20,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/alac_converter_service.dart';
 import 'package:flick/services/android_audio_device_service.dart';
+import 'package:flick/services/artwork_backfill_tracker.dart';
 import 'package:flick/services/audio_preload_service.dart';
 import 'package:flick/services/playback_cache_preferences_service.dart';
 import 'package:flick/services/replaygain_scan_service.dart';
@@ -500,6 +501,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     required VoidCallback onCancel,
     required Stream<ScanProgress> Function() run,
     bool includeProgressInSummary = true,
+    Future<void> Function()? artworkBackfill,
   }) async {
     setState(() {
       _isScanning = true;
@@ -552,6 +554,20 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     // sheet would misreport cancelled work as finished.
     final wasCancelled = !ScanSessionController.instance.isCurrent(generation);
 
+    // Metadata is scanned; covers may still be resolving in the background.
+    // Hold the session open and show progress so the library is actually
+    // ready when it reports done. Skip lets the work continue detached.
+    if (completed &&
+        !wasCancelled &&
+        artworkBackfill != null &&
+        lastProgress?.unavailable != true) {
+      await _awaitArtworkBackfill(
+        generation: generation,
+        backfill: artworkBackfill,
+        lastProgress: lastProgress,
+      );
+    }
+
     _scanStopwatch.stop();
     _vinylController.stop();
     _elapsedTimer?.cancel();
@@ -576,12 +592,71 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     }
   }
 
+  /// Keeps the scan session alive while post-scan artwork backfill runs,
+  /// mirroring its progress as a synthetic `Loading artwork` phase. The user
+  /// can request a skip (dashboard button or floating pill), after which the
+  /// backfill keeps running detached.
+  Future<void> _awaitArtworkBackfill({
+    required int generation,
+    required Future<void> Function() backfill,
+    required ScanProgress? lastProgress,
+  }) async {
+    final controller = ScanSessionController.instance;
+    if (!controller.isCurrent(generation)) return;
+    controller.postProcessing.value = true;
+
+    void pushProgress(ArtworkBackfillProgress art) {
+      final progress = (lastProgress ??
+              ScanProgress(songsFound: 0, totalFiles: art.total))
+          .copyWith(
+            phase: 'Loading artwork',
+            filesProcessed: art.completed,
+            totalFiles: art.total,
+            isComplete: false,
+          );
+      controller.update(generation, progress);
+      if (mounted) {
+        setState(() => _scanProgress = progress);
+        _scanProgressNotifier.value = progress;
+      }
+    }
+
+    void onArtworkProgress() {
+      final art = _scannerService.artworkBackfillProgress.value;
+      if (art == null) return;
+      pushProgress(art);
+    }
+
+    final skipSignal = Completer<void>();
+    void onSkipRequest() {
+      if (!skipSignal.isCompleted) skipSignal.complete();
+    }
+
+    _scannerService.artworkBackfillProgress.addListener(onArtworkProgress);
+    controller.skipRequests.addListener(onSkipRequest);
+    // If another folder's backfill is already tracked, reflect it right away.
+    onArtworkProgress();
+    try {
+      await Future.any<void>([
+        backfill().catchError((Object error) {
+          debugPrint('Artwork backfill wait failed: $error');
+        }),
+        skipSignal.future,
+      ]);
+    } finally {
+      _scannerService.artworkBackfillProgress.removeListener(onArtworkProgress);
+      controller.skipRequests.removeListener(onSkipRequest);
+      controller.postProcessing.value = false;
+    }
+  }
+
   Future<void> _scanFolder(String uri, String displayName) {
     return _runScanSession(
       title: displayName,
       kind: ScanSessionKind.scan,
       onCancel: _scannerService.cancelScan,
       run: () => _scannerService.scanFolder(uri, displayName),
+      artworkBackfill: () => _scannerService.awaitArtworkBackfill(uri),
     );
   }
 
@@ -591,6 +666,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       kind: ScanSessionKind.scan,
       onCancel: _scannerService.cancelScan,
       run: () => _scannerService.scanAllFolders(mode: mode),
+      artworkBackfill: _scannerService.awaitAllArtworkBackfill,
     );
   }
 
@@ -800,10 +876,12 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     final bgRunning = progress?.backgroundTasksRunning ?? false;
     final displayFraction = bgRunning ? 1.0 : fraction;
     final totalFiles = progress?.totalFiles ?? 0;
+    final loadingArtwork = progress?.phase == 'Loading artwork';
     // Every file is accounted for but the stream has not sent its completion
     // event yet: keep telling the user something is still happening.
     final finishingUp =
         !bgRunning &&
+        !loadingArtwork &&
         totalFiles > 0 &&
         (progress?.filesProcessed ?? 0) >= totalFiles &&
         progress?.isComplete != true;
@@ -860,7 +938,11 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 ),
                 const SizedBox(height: AppConstants.spacingSm),
                 _buildPhaseRow(
-                  finishingUp ? 'Finishing up…' : progress?.phase,
+                  finishingUp
+                      ? 'Finishing up…'
+                      : loadingArtwork
+                      ? 'Loading artwork…'
+                      : progress?.phase,
                   bgRunning,
                 ),
                 const SizedBox(height: AppConstants.spacingLg),
@@ -875,7 +957,11 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 ),
                 const SizedBox(height: AppConstants.spacingXs),
                 Text(
-                  totalFiles > 0
+                  loadingArtwork
+                      ? totalFiles > 0
+                            ? '${progress?.filesProcessed ?? 0} / $totalFiles covers'
+                            : 'Loading artwork…'
+                      : totalFiles > 0
                       ? '${progress?.filesProcessed ?? 0} / $totalFiles files'
                       : (progress?.filesProcessed ?? 0) > 0
                       ? '${progress!.filesProcessed} files checked…'
@@ -964,6 +1050,12 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                     Expanded(
                       child: TextButton(
                         onPressed: () {
+                          if (loadingArtwork) {
+                            // Covers keep resolving in the background; just
+                            // stop waiting on them.
+                            ScanSessionController.instance.requestSkip();
+                            return;
+                          }
                           ScanSessionController.instance.stop();
                           _vinylController.stop();
                           _scanStopwatch.stop();
@@ -980,9 +1072,9 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                           foregroundColor: AppColors.textSecondary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
+                        child: Text(
+                          loadingArtwork ? 'Skip' : 'Cancel',
+                          style: const TextStyle(
                             fontFamily: 'ProductSans',
                             fontWeight: FontWeight.w500,
                           ),
