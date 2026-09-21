@@ -13,6 +13,55 @@ final songRepositoryProvider = Provider<SongRepository>((ref) {
   return SongRepository();
 });
 
+/// Raw change notifications for the songs collection. Kept separate from
+/// [songRepositoryProvider] so tests can substitute a stream without a
+/// database.
+final songLibraryWatchProvider = Provider<Stream<void>>((ref) {
+  return ref.watch(songRepositoryProvider).watchSongs();
+});
+
+/// Debounced signal that the song library changed. Screens that snapshot
+/// repository data (albums, artists, folder browsers) listen to this to
+/// reload as post-scan metadata/artwork writes land, instead of only on
+/// their next cold open.
+///
+/// Throttled to at most one emission per 500ms plus a trailing one, so a
+/// long artwork backfill keeps refreshing the UI live without rebuilding it
+/// on every single write.
+final libraryChangeRevisionProvider = StreamProvider.autoDispose<int>((ref) {
+  final changes = ref.watch(songLibraryWatchProvider);
+  final controller = StreamController<int>();
+  var revision = 0;
+  Timer? timer;
+  var pending = false;
+
+  void scheduleEmission() {
+    if (timer != null) {
+      pending = true;
+      return;
+    }
+    timer = Timer(const Duration(milliseconds: 500), () {
+      timer = null;
+      if (!controller.isClosed) controller.add(++revision);
+      if (pending) {
+        pending = false;
+        scheduleEmission();
+      }
+    });
+  }
+
+  final subscription = changes.listen((_) {
+    scheduleEmission();
+  });
+
+  ref.onDispose(() {
+    timer?.cancel();
+    subscription.cancel();
+    controller.close();
+  });
+  return controller.stream;
+});
+
 /// Sort options for the song list.
 enum SongSortOption {
   albumArtist,
