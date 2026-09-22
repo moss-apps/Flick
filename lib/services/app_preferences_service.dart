@@ -71,6 +71,7 @@ class AppPreferences {
   final bool separateMiniPlayerFromNavBar;
   final bool keepPlayingOnQuit;
   final bool priorityAnchorEnabled;
+  final bool motionArtDuringBitPerfect;
   final bool pauseOnBluetoothDisconnect;
   final bool resumeOnBluetoothReconnect;
   final bool pauseOnUsbDacDisconnect;
@@ -185,6 +186,7 @@ class AppPreferences {
     this.separateMiniPlayerFromNavBar = false,
     this.keepPlayingOnQuit = false,
     this.priorityAnchorEnabled = true,
+    this.motionArtDuringBitPerfect = false,
     this.pauseOnBluetoothDisconnect = true,
     this.resumeOnBluetoothReconnect = false,
     this.pauseOnUsbDacDisconnect = true,
@@ -300,6 +302,7 @@ class AppPreferences {
     bool? separateMiniPlayerFromNavBar,
     bool? keepPlayingOnQuit,
     bool? priorityAnchorEnabled,
+    bool? motionArtDuringBitPerfect,
     bool? pauseOnBluetoothDisconnect,
     bool? resumeOnBluetoothReconnect,
     bool? pauseOnUsbDacDisconnect,
@@ -445,6 +448,8 @@ class AppPreferences {
       keepPlayingOnQuit: keepPlayingOnQuit ?? this.keepPlayingOnQuit,
       priorityAnchorEnabled:
           priorityAnchorEnabled ?? this.priorityAnchorEnabled,
+      motionArtDuringBitPerfect:
+          motionArtDuringBitPerfect ?? this.motionArtDuringBitPerfect,
       pauseOnBluetoothDisconnect:
           pauseOnBluetoothDisconnect ?? this.pauseOnBluetoothDisconnect,
       resumeOnBluetoothReconnect:
@@ -585,6 +590,8 @@ class AppPreferencesService {
       'separate_mini_player_from_nav_bar';
   static const _keepPlayingOnQuitKey = 'app_keep_playing_on_quit';
   static const _priorityAnchorEnabledKey = 'app_priority_anchor_enabled';
+  static const _motionArtDuringBitPerfectKey =
+      'app_motion_art_during_bit_perfect';
   static const _pauseOnBluetoothDisconnectKey =
       'app_pause_on_bluetooth_disconnect';
   static const _resumeOnBluetoothReconnectKey =
@@ -740,6 +747,8 @@ class AppPreferencesService {
       keepPlayingOnQuit: prefs.getBool(_keepPlayingOnQuitKey) ?? false,
       priorityAnchorEnabled:
           prefs.getBool(_priorityAnchorEnabledKey) ?? true,
+      motionArtDuringBitPerfect:
+          prefs.getBool(_motionArtDuringBitPerfectKey) ?? false,
       pauseOnBluetoothDisconnect:
           prefs.getBool(_pauseOnBluetoothDisconnectKey) ?? true,
       resumeOnBluetoothReconnect:
@@ -1550,6 +1559,16 @@ class AppPreferencesService {
   Future<void> setPriorityAnchorEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_priorityAnchorEnabledKey, value);
+  }
+
+  Future<bool> getMotionArtDuringBitPerfect() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_motionArtDuringBitPerfectKey) ?? false;
+  }
+
+  Future<void> setMotionArtDuringBitPerfect(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_motionArtDuringBitPerfectKey, value);
   }
 
   Future<bool> getPauseOnBluetoothDisconnect() async {
