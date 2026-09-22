@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/data/repositories/song_repository.dart';
+import 'package:flick/features/albums/widgets/identify_album_sheet.dart';
 import 'package:flick/features/artists/screens/artist_detail_screen.dart';
 import 'package:flick/models/playback_context.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/providers/apple_music_provider.dart';
 import 'package:flick/services/album_art_service.dart';
+import 'package:flick/services/apple_music/apple_music_metadata_service.dart';
 import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
@@ -18,6 +22,7 @@ import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
 import 'package:flick/widgets/common/song_tile_thumbnail.dart';
 import 'package:flick/widgets/common/detail_header.dart';
 import 'package:flick/widgets/common/detail_description.dart';
+import 'package:flick/widgets/common/fetched_description.dart';
 import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flick/providers/detail_description_provider.dart';
 import 'package:flick/features/player/widgets/add_to_playlist_sheet.dart';
@@ -323,6 +328,11 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
   }
 
   void _showMore() {
+    final appleMusic = ref
+        .read(
+          appleMusicAlbumProvider((widget.albumName, widget.albumArtist)),
+        )
+        .value;
     DetailMoreSheet.show(
       context,
       items: [
@@ -339,12 +349,78 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
           onTap: () => AddToPlaylistSheet.showSongs(context, widget.songs),
         ),
         DetailMoreSheetItem(
+          icon: LucideIcons.sparkles,
+          label: 'Identify album',
+          onTap: () => IdentifyAlbumSheet.show(
+            context,
+            songs: widget.songs,
+            initialArtist: widget.albumArtist,
+            initialAlbum: widget.albumName,
+          ),
+        ),
+        if (appleMusic != null)
+          DetailMoreSheetItem(
+            icon: LucideIcons.externalLink,
+            label: 'Open in Apple Music',
+            onTap: () => _openAppleMusic(_albumAppleMusicUri(appleMusic)),
+          ),
+        DetailMoreSheetItem(
+          icon: LucideIcons.refreshCw,
+          label: 'Refresh Apple Music',
+          onTap: _refreshAppleMusic,
+        ),
+        DetailMoreSheetItem(
           icon: LucideIcons.moonStar,
           label: 'Sleep timer',
           onTap: () =>
               SleepTimerBottomSheet.show(context, widget.playerService),
         ),
       ],
+    );
+  }
+
+  Uri _albumAppleMusicUri(AppleMusicAlbumData data) {
+    final url = data.match.url;
+    if (url.isNotEmpty) return Uri.parse(url);
+    return _appleMusicSearchUri('${widget.albumArtist} ${widget.albumName}');
+  }
+
+  Uri _appleMusicSearchUri(String term) {
+    final storefront = AppleMusicMetadataService.instance.deviceStorefront;
+    return Uri.parse(
+      'https://music.apple.com/$storefront/search?term=${Uri.encodeComponent(term)}',
+    );
+  }
+
+  Future<void> _openAppleMusic(Uri uri) async {
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Browser unavailable; nothing to surface.
+    }
+  }
+
+  Future<void> _refreshAppleMusic() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Refreshing Apple Music data')),
+    );
+    final updated = await ref
+        .read(
+          appleMusicAlbumProvider((widget.albumName, widget.albumArtist))
+              .notifier,
+        )
+        .refresh();
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          updated
+              ? 'Apple Music data updated'
+              : 'Apple Music data unavailable',
+        ),
+      ),
     );
   }
 
@@ -388,6 +464,12 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
       builder: (context, animatedBg, _) {
         final resolvedBg = animatedBg ?? AppColors.background;
         final prefs = ref.watch(appPreferencesProvider);
+        final appleMusic = ref
+            .watch(
+              appleMusicAlbumProvider((widget.albumName, widget.albumArtist)),
+            )
+            .value;
+        final albumNotes = appleMusic?.notes?.trim();
         return Stack(
           children: [
             Scaffold(
@@ -431,9 +513,18 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
                      ),
                    ),
                  ),
-                 SliverToBoxAdapter(
-                   child: DetailDescription(descriptionKey: _descriptionKey),
-                 ),
+                  SliverToBoxAdapter(
+                    child: DetailDescription(descriptionKey: _descriptionKey),
+                  ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: AppConstants.spacingMd),
+                  ),
+                  if (albumNotes != null && albumNotes.isNotEmpty)
+                    _buildSectionTitle(context, 'About this album'),
+                 if (albumNotes != null && albumNotes.isNotEmpty)
+                   SliverToBoxAdapter(
+                     child: FetchedDescription(text: albumNotes),
+                   ),
                  const SliverToBoxAdapter(
                    child: SizedBox(height: AppConstants.spacingLg),
                  ),
