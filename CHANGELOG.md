@@ -2,10 +2,18 @@
 
 ## Unreleased
 
+### Apple Music Metadata
+- **Apple Music metadata enrichment** for untagged files: releases are matched by track name and duration, candidates are reviewed in an identify-album sheet, and confident exact matches are applied automatically after a scan.
+- New **Fix Missing Metadata** screen with a shortcut in Library settings, plus an Apple Music tile under Integrations.
+- Album and artist detail screens gain **Identify album**, offline-cached Apple Music artwork fallback, biography, similar artists, top songs, and "About this album" notes.
+
 ### Library Scanning & Artwork
 - Scans and rescans now finish with album art ready: after metadata completes, a skippable **Loading artwork** phase shows cover progress (`n / N covers`); skipping lets resolution continue in the background.
 - Albums, Artists, and folder screens reload as post-scan artwork writes land, so covers no longer appear only after scrolling.
 - Post-scan audio preload no longer blocks artwork resolution.
+- **Quick or Full rescan** — Rescan Library now asks whether to re-read only new or changed files (quick) or re-read metadata for every file (full).
+- **Per-folder progress** — rescanning multiple folders shows one combined bar plus a small progress row for each folder.
+- **Honest scan progress** — the bar counts every checked file, including unchanged ones, instead of sitting at zero until the end.
 
 ### Floating Progress & Preload
 - Fixed the floating progress pill getting stuck after a scan showing "Preloading audio" while nothing was preloading; Stop now clears it immediately even during the artwork phase.
@@ -13,6 +21,7 @@
 - Fixed a race where the preload toggle could display off while a stale persisted value still triggered preload after scanning; toggles now wait for the stored preferences before writing.
 - Turning preload off now cancels a pass that is already decoding and suppresses the ones a scan would spawn; turning it back on lifts the suppression.
 - The floating pill no longer stays stuck after leaving Settings mid-scan; it now plays a short check-mark animation when the scan and its artwork loading finish, then disappears. After the check, background preload stays silent until a new scan starts, so the pill no longer pops back up.
+- The scan, preload, and ReplayGain progress is now a small **draggable bubble** that snaps to either screen edge and remembers its position; tap it for compact progress details without leaving the current screen.
 
 ### Storage
 - Playback no longer converts ALAC/M4A/AIFF tracks to WAV files: they are decoded on demand and streamed to the player, so the playback cache stops growing with queue size (issue #212).
@@ -26,6 +35,11 @@
 - Motion art is suspended while direct/exclusive bit-perfect output is active (DAP internal hi-res and USB DAC direct): the extra video stream could preempt the native output, stopping or muting audio. The animated Ken Burns artwork shows instead.
 - Added an opt-in **Motion Art in Bit-Perfect** toggle in Settings → Playback & Display for devices where motion art plays fine during bit-perfect output.
 - Loss of the native direct output (AudioTrack DIRECT / ALSA direct) is now reported to the app; the Rust engine respawns and resumes the track instead of silently stopping.
+
+### Network Sources & Metadata
+- Fixed WebDAV href double-decoding that aborted syncs on non-ASCII and special-character filenames (`%`, `#`, `?`); hrefs are decoded exactly once at parse time and re-encoded for request URLs.
+- HTTP auth headers now travel with resolved URIs, so WebDAV Basic auth reaches ExoPlayer ranged requests.
+- An ID3 tag is now created when writing metadata to untagged WAV files.
 
 ## 0.22.0-beta.1 (2026-09-10)
 

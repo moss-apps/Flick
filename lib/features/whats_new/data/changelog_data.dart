@@ -48,6 +48,14 @@ const List<ChangelogEntry> kChangelogEntries = [
     date: '2026-09-16',
     sections: [
       ChangelogSection(
+        title: 'Apple Music Metadata',
+        bullets: [
+          '**Apple Music metadata enrichment** for untagged files — Flick matches releases by track name and duration, lets you review candidates, and applies confident exact matches automatically after a scan.',
+          'New **Fix Missing Metadata** screen, reachable from Library settings, plus an Apple Music tile under Integrations.',
+          'Album and artist detail screens gain **Identify album**, offline-cached Apple Music artwork fallback, biography, similar artists, top songs, and "About this album" notes.',
+        ],
+      ),
+      ChangelogSection(
         title: 'Interface',
         bullets: [
           '**Pinned scan bubble** — minimized scan, preload, and ReplayGain progress is now a small draggable bubble instead of a full-width pill; it snaps to either screen edge and remembers its position.',
@@ -56,6 +64,7 @@ const List<ChangelogEntry> kChangelogEntries = [
           '**Honest scan progress** — the bar counts every checked file, including unchanged ones, so a rescan no longer sits at zero until the final moment.',
           '**Per-folder progress** — rescanning multiple folders now keeps one combined bar plus a small progress row for each folder.',
           '**Quick or Full rescan** — Rescan Library now asks whether to re-read only new or changed files (quick) or re-read metadata for every file (full).',
+          'Scans now finish with album art ready: a skippable **Loading artwork** phase shows cover progress, and library screens reload as post-scan artwork writes land.',
         ],
       ),
       ChangelogSection(
@@ -68,11 +77,26 @@ const List<ChangelogEntry> kChangelogEntries = [
         ],
       ),
       ChangelogSection(
+        title: 'DSD Native Playback',
+        bullets: [
+          'Fixed DSF files decoding 8 bytes late (wrong data offset probe) — the cause of the continuous light ticks on all DSF playback; bit order now follows the DSF header flag.',
+          'ReplayGain is ignored on native DSD/DoP sources, since a gain multiply would corrupt the DSD bits.',
+          'Reduced residual DSD native crackle with opt-in debug dumps, a larger native ring buffer, raised render/decoder thread priority, and 256 KiB decoder reads.',
+        ],
+      ),
+      ChangelogSection(
         title: 'Motion Art & Bit-Perfect',
         bullets: [
           '**Motion art pauses under bit-perfect audio** — while direct or exclusive bit-perfect output is active, Apple Music motion art no longer starts a second video stream that could interrupt playback; the animated Ken Burns artwork shows instead.',
           'Added an opt-in **Motion Art in Bit-Perfect** toggle in Settings → Playback & Display for devices where motion art coexists with bit-perfect output.',
           'If the native direct output is lost anyway, Flick now detects it and automatically revives the audio engine and resumes the track instead of going silent.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Network & Metadata',
+        bullets: [
+          'Fixed WebDAV href double-decoding that aborted syncs on non-ASCII and special-character filenames; HTTP auth headers now travel with ExoPlayer ranged requests.',
+          'An ID3 tag is now created when writing metadata to untagged WAV files.',
         ],
       ),
     ],
