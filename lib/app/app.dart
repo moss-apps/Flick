@@ -23,6 +23,7 @@ import 'package:flick/features/search/screens/search_screen.dart';
 import 'package:flick/core/navigation/root_navigator.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/app_haptics.dart';
+import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
@@ -553,6 +554,7 @@ class _MainShellState extends ConsumerState<MainShell>
       unawaited(ref.read(playerServiceProvider).persistLastPlayed());
       unawaited(WidgetSyncService.instance.pushKilled());
       unawaited(ref.read(playerServiceProvider).onAppResumed());
+      unawaited(AppLog.instance.flushToDisk());
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       _cancelIdleTimer();
@@ -560,6 +562,7 @@ class _MainShellState extends ConsumerState<MainShell>
       unawaited(ref.read(playerServiceProvider).persistLastPlayed());
       unawaited(WidgetSyncService.instance.pushPaused());
       unawaited(ref.read(playerServiceProvider).onAppPaused());
+      unawaited(AppLog.instance.flushToDisk());
 
       // Attempt to scrobble the current track before the app suspends.
       // Only fire if playback is not active — audio apps often keep playing
