@@ -64,6 +64,12 @@ class WavStreamAudioSource extends just_audio.StreamAudioSource {
   // the UI isolate stays responsive without hammering FFI per packet.
   static const _readChunkBytes = 256 * 1024;
 
+  // just_audio's proxy buffers everything we emit in-process, so production
+  // must stay within a bounded lookahead of realtime playback. Without this a
+  // 96 kHz ALAC track (32-bit PCM, 768 KB/s stereo) queues hundreds of MB and
+  // the OS kills the app before Dart can log anything.
+  static const _maxLookaheadBytes = 4 * 1024 * 1024;
+
   static final _WavSessionPool _sessions = _WavSessionPool();
   static final MusicFolderService _folderService = MusicFolderService();
   static final PlaybackCachePreferencesService _cachePrefs =
@@ -82,7 +88,17 @@ class WavStreamAudioSource extends just_audio.StreamAudioSource {
 
     final session = _tryOpenWavSession(path);
     if (session != null) {
-      return _wavResponse(session, start, end);
+      if (session.layout.exceedsWav32BitLimits) {
+        // A 32-bit WAV header cannot describe this much audio; serve the raw
+        // file and let ExoPlayer decode it instead of advertising a wrong size.
+        devLog(
+          '[WavStream] falling back to raw stream, data size '
+          '${session.layout.dataLength} exceeds the WAV 32-bit limit',
+        );
+        _sessions.release(session);
+      } else {
+        return _wavResponse(session, start, end);
+      }
     }
     return _rawResponse(path, start, end);
   }
@@ -166,6 +182,9 @@ class WavStreamAudioSource extends just_audio.StreamAudioSource {
     try {
       var position = offset;
       final end = offset + length;
+      final bytesPerSecond = layout.sampleRate * layout.blockAlign;
+      final clock = bytesPerSecond > 0 ? (Stopwatch()..start()) : null;
+      var producedBytes = 0;
 
       if (position < layout.dataOffset && position < end) {
         final headerEnd = math.min(end, layout.dataOffset);
@@ -191,7 +210,8 @@ class WavStreamAudioSource extends just_audio.StreamAudioSource {
             final pad = math.min(_readChunkBytes, end - position);
             yield Uint8List(pad);
             position += pad;
-            await Future<void>.delayed(Duration.zero);
+            producedBytes += pad;
+            await _awaitProducerBudget(clock, bytesPerSecond, producedBytes);
           }
           break;
         }
@@ -202,11 +222,38 @@ class WavStreamAudioSource extends just_audio.StreamAudioSource {
 
         yield Uint8List.sublistView(bytes, from, to);
         position += to - from;
-        await Future<void>.delayed(Duration.zero);
+        producedBytes += to - from;
+        await _awaitProducerBudget(clock, bytesPerSecond, producedBytes);
       }
     } finally {
       _sessions.release(session);
     }
+  }
+
+  /// Keeps the producer within [_maxLookaheadBytes] of realtime playback.
+  ///
+  /// The HTTP sink gives us no drain signal, so pace against the wall clock
+  /// instead: allow a fixed initial burst, then wait whenever production runs
+  /// more than the lookahead ahead of how much audio has actually elapsed.
+  Future<void> _awaitProducerBudget(
+    Stopwatch? clock,
+    int bytesPerSecond,
+    int producedBytes,
+  ) async {
+    if (clock == null || bytesPerSecond <= 0) {
+      await Future<void>.delayed(Duration.zero);
+      return;
+    }
+
+    while (true) {
+      final allowedBytes = (clock.elapsedMicroseconds * bytesPerSecond ~/ 1000000) +
+          _maxLookaheadBytes;
+      if (producedBytes <= allowedBytes) break;
+      final aheadBytes = producedBytes - allowedBytes;
+      final waitMicros = (aheadBytes * 1000000 / bytesPerSecond).ceil();
+      await Future<void>.delayed(Duration(microseconds: waitMicros.clamp(1000, 250000)));
+    }
+    await Future<void>.delayed(Duration.zero);
   }
 
   // ignore: experimental_member_use
@@ -361,6 +408,7 @@ class _WavSessionPool {
       blockAlign: blockAlign,
       totalFrames: endFrame - startFrame,
       startFrame: startFrame,
+      sampleRate: sampleRate,
     );
   }
 
@@ -379,10 +427,14 @@ class VirtualWavLayout {
     required this.blockAlign,
     required this.totalFrames,
     this.startFrame = 0,
+    this.sampleRate = 0,
   }) : header = _withDataLength(header, totalFrames * blockAlign);
 
   final Uint8List header;
   final int blockAlign;
+
+  /// Source sample rate, used to pace production. Zero disables pacing.
+  final int sampleRate;
 
   /// Number of frames in the served window.
   final int totalFrames;
@@ -393,6 +445,10 @@ class VirtualWavLayout {
   int get dataOffset => header.length;
   int get dataLength => totalFrames * blockAlign;
   int get totalLength => dataOffset + dataLength;
+
+  /// True when the data section plus the RIFF size field no longer fit the
+  /// 32-bit WAV header that is served upstream.
+  bool get exceedsWav32BitLimits => dataLength > 0xFFFFFFFF - 36;
 
   int frameAtOffset(int offset) => startFrame +
       ((offset - dataOffset) ~/ blockAlign).clamp(0, totalFrames);
