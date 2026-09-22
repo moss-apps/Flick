@@ -22,6 +22,11 @@
 - ReplayGain is ignored on native DSD/DoP sources (a gain multiply would corrupt the DSD bits).
 - Reduced residual DSD native crackle: debug dump capture is now opt-in (no blocking storage I/O in the audio loops), native ring buffer enlarged with a stricter prefill gate, render/decoder threads get raised priority, and decoder reads use 256 KiB chunks.
 
+### Motion Art & Bit-Perfect
+- Motion art is suspended while direct/exclusive bit-perfect output is active (DAP internal hi-res and USB DAC direct): the extra video stream could preempt the native output, stopping or muting audio. The animated Ken Burns artwork shows instead.
+- Added an opt-in **Motion Art in Bit-Perfect** toggle in Settings → Playback & Display for devices where motion art plays fine during bit-perfect output.
+- Loss of the native direct output (AudioTrack DIRECT / ALSA direct) is now reported to the app; the Rust engine respawns and resumes the track instead of silently stopping.
+
 ## 0.22.0-beta.1 (2026-09-10)
 
 ### DSD Native Playback

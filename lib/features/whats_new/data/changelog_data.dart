@@ -67,6 +67,14 @@ const List<ChangelogEntry> kChangelogEntries = [
           '**Streamed conversion** — ALAC/M4A/AIFF tracks are decoded on demand and streamed to the player instead of converting the whole queue to WAV, so caches stay flat while you browse and play.',
         ],
       ),
+      ChangelogSection(
+        title: 'Motion Art & Bit-Perfect',
+        bullets: [
+          '**Motion art pauses under bit-perfect audio** — while direct or exclusive bit-perfect output is active, Apple Music motion art no longer starts a second video stream that could interrupt playback; the animated Ken Burns artwork shows instead.',
+          'Added an opt-in **Motion Art in Bit-Perfect** toggle in Settings → Playback & Display for devices where motion art coexists with bit-perfect output.',
+          'If the native direct output is lost anyway, Flick now detects it and automatically revives the audio engine and resumes the track instead of going silent.',
+        ],
+      ),
     ],
   ),
   ChangelogEntry(
