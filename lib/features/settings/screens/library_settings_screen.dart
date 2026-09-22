@@ -15,6 +15,7 @@ import 'package:flick/data/entities/folder_entity.dart';
 import 'package:flick/data/repositories/folder_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/settings/screens/duplicate_cleaner_screen.dart';
+import 'package:flick/features/settings/screens/missing_metadata_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/album_art_service.dart';
@@ -2191,6 +2192,22 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       .read(appPreferencesProvider.notifier)
                       .setAlbumsStretchArtwork(value);
                 },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
+          const SettingsSectionHeader('Metadata'),
+          SettingsCard(
+            children: [
+              NavigationSetting(
+                icon: LucideIcons.sparkles,
+                title: 'Fix Missing Metadata',
+                subtitle: 'Identify albums with unknown artist or title tags',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const MissingMetadataScreen(),
+                  ),
+                ),
               ),
             ],
           ),
