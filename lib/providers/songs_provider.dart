@@ -444,6 +444,9 @@ class SongsState {
     final safRelative = _extractSafRelativePath(folderUri, filePath);
     if (safRelative != null) return safRelative;
 
+    final rawRelative = _extractRawRelativePath(folderUri, filePath);
+    if (rawRelative != null) return rawRelative;
+
     final base = folderUri.endsWith('/')
         ? folderUri.substring(0, folderUri.length - 1)
         : folderUri;
@@ -451,6 +454,11 @@ class SongsState {
     if (uriBase == null) return '';
     final fileUri = Uri.tryParse(filePath);
     if (fileUri == null) return '';
+    // A strip that matched nothing leaves the whole path behind; treating that
+    // as a relative path renders the full absolute path as a folder chain.
+    if (uriBase.path.isNotEmpty && !fileUri.path.startsWith(uriBase.path)) {
+      return '';
+    }
     final relative = uriBase.path.isNotEmpty
         ? fileUri.path.replaceFirst(uriBase.path, '')
         : fileUri.path;
@@ -488,6 +496,65 @@ class SongsState {
         .toList();
     if (parts.length >= 2) return parts.sublist(0, parts.length - 1).join('/');
     return '';
+  }
+
+  /// Handles the mixed path space the scanners leave behind: a folder added
+  /// through SAF keeps its `content://` tree URI, but the Rust and MediaStore
+  /// walkers persist an absolute filesystem `filePath`, so the SAF branch
+  /// above cannot match. Strips in raw-path space instead. Returns null when
+  /// the branch does not apply, so the generic fallback still runs.
+  static String? _extractRawRelativePath(String folderUri, String filePath) {
+    final rawFile = _rawFilePath(filePath);
+    if (rawFile == null) return null;
+    final root = rawRootFromFolderUri(folderUri);
+    if (root == null) return null;
+    if (rawFile != root && !rawFile.startsWith('$root/')) return '';
+
+    final relativeFile = rawFile == root
+        ? ''
+        : rawFile.substring(root.length + 1);
+    final parts = relativeFile
+        .split('/')
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.length >= 2) return parts.sublist(0, parts.length - 1).join('/');
+    return '';
+  }
+
+  /// Resolves a SAF tree URI to the raw filesystem root it maps to, using the
+  /// same convention as `LibraryScannerService.rawPathFromSafUri`: `primary:X`
+  /// lives at `/storage/emulated/0/X`, any other `vol:X` at `/storage/vol/X`.
+  /// An absolute path passes through. Returns null for anything else.
+  static String? rawRootFromFolderUri(String folderUri) {
+    if (folderUri.startsWith('/')) return _withoutTrailingSlash(folderUri);
+
+    final folder = Uri.tryParse(folderUri);
+    if (folder == null || folder.scheme != 'content') return null;
+    final treeId = _safPathId(folder, 'tree');
+    if (treeId == null) return null;
+
+    final colon = treeId.indexOf(':');
+    if (colon <= 0 || colon == treeId.length - 1) return null;
+    final volume = treeId.substring(0, colon);
+    final relative = treeId.substring(colon + 1);
+    final volumeRoot = volume == 'primary'
+        ? '/storage/emulated/0'
+        : '/storage/$volume';
+    return _withoutTrailingSlash('$volumeRoot/$relative');
+  }
+
+  /// Raw filesystem path for [filePath], unwrapping a `file://` URI, or null
+  /// when it is neither a `file://` URI nor an absolute path.
+  static String? _rawFilePath(String filePath) {
+    if (filePath.startsWith('file://')) {
+      return Uri.tryParse(filePath)?.toFilePath();
+    }
+    if (filePath.startsWith('/')) return filePath;
+    return null;
+  }
+
+  static String _withoutTrailingSlash(String path) {
+    return path.endsWith('/') ? path.substring(0, path.length - 1) : path;
   }
 
   static String? _safPathId(Uri uri, String marker) {
