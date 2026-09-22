@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/features/settings/widgets/apple_music_settings_tile.dart';
 import 'package:flick/features/settings/widgets/lastfm_settings_tile.dart';
 import 'package:flick/features/settings/widgets/listenbrainz_settings_tile.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
@@ -17,6 +18,13 @@ class IntegrationsSettingsScreen extends StatelessWidget {
           const SettingsSectionHeader('Integrations'),
           const SettingsCard(
             children: [LastFmSettingsTile(), ListenBrainzSettingsTile()],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
+          const SettingsSectionHeader('Metadata'),
+          const SettingsCard(
+            children: [
+              AppleMusicSettingsTile(),
+            ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
           const SizedBox(height: AppConstants.navBarHeight + 40),
