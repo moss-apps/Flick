@@ -198,6 +198,12 @@ fn dsd_native_render_loop(
         let written = super::dsd_alsa_direct::dsd_alsa_write(&dsd_bytes);
         if written < 0 {
             log::error!("[DSD-NATIVE] ALSA write failed, stopping render loop");
+            let _ = event_tx.send(AudioEvent::Error {
+                message: format!(
+                    "Audio engine output lost: DSD ALSA write failed ({})",
+                    written
+                ),
+            });
             break;
         }
     }
@@ -307,6 +313,12 @@ fn dsd_sas_render_loop(
                 written,
                 write_size
             );
+            let _ = event_tx.send(AudioEvent::Error {
+                message: format!(
+                    "Audio engine output lost: DSD SAS write failed ({} of {} bytes)",
+                    written, write_size
+                ),
+            });
             break;
         }
 
@@ -419,6 +431,12 @@ fn pcm_alsa_render_loop(
         let written = super::dsd_alsa_direct::dsd_alsa_write(&pcm_bytes);
         if written < 0 {
             log::error!("[PCM-ALSA] ALSA write failed, stopping render loop");
+            let _ = event_tx.send(AudioEvent::Error {
+                message: format!(
+                    "Audio engine output lost: PCM ALSA write failed ({})",
+                    written
+                ),
+            });
             break;
         }
     }

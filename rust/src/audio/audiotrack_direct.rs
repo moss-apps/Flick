@@ -137,6 +137,7 @@ struct RawAudioTrack {
     storage: Vec<u8>,
     this: *mut c_void,
     started: bool,
+    failed: bool,
 }
 
 unsafe impl Send for RawAudioTrack {}
@@ -202,6 +203,7 @@ impl RawAudioTrack {
             storage,
             this,
             started: true,
+            failed: false,
         })
     }
 
@@ -209,6 +211,7 @@ impl RawAudioTrack {
         let written =
             unsafe { ((self.api).write)(self.this, bytes.as_ptr() as *const c_void, bytes.len(), true) };
         if written < 0 {
+            self.failed = true;
             Err(format!("AudioTrack write failed ({})", written))
         } else {
             Ok(())
@@ -220,7 +223,9 @@ impl RawAudioTrack {
             return;
         }
         unsafe {
-            if self.started {
+            // A track invalidated by the output layer can hang or crash in
+            // stop(); just run the destructor in that case.
+            if self.started && !self.failed {
                 ((self.api).stop)(self.this);
             }
             ((self.api).dtor)(self.this);
@@ -300,6 +305,9 @@ fn audiotrack_render_loop(
 
         if let Err(e) = track.write_blocking(&pcm_bytes) {
             log::error!("[AT-DIRECT] {}", e);
+            let _ = event_tx.send(AudioEvent::Error {
+                message: format!("Audio engine output lost: {}", e),
+            });
             break;
         }
     }
