@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/services/motion_art/animated_artwork_service.dart';
+import 'package:flick/services/player_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -11,6 +13,10 @@ import 'package:video_player/video_player.dart';
 /// Controllers are always created with [VideoPlayerOptions.mixWithOthers] so
 /// ExoPlayer never requests audio focus and playback of the actual music via
 /// just_audio is not interrupted.
+///
+/// Suppressed while [PlayerService.motionArtSuppressedNotifier] is set
+/// (direct/exclusive bit-perfect output): a second output stream can preempt
+/// the native stream on some DAPs. [fallback] renders instead.
 class MotionArtView extends StatefulWidget {
   const MotionArtView({
     super.key,
@@ -25,6 +31,7 @@ class MotionArtView extends StatefulWidget {
     this.preferVertical = false,
     this.fit = BoxFit.cover,
     this.borderRadius,
+    this.suppressionOverride,
   });
 
   /// Song title, or the album name when [albumMode] is true.
@@ -48,6 +55,10 @@ class MotionArtView extends StatefulWidget {
   final BoxFit fit;
   final BorderRadius? borderRadius;
 
+  /// Test hook: replaces [PlayerService.motionArtSuppressedNotifier].
+  @visibleForTesting
+  final ValueListenable<bool>? suppressionOverride;
+
   @override
   State<MotionArtView> createState() => _MotionArtViewState();
 }
@@ -59,15 +70,30 @@ class _MotionArtViewState extends State<MotionArtView> {
 
   VideoPlayerController? _controller;
   bool _hasVideo = false;
+  bool _suppressed = false;
   Timer? _timer;
   Timer? _retryTimer;
   int _generation = 0;
   int _attempt = 0;
 
+  ValueListenable<bool> get _suppression =>
+      widget.suppressionOverride ??
+      PlayerService().motionArtSuppressedNotifier;
+
   @override
   void initState() {
     super.initState();
+    _suppressed = _suppression.value;
+    _suppression.addListener(_onSuppressionChanged);
     _restart();
+  }
+
+  void _onSuppressionChanged() {
+    final suppressed = _suppression.value;
+    if (suppressed == _suppressed) return;
+    _suppressed = suppressed;
+    _restart();
+    if (mounted) setState(() {});
   }
 
   @override
@@ -86,6 +112,7 @@ class _MotionArtViewState extends State<MotionArtView> {
 
   @override
   void dispose() {
+    _suppression.removeListener(_onSuppressionChanged);
     _teardown();
     super.dispose();
   }
@@ -109,13 +136,13 @@ class _MotionArtViewState extends State<MotionArtView> {
   }
 
   void _beginLoad() {
-    if (!widget.enabled) return;
+    if (!widget.enabled || _suppressed) return;
     final generation = _generation;
     _timer = Timer(_debounce, () => _loadOnce(generation));
   }
 
   void _scheduleRetry() {
-    if (!widget.enabled || _attempt >= _maxAttempts) return;
+    if (!widget.enabled || _suppressed || _attempt >= _maxAttempts) return;
     _attempt++;
     _retryTimer?.cancel();
     _retryTimer = Timer(_retryDelay, () {
@@ -201,6 +228,7 @@ class _MotionArtViewState extends State<MotionArtView> {
 
   @override
   Widget build(BuildContext context) {
+    if (_suppressed) return widget.fallback;
     final controller = _controller;
     if (!_hasVideo || controller == null || !controller.value.isInitialized) {
       return widget.fallback;
