@@ -50,6 +50,91 @@ void main() {
         '24K Magic/Disc 1',
       );
     });
+
+    test('extractRelativeSubfolder strips a SAF tree root from a raw path', () {
+      expect(
+        SongsState.extractRelativeSubfolder(
+          'content://com.android.externalstorage.documents/tree/primary%3AFlacs',
+          '/storage/emulated/0/Flacs/Albums/x.flac',
+        ),
+        'Albums',
+      );
+    });
+
+    test('extractRelativeSubfolder keeps raw path nesting below the root', () {
+      expect(
+        SongsState.extractRelativeSubfolder(
+          'content://com.android.externalstorage.documents/tree/primary%3AFlacs',
+          '/storage/emulated/0/Flacs/Albums/Disc 1/x.flac',
+        ),
+        'Albums/Disc 1',
+      );
+    });
+
+    test('extractRelativeSubfolder returns empty for a raw path at root', () {
+      expect(
+        SongsState.extractRelativeSubfolder(
+          'content://com.android.externalstorage.documents/tree/primary%3AFlacs',
+          '/storage/emulated/0/Flacs/x.flac',
+        ),
+        '',
+      );
+    });
+
+    test('extractRelativeSubfolder rejects a raw path outside the root', () {
+      // Regression: this used to fall through to the generic strip, which
+      // matched nothing and rendered a phantom storage/emulated/0/... chain.
+      expect(
+        SongsState.extractRelativeSubfolder(
+          'content://com.android.externalstorage.documents/tree/primary%3AFlacs',
+          '/storage/emulated/0/Other/Albums/x.flac',
+        ),
+        '',
+      );
+    });
+
+    test('extractRelativeSubfolder resolves a non-primary volume root', () {
+      expect(
+        SongsState.extractRelativeSubfolder(
+          'content://com.android.externalstorage.documents/tree/1234-5678%3AMusic',
+          '/storage/1234-5678/Music/Album/x.flac',
+        ),
+        'Album',
+      );
+    });
+
+    test('extractRelativeSubfolder handles a raw absolute folder uri', () {
+      expect(
+        SongsState.extractRelativeSubfolder(
+          '/storage/emulated/0/Flacs',
+          '/storage/emulated/0/Flacs/Albums/x.flac',
+        ),
+        'Albums',
+      );
+    });
+
+    test('rawRootFromFolderUri maps tree ids to filesystem roots', () {
+      expect(
+        SongsState.rawRootFromFolderUri(
+          'content://com.android.externalstorage.documents/tree/primary%3AFlacs',
+        ),
+        '/storage/emulated/0/Flacs',
+      );
+      expect(
+        SongsState.rawRootFromFolderUri(
+          'content://com.android.externalstorage.documents/tree/1234-5678%3AMusic',
+        ),
+        '/storage/1234-5678/Music',
+      );
+      expect(
+        SongsState.rawRootFromFolderUri('/storage/emulated/0/Flacs/'),
+        '/storage/emulated/0/Flacs',
+      );
+      expect(
+        SongsState.rawRootFromFolderUri('file:///storage/emulated/0/Flacs'),
+        isNull,
+      );
+    });
   });
 
   group('SongFileTypeFilter.ogg', () {
