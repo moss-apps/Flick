@@ -2309,10 +2309,29 @@ pub fn create_audio_engine(
 }
 
 #[cfg(target_os = "android")]
+fn report_oboe_callback_failure(
+    event_tx: &Sender<AudioEvent>,
+    reported: &mut bool,
+    detail: String,
+) {
+    if *reported {
+        return;
+    }
+    *reported = true;
+    let message = format!(
+        "Android managed output callback failure: {} (output silenced)",
+        detail
+    );
+    log::error!("{}", message);
+    let _ = event_tx.try_send(AudioEvent::Error { message });
+}
+
+#[cfg(target_os = "android")]
 struct AndroidOutputCallbackF32 {
     callback_data: Arc<AudioCallbackData>,
     event_tx: Sender<AudioEvent>,
     scratch: Vec<f32>,
+    failure_reported: bool,
 }
 
 #[cfg(target_os = "android")]
@@ -2322,6 +2341,7 @@ impl AndroidOutputCallbackF32 {
             callback_data,
             event_tx,
             scratch: vec![0.0; ANDROID_DIRECT_SCRATCH_SAMPLES],
+            failure_reported: false,
         }
     }
 }
@@ -2369,20 +2389,37 @@ impl AudioOutputCallback for AndroidOutputCallbackF32 {
         let required_samples = audio_data.len() * ANDROID_DIRECT_CHANNELS;
 
         if required_samples > self.scratch.len() {
-            dev_eprintln!(
-                "[oboe] burst {} frames > scratch {} frames — growing scratch",
+            let detail = format!(
+                "output burst of {} frames exceeds scratch capacity of {} frames",
                 audio_data.len(),
                 self.scratch.len() / ANDROID_DIRECT_CHANNELS,
             );
-            self.scratch.resize(required_samples, 0.0);
+            report_oboe_callback_failure(&self.event_tx, &mut self.failure_reported, detail);
+            audio_data.fill((0.0, 0.0));
+            return DataCallbackResult::Continue;
         }
 
-        let scratch = &mut self.scratch[..required_samples];
-        audio_callback(scratch, &self.callback_data, &self.event_tx);
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let scratch = &mut self.scratch[..required_samples];
+            audio_callback(scratch, &self.callback_data, &self.event_tx);
 
-        for (frame_index, frame) in audio_data.iter_mut().enumerate() {
-            let sample_index = frame_index * ANDROID_DIRECT_CHANNELS;
-            *frame = (scratch[sample_index], scratch[sample_index + 1]);
+            for (frame_index, frame) in audio_data.iter_mut().enumerate() {
+                let sample_index = frame_index * ANDROID_DIRECT_CHANNELS;
+                *frame = (scratch[sample_index], scratch[sample_index + 1]);
+            }
+        }))
+        .is_err();
+
+        if panicked {
+            report_oboe_callback_failure(
+                &self.event_tx,
+                &mut self.failure_reported,
+                format!(
+                    "audio callback panicked for a {} frame buffer",
+                    audio_data.len()
+                ),
+            );
+            audio_data.fill((0.0, 0.0));
         }
 
         DataCallbackResult::Continue
@@ -2398,6 +2435,7 @@ struct AndroidOutputCallbackI32 {
     callback_data: Arc<AudioCallbackData>,
     event_tx: Sender<AudioEvent>,
     scratch: Vec<f32>,
+    failure_reported: bool,
 }
 
 #[cfg(target_os = "android")]
@@ -2407,6 +2445,7 @@ impl AndroidOutputCallbackI32 {
             callback_data,
             event_tx,
             scratch: vec![0.0; ANDROID_DIRECT_SCRATCH_SAMPLES],
+            failure_reported: false,
         }
     }
 }
@@ -2454,22 +2493,39 @@ impl AudioOutputCallback for AndroidOutputCallbackI32 {
         let required_samples = audio_data.len() * ANDROID_DIRECT_CHANNELS;
 
         if required_samples > self.scratch.len() {
-            dev_eprintln!(
-                "[oboe-i32] burst {} frames > scratch {} frames — growing scratch",
+            let detail = format!(
+                "output burst of {} frames exceeds scratch capacity of {} frames",
                 audio_data.len(),
                 self.scratch.len() / ANDROID_DIRECT_CHANNELS,
             );
-            self.scratch.resize(required_samples, 0.0);
+            report_oboe_callback_failure(&self.event_tx, &mut self.failure_reported, detail);
+            audio_data.fill((0, 0));
+            return DataCallbackResult::Continue;
         }
 
-        let scratch = &mut self.scratch[..required_samples];
-        audio_callback(scratch, &self.callback_data, &self.event_tx);
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let scratch = &mut self.scratch[..required_samples];
+            audio_callback(scratch, &self.callback_data, &self.event_tx);
 
-        for (frame_index, frame) in audio_data.iter_mut().enumerate() {
-            let sample_index = frame_index * ANDROID_DIRECT_CHANNELS;
-            let l = scratch[sample_index].to_bits() as i32;
-            let r = scratch[sample_index + 1].to_bits() as i32;
-            *frame = (l, r);
+            for (frame_index, frame) in audio_data.iter_mut().enumerate() {
+                let sample_index = frame_index * ANDROID_DIRECT_CHANNELS;
+                let l = scratch[sample_index].to_bits() as i32;
+                let r = scratch[sample_index + 1].to_bits() as i32;
+                *frame = (l, r);
+            }
+        }))
+        .is_err();
+
+        if panicked {
+            report_oboe_callback_failure(
+                &self.event_tx,
+                &mut self.failure_reported,
+                format!(
+                    "audio callback panicked for a {} frame buffer",
+                    audio_data.len()
+                ),
+            );
+            audio_data.fill((0, 0));
         }
 
         DataCallbackResult::Continue
@@ -2482,6 +2538,7 @@ struct AndroidOutputCallbackI32Pcm {
     callback_data: Arc<AudioCallbackData>,
     event_tx: Sender<AudioEvent>,
     scratch: Vec<f32>,
+    failure_reported: bool,
 }
 
 #[cfg(target_os = "android")]
@@ -2491,6 +2548,7 @@ impl AndroidOutputCallbackI32Pcm {
             callback_data,
             event_tx,
             scratch: vec![0.0; ANDROID_DIRECT_SCRATCH_SAMPLES],
+            failure_reported: false,
         }
     }
 }
@@ -2549,23 +2607,40 @@ impl AudioOutputCallback for AndroidOutputCallbackI32Pcm {
         let required_samples = audio_data.len() * ANDROID_DIRECT_CHANNELS;
 
         if required_samples > self.scratch.len() {
-            dev_eprintln!(
-                "[oboe-pcm-i32] burst {} frames > scratch {} frames — growing scratch",
+            let detail = format!(
+                "output burst of {} frames exceeds scratch capacity of {} frames",
                 audio_data.len(),
                 self.scratch.len() / ANDROID_DIRECT_CHANNELS,
             );
-            self.scratch.resize(required_samples, 0.0);
+            report_oboe_callback_failure(&self.event_tx, &mut self.failure_reported, detail);
+            audio_data.fill((0, 0));
+            return DataCallbackResult::Continue;
         }
 
-        let scratch = &mut self.scratch[..required_samples];
-        audio_callback(scratch, &self.callback_data, &self.event_tx);
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let scratch = &mut self.scratch[..required_samples];
+            audio_callback(scratch, &self.callback_data, &self.event_tx);
 
-        for (frame_index, frame) in audio_data.iter_mut().enumerate() {
-            let sample_index = frame_index * ANDROID_DIRECT_CHANNELS;
-            *frame = (
-                f32_to_i32(scratch[sample_index]),
-                f32_to_i32(scratch[sample_index + 1]),
+            for (frame_index, frame) in audio_data.iter_mut().enumerate() {
+                let sample_index = frame_index * ANDROID_DIRECT_CHANNELS;
+                *frame = (
+                    f32_to_i32(scratch[sample_index]),
+                    f32_to_i32(scratch[sample_index + 1]),
+                );
+            }
+        }))
+        .is_err();
+
+        if panicked {
+            report_oboe_callback_failure(
+                &self.event_tx,
+                &mut self.failure_reported,
+                format!(
+                    "audio callback panicked for a {} frame buffer",
+                    audio_data.len()
+                ),
             );
+            audio_data.fill((0, 0));
         }
 
         DataCallbackResult::Continue
@@ -2578,6 +2653,7 @@ struct AndroidOutputCallbackI16 {
     callback_data: Arc<AudioCallbackData>,
     event_tx: Sender<AudioEvent>,
     scratch: Vec<f32>,
+    failure_reported: bool,
 }
 
 #[cfg(target_os = "android")]
@@ -2587,6 +2663,7 @@ impl AndroidOutputCallbackI16 {
             callback_data,
             event_tx,
             scratch: vec![0.0; ANDROID_DIRECT_SCRATCH_SAMPLES],
+            failure_reported: false,
         }
     }
 }
@@ -2639,23 +2716,40 @@ impl AudioOutputCallback for AndroidOutputCallbackI16 {
         let required_samples = audio_data.len() * ANDROID_DIRECT_CHANNELS;
 
         if required_samples > self.scratch.len() {
-            dev_eprintln!(
-                "[oboe-i16] burst {} frames > scratch {} frames — growing scratch",
+            let detail = format!(
+                "output burst of {} frames exceeds scratch capacity of {} frames",
                 audio_data.len(),
                 self.scratch.len() / ANDROID_DIRECT_CHANNELS,
             );
-            self.scratch.resize(required_samples, 0.0);
+            report_oboe_callback_failure(&self.event_tx, &mut self.failure_reported, detail);
+            audio_data.fill((0, 0));
+            return DataCallbackResult::Continue;
         }
 
-        let scratch = &mut self.scratch[..required_samples];
-        audio_callback(scratch, &self.callback_data, &self.event_tx);
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let scratch = &mut self.scratch[..required_samples];
+            audio_callback(scratch, &self.callback_data, &self.event_tx);
 
-        for (frame_index, frame) in audio_data.iter_mut().enumerate() {
-            let sample_index = frame_index * ANDROID_DIRECT_CHANNELS;
-            *frame = (
-                f32_to_i16(scratch[sample_index]),
-                f32_to_i16(scratch[sample_index + 1]),
+            for (frame_index, frame) in audio_data.iter_mut().enumerate() {
+                let sample_index = frame_index * ANDROID_DIRECT_CHANNELS;
+                *frame = (
+                    f32_to_i16(scratch[sample_index]),
+                    f32_to_i16(scratch[sample_index + 1]),
+                );
+            }
+        }))
+        .is_err();
+
+        if panicked {
+            report_oboe_callback_failure(
+                &self.event_tx,
+                &mut self.failure_reported,
+                format!(
+                    "audio callback panicked for a {} frame buffer",
+                    audio_data.len()
+                ),
             );
+            audio_data.fill((0, 0));
         }
 
         DataCallbackResult::Continue
@@ -3270,6 +3364,11 @@ pub(crate) fn audio_callback(
     let speed = data.get_playback_speed();
     let channels = data.channels();
 
+    if channels == 0 {
+        output.fill(0.0);
+        return;
+    }
+
     let mut sources = match data.sources.try_lock() {
         Some(s) => s,
         None => {
@@ -3333,7 +3432,7 @@ pub(crate) fn audio_callback(
         };
 
         let needed = output.len();
-        if buf_a.len() < needed {
+        if buf_a.len() < needed || buf_b.len() < needed {
             output.fill(0.0);
             return;
         }

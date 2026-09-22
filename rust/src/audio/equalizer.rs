@@ -218,6 +218,9 @@ impl Equalizer {
         if !p.enabled || p.active_bands == 0 {
             return;
         }
+        if channels == 0 {
+            return;
+        }
         let max_channels = self.state.len().min(channels);
         let frames = buf.len() / channels;
         let active = p.active_bands;

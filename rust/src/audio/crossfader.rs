@@ -296,6 +296,10 @@ impl Crossfader {
         output: &mut [f32],
         channels: usize,
     ) -> Result<bool, String> {
+        if channels == 0 {
+            return Ok(false);
+        }
+
         let samples = source_a.len().min(source_b.len()).min(output.len());
         let frames = samples / channels;
 
@@ -332,6 +336,9 @@ impl Crossfader {
         if !self.active {
             return;
         }
+        if channels == 0 {
+            return;
+        }
 
         let frames = buffer.len() / channels;
         for frame in 0..frames {
@@ -349,6 +356,9 @@ impl Crossfader {
     /// Apply fade-in to a single buffer (no mixing, just gain increase).
     pub fn apply_fadein(&mut self, buffer: &mut [f32], channels: usize) {
         if !self.active {
+            return;
+        }
+        if channels == 0 {
             return;
         }
 
