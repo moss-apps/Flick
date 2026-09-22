@@ -117,23 +117,29 @@ bool isSupportedNetworkProtocol(String? protocol) {
 /// Shared sync tail: delete rows that dropped off the server, then stamp
 /// [NetworkServerEntity.lastSyncedAt]. Each protocol's `syncLibrary` does its
 /// own per-batch upsert during the walk; this closes the loop identically.
+///
+/// [repo] is a test seam: production callers pass null and the shared
+/// [Database] is used; tests inject an in-memory Isar so the full sync tail
+/// can run headless.
 Future<void> purgeAndStampNetworkSync(
   NetworkServerEntity server,
-  Set<String> syncedRemoteIds,
-) async {
-  final repo = SongRepository();
-  final existing = await repo.getSongsByRemoteServer(server.id);
+  Set<String> syncedRemoteIds, {
+  SongRepository? repo,
+}) async {
+  final songs = repo ?? SongRepository();
+  final existing = await songs.getSongsByRemoteServer(server.id);
   final stale = existing
       .where((e) => e.remoteId != null && !syncedRemoteIds.contains(e.remoteId))
       .toList();
   if (stale.isNotEmpty) {
-    await repo.deleteSongsByIds(stale.map((e) => e.id).toList());
+    await songs.deleteSongsByIds(stale.map((e) => e.id).toList());
   }
-  await Database.instance.writeTxn(() async {
-    final stored = await Database.networkServers.get(server.id);
+  final isar = songs.isar;
+  await isar.writeTxn(() async {
+    final stored = await isar.networkServerEntitys.get(server.id);
     if (stored != null) {
       stored.lastSyncedAt = DateTime.now();
-      await Database.networkServers.put(stored);
+      await isar.networkServerEntitys.put(stored);
     }
   });
 }

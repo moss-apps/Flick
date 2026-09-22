@@ -173,6 +173,21 @@ List<Song> restorePlaybackOrder({
   return restored;
 }
 
+/// Suppression policy for Apple Music motion art while bit-perfect output is
+/// active: a second output stream can preempt native DIRECT/ALSA streams, so
+/// motion art is only allowed when the user opts in or the engine is not
+/// bit-perfect.
+@visibleForTesting
+bool shouldSuppressMotionArt({
+  required bool bitPerfectEnabled,
+  required AudioEngineType engine,
+  required bool allowDuringBitPerfect,
+}) {
+  if (!bitPerfectEnabled || allowDuringBitPerfect) return false;
+  return engine == AudioEngineType.usbDacExperimental ||
+      engine == AudioEngineType.dapInternalHighRes;
+}
+
 @visibleForTesting
 String canonicalPlaybackFileType({required String fileType, String? filePath}) {
   final pathExtension = extractPlaybackPathExtension(filePath);
@@ -339,6 +354,7 @@ class PlayerService {
       AlbumColorModePreferenceService();
   bool _priorityAnchorActive = false;
   bool _priorityAnchorEnabled = true;
+  bool _motionArtDuringBitPerfect = false;
   bool _midStreamUsbFallbackActive = false;
   bool _deadRustEngineRecoveryActive = false;
   late final AudioSessionManager _sessionManager;
@@ -367,6 +383,9 @@ class PlayerService {
   final ValueNotifier<bool> bitPerfectProcessingLockedNotifier = ValueNotifier(
     false,
   );
+  /// True while motion art must not start ExoPlayer: on direct/exclusive
+  /// bit-perfect paths a second audio client can preempt the native stream.
+  final ValueNotifier<bool> motionArtSuppressedNotifier = ValueNotifier(false);
   final ValueNotifier<bool> gaplessPlaybackEnabledNotifier = ValueNotifier(
     true,
   );
@@ -619,6 +638,7 @@ class PlayerService {
     unawaited(_loadCrossfadePreferences());
     unawaited(_loadFloatingPlayerPreference());
     unawaited(_loadPriorityAnchorPreference());
+    unawaited(_loadMotionArtPreference());
     _initBluetoothReconnectHandling();
     _initUsbDacDisconnectHandling();
     _initUsbDacAttachHandling();
@@ -1408,6 +1428,21 @@ class PlayerService {
     if (bitPerfectProcessingLockedNotifier.value != locked) {
       bitPerfectProcessingLockedNotifier.value = locked;
     }
+    _updateMotionArtSuppression();
+  }
+
+  /// Motion art opens a second ExoPlayer/output stream. On direct bit-perfect
+  /// paths (native DIRECT AudioTrack / ALSA direct) that can preempt the
+  /// native stream, so suppress it unless the user explicitly opted in.
+  void _updateMotionArtSuppression() {
+    final suppressed = shouldSuppressMotionArt(
+      bitPerfectEnabled: isBitPerfectModeEnabled,
+      engine: currentEngineType,
+      allowDuringBitPerfect: _motionArtDuringBitPerfect,
+    );
+    if (motionArtSuppressedNotifier.value != suppressed) {
+      motionArtSuppressedNotifier.value = suppressed;
+    }
   }
 
   /// Listener for 432 Hz tuning changes. Crossfade is suppressed under tuning
@@ -1974,6 +2009,17 @@ class PlayerService {
   Future<void> setPriorityAnchorEnabled(bool value) async {
     _priorityAnchorEnabled = value;
     _updatePriorityAnchor();
+  }
+
+  Future<void> _loadMotionArtPreference() async {
+    _motionArtDuringBitPerfect = await _appPreferencesService
+        .getMotionArtDuringBitPerfect();
+    _updateMotionArtSuppression();
+  }
+
+  Future<void> setMotionArtDuringBitPerfect(bool value) async {
+    _motionArtDuringBitPerfect = value;
+    _updateMotionArtSuppression();
   }
 
   void _onHwVolumeResult(bool success) {
@@ -2765,7 +2811,9 @@ class PlayerService {
         }());
         return;
       }
-      if (message.toLowerCase().contains('audio engine thread crashed')) {
+      final normalizedError = message.toLowerCase();
+      if (normalizedError.contains('audio engine thread crashed') ||
+          normalizedError.contains('audio engine output lost')) {
         final song = currentSongNotifier.value;
         final position = _lastPlaybackState?.position ?? Duration.zero;
         unawaited(() async {
@@ -3160,7 +3208,9 @@ class PlayerService {
       return streamSource;
     }
 
-    final uri = await _resolvePlaybackUri(song);
+    final resolved = await _resolvePlaybackUri(song);
+    final uri = resolved.uri;
+    final headers = resolved.headers;
 
     if (song.startOffsetMs != null && song.startOffsetMs! > 0) {
       final start = Duration(milliseconds: song.startOffsetMs!);
@@ -3168,13 +3218,13 @@ class PlayerService {
           ? Duration(milliseconds: song.endOffsetMs!)
           : null;
       return just_audio.ClippingAudioSource(
-        child: just_audio.AudioSource.uri(uri),
+        child: just_audio.AudioSource.uri(uri, headers: headers),
         start: start,
         end: end,
       );
     }
 
-    return just_audio.AudioSource.uri(uri);
+    return just_audio.AudioSource.uri(uri, headers: headers);
   }
 
   /// Decodes ALAC/M4A/AIFF through the Rust engine without writing a WAV.
@@ -3215,18 +3265,24 @@ class PlayerService {
     }
   }
 
-  Future<Uri> _resolvePlaybackUri(Song song) async {
+  Future<({Uri uri, Map<String, String> headers})> _resolvePlaybackUri(
+    Song song,
+  ) async {
     // ponytail: HTTP-first for network sources. Hand ExoPlayer the ranged URL
     // so playback starts while bytes stream in, instead of blocking on a full
     // cache download before the first frame. Falls back to cache-then-play
     // (ensureLocal) for protocols without byte-range support (SMB/UPnP) or on
     // resolve failure. Matches the Rust backend's existing strategy.
+    // Headers must travel with the URL: WebDAV returns Basic auth and
+    // ExoPlayer fetches the stream itself.
     if (song.isNetworkSource) {
       try {
         final http = await RemoteSourceService.instance.resolveHttpPlayback(
           song,
         );
-        if (http != null) return Uri.parse(http.url);
+        if (http != null) {
+          return (uri: Uri.parse(http.url), headers: http.headers);
+        }
       } catch (e) {
         _debugLog(
           '[Playback] HTTP-first resolve failed for "${song.title}": $e',
@@ -3235,10 +3291,13 @@ class PlayerService {
     }
     final resolvedPath = await _resolvePreparedPlaybackPath(song);
     if (resolvedPath == null || resolvedPath.isEmpty) {
-      return Uri.parse('');
+      return (uri: Uri.parse(''), headers: const <String, String>{});
     }
 
-    return _toPlaybackUri(resolvedPath);
+    return (
+      uri: _toPlaybackUri(resolvedPath),
+      headers: const <String, String>{},
+    );
   }
 
   Future<String?> _resolvePreparedPlaybackPath(Song song) async {
@@ -4776,7 +4835,8 @@ class PlayerService {
     final message = error.toString();
     final normalized = message.toLowerCase();
     if (!normalized.contains('disconnected channel') &&
-        !normalized.contains('audio engine thread crashed')) {
+        !normalized.contains('audio engine thread crashed') &&
+        !normalized.contains('audio engine output lost')) {
       return false;
     }
     if (_deadRustEngineRecoveryActive) {

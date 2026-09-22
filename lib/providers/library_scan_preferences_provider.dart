@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flick/services/audio_preload_service.dart';
 import 'package:flick/services/library_scan_preferences_service.dart';
 
 final libraryScanPreferencesServiceProvider =
@@ -7,15 +8,17 @@ final libraryScanPreferencesServiceProvider =
       return LibraryScanPreferencesService();
     });
 
+final audioPreloadServiceProvider = Provider<AudioPreloadService>((ref) {
+  return AudioPreloadService.instance;
+});
+
 class LibraryScanPreferencesNotifier extends Notifier<LibraryScanPreferences> {
-  bool _initialized = false;
+  bool _loaded = false;
+  Future<void>? _loadFuture;
 
   @override
   LibraryScanPreferences build() {
-    if (!_initialized) {
-      _initialized = true;
-      Future<void>.microtask(_loadPreferences);
-    }
+    _loadFuture ??= _loadPreferences();
     return const LibraryScanPreferences();
   }
 
@@ -23,12 +26,22 @@ class LibraryScanPreferencesNotifier extends Notifier<LibraryScanPreferences> {
     final preferences = await ref
         .read(libraryScanPreferencesServiceProvider)
         .getPreferences();
+    _loaded = true;
     if (ref.mounted) {
       state = preferences;
     }
   }
 
+  /// Setters must not compare against the pristine default state while the
+  /// persisted values are still loading: that race early-returned without
+  /// persisting, leaving the toggle at odds with what the scanner reads.
+  Future<void> _ensureLoaded() async {
+    if (_loaded) return;
+    await (_loadFuture ??= _loadPreferences());
+  }
+
   Future<void> setFilterNonMusicFilesAndFolders(bool value) async {
+    await _ensureLoaded();
     if (state.filterNonMusicFilesAndFolders == value) return;
     state = state.copyWith(filterNonMusicFilesAndFolders: value);
     await ref
@@ -37,6 +50,7 @@ class LibraryScanPreferencesNotifier extends Notifier<LibraryScanPreferences> {
   }
 
   Future<void> setIgnoreTracksSmallerThan500Kb(bool value) async {
+    await _ensureLoaded();
     if (state.ignoreTracksSmallerThan500Kb == value) return;
     state = state.copyWith(ignoreTracksSmallerThan500Kb: value);
     await ref
@@ -45,6 +59,7 @@ class LibraryScanPreferencesNotifier extends Notifier<LibraryScanPreferences> {
   }
 
   Future<void> setIgnoreTracksShorterThan60Seconds(bool value) async {
+    await _ensureLoaded();
     if (state.ignoreTracksShorterThan60Seconds == value) return;
     state = state.copyWith(ignoreTracksShorterThan60Seconds: value);
     await ref
@@ -53,6 +68,7 @@ class LibraryScanPreferencesNotifier extends Notifier<LibraryScanPreferences> {
   }
 
   Future<void> setCreatePlaylistsFromM3uFiles(bool value) async {
+    await _ensureLoaded();
     if (state.createPlaylistsFromM3uFiles == value) return;
     state = state.copyWith(createPlaylistsFromM3uFiles: value);
     await ref
@@ -61,6 +77,7 @@ class LibraryScanPreferencesNotifier extends Notifier<LibraryScanPreferences> {
   }
 
   Future<void> setUseDeepScan(bool value) async {
+    await _ensureLoaded();
     if (state.useDeepScan == value) return;
     state = state.copyWith(useDeepScan: value);
     await ref
@@ -69,11 +86,20 @@ class LibraryScanPreferencesNotifier extends Notifier<LibraryScanPreferences> {
   }
 
   Future<void> setPreloadAudioData(bool value) async {
+    await _ensureLoaded();
     if (state.preloadAudioData == value) return;
     state = state.copyWith(preloadAudioData: value);
     await ref
         .read(libraryScanPreferencesServiceProvider)
         .setPreloadAudioData(value);
+    final preloadService = ref.read(audioPreloadServiceProvider);
+    if (value) {
+      preloadService.clearAutoSuppression();
+    } else {
+      // A pass from an earlier scan may still be decoding. Turning the setting
+      // off has to stop it (and its floating pill), not just prevent the next.
+      preloadService.cancel();
+    }
   }
 }
 

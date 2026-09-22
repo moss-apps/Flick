@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `ape_cover_item`, `classify_scan_work`, `collect_file_entries`, `collect_playlist_file_entries`, `collect_scan_file_entries`, `directory_is_nomedia_blocked`, `extract_dff_artwork`, `extract_dff_metadata`, `extract_dsf_artwork`, `extract_dsf_metadata`, `extract_lofty_artwork`, `extract_lofty_metadata`, `extract_text_metadata_only`, `extract_wavpack_metadata`, `find_dff_id3_tag`, `id3_replaygains`, `is_in_nomedia_subtree`, `is_supported_audio_path`, `is_supported_playlist_path`, `lofty_replaygains`, `parse_rg_db`, `parse_rg_peak`, `wavpack_dsd_properties`
+// These functions are ignored because they are not marked as `pub`: `ape_cover_item`, `classify_scan_work`, `collect_file_entries`, `collect_playlist_file_entries`, `collect_scan_file_entries_with_progress`, `collect_scan_file_entries`, `directory_is_nomedia_blocked`, `extract_dff_artwork`, `extract_dff_metadata`, `extract_dsf_artwork`, `extract_dsf_metadata`, `extract_lofty_artwork`, `extract_lofty_metadata`, `extract_text_metadata_only`, `extract_wavpack_metadata`, `find_dff_id3_tag`, `id3_replaygains`, `is_in_nomedia_subtree`, `is_supported_audio_path`, `is_supported_playlist_path`, `lofty_replaygains`, `parse_rg_db`, `parse_rg_peak`, `wavpack_dsd_properties`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `FileScanEntry`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
@@ -160,12 +160,22 @@ class ScanChunk {
   final List<AudioFileMetadata> newOrModified;
   final List<String> deletedPaths;
   final int totalFiles;
+
+  /// Files walked so far while the directory walk is still running. Zero
+  /// once `total_files` is known.
+  final int filesWalked;
+
+  /// Files fully accounted for: unchanged files plus metadata batches
+  /// already streamed. Reaches `total_files` on the final chunk.
+  final int filesProcessed;
   final bool isComplete;
 
   const ScanChunk({
     required this.newOrModified,
     required this.deletedPaths,
     required this.totalFiles,
+    required this.filesWalked,
+    required this.filesProcessed,
     required this.isComplete,
   });
 
@@ -174,6 +184,8 @@ class ScanChunk {
       newOrModified.hashCode ^
       deletedPaths.hashCode ^
       totalFiles.hashCode ^
+      filesWalked.hashCode ^
+      filesProcessed.hashCode ^
       isComplete.hashCode;
 
   @override
@@ -184,23 +196,34 @@ class ScanChunk {
           newOrModified == other.newOrModified &&
           deletedPaths == other.deletedPaths &&
           totalFiles == other.totalFiles &&
+          filesWalked == other.filesWalked &&
+          filesProcessed == other.filesProcessed &&
           isComplete == other.isComplete;
 }
 
 class ScanOptions {
   final bool filterNonMusicFilesAndFolders;
 
-  const ScanOptions({required this.filterNonMusicFilesAndFolders});
+  /// Re-read metadata for every file instead of only new/modified ones.
+  final bool forceFullRescan;
+
+  const ScanOptions({
+    required this.filterNonMusicFilesAndFolders,
+    required this.forceFullRescan,
+  });
 
   @override
-  int get hashCode => filterNonMusicFilesAndFolders.hashCode;
+  int get hashCode =>
+      filterNonMusicFilesAndFolders.hashCode ^ forceFullRescan.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ScanOptions &&
           runtimeType == other.runtimeType &&
-          filterNonMusicFilesAndFolders == other.filterNonMusicFilesAndFolders;
+          filterNonMusicFilesAndFolders ==
+              other.filterNonMusicFilesAndFolders &&
+          forceFullRescan == other.forceFullRescan;
 }
 
 class ScanResult {

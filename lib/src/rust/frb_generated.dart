@@ -4982,13 +4982,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScanChunk dco_decode_scan_chunk(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return ScanChunk(
       newOrModified: dco_decode_list_audio_file_metadata(arr[0]),
       deletedPaths: dco_decode_list_String(arr[1]),
       totalFiles: dco_decode_u_32(arr[2]),
-      isComplete: dco_decode_bool(arr[3]),
+      filesWalked: dco_decode_u_32(arr[3]),
+      filesProcessed: dco_decode_u_32(arr[4]),
+      isComplete: dco_decode_bool(arr[5]),
     );
   }
 
@@ -4996,9 +4998,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScanOptions dco_decode_scan_options(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return ScanOptions(filterNonMusicFilesAndFolders: dco_decode_bool(arr[0]));
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ScanOptions(
+      filterNonMusicFilesAndFolders: dco_decode_bool(arr[0]),
+      forceFullRescan: dco_decode_bool(arr[1]),
+    );
   }
 
   @protected
@@ -6152,11 +6157,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_newOrModified = sse_decode_list_audio_file_metadata(deserializer);
     var var_deletedPaths = sse_decode_list_String(deserializer);
     var var_totalFiles = sse_decode_u_32(deserializer);
+    var var_filesWalked = sse_decode_u_32(deserializer);
+    var var_filesProcessed = sse_decode_u_32(deserializer);
     var var_isComplete = sse_decode_bool(deserializer);
     return ScanChunk(
       newOrModified: var_newOrModified,
       deletedPaths: var_deletedPaths,
       totalFiles: var_totalFiles,
+      filesWalked: var_filesWalked,
+      filesProcessed: var_filesProcessed,
       isComplete: var_isComplete,
     );
   }
@@ -6165,8 +6174,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScanOptions sse_decode_scan_options(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_filterNonMusicFilesAndFolders = sse_decode_bool(deserializer);
+    var var_forceFullRescan = sse_decode_bool(deserializer);
     return ScanOptions(
       filterNonMusicFilesAndFolders: var_filterNonMusicFilesAndFolders,
+      forceFullRescan: var_forceFullRescan,
     );
   }
 
@@ -7316,6 +7327,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_audio_file_metadata(self.newOrModified, serializer);
     sse_encode_list_String(self.deletedPaths, serializer);
     sse_encode_u_32(self.totalFiles, serializer);
+    sse_encode_u_32(self.filesWalked, serializer);
+    sse_encode_u_32(self.filesProcessed, serializer);
     sse_encode_bool(self.isComplete, serializer);
   }
 
@@ -7323,6 +7336,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_scan_options(ScanOptions self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bool(self.filterNonMusicFilesAndFolders, serializer);
+    sse_encode_bool(self.forceFullRescan, serializer);
   }
 
   @protected

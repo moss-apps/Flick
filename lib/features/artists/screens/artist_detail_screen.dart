@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/string_sort_utils.dart';
 import 'package:flick/data/repositories/artist_repository.dart';
@@ -12,10 +16,14 @@ import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/screens/album_detail_screen.dart';
 import 'package:flick/models/playback_context.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/providers/apple_music_provider.dart';
 import 'package:flick/services/album_art_service.dart';
+import 'package:flick/services/apple_music/apple_music_metadata_service.dart';
+import 'package:flick/services/apple_music/apple_music_models.dart';
 import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/fetched_description.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/scroll_fade_wrapper.dart';
@@ -141,16 +149,51 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
     }
 
     final sourcePath = _artistArtSourcePath;
-    if (sourcePath == null || sourcePath.isEmpty) return;
+    if (sourcePath != null && sourcePath.isNotEmpty) {
+      final resolved = await AlbumArtService.instance.resolveArtworkPath(
+        existingPath: null,
+        audioSourcePath: sourcePath,
+      );
+      if (!mounted) return;
+      if (resolved != null && resolved.isNotEmpty) {
+        setState(() => _artistArt = resolved);
+        await _artistRepository.setArt(widget.artistName, resolved);
+        return;
+      }
+    }
 
-    final resolved = await AlbumArtService.instance.resolveArtworkPath(
-      existingPath: null,
-      audioSourcePath: sourcePath,
+    await _applyAppleMusicArtistArt();
+  }
+
+  /// Last-resort artist image: the Apple Music page image, downloaded once and
+  /// saved to the artist repository so it stays offline afterwards.
+  Future<void> _applyAppleMusicArtistArt() async {
+    if (_artistArt != null && _artistArt!.isNotEmpty) return;
+
+    final data = await ref.read(
+      appleMusicArtistProvider(widget.artistName).future,
     );
-    if (!mounted || resolved == null || resolved.isEmpty) return;
+    final imageUrl = data?.info?.imageUrl;
+    if (!mounted || imageUrl == null || imageUrl.isEmpty) return;
 
-    setState(() => _artistArt = resolved);
-    await _artistRepository.setArt(widget.artistName, resolved);
+    final bytes = await AppleMusicMetadataService.instance.fetchArtworkBytes(
+      imageUrl,
+    );
+    if (!mounted || bytes == null) return;
+
+    try {
+      final support = await getApplicationSupportDirectory();
+      final dir = Directory('${support.path}/artist_art');
+      await dir.create(recursive: true);
+      final name = widget.artistName.hashCode.toRadixString(16);
+      final file = File('${dir.path}/$name.jpg');
+      await file.writeAsBytes(bytes);
+      if (!mounted) return;
+      setState(() => _artistArt = file.path);
+      await _artistRepository.setArt(widget.artistName, file.path);
+    } catch (error) {
+      devLog('Apple Music artist art fallback failed: $error');
+    }
   }
 
   /// The song whose artwork is the hero image, if it is library album art.
@@ -387,6 +430,9 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
   }
 
   void _showMore() {
+    final appleMusic = ref
+        .read(appleMusicArtistProvider(widget.artistName))
+        .value;
     DetailMoreSheet.show(
       context,
       items: [
@@ -402,6 +448,17 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
           label: 'Add to playlist',
           onTap: () => AddToPlaylistSheet.showSongs(context, widget.songs),
         ),
+        if (appleMusic != null)
+          DetailMoreSheetItem(
+            icon: LucideIcons.externalLink,
+            label: 'Open in Apple Music',
+            onTap: () => _openAppleMusic(_artistAppleMusicUri(appleMusic)),
+          ),
+        DetailMoreSheetItem(
+          icon: LucideIcons.refreshCw,
+          label: 'Refresh Apple Music',
+          onTap: _refreshAppleMusic,
+        ),
         DetailMoreSheetItem(
           icon: LucideIcons.moonStar,
           label: 'Sleep timer',
@@ -410,6 +467,78 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
         ),
       ],
     );
+  }
+
+  Uri _artistAppleMusicUri(AppleMusicArtistData data) {
+    final url = data.artist.url;
+    if (url != null && url.isNotEmpty) return Uri.parse(url);
+    return _appleMusicSearchUri(widget.artistName);
+  }
+
+  Uri _appleMusicSearchUri(String term) {
+    final storefront = AppleMusicMetadataService.instance.deviceStorefront;
+    return Uri.parse(
+      'https://music.apple.com/$storefront/search?term=${Uri.encodeComponent(term)}',
+    );
+  }
+
+  Future<void> _openAppleMusic(Uri uri) async {
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Browser unavailable; nothing to surface.
+    }
+  }
+
+  Future<void> _refreshAppleMusic() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Refreshing Apple Music data')),
+    );
+    final updated = await ref
+        .read(appleMusicArtistProvider(widget.artistName).notifier)
+        .refresh();
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          updated
+              ? 'Apple Music data updated'
+              : 'Apple Music data unavailable',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSimilarArtist(String name) async {
+    final artists = await _songRepository.getSongsByArtist();
+    List<Song>? matches;
+    String resolvedName = name;
+    for (final entry in artists.entries) {
+      if (entry.key.toLowerCase() == name.toLowerCase()) {
+        matches = entry.value;
+        resolvedName = entry.key;
+        break;
+      }
+    }
+    if (!mounted) return;
+    final songs = matches;
+    if (songs != null && songs.isNotEmpty) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ArtistDetailScreen(
+            artistName: resolvedName,
+            songs: songs,
+            artistArt: _getArt(songs),
+            artistArtSourcePath: _getSourcePath(songs),
+            playerService: widget.playerService,
+          ),
+        ),
+      );
+      return;
+    }
+    await _openAppleMusic(_appleMusicSearchUri(name));
   }
 
   int? get _artistYear {
@@ -465,6 +594,15 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
         builder: (context, animatedBg, _) {
         final resolvedBg = animatedBg ?? AppColors.background;
         final prefs = ref.watch(appPreferencesProvider);
+        final appleMusic = ref
+            .watch(appleMusicArtistProvider(widget.artistName))
+            .value;
+        final appleBio = appleMusic?.info?.biography?.trim();
+        final similarArtists =
+            appleMusic?.info?.similarArtists ??
+            const <AppleMusicSimilarArtist>[];
+        final topSongs =
+            appleMusic?.topSongs ?? const <AppleMusicTopSong>[];
           return Stack(
             children: [
               Scaffold(
@@ -512,7 +650,16 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
                          SliverToBoxAdapter(
                            child:
                                DetailDescription(descriptionKey: _descriptionKey),
-                         ),
+                          ),
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: AppConstants.spacingMd),
+                          ),
+                          if (appleBio != null && appleBio.isNotEmpty)
+                            _buildSectionTitle(context, 'About'),
+                         if (appleBio != null && appleBio.isNotEmpty)
+                           SliverToBoxAdapter(
+                             child: FetchedDescription(text: appleBio),
+                           ),
                          const SliverToBoxAdapter(
                            child: SizedBox(height: AppConstants.spacingLg),
                          ),
@@ -577,6 +724,66 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
                             ),
                           ),
                         if (!_isLoadingExtras && _mostPlayedSongs.isNotEmpty)
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: AppConstants.spacingLg),
+                          ),
+                        if (similarArtists.isNotEmpty)
+                          _buildSectionTitle(context, 'Similar Artists'),
+                        if (similarArtists.isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppConstants.spacingLg,
+                              ),
+                              child: Wrap(
+                                spacing: AppConstants.spacingXs,
+                                runSpacing: AppConstants.spacingXs,
+                                children: [
+                                  for (final artist in similarArtists)
+                                    _SimilarArtistChip(
+                                      name: artist.name,
+                                      onTap: () =>
+                                          _openSimilarArtist(artist.name),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (similarArtists.isNotEmpty)
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: AppConstants.spacingLg),
+                          ),
+                        if (topSongs.isNotEmpty)
+                          _buildSectionTitle(context, 'Top Songs'),
+                        if (topSongs.isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: 72,
+                              child: ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppConstants.spacingLg,
+                                ),
+                                scrollDirection: Axis.horizontal,
+                                itemCount: topSongs.length,
+                                separatorBuilder: (_, __) => const SizedBox(
+                                  width: AppConstants.spacingMd,
+                                ),
+                                itemBuilder: (context, index) {
+                                  final song = topSongs[index];
+                                  return _AppleTopSongCard(
+                                    rank: index + 1,
+                                    song: song,
+                                    onTap: () => _openAppleMusic(
+                                      _appleMusicSearchUri(
+                                        '${song.artistName} ${song.trackName}',
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        if (topSongs.isNotEmpty)
                           const SliverToBoxAdapter(
                             child: SizedBox(height: AppConstants.spacingLg),
                           ),
@@ -1078,6 +1285,120 @@ class _SongTile extends StatelessWidget {
               ),
               const SizedBox(width: AppConstants.spacingXs),
               SongActionsButton(song: song),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SimilarArtistChip extends StatelessWidget {
+  final String name;
+  final VoidCallback onTap;
+
+  const _SimilarArtistChip({required this.name, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.spacingMd,
+            vertical: AppConstants.spacingXs,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+            border: Border.all(color: AppColors.glassBorder),
+          ),
+          child: Text(
+            name,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: context.adaptiveTextPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AppleTopSongCard extends StatelessWidget {
+  final int rank;
+  final AppleMusicTopSong song;
+  final VoidCallback onTap;
+
+  const _AppleTopSongCard({
+    required this.rank,
+    required this.song,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        child: Container(
+          width: 240,
+          padding: const EdgeInsets.all(AppConstants.spacingSm),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                child: Text(
+                  '$rank',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: context.adaptiveTextTertiary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingSm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      song.trackName,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.adaptiveTextPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      song.collectionName ?? song.artistName,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.adaptiveTextTertiary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                LucideIcons.music,
+                color: context.adaptiveTextSecondary,
+                size: 18,
+              ),
             ],
           ),
         ),

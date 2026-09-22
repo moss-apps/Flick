@@ -47,6 +47,22 @@ const int _analysisPeakBuckets = 8;
 const double _maxGainDb = 30.0;
 const double _minGainDb = -60.0;
 
+/// BS.1770 loudness + true peak for one file, as returned by the analysis
+/// bridge.
+typedef ReplayGainAnalysis = ({double? lufs, double? truePeakDb});
+
+/// Injectable replacement for the Rust analysis bridge (tests).
+typedef ReplayGainAnalyzer = Future<ReplayGainAnalysis?> Function(String path);
+
+/// Injectable replacement for the tag write + library DB sync (tests).
+typedef ReplayGainTagPersister = Future<void> Function(
+  String path, {
+  required double trackGainDb,
+  required double? trackPeak,
+  required double albumGainDb,
+  required double? albumPeak,
+});
+
 /// Full-library ReplayGain scanner.
 ///
 /// Decodes every local file once through the Rust BS.1770 analysis bridge
@@ -56,12 +72,58 @@ const double _minGainDb = -60.0;
 /// REPLAYGAIN_* tags back into the files with lofty, and syncs the library DB
 /// so playback applies the new values immediately (no rescan needed).
 class ReplayGainScanService {
-  final SongRepository _songRepository;
+  final SongRepository? _songRepository;
+  final ReplayGainAnalyzer? _analyzerOverride;
+  final ReplayGainTagPersister? _persisterOverride;
 
   bool _isCancelled = false;
 
-  ReplayGainScanService({SongRepository? songRepository})
-    : _songRepository = songRepository ?? SongRepository();
+  ReplayGainScanService({
+    SongRepository? songRepository,
+    ReplayGainAnalyzer? analyzer,
+    ReplayGainTagPersister? persistTags,
+  }) : _songRepository = songRepository,
+       _analyzerOverride = analyzer,
+       _persisterOverride = persistTags;
+
+  late final SongRepository _songs = _songRepository ?? SongRepository();
+  late final ReplayGainAnalyzer _analyzer = _analyzerOverride ?? _analyzeFile;
+  late final ReplayGainTagPersister _persistTags =
+      _persisterOverride ?? _persistTagsToLibrary;
+
+  Future<ReplayGainAnalysis?> _analyzeFile(String path) async {
+    final result = await rust_analysis.analyzeAudioFile(
+      path: path,
+      peakBuckets: _analysisPeakBuckets,
+    );
+    if (result == null) return null;
+    return (lufs: result.lufs, truePeakDb: result.truePeakDb);
+  }
+
+  Future<void> _persistTagsToLibrary(
+    String path, {
+    required double trackGainDb,
+    required double? trackPeak,
+    required double albumGainDb,
+    required double? albumPeak,
+  }) async {
+    await rust_replaygain.writeReplaygainTags(
+      path: path,
+      fields: rust_replaygain.ReplayGainTagFields(
+        trackGainDb: trackGainDb,
+        trackPeak: trackPeak,
+        albumGainDb: albumGainDb,
+        albumPeak: albumPeak,
+      ),
+    );
+    await _songs.updateReplayGainForPath(
+      path,
+      trackGainDb: trackGainDb,
+      trackPeak: trackPeak,
+      albumGainDb: albumGainDb,
+      albumPeak: albumPeak,
+    );
+  }
 
   void cancel() => _isCancelled = true;
 
@@ -96,7 +158,6 @@ class ReplayGainScanService {
     }
 
     var analyzed = 0;
-    var written = 0;
     var failed = 0;
 
     final measures = <_TrackMeasure>[];
@@ -107,10 +168,7 @@ class ReplayGainScanService {
       analyzed++;
 
       try {
-        final result = await rust_analysis.analyzeAudioFile(
-          path: song.filePath,
-          peakBuckets: _analysisPeakBuckets,
-        );
+        final result = await _analyzer(song.filePath);
         final lufs = result?.lufs;
         if (result == null || lufs == null || !lufs.isFinite) {
           failed++;
@@ -141,7 +199,7 @@ class ReplayGainScanService {
       }
 
       yield ReplayGainScanProgress(
-        completed: analyzed + written,
+        completed: analyzed,
         total: total,
         skipped: 0,
         failed: failed,
@@ -166,29 +224,19 @@ class ReplayGainScanService {
       for (final m in group) {
         final trackGainDb = _clampGain(_replayGainTargetLufs - m.lufs);
         try {
-          await rust_replaygain.writeReplaygainTags(
-            path: m.path,
-            fields: rust_replaygain.ReplayGainTagFields(
-              trackGainDb: trackGainDb,
-              trackPeak: m.peak > 0 ? m.peak : null,
-              albumGainDb: albumGainDb,
-              albumPeak: albumPeak > 0 ? albumPeak : null,
-            ),
-          );
-          await _songRepository.updateReplayGainForPath(
+          await _persistTags(
             m.path,
             trackGainDb: trackGainDb,
             trackPeak: m.peak > 0 ? m.peak : null,
             albumGainDb: albumGainDb,
             albumPeak: albumPeak > 0 ? albumPeak : null,
           );
-          written++;
         } catch (e) {
           failed++;
         }
 
         yield ReplayGainScanProgress(
-          completed: analyzed + written,
+          completed: analyzed,
           total: total,
           skipped: 0,
           failed: failed,
@@ -198,7 +246,7 @@ class ReplayGainScanService {
     }
 
     yield ReplayGainScanProgress(
-      completed: analyzed + written,
+      completed: analyzed,
       total: total,
       skipped: 0,
       failed: failed,

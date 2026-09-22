@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Library Scanning & Artwork
+- Scans and rescans now finish with album art ready: after metadata completes, a skippable **Loading artwork** phase shows cover progress (`n / N covers`); skipping lets resolution continue in the background.
+- Albums, Artists, and folder screens reload as post-scan artwork writes land, so covers no longer appear only after scrolling.
+- Post-scan audio preload no longer blocks artwork resolution.
+
+### Floating Progress & Preload
+- Fixed the floating progress pill getting stuck after a scan showing "Preloading audio" while nothing was preloading; Stop now clears it immediately even during the artwork phase.
+- Stopping preload interrupts the in-flight decode chunk instead of waiting for it to finish, so the pill and preload card can't outlive the cancel.
+- Fixed a race where the preload toggle could display off while a stale persisted value still triggered preload after scanning; toggles now wait for the stored preferences before writing.
+- Turning preload off now cancels a pass that is already decoding and suppresses the ones a scan would spawn; turning it back on lifts the suppression.
+- The floating pill no longer stays stuck after leaving Settings mid-scan; it now plays a short check-mark animation when the scan and its artwork loading finish, then disappears. After the check, background preload stays silent until a new scan starts, so the pill no longer pops back up.
+
 ### Storage
 - Playback no longer converts ALAC/M4A/AIFF tracks to WAV files: they are decoded on demand and streamed to the player, so the playback cache stops growing with queue size (issue #212).
 
@@ -9,6 +21,11 @@
 - Fixed DSF files decoding 8 bytes late (wrong data offset probe) — the cause of the continuous light ticks on all DSF playback; bit order now follows the DSF header flag (1 = LSB, 8 = MSB).
 - ReplayGain is ignored on native DSD/DoP sources (a gain multiply would corrupt the DSD bits).
 - Reduced residual DSD native crackle: debug dump capture is now opt-in (no blocking storage I/O in the audio loops), native ring buffer enlarged with a stricter prefill gate, render/decoder threads get raised priority, and decoder reads use 256 KiB chunks.
+
+### Motion Art & Bit-Perfect
+- Motion art is suspended while direct/exclusive bit-perfect output is active (DAP internal hi-res and USB DAC direct): the extra video stream could preempt the native output, stopping or muting audio. The animated Ken Burns artwork shows instead.
+- Added an opt-in **Motion Art in Bit-Perfect** toggle in Settings → Playback & Display for devices where motion art plays fine during bit-perfect output.
+- Loss of the native direct output (AudioTrack DIRECT / ALSA direct) is now reported to the app; the Rust engine respawns and resumes the track instead of silently stopping.
 
 ## 0.22.0-beta.1 (2026-09-10)
 

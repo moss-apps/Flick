@@ -39,6 +39,7 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
   bool _isLoading = true;
   ArtistSortOption _sortOption = ArtistSortOption.name;
   bool _visibilitySet = false;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -80,15 +81,15 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
   }
 
   Future<void> _loadArtists() async {
+    final generation = ++_loadGeneration;
     final artists = await _songRepository.getSongsByArtist();
-    if (mounted) {
-      setState(() {
-        _artists = artists;
-        _sortedArtists = artists.entries.toList();
-        _applySorting();
-        _isLoading = false;
-      });
-    }
+    if (!mounted || generation != _loadGeneration) return;
+    setState(() {
+      _artists = artists;
+      _sortedArtists = artists.entries.toList();
+      _applySorting();
+      _isLoading = false;
+    });
   }
 
   void _applySorting() {
@@ -187,6 +188,12 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
   @override
   Widget build(BuildContext context) {
     final currentSong = ref.watch(currentSongProvider);
+
+    // Post-scan artwork/metadata writes land after the initial load; reload so
+    // covers appear without needing a scroll to rebuild each tile.
+    ref.listen(libraryChangeRevisionProvider, (previous, next) {
+      if (next.hasValue) _loadArtists();
+    });
 
     if (!_visibilitySet) {
       _visibilitySet = true;

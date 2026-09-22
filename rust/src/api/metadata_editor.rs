@@ -225,7 +225,15 @@ fn tag_read_result_from_id3(tag: &id3::Tag) -> TagReadResult {
 fn apply_tag_fields(
     tagged_file: &mut lofty::file::TaggedFile,
     fields: &TagEditFields,
-) -> Result<(), String> {    let tag = tagged_file.primary_tag_mut();
+) -> Result<(), String> {
+    // Bare WAVs often have no tag chunk at all. Create the format's primary
+    // tag (ID3v2 for WAV) instead of failing so tag write-back can seed them.
+    if tagged_file.primary_tag().is_none() && tagged_file.first_tag().is_none() {
+        let tag_type = tagged_file.primary_tag_type();
+        tagged_file.insert_tag(lofty::tag::Tag::new(tag_type));
+    }
+
+    let tag = tagged_file.primary_tag_mut();
     let tag = match tag {
         Some(t) => Some(t),
         None => tagged_file.first_tag_mut(),
@@ -301,6 +309,72 @@ mod tests {
         bytes.extend_from_slice(&vorbis);
 
         std::fs::write(path, bytes).unwrap();
+    }
+
+    /// Hand-builds a minimal PCM WAV with no tag chunk at all.
+    fn write_minimal_wav(path: &Path) {
+        let sample_rate: u32 = 8000;
+        let channels: u16 = 1;
+        let bits: u16 = 8;
+        let data_len: u32 = 8;
+        let byte_rate = sample_rate * channels as u32 * (bits as u32 / 8);
+        let block_align = channels * (bits / 8);
+        let fmt_len: u32 = 16;
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"RIFF");
+        bytes.extend_from_slice(&(4 + (8 + fmt_len) + (8 + data_len)).to_le_bytes());
+        bytes.extend_from_slice(b"WAVE");
+        bytes.extend_from_slice(b"fmt ");
+        bytes.extend_from_slice(&fmt_len.to_le_bytes());
+        bytes.extend_from_slice(&1u16.to_le_bytes()); // PCM
+        bytes.extend_from_slice(&channels.to_le_bytes());
+        bytes.extend_from_slice(&sample_rate.to_le_bytes());
+        bytes.extend_from_slice(&byte_rate.to_le_bytes());
+        bytes.extend_from_slice(&block_align.to_le_bytes());
+        bytes.extend_from_slice(&bits.to_le_bytes());
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&data_len.to_le_bytes());
+        bytes.extend_from_slice(&vec![0u8; data_len as usize]);
+        std::fs::write(path, bytes).unwrap();
+    }
+
+    #[test]
+    fn write_tags_creates_id3_tag_on_bare_wav() {
+        let dir = std::env::temp_dir().join(format!("flick_wav_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("blank.wav");
+        write_minimal_wav(&path);
+
+        let before = read_tags(path.to_string_lossy().to_string()).unwrap();
+        assert!(before.title.is_none());
+
+        let result = write_tags(
+            path.to_string_lossy().to_string(),
+            TagEditFields {
+                title: Some("Identified Title".into()),
+                artist: Some("Identified Artist".into()),
+                album: Some("Identified Album".into()),
+                album_artist: Some("Identified Artist".into()),
+                genre: Some("Electronic".into()),
+                year: Some(1994),
+                track_number: Some(3),
+                disc_number: Some(1),
+            },
+        )
+        .unwrap();
+        assert!(result.success, "write failed: {:?}", result.error);
+
+        let after = read_tags(path.to_string_lossy().to_string()).unwrap();
+        assert_eq!(after.title.as_deref(), Some("Identified Title"));
+        assert_eq!(after.artist.as_deref(), Some("Identified Artist"));
+        assert_eq!(after.album.as_deref(), Some("Identified Album"));
+        assert_eq!(after.genre.as_deref(), Some("Electronic"));
+        assert_eq!(after.year, Some(1994));
+        assert_eq!(after.track_number, Some(3));
+        assert_eq!(after.disc_number, Some(1));
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

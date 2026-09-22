@@ -272,3 +272,51 @@ the work kept running.
   running post-scan auto preload pass (from
   `AudioPreloadService.instance.progress`) with its own Stop.
 - **Status: done.** Covered by `test/services/scan_session_controller_test.dart`.
+
+## J. Artwork-ready scans
+
+Scans used to report completion while the detached artwork backfill was still
+resolving covers, and Albums/Artists screens snapshotted their data once —
+covers only appeared when tiles scrolled into view and re-extracted art
+individually.
+
+- **Awaitable backfill.** `ArtworkBackfillTracker`
+  (`lib/services/artwork_backfill_tracker.dart`) tracks post-scan artwork
+  resolution per folder. `LibraryScannerService.awaitArtworkBackfill(uri)` /
+  `awaitAllArtworkBackfill()` resolve when covers are done (immediately on
+  cancellation). `AlbumArtService.resolveMissingArtwork` reports
+  `onProgress(completed, total)`.
+- **Loading-artwork phase.** The manual scan session holds its overlay open
+  after metadata completes, showing "Loading artwork…" with an `n / N covers`
+  counter; the dashboard button becomes Skip and the floating pill's Stop
+  becomes Skip. Skipping leaves the backfill running detached.
+- **Live screens.** `libraryChangeRevisionProvider`
+  (`lib/providers/songs_provider.dart`) throttles `watchSongs()` into a
+  revision that Albums, Artists, and the folder browser reload from, so covers
+  land without scrolling — also for MediaStore-triggered background scans.
+- **Preload ordering.** Post-scan audio preload no longer runs inside scan
+  finalization; it waits for finalization then runs detached so it cannot
+  delay the artwork wait (the preload pass holds the artwork gate).
+- **Cancel semantics.** `AudioPreloadService.cancel()` clears `progress` and
+  signals any in-flight decode chunk immediately, so the floating pill and
+  preload card disappear at once; an auto enqueue that was already awaiting
+  the cache read re-checks suppression before it can start a new pass, and
+  Stop/Skip during the Loading-artwork phase ends the session itself so the
+  pill always leaves the screen even if the owning flow is gone. The preload
+  toggle waits for the persisted preferences to load before writing, so it
+  can no longer show off while the scanner still reads a stale true. Turning
+  the toggle off also cancels a pass that is already decoding and suppresses
+  the auto passes a scan would spawn — a scan that read the old value can no
+  longer leave a preload pill behind after the setting is switched off.
+- **Completion outro.** The scanner flow marks the session completed before
+  ending it; the pill latches that flag, plays a ~1.2 s check-mark scale/fade
+  animation, then disappears. The settings flow also guards its teardown when
+  the screen was popped mid-scan — a disposed vinyl controller used to throw
+  before `end()` ran and stranded the pill on screen. Once the outro has
+  played, background preload is suppressed from the pill entirely (a
+  scan-spawned pass or a late enqueue can't resurrect it); it runs silently
+  until a new session starts.
+- **Status: done.** Covered by `test/services/artwork_backfill_tracker_test.dart`,
+  `test/providers/library_change_revision_provider_test.dart`, and progress
+  cases in `test/services/album_art_service_test.dart`.
+

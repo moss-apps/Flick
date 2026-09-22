@@ -1,5 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flick/data/entities/song_entity.dart';
 import 'package:flick/services/album_art_service.dart';
+
+SongEntity _song(String path) =>
+    SongEntity()
+      ..filePath = path
+      ..title = 'Title'
+      ..artist = 'Artist';
 
 void main() {
   group('isFolderCoverImageName', () {
@@ -30,6 +37,32 @@ void main() {
     test('rejects non-image extensions', () {
       expect(isFolderCoverImageName('cover.txt'), isFalse);
       expect(isFolderCoverImageName('cover'), isFalse);
+    });
+  });
+
+  group('resolveMissingArtwork progress', () {
+    test('reports every song, including skipped ones', () async {
+      final reported = <(int, int)>[];
+      await AlbumArtService.instance.resolveMissingArtwork(
+        [
+          _song(''),
+          _song('https://example.com/stream.flac'),
+          _song('http://example.com/stream.flac'),
+        ],
+        onProgress: (completed, total) => reported.add((completed, total)),
+      );
+
+      expect(reported, [(0, 3), (1, 3), (2, 3), (3, 3)]);
+    });
+
+    test('reports zero of zero for an empty list', () async {
+      final reported = <(int, int)>[];
+      await AlbumArtService.instance.resolveMissingArtwork(
+        const [],
+        onProgress: (completed, total) => reported.add((completed, total)),
+      );
+
+      expect(reported, [(0, 0)]);
     });
   });
 }

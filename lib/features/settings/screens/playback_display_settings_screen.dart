@@ -59,6 +59,21 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
                 },
               ),
               const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.clapperboard,
+                title: 'Motion Art in Bit-Perfect',
+                subtitle: appPrefs.motionArtDuringBitPerfect
+                    ? 'Motion art plays during bit-perfect audio (may interrupt playback on some DAPs)'
+                    : 'Motion art is replaced while bit-perfect output is active',
+                value: appPrefs.motionArtDuringBitPerfect,
+                onChanged: (value) {
+                  playerService.setMotionArtDuringBitPerfect(value);
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setMotionArtDuringBitPerfect(value);
+                },
+              ),
+              const SettingsDivider(),
               if (Platform.isAndroid) ...[
                 _DuckOnInterruptionTile(playerService: playerService),
                 const SettingsDivider(),

@@ -867,6 +867,7 @@ class FolderBrowserScreen extends ConsumerStatefulWidget {
 class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   List<Song> _allSongs = [];
   bool _isLoading = true;
+  int _loadGeneration = 0;
   FolderBrowserSortOption _sortOption = FolderBrowserSortOption.name;
   SongFileTypeFilter _filterOption = SongFileTypeFilter.all;
   FolderViewMode _viewMode = FolderViewMode.grid;
@@ -884,14 +885,14 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   }
 
   Future<void> _loadSongs() async {
+    final generation = ++_loadGeneration;
     final repository = ref.read(songRepositoryProvider);
     final songs = await repository.getSongsByFolder(widget.folderUri);
-    if (mounted) {
-      setState(() {
-        _allSongs = songs;
-        _isLoading = false;
-      });
-    }
+    if (!mounted || generation != _loadGeneration) return;
+    setState(() {
+      _allSongs = songs;
+      _isLoading = false;
+    });
   }
 
   Future<void> _loadSortOption() async {
@@ -979,6 +980,12 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Post-scan artwork/metadata writes land after the initial load; reload so
+    // covers appear without needing a scroll to rebuild each tile.
+    ref.listen(libraryChangeRevisionProvider, (previous, next) {
+      if (next.hasValue && !_isLoading) _loadSongs();
+    });
+
     if (_isLoading) {
       return Scaffold(
         backgroundColor: Colors.transparent,

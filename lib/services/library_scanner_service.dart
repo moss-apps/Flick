@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../core/utils/audio_metadata_utils.dart';
 import '../data/database.dart';
@@ -14,8 +15,53 @@ import '../services/fingerprint_cache_service.dart';
 import '../services/uac2_preferences_service.dart';
 import '../services/audio_preload_service.dart';
 import '../services/album_art_service.dart';
+import '../services/apple_music/apple_music_settings.dart';
+import '../services/apple_music/auto_metadata_enricher.dart';
+import '../services/artwork_backfill_tracker.dart';
 import '../src/rust/api/scanner.dart'; // Rust bridge
 import 'package:flick/core/utils/dev_log.dart';
+
+/// How thoroughly a scan re-reads the library.
+enum ScanMode {
+  /// Only new/changed files are re-read; the walk still runs so additions
+  /// and deletions are picked up.
+  quick,
+
+  /// Re-read metadata for every file found on disk.
+  full,
+}
+
+/// Live snapshot of a single folder while several folders scan concurrently.
+class FolderScanProgress {
+  final String displayName;
+  final int songsFound;
+  final int totalFiles;
+  final int filesProcessed;
+  final String? currentFile;
+  final String? phase;
+  final int newSongs;
+  final int modifiedSongs;
+  final int deletedSongs;
+  final bool isComplete;
+  final bool unavailable;
+
+  const FolderScanProgress({
+    required this.displayName,
+    this.songsFound = 0,
+    this.totalFiles = 0,
+    this.filesProcessed = 0,
+    this.currentFile,
+    this.phase,
+    this.newSongs = 0,
+    this.modifiedSongs = 0,
+    this.deletedSongs = 0,
+    this.isComplete = false,
+    this.unavailable = false,
+  });
+
+  double get progressFraction =>
+      totalFiles > 0 ? (filesProcessed / totalFiles).clamp(0.0, 1.0) : 0.0;
+}
 
 /// Progress update during library scanning.
 class ScanProgress {
@@ -31,6 +77,9 @@ class ScanProgress {
   final int deletedSongs;
   final int? foldersTotal;
   final int? foldersCompleted;
+
+  /// Per-folder snapshots; non-null only when several folders run at once.
+  final List<FolderScanProgress>? folders;
   final bool backgroundTasksRunning;
   final bool isComplete;
   final bool unavailable;
@@ -48,6 +97,7 @@ class ScanProgress {
     this.deletedSongs = 0,
     this.foldersTotal,
     this.foldersCompleted,
+    this.folders,
     this.backgroundTasksRunning = false,
     this.isComplete = false,
     this.unavailable = false,
@@ -69,6 +119,7 @@ class ScanProgress {
     int? deletedSongs,
     int? foldersTotal,
     int? foldersCompleted,
+    List<FolderScanProgress>? folders,
     bool? backgroundTasksRunning,
     bool? isComplete,
     bool? unavailable,
@@ -86,6 +137,7 @@ class ScanProgress {
       deletedSongs: deletedSongs ?? this.deletedSongs,
       foldersTotal: foldersTotal ?? this.foldersTotal,
       foldersCompleted: foldersCompleted ?? this.foldersCompleted,
+      folders: folders ?? this.folders,
       backgroundTasksRunning:
           backgroundTasksRunning ?? this.backgroundTasksRunning,
       isComplete: isComplete ?? this.isComplete,
@@ -105,6 +157,31 @@ class LibraryScannerService {
 
   bool _isCancelled = false;
   final Set<String> _currentlyScanning = {};
+  final Map<String, Future<void>> _folderFinalization = {};
+  final ArtworkBackfillTracker _artworkBackfill = ArtworkBackfillTracker();
+
+  /// Aggregate progress of post-scan artwork backfill; null when idle.
+  ValueListenable<ArtworkBackfillProgress?> get artworkBackfillProgress =>
+      _artworkBackfill.progress;
+
+  /// Resolves when artwork backfill for [folderUri] has finished (immediately
+  /// when no backfill is pending for it).
+  Future<void> awaitArtworkBackfill(String folderUri) =>
+      _artworkBackfill.awaitFolder(normalizeFolderIdentifier(folderUri));
+
+  /// Resolves when every currently pending artwork backfill has finished.
+  Future<void> awaitAllArtworkBackfill() => _artworkBackfill.awaitAll();
+
+  void _trackFinalization(String folderUri, Future<void> task) {
+    _folderFinalization[folderUri] = task;
+    unawaited(
+      task.whenComplete(() {
+        if (identical(_folderFinalization[folderUri], task)) {
+          _folderFinalization.remove(folderUri);
+        }
+      }),
+    );
+  }
 
   static const MethodChannel _storageChannel = MethodChannel(
     'com.mossapps.flick/storage',
@@ -211,7 +288,22 @@ class LibraryScannerService {
   }
 
   /// Scan a single folder using appropriate method for platform.
-  Stream<ScanProgress> scanFolder(String folderUri, String displayName) async* {
+  Stream<ScanProgress> scanFolder(
+    String folderUri,
+    String displayName, {
+    ScanMode mode = ScanMode.quick,
+  }) async* {
+    // Cancellation is sticky for the whole operation; only entry points may
+    // clear it, so a Stop can't be wiped by a folder scan that starts late.
+    _isCancelled = false;
+    yield* _scanFolderInternal(folderUri, displayName, mode: mode);
+  }
+
+  Stream<ScanProgress> _scanFolderInternal(
+    String folderUri,
+    String displayName, {
+    ScanMode mode = ScanMode.quick,
+  }) async* {
     final scanStopwatch = Stopwatch()..start();
     final scanKey = normalizeFolderIdentifier(folderUri);
     final scanPreferences = await _scanPreferencesService.getPreferences();
@@ -222,6 +314,7 @@ class LibraryScannerService {
     }
 
     _currentlyScanning.add(scanKey);
+    final artworkBackfillToken = _artworkBackfill.begin(scanKey);
     try {
       if (Platform.isAndroid) {
         final storageInfo = await _musicFolderService.resolveStorageInfo(
@@ -287,6 +380,7 @@ class LibraryScannerService {
               folderUri,
               displayName,
               scanPreferences,
+              mode: mode,
             );
             _logScanTiming(
               displayName,
@@ -315,6 +409,7 @@ class LibraryScannerService {
                   displayName,
                   scanPreferences,
                   volumeName: storageInfo.mediaStoreVolume,
+                  mode: mode,
                 );
                 _logScanTiming(
                   displayName,
@@ -333,14 +428,14 @@ class LibraryScannerService {
                 'Deep scan on removable $displayName: no fs path, using SAF',
               );
             }
-          } else if (resolvedScanRoot != null &&
-              resolvedScanRoot.isNotEmpty) {
+          } else if (resolvedScanRoot != null && resolvedScanRoot.isNotEmpty) {
             try {
               yield* _scanFolderRust(
                 resolvedScanRoot,
                 folderUri,
                 displayName,
                 scanPreferences,
+                mode: mode,
               );
               _logScanTiming(
                 displayName,
@@ -361,8 +456,17 @@ class LibraryScannerService {
             );
           }
 
-          yield* _scanFolderAndroid(folderUri, displayName, scanPreferences);
-          _logScanTiming(displayName, 'scan folder (SAF)', scanStopwatch.elapsed);
+          yield* _scanFolderAndroid(
+            folderUri,
+            displayName,
+            scanPreferences,
+            mode: mode,
+          );
+          _logScanTiming(
+            displayName,
+            'scan folder (SAF)',
+            scanStopwatch.elapsed,
+          );
         } else {
           if (resolvedScanRoot != null && resolvedScanRoot.isNotEmpty) {
             try {
@@ -392,8 +496,13 @@ class LibraryScannerService {
             displayName,
             scanPreferences,
             deferMetadata: true,
+            mode: mode,
           );
-          _logScanTiming(displayName, 'scan folder (SAF)', scanStopwatch.elapsed);
+          _logScanTiming(
+            displayName,
+            'scan folder (SAF)',
+            scanStopwatch.elapsed,
+          );
         }
       } else {
         yield* _scanFolderRust(
@@ -401,6 +510,7 @@ class LibraryScannerService {
           folderUri,
           displayName,
           scanPreferences,
+          mode: mode,
         );
         _logScanTiming(
           displayName,
@@ -410,16 +520,49 @@ class LibraryScannerService {
       }
     } finally {
       _currentlyScanning.remove(scanKey);
-      if (!_isCancelled) {
+      if (_isCancelled) {
+        // Cancelled: no backfill will run, so release anyone awaiting covers.
+        _artworkBackfill.finish(scanKey, artworkBackfillToken);
+      } else {
         // Detached artwork backfill: resolve covers the lazy tile path hasn't
         // reached yet, so art persists after the scan instead of appearing
         // only when tiles are tapped. Runs unpaused — tiles may resolve
-        // concurrently; _inFlightResolutions dedupes.
-        unawaited(_runDetachedScanTask(displayName, 'artwork resolve',
-            () async {
-          final songs = await _songRepository.getSongEntitiesByFolder(folderUri);
-          await AlbumArtService.instance.resolveMissingArtwork(songs);
-        }));
+        // concurrently; _inFlightResolutions dedupes. The tracker lets the
+        // manual scan session wait for covers before reporting "done".
+        final task = _runDetachedScanTask(displayName, 'artwork resolve', () async {
+          // CUE/log finalization upserts entities it loaded before artwork
+          // existed; wait for it so it cannot clobber freshly resolved art
+          // and so CUE-created tracks get resolved too.
+          final pending = _folderFinalization[folderUri];
+          if (pending != null) {
+            await pending;
+          }
+          final songs = await _songRepository.getSongEntitiesByFolder(
+            folderUri,
+          );
+          await AlbumArtService.instance.resolveMissingArtwork(
+            songs,
+            onProgress: (completed, total) => _artworkBackfill.setProgress(
+              scanKey,
+              artworkBackfillToken,
+              completed,
+              total,
+            ),
+          );
+          try {
+            if (await AppleMusicSettings().autoEnrichEnabled()) {
+              final models = await _songRepository.getSongsByFolder(folderUri);
+              await AutoMetadataEnricher.instance.enrichMissing(models);
+            }
+          } catch (error) {
+            devLog('Auto metadata enrichment failed for $folderUri: $error');
+          }
+        });
+        unawaited(
+          task.whenComplete(
+            () => _artworkBackfill.finish(scanKey, artworkBackfillToken),
+          ),
+        );
       }
     }
   }
@@ -430,8 +573,9 @@ class LibraryScannerService {
     String displayName,
     LibraryScanPreferences scanPreferences, {
     String? volumeName,
+    ScanMode mode = ScanMode.quick,
   }) async* {
-    _isCancelled = false;
+    if (_isCancelled) return;
     final totalStopwatch = Stopwatch()..start();
     const scanEngine = 'MediaStore';
     var newSongs = 0;
@@ -474,6 +618,7 @@ class LibraryScannerService {
         displayName,
         scanPreferences,
         deferMetadata: true,
+        mode: mode,
       );
       return;
     }
@@ -560,7 +705,8 @@ class LibraryScannerService {
         // Rows without a sample rate are re-extracted: the sparse pass marks
         // them complete after one attempt, but the Rust fallback may only
         // succeed on a later scan (retriever failures on hi-res files).
-        if (file.lastModified == existingTime &&
+        if (mode == ScanMode.quick &&
+            file.lastModified == existingTime &&
             existing.metadataComplete &&
             existing.sampleRate != null) {
           continue;
@@ -583,6 +729,7 @@ class LibraryScannerService {
       }
 
       final needsSparseMetadata =
+          mode == ScanMode.full ||
           existing == null ||
           existing.sampleRate == null ||
           existing.bitDepth == null ||
@@ -687,7 +834,7 @@ class LibraryScannerService {
       filesProcessed: mediaStoreFiles.length,
       currentFolder: displayName,
       scanEngine: scanEngine,
-      phase: 'Upserting songs',
+      phase: 'Finishing up',
       newSongs: newSongs,
       modifiedSongs: modifiedSongs,
       deletedSongs: deletedSongs,
@@ -815,10 +962,9 @@ class LibraryScannerService {
         }
         if (!existing.hasLocalEdits) {
           existing.discNumber = meta.discNumber ?? existing.discNumber;
-          existing.albumArtist =
-              (meta.albumArtist?.trim().isNotEmpty ?? false)
-                  ? meta.albumArtist!.trim()
-                  : existing.albumArtist;
+          existing.albumArtist = (meta.albumArtist?.trim().isNotEmpty ?? false)
+              ? meta.albumArtist!.trim()
+              : existing.albumArtist;
           // Synthesized fallback rows (unindexed DSD/WavPack) start with
           // empty text and filename-derived titles; fill from real tags.
           if (existing.title.trim().isEmpty &&
@@ -1027,8 +1173,9 @@ class LibraryScannerService {
       newBatch.add(
         SongEntity()
           ..filePath = basic.uri
-          ..mediaStoreUri =
-              basic.uri.startsWith('content://') ? basic.uri : null
+          ..mediaStoreUri = basic.uri.startsWith('content://')
+              ? basic.uri
+              : null
           ..title = _extractTitleFromFilename(basic.name)
           ..artist = 'Unknown Artist'
           ..album = 'Unknown Album'
@@ -1178,10 +1325,9 @@ class LibraryScannerService {
           if (meta.album?.trim().isNotEmpty ?? false) {
             existing.album = meta.album!.trim();
           }
-          existing.albumArtist =
-              (meta.albumArtist?.trim().isNotEmpty ?? false)
-                  ? meta.albumArtist!.trim()
-                  : existing.artist;
+          existing.albumArtist = (meta.albumArtist?.trim().isNotEmpty ?? false)
+              ? meta.albumArtist!.trim()
+              : existing.artist;
           existing.trackNumber = meta.trackNumber ?? existing.trackNumber;
           existing.discNumber = meta.discNumber ?? existing.discNumber;
           existing.genre = (meta.genre?.trim().isNotEmpty ?? false)
@@ -1210,8 +1356,9 @@ class LibraryScannerService {
     String displayName,
     LibraryScanPreferences scanPreferences, {
     bool deferMetadata = false,
+    ScanMode mode = ScanMode.quick,
   }) async* {
-    _isCancelled = false;
+    if (_isCancelled) return;
     final totalStopwatch = Stopwatch()..start();
     const scanEngine = 'SAF';
     var newSongs = 0;
@@ -1235,7 +1382,11 @@ class LibraryScannerService {
         filterNonMusicFilesAndFolders:
             scanPreferences.filterNonMusicFilesAndFolders,
       );
-      _logScanTiming(displayName, 'SAF fast scan (${fastScanFiles.length} files)', stopwatch.elapsed);
+      _logScanTiming(
+        displayName,
+        'SAF fast scan (${fastScanFiles.length} files)',
+        stopwatch.elapsed,
+      );
     } catch (e) {
       devLog("Error scanning Android folder: $e");
       return;
@@ -1372,7 +1523,9 @@ class LibraryScannerService {
             existing.sampleRate == null ||
             fileTypeMismatch;
 
-        if (file.lastModified != existingTime || missingMetadata) {
+        if (mode == ScanMode.full ||
+            file.lastModified != existingTime ||
+            missingMetadata) {
           urisToProcess.add(file.uri);
         }
       }
@@ -1394,10 +1547,18 @@ class LibraryScannerService {
     // UX Metric: Initial "Songs Found" = Existing - Deleted
     int initialSongCount = existingMap.length - urisToDelete.length;
 
+    // Unchanged files are already accounted for on the progress bar; the
+    // metadata loop below adds the ones that actually get re-read.
+    final initiallyAccounted = (totalFiles - urisToProcess.length).clamp(
+      0,
+      totalFiles,
+    );
+
     // Report initial state after diff
     yield ScanProgress(
       songsFound: initialSongCount,
       totalFiles: totalFiles,
+      filesProcessed: initiallyAccounted,
       currentFolder: displayName,
       scanEngine: scanEngine,
       phase: 'Reading metadata',
@@ -1583,12 +1744,12 @@ class LibraryScannerService {
         await _songRepository.upsertSongs(batch);
       }
 
-      processed += batch.length;
+      processed += chunkUris.length;
 
       yield ScanProgress(
         songsFound: initialSongCount + processed,
         totalFiles: totalFiles,
-        filesProcessed: processed,
+        filesProcessed: initiallyAccounted + processed,
         currentFile: batch.isNotEmpty ? batch.last.title : null,
         currentFolder: displayName,
         scanEngine: scanEngine,
@@ -1600,25 +1761,42 @@ class LibraryScannerService {
       );
     }
 
-    // Update folder stats
-    final finalCount = await _songRepository.countSongsInFolder(folderUri);
-    await _folderRepository.updateFolderScanInfo(folderUri, finalCount);
+    if (_isCancelled) return;
 
-    final detachedTasks = <Future<void>>[];
-    detachedTasks.add(
-      _runDetachedScanTask(
-        displayName,
-        'SAF playlist sync',
-        () => _syncPlaylistSourcesForFolder(folderUri, scanPreferences),
-      ),
+    final finalCount = await _songRepository.countSongsInFolder(folderUri);
+    _logScanTiming(displayName, 'SAF scan total', totalStopwatch.elapsed);
+
+    // Metadata is written; report completion now so the UI can close. Folder
+    // stats and playlist sync are bookkeeping and run detached so they cannot
+    // hold the completion event back.
+    yield ScanProgress(
+      songsFound: finalCount,
+      totalFiles: totalFiles,
+      filesProcessed: totalFiles,
+      currentFolder: displayName,
+      scanEngine: scanEngine,
+      newSongs: newSongs,
+      modifiedSongs: modifiedSongs,
+      deletedSongs: deletedSongs,
+      phase: 'Finishing up',
+      isComplete: false,
     );
 
-    _logScanTiming(displayName, 'SAF scan total', totalStopwatch.elapsed);
+    final finalization = _runDetachedScanTask(
+      displayName,
+      'scan finalization',
+      () async {
+        if (_isCancelled) return;
+        await _folderRepository.updateFolderScanInfo(folderUri, finalCount);
+        await _syncPlaylistSourcesForFolder(folderUri, scanPreferences);
+      },
+    );
+    _trackFinalization(folderUri, finalization);
 
     yield ScanProgress(
       songsFound: finalCount,
       totalFiles: totalFiles,
-      filesProcessed: processed,
+      filesProcessed: totalFiles,
       currentFolder: displayName,
       scanEngine: scanEngine,
       newSongs: newSongs,
@@ -1632,9 +1810,10 @@ class LibraryScannerService {
     String scanRootPath,
     String folderUri,
     String displayName,
-    LibraryScanPreferences scanPreferences,
-  ) async* {
-    _isCancelled = false;
+    LibraryScanPreferences scanPreferences, {
+    ScanMode mode = ScanMode.quick,
+  }) async* {
+    if (_isCancelled) return;
     final totalStopwatch = Stopwatch()..start();
     const scanEngine = 'Rust deep scan';
     var newSongs = 0;
@@ -1667,8 +1846,14 @@ class LibraryScannerService {
     final deletedPaths = <String>[];
     final safKeyedSongs = <SongEntity>[];
 
+    // Full mode re-reads every file and skips the fingerprint shortcuts,
+    // including the CUE/log unchanged checks below.
+    final forceFull = mode == ScanMode.full;
+
     // Load fingerprint cache — supplements DB with faster lookup
-    final cachedFingerprints = await _fingerprintCache.load(folderUri);
+    final cachedFingerprints = forceFull
+        ? null
+        : await _fingerprintCache.load(folderUri);
 
     for (var song in existingSongs) {
       if (filteredExistingSongs.contains(song)) {
@@ -1701,6 +1886,7 @@ class LibraryScannerService {
 
     // 2. Stream scan batches from Rust
     int processed = 0;
+    int filesAccounted = 0;
     int totalFiles = 0;
     int initialSongCount = existingMap.length;
     bool initialProgressSent = false;
@@ -1712,13 +1898,33 @@ class LibraryScannerService {
       scanOptions: ScanOptions(
         filterNonMusicFilesAndFolders:
             scanPreferences.filterNonMusicFilesAndFolders,
+        forceFullRescan: forceFull,
       ),
     )) {
       if (_isCancelled) {
         break;
       }
 
+      // Walk-phase heartbeat: the directory walk is still running, so there
+      // is no file total yet. filesWalked drives the "checking" counter.
+      if (chunk.totalFiles == 0 && chunk.filesWalked > 0 && !chunk.isComplete) {
+        yield ScanProgress(
+          songsFound: initialSongCount,
+          totalFiles: 0,
+          filesProcessed: chunk.filesWalked,
+          currentFolder: displayName,
+          scanEngine: scanEngine,
+          phase: 'Checking for changes',
+          deletedSongs: deletedSongs,
+          isComplete: false,
+        );
+        continue;
+      }
+
       totalFiles = chunk.totalFiles;
+      // Unchanged files (and deletions) are accounted for up front, so the
+      // bar reflects checked files instead of only re-read ones.
+      filesAccounted = chunk.filesProcessed;
 
       if (!initialProgressSent) {
         // Deletions are collected here and applied only after the walk
@@ -1728,18 +1934,9 @@ class LibraryScannerService {
         initialSongCount = existingMap.length - chunk.deletedPaths.length;
         deletedSongs += chunk.deletedPaths.length;
         initialProgressSent = true;
-
-        yield ScanProgress(
-          songsFound: initialSongCount,
-          totalFiles: totalFiles,
-          currentFolder: displayName,
-          scanEngine: scanEngine,
-          phase: 'Reading metadata',
-          deletedSongs: deletedSongs,
-          isComplete: false,
-        );
       }
 
+      SongEntity? lastProcessed;
       if (chunk.newOrModified.isNotEmpty) {
         final batch = <SongEntity>[];
         final idsToDelete = <int>[];
@@ -1816,23 +2013,28 @@ class LibraryScannerService {
           preloadCandidates.addAll(batch);
         }
         processed += batch.length;
-
-        yield ScanProgress(
-          songsFound: initialSongCount + processed,
-          totalFiles: totalFiles,
-          filesProcessed: processed,
-          currentFile: batch.isNotEmpty ? batch.last.title : null,
-          currentFolder: displayName,
-          scanEngine: scanEngine,
-          phase: 'Reading metadata',
-          newSongs: newSongs,
-          modifiedSongs: modifiedSongs,
-          deletedSongs: deletedSongs,
-          isComplete: false,
-        );
+        lastProcessed = batch.isNotEmpty ? batch.last : null;
       }
+
+      yield ScanProgress(
+        songsFound: initialSongCount + processed,
+        totalFiles: totalFiles,
+        filesProcessed: filesAccounted,
+        currentFile: lastProcessed?.title,
+        currentFolder: displayName,
+        scanEngine: scanEngine,
+        phase: 'Reading metadata',
+        newSongs: newSongs,
+        modifiedSongs: modifiedSongs,
+        deletedSongs: deletedSongs,
+        isComplete: false,
+      );
     }
     _logScanTiming(displayName, 'Rust scan stream', rustScanStopwatch.elapsed);
+
+    // Stopped mid-scan: skip deletions, sidecars, playlist/cache sync and the
+    // detached preload, so a cancelled scan can't keep mutating state.
+    if (_isCancelled) return;
 
     // Apply deletions only now that the walk completed successfully.
     if (!_isCancelled && deletedPaths.isNotEmpty) {
@@ -1850,12 +2052,11 @@ class LibraryScannerService {
     // SAF-scanned rows the walker re-added with raw paths are superseded;
     // drop the old URI-keyed rows only when the replacement actually exists.
     if (!_isCancelled && safKeyedSongs.isNotEmpty) {
-      final rawPathsNow = (await _songRepository.getSongEntitiesByFolder(
-        folderUri,
-      ))
-          .where((s) => !s.filePath.startsWith('content://'))
-          .map((s) => s.filePath)
-          .toSet();
+      final rawPathsNow =
+          (await _songRepository.getSongEntitiesByFolder(folderUri))
+              .where((s) => !s.filePath.startsWith('content://'))
+              .map((s) => s.filePath)
+              .toSet();
       final supersededIds = safKeyedSongs
           .where((s) {
             final raw = rawPathFromSafUri(s.filePath);
@@ -1869,205 +2070,240 @@ class LibraryScannerService {
       }
     }
 
-    // Post-process CUE and log files (single walk, both collected in one pass)
-    if (!_isCancelled) {
-      final sidecarStopwatch = Stopwatch()..start();
-      final (:cueMap, :logMap) = await _parseCueAndLogFilesRust(scanRootPath);
-      _logScanTiming(
-        displayName,
-        'Rust CUE/log parse',
-        sidecarStopwatch.elapsed,
-      );
-
-      if (cueMap.isNotEmpty || logMap.isNotEmpty) {
-        final existingSongsAfterScan = await _songRepository
-            .getSongEntitiesByFolder(folderUri);
-        // Separate raw entities from CUE tracks — the old collapsible map
-        // (keyed only by filePath) lost raw entities when CUE tracks shared
-        // the same path, causing raw entities to survive alongside CUE tracks.
-        final rawEntitiesByPath = <String, SongEntity>{};
-        final logExistingByPath = <String, SongEntity>{};
-        for (var s in existingSongsAfterScan) {
-          if (s.startOffsetMs == null) {
-            rawEntitiesByPath[s.filePath] = s;
-          }
-          logExistingByPath[s.filePath] = s;
-        }
-
-        // Delete orphaned CUE tracks
-        final existingCuePaths = existingSongsAfterScan
-            .where((s) => s.startOffsetMs != null)
-            .map((s) => s.filePath)
-            .toSet();
-        final orphanedCuePaths = existingCuePaths
-            .where((p) => !cueMap.containsKey(p))
-            .toList();
-        if (orphanedCuePaths.isNotEmpty) {
-          await _songRepository.deleteCueTracksByPath(orphanedCuePaths);
-        }
-
-        // Process CUE files
-        for (final entry in cueMap.entries) {
-          final audioPath = entry.key;
-          final cueSheet = entry.value;
-
-          // Skip if audio file unchanged since last scan and CUE tracks
-          // already exist in DB — avoids redundant re-parsing.
-          final cachedTs = cachedFingerprints?[audioPath];
-          if (cachedTs != null) {
-            final existingCueCount = existingSongsAfterScan
-                .where(
-                  (s) => s.filePath == audioPath && s.startOffsetMs != null,
-                )
-                .length;
-            if (existingCueCount > 0) {
-              try {
-                final stat = FileStat.statSync(audioPath);
-                if (stat.type != FileSystemEntityType.notFound &&
-                    stat.modified.millisecondsSinceEpoch == cachedTs) {
-                  continue;
-                }
-              } catch (_) {}
-            }
-          }
-
-          final rawEntity = rawEntitiesByPath[audioPath];
-
-          // Re-fetch existing CUE tracks for this path to preserve IDs
-          final cueExistingMap = <String, SongEntity>{};
-          final cueTracksInDb = existingSongsAfterScan.where(
-            (s) => s.filePath == audioPath && s.startOffsetMs != null,
-          );
-          for (final s in cueTracksInDb) {
-            cueExistingMap['${s.filePath}#${s.startOffsetMs}'] = s;
-          }
-
-          // Build fallback metadata — prefer raw entity (fresh audio tags),
-          // then fall back to existing CUE tracks (preserve across rescans
-          // when the raw entity was already deleted).
-          SongEntity? fallbackSource = rawEntity;
-          fallbackSource ??= cueTracksInDb.isNotEmpty
-              ? cueTracksInDb.first
-              : null;
-          final AudioFileInfo? fallbackMeta = fallbackSource != null
-              ? AudioFileInfo(
-                  uri: audioPath,
-                  name: audioPath.split('/').last,
-                  size: fallbackSource.fileSize ?? 0,
-                  lastModified:
-                      fallbackSource.lastModified?.millisecondsSinceEpoch ?? 0,
-                  extension: audioPath.split('.').last,
-                  title: fallbackSource.title,
-                  artist: fallbackSource.artist,
-                  album: fallbackSource.album,
-                  albumArtist: fallbackSource.albumArtist,
-                  trackNumber: fallbackSource.trackNumber,
-                  discNumber: fallbackSource.discNumber,
-                  duration: fallbackSource.durationMs,
-                  albumArtPath: fallbackSource.albumArtPath,
-                  bitrate: fallbackSource.bitrate?.toString(),
-                  bitDepth: fallbackSource.bitDepth,
-                  sampleRate: fallbackSource.sampleRate,
-                )
-              : null;
-
-          // Delete raw entity if present
-          if (rawEntity != null) {
-            await _songRepository.deleteSongsByIds([rawEntity.id]);
-          }
-
-          final ripLog = logMap[audioPath];
-          final lastModified =
-              rawEntity?.lastModified ??
-              DateTime.fromMillisecondsSinceEpoch(
-                DateTime.now().millisecondsSinceEpoch,
-              );
-
-          final entities = _buildCueTrackEntities(
-            audioUri: audioPath,
-            cueSheet: cueSheet,
-            meta: fallbackMeta,
-            folderUri: folderUri,
-            existingMap: cueExistingMap,
-            ripLog: ripLog,
-            lastModified: lastModified,
-          );
-
-          if (entities.isNotEmpty) {
-            await _songRepository.upsertSongs(entities);
-          }
-        }
-
-        // Apply log metadata to raw audio files without CUE
-        for (final entry in logMap.entries) {
-          final audioPath = entry.key;
-          if (cueMap.containsKey(audioPath)) continue;
-
-          // Skip if audio file unchanged since last scan and already
-          // has log metadata — avoids redundant re-parsing.
-          final cachedTs = cachedFingerprints?[audioPath];
-          final existing = logExistingByPath[audioPath];
-          if (cachedTs != null && existing != null && existing.ripper != null) {
-            try {
-              final stat = FileStat.statSync(audioPath);
-              if (stat.type != FileSystemEntityType.notFound &&
-                  stat.modified.millisecondsSinceEpoch == cachedTs) {
-                continue;
-              }
-            } catch (_) {}
-          }
-
-          if (existing == null) continue;
-          existing.ripper = entry.value.ripper;
-          existing.readMode = entry.value.readMode;
-          existing.accurateRip = entry.value.accurateRipEnabled;
-          await _songRepository.upsertSong(existing);
-        }
-      }
-    }
-
-    // Update folder stats
     final finalCount = await _songRepository.countSongsInFolder(folderUri);
     await _folderRepository.updateFolderScanInfo(folderUri, finalCount);
 
-    final playlistStopwatch = Stopwatch()..start();
-    await _syncPlaylistSourcesForFolder(
-      folderUri,
-      scanPreferences,
-      scanRootPath: scanRootPath,
-    );
-    _logScanTiming(
-      displayName,
-      'Rust playlist sync',
-      playlistStopwatch.elapsed,
-    );
-
-    final fingerprintStopwatch = Stopwatch()..start();
-    await _fingerprintCache.sync(
-      folderUri,
-      newOrModifiedFingerprints,
-      deletedPaths,
-    );
-    _logScanTiming(
-      displayName,
-      'Rust fingerprint sync',
-      fingerprintStopwatch.elapsed,
-    );
-
     _logScanTiming(displayName, 'Rust scan total', totalStopwatch.elapsed);
 
-    // Re-read the pref at spawn time so a mid-scan toggle is honored instead
-    // of using the snapshot captured at scan start.
-    final currentPrefs = await _scanPreferencesService.getPreferences();
-    if (currentPrefs.preloadAudioData &&
-        preloadCandidates.isNotEmpty &&
-        !_isCancelled) {
-      _runDetachedScanTask(
-        displayName,
-        'audio preload',
-        () => _preloadAudioData(preloadCandidates),
-      );
-    }
+    // The scan itself is done. Anything left (CUE/log sidecars, playlist and
+    // fingerprint caches, the optional preload) is bookkeeping the UI should
+    // not have to wait on, so announce the "finishing up" state and then run
+    // it as one detached task before reporting completion.
+    yield ScanProgress(
+      songsFound: finalCount,
+      totalFiles: totalFiles,
+      filesProcessed: totalFiles,
+      currentFolder: displayName,
+      scanEngine: scanEngine,
+      newSongs: newSongs,
+      modifiedSongs: modifiedSongs,
+      deletedSongs: deletedSongs,
+      phase: 'Finishing up',
+      isComplete: false,
+    );
+
+    final finalization = _runDetachedScanTask(
+      displayName,
+      'scan finalization',
+      () async {
+        if (_isCancelled) return;
+
+        // Post-process CUE and log files (single walk, both collected in one pass)
+        if (!_isCancelled) {
+          final sidecarStopwatch = Stopwatch()..start();
+          final (:cueMap, :logMap) = await _parseCueAndLogFilesRust(
+            scanRootPath,
+          );
+          _logScanTiming(
+            displayName,
+            'Rust CUE/log parse',
+            sidecarStopwatch.elapsed,
+          );
+
+          if (cueMap.isNotEmpty || logMap.isNotEmpty) {
+            final existingSongsAfterScan = await _songRepository
+                .getSongEntitiesByFolder(folderUri);
+            // Separate raw entities from CUE tracks — the old collapsible map
+            // (keyed only by filePath) lost raw entities when CUE tracks shared
+            // the same path, causing raw entities to survive alongside CUE tracks.
+            final rawEntitiesByPath = <String, SongEntity>{};
+            final logExistingByPath = <String, SongEntity>{};
+            for (var s in existingSongsAfterScan) {
+              if (s.startOffsetMs == null) {
+                rawEntitiesByPath[s.filePath] = s;
+              }
+              logExistingByPath[s.filePath] = s;
+            }
+
+            // Delete orphaned CUE tracks
+            final existingCuePaths = existingSongsAfterScan
+                .where((s) => s.startOffsetMs != null)
+                .map((s) => s.filePath)
+                .toSet();
+            final orphanedCuePaths = existingCuePaths
+                .where((p) => !cueMap.containsKey(p))
+                .toList();
+            if (orphanedCuePaths.isNotEmpty) {
+              await _songRepository.deleteCueTracksByPath(orphanedCuePaths);
+            }
+
+            // Process CUE files
+            for (final entry in cueMap.entries) {
+              final audioPath = entry.key;
+              final cueSheet = entry.value;
+
+              // Skip if audio file unchanged since last scan and CUE tracks
+              // already exist in DB — avoids redundant re-parsing.
+              final cachedTs = cachedFingerprints?[audioPath];
+              if (cachedTs != null) {
+                final existingCueCount = existingSongsAfterScan
+                    .where(
+                      (s) => s.filePath == audioPath && s.startOffsetMs != null,
+                    )
+                    .length;
+                if (existingCueCount > 0) {
+                  try {
+                    final stat = FileStat.statSync(audioPath);
+                    if (stat.type != FileSystemEntityType.notFound &&
+                        stat.modified.millisecondsSinceEpoch == cachedTs) {
+                      continue;
+                    }
+                  } catch (_) {}
+                }
+              }
+
+              final rawEntity = rawEntitiesByPath[audioPath];
+
+              // Re-fetch existing CUE tracks for this path to preserve IDs
+              final cueExistingMap = <String, SongEntity>{};
+              final cueTracksInDb = existingSongsAfterScan.where(
+                (s) => s.filePath == audioPath && s.startOffsetMs != null,
+              );
+              for (final s in cueTracksInDb) {
+                cueExistingMap['${s.filePath}#${s.startOffsetMs}'] = s;
+              }
+
+              // Build fallback metadata — prefer raw entity (fresh audio tags),
+              // then fall back to existing CUE tracks (preserve across rescans
+              // when the raw entity was already deleted).
+              SongEntity? fallbackSource = rawEntity;
+              fallbackSource ??= cueTracksInDb.isNotEmpty
+                  ? cueTracksInDb.first
+                  : null;
+              final AudioFileInfo? fallbackMeta = fallbackSource != null
+                  ? AudioFileInfo(
+                      uri: audioPath,
+                      name: audioPath.split('/').last,
+                      size: fallbackSource.fileSize ?? 0,
+                      lastModified:
+                          fallbackSource.lastModified?.millisecondsSinceEpoch ??
+                          0,
+                      extension: audioPath.split('.').last,
+                      title: fallbackSource.title,
+                      artist: fallbackSource.artist,
+                      album: fallbackSource.album,
+                      albumArtist: fallbackSource.albumArtist,
+                      trackNumber: fallbackSource.trackNumber,
+                      discNumber: fallbackSource.discNumber,
+                      duration: fallbackSource.durationMs,
+                      albumArtPath: fallbackSource.albumArtPath,
+                      bitrate: fallbackSource.bitrate?.toString(),
+                      bitDepth: fallbackSource.bitDepth,
+                      sampleRate: fallbackSource.sampleRate,
+                    )
+                  : null;
+
+              // Delete raw entity if present
+              if (rawEntity != null) {
+                await _songRepository.deleteSongsByIds([rawEntity.id]);
+              }
+
+              final ripLog = logMap[audioPath];
+              final lastModified =
+                  rawEntity?.lastModified ??
+                  DateTime.fromMillisecondsSinceEpoch(
+                    DateTime.now().millisecondsSinceEpoch,
+                  );
+
+              final entities = _buildCueTrackEntities(
+                audioUri: audioPath,
+                cueSheet: cueSheet,
+                meta: fallbackMeta,
+                folderUri: folderUri,
+                existingMap: cueExistingMap,
+                ripLog: ripLog,
+                lastModified: lastModified,
+              );
+
+              if (entities.isNotEmpty) {
+                await _songRepository.upsertSongs(entities);
+              }
+            }
+
+            // Apply log metadata to raw audio files without CUE
+            for (final entry in logMap.entries) {
+              final audioPath = entry.key;
+              if (cueMap.containsKey(audioPath)) continue;
+
+              // Skip if audio file unchanged since last scan and already
+              // has log metadata — avoids redundant re-parsing.
+              final cachedTs = cachedFingerprints?[audioPath];
+              final existing = logExistingByPath[audioPath];
+              if (cachedTs != null &&
+                  existing != null &&
+                  existing.ripper != null) {
+                try {
+                  final stat = FileStat.statSync(audioPath);
+                  if (stat.type != FileSystemEntityType.notFound &&
+                      stat.modified.millisecondsSinceEpoch == cachedTs) {
+                    continue;
+                  }
+                } catch (_) {}
+              }
+
+              if (existing == null) continue;
+              existing.ripper = entry.value.ripper;
+              existing.readMode = entry.value.readMode;
+              existing.accurateRip = entry.value.accurateRipEnabled;
+              await _songRepository.upsertSong(existing);
+            }
+          }
+        }
+
+        final playlistStopwatch = Stopwatch()..start();
+        await _syncPlaylistSourcesForFolder(
+          folderUri,
+          scanPreferences,
+          scanRootPath: scanRootPath,
+        );
+        _logScanTiming(
+          displayName,
+          'Rust playlist sync',
+          playlistStopwatch.elapsed,
+        );
+
+        final fingerprintStopwatch = Stopwatch()..start();
+        await _fingerprintCache.sync(
+          folderUri,
+          newOrModifiedFingerprints,
+          deletedPaths,
+        );
+        _logScanTiming(
+          displayName,
+          'Rust fingerprint sync',
+          fingerprintStopwatch.elapsed,
+        );
+
+        _logScanTiming(displayName, 'Rust scan total', totalStopwatch.elapsed);
+      },
+    );
+    _trackFinalization(folderUri, finalization);
+
+    // Audio preload runs after finalization (CUE/log upserts must exist first)
+    // but detached from the artwork wait, so cover resolution is not delayed
+    // by the decode pass — which holds the artwork gate for its whole run.
+    unawaited(
+      _runDetachedScanTask(displayName, 'scan preload', () async {
+        await finalization;
+        // Re-read the pref at spawn time so a mid-scan toggle is honored
+        // instead of using the snapshot captured at scan start.
+        final currentPrefs = await _scanPreferencesService.getPreferences();
+        if (_isCancelled) return;
+        if (currentPrefs.preloadAudioData && preloadCandidates.isNotEmpty) {
+          await _preloadAudioData(preloadCandidates);
+        }
+      }),
+    );
 
     yield ScanProgress(
       songsFound: finalCount,
@@ -2082,7 +2318,7 @@ class LibraryScannerService {
     );
   }
 
-  Stream<ScanProgress> scanAllFolders() async* {
+  Stream<ScanProgress> scanAllFolders({ScanMode mode = ScanMode.quick}) async* {
     _isCancelled = false;
     final totalStopwatch = Stopwatch()..start();
     final folders = await _folderRepository.getAllFolders();
@@ -2091,49 +2327,98 @@ class LibraryScannerService {
 
     final foldersTotal = scanPlan.length;
 
-    // Scan all deduplicated folders concurrently
+    // Scan all deduplicated folders concurrently, but publish one aggregated
+    // progress event per folder update so the UI never bounces between
+    // per-folder counters.
     final controller = StreamController<ScanProgress>();
-    var running = 0;
+    final folderStates = <String, FolderScanProgress>{};
+    var started = 0;
     var completed = 0;
-    var aggNewSongs = 0;
-    var aggModifiedSongs = 0;
-    var aggDeletedSongs = 0;
     String? aggScanEngine;
+    String? lastPhase;
+    String? lastCurrentFile;
+
+    int sumOf(int Function(FolderScanProgress) pick) =>
+        folderStates.values.fold(0, (sum, state) => sum + pick(state));
+
+    void emitAggregate() {
+      if (controller.isClosed) return;
+      final snapshots = folderStates.values.toList(growable: false);
+      var totalFiles = 0;
+      var filesProcessed = 0;
+      var songsFound = 0;
+      for (final snapshot in snapshots) {
+        totalFiles += snapshot.totalFiles;
+        filesProcessed += snapshot.filesProcessed;
+        songsFound += snapshot.songsFound;
+      }
+      controller.add(
+        ScanProgress(
+          songsFound: songsFound,
+          totalFiles: totalFiles,
+          filesProcessed: filesProcessed,
+          currentFile: lastCurrentFile,
+          currentFolder: snapshots.length == 1
+              ? snapshots.first.displayName
+              : null,
+          phase: lastPhase,
+          scanEngine: aggScanEngine,
+          newSongs: sumOf((s) => s.newSongs),
+          modifiedSongs: sumOf((s) => s.modifiedSongs),
+          deletedSongs: sumOf((s) => s.deletedSongs),
+          foldersTotal: foldersTotal,
+          foldersCompleted: completed,
+          folders: snapshots,
+          isComplete: false,
+        ),
+      );
+    }
 
     for (final folder in scanPlan) {
       if (_isCancelled) break;
-      running++;
+      started++;
 
-      scanFolder(folder.uri, folder.displayName).listen(
+      _scanFolderInternal(folder.uri, folder.displayName, mode: mode).listen(
         (progress) {
-          if (!controller.isClosed) {
-            aggNewSongs += progress.newSongs;
-            aggModifiedSongs += progress.modifiedSongs;
-            aggDeletedSongs += progress.deletedSongs;
-            aggScanEngine ??= progress.scanEngine;
-            controller.add(
-              ScanProgress(
-                songsFound: progress.songsFound,
-                totalFiles: progress.totalFiles,
-                filesProcessed: progress.filesProcessed,
-                currentFile: progress.currentFile,
-                currentFolder: folder.displayName,
-                phase: progress.phase,
-                scanEngine: progress.scanEngine,
-                newSongs: progress.newSongs,
-                modifiedSongs: progress.modifiedSongs,
-                deletedSongs: progress.deletedSongs,
-                foldersTotal: foldersTotal,
-                foldersCompleted: completed,
-                backgroundTasksRunning: progress.backgroundTasksRunning,
-                isComplete: false,
-              ),
-            );
-          }
+          folderStates[folder.uri] = FolderScanProgress(
+            displayName: folder.displayName,
+            songsFound: progress.songsFound,
+            totalFiles: progress.totalFiles,
+            filesProcessed: progress.filesProcessed,
+            currentFile: progress.currentFile,
+            phase: progress.phase,
+            newSongs: progress.newSongs,
+            modifiedSongs: progress.modifiedSongs,
+            deletedSongs: progress.deletedSongs,
+            isComplete: progress.isComplete,
+            unavailable: progress.unavailable,
+          );
+          aggScanEngine ??= progress.scanEngine;
+          lastPhase = progress.phase;
+          lastCurrentFile = progress.currentFile;
+          emitAggregate();
         },
         onDone: () {
           completed++;
-          if (completed >= running && !controller.isClosed) {
+          final state = folderStates[folder.uri];
+          if (state != null && state.totalFiles > 0) {
+            folderStates[folder.uri] = FolderScanProgress(
+              displayName: state.displayName,
+              songsFound: state.songsFound,
+              totalFiles: state.totalFiles,
+              filesProcessed: state.totalFiles,
+              phase: state.phase,
+              newSongs: state.newSongs,
+              modifiedSongs: state.modifiedSongs,
+              deletedSongs: state.deletedSongs,
+              isComplete: true,
+              unavailable: state.unavailable,
+            );
+          }
+          emitAggregate();
+          // Close only when every attached folder stream finished; `started`
+          // (not `running`) keeps a fast first folder from closing early.
+          if (completed == started && !controller.isClosed) {
             controller.close();
           }
         },
@@ -2153,9 +2438,9 @@ class LibraryScannerService {
         songsFound: finalCount,
         totalFiles: 0,
         scanEngine: aggScanEngine,
-        newSongs: aggNewSongs,
-        modifiedSongs: aggModifiedSongs,
-        deletedSongs: aggDeletedSongs,
+        newSongs: sumOf((s) => s.newSongs),
+        modifiedSongs: sumOf((s) => s.modifiedSongs),
+        deletedSongs: sumOf((s) => s.deletedSongs),
         foldersTotal: foldersTotal,
         foldersCompleted: foldersTotal,
         isComplete: true,
@@ -2248,9 +2533,7 @@ class LibraryScannerService {
         await _songRepository.deleteSongsByPath(deletedPaths);
       }
 
-      devLog(
-        'Deleted ${deletedPaths.length} missing songs from $displayName',
-      );
+      devLog('Deleted ${deletedPaths.length} missing songs from $displayName');
     }
 
     // Update folder stats
@@ -2334,6 +2617,7 @@ class LibraryScannerService {
       scanOptions: ScanOptions(
         filterNonMusicFilesAndFolders:
             scanPreferences.filterNonMusicFilesAndFolders,
+        forceFullRescan: false,
       ),
     );
     if (Uac2PreferencesService.isDeveloperModeEnabledSync) {
@@ -2426,9 +2710,7 @@ class LibraryScannerService {
         rawPathByUri: rawPathByUri,
       );
     } catch (e) {
-      devLog(
-        'Error fetching metadata chunk (${chunkUris.length} files): $e',
-      );
+      devLog('Error fetching metadata chunk (${chunkUris.length} files): $e');
       return null;
     }
   }
@@ -2553,7 +2835,8 @@ class LibraryScannerService {
       bitrate: base?.bitrate ?? rust.bitrate?.toString(),
       // Lofty reports plain-u32 rates for MP4, where a failed ALAC cookie
       // parse yields 0 — treat that as unsolved rather than "0 kHz".
-      bitDepth: _positiveOrNull(base?.bitDepth) ?? _positiveOrNull(rust.bitDepth),
+      bitDepth:
+          _positiveOrNull(base?.bitDepth) ?? _positiveOrNull(rust.bitDepth),
       sampleRate:
           _positiveOrNull(base?.sampleRate) ?? _positiveOrNull(rust.sampleRate),
       filePath: base?.filePath,
@@ -2586,9 +2869,7 @@ class LibraryScannerService {
 
   void _logScanTiming(String displayName, String label, Duration elapsed) {
     if (!Uac2PreferencesService.isDeveloperModeEnabledSync) return;
-    devLog(
-      '[LibraryScanner] $displayName $label: ${elapsed.inMilliseconds}ms',
-    );
+    devLog('[LibraryScanner] $displayName $label: ${elapsed.inMilliseconds}ms');
   }
 
   /// Queues newly scanned songs onto the shared auto preload pass.
@@ -2752,6 +3033,7 @@ class LibraryScannerService {
       scanOptions: ScanOptions(
         filterNonMusicFilesAndFolders:
             scanPreferences.filterNonMusicFilesAndFolders,
+        forceFullRescan: false,
       ),
     );
 

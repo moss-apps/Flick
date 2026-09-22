@@ -48,12 +48,31 @@ const List<ChangelogEntry> kChangelogEntries = [
     date: '2026-09-16',
     sections: [
       ChangelogSection(
+        title: 'Interface',
+        bullets: [
+          '**Pinned scan bubble** — minimized scan, preload, and ReplayGain progress is now a small draggable bubble instead of a full-width pill; it snaps to either screen edge and remembers its position.',
+          'Tap the bubble to see progress details in a compact card without leaving the screen you are on.',
+          '**Stop means stop** — stopping a rescan now clears the progress UI at once and halts the scan plus the automatic audio preload that follows it, instead of letting them run on in the background.',
+          '**Honest scan progress** — the bar counts every checked file, including unchanged ones, so a rescan no longer sits at zero until the final moment.',
+          '**Per-folder progress** — rescanning multiple folders now keeps one combined bar plus a small progress row for each folder.',
+          '**Quick or Full rescan** — Rescan Library now asks whether to re-read only new or changed files (quick) or re-read metadata for every file (full).',
+        ],
+      ),
+      ChangelogSection(
         title: 'Storage',
         bullets: [
           '**Bounded playback caches** — WAV conversions and SAF staging copies are now capped (default 1 GB, configurable in Library → Storage) instead of growing without limit.',
           'Least-recently-used eviction keeps the newest conversions; a one-time sweep removes multi-GB leftovers from earlier versions.',
           'Fixed a regression where quitting could delete persisted WAV conversions.',
           '**Streamed conversion** — ALAC/M4A/AIFF tracks are decoded on demand and streamed to the player instead of converting the whole queue to WAV, so caches stay flat while you browse and play.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Motion Art & Bit-Perfect',
+        bullets: [
+          '**Motion art pauses under bit-perfect audio** — while direct or exclusive bit-perfect output is active, Apple Music motion art no longer starts a second video stream that could interrupt playback; the animated Ken Burns artwork shows instead.',
+          'Added an opt-in **Motion Art in Bit-Perfect** toggle in Settings → Playback & Display for devices where motion art coexists with bit-perfect output.',
+          'If the native direct output is lost anyway, Flick now detects it and automatically revives the audio engine and resumes the track instead of going silent.',
         ],
       ),
     ],

@@ -14,9 +14,14 @@ use walkdir::WalkDir;
 
 const SCAN_BATCH_SIZE: usize = 500;
 
+/// How many walked files between progress chunks during the directory walk.
+const WALK_PROGRESS_INTERVAL: usize = 500;
+
 #[derive(Debug, Clone)]
 pub struct ScanOptions {
     pub filter_non_music_files_and_folders: bool,
+    /// Re-read metadata for every file instead of only new/modified ones.
+    pub force_full_rescan: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +63,12 @@ pub struct ScanChunk {
     pub new_or_modified: Vec<AudioFileMetadata>,
     pub deleted_paths: Vec<String>,
     pub total_files: u32,
+    /// Files walked so far while the directory walk is still running. Zero
+    /// once `total_files` is known.
+    pub files_walked: u32,
+    /// Files fully accounted for: unchanged files plus metadata batches
+    /// already streamed. Reaches `total_files` on the final chunk.
+    pub files_processed: u32,
     pub is_complete: bool,
 }
 
@@ -101,7 +112,11 @@ pub fn scan_root_dir(
 ) -> ScanResult {
     let files_on_disk = collect_scan_file_entries(&root_path, &scan_options);
     let total_files = files_on_disk.len() as u32;
-    let (to_process, deleted_paths, _) = classify_scan_work(files_on_disk, &known_files);
+    let (to_process, deleted_paths, _) = classify_scan_work(
+        files_on_disk,
+        &known_files,
+        scan_options.force_full_rescan,
+    );
 
     let new_or_modified = to_process
         .par_iter()
@@ -121,14 +136,52 @@ pub async fn scan_music_library(
     scan_options: ScanOptions,
     sink: StreamSink<ScanChunk>,
 ) -> anyhow::Result<()> {
-    let files_on_disk = collect_scan_file_entries(&root_path, &scan_options);
+    let aborted = std::cell::Cell::new(false);
+    let files_on_disk = collect_scan_file_entries_with_progress(
+        &root_path,
+        &scan_options,
+        |walked| {
+            let ok = sink
+                .add(ScanChunk {
+                    new_or_modified: Vec::new(),
+                    deleted_paths: Vec::new(),
+                    total_files: 0,
+                    files_walked: walked as u32,
+                    files_processed: 0,
+                    is_complete: false,
+                })
+                .is_ok();
+            if !ok {
+                aborted.set(true);
+            }
+            ok
+        },
+    );
+
+    // The stream was cancelled mid-walk (Dart stopped consuming); bail without
+    // classifying or sending more chunks.
+    if aborted.get() {
+        return Ok(());
+    }
+
     let total_files = files_on_disk.len() as u32;
-    let (to_process, deleted_paths, _) = classify_scan_work(files_on_disk, &known_files);
+    let (to_process, deleted_paths, _) = classify_scan_work(
+        files_on_disk,
+        &known_files,
+        scan_options.force_full_rescan,
+    );
+
+    // Everything that is not in to_process is already settled: unchanged files
+    // plus deletions. Reporting them up front keeps the bar honest on rescans
+    // where almost nothing needs re-reading.
+    let mut files_processed = total_files - to_process.len() as u32;
 
     sink.add(ScanChunk {
         new_or_modified: Vec::new(),
         deleted_paths,
         total_files,
+        files_walked: 0,
+        files_processed,
         is_complete: false,
     })
     .map_err(|err| anyhow::anyhow!(err.to_string()))?;
@@ -139,6 +192,8 @@ pub async fn scan_music_library(
             .filter_map(extract_text_metadata_only)
             .collect::<Vec<_>>();
 
+        files_processed += chunk.len() as u32;
+
         if new_or_modified.is_empty() {
             continue;
         }
@@ -147,6 +202,8 @@ pub async fn scan_music_library(
             new_or_modified,
             deleted_paths: Vec::new(),
             total_files,
+            files_walked: 0,
+            files_processed,
             is_complete: false,
         })
         .map_err(|err| anyhow::anyhow!(err.to_string()))?;
@@ -156,6 +213,8 @@ pub async fn scan_music_library(
         new_or_modified: Vec::new(),
         deleted_paths: Vec::new(),
         total_files,
+        files_walked: 0,
+        files_processed: total_files,
         is_complete: true,
     })
     .map_err(|err| anyhow::anyhow!(err.to_string()))?;
@@ -176,7 +235,11 @@ pub fn check_deleted_paths(
     scan_options: ScanOptions,
 ) -> Vec<String> {
     let files_on_disk = collect_scan_file_entries(&root_path, &scan_options);
-    let (_, deleted_paths, _) = classify_scan_work(files_on_disk, &known_files);
+    let (_, deleted_paths, _) = classify_scan_work(
+        files_on_disk,
+        &known_files,
+        scan_options.force_full_rescan,
+    );
     deleted_paths
 }
 
@@ -331,79 +394,111 @@ fn extract_dff_artwork(path: &Path) -> Option<Vec<u8>> {
 }
 
 fn collect_scan_file_entries(root_path: &str, scan_options: &ScanOptions) -> Vec<FileScanEntry> {
-    collect_file_entries(root_path, scan_options, |path| {
-        if scan_options.filter_non_music_files_and_folders {
-            is_supported_audio_path(path)
-        } else {
-            true
-        }
-    })
+    collect_scan_file_entries_with_progress(root_path, scan_options, |_| true)
+}
+
+/// Like [collect_scan_file_entries], but calls [on_walked] every
+/// [WALK_PROGRESS_INTERVAL] included files. Returning false from the callback
+/// aborts the walk and returns the partial result.
+fn collect_scan_file_entries_with_progress<F>(
+    root_path: &str,
+    scan_options: &ScanOptions,
+    on_walked: F,
+) -> Vec<FileScanEntry>
+where
+    F: FnMut(usize) -> bool,
+{
+    collect_file_entries(
+        root_path,
+        scan_options,
+        |path| {
+            if scan_options.filter_non_music_files_and_folders {
+                is_supported_audio_path(path)
+            } else {
+                true
+            }
+        },
+        on_walked,
+    )
 }
 
 fn collect_playlist_file_entries(
     root_path: &str,
     scan_options: &ScanOptions,
 ) -> Vec<FileScanEntry> {
-    collect_file_entries(root_path, scan_options, is_supported_playlist_path)
+    collect_file_entries(root_path, scan_options, is_supported_playlist_path, |_| true)
 }
 
-fn collect_file_entries<F>(
+fn collect_file_entries<F, P>(
     root_path: &str,
     scan_options: &ScanOptions,
     should_include: F,
+    mut on_walked: P,
 ) -> Vec<FileScanEntry>
 where
     F: Fn(&Path) -> bool,
+    P: FnMut(usize) -> bool,
 {
     let mut nomedia_cache = HashMap::new();
     let respect_nomedia = scan_options.filter_non_music_files_and_folders;
+    let mut entries = Vec::new();
+    let mut walked = 0usize;
 
-    WalkDir::new(root_path)
+    for result in WalkDir::new(root_path)
         .follow_links(false)
         .max_open(64)
         .into_iter()
-        .filter_map(|result| match result {
-            Ok(entry) => Some(entry),
+    {
+        let entry = match result {
+            Ok(entry) => entry,
             Err(err) => {
                 log::warn!("scanner: failed to read directory entry: {}", err);
-                None
+                continue;
             }
-        })
-        .filter(|entry| entry.file_type().is_file())
-        .filter_map(|entry| {
-            let path = entry.path();
-            if respect_nomedia && is_in_nomedia_subtree(path, &mut nomedia_cache) {
-                return None;
-            }
-            if !should_include(path) {
-                return None;
-            }
+        };
+        if !entry.file_type().is_file() {
+            continue;
+        }
 
-            let metadata = match std::fs::metadata(path) {
-                Ok(meta) => meta,
-                Err(err) => {
-                    log::warn!(
-                        "scanner: failed to read metadata for {}: {}",
-                        path.display(),
-                        err
-                    );
-                    return None;
-                }
-            };
-            let last_modified = metadata
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_millis() as i64)
-                .unwrap_or(0);
+        let path = entry.path();
+        if respect_nomedia && is_in_nomedia_subtree(path, &mut nomedia_cache) {
+            continue;
+        }
+        if !should_include(path) {
+            continue;
+        }
 
-            Some(FileScanEntry {
-                path: path.to_string_lossy().to_string(),
-                last_modified,
-                file_size: metadata.len(),
-            })
-        })
-        .collect()
+        let metadata = match std::fs::metadata(path) {
+            Ok(meta) => meta,
+            Err(err) => {
+                log::warn!(
+                    "scanner: failed to read metadata for {}: {}",
+                    path.display(),
+                    err
+                );
+                continue;
+            }
+        };
+        let last_modified = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+
+        entries.push(FileScanEntry {
+            path: path.to_string_lossy().to_string(),
+            last_modified,
+            file_size: metadata.len(),
+        });
+
+        walked += 1;
+        if walked % WALK_PROGRESS_INTERVAL == 0 && !on_walked(walked) {
+            break;
+        }
+    }
+
+    entries
 }
 
 fn is_supported_playlist_path(path: &Path) -> bool {
@@ -440,15 +535,17 @@ fn directory_is_nomedia_blocked(dir: &Path, cache: &mut HashMap<PathBuf, bool>) 
 fn classify_scan_work(
     files_on_disk: Vec<FileScanEntry>,
     known_files: &HashMap<String, i64>,
+    force_full_rescan: bool,
 ) -> (Vec<FileScanEntry>, Vec<String>, HashSet<String>) {
     let mut found_paths = HashSet::with_capacity(files_on_disk.len());
     let mut to_process = Vec::new();
 
     for file in files_on_disk {
         let path = file.path.clone();
-        let needs_processing = known_files.get(&path).map_or(true, |known_timestamp| {
-            *known_timestamp != file.last_modified
-        });
+        let needs_processing = force_full_rescan
+            || known_files
+                .get(&path)
+                .map_or(true, |known_timestamp| *known_timestamp != file.last_modified);
 
         found_paths.insert(path);
 
@@ -916,6 +1013,7 @@ mod tests {
             dir.path().to_str().unwrap(),
             &ScanOptions {
                 filter_non_music_files_and_folders: true,
+                force_full_rescan: false,
             },
         );
         let paths: HashSet<_> = entries.into_iter().map(|e| e.path).collect();
@@ -940,6 +1038,7 @@ mod tests {
             dir.path().to_str().unwrap(),
             &ScanOptions {
                 filter_non_music_files_and_folders: true,
+                force_full_rescan: false,
             },
         );
         let paths: Vec<_> = entries.into_iter().map(|e| e.path).collect();
@@ -966,6 +1065,7 @@ mod tests {
             dir.path().to_str().unwrap(),
             &ScanOptions {
                 filter_non_music_files_and_folders: true,
+                force_full_rescan: false,
             },
         );
 
