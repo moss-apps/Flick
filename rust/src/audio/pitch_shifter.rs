@@ -101,15 +101,29 @@ impl PitchShifter {
             if avail > 0 {
                 let avail_samples = avail * channels;
                 if self.scratch.len() < avail_samples {
-                    self.scratch.resize(avail_samples, 0.0);
+                    log::error!(
+                        "[PITCH] SoundTouch produced {} samples beyond scratch capacity {}; skipping batch to avoid RT allocation",
+                        avail_samples,
+                        self.scratch.len()
+                    );
+                } else {
+                    let got = st::soundtouch_receiveSamples(
+                        self.handle,
+                        self.scratch.as_mut_ptr(),
+                        avail as u32,
+                    ) as usize;
+                    let got_samples = got.min(avail) * channels;
+                    if self.pending.len() + got_samples <= self.pending.capacity() {
+                        self.pending.extend(&self.scratch[..got_samples]);
+                    } else {
+                        log::error!(
+                            "[PITCH] pending backlog full ({} + {} > {}); dropping batch to avoid RT allocation",
+                            self.pending.len(),
+                            got_samples,
+                            self.pending.capacity()
+                        );
+                    }
                 }
-                let got = st::soundtouch_receiveSamples(
-                    self.handle,
-                    self.scratch.as_mut_ptr(),
-                    avail as u32,
-                ) as usize;
-                self.pending
-                    .extend(&self.scratch[..got.min(avail) * channels]);
             }
             let n = PROCESS_LOG_COUNTER.fetch_add(1, Ordering::Relaxed);
             if n % 500 == 0 {

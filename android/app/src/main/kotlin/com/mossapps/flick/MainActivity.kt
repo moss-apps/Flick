@@ -17,6 +17,8 @@ package com.mossapps.flick
 // (android_audio_device_service.dart isLikelyDap). Kotlin does NOT detect DAP brands.
 
 import android.Manifest
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.app.PendingIntent
 import android.bluetooth.BluetoothA2dp
 import android.bluetooth.BluetoothAdapter
@@ -107,6 +109,7 @@ class MainActivity: FlutterActivity() {
     private val CAST_CHANNEL = "com.mossapps.flick/cast"
     private val CAST_EVENT_CHANNEL = "com.mossapps.flick/cast_events"
     private val DLNA_ROUTE_CHANNEL = "com.mossapps.flick/dlna_route"
+    private val DIAGNOSTICS_CHANNEL = "com.mossapps.flick/diagnostics"
     private val LOCKER_PACKAGE = "com.mossapps.locker"
     private val LOCKER_RETURN_URI = "locker://return?source=flick"
     // private val CONVERTER_CHANNEL = "com.mossapps.flick/converter"
@@ -1210,6 +1213,12 @@ class MainActivity: FlutterActivity() {
         */
         
         // Register USB hot-plug receiver
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DIAGNOSTICS_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getProcessExitInfo" -> result.success(getProcessExitInfo())
+                else -> result.notImplemented()
+            }
+        }
         registerUsbHotplugReceiver()
         maybeRequestPermissionForConnectedUsbAudioDevices(reason = "flutter engine configured")
         // Register volume change observer
@@ -4466,6 +4475,28 @@ class MainActivity: FlutterActivity() {
             "audioFocusGain" to directUsbFocusGain,
             "rustAudioStateJson" to nativeGetRustAudioDebugStateJson(),
         )
+    }
+
+    private fun getProcessExitInfo(): List<Map<String, Any?>> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return emptyList()
+        val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return emptyList()
+        return try {
+            activityManager.getHistoricalProcessExitReasons(null, 0, 0).map { info ->
+                mapOf(
+                    "reason" to info.reason,
+                    "timestamp" to info.timestamp,
+                    "description" to info.description,
+                    "importance" to info.importance,
+                    "processName" to info.processName,
+                    "pid" to info.pid,
+                    "pss" to info.pss,
+                    "rss" to info.rss,
+                    "status" to info.status,
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     private fun getAudioCapabilities(

@@ -93,5 +93,39 @@ void main() {
         expect(layout.frameAtOffset(layout.offsetOfFrame(frame)), frame);
       }
     });
+
+    test('flags data sections that overflow the 32-bit WAV header', () {
+      final withinLimits = VirtualWavLayout(
+        header: _wavHeader(),
+        blockAlign: 3,
+        totalFrames: 1431655753,
+      );
+      final beyondLimits = VirtualWavLayout(
+        header: _wavHeader(),
+        blockAlign: 3,
+        totalFrames: 1431655754,
+      );
+
+      expect(withinLimits.dataLength, 0xFFFFFFFF - 36);
+      expect(withinLimits.exceedsWav32BitLimits, isFalse);
+      expect(beyondLimits.exceedsWav32BitLimits, isTrue);
+    });
+
+    test('defaults pacing sample rate to zero', () {
+      final unpaced = VirtualWavLayout(
+        header: _wavHeader(),
+        blockAlign: 4,
+        totalFrames: 10,
+      );
+      final paced = VirtualWavLayout(
+        header: _wavHeader(),
+        blockAlign: 4,
+        totalFrames: 10,
+        sampleRate: 96000,
+      );
+
+      expect(unpaced.sampleRate, 0);
+      expect(paced.sampleRate, 96000);
+    });
   });
 }

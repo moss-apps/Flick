@@ -762,6 +762,10 @@ impl IsoTransferSlot {
         endpoint: u8,
         payload: IsoTransferPayload,
     ) -> Result<(), String> {
+        if self.in_flight {
+            return Err("isochronous transfer slot already has a transfer in flight".to_string());
+        }
+
         if payload.packet_sizes.len() != self.packet_sizes.len() {
             return Err(format!(
                 "isochronous packet count mismatch: slot={}, payload={}",
@@ -824,7 +828,10 @@ impl IsoTransferSlot {
 
     fn take_completion_status(&mut self) -> Option<i32> {
         let completion = unsafe { &(*self.user_data).completion };
-        completion.status.lock().unwrap().take()
+        match completion.status.lock() {
+            Ok(mut guard) => guard.take(),
+            Err(poisoned) => poisoned.into_inner().take(),
+        }
     }
 
     fn turnaround_us(&self) -> Option<u64> {
@@ -855,6 +862,17 @@ impl IsoTransferSlot {
 
 impl Drop for IsoTransferSlot {
     fn drop(&mut self) {
+        if self.in_flight {
+            // libusb still owns the transfer and its buffer. Freeing either
+            // here risks a use-after-free inside libusb's event thread, so
+            // leak them instead of crashing.
+            dev_eprintln!(
+                "[USB] in-flight isochronous transfer survived teardown drain; leaking slot to avoid use-after-free"
+            );
+            std::mem::forget(unsafe { Box::from_raw(self.user_data) });
+            return;
+        }
+
         unsafe {
             libusb_free_transfer(self.transfer.as_ptr());
             drop(Box::from_raw(self.user_data));
@@ -4444,7 +4462,9 @@ fn create_android_usb_backend_inner(
         .next_transfer_packet_bytes()
         .into_iter()
         .map(|packet_bytes| {
-            (packet_bytes / (candidate.subslot_size as usize * candidate.channels as usize)) as u32
+            (packet_bytes
+                / (candidate.subslot_size as usize * candidate.channels as usize).max(1))
+                as u32
         })
         .collect::<Vec<_>>();
     set_packet_schedule_preview(packet_schedule_preview);
@@ -4465,14 +4485,28 @@ fn create_android_usb_backend_inner(
             if set_audio_thread_priority().is_err() {
                 dev_eprintln!("[AudioSched] Render thread running without SCHED_FIFO");
             }
-            run_usb_render_loop(
-                producer_callback_data,
-                producer_event_tx,
-                producer_buffer,
-                producer_stats,
-                playback_format,
-                producer_stop,
-            );
+            let panic_event_tx = producer_event_tx.clone();
+            let panic_stop = Arc::clone(&producer_stop);
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+                run_usb_render_loop(
+                    producer_callback_data,
+                    producer_event_tx,
+                    producer_buffer,
+                    producer_stats,
+                    playback_format,
+                    producer_stop,
+                );
+            }));
+            if let Err(payload) = result {
+                let message = format!(
+                    "Android USB direct render thread panicked: {}",
+                    panic_payload_message(payload.as_ref())
+                );
+                dev_eprintln!("{}", message);
+                set_last_error(Some(message.clone()));
+                panic_stop.store(true, Ordering::Release);
+                let _ = panic_event_tx.try_send(AudioEvent::Error { message });
+            }
         }) {
         Ok(handle) => handle,
         Err(error) => {
@@ -4511,15 +4545,39 @@ fn create_android_usb_backend_inner(
             if set_audio_thread_priority().is_err() {
                 dev_eprintln!("[AudioSched] Output thread running without SCHED_FIFO");
             }
-            run_usb_output_loop(
-                claimed_handle,
-                candidate,
-                state,
-                event_tx,
-                usb_buffer,
-                usb_stats,
-                usb_stop,
-            );
+            let panic_event_tx = event_tx.clone();
+            let panic_stop = Arc::clone(&usb_stop);
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+                run_usb_output_loop(
+                    claimed_handle,
+                    candidate,
+                    state,
+                    event_tx,
+                    usb_buffer,
+                    usb_stats,
+                    usb_stop,
+                );
+            }));
+            if let Err(payload) = result {
+                panic_stop.store(true, Ordering::Release);
+                let message = format!(
+                    "Android USB direct output thread panicked: {}",
+                    panic_payload_message(payload.as_ref())
+                );
+                dev_eprintln!("{}", message);
+                set_last_error(Some(message.clone()));
+                set_android_usb_engine_state(
+                    AndroidDirectUsbEngineState::Error,
+                    Some(message.clone()),
+                );
+                mark_android_usb_fallback(Some(message.clone()));
+                let _ = panic_event_tx.try_send(AudioEvent::Error { message });
+                set_stream_active(false);
+                set_runtime_stats(None);
+                set_usb_stream_stable(false);
+                USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
+                complete_pending_android_usb_clear_if_idle();
+            }
         }) {
         Ok(handle) => handle,
         Err(error) => {
@@ -4569,19 +4627,33 @@ fn create_android_usb_backend_inner(
 impl AndroidDirectUsbBackend {
     pub fn stop(&mut self) -> Result<(), String> {
         self.stop.store(true, Ordering::Release);
+
+        let mut first_error: Option<String> = None;
         if let Some(handle) = self.producer_thread_handle.take() {
-            handle
-                .join()
-                .map_err(|_| "Android USB direct render thread panicked".to_string())?;
+            if let Err(payload) = handle.join() {
+                let message = format!(
+                    "Android USB direct render thread panicked: {}",
+                    panic_payload_message(payload.as_ref())
+                );
+                first_error.get_or_insert(message);
+            }
         }
         if let Some(handle) = self.usb_thread_handle.take() {
-            handle
-                .join()
-                .map_err(|_| "Android USB direct output thread panicked".to_string())?;
+            if let Err(payload) = handle.join() {
+                let message = format!(
+                    "Android USB direct output thread panicked: {}",
+                    panic_payload_message(payload.as_ref())
+                );
+                first_error.get_or_insert(message);
+            }
         }
+
         USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
         complete_pending_android_usb_clear_if_idle();
-        Ok(())
+        match first_error {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 }
 
@@ -4955,7 +5027,7 @@ fn drain_iso_transfer_slots(context: &Context, slots: &mut [IsoTransferSlot]) {
         slot.cancel();
     }
 
-    let deadline = Instant::now() + Duration::from_millis(500);
+    let deadline = Instant::now() + Duration::from_millis(2000);
     while slots.iter().any(|slot| slot.in_flight) && Instant::now() < deadline {
         let _ = context.handle_events(Some(Duration::from_millis(10)));
         for slot in slots.iter_mut() {
@@ -4963,6 +5035,14 @@ fn drain_iso_transfer_slots(context: &Context, slots: &mut [IsoTransferSlot]) {
                 slot.mark_completed();
             }
         }
+    }
+
+    let still_in_flight = slots.iter().filter(|slot| slot.in_flight).count();
+    if still_in_flight > 0 {
+        dev_eprintln!(
+            "[USB] teardown drain timed out with {} isochronous transfer(s) still in flight; slots will be leaked",
+            still_in_flight
+        );
     }
 }
 
@@ -7346,20 +7426,37 @@ fn log_stream_debug_preview(
     log_info!("[USB] first 32 transfer bytes: {:?}", first_bytes_preview);
 }
 
-extern "system" fn iso_transfer_callback(transfer: *mut libusb_transfer) {
-    let Some(transfer) = std::ptr::NonNull::new(transfer) else {
-        return;
-    };
-    let user_data_ptr = unsafe { transfer.as_ref().user_data as *mut IsoTransferUserData };
-    let Some(user_data) = std::ptr::NonNull::new(user_data_ptr) else {
-        return;
-    };
+fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_string()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "unknown panic".to_string()
+    }
+}
 
-    let status = unsafe { transfer.as_ref().status };
-    let completion = &unsafe { user_data.as_ref() }.completion;
-    let mut guard = completion.status.lock().unwrap();
-    *guard = Some(status);
-    completion.condvar.notify_all();
+extern "system" fn iso_transfer_callback(transfer: *mut libusb_transfer) {
+    // Panicking across the FFI boundary aborts the process, so contain every
+    // panic here; a poisoned lock must not kill the app either.
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let Some(transfer) = std::ptr::NonNull::new(transfer) else {
+            return;
+        };
+        let user_data_ptr = unsafe { transfer.as_ref().user_data as *mut IsoTransferUserData };
+        let Some(user_data) = std::ptr::NonNull::new(user_data_ptr) else {
+            return;
+        };
+
+        let status = unsafe { transfer.as_ref().status };
+        let completion = &unsafe { user_data.as_ref() }.completion;
+        let mut guard = match completion.status.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        *guard = Some(status);
+        completion.condvar.notify_all();
+    }));
 }
 
 #[allow(dead_code)]
@@ -7421,7 +7518,11 @@ fn submit_iso_transfer(
 
     let completion = unsafe { &(*user_data_ptr).completion };
     let status = loop {
-        if let Some(status) = *completion.status.lock().unwrap() {
+        let pending_status = match completion.status.lock() {
+            Ok(guard) => *guard,
+            Err(poisoned) => *poisoned.into_inner(),
+        };
+        if let Some(status) = pending_status {
             break status;
         }
 

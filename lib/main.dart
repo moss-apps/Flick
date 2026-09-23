@@ -12,6 +12,7 @@ import 'package:flick/services/external_playback_service.dart';
 import 'package:flick/services/permission_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/playback_cache_maintenance.dart';
+import 'package:flick/services/process_exit_diagnostics_service.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
@@ -23,6 +24,8 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
+
+  await AppLog.instance.initializePersistence();
 
   FlutterError.onError = (details) {
     AppLog.instance.add(
@@ -38,6 +41,7 @@ Future<void> main() async {
 
   await RustLib.init();
   _subscribeRustLogs();
+  unawaited(ProcessExitDiagnosticsService().reportPreviousExits());
 
   await Database.init();
 

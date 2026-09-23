@@ -15,7 +15,7 @@ use std::fs::File;
 use std::io::Cursor;
 use std::path::Path;
 use symphonia::core::audio::{AudioBufferRef, Signal};
-use symphonia::core::codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL};
+use symphonia::core::codecs::{Decoder, DecoderOptions, CODEC_TYPE_ALAC, CODEC_TYPE_NULL};
 use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo};
 use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::MetadataOptions;
@@ -88,6 +88,10 @@ impl ConversionSession {
             // 24-bit ALAC → S32, AAC → F32). Peek one packet for the real layout.
             sample_rate_hint = track.codec_params.sample_rate.context("No sample rate")?;
             duration_samples = track.codec_params.n_frames.unwrap_or(0);
+
+            if track.codec_params.codec == CODEC_TYPE_ALAC {
+                validate_alac_extra_data(track.codec_params.extra_data.as_deref())?;
+            }
 
             decoder = symphonia::default::get_codecs()
                 .make(&track.codec_params, &DecoderOptions::default())
@@ -410,9 +414,49 @@ where
     Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Failed to probe audio format")))
 }
 
+/// ALAC magic-cookie fields are trusted verbatim by the decoder (including a
+/// `frameLength`-sized allocation), so reject implausible values before the
+/// codec is constructed. A bad cookie would otherwise abort the process on
+/// allocation failure, which `catch_unwind` cannot recover from.
+fn validate_alac_extra_data(extra_data: Option<&[u8]>) -> Result<()> {
+    let Some(data) = extra_data else {
+        return Ok(());
+    };
+    if data.len() < 24 {
+        return Ok(());
+    }
+
+    let frame_length = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
+    let bit_depth = data[5];
+    let num_channels = data[9];
+    let sample_rate = u32::from_be_bytes([data[20], data[21], data[22], data[23]]);
+
+    anyhow::ensure!(
+        (1..=16_384).contains(&frame_length),
+        "implausible ALAC frame length {}",
+        frame_length
+    );
+    anyhow::ensure!(
+        matches!(bit_depth, 16 | 20 | 24 | 32),
+        "implausible ALAC bit depth {}",
+        bit_depth
+    );
+    anyhow::ensure!(
+        (1..=8).contains(&num_channels),
+        "implausible ALAC channel count {}",
+        num_channels
+    );
+    anyhow::ensure!(
+        (1..=768_000).contains(&sample_rate),
+        "implausible ALAC sample rate {}",
+        sample_rate
+    );
+
+    Ok(())
+}
+
 /// Bit depth + float flag matching how we pack samples into the WAV body.
-fn sample_format_from_buffer(buffer: &AudioBufferRef<'_>) -> (u16, bool) {
-    match buffer {
+fn sample_format_from_buffer(buffer: &AudioBufferRef<'_>) -> (u16, bool) {    match buffer {
         AudioBufferRef::S8(_) | AudioBufferRef::U8(_) => (8, false),
         AudioBufferRef::S16(_) | AudioBufferRef::U16(_) => (16, false),
         AudioBufferRef::S24(_) | AudioBufferRef::U24(_) => (24, false),
