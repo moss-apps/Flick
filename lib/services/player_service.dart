@@ -43,6 +43,7 @@ import 'package:flick/services/playback_cache_preferences_service.dart';
 import 'package:flick/services/remote_source_service.dart';
 import 'package:flick/services/wav_stream_audio_source.dart';
 import 'package:flick/services/casting/casting_service.dart';
+import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
 /// Volume Control State Machine:
@@ -277,6 +278,57 @@ bool shouldHandleManualCompletion({
       loopMode == LoopMode.stopAfterCurrent;
 }
 
+const Duration _audioPathTransitionLogWindow = Duration(minutes: 1);
+const int _audioPathTransitionLogMaxPerWindow = 30;
+
+/// Identifies the active audio path for field diagnostics. Written to the
+/// shareable app log on every change, regardless of Developer Mode.
+@visibleForTesting
+Map<String, String> audioPathTransitionFields(
+  AudioOutputDiagnostics diagnostics,
+) {
+  return {
+    'engine':
+        (diagnostics.initializedMode ?? diagnostics.selectedMode).logLabel,
+    'path': diagnostics.pathManagement.name,
+    'strategy': diagnostics.outputStrategyLabel,
+    'bitPerfect': diagnostics.capabilityFlags.supportsVerifiedBitPerfect
+        ? 'on'
+        : 'off',
+    'resampler': diagnostics.resamplerActive ? 'on' : 'off',
+    'requested': diagnostics.requestedOutputSampleRate?.toString() ?? 'none',
+    'reported': diagnostics.reportedOutputSampleRate?.toString() ?? 'none',
+    'fallback': diagnostics.fallbackReason ?? 'none',
+    'verification': diagnostics.verificationReason ?? 'none',
+  };
+}
+
+@visibleForTesting
+List<String> audioPathTransitionChanges(
+  Map<String, String>? previous,
+  Map<String, String> current,
+) {
+  if (previous == null) return const [];
+  final changes = <String>[];
+  for (final entry in current.entries) {
+    final oldValue = previous[entry.key];
+    if (oldValue != entry.value) {
+      changes.add('${entry.key}: ${oldValue ?? 'none'} -> ${entry.value}');
+    }
+  }
+  return changes;
+}
+
+/// Rate limit so a flapping path cannot flush the log ring.
+@visibleForTesting
+bool shouldLogAudioPathTransition({
+  required int logsInWindow,
+  required Duration windowAge,
+}) {
+  return windowAge >= _audioPathTransitionLogWindow ||
+      logsInWindow < _audioPathTransitionLogMaxPerWindow;
+}
+
 @visibleForTesting
 bool shouldSyncNotificationForRepeatOneLoop({
   required LoopMode loopMode,
@@ -380,6 +432,10 @@ class PlayerService {
   final ValueNotifier<bool> usingRustBackendNotifier = ValueNotifier(false);
   final ValueNotifier<AudioOutputDiagnostics?> audioOutputDiagnosticsNotifier =
       ValueNotifier(null);
+  int _audioOutputDiagnosticsGeneration = 0;
+  Map<String, String>? _lastAudioPathTransition;
+  DateTime? _audioPathTransitionWindowStart;
+  int _audioPathTransitionLogsInWindow = 0;
   final ValueNotifier<bool> bitPerfectProcessingLockedNotifier = ValueNotifier(
     false,
   );
@@ -2180,6 +2236,7 @@ class PlayerService {
     required String reason,
     Song? activeSong,
   }) async {
+    final generation = ++_audioOutputDiagnosticsGeneration;
     final mode = currentEngineType;
     final activeEngineType = _playbackManager.activeEngineType ?? mode;
     final usesRustDiagnostics = activeEngineType.usesRustBackend;
@@ -2540,6 +2597,10 @@ class PlayerService {
           )
         : null;
 
+    if (generation != _audioOutputDiagnosticsGeneration) {
+      return;
+    }
+
     audioOutputDiagnosticsNotifier.value = AudioOutputDiagnostics(
       selectedMode: _sessionManager.selectedMode,
       initializedMode: _sessionManager.initializedMode,
@@ -2604,6 +2665,39 @@ class PlayerService {
       'dsdMode=${dsdEffectiveMode ?? 'none'}, '
       'dsdTransport=${dsdTransport ?? 'none'}',
     );
+
+    _logAudioPathTransition(reason);
+  }
+
+  void _logAudioPathTransition(String trigger) {
+    final diagnostics = audioOutputDiagnosticsNotifier.value;
+    if (diagnostics == null) return;
+
+    final current = audioPathTransitionFields(diagnostics);
+    final changes = audioPathTransitionChanges(
+      _lastAudioPathTransition,
+      current,
+    );
+    _lastAudioPathTransition = current;
+    if (changes.isEmpty) return;
+
+    final now = DateTime.now();
+    final windowStart = _audioPathTransitionWindowStart;
+    final windowAge = windowStart == null
+        ? const Duration(days: 1)
+        : now.difference(windowStart);
+    if (!shouldLogAudioPathTransition(
+      logsInWindow: _audioPathTransitionLogsInWindow,
+      windowAge: windowAge,
+    )) {
+      return;
+    }
+    if (windowAge >= _audioPathTransitionLogWindow) {
+      _audioPathTransitionWindowStart = now;
+      _audioPathTransitionLogsInWindow = 0;
+    }
+    _audioPathTransitionLogsInWindow++;
+    AppLog.instance.add('[AudioPath] $trigger: ${changes.join('; ')}');
   }
 
   Map<String, dynamic>? _mapValue(dynamic value) {
