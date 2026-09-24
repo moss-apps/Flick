@@ -6,6 +6,7 @@ import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
+import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
 typedef AudioSessionSwitchHandler =
@@ -68,6 +69,12 @@ class AudioSessionManager {
     devLog(message);
   }
 
+  /// Mode transitions go to the shareable app log regardless of Developer Mode.
+  void _sessionLog(String message) {
+    debugPrint(message);
+    AppLog.instance.add(message);
+  }
+
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -104,7 +111,7 @@ class AudioSessionManager {
       return;
     }
 
-    _debugLog(
+    _sessionLog(
       '[Session] Switching from ${previousInitialized?.logLabel ?? 'none'} '
       'to ${mode.logLabel} '
       '(${initializeNewEngine ? 'initialize' : 'lazy'}) because $reason',
@@ -139,7 +146,7 @@ class AudioSessionManager {
     if (selectedMode != fallbackMode) {
       selectedModeNotifier.value = fallbackMode;
     }
-    _debugLog('[Session] Fallback: ${fallbackReasonNotifier.value}');
+    _sessionLog('[Session] Fallback: ${fallbackReasonNotifier.value}');
   }
 
   Future<void> suppressExperimentalUsbForCurrentDevice({
@@ -155,7 +162,7 @@ class AudioSessionManager {
     if (selectedMode == AudioEngineType.usbDacExperimental) {
       selectedModeNotifier.value = AudioEngineType.normalAndroid;
     }
-    _debugLog(
+    _sessionLog(
       '[Session] Marking USB_DAC_EXPERIMENTAL unavailable for the current '
       'DAC this session: $reason',
     );
@@ -217,13 +224,18 @@ class AudioSessionManager {
 
   Future<void> _syncRouteSelectionInternal({required String reason}) async {
     final desired = await _resolvePreferredMode(refresh: true);
-    if (selectedMode == desired) {
+    final previous = selectedMode;
+    if (previous == desired) {
       return;
     }
 
     selectedModeNotifier.value = desired;
+    _sessionLog(
+      '[Session] Route selection changed: ${previous.logLabel} -> '
+      '${desired.logLabel} ($reason)',
+    );
     if (_isPlaybackActive() && initializedMode != desired) {
-      _debugLog(
+      _sessionLog(
         '[Session] Route changed to ${desired.logLabel}; '
         'new engine will attach on the next playback request ($reason)',
       );
