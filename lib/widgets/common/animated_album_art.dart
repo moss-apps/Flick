@@ -24,6 +24,9 @@ class AnimatedAlbumArt extends StatefulWidget {
   /// Prefer the portrait motion-art variant (full-bleed backgrounds).
   final bool preferVertical;
 
+  /// When false, keeps the Ken Burns effect even if album metadata is present.
+  final bool motionEnabled;
+
   const AnimatedAlbumArt({
     super.key,
     this.imagePath,
@@ -35,6 +38,7 @@ class AnimatedAlbumArt extends StatefulWidget {
     this.artistName,
     this.representativeSongTitle,
     this.preferVertical = false,
+    this.motionEnabled = true,
   });
 
   @override
@@ -114,7 +118,9 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
 
     final album = widget.albumName?.trim() ?? '';
     final artist = widget.artistName?.trim() ?? '';
-    if (album.isEmpty || artist.isEmpty) return kenBurns;
+    if (album.isEmpty || artist.isEmpty || !widget.motionEnabled) {
+      return kenBurns;
+    }
 
     return MotionArtView(
       title: album,
