@@ -22,6 +22,10 @@ class AlbumArtBox extends ConsumerStatefulWidget {
   final ValueChanged<bool>? onVinylChanged;
   final bool showFrame;
 
+  /// Gates Motion Art even when the user preference is enabled (for example
+  /// for off-screen carousel pages).
+  final bool motionArtEnabled;
+
   const AlbumArtBox({
     super.key,
     required this.song,
@@ -31,6 +35,7 @@ class AlbumArtBox extends ConsumerStatefulWidget {
     this.initialVinyl = false,
     this.onVinylChanged,
     this.showFrame = true,
+    this.motionArtEnabled = true,
   });
 
   @override
@@ -367,7 +372,7 @@ class _AlbumArtBoxState extends ConsumerState<AlbumArtBox>
       albumMode: useAlbum,
       representativeSongTitle: useAlbum ? widget.song.title : null,
       duration: widget.song.duration,
-      enabled: motionEnabled && !_isVinyl,
+      enabled: widget.motionArtEnabled && motionEnabled && !_isVinyl,
       fallback: fallback,
     );
   }

@@ -38,6 +38,7 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/widgets/common/floating_scan_progress.dart';
+import 'package:flick/widgets/common/offline_notice.dart';
 import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/library_scanner_service.dart';
@@ -74,6 +75,16 @@ class FlickPlayerApp extends StatelessWidget {
       theme: AppTheme.darkTheme,
       navigatorKey: rootNavigatorKey,
       home: const _RootRouter(),
+      // Global connectivity notice. It sits below the app content so it is
+      // never covered by routes and never covers any interface itself.
+      builder: (context, child) {
+        return Column(
+          children: [
+            Expanded(child: child ?? const SizedBox.shrink()),
+            const OfflineNotice(),
+          ],
+        );
+      },
     );
   }
 }

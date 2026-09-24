@@ -2,6 +2,7 @@ use crate::dev_eprintln;
 
 use crate::audio::commands::AudioEvent;
 use crate::audio::engine::{audio_callback, AudioCallbackData};
+use crate::uac2::payload_audit_latch::PayloadAuditLatch;
 use crate::uac2::{iso_packet_scheduler::IsoPacketScheduler, AudioControlParser, DescriptorIter};
 use crossbeam_channel::Sender;
 use libusb1_sys::{
@@ -78,6 +79,7 @@ const ANDROID_USB_TRANSFER_QUEUE_DEPTH: usize = 4;
 const ANDROID_USB_REQUIRE_VERIFIED_RATE_DEFAULT: bool = true;
 const ANDROID_USB_CLOCK_SETTLE_DELAY_MS_DEFAULT: u64 = 20;
 const ANDROID_USB_FEEDBACK_TIMEOUT_MS: u32 = 50;
+const ANDROID_USB_PAYLOAD_FLICKER_GRACE_MS: u64 = 1500;
 const ANDROID_USB_LOUD_RENDER_LOG_THRESHOLD: f32 = 0.1;
 const ANDROID_USB_LOUD_TRANSFER_LOG_INTERVAL: u64 = 32;
 const ANDROID_USB_TIMING_LOG_INTERVAL: u64 = 128;
@@ -453,6 +455,9 @@ pub struct AndroidDirectUsbDebugState {
     pub direct_mode_refusal_reason: Option<String>,
     pub usb_stream_stable: bool,
     pub bit_perfect_verified: bool,
+    pub pcm_payload_verified: bool,
+    pub dsd_payload_verified: bool,
+    pub payload_constant_for_ms: Option<u64>,
     pub software_volume_active: bool,
     pub hardware_volume_supported: bool,
     pub hardware_mute_supported: bool,
@@ -1072,39 +1077,81 @@ fn usb_stop_requested(stop: &AtomicBool) -> bool {
     stop.load(Ordering::Acquire) || USB_STOP_REQUESTED.load(Ordering::Acquire)
 }
 
-static USB_DSD_PAYLOAD_VERIFIED: AtomicBool = AtomicBool::new(false);
+fn payload_audit_latch() -> PayloadAuditLatch {
+    PayloadAuditLatch::new(Duration::from_millis(ANDROID_USB_PAYLOAD_FLICKER_GRACE_MS))
+}
+
+static USB_DSD_PAYLOAD_LATCH: Lazy<Mutex<PayloadAuditLatch>> =
+    Lazy::new(|| Mutex::new(payload_audit_latch()));
 
 fn usb_dsd_payload_verified() -> bool {
-    USB_DSD_PAYLOAD_VERIFIED.load(Ordering::SeqCst)
+    USB_DSD_PAYLOAD_LATCH.lock().is_verified()
 }
 
-static USB_PCM_PAYLOAD_VERIFIED: AtomicBool = AtomicBool::new(false);
+static USB_PCM_PAYLOAD_LATCH: Lazy<Mutex<PayloadAuditLatch>> =
+    Lazy::new(|| Mutex::new(payload_audit_latch()));
 
 fn usb_pcm_payload_verified() -> bool {
-    USB_PCM_PAYLOAD_VERIFIED.load(Ordering::SeqCst)
+    USB_PCM_PAYLOAD_LATCH.lock().is_verified()
 }
 
-static LAST_PCM_PAYLOAD_LOGGED: AtomicBool = AtomicBool::new(false);
+/// Unconditional diagnostic event: reaches logcat and the user-shareable
+/// AppLog sink even with Developer Mode off. Only called on state transitions.
+fn log_usb_event(message: String) {
+    log_info!("{}", message);
+    crate::api::logging::forward_to_sink(message);
+}
 
-fn log_pcm_payload_transition(ok: bool) {
-    let prev = LAST_PCM_PAYLOAD_LOGGED.swap(ok, Ordering::Relaxed);
-    if ok && !prev {
-        crate::dev_eprintln!(
-            "[USB-PCM] wire payload verified: real audio flowing, not a stuck/dead pipeline"
-        );
+fn observe_dsd_payload_audit(ok: bool) {
+    let now = Instant::now();
+    let mut latch = USB_DSD_PAYLOAD_LATCH.lock();
+    if let Some(verified) = latch.observe(ok, now) {
+        let constant_for = latch.constant_for(now);
+        drop(latch);
+        log_payload_audit_transition("DSD", verified, constant_for);
     }
+}
+
+fn observe_pcm_payload_audit(ok: bool) {
+    let now = Instant::now();
+    let mut latch = USB_PCM_PAYLOAD_LATCH.lock();
+    if let Some(verified) = latch.observe(ok, now) {
+        let constant_for = latch.constant_for(now);
+        drop(latch);
+        log_payload_audit_transition("PCM", verified, constant_for);
+    }
+}
+
+fn log_payload_audit_transition(transport: &str, verified: bool, constant_for: Option<Duration>) {
+    if verified {
+        log_usb_event(format!(
+            "[USB-{transport}] wire payload verified: real audio flowing, not a stuck/dead pipeline"
+        ));
+    } else {
+        let constant_ms = constant_for.map(|duration| duration.as_millis()).unwrap_or(0);
+        log_usb_event(format!(
+            "[USB-{transport}] wire payload lost: audit failed for {constant_ms}ms (constant/silent transfer)"
+        ));
+    }
+}
+
+fn payload_constant_ms(transport: Option<DsdTransportMode>) -> Option<u64> {
+    let now = Instant::now();
+    let constant_for = match transport {
+        Some(DsdTransportMode::None) | None => USB_PCM_PAYLOAD_LATCH.lock().constant_for(now),
+        _ => USB_DSD_PAYLOAD_LATCH.lock().constant_for(now),
+    };
+    constant_for.map(|duration| duration.as_millis() as u64)
 }
 
 static LAST_BIT_PERFECT_LOGGED: AtomicBool = AtomicBool::new(false);
 
-/// One-shot devLog evidence line: emitted the first time per stream that all
-/// bit-perfect conditions hold (format match + verified clock + payload audit).
+/// Transition evidence line for the bit-perfect claim. Both edges are logged
+/// unconditionally so field reports can show mode flapping without Developer
+/// Mode.
 fn log_bit_perfect_transition(verified: bool, state: &AndroidDirectUsbState) {
     let prev = LAST_BIT_PERFECT_LOGGED.swap(verified, Ordering::Relaxed);
-    if !verified {
-        return;
-    }
-    if prev {
+    if prev == verified {
         return;
     }
     let Some(effective) = state.playback_format else {
@@ -1115,14 +1162,47 @@ fn log_bit_perfect_transition(verified: bool, state: &AndroidDirectUsbState) {
         DsdTransportMode::Native => "dsd-native",
         DsdTransportMode::None => "pcm",
     };
-    crate::dev_eprintln!(
-        "[USB-BITPERFECT] verified: {} bit/{} Hz {}ch {} direct on \"{}\" — no mixer, no resample, no DSP",
-        effective.bit_depth,
-        effective.sample_rate,
-        effective.channels,
-        transport,
-        state.device.product_name
-    );
+    if verified {
+        log_usb_event(format!(
+            "[USB-BITPERFECT] verified: {} bit/{} Hz {}ch {} direct on \"{}\" — no mixer, no resample, no DSP",
+            effective.bit_depth,
+            effective.sample_rate,
+            effective.channels,
+            transport,
+            state.device.product_name
+        ));
+    } else {
+        log_usb_event(format!(
+            "[USB-BITPERFECT] released: {} bit/{} Hz {}ch {} direct on \"{}\" — {}",
+            effective.bit_depth,
+            effective.sample_rate,
+            effective.channels,
+            transport,
+            state.device.product_name,
+            bit_perfect_release_reason(state)
+        ));
+    }
+}
+
+fn bit_perfect_release_reason(state: &AndroidDirectUsbState) -> &'static str {
+    if !state.stream_active {
+        return "stream inactive";
+    }
+    if !state.clock_verification_passed {
+        return "clock verification reset";
+    }
+    let format_mismatch = state
+        .requested_playback_format
+        .zip(state.playback_format)
+        .is_some_and(|(requested, effective)| {
+            requested.sample_rate != effective.sample_rate
+                || requested.bit_depth != effective.bit_depth
+                || requested.channels != effective.channels
+        });
+    if format_mismatch {
+        return "requested/effective format mismatch";
+    }
+    "wire payload audit failed"
 }
 
 /// Verify the just-encoded wire payload looks like real DSD transport data.
@@ -1641,6 +1721,10 @@ pub fn android_direct_debug_state() -> AndroidDirectUsbDebugState {
     // Compute live (before the struct literal moves String fields out of state).
     let bit_perfect_verified = direct_path_is_bit_perfect(&state);
     log_bit_perfect_transition(bit_perfect_verified, &state);
+    let pcm_payload_verified = usb_pcm_payload_verified();
+    let dsd_payload_verified = usb_dsd_payload_verified();
+    let payload_constant_for_ms =
+        payload_constant_ms(state.playback_format.map(|format| format.dsd_transport));
 
     AndroidDirectUsbDebugState {
         registered: true,
@@ -1708,6 +1792,9 @@ pub fn android_direct_debug_state() -> AndroidDirectUsbDebugState {
         direct_mode_refusal_reason: state.direct_mode_refusal_reason,
         usb_stream_stable: state.usb_stream_stable,
         bit_perfect_verified,
+        pcm_payload_verified,
+        dsd_payload_verified,
+        payload_constant_for_ms,
         software_volume_active: state.software_volume_active,
         hardware_volume_supported: state.hardware_volume_control.is_some(),
         hardware_mute_supported: state
@@ -4955,23 +5042,18 @@ fn prepare_iso_transfer_payload(
         dsd_bit_reverse,
     )?;
     if dsd_transport != DsdTransportMode::None {
-        USB_DSD_PAYLOAD_VERIFIED.store(
-            audit_dsd_payload(
-                &transfer_buffer,
-                dsd_transport,
-                candidate.subslot_size,
-                candidate.channels,
-            ),
-            Ordering::SeqCst,
-        );
+        observe_dsd_payload_audit(audit_dsd_payload(
+            &transfer_buffer,
+            dsd_transport,
+            candidate.subslot_size,
+            candidate.channels,
+        ));
     } else {
-        let ok = audit_pcm_payload(
+        observe_pcm_payload_audit(audit_pcm_payload(
             &transfer_buffer,
             candidate.subslot_size,
             candidate.channels,
-        );
-        USB_PCM_PAYLOAD_VERIFIED.store(ok, Ordering::SeqCst);
-        log_pcm_payload_transition(ok);
+        ));
     }
 
     Ok(Some(IsoTransferPayload {
@@ -5174,9 +5256,8 @@ fn run_usb_output_loop(
         claimed_interfaces,
     } = claimed_handle;
     let playback_format = state.playback_format.unwrap();
-    USB_DSD_PAYLOAD_VERIFIED.store(false, Ordering::SeqCst);
-    USB_PCM_PAYLOAD_VERIFIED.store(false, Ordering::SeqCst);
-    LAST_PCM_PAYLOAD_LOGGED.store(false, Ordering::Relaxed);
+    USB_DSD_PAYLOAD_LATCH.lock().reset();
+    USB_PCM_PAYLOAD_LATCH.lock().reset();
     LAST_BIT_PERFECT_LOGGED.store(false, Ordering::Relaxed);
     let dsd_quirk = resolve_dsd_quirk(
         state.device.vendor_id,

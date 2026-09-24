@@ -513,6 +513,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 : song.artist,
             representativeSongTitle: song.title,
             preferVertical: true,
+            // In the standard layout the art card carries Motion Art; only the
+            // immersive full-bleed view needs a second video layer.
+            motionEnabled: _isImmersiveFullView,
           )
         : CachedImageWidget(
             imagePath: song.albumArt,
@@ -1110,6 +1113,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                           onVinylChanged: (v) => _isVinylMode = v,
                           onToggleLyrics: () => _setLyricsMode(!_isLyricsMode),
                           showWaveform: false,
+                          motionArtEnabled: isCurrent,
                         );
                       },
                     );
@@ -1165,6 +1169,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                 onNext: _handleCarouselNext,
                                 onPrevious: _handleCarouselPrevious,
                                 stageBuilder: (s) {
+                                  final isCurrent = s.id == song.id;
                                   return SongStage(
                                     song: s,
                                     lyricsMode: _isLyricsMode,
@@ -1186,6 +1191,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                     visualizerAnimationStyle: visStyle,
                                     visualizerFrequencyMode: visFreq,
                                     visualizerMovementMode: visMove,
+                                    motionArtEnabled: isCurrent,
                                     artworkCardArtworkScale:
                                         appPrefs.artworkCardArtworkScale,
                                     artworkCardTextScale:

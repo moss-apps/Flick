@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:in_app_update/in_app_update.dart';
 
 import '../core/constants/app_constants.dart';
+import 'connectivity_provider.dart';
 
 class UpdateCheckState {
   const UpdateCheckState({
@@ -76,40 +76,53 @@ class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
     'https://api.github.com/repos/moss-apps/Flick/releases/latest',
   );
 
-  final Connectivity _connectivity = Connectivity();
-  StreamSubscription<dynamic>? _connectivitySubscription;
   bool _initialized = false;
 
   @override
   UpdateCheckState build() {
     if (!_initialized) {
       _initialized = true;
-      ref.onDispose(() => _connectivitySubscription?.cancel());
-      _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
-        result,
-      ) {
-        unawaited(_syncConnectivityAndMaybeCheck(result));
+      ref.listen<ConnectivityStatus>(connectivityProvider, (previous, next) {
+        if (next == ConnectivityStatus.unknown) {
+          return;
+        }
+        final isOnline = next == ConnectivityStatus.online;
+        unawaited(
+          _syncConnectivityAndMaybeCheck(
+            isOnline,
+            forceCheck: previous == ConnectivityStatus.offline && isOnline,
+          ),
+        );
       });
-      Future<void>.microtask(_bootstrap);
+
+      // The shared provider may already be resolved when this notifier is
+      // first read, in which case no transition will fire.
+      final status = ref.read(connectivityProvider);
+      if (status == ConnectivityStatus.online) {
+        Future<void>.microtask(() => _syncConnectivityAndMaybeCheck(true));
+      } else if (status == ConnectivityStatus.offline) {
+        Future<void>.microtask(() => _syncConnectivityAndMaybeCheck(false));
+      }
     }
     return const UpdateCheckState();
   }
 
-  Future<void> _bootstrap() async {
-    final connectivityState = await _connectivity.checkConnectivity();
-    await _syncConnectivityAndMaybeCheck(connectivityState, forceCheck: true);
-  }
-
   Future<void> refreshIfOnline({bool force = false}) async {
-    final connectivityState = await _connectivity.checkConnectivity();
-    await _syncConnectivityAndMaybeCheck(connectivityState, forceCheck: force);
+    final status = ref.read(connectivityProvider);
+    final isOnline = switch (status) {
+      ConnectivityStatus.online => true,
+      ConnectivityStatus.offline => false,
+      ConnectivityStatus.unknown => await ref
+          .read(connectivityProvider.notifier)
+          .refresh(),
+    };
+    await _syncConnectivityAndMaybeCheck(isOnline, forceCheck: force);
   }
 
   Future<void> _syncConnectivityAndMaybeCheck(
-    dynamic connectivityState, {
+    bool isOnline, {
     bool forceCheck = false,
   }) async {
-    final isOnline = _isOnline(connectivityState);
     final wasOnline = state.isOnline;
 
     state = state.copyWith(isOnline: isOnline, clearErrorMessage: isOnline);
@@ -136,18 +149,6 @@ class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
       return false;
     }
     return DateTime.now().difference(lastCheckedAt) < _automaticRefreshCooldown;
-  }
-
-  bool _isOnline(dynamic connectivityState) {
-    if (connectivityState is ConnectivityResult) {
-      return connectivityState != ConnectivityResult.none;
-    }
-    if (connectivityState is List<ConnectivityResult>) {
-      return connectivityState.any(
-        (result) => result != ConnectivityResult.none,
-      );
-    }
-    return false;
   }
 
   Future<void> _checkForUpdate() async {

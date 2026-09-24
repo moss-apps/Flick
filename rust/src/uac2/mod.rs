@@ -48,6 +48,8 @@ pub(crate) mod iso_packet_scheduler;
 #[cfg(feature = "uac2")]
 mod logging;
 #[cfg(feature = "uac2")]
+mod payload_audit_latch;
+#[cfg(feature = "uac2")]
 mod quirk;
 #[cfg(feature = "uac2")]
 mod registry;

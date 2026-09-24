@@ -590,8 +590,10 @@ fn plan_track_engine_config(path: &PathBuf) -> Result<TrackEnginePlan, String> {
             })
         }
         crate::audio::decoder_handle::FileType::WavPack => {
-            let sample_rate =
-                resolve_requested_output_sample_rate(None)?.unwrap_or(DEFAULT_ENGINE_SAMPLE_RATE);
+            let sample_rate = resolve_track_playback_output_sample_rate(
+                crate::audio::wavpack_thread::wavpack_pcm_sample_rate(path),
+            )?
+            .unwrap_or(DEFAULT_ENGINE_SAMPLE_RATE);
             Ok(TrackEnginePlan {
                 sample_rate,
                 is_raw: false,
@@ -1178,7 +1180,9 @@ pub fn audio_play(path: String) -> Result<(), String> {
         }
         crate::audio::decoder_handle::FileType::WavPack => {
             clear_dsd_track_rate();
-            ensure_audio_engine(resolve_requested_output_sample_rate(None)?)?;
+            ensure_audio_engine(resolve_track_playback_output_sample_rate(
+                crate::audio::wavpack_thread::wavpack_pcm_sample_rate(&path),
+            )?)?;
             let (output_sample_rate, output_channels) =
                 with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
             let (source, handle) =
@@ -1311,7 +1315,9 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
             }
             crate::audio::decoder_handle::FileType::WavPack => {
                 clear_dsd_track_rate();
-                ensure_audio_engine(resolve_requested_output_sample_rate(None)?)?;
+                ensure_audio_engine(resolve_track_playback_output_sample_rate(
+                    crate::audio::wavpack_thread::wavpack_pcm_sample_rate(&path),
+                )?)?;
                 let (output_sample_rate, output_channels) =
                     with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
                 let (source, wh) =

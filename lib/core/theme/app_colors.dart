@@ -40,6 +40,10 @@ class AppColors {
   static const Color errorDim = Color(0x29CF6679); // 16% for fills
   static const Color errorBorder = Color(0x59CF6679); // 35% for borders
 
+  // Success / positive state colors
+  static const Color success = Color(0xFF4CC38A);
+  static const Color onSuccess = Color(0xFF08150E);
+
   // Gradient definitions
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.topCenter,

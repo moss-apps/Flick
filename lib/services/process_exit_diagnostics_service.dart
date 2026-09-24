@@ -26,6 +26,13 @@ class ProcessExitDiagnosticsService {
         final timestamp = (info['timestamp'] as num?)?.toInt() ?? 0;
         if (timestamp <= lastSeen) continue;
         AppLog.instance.add(_describe(info), source: LogSource.crash);
+        final trace = info['trace'];
+        if (trace is String && trace.isNotEmpty) {
+          AppLog.instance.add(
+            '[native-exit-trace] $trace',
+            source: LogSource.crash,
+          );
+        }
         if (timestamp > newest) newest = timestamp;
       }
 

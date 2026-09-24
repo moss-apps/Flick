@@ -402,7 +402,7 @@ class MainActivity: FlutterActivity() {
                     }
                 }
                 "prunePlaybackStaging" -> {
-                    val maxBytes = call.argument<Long>("maxBytes")
+                    val maxBytes = call.argument<Number>("maxBytes")?.toLong()
                     mainScope.launch {
                         try {
                             withContext(Dispatchers.IO) {
@@ -4492,10 +4492,25 @@ class MainActivity: FlutterActivity() {
                     "pss" to info.pss,
                     "rss" to info.rss,
                     "status" to info.status,
+                    "trace" to readExitTrace(info),
                 )
             }
         } catch (_: Exception) {
             emptyList()
+        }
+    }
+
+    private fun readExitTrace(info: ApplicationExitInfo): String? {
+        return try {
+            val stream = info.traceInputStream ?: return null
+            val text = stream.bufferedReader().use { reader ->
+                val buffer = CharArray(16 * 1024)
+                val read = reader.read(buffer)
+                if (read <= 0) null else String(buffer, 0, read)
+            }
+            text?.trim()?.takeIf { it.isNotEmpty() }
+        } catch (_: Exception) {
+            null
         }
     }
 

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/services/motion_art/animated_artwork_service.dart';
 import 'package:flick/services/player_service.dart';
@@ -68,13 +70,30 @@ class _MotionArtViewState extends State<MotionArtView> {
   static const Duration _retryDelay = Duration(seconds: 35);
   static const int _maxAttempts = 4;
 
+  static final Set<VideoPlayerController> _liveControllers = {};
+
   VideoPlayerController? _controller;
   bool _hasVideo = false;
   bool _suppressed = false;
+  bool _routeIsCurrent = true;
+  bool _listeningToSuppression = false;
   Timer? _timer;
   Timer? _retryTimer;
   int _generation = 0;
   int _attempt = 0;
+
+  static String _rssLabel() {
+    try {
+      final mb = ProcessInfo.currentRss ~/ (1024 * 1024);
+      return 'rss=${mb}MB';
+    } catch (_) {
+      return 'rss=?';
+    }
+  }
+
+  static void _logLifecycle(String message) {
+    AppLog.instance.add('[MotionArt] $message', source: LogSource.dart);
+  }
 
   ValueListenable<bool> get _suppression =>
       widget.suppressionOverride ??
@@ -83,9 +102,24 @@ class _MotionArtViewState extends State<MotionArtView> {
   @override
   void initState() {
     super.initState();
+    if (widget.enabled) {
+      _listenToSuppression();
+    }
+    _restart();
+  }
+
+  void _listenToSuppression() {
+    if (_listeningToSuppression) return;
+    _listeningToSuppression = true;
     _suppressed = _suppression.value;
     _suppression.addListener(_onSuppressionChanged);
-    _restart();
+  }
+
+  void _stopListeningToSuppression() {
+    if (!_listeningToSuppression) return;
+    _listeningToSuppression = false;
+    _suppression.removeListener(_onSuppressionChanged);
+    _suppressed = false;
   }
 
   void _onSuppressionChanged() {
@@ -97,8 +131,25 @@ class _MotionArtViewState extends State<MotionArtView> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+    if (isCurrent == _routeIsCurrent) return;
+    _routeIsCurrent = isCurrent;
+    _restart();
+    if (mounted) setState(() {});
+  }
+
+  @override
   void didUpdateWidget(covariant MotionArtView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.enabled != widget.enabled) {
+      if (widget.enabled) {
+        _listenToSuppression();
+      } else {
+        _stopListeningToSuppression();
+      }
+    }
     final changed =
         oldWidget.title != widget.title ||
         oldWidget.artist != widget.artist ||
@@ -112,7 +163,7 @@ class _MotionArtViewState extends State<MotionArtView> {
 
   @override
   void dispose() {
-    _suppression.removeListener(_onSuppressionChanged);
+    _stopListeningToSuppression();
     _teardown();
     super.dispose();
   }
@@ -126,7 +177,15 @@ class _MotionArtViewState extends State<MotionArtView> {
     _hasVideo = false;
     final controller = _controller;
     _controller = null;
-    controller?.dispose();
+    unawaited(_disposeVideo(controller));
+  }
+
+  Future<void> _disposeVideo(VideoPlayerController? controller) async {
+    if (controller == null) return;
+    if (_liveControllers.remove(controller)) {
+      _logLifecycle('stopped active=${_liveControllers.length}');
+    }
+    await controller.dispose();
   }
 
   void _restart() {
@@ -136,19 +195,29 @@ class _MotionArtViewState extends State<MotionArtView> {
   }
 
   void _beginLoad() {
-    if (!widget.enabled || _suppressed) return;
+    if (!widget.enabled || _suppressed || !_routeIsCurrent) return;
     final generation = _generation;
     _timer = Timer(_debounce, () => _loadOnce(generation));
   }
 
   void _scheduleRetry() {
-    if (!widget.enabled || _suppressed || _attempt >= _maxAttempts) return;
+    if (!widget.enabled || _suppressed || !_routeIsCurrent) return;
+    if (_attempt >= _maxAttempts) {
+      _logLifecycle('gave up after $_attempt attempt(s)');
+      return;
+    }
     _attempt++;
     _retryTimer?.cancel();
     _retryTimer = Timer(_retryDelay, () {
       if (!mounted) return;
       _beginLoad();
     });
+  }
+
+  void _logFailureOnce(String stage, Object error) {
+    if (_attempt == 0) {
+      _logLifecycle('$stage failed: $error');
+    }
   }
 
   Future<void> _loadOnce(int generation) async {
@@ -170,6 +239,7 @@ class _MotionArtViewState extends State<MotionArtView> {
         );
       }
     } catch (error) {
+      _logFailureOnce('lookup', error);
       devLog('[MotionArt] lookup failed: $error');
     }
 
@@ -201,29 +271,35 @@ class _MotionArtViewState extends State<MotionArtView> {
       await controller.setLooping(true);
       await controller.setVolume(0);
       if (!mounted || generation != _generation) {
-        await controller.dispose();
+        await _disposeVideo(controller);
         return;
       }
       await controller.play();
     } catch (error) {
+      _logFailureOnce('video init', error);
       devLog('[MotionArt] video init failed: $error');
-      await controller?.dispose();
+      await _disposeVideo(controller);
       _scheduleRetry();
       return;
     }
 
     if (!mounted || generation != _generation) {
-      await controller.dispose();
+      await _disposeVideo(controller);
       return;
     }
 
     final previous = _controller;
+    _liveControllers.add(controller);
+    _logLifecycle(
+      'started active=${_liveControllers.length} ${_rssLabel()} '
+      '${widget.albumMode ? 'album="${widget.album ?? widget.title}"' : 'song="${widget.title}"'}',
+    );
     setState(() {
       _controller = controller;
       _hasVideo = true;
     });
     _attempt = 0;
-    await previous?.dispose();
+    await _disposeVideo(previous);
   }
 
   @override

@@ -70,6 +70,10 @@ class SongStage extends StatelessWidget {
   final VoidCallback onToggleLyrics;
   final bool showWaveform;
 
+  /// Gates Motion Art on the album art box (e.g. only the settled carousel
+  /// page keeps video running).
+  final bool motionArtEnabled;
+
   const SongStage({
     super.key,
     required this.song,
@@ -109,6 +113,7 @@ class SongStage extends StatelessWidget {
     this.onVinylChanged,
     required this.onToggleLyrics,
     this.showWaveform = true,
+    this.motionArtEnabled = true,
   });
 
   @override
@@ -662,6 +667,8 @@ class SongStage extends StatelessWidget {
                                                         onVinylChanged,
                                                     showFrame:
                                                         artworkCardShowFrame,
+                                                    motionArtEnabled:
+                                                        motionArtEnabled,
                                                   ),
                                           ),
                                         ),

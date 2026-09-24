@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flick/widgets/common/flick_dialog.dart';
@@ -7,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -91,7 +94,23 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
 
   Future<void> _shareAll(List<LogEntry> entries) async {
     if (entries.isEmpty) return;
-    await Share.share(entries.map(_format).join('\n'), subject: 'Flick logs');
+    try {
+      final stamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      final directory = await getTemporaryDirectory();
+      final file = File(p.join(directory.path, 'flick_logs_$stamp.txt'));
+      await file.writeAsString(
+        entries.map(_format).join('\n'),
+        flush: true,
+      );
+      if (!mounted) return;
+      await Share.shareXFiles([XFile(file.path)], subject: 'Flick logs');
+    } catch (e) {
+      _snack('Share failed: $e');
+    }
   }
 
   void _snack(String message) {
