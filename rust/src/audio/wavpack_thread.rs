@@ -10,6 +10,36 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use wavpack_sys::*;
 
+/// Sample rate of a PCM WavPack file, None when the file is DSD or unreadable.
+pub fn wavpack_pcm_sample_rate(path: &std::path::Path) -> Option<u32> {
+    let c_path_str = path.to_str()?;
+    let c_path = CString::new(c_path_str).ok()?;
+
+    let mut error_buf = [0u8; 256];
+    let context = unsafe {
+        WavpackOpenFileInput(
+            c_path.as_ptr(),
+            error_buf.as_mut_ptr() as *mut c_char,
+            OPEN_DSD_NATIVE as i32,
+            0,
+        )
+    };
+
+    if context.is_null() {
+        return None;
+    }
+
+    let qmode = unsafe { WavpackGetQualifyMode(context) } as u32;
+    let rate = if (qmode & QMODE_DSD_AUDIO) != 0 {
+        None
+    } else {
+        let rate = unsafe { WavpackGetSampleRate(context) };
+        (rate > 0).then_some(rate)
+    };
+    unsafe { WavpackCloseFile(context) };
+    rate
+}
+
 pub fn is_wavpack_dsd(path: &std::path::Path) -> bool {
     let c_path_str = match path.to_str() {
         Some(s) => s,
