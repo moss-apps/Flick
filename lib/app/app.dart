@@ -888,7 +888,7 @@ class _MainShellState extends ConsumerState<MainShell>
                 // Interactive tutorial overlay
                 const Positioned.fill(child: TutorialOverlay()),
 
-                // USB DAC attach → bit-perfect switch prompt
+                // USB DAC attach → auto bit-perfect switch (decline-aware)
                 const UsbBitPerfectPrompt(),
               ],
             ),
