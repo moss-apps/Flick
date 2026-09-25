@@ -221,6 +221,16 @@ final killIsochronousUsbOnQuitProvider = FutureProvider<bool>((ref) async {
   return service.getKillIsochronousUsbOnQuit();
 });
 
+final autoEngageUsbDacProvider = FutureProvider<bool>((ref) async {
+  final service = ref.watch(uac2PreferencesServiceProvider);
+  return service.getAutoEngageUsbDacEnabled();
+});
+
+final declinedUsbDevicesProvider = FutureProvider<Set<String>>((ref) async {
+  final service = ref.watch(uac2PreferencesServiceProvider);
+  return service.getDeclinedUsbDevices();
+});
+
 final dsdOutputModeProvider = FutureProvider<DsdOutputMode>((ref) async {
   final service = ref.watch(uac2PreferencesServiceProvider);
   return service.getDsdOutputMode();
