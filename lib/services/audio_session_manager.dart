@@ -168,6 +168,30 @@ class AudioSessionManager {
     );
   }
 
+  /// Drop the session suppression so the direct USB path can be retried on
+  /// the next route sync (e.g. after a transient busy/EIO startup refusal).
+  Future<void> clearSuppressionForCurrentDevice() async {
+    final info = await _deviceService.refresh();
+    final deviceKey = _currentUsbExperimentalDeviceKey(info);
+    if (deviceKey == null) {
+      return;
+    }
+    if (_exclusiveUnavailableUsbDeviceReasons.remove(deviceKey) != null) {
+      _sessionLog(
+        '[Session] Cleared USB_DAC_EXPERIMENTAL suppression for the current DAC',
+      );
+    }
+    clearFallbackReason();
+  }
+
+  /// Re-arms the direct USB engine for the attached DAC and re-resolves the
+  /// route. Returns true when the direct path is the selected mode again.
+  Future<bool> retryExperimentalUsbForCurrentDevice() async {
+    await clearSuppressionForCurrentDevice();
+    await _syncRouteSelection(reason: 'manual direct USB retry');
+    return selectedMode == AudioEngineType.usbDacExperimental;
+  }
+
   void clearFallbackReason() {
     if (fallbackReasonNotifier.value != null) {
       fallbackReasonNotifier.value = null;
