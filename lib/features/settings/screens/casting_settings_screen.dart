@@ -21,6 +21,7 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(castProvider.notifier).discover();
     });
   }

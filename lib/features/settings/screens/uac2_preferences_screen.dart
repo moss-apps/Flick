@@ -46,6 +46,8 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                     final developerModeAsync = ref.watch(developerModeEnabledProvider);
                     final diagnostics = ref.watch(audioOutputDiagnosticsProvider);
                     final killIsochronousUsbOnQuitAsync = ref.watch(killIsochronousUsbOnQuitProvider);
+                    final autoEngageUsbDacAsync = ref.watch(autoEngageUsbDacProvider);
+                    final declinedUsbDevicesAsync = ref.watch(declinedUsbDevicesProvider);
                     final dsdOutputModeAsync = ref.watch(dsdOutputModeProvider);
                     final currentSong = ref.watch(currentSongProvider);
 
@@ -114,6 +116,8 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                             bitPerfectAsync,
                             dapBitPerfectAsync,
                             killIsochronousUsbOnQuitAsync,
+                            autoEngageUsbDacAsync,
+                            declinedUsbDevicesAsync,
                             diagnostics,
                           ),
                           if (audioEngineAsync.when(
@@ -300,13 +304,10 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
     AsyncValue<bool> bitPerfectAsync,
     AsyncValue<bool> dapBitPerfectAsync,
     AsyncValue<bool> killIsochronousUsbOnQuitAsync,
+    AsyncValue<bool> autoEngageUsbDacAsync,
+    AsyncValue<Set<String>> declinedUsbDevicesAsync,
     AudioOutputDiagnostics? diagnostics,
   ) {
-    final isBitPerfectBlocked = audioEngineAsync.when(
-      data: (e) => e != AudioEnginePreference.isochronousUsb,
-      loading: () => false,
-      error: (_, _) => false,
-    );
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.6),
@@ -396,10 +397,18 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
               subtitle:
                   'Use the verified direct USB path and disable software DSP controls that would break bit-perfect playback on an external USB DAC.',
               value: enabled,
-              enabled: !isBitPerfectBlocked,
-              disabledSubtitle: 'Requires the Isochronous USB playback engine.',
               onChanged: (value) async {
                 final changed = value != enabled;
+                if (value) {
+                  final engine = audioEngineAsync.asData?.value;
+                  if (engine != null &&
+                      engine != AudioEnginePreference.isochronousUsb) {
+                    await PlayerService().setAudioEnginePreference(
+                      AudioEnginePreference.isochronousUsb,
+                    );
+                    ref.invalidate(audioEnginePreferenceProvider);
+                  }
+                }
                 final applied = await ref
                     .read(uac2ServiceProvider)
                     .setBitPerfectEnabled(value);
@@ -460,6 +469,54 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               error: (_, _) => _buildErrorTile(context),
             ),
           ],
+          _buildDivider(),
+          autoEngageUsbDacAsync.when(
+            data: (enabled) => _buildSwitchTile(
+              context,
+              icon: LucideIcons.zap,
+              title: 'Auto Bit-perfect for USB DACs',
+              subtitle:
+                  'Switch to the exclusive USB path automatically when a DAC is attached. Declined DACs are remembered.',
+              value: enabled,
+              onChanged: (value) async {
+                await service.setAutoEngageUsbDacEnabled(value);
+                ref.invalidate(autoEngageUsbDacProvider);
+              },
+            ),
+            loading: () => _buildLoadingTile(context),
+            error: (_, _) => _buildErrorTile(context),
+          ),
+          declinedUsbDevicesAsync.maybeWhen(
+            data: (declined) => declined.isEmpty
+                ? const SizedBox.shrink()
+                : Column(
+                    children: [
+                      _buildDivider(),
+                      _buildNavigationTile(
+                        context,
+                        icon: LucideIcons.rotateCcw,
+                        title: 'Reset Declined USB DACs',
+                        subtitle:
+                            '${declined.length} DAC${declined.length == 1 ? '' : 's'} will be offered again.',
+                        onTap: () async {
+                          await service.clearDeclinedUsbDevices();
+                          ref.invalidate(declinedUsbDevicesProvider);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'USB DAC auto bit-perfect offers reset.',
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+            orElse: () => const SizedBox.shrink(),
+          ),
           _buildDivider(),
           killIsochronousUsbOnQuitAsync.when(
             data: (killOnQuit) => _buildSwitchTile(

@@ -1581,6 +1581,33 @@ class PlayerService {
     );
   }
 
+  /// Re-arms the direct USB engine after a startup fallback and, when a track
+  /// is playing, re-attaches playback to the exclusive path.
+  Future<bool> retryDirectUsbForCurrentDevice() async {
+    if (!Platform.isAndroid) return false;
+    await _sessionManager.retryExperimentalUsbForCurrentDevice();
+    if (_sessionManager.selectedMode != AudioEngineType.usbDacExperimental) {
+      return false;
+    }
+    final song = currentSongNotifier.value;
+    if (song == null || !isPlayingNotifier.value) {
+      await initAudio();
+      return true;
+    }
+    await _enqueuePlaybackRequest(() async {
+      try {
+        await _resumeInternal();
+      } catch (e) {
+        await _handleDirectUsbStartupRefusal(
+          e,
+          song: song,
+          initialPosition: positionNotifier.value,
+        );
+      }
+    });
+    return _sessionManager.selectedMode == AudioEngineType.usbDacExperimental;
+  }
+
   Future<bool> isHiFiModeEnabled() async {
     await initAudio();
     return _sessionManager.isHiFiModeEnabled();
@@ -4853,6 +4880,46 @@ class PlayerService {
         normalized.contains('usb session already active');
   }
 
+  /// USB access denied needs a user permission grant, not a session
+  /// suppression: keep the direct path retryable instead of hiding it.
+  bool _isDirectUsbPermissionFailure(String message) {
+    final normalized = message.toLowerCase();
+    return normalized.contains('access denied') ||
+        normalized.contains('permission denied');
+  }
+
+  static const List<Duration> _directUsbRetryDelays = [
+    Duration(milliseconds: 150),
+    Duration(milliseconds: 400),
+    Duration(milliseconds: 900),
+  ];
+
+  /// Cheap dongles lose the first isochronous start while the kernel driver
+  /// detaches or the bus resets. Retry before condemning the session.
+  Future<bool> _retryDirectUsbStart({
+    required Song song,
+    required Duration initialPosition,
+    required bool autoPlay,
+  }) async {
+    for (final delay in _directUsbRetryDelays) {
+      await Future<void>.delayed(delay);
+      try {
+        await _prepareImmediatePlaybackAsset(song);
+        await _runWithSuppressedSequenceStateUpdates(() async {
+          await _playbackManager.playTrack(
+            song,
+            initialPosition: initialPosition,
+            autoPlay: autoPlay,
+          );
+        });
+        return true;
+      } catch (e) {
+        _debugLog('[Engine] Direct USB startup retry failed: $e');
+      }
+    }
+    return false;
+  }
+
   Future<bool> _handleDirectUsbStartupRefusal(
     Object error, {
     required Song? song,
@@ -4872,12 +4939,38 @@ class PlayerService {
     _debugLog(
       '[Engine] Direct USB startup refused: $message. Falling back to NORMAL_ANDROID',
     );
+    final permissionFailure = _isDirectUsbPermissionFailure(message);
+    final transientBusFailure =
+        _isExclusiveUsbUnavailableFailure(message) && !permissionFailure;
+
+    if (transientBusFailure && song != null) {
+      final recovered = await _retryDirectUsbStart(
+        song: song,
+        initialPosition: initialPosition,
+        autoPlay: autoResumeAfterFallback,
+      );
+      if (recovered) {
+        _debugLog('[Engine] Direct USB startup recovered after retry');
+        _ensurePositionSaveTimer();
+        await _refreshAudioOutputDiagnostics(
+          reason: 'direct USB retry succeeded',
+          activeSong: song,
+        );
+        return true;
+      }
+    }
+
     await _uac2Service.markAndroidDirectUsbFallback(message);
     await _uac2Service.releaseAndroidDirectUsbRuntime();
     await _rustAudioService.setHighResMode(false);
-    if (_isExclusiveUsbUnavailableFailure(message)) {
+    if (transientBusFailure) {
       await _sessionManager.suppressExperimentalUsbForCurrentDevice(
         reason: message,
+      );
+    } else if (permissionFailure) {
+      _debugLog(
+        '[Engine] USB permission denied; keeping the direct USB engine '
+        'available for a manual retry',
       );
     }
     await _sessionManager.recordFallback(

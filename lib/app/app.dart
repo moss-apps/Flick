@@ -20,6 +20,7 @@ import 'package:flick/features/folders/screens/folders_screen.dart';
 import 'package:flick/features/playlists/screens/playlists_screen.dart';
 import 'package:flick/features/favorites/screens/favorites_screen.dart';
 import 'package:flick/features/search/screens/search_screen.dart';
+import 'package:flick/core/navigation/nav_bar_visibility_observer.dart';
 import 'package:flick/core/navigation/root_navigator.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/app_haptics.dart';
@@ -107,6 +108,7 @@ class _MainShellState extends ConsumerState<MainShell>
   late final ProviderSubscription<bool> _navBarAlwaysVisibleSubscription;
   late final ProviderSubscription<Song?> _currentSongSubscription;
   late final ProviderSubscription<int> _navigationIndexSubscription;
+  late final NavBarVisibilityObserver _navBarVisibilityObserver;
   late final ProviderSubscription<PlayerState> _widgetSyncSubscription;
   late final ProviderSubscription<AppPreferences>? _appPreferencesSubscription;
   late final WidgetIntentHandler _widgetIntentHandler;
@@ -155,6 +157,7 @@ class _MainShellState extends ConsumerState<MainShell>
     );
     _lastHapticPage = initialPosition >= 0 ? initialPosition : 0;
     _pageController.addListener(_onPageScroll);
+    _navBarVisibilityObserver = NavBarVisibilityObserver(_showNavBar);
     _navBarAnimationController = AnimationController(
       vsync: this,
       duration: AppConstants.animationNormal,
@@ -263,6 +266,8 @@ class _MainShellState extends ConsumerState<MainShell>
         if (!mounted) {
           return;
         }
+
+        _showNavBar();
 
         void animateToTab() {
           if (!_pageController.hasClients) {
@@ -618,6 +623,11 @@ class _MainShellState extends ConsumerState<MainShell>
     }
   }
 
+  void _showNavBar() {
+    if (!mounted || ref.read(navBarVisibleProvider)) return;
+    ref.read(navBarVisibleProvider.notifier).setVisible(true);
+  }
+
   void _onNavBarVisibilityChanged(bool isVisible) {
     final separated = ref.read(appPreferencesProvider).separateMiniPlayerFromNavBar;
     if (separated) {
@@ -759,6 +769,7 @@ class _MainShellState extends ConsumerState<MainShell>
                         child: Navigator(
                           key: nestedNavigatorKey,
                           initialRoute: '/',
+                          observers: [_navBarVisibilityObserver],
                           onGenerateRoute: (settings) {
                             if (settings.name == '/') {
                               return PageRouteBuilder<void>(
@@ -888,7 +899,7 @@ class _MainShellState extends ConsumerState<MainShell>
                 // Interactive tutorial overlay
                 const Positioned.fill(child: TutorialOverlay()),
 
-                // USB DAC attach → bit-perfect switch prompt
+                // USB DAC attach → auto bit-perfect switch (decline-aware)
                 const UsbBitPerfectPrompt(),
               ],
             ),

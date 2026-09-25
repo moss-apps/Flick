@@ -29,7 +29,6 @@ import 'package:flick/features/player/widgets/add_to_playlist_sheet.dart';
 import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:flick/features/songs/widgets/song_actions_button.dart';
 import 'package:flick/providers/favorites_provider.dart';
-import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 
 /// Album detail screen showing songs, album info, and more from the artist.
@@ -76,9 +75,6 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
     _scrollController.addListener(_onScroll);
     _loadExtras();
     _extractAlbumColor();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(navBarVisibleProvider.notifier).setVisible(true);
-    });
   }
 
   @override

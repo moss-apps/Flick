@@ -10,7 +10,6 @@ import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/playlist.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
-import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/services/sources/network_source_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
@@ -24,9 +23,6 @@ class PlaylistsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(navBarVisibleProvider.notifier).setVisible(true);
-    });
     final playlistsAsync = ref.watch(playlistsProvider);
     final currentSong = ref.watch(currentSongProvider);
 

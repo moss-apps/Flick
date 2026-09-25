@@ -35,11 +35,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   @override
   void initState() {
     super.initState();
-    final navBarNotifier = ref.read(navBarVisibleProvider.notifier);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      navBarNotifier.setVisible(true);
-      _loadFavorites();
-    });
+    _loadFavorites();
   }
 
   Future<void> _loadFavorites() async {

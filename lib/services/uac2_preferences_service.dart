@@ -53,6 +53,11 @@ class Uac2PreferencesService {
   static const _keyDsdWireVariant = 'dsd_wire_variant';
   static const _keyDsdWireGrouping = 'dsd_wire_grouping';
   static const _keyPromptedUsbDevices = 'uac2_prompted_usb_devices';
+  static const _keyDeclinedUsbDevices = 'uac2_declined_usb_devices';
+  static const _keyAutoEngageUsbDac = 'uac2_auto_engage_usb_dac';
+
+  static final ValueNotifier<bool> autoEngageUsbDacNotifier = ValueNotifier(true);
+  static bool get isAutoEngageUsbDacEnabledSync => autoEngageUsbDacNotifier.value;
 
   static bool get isDeveloperModeEnabledSync => developerModeNotifier.value;
   static bool get isKillIsochronousUsbOnQuitSync => killIsochronousUsbOnQuitNotifier.value;
@@ -706,6 +711,96 @@ class Uac2PreferencesService {
     }
   }
 
+  /// Devices the user declined (or undid) auto bit-perfect for. Persisted so
+  /// Flick never re-engages the direct USB path behind their back.
+  Future<Set<String>> getDeclinedUsbDevices() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await _migratePromptedUsbDevicesToDeclined(prefs);
+      return prefs.getStringList(_keyDeclinedUsbDevices)?.toSet() ?? <String>{};
+    } catch (e) {
+      devLog('Failed to load declined USB devices: $e');
+      return <String>{};
+    }
+  }
+
+  Future<void> addDeclinedUsbDevice(String promptKey) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await _migratePromptedUsbDevicesToDeclined(prefs);
+      final keys = prefs.getStringList(_keyDeclinedUsbDevices) ?? <String>[];
+      if (keys.contains(promptKey)) return;
+      await prefs.setStringList(_keyDeclinedUsbDevices, [...keys, promptKey]);
+    } catch (e) {
+      devLog('Failed to save declined USB device: $e');
+    }
+  }
+
+  Future<void> removeDeclinedUsbDevice(String promptKey) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getStringList(_keyDeclinedUsbDevices) ?? <String>[];
+      if (!keys.contains(promptKey)) return;
+      await prefs.setStringList(
+        _keyDeclinedUsbDevices,
+        keys.where((key) => key != promptKey).toList(),
+      );
+    } catch (e) {
+      devLog('Failed to remove declined USB device: $e');
+    }
+  }
+
+  Future<void> clearDeclinedUsbDevices() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyDeclinedUsbDevices);
+      // Drop the legacy prompt list too, otherwise the migration would seed
+      // the declines again on the next read.
+      await prefs.remove(_keyPromptedUsbDevices);
+    } catch (e) {
+      devLog('Failed to clear declined USB devices: $e');
+    }
+  }
+
+  /// Devices recorded by the old one-shot prompt count as declined: the user
+  /// already saw (and possibly dismissed) the offer on those DACs.
+  Future<void> _migratePromptedUsbDevicesToDeclined(
+    SharedPreferences prefs,
+  ) async {
+    if (prefs.containsKey(_keyDeclinedUsbDevices)) return;
+    final prompted = prefs.getStringList(_keyPromptedUsbDevices);
+    if (prompted == null || prompted.isEmpty) return;
+    await prefs.setStringList(_keyDeclinedUsbDevices, prompted);
+  }
+
+  Future<void> setAutoEngageUsbDacEnabled(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyAutoEngageUsbDac, enabled);
+      autoEngageUsbDacNotifier.value = enabled;
+    } catch (e) {
+      devLog('Failed to save auto-engage USB DAC setting: $e');
+    }
+  }
+
+  Future<bool> getAutoEngageUsbDacEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool(_keyAutoEngageUsbDac) ?? true;
+      if (autoEngageUsbDacNotifier.value != enabled) {
+        autoEngageUsbDacNotifier.value = enabled;
+      }
+      return enabled;
+    } catch (e) {
+      devLog('Failed to load auto-engage USB DAC setting: $e');
+      return autoEngageUsbDacNotifier.value;
+    }
+  }
+
+  Future<void> initializeAutoEngageUsbDacCache() async {
+    await getAutoEngageUsbDacEnabled();
+  }
+
   Future<void> clearAllPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -734,6 +829,8 @@ await prefs.remove(_keyAudioEnginePreference);
     await prefs.remove(_keyDsdWireVariant);
     await prefs.remove(_keyDsdWireGrouping);
     await prefs.remove(_keyPromptedUsbDevices);
+      await prefs.remove(_keyDeclinedUsbDevices);
+      await prefs.remove(_keyAutoEngageUsbDac);
       dsdOutputModeNotifier.value = DsdOutputMode.auto;
       dsdByteOrderOverrideNotifier.value = DsdByteOrderOverride.auto;
       dsdSubslotOverrideNotifier.value = null;
@@ -741,6 +838,7 @@ await prefs.remove(_keyAudioEnginePreference);
       dsdWireGroupingNotifier.value = DsdWireGrouping.auto;
       developerModeNotifier.value = false;
       killIsochronousUsbOnQuitNotifier.value = true;
+      autoEngageUsbDacNotifier.value = true;
       tuning432HzNotifier.value = false;
       btLowLatencyModeNotifier.value = false;
       btHiResDirectNotifier.value = false;
