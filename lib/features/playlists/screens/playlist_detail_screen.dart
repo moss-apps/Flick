@@ -18,7 +18,6 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/providers/playlist_provider.dart';
-import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
@@ -70,10 +69,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(navBarVisibleProvider.notifier).setVisible(true);
-      unawaited(_init());
-    });
+    unawaited(_init());
   }
 
   Future<void> _init() async {

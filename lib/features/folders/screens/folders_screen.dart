@@ -160,10 +160,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(navBarVisibleProvider.notifier).setVisible(true);
-      _loadFolders();
-    });
+    _loadFolders();
     _loadSortOption();
     _loadViewMode();
   }
@@ -875,10 +872,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(navBarVisibleProvider.notifier).setVisible(true);
-      _loadSongs();
-    });
+    _loadSongs();
     _loadSortOption();
     _loadFilterOption();
     _loadViewMode();

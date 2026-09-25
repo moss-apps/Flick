@@ -38,7 +38,6 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
   String _searchQuery = '';
   bool _isLoading = true;
   ArtistSortOption _sortOption = ArtistSortOption.name;
-  bool _visibilitySet = false;
   int _loadGeneration = 0;
 
   @override
@@ -195,16 +194,6 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
       if (next.hasValue) _loadArtists();
     });
 
-    if (!_visibilitySet) {
-      _visibilitySet = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ProviderScope.containerOf(context)
-              .read(navBarVisibleProvider.notifier)
-              .setVisible(true);
-        }
-      });
-    }
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,

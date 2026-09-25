@@ -49,9 +49,6 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   void initState() {
     super.initState();
     _pageController.addListener(_onPageChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(navBarVisibleProvider.notifier).setVisible(true);
-    });
   }
 
   @override

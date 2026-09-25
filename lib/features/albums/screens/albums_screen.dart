@@ -38,7 +38,6 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   List<AlbumGroup> _sortedAlbums = [];
   bool _isLoading = true;
   AlbumSortOption _sortOption = AlbumSortOption.artist;
-  bool _visibilitySet = false;
   int _loadGeneration = 0;
 
   @override
@@ -194,16 +193,6 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
       if (next.hasValue) _loadAlbums();
     });
 
-    if (!_visibilitySet) {
-      _visibilitySet = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ProviderScope.containerOf(
-            context,
-          ).read(navBarVisibleProvider.notifier).setVisible(true);
-        }
-      });
-    }
     return DisplayModeWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,

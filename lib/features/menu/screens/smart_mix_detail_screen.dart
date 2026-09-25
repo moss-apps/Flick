@@ -12,7 +12,6 @@ import 'package:flick/models/song.dart';
 import 'package:flick/services/album_art_service.dart';
 import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/player_service.dart';
-import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
@@ -66,9 +65,6 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
     super.initState();
     _scrollController.addListener(_onScroll);
     _extractMixColor();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(navBarVisibleProvider.notifier).setVisible(true);
-    });
   }
 
   @override

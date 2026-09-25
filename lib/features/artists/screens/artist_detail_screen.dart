@@ -37,7 +37,6 @@ import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:flick/features/songs/widgets/song_actions_button.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
-import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 
 /// Artist detail screen showing songs, albums, and most played tracks.
@@ -92,9 +91,6 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
     _loadExtras();
     _resolveAndSaveArtistArt();
     _extractArtistColor();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(navBarVisibleProvider.notifier).setVisible(true);
-    });
   }
 
   @override
