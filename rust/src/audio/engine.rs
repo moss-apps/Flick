@@ -696,9 +696,19 @@ impl AudioEngineHandle {
         self.send_command(AudioCommand::SetDopOverride { is_dop })
     }
 
-    /// Set EQ: enabled and a variable list of band specs (real per-type biquads).
-    pub fn set_equalizer(&self, enabled: bool, specs: Vec<EqBandSpec>) -> Result<(), String> {
-        self.send_command(AudioCommand::SetEqualizer { enabled, specs })
+    /// Set EQ: enabled, broadband preamp (dB) and a variable list of band specs
+    /// (real per-type biquads).
+    pub fn set_equalizer(
+        &self,
+        enabled: bool,
+        preamp_db: f32,
+        specs: Vec<EqBandSpec>,
+    ) -> Result<(), String> {
+        self.send_command(AudioCommand::SetEqualizer {
+            enabled,
+            preamp_db,
+            specs,
+        })
     }
 
     /// Set BS2B crossfeed level (Off/Default/Crossfeed/CrossfeedEasy).
@@ -3749,16 +3759,22 @@ fn command_processing_loop(
                         callback_data.set_playback_speed(speed);
                         *callback_data.speed_frac_pos.lock() = 0.0;
                     }
-                    AudioCommand::SetEqualizer { enabled, specs } => {
+                    AudioCommand::SetEqualizer {
+                        enabled,
+                        preamp_db,
+                        specs,
+                    } => {
                         if let Some(mut eq) = callback_data.equalizer.try_lock() {
-                            eq.set(enabled, &specs, sample_rate);
+                            eq.set(enabled, preamp_db, &specs, sample_rate);
                         }
                         // EQ needs the DSP path (see crossfade). Force out of
                         // passthrough when active so the biquads run even on a
-                        // verified bit-perfect USB output.
-                        callback_data
-                            .eq_forces_dsp
-                            .store(enabled && !specs.is_empty(), Ordering::Relaxed);
+                        // verified bit-perfect USB output. Preamp-only also
+                        // needs the gain stage.
+                        callback_data.eq_forces_dsp.store(
+                            enabled && (!specs.is_empty() || preamp_db.abs() > f32::EPSILON),
+                            Ordering::Relaxed,
+                        );
                     }
                     AudioCommand::SetCrossfeed { level } => {
                         callback_data.crossfeed.lock().set_level(level);
