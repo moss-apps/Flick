@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flick/services/eq_response_service.dart';
 import 'package:flick/services/equalizer_service.dart';
 
 enum EqMode { graphic, parametric }
@@ -304,8 +304,8 @@ class ConvolverSettings {
 class ParametricBand {
   final bool enabled;
   final double frequencyHz; // 20..20000
-  final double gainDb; // -12..+12 (UI only)
-  final double q; // 0.2..10
+  final double gainDb; // -20..+20 (UI range)
+  final double q; // 0.2..20
   final ParametricBandType type;
 
   const ParametricBand({
@@ -356,63 +356,32 @@ class ParametricBand {
   }
 }
 
-const double _passFilterDepthDb = 12.0;
-
-double _sigmoid(double x) => 1.0 / (1.0 + math.exp(-x));
-
-double _bandSigma(double q) => (0.55 / q.clamp(0.2, 10.0)).clamp(0.04, 1.2);
-
 double parametricBandContributionDb({
   required ParametricBand band,
   required double hz,
 }) {
-  if (!band.enabled) return 0.0;
-
-  final safeHz = hz.clamp(20.0, 20000.0).toDouble();
-  final centerHz = band.frequencyHz.clamp(20.0, 20000.0).toDouble();
-  final sigma = _bandSigma(band.q);
-  final x = math.log(safeHz / centerHz);
-  final gaussian = math.exp(-(x * x) / (2.0 * sigma * sigma));
-
-  switch (band.type) {
-    case ParametricBandType.peaking:
-      return band.gainDb * gaussian;
-    case ParametricBandType.lowShelf:
-      return band.gainDb * _sigmoid(-x / sigma);
-    case ParametricBandType.highShelf:
-      return band.gainDb * _sigmoid(x / sigma);
-    case ParametricBandType.lowPass:
-      return -_passFilterDepthDb * _sigmoid(x / sigma);
-    case ParametricBandType.highPass:
-      return -_passFilterDepthDb * _sigmoid(-x / sigma);
-    case ParametricBandType.bandPass:
-      return -_passFilterDepthDb * (1.0 - gaussian);
-    case ParametricBandType.notch:
-      final depth = band.gainDb.abs().clamp(0.0, 12.0).toDouble();
-      return -depth * gaussian;
-    case ParametricBandType.allPass:
-      return 0.0;
-  }
+  return EqResponseService.bandResponseDb(band: band, hz: hz);
 }
 
 double parametricResponseDbAtHz({
   required double hz,
   required List<ParametricBand> bands,
-  double minDb = -12.0,
-  double maxDb = 12.0,
+  double minDb = -20.0,
+  double maxDb = 20.0,
 }) {
-  double sum = 0.0;
-  for (final band in bands) {
-    sum += parametricBandContributionDb(band: band, hz: hz);
-  }
-  return sum.clamp(minDb, maxDb).toDouble();
+  return EqResponseService.responseDbAtHz(
+    hz: hz,
+    bands: bands,
+    minDb: minDb,
+    maxDb: maxDb,
+  );
 }
 
 double parametricBandMarkerDb(ParametricBand band) {
-  return parametricBandContributionDb(
+  return EqResponseService.bandResponseDb(
     band: band,
     hz: band.frequencyHz,
-  ).clamp(-12.0, 12.0).toDouble();
+  ).clamp(EqualizerNotifier.gainMinDb, EqualizerNotifier.gainMaxDb).toDouble();
 }
 
 @immutable
@@ -615,8 +584,10 @@ final eqGraphRepaintControllerProvider = Provider<EqGraphRepaintController>((
 });
 
 class EqualizerNotifier extends Notifier<EqualizerState> {
-  static const double gainMinDb = -12.0;
-  static const double gainMaxDb = 12.0;
+  static const double gainMinDb = -20.0;
+  static const double gainMaxDb = 20.0;
+  static const double qMin = 0.2;
+  static const double qMax = 20.0;
   static const double preampMinDb = -24.0;
   static const double preampMaxDb = 24.0;
   static const double compressorThresholdMinDb = -36.0;
@@ -795,7 +766,7 @@ class EqualizerNotifier extends Notifier<EqualizerState> {
   }
 
   void setParamBandQ(int index, double q) {
-    final clamped = q.clamp(0.2, 10.0).toDouble();
+    final clamped = q.clamp(qMin, qMax).toDouble();
     final next = List<ParametricBand>.of(state.parametricBands);
     next[index] = next[index].copyWith(q: clamped);
     state = state.copyWith(parametricBands: next, clearActivePresetName: true);
