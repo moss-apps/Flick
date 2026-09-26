@@ -123,8 +123,9 @@ class _MotionArtTransientException implements Exception {
 /// art often lives on a sibling edition of the same album. Validated text
 /// search is the fallback when search misses the album entirely.
 ///
-/// Positive results are cached 24h, negative results 6h, both in memory and on
-/// disk, so albums without motion art are not re-queried on every launch.
+/// Positive results are cached 24h, negative results 30min, both in memory and
+/// on disk, so albums without motion art are not re-queried on every launch,
+/// but a newly released album that later gains motion art is picked up quickly.
 class AnimatedArtworkService {
   AnimatedArtworkService._({http.Client? client})
     : _client = client ?? http.Client();
@@ -143,7 +144,10 @@ class AnimatedArtworkService {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
   static const Duration _requestTimeout = Duration(seconds: 15);
   static const Duration _positiveTtl = Duration(hours: 24);
-  static const Duration _negativeTtl = Duration(hours: 6);
+
+  /// Short so a just-released album that gains motion art upstream surfaces
+  /// within the hour instead of being hidden by a day-scale negative cache.
+  static const Duration _negativeTtl = Duration(minutes: 30);
 
   /// Transient failures (timeouts, 503s) are retried soon instead of being
   /// cached as "no artwork" for the full negative TTL.
@@ -156,13 +160,23 @@ class AnimatedArtworkService {
 
   /// Bump when resolution logic changes: the version is part of the cache key
   /// so stale negative entries stop hiding a now-resolvable album.
-  static const String _cacheVersion = 'v3';
+  static const String _cacheVersion = 'v4';
 
   /// boidu rate-limits its upstream, so cap concurrent requests.
   static const int _boiduMaxConcurrent = 2;
 
   final Map<String, _CacheEntry> _mem = {};
   final Map<String, Future<AnimatedArtwork?>> _inflight = {};
+
+  /// Per-key generation used to drop results of lookups that were invalidated
+  /// while still in flight.
+  final Map<String, int> _epoch = {};
+
+  final ValueNotifier<int> _revision = ValueNotifier<int>(0);
+
+  /// Bumps when cached lookups are invalidated so visible motion-art widgets
+  /// can restart their load.
+  ValueListenable<int> get revision => _revision;
 
   int _boiduActive = 0;
   final List<Completer<void>> _boiduWaiters = [];
@@ -202,26 +216,47 @@ class AnimatedArtworkService {
     String storefront = 'us',
   }) {
     final key = _cacheKey('album:${albumName.trim()}', artist, '', storefront);
-    return _resolve(
-      key,
-      () async {
-        final byAlbum = await _resolveAlbum(
-          albumName,
-          artist,
-          storefront,
-          representativeSongTitle: representativeSongTitle,
-        );
-        if (byAlbum != null) return byAlbum;
-        final song = representativeSongTitle?.trim() ?? '';
-        if (song.isEmpty) return null;
-        return _fetchBoiduSong(
-          songTitle: song,
-          artist: artist,
-          albumName: albumName,
-          storefront: storefront,
-        );
-      },
-    );
+    return _resolve(key, () async {
+      final byAlbum = await _resolveAlbum(
+        albumName,
+        artist,
+        storefront,
+        representativeSongTitle: representativeSongTitle,
+      );
+      if (byAlbum != null) return byAlbum;
+      final song = representativeSongTitle?.trim() ?? '';
+      if (song.isEmpty) return null;
+      return _fetchBoiduSong(
+        songTitle: song,
+        artist: artist,
+        albumName: albumName,
+        storefront: storefront,
+      );
+    });
+  }
+
+  /// Drops cached lookups (positive or negative) for an album and optionally
+  /// one of its songs, then notifies [revision] listeners so visible widgets
+  /// reload. Backs the manual "Refresh Motion Art" action.
+  Future<void> refreshAlbumArtwork({
+    required String artist,
+    String? albumName,
+    String? songTitle,
+    String storefront = 'us',
+  }) async {
+    final album = albumName?.trim() ?? '';
+    final song = songTitle?.trim() ?? '';
+    final keys = <String>{
+      if (album.isNotEmpty) _cacheKey('album:$album', artist, '', storefront),
+      if (song.isNotEmpty) _cacheKey('song:$song', artist, album, storefront),
+    };
+    for (final key in keys) {
+      _epoch[key] = _epochFor(key) + 1;
+      _mem.remove(key);
+      _inflight.remove(key);
+      await _deleteDiskCache(key);
+    }
+    _revision.value++;
   }
 
   Future<AnimatedArtwork?> _resolveFromAlbumOrSong({
@@ -446,7 +481,9 @@ class AnimatedArtworkService {
     } on _MotionArtTransientException {
       rethrow;
     } catch (error) {
-      devLog('[MotionArt] boidu search "$artist - $album" ($storefront): $error');
+      devLog(
+        '[MotionArt] boidu search "$artist - $album" ($storefront): $error',
+      );
       throw _MotionArtTransientException('$error');
     }
   }
@@ -490,7 +527,9 @@ class AnimatedArtworkService {
     } on _MotionArtTransientException {
       rethrow;
     } catch (error) {
-      devLog('[MotionArt] boidu song "$artist - $songTitle" ($storefront): $error');
+      devLog(
+        '[MotionArt] boidu song "$artist - $songTitle" ($storefront): $error',
+      );
       throw _MotionArtTransientException('$error');
     }
   }
@@ -553,6 +592,7 @@ class AnimatedArtworkService {
     final existing = _inflight[key];
     if (existing != null) return existing;
 
+    final epoch = _epochFor(key);
     final future = () async {
       final disk = await _readDiskCache(key);
       if (disk != null) {
@@ -572,14 +612,17 @@ class AnimatedArtworkService {
         transient = true;
       }
 
+      // A manual refresh may have invalidated this lookup while it was in
+      // flight; hand the result back but do not cache it.
+      if (_epochFor(key) != epoch) return artwork;
+
       final hasMotion = artwork != null && artwork.hasMotion;
       final ttl = hasMotion
           ? _positiveTtl
           : (transient ? _transientTtl : _negativeTtl);
       final entry = _CacheEntry(
         artwork: hasMotion ? artwork : null,
-        expiresAtMs: DateTime.now().millisecondsSinceEpoch +
-            ttl.inMilliseconds,
+        expiresAtMs: DateTime.now().millisecondsSinceEpoch + ttl.inMilliseconds,
       );
       _mem[key] = entry;
       // Only persist definitive outcomes; transient failures retry next launch.
@@ -588,11 +631,16 @@ class AnimatedArtworkService {
     }();
 
     _inflight[key] = future;
-    return future.whenComplete(() => _inflight.remove(key));
+    return future.whenComplete(() {
+      if (identical(_inflight[key], future)) _inflight.remove(key);
+    });
   }
 
+  int _epochFor(String key) => _epoch[key] ?? 0;
+
   String _cacheKey(String prefix, String artist, String album, String sf) {
-    final raw = '$_cacheVersion|$prefix|${artist.toLowerCase()}|'
+    final raw =
+        '$_cacheVersion|$prefix|${artist.toLowerCase()}|'
         '${album.toLowerCase()}|$sf';
     return sha1.convert(utf8.encode(raw)).toString();
   }
@@ -626,6 +674,15 @@ class AnimatedArtworkService {
       );
     } catch (_) {
       return null;
+    }
+  }
+
+  Future<void> _deleteDiskCache(String key) async {
+    try {
+      final file = File('${(await _cacheDir()).path}/$key.json');
+      if (await file.exists()) await file.delete();
+    } catch (error) {
+      devLog('[MotionArt] cache delete failed: $error');
     }
   }
 

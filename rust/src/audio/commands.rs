@@ -49,8 +49,13 @@ pub enum AudioCommand {
     },
     /// Set playback speed (0.5 to 2.0)
     SetPlaybackSpeed { speed: f32 },
-    /// Set EQ: enabled and a variable list of band specs (real per-type biquads).
-    SetEqualizer { enabled: bool, specs: Vec<EqBandSpec> },
+    /// Set EQ: enabled, broadband preamp (dB) and a variable list of band specs
+    /// (real per-type biquads).
+    SetEqualizer {
+        enabled: bool,
+        preamp_db: f32,
+        specs: Vec<EqBandSpec>,
+    },
     /// Set pitch shift in semitones (tempo preserved). 0 = bypass.
     SetPitchShift { semitones: f32 },
     /// Set BS2B crossfeed level (Off/Default/Crossfeed/CrossfeedEasy).

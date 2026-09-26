@@ -266,4 +266,66 @@ void main() {
       expect(art.albumId, '1652508659');
     });
   });
+
+  group('AnimatedArtworkService.refreshAlbumArtwork', () {
+    test('drops a negative entry so a later lookup re-queries', () async {
+      var boiduCalls = 0;
+      var hasMotion = false;
+      final client = MockClient((request) async {
+        final url = request.url;
+        if (url.host == 'itunes.apple.com') {
+          return _json({
+            'resultCount': 1,
+            'results': [
+              {
+                'collectionId': 42,
+                'collectionName': 'DRIVE',
+                'artistName': 'Tiësto',
+              },
+            ],
+          });
+        }
+        if (url.host == 'artwork.boidu.dev') {
+          boiduCalls++;
+          final id = url.queryParameters['id'] ?? '42';
+          return hasMotion
+              ? _motion(id, 'DRIVE', 'Tiësto')
+              : _staticOnly(id, 'DRIVE', 'Tiësto');
+        }
+        return _json({'error': 'unexpected $url'}, 500);
+      });
+
+      final service = AnimatedArtworkService.create(client: client);
+      final first = await service.getAnimatedArtworkForAlbum(
+        albumName: 'DRIVE',
+        artist: 'Tiësto',
+      );
+      expect(first, isNull);
+      final callsAfterFirst = boiduCalls;
+
+      // The negative is cached: a second lookup makes no boidu request.
+      await service.getAnimatedArtworkForAlbum(
+        albumName: 'DRIVE',
+        artist: 'Tiësto',
+      );
+      expect(boiduCalls, callsAfterFirst);
+
+      // Upstream gains motion art; the manual refresh must drop the negative.
+      hasMotion = true;
+      var revisions = 0;
+      void onRevision() => revisions++;
+      service.revision.addListener(onRevision);
+      await service.refreshAlbumArtwork(artist: 'Tiësto', albumName: 'DRIVE');
+      service.revision.removeListener(onRevision);
+      expect(revisions, 1);
+
+      final refreshed = await service.getAnimatedArtworkForAlbum(
+        albumName: 'DRIVE',
+        artist: 'Tiësto',
+      );
+      expect(refreshed, isNotNull);
+      expect(refreshed!.hasMotion, isTrue);
+      expect(boiduCalls, greaterThan(callsAfterFirst));
+    });
+  });
 }

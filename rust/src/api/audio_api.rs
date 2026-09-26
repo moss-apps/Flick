@@ -51,7 +51,8 @@ static PENDING_XF_CURVE: AtomicU8 = AtomicU8::new(u8::MAX);
 // already re-applied on the fresh handle, but EQ was dropped — so it worked
 // on the first track and silently vanished on the next (issue #211). EqBandSpec
 // is Copy but the band list is a Vec, so this needs a Mutex, not atomics.
-static PENDING_EQ: Lazy<Mutex<Option<(bool, Vec<EqBandSpec>)>>> = Lazy::new(|| Mutex::new(None));
+static PENDING_EQ: Lazy<Mutex<Option<(bool, f32, Vec<EqBandSpec>)>>> =
+    Lazy::new(|| Mutex::new(None));
 
 // ponytail: pending crossfeed level (0..3, u32::MAX = none) so it survives
 // engine recreation like EQ — a USB DAC rebuilds the engine on a sample-rate
@@ -298,11 +299,11 @@ pub fn take_pending_crossfade() -> Option<(bool, f32, crate::audio::crossfader::
     Some((enabled, duration_secs, curve))
 }
 
-pub fn set_pending_equalizer(enabled: bool, specs: Vec<EqBandSpec>) {
-    *PENDING_EQ.lock().expect("pending eq poisoned") = Some((enabled, specs));
+pub fn set_pending_equalizer(enabled: bool, preamp_db: f32, specs: Vec<EqBandSpec>) {
+    *PENDING_EQ.lock().expect("pending eq poisoned") = Some((enabled, preamp_db, specs));
 }
 
-pub fn take_pending_equalizer() -> Option<(bool, Vec<EqBandSpec>)> {
+pub fn take_pending_equalizer() -> Option<(bool, f32, Vec<EqBandSpec>)> {
     PENDING_EQ.lock().expect("pending eq poisoned").take()
 }
 
@@ -1530,11 +1531,16 @@ pub fn audio_set_replaygain_default(gain_db: f32) -> Result<(), String> {
     with_audio_engine(|handle| handle.set_replaygain_default(clamped))
 }
 
-/// Set EQ: enabled and a variable list of band specs (real per-type biquads,
-/// up to 31 bands). Graphic mode is expressed as 10 peaking specs.
-pub fn audio_set_equalizer(enabled: bool, specs: Vec<EqBandSpec>) -> Result<(), String> {
-    set_pending_equalizer(enabled, specs.clone());
-    with_audio_engine(|handle| handle.set_equalizer(enabled, specs))
+/// Set EQ: enabled, broadband preamp (dB) and a variable list of band specs
+/// (real per-type biquads, up to 31 bands). Graphic mode is expressed as 10
+/// peaking specs.
+pub fn audio_set_equalizer(
+    enabled: bool,
+    preamp_db: f32,
+    specs: Vec<EqBandSpec>,
+) -> Result<(), String> {
+    set_pending_equalizer(enabled, preamp_db, specs.clone());
+    with_audio_engine(|handle| handle.set_equalizer(enabled, preamp_db, specs))
 }
 
 /// Set BS2B crossfeed level for the native audio engine.
@@ -1794,17 +1800,19 @@ mod tests {
             gain_db: 4.5,
             q: 1.2,
         }];
-        set_pending_equalizer(true, specs.clone());
-        let (enabled, got) = take_pending_equalizer().expect("pending set");
+        set_pending_equalizer(true, -7.5, specs.clone());
+        let (enabled, preamp_db, got) = take_pending_equalizer().expect("pending set");
         assert!(enabled);
+        assert_eq!(preamp_db, -7.5);
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].freq_hz, 1000.0);
         assert_eq!(got[0].gain_db, 4.5);
         assert!(take_pending_equalizer().is_none(), "take must clear");
 
-        set_pending_equalizer(false, Vec::new());
-        let (enabled, got) = take_pending_equalizer().unwrap();
+        set_pending_equalizer(false, 0.0, Vec::new());
+        let (enabled, preamp_db, got) = take_pending_equalizer().unwrap();
         assert!(!enabled, "disabled state must round-trip");
+        assert_eq!(preamp_db, 0.0);
         assert!(got.is_empty());
     }
 

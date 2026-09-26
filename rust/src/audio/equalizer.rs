@@ -45,6 +45,8 @@ const COEFFS_PER_BAND: usize = 5;
 #[derive(Clone, Copy)]
 pub struct EqParams {
     pub enabled: bool,
+    /// Broadband input gain (linear) applied before the biquad chain.
+    pub preamp_linear: f32,
     pub active_bands: usize,
     pub coeffs: [[f32; COEFFS_PER_BAND]; MAX_BANDS],
 }
@@ -53,13 +55,15 @@ impl EqParams {
     pub fn disabled() -> Self {
         Self {
             enabled: false,
+            preamp_linear: 1.0,
             active_bands: 0,
             coeffs: [[1.0, 0.0, 0.0, 0.0, 0.0]; MAX_BANDS],
         }
     }
 
-    /// Build from variable band specs at a given sample rate.
-    pub fn from_specs(specs: &[EqBandSpec], sample_rate: u32) -> Self {
+    /// Build from variable band specs at a given sample rate. Preamp is a
+    /// standalone broadband gain, not baked into band gains.
+    pub fn from_specs(specs: &[EqBandSpec], preamp_db: f32, sample_rate: u32) -> Self {
         let fs = sample_rate as f32;
         let mut coeffs = [[1.0f32; COEFFS_PER_BAND]; MAX_BANDS];
         let n = specs.len().min(MAX_BANDS);
@@ -68,6 +72,7 @@ impl EqParams {
         }
         Self {
             enabled: true,
+            preamp_linear: 10.0f32.powf(preamp_db / 20.0),
             active_bands: n,
             coeffs,
         }
@@ -188,9 +193,15 @@ impl Equalizer {
     }
 
     /// Called from command thread. sample_rate must match engine.
-    pub fn set(&mut self, enabled: bool, specs: &[EqBandSpec], sample_rate: u32) {
+    pub fn set(
+        &mut self,
+        enabled: bool,
+        preamp_db: f32,
+        specs: &[EqBandSpec],
+        sample_rate: u32,
+    ) {
         let next = if enabled {
-            EqParams::from_specs(specs, sample_rate)
+            EqParams::from_specs(specs, preamp_db, sample_rate)
         } else {
             EqParams::disabled()
         };
@@ -215,7 +226,12 @@ impl Equalizer {
     /// Process interleaved buffer in place. channels = 2.
     pub fn process(&mut self, buf: &mut [f32], channels: usize) {
         let p = self.current_params();
-        if !p.enabled || p.active_bands == 0 {
+        if !p.enabled {
+            return;
+        }
+        let active = p.active_bands;
+        let gain = p.preamp_linear;
+        if active == 0 && (gain - 1.0).abs() <= f32::EPSILON {
             return;
         }
         if channels == 0 {
@@ -223,13 +239,14 @@ impl Equalizer {
         }
         let max_channels = self.state.len().min(channels);
         let frames = buf.len() / channels;
-        let active = p.active_bands;
         for f in 0..frames {
             for ch in 0..max_channels {
                 let idx = f * channels + ch;
-                let x0 = buf[idx];
-                buf[idx] =
-                    process_sample_chain(x0, &p.coeffs[..active], &mut self.state[ch][..active]);
+                buf[idx] = process_sample_chain(
+                    buf[idx] * gain,
+                    &p.coeffs[..active],
+                    &mut self.state[ch][..active],
+                );
             }
         }
     }
@@ -276,7 +293,7 @@ mod tests {
     fn process_bypasses_when_disabled() {
         let mut eq = Equalizer::new();
         let mut buf = [0.1_f32, 0.2, 0.3, 0.4];
-        eq.set(false, &[], 48000);
+        eq.set(false, 0.0, &[], 48000);
         eq.process(&mut buf, 2);
         // untouched
         assert_eq!(buf, [0.1, 0.2, 0.3, 0.4]);
@@ -291,7 +308,7 @@ mod tests {
             gain_db: 0.0,
             q: 1.0,
         }];
-        eq.set(true, &specs, 48000);
+        eq.set(true, 0.0, &specs, 48000);
         let mut buf = [0.5_f32, -0.5, 0.25, -0.25];
         let original = buf;
         eq.process(&mut buf, 2);
@@ -324,7 +341,7 @@ mod tests {
                 q: 2.0,
             },
         ];
-        eq.set(true, &specs, 48000);
+        eq.set(true, 0.0, &specs, 48000);
         let p = eq.current_params();
         assert_eq!(p.active_bands, 3);
         let mut buf = [0.5_f32; 8];
@@ -348,5 +365,58 @@ mod tests {
         for v in c.iter() {
             assert!(v.is_finite(), "non-finite coeff {c:?}");
         }
+    }
+
+    #[test]
+    fn preamp_applies_broadband_gain_without_bands() {
+        let mut eq = Equalizer::new();
+        eq.set(true, -6.0, &[], 48000);
+        let mut buf = [1.0_f32, -0.5];
+        eq.process(&mut buf, 2);
+        let expected = 10.0f32.powf(-6.0 / 20.0);
+        assert!((buf[0] - expected).abs() < 1e-5, "got {}", buf[0]);
+        assert!((buf[1] + expected / 2.0).abs() < 1e-5, "got {}", buf[1]);
+    }
+
+    #[test]
+    fn preamp_is_stage_gain_not_band_gain() {
+        // +6 dB peaking band at 1 kHz with -6 dB preamp: at the band center the
+        // two cancel, i.e. the preamp is a broadband stage, not a band offset.
+        let mut eq = Equalizer::new();
+        let specs = [EqBandSpec {
+            band_type: EqBandType::Peaking,
+            freq_hz: 1000.0,
+            gain_db: 6.0,
+            q: 1.0,
+        }];
+        eq.set(true, -6.0, &specs, 48000);
+
+        let fs = 48000.0f32;
+        let frames = 48000usize;
+        let mut buf = Vec::with_capacity(frames * 2);
+        for n in 0..frames {
+            let s = (2.0 * PI * 1000.0 * n as f32 / fs).sin();
+            buf.push(s);
+            buf.push(s);
+        }
+        eq.process(&mut buf, 2);
+
+        let settled = &buf[(frames / 2) * 2..];
+        let rms =
+            (settled.iter().map(|v| v * v).sum::<f32>() / settled.len() as f32).sqrt();
+        let sine_rms = 1.0 / 2.0f32.sqrt();
+        assert!(
+            (rms - sine_rms).abs() < 0.05,
+            "expected unity at band center, got rms {rms}"
+        );
+    }
+
+    #[test]
+    fn disabled_eq_ignores_preamp() {
+        let mut eq = Equalizer::new();
+        eq.set(false, -12.0, &[], 48000);
+        let mut buf = [0.5_f32, -0.25];
+        eq.process(&mut buf, 2);
+        assert_eq!(buf, [0.5, -0.25]);
     }
 }

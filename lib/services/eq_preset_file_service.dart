@@ -3,6 +3,18 @@ import 'dart:convert';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/services/eq_preset_service.dart';
 
+/// Result of parsing a preset file: the preset plus any values that had to be
+/// clamped to Flick's supported ranges (so the UI can surface them instead of
+/// silently altering the preset).
+class EqPresetImportResult {
+  const EqPresetImportResult({required this.preset, required this.warnings});
+
+  final EqPreset preset;
+  final List<String> warnings;
+
+  bool get hasWarnings => warnings.isNotEmpty;
+}
+
 class EqPresetFileService {
   static final JsonEncoder _jsonEncoder = const JsonEncoder.withIndent('  ');
 
@@ -63,6 +75,13 @@ class EqPresetFileService {
   }
 
   EqPreset fromFileText({required String text, required String fileName}) {
+    return parseFileText(text: text, fileName: fileName).preset;
+  }
+
+  EqPresetImportResult parseFileText({
+    required String text,
+    required String fileName,
+  }) {
     final normalizedName = _baseNameWithoutExtension(fileName).trim();
     final trimmed = text.trimLeft();
     if (trimmed.startsWith('{')) {
@@ -71,15 +90,21 @@ class EqPresetFileService {
         throw const FormatException('Expected a JSON object.');
       }
       final preset = EqPreset.fromJson(decoded.cast<String, dynamic>());
-      return preset.copyWith(
-        name: preset.name.trim().isEmpty ? normalizedName : preset.name,
+      return EqPresetImportResult(
+        preset: preset.copyWith(
+          name: preset.name.trim().isEmpty ? normalizedName : preset.name,
+        ),
+        warnings: const [],
       );
     }
 
     return _parseTxt(text: text, fileName: normalizedName);
   }
 
-  EqPreset _parseTxt({required String text, required String fileName}) {
+  EqPresetImportResult _parseTxt({
+    required String text,
+    required String fileName,
+  }) {
     final lines = text
         .split(RegExp(r'\r?\n'))
         .map((line) => line.trim())
@@ -98,6 +123,7 @@ class EqPresetFileService {
       lineIndex = 1;
     }
 
+    final warnings = <String>[];
     final bands = <ParametricBand>[];
     for (var i = lineIndex; i < lines.length; i++) {
       final line = lines[i];
@@ -106,21 +132,50 @@ class EqPresetFileService {
         throw FormatException('Invalid filter line: $line');
       }
 
+      final filterNumber = match.group(1)!;
       final typeCode = match.group(3)!.toUpperCase();
       final type = _codeToBandType[typeCode];
       if (type == null) {
         throw FormatException('Unsupported filter type: $typeCode');
       }
 
+      final rawFreq = double.parse(match.group(4)!);
+      final clampedFreq = _clampFrequency(rawFreq);
+      if (clampedFreq != rawFreq) {
+        warnings.add(
+          'Filter $filterNumber: frequency ${_formatValue(rawFreq)} Hz '
+          'adjusted to ${_formatValue(clampedFreq)} Hz',
+        );
+      }
+
       final gainMatch = match.group(5);
+      var gainDb = 0.0;
+      if (type.supportsGain && gainMatch != null) {
+        final rawGain = double.parse(gainMatch);
+        gainDb = _clampGain(rawGain);
+        if (gainDb != rawGain) {
+          warnings.add(
+            'Filter $filterNumber: gain ${_formatValue(rawGain)} dB '
+            'adjusted to ${_formatValue(gainDb)} dB',
+          );
+        }
+      }
+
+      final rawQ = double.parse(match.group(6)!);
+      final clampedQ = _clampQ(rawQ);
+      if (clampedQ != rawQ) {
+        warnings.add(
+          'Filter $filterNumber: Q ${_formatValue(rawQ)} '
+          'adjusted to ${_formatValue(clampedQ)}',
+        );
+      }
+
       bands.add(
         ParametricBand(
           enabled: match.group(2)!.toUpperCase() == 'ON',
-          frequencyHz: _clampFrequency(double.parse(match.group(4)!)),
-          gainDb: type.supportsGain && gainMatch != null
-              ? _clampGain(double.parse(gainMatch))
-              : 0.0,
-          q: _clampQ(double.parse(match.group(6)!)),
+          frequencyHz: clampedFreq,
+          gainDb: gainDb,
+          q: clampedQ,
           type: type,
         ),
       );
@@ -130,14 +185,17 @@ class EqPresetFileService {
       throw const FormatException('No filters found in preset file.');
     }
 
-    return EqPreset(
-      id: '',
-      name: fileName.isEmpty ? 'Imported Preset' : fileName,
-      enabled: true,
-      mode: EqMode.parametric,
-      preampDb: preampDb,
-      graphicGainsDb: List<double>.filled(10, 0.0, growable: false),
-      parametricBands: List<ParametricBand>.unmodifiable(bands),
+    return EqPresetImportResult(
+      preset: EqPreset(
+        id: '',
+        name: fileName.isEmpty ? 'Imported Preset' : fileName,
+        enabled: true,
+        mode: EqMode.parametric,
+        preampDb: preampDb,
+        graphicGainsDb: List<double>.filled(10, 0.0, growable: false),
+        parametricBands: List<ParametricBand>.unmodifiable(bands),
+      ),
+      warnings: List<String>.unmodifiable(warnings),
     );
   }
 
@@ -172,6 +230,14 @@ class EqPresetFileService {
     return hz.toStringAsFixed(1);
   }
 
+  static String _formatValue(double value) {
+    final rounded = value.roundToDouble();
+    if ((value - rounded).abs() < 0.001) {
+      return rounded.toStringAsFixed(0);
+    }
+    return value.toStringAsFixed(2);
+  }
+
   static double _clampFrequency(double value) {
     return value.clamp(20.0, 20000.0).toDouble();
   }
@@ -183,6 +249,6 @@ class EqPresetFileService {
   }
 
   static double _clampQ(double value) {
-    return value.clamp(0.2, 10.0).toDouble();
+    return value.clamp(EqualizerNotifier.qMin, EqualizerNotifier.qMax).toDouble();
   }
 }

@@ -96,8 +96,7 @@ class _MotionArtViewState extends State<MotionArtView> {
   }
 
   ValueListenable<bool> get _suppression =>
-      widget.suppressionOverride ??
-      PlayerService().motionArtSuppressedNotifier;
+      widget.suppressionOverride ?? PlayerService().motionArtSuppressedNotifier;
 
   @override
   void initState() {
@@ -105,7 +104,14 @@ class _MotionArtViewState extends State<MotionArtView> {
     if (widget.enabled) {
       _listenToSuppression();
     }
+    AnimatedArtworkService.instance.revision.addListener(_onRevisionChanged);
     _restart();
+  }
+
+  void _onRevisionChanged() {
+    if (!mounted) return;
+    _restart();
+    setState(() {});
   }
 
   void _listenToSuppression() {
@@ -163,6 +169,7 @@ class _MotionArtViewState extends State<MotionArtView> {
 
   @override
   void dispose() {
+    AnimatedArtworkService.instance.revision.removeListener(_onRevisionChanged);
     _stopListeningToSuppression();
     _teardown();
     super.dispose();

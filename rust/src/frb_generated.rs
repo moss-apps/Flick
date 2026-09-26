@@ -1774,13 +1774,17 @@ fn wire__crate__api__audio_api__audio_set_equalizer_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_enabled = <bool>::sse_decode(&mut deserializer);
+            let api_preamp_db = <f32>::sse_decode(&mut deserializer);
             let api_specs =
                 <Vec<crate::audio::equalizer::EqBandSpec>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
-                    let output_ok =
-                        crate::api::audio_api::audio_set_equalizer(api_enabled, api_specs)?;
+                    let output_ok = crate::api::audio_api::audio_set_equalizer(
+                        api_enabled,
+                        api_preamp_db,
+                        api_specs,
+                    )?;
                     Ok(output_ok)
                 })())
             }
@@ -3125,13 +3129,18 @@ fn wire__crate__api__audio_api__set_pending_equalizer_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_enabled = <bool>::sse_decode(&mut deserializer);
+            let api_preamp_db = <f32>::sse_decode(&mut deserializer);
             let api_specs =
                 <Vec<crate::audio::equalizer::EqBandSpec>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok({
-                        crate::api::audio_api::set_pending_equalizer(api_enabled, api_specs);
+                        crate::api::audio_api::set_pending_equalizer(
+                            api_enabled,
+                            api_preamp_db,
+                            api_specs,
+                        );
                     })?;
                     Ok(output_ok)
                 })())
@@ -5026,12 +5035,12 @@ impl SseDecode for Option<(bool, f32, crate::audio::crossfader::CrossfadeCurve)>
     }
 }
 
-impl SseDecode for Option<(bool, Vec<crate::audio::equalizer::EqBandSpec>)> {
+impl SseDecode for Option<(bool, f32, Vec<crate::audio::equalizer::EqBandSpec>)> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(
-                <(bool, Vec<crate::audio::equalizer::EqBandSpec>)>::sse_decode(deserializer),
+                <(bool, f32, Vec<crate::audio::equalizer::EqBandSpec>)>::sse_decode(deserializer),
             );
         } else {
             return None;
@@ -5117,12 +5126,13 @@ impl SseDecode for (bool, f32, crate::audio::crossfader::CrossfadeCurve) {
     }
 }
 
-impl SseDecode for (bool, Vec<crate::audio::equalizer::EqBandSpec>) {
+impl SseDecode for (bool, f32, Vec<crate::audio::equalizer::EqBandSpec>) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_field0 = <bool>::sse_decode(deserializer);
-        let mut var_field1 = <Vec<crate::audio::equalizer::EqBandSpec>>::sse_decode(deserializer);
-        return (var_field0, var_field1);
+        let mut var_field1 = <f32>::sse_decode(deserializer);
+        let mut var_field2 = <Vec<crate::audio::equalizer::EqBandSpec>>::sse_decode(deserializer);
+        return (var_field0, var_field1, var_field2);
     }
 }
 
@@ -7310,12 +7320,12 @@ impl SseEncode for Option<(bool, f32, crate::audio::crossfader::CrossfadeCurve)>
     }
 }
 
-impl SseEncode for Option<(bool, Vec<crate::audio::equalizer::EqBandSpec>)> {
+impl SseEncode for Option<(bool, f32, Vec<crate::audio::equalizer::EqBandSpec>)> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <(bool, Vec<crate::audio::equalizer::EqBandSpec>)>::sse_encode(value, serializer);
+            <(bool, f32, Vec<crate::audio::equalizer::EqBandSpec>)>::sse_encode(value, serializer);
         }
     }
 }
@@ -7389,11 +7399,12 @@ impl SseEncode for (bool, f32, crate::audio::crossfader::CrossfadeCurve) {
     }
 }
 
-impl SseEncode for (bool, Vec<crate::audio::equalizer::EqBandSpec>) {
+impl SseEncode for (bool, f32, Vec<crate::audio::equalizer::EqBandSpec>) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.0, serializer);
-        <Vec<crate::audio::equalizer::EqBandSpec>>::sse_encode(self.1, serializer);
+        <f32>::sse_encode(self.1, serializer);
+        <Vec<crate::audio::equalizer::EqBandSpec>>::sse_encode(self.2, serializer);
     }
 }
 

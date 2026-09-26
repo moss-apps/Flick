@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flick/providers/equalizer_provider.dart';
@@ -51,5 +53,57 @@ Filter 9: ON PK Fc 15000 Hz Gain 4.4 dB Q 2.000
     expect(text, contains('Preamp: -6.0 dB'));
     expect(text, contains('Filter 1: ON PK Fc 24 Hz Gain -0.8 dB Q 1.100'));
     expect(text, contains('Filter 2: ON PK Fc 190 Hz Gain -2.8 dB Q 0.500'));
+  });
+
+  test('preserves Q above the old 10 limit and reports no warnings', () {
+    const text = '''
+Preamp: -4.0 dB
+Filter 1: ON PK Fc 1000 Hz Gain 2.0 dB Q 15.000
+''';
+
+    final result = service.parseFileText(text: text, fileName: 'tight.txt');
+
+    expect(result.warnings, isEmpty);
+    expect(result.preset.parametricBands.single.q, 15.0);
+  });
+
+  test('clamps out-of-range values and reports warnings', () {
+    const text = '''
+Preamp: -4.0 dB
+Filter 1: ON PK Fc 500000 Hz Gain 24.0 dB Q 30.000
+Filter 2: ON PK Fc 1000 Hz Gain -2.0 dB Q 1.000
+''';
+
+    final result = service.parseFileText(text: text, fileName: 'extreme.txt');
+
+    expect(result.hasWarnings, isTrue);
+    expect(result.warnings, hasLength(3));
+    expect(result.preset.parametricBands.first.frequencyHz, 20000.0);
+    expect(result.preset.parametricBands.first.gainDb, 20.0);
+    expect(result.preset.parametricBands.first.q, 20.0);
+    expect(result.preset.parametricBands[1].gainDb, -2.0);
+    expect(result.preset.parametricBands[1].q, 1.0);
+  });
+
+  test('JSON imports produce no warnings', () {
+    final preset = EqPreset(
+      id: 'test',
+      name: 'JsonPreset',
+      enabled: true,
+      mode: EqMode.parametric,
+      preampDb: -3.0,
+      graphicGainsDb: List<double>.filled(10, 0.0, growable: false),
+      parametricBands: const [
+        ParametricBand(frequencyHz: 1000, gainDb: 5.0, q: 8.0),
+      ],
+    );
+
+    final result = service.parseFileText(
+      text: jsonEncode(preset.toJson()),
+      fileName: 'preset.json',
+    );
+
+    expect(result.warnings, isEmpty);
+    expect(result.preset.parametricBands.single.q, 8.0);
   });
 }

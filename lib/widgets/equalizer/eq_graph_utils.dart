@@ -8,8 +8,8 @@ import 'package:flick/providers/equalizer_provider.dart';
 
 const double eqMinHz = 20.0;
 const double eqMaxHz = 20000.0;
-const double eqMinDb = -12.0;
-const double eqMaxDb = 12.0;
+const double eqMinDb = -20.0;
+const double eqMaxDb = 20.0;
 
 final double eqLogMin = math.log(eqMinHz) / math.ln10;
 final double eqLogMax = math.log(eqMaxHz) / math.ln10;
