@@ -39,31 +39,25 @@ class EqualizerScreen extends ConsumerStatefulWidget {
 }
 
 class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
+  static const _tabCount = 3;
   final _scrollController = ScrollController();
   final _graphicGraphKey = GlobalKey();
   final _parametricGraphKey = GlobalKey();
-  final _pageController = PageController();
   int _currentPage = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController.addListener(_onPageChanged);
-  }
+  int _pageDirection = 1;
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _pageController.dispose();
     super.dispose();
   }
 
-  void _onPageChanged() {
-    if (!mounted) return;
-    final page = _pageController.page?.round() ?? 0;
-    if (page != _currentPage) {
-      setState(() => _currentPage = page);
-    }
+  void _switchToPage(int index) {
+    if (index < 0 || index >= _tabCount || index == _currentPage) return;
+    setState(() {
+      _pageDirection = index > _currentPage ? 1 : -1;
+      _currentPage = index;
+    });
   }
 
   void _showPresetsBottomSheet() {
@@ -103,29 +97,62 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                     children: [
                       _EffectsTabBar(
                         selectedIndex: _currentPage,
-                        onSelected: (index) {
-                          setState(() => _currentPage = index);
-                          _pageController.animateToPage(
-                            index,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOutCubic,
-                          );
-                        },
+                        onSelected: _switchToPage,
                       ),
                       const SizedBox(height: AppConstants.spacingMd),
                       Expanded(
-                        child: PageView(
-                          controller: _pageController,
-                          physics: const BouncingScrollPhysics(),
-                          children: [
-                            _EqPage(
-                              scrollController: _scrollController,
-                              graphicGraphKey: _graphicGraphKey,
-                              parametricGraphKey: _parametricGraphKey,
+                        child: GestureDetector(
+                          onHorizontalDragEnd: (details) {
+                            final velocity = details.primaryVelocity ?? 0;
+                            if (velocity < -250) {
+                              _switchToPage(_currentPage + 1);
+                            } else if (velocity > 250) {
+                              _switchToPage(_currentPage - 1);
+                            }
+                          },
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            layoutBuilder:
+                                (currentChild, previousChildren) => Stack(
+                                  alignment: Alignment.topCenter,
+                                  children: [
+                                    ...previousChildren,
+                                    ?currentChild,
+                                  ],
+                                ),
+                            transitionBuilder: (child, animation) {
+                              final incoming =
+                                  (child.key as ValueKey).value ==
+                                      _currentPage;
+                              final beginX =
+                                  (incoming ? _pageDirection : -_pageDirection)
+                                      .toDouble();
+                              return SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: Offset(beginX, 0),
+                                  end: Offset.zero,
+                                ).animate(animation),
+                                child: FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: KeyedSubtree(
+                              key: ValueKey(_currentPage),
+                              child: switch (_currentPage) {
+                                0 => _EqPage(
+                                  scrollController: _scrollController,
+                                  graphicGraphKey: _graphicGraphKey,
+                                  parametricGraphKey: _parametricGraphKey,
+                                ),
+                                1 => const _DynamicsPage(),
+                                _ => const _FxPage(),
+                              },
                             ),
-                            const _DynamicsPage(),
-                            const _FxPage(),
-                          ],
+                          ),
                         ),
                       ),
                     ],
@@ -502,11 +529,11 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
       final contents = file.bytes != null
           ? utf8.decode(file.bytes!)
           : await File(file.path!).readAsString();
-      final imported = _fileService.fromFileText(
+      final imported = _fileService.parseFileText(
         text: contents,
         fileName: file.name,
       );
-      final preset = imported.copyWith(
+      final preset = imported.preset.copyWith(
         id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
       );
 
@@ -528,12 +555,53 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
             limiter: preset.limiter,
             fx: preset.fx,
           );
-      _showMessage('Imported "${preset.name}"');
+      if (imported.hasWarnings) {
+        await _showImportWarnings(preset.name, imported.warnings);
+      } else {
+        _showMessage('Imported "${preset.name}"');
+      }
     } on FormatException catch (error) {
       _showMessage(error.message);
     } catch (_) {
       _showMessage('Failed to import preset file.');
     }
+  }
+
+  Future<void> _showImportWarnings(
+    String presetName,
+    List<String> warnings,
+  ) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Preset imported with adjustments'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '"$presetName" contains values outside the supported ranges; '
+                'these were adjusted:',
+              ),
+              const SizedBox(height: 12),
+              for (final warning in warnings)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text('- $warning'),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _exportCurrentPreset() async {
@@ -2629,8 +2697,8 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                 value: band.q.toStringAsFixed(2),
                 knob: RotaryKnob(
                   value: band.q,
-                  min: 0.2,
-                  max: 10.0,
+                  min: EqualizerNotifier.qMin,
+                  max: EqualizerNotifier.qMax,
                   size: 100,
                   onChanged: editable
                       ? (v) => ref
@@ -2645,8 +2713,8 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                           value: band.q,
                           unit: 'Q',
                           label: band.type.qLabel,
-                          min: 0.2,
-                          max: 10.0,
+                          min: EqualizerNotifier.qMin,
+                          max: EqualizerNotifier.qMax,
                           onSubmitted: (v) => ref
                               .read(equalizerProvider.notifier)
                               .setParamBandQ(widget.index, v),
