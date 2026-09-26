@@ -42,7 +42,48 @@ internal class JustAudioProcessingController {
                 applyVolumeBoost(call.arguments, result)
                 return true
             }
+            METHOD_GET_EQUALIZER_BAND_INFO -> {
+                handleGetEqualizerBandInfo(call.arguments, result)
+                return true
+            }
             else -> return false
+        }
+    }
+
+    private fun handleGetEqualizerBandInfo(arguments: Any?, result: MethodChannel.Result) {
+        try {
+            val payload = arguments as? Map<*, *>
+            val sessionId = (payload?.get("audioSessionId") as? Number)?.toInt()
+            if (sessionId == null) {
+                result.success(null)
+                return
+            }
+
+            ensureSession(sessionId)
+            val effect = equalizer ?: createEqualizer(sessionId)?.also { equalizer = it }
+            if (effect == null) {
+                result.success(null)
+                return
+            }
+
+            val bandCount = effect.numberOfBands.toInt()
+            val bandLevelRange = effect.bandLevelRange
+            val centerFreqsHz = ArrayList<Double>(bandCount)
+            for (bandIndex in 0 until bandCount) {
+                centerFreqsHz += effect.getCenterFreq(bandIndex.toShort()) / 1000.0
+            }
+
+            result.success(
+                mapOf(
+                    "bandCount" to bandCount,
+                    "centerFreqsHz" to centerFreqsHz,
+                    "minLevelDb" to (bandLevelRange[0] / 100.0),
+                    "maxLevelDb" to (bandLevelRange[1] / 100.0),
+                ),
+            )
+        } catch (e: Exception) {
+            logEffectFailure("Equalizer", e)
+            result.success(null)
         }
     }
 
@@ -157,17 +198,24 @@ internal class JustAudioProcessingController {
             val bandLevelRange = effect.bandLevelRange
             val minLevelDb = bandLevelRange[0] / 100.0
             val maxLevelDb = bandLevelRange[1] / 100.0
+            val gains = request.gainsDb
+            // DynamicsProcessing owns the preamp on API 28+; older releases have
+            // no broadband stage, so fold it into the band gains.
+            val foldPreampDb =
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) request.preampDb else 0.0
 
             for (bandIndex in 0 until bandCount) {
-                val startIndex = (bandIndex * request.gainsDb.size) / bandCount
-                val endIndex = ((bandIndex + 1) * request.gainsDb.size) / bandCount
-                val averagedGainDb = request.gainsDb
-                    .subList(startIndex, endIndex)
-                    .average()
-                    .coerceIn(minLevelDb, maxLevelDb)
+                val gainDb = if (gains.size == bandCount) {
+                    gains[bandIndex]
+                } else {
+                    val startIndex = (bandIndex * gains.size) / bandCount
+                    val endIndex = ((bandIndex + 1) * gains.size) / bandCount
+                    gains.subList(startIndex, endIndex).average()
+                }
+                val levelDb = (gainDb + foldPreampDb).coerceIn(minLevelDb, maxLevelDb)
                 effect.setBandLevel(
                     bandIndex.toShort(),
-                    (averagedGainDb * 100).roundToInt().toShort(),
+                    (levelDb * 100).roundToInt().toShort(),
                 )
             }
         } catch (e: Exception) {
@@ -194,6 +242,7 @@ internal class JustAudioProcessingController {
                     computeChannelInputGainDb(
                         channelIndex = channelIndex,
                         channelCount = effect.channelCount,
+                        preampDb = request.preampDb,
                         limiter = request.limiter,
                         fx = request.fx,
                     ),
@@ -302,6 +351,7 @@ internal class JustAudioProcessingController {
     private fun computeChannelInputGainDb(
         channelIndex: Int,
         channelCount: Int,
+        preampDb: Double,
         limiter: LimiterPayload,
         fx: FxPayload,
     ): Float {
@@ -312,7 +362,7 @@ internal class JustAudioProcessingController {
             channelIndex % 2 == 0 -> panGainToDb(leftGain)
             else -> panGainToDb(rightGain)
         }
-        return (limiterGainDb + balanceGainDb)
+        return (preampDb + limiterGainDb + balanceGainDb)
             .coerceIn(MIN_CHANNEL_INPUT_GAIN_DB, MAX_CHANNEL_INPUT_GAIN_DB)
             .toFloat()
     }
@@ -550,6 +600,7 @@ internal class JustAudioProcessingController {
     private data class AudioProcessingRequest(
         val masterEnabled: Boolean,
         val audioSessionId: Int?,
+        val preampDb: Double,
         val gainsDb: List<Double>,
         val compressor: CompressorPayload,
         val limiter: LimiterPayload,
@@ -558,8 +609,11 @@ internal class JustAudioProcessingController {
         val hasEqualizer: Boolean
             get() = masterEnabled && gainsDb.any { abs(it) >= DB_EPSILON }
 
+        val hasPreamp: Boolean
+            get() = masterEnabled && abs(preampDb) >= DB_EPSILON
+
         val hasDynamics: Boolean
-            get() = compressor.enabled || limiter.enabled || fx.usesBalance
+            get() = compressor.enabled || limiter.enabled || fx.usesBalance || hasPreamp
 
         val requiresAudioSession: Boolean
             get() = hasEqualizer || hasDynamics || fx.hasNativeCounterpart
@@ -568,13 +622,11 @@ internal class JustAudioProcessingController {
             fun from(arguments: Any?): AudioProcessingRequest? {
                 val payload = arguments as? Map<*, *> ?: return null
                 val gainsDb = payload.doubleList("gainsDb") ?: return null
-                if (gainsDb.size != 10) {
-                    return null
-                }
 
                 return AudioProcessingRequest(
                     masterEnabled = payload.boolean("masterEnabled"),
                     audioSessionId = payload.intOrNull("audioSessionId"),
+                    preampDb = payload.double("preampDb", 0.0),
                     gainsDb = gainsDb,
                     compressor = CompressorPayload.from(payload.map("compressor")),
                     limiter = LimiterPayload.from(payload.map("limiter")),
@@ -670,6 +722,7 @@ internal class JustAudioProcessingController {
         private const val TAG = "JustAudioProcessing"
         private const val METHOD_APPLY_AUDIO_PROCESSING = "applyAudioProcessing"
         private const val METHOD_SET_VOLUME_BOOST = "setVolumeBoost"
+        private const val METHOD_GET_EQUALIZER_BAND_INFO = "getEqualizerBandInfo"
         private const val LIMITER_LINK_GROUP = 0
         private const val LIMITER_ATTACK_MS = 1f
         private const val LIMITER_RATIO = 20f
@@ -681,7 +734,7 @@ internal class JustAudioProcessingController {
         private const val DB_EPSILON = 0.01
         private const val MIN_PAN_LINEAR_GAIN = 0.0001
         private const val MIN_CHANNEL_INPUT_GAIN_DB = -80.0
-        private const val MAX_CHANNEL_INPUT_GAIN_DB = 12.0
+        private const val MAX_CHANNEL_INPUT_GAIN_DB = 20.0
     }
 }
 
