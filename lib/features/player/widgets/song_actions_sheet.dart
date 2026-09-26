@@ -5,6 +5,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/services/motion_art/animated_artwork_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/features/player/widgets/player_navigation.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
@@ -229,6 +230,33 @@ class SongActionsSheet extends ConsumerWidget {
                                   ref.invalidate(songsProvider);
                                 }
                               });
+                            },
+                          ),
+                          _buildSongActionTile(
+                            context: sheetContext,
+                            icon: LucideIcons.refreshCw,
+                            label: 'Refresh Motion Art',
+                            onTap: () async {
+                              Navigator.pop(sheetContext);
+                              final albumArtist = activeSong.albumArtist;
+                              await AnimatedArtworkService.instance
+                                  .refreshAlbumArtwork(
+                                    artist:
+                                        (albumArtist != null &&
+                                            albumArtist.trim().isNotEmpty)
+                                        ? albumArtist.trim()
+                                        : activeSong.artist,
+                                    albumName: activeSong.album,
+                                    songTitle: activeSong.title,
+                                  );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Motion art refreshed'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
                             },
                           ),
                           if (activeSong.filePath != null &&
