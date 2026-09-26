@@ -1581,6 +1581,12 @@ class PlayerService {
     );
   }
 
+  /// Re-resolves the desired engine/route. The newly selected engine attaches
+  /// on the next playback request.
+  Future<void> syncAudioRouteSelection({required String reason}) {
+    return _sessionManager.syncRouteSelection(reason: reason);
+  }
+
   /// Re-arms the direct USB engine after a startup fallback and, when a track
   /// is playing, re-attaches playback to the exclusive path.
   Future<bool> retryDirectUsbForCurrentDevice() async {

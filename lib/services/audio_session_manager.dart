@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flick/models/audio_engine_type.dart';
 import 'package:flick/services/android_audio_device_service.dart';
+import 'package:flick/services/eq_engine_hint.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
@@ -324,7 +325,15 @@ class AudioSessionManager {
         info.hasUsbDac ||
         capabilityReportsUsb ||
         looksLikeUsbAudioRoute) {
-      if (audioEnginePreference == AudioEnginePreference.rustOboe) {
+    if (EqEngineHint.parametricPeqActive) {
+      _debugLog(
+        '[Session] Selected RUST_OBOE because parametric EQ is enabled and '
+        'needs the variable-band DSP chain',
+      );
+      return AudioEngineType.rustOboe;
+    }
+
+    if (audioEnginePreference == AudioEnginePreference.rustOboe) {
         _debugLog(
           '[Session] Selected RUST_OBOE because an external USB DAC is '
           'attached and the user prefers the Rust Android-managed engine '

@@ -10,6 +10,21 @@ const MethodChannel _androidAudioProcessingChannel = MethodChannel(
 final AndroidJustAudioProcessingService androidJustAudioProcessingService =
     AndroidJustAudioProcessingService();
 
+/// Fixed-band layout of the device's native Equalizer AudioEffect.
+class EqualizerBandInfo {
+  const EqualizerBandInfo({
+    required this.bandCount,
+    required this.centerFreqsHz,
+    required this.minLevelDb,
+    required this.maxLevelDb,
+  });
+
+  final int bandCount;
+  final List<double> centerFreqsHz;
+  final double minLevelDb;
+  final double maxLevelDb;
+}
+
 class AndroidJustAudioProcessingService {
   AndroidJustAudioProcessingService({MethodChannel? channel})
     : _channel = channel ?? _androidAudioProcessingChannel;
@@ -59,12 +74,56 @@ class AndroidJustAudioProcessingService {
       'audioSessionId': audioSessionId,
     });
   }
+
+  /// Reads the device equalizer's band count, center frequencies, and level
+  /// range. Returns null when unavailable (no session, no effect, or failure).
+  Future<EqualizerBandInfo?> getEqualizerBandInfo({
+    int? audioSessionId,
+  }) async {
+    if (audioSessionId == null) return null;
+    try {
+      final response = await _channel.invokeMethod<Object?>(
+        'getEqualizerBandInfo',
+        <String, Object?>{'audioSessionId': audioSessionId},
+      );
+      if (response is! Map) return null;
+
+      final bandCount = (response['bandCount'] as num?)?.toInt();
+      final minLevelDb = (response['minLevelDb'] as num?)?.toDouble();
+      final maxLevelDb = (response['maxLevelDb'] as num?)?.toDouble();
+      final rawFreqs = response['centerFreqsHz'];
+      if (bandCount == null ||
+          bandCount <= 0 ||
+          minLevelDb == null ||
+          maxLevelDb == null ||
+          rawFreqs is! List) {
+        return null;
+      }
+
+      final freqs = <double>[];
+      for (final value in rawFreqs) {
+        if (value is! num) return null;
+        freqs.add(value.toDouble());
+      }
+      if (freqs.length != bandCount) return null;
+
+      return EqualizerBandInfo(
+        bandCount: bandCount,
+        centerFreqsHz: List<double>.unmodifiable(freqs),
+        minLevelDb: minLevelDb,
+        maxLevelDb: maxLevelDb,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 class _AndroidAudioProcessingRequest {
   const _AndroidAudioProcessingRequest({
     required this.masterEnabled,
     required this.audioSessionId,
+    required this.preampDb,
     required this.gainsDb,
     required this.compressor,
     required this.limiter,
@@ -82,6 +141,7 @@ class _AndroidAudioProcessingRequest {
     return _AndroidAudioProcessingRequest(
       masterEnabled: masterEnabled,
       audioSessionId: audioSessionId,
+      preampDb: masterEnabled ? state.preampDb : 0.0,
       gainsDb: List<double>.unmodifiable(gainsDb),
       compressor: _AndroidCompressorPayload.fromSettings(
         state.compressor,
@@ -100,6 +160,7 @@ class _AndroidAudioProcessingRequest {
 
   final bool masterEnabled;
   final int? audioSessionId;
+  final double preampDb;
   final List<double> gainsDb;
   final _AndroidCompressorPayload compressor;
   final _AndroidLimiterPayload limiter;
@@ -109,8 +170,11 @@ class _AndroidAudioProcessingRequest {
     (gain) => gain.abs() >= AndroidJustAudioProcessingService._dbEpsilon,
   );
 
+  bool get hasPreamp => preampDb.abs() >= AndroidJustAudioProcessingService._dbEpsilon;
+
   bool get requiresAudioSession =>
       hasEqualizer ||
+      hasPreamp ||
       compressor.enabled ||
       limiter.enabled ||
       fx.hasNativeCounterpart;
@@ -119,6 +183,7 @@ class _AndroidAudioProcessingRequest {
     return <String, Object?>{
       'masterEnabled': masterEnabled,
       'audioSessionId': audioSessionId,
+      'preampDb': preampDb,
       'gainsDb': gainsDb,
       'compressor': compressor.toMap(),
       'limiter': limiter.toMap(),

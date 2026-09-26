@@ -129,9 +129,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_box_autoadd_record_bool_f_32_crossfade_curve(dynamic raw);
 
   @protected
-  (bool, List<EqBandSpec>) dco_decode_box_autoadd_record_bool_list_eq_band_spec(
-    dynamic raw,
-  );
+  (bool, double, List<EqBandSpec>)
+  dco_decode_box_autoadd_record_bool_f_32_list_eq_band_spec(dynamic raw);
 
   @protected
   ReplayGainTagFields dco_decode_box_autoadd_replay_gain_tag_fields(
@@ -264,8 +263,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_opt_box_autoadd_record_bool_f_32_crossfade_curve(dynamic raw);
 
   @protected
-  (bool, List<EqBandSpec>)?
-  dco_decode_opt_box_autoadd_record_bool_list_eq_band_spec(dynamic raw);
+  (bool, double, List<EqBandSpec>)?
+  dco_decode_opt_box_autoadd_record_bool_f_32_list_eq_band_spec(dynamic raw);
 
   @protected
   ReplayGainTagFields? dco_decode_opt_box_autoadd_replay_gain_tag_fields(
@@ -293,9 +292,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  (bool, List<EqBandSpec>) dco_decode_record_bool_list_eq_band_spec(
-    dynamic raw,
-  );
+  (bool, double, List<EqBandSpec>)
+  dco_decode_record_bool_f_32_list_eq_band_spec(dynamic raw);
 
   @protected
   (String, PlatformInt64) dco_decode_record_string_i_64(dynamic raw);
@@ -498,7 +496,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  (bool, List<EqBandSpec>) sse_decode_box_autoadd_record_bool_list_eq_band_spec(
+  (bool, double, List<EqBandSpec>)
+  sse_decode_box_autoadd_record_bool_f_32_list_eq_band_spec(
     SseDeserializer deserializer,
   );
 
@@ -657,8 +656,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  (bool, List<EqBandSpec>)?
-  sse_decode_opt_box_autoadd_record_bool_list_eq_band_spec(
+  (bool, double, List<EqBandSpec>)?
+  sse_decode_opt_box_autoadd_record_bool_f_32_list_eq_band_spec(
     SseDeserializer deserializer,
   );
 
@@ -688,9 +687,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  (bool, List<EqBandSpec>) sse_decode_record_bool_list_eq_band_spec(
-    SseDeserializer deserializer,
-  );
+  (bool, double, List<EqBandSpec>)
+  sse_decode_record_bool_f_32_list_eq_band_spec(SseDeserializer deserializer);
 
   @protected
   (String, PlatformInt64) sse_decode_record_string_i_64(
@@ -931,8 +929,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_record_bool_list_eq_band_spec(
-    (bool, List<EqBandSpec>) self,
+  void sse_encode_box_autoadd_record_bool_f_32_list_eq_band_spec(
+    (bool, double, List<EqBandSpec>) self,
     SseSerializer serializer,
   );
 
@@ -1129,8 +1127,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_opt_box_autoadd_record_bool_list_eq_band_spec(
-    (bool, List<EqBandSpec>)? self,
+  void sse_encode_opt_box_autoadd_record_bool_f_32_list_eq_band_spec(
+    (bool, double, List<EqBandSpec>)? self,
     SseSerializer serializer,
   );
 
@@ -1165,8 +1163,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_record_bool_list_eq_band_spec(
-    (bool, List<EqBandSpec>) self,
+  void sse_encode_record_bool_f_32_list_eq_band_spec(
+    (bool, double, List<EqBandSpec>) self,
     SseSerializer serializer,
   );
 

@@ -254,6 +254,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiAudioApiAudioSetEqualizer({
     required bool enabled,
+    required double preampDb,
     required List<EqBandSpec> specs,
   });
 
@@ -384,6 +385,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiAudioApiSetPendingEqualizer({
     required bool enabled,
+    required double preampDb,
     required List<EqBandSpec> specs,
   });
 
@@ -430,7 +432,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<int?> crateApiAudioApiTakePendingCrossfeed();
 
-  Future<(bool, List<EqBandSpec>)?> crateApiAudioApiTakePendingEqualizer();
+  Future<(bool, double, List<EqBandSpec>)?>
+  crateApiAudioApiTakePendingEqualizer();
 
   Future<double?> crateApiAudioApiTakePendingVolume();
 
@@ -1980,6 +1983,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<void> crateApiAudioApiAudioSetEqualizer({
     required bool enabled,
+    required double preampDb,
     required List<EqBandSpec> specs,
   }) {
     return handler.executeNormal(
@@ -1987,6 +1991,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_bool(enabled, serializer);
+          sse_encode_f_32(preampDb, serializer);
           sse_encode_list_eq_band_spec(specs, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -2000,7 +2005,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiAudioApiAudioSetEqualizerConstMeta,
-        argValues: [enabled, specs],
+        argValues: [enabled, preampDb, specs],
         apiImpl: this,
       ),
     );
@@ -2009,7 +2014,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiAudioApiAudioSetEqualizerConstMeta =>
       const TaskConstMeta(
         debugName: "audio_set_equalizer",
-        argNames: ["enabled", "specs"],
+        argNames: ["enabled", "preampDb", "specs"],
       );
 
   @override
@@ -3185,6 +3190,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<void> crateApiAudioApiSetPendingEqualizer({
     required bool enabled,
+    required double preampDb,
     required List<EqBandSpec> specs,
   }) {
     return handler.executeNormal(
@@ -3192,6 +3198,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_bool(enabled, serializer);
+          sse_encode_f_32(preampDb, serializer);
           sse_encode_list_eq_band_spec(specs, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -3205,7 +3212,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiAudioApiSetPendingEqualizerConstMeta,
-        argValues: [enabled, specs],
+        argValues: [enabled, preampDb, specs],
         apiImpl: this,
       ),
     );
@@ -3214,7 +3221,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiAudioApiSetPendingEqualizerConstMeta =>
       const TaskConstMeta(
         debugName: "set_pending_equalizer",
-        argNames: ["enabled", "specs"],
+        argNames: ["enabled", "preampDb", "specs"],
       );
 
   @override
@@ -3493,7 +3500,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "take_pending_crossfeed", argNames: []);
 
   @override
-  Future<(bool, List<EqBandSpec>)?> crateApiAudioApiTakePendingEqualizer() {
+  Future<(bool, double, List<EqBandSpec>)?>
+  crateApiAudioApiTakePendingEqualizer() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -3507,7 +3515,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData:
-              sse_decode_opt_box_autoadd_record_bool_list_eq_band_spec,
+              sse_decode_opt_box_autoadd_record_bool_f_32_list_eq_band_spec,
           decodeErrorData: null,
         ),
         constMeta: kCrateApiAudioApiTakePendingEqualizerConstMeta,
@@ -4591,11 +4599,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (bool, List<EqBandSpec>) dco_decode_box_autoadd_record_bool_list_eq_band_spec(
-    dynamic raw,
-  ) {
+  (bool, double, List<EqBandSpec>)
+  dco_decode_box_autoadd_record_bool_f_32_list_eq_band_spec(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as (bool, List<EqBandSpec>);
+    return raw as (bool, double, List<EqBandSpec>);
   }
 
   @protected
@@ -4868,12 +4875,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (bool, List<EqBandSpec>)?
-  dco_decode_opt_box_autoadd_record_bool_list_eq_band_spec(dynamic raw) {
+  (bool, double, List<EqBandSpec>)?
+  dco_decode_opt_box_autoadd_record_bool_f_32_list_eq_band_spec(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null
         ? null
-        : dco_decode_box_autoadd_record_bool_list_eq_band_spec(raw);
+        : dco_decode_box_autoadd_record_bool_f_32_list_eq_band_spec(raw);
   }
 
   @protected
@@ -4933,15 +4940,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (bool, List<EqBandSpec>) dco_decode_record_bool_list_eq_band_spec(
-    dynamic raw,
-  ) {
+  (bool, double, List<EqBandSpec>)
+  dco_decode_record_bool_f_32_list_eq_band_spec(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2) {
-      throw Exception('Expected 2 elements, got ${arr.length}');
+    if (arr.length != 3) {
+      throw Exception('Expected 3 elements, got ${arr.length}');
     }
-    return (dco_decode_bool(arr[0]), dco_decode_list_eq_band_spec(arr[1]));
+    return (
+      dco_decode_bool(arr[0]),
+      dco_decode_f_32(arr[1]),
+      dco_decode_list_eq_band_spec(arr[2]),
+    );
   }
 
   @protected
@@ -5610,11 +5620,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (bool, List<EqBandSpec>) sse_decode_box_autoadd_record_bool_list_eq_band_spec(
+  (bool, double, List<EqBandSpec>)
+  sse_decode_box_autoadd_record_bool_f_32_list_eq_band_spec(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_record_bool_list_eq_band_spec(deserializer));
+    return (sse_decode_record_bool_f_32_list_eq_band_spec(deserializer));
   }
 
   @protected
@@ -6010,14 +6021,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (bool, List<EqBandSpec>)?
-  sse_decode_opt_box_autoadd_record_bool_list_eq_band_spec(
+  (bool, double, List<EqBandSpec>)?
+  sse_decode_opt_box_autoadd_record_bool_f_32_list_eq_band_spec(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_record_bool_list_eq_band_spec(
+      return (sse_decode_box_autoadd_record_bool_f_32_list_eq_band_spec(
         deserializer,
       ));
     } else {
@@ -6105,13 +6116,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (bool, List<EqBandSpec>) sse_decode_record_bool_list_eq_band_spec(
-    SseDeserializer deserializer,
-  ) {
+  (bool, double, List<EqBandSpec>)
+  sse_decode_record_bool_f_32_list_eq_band_spec(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_field0 = sse_decode_bool(deserializer);
-    var var_field1 = sse_decode_list_eq_band_spec(deserializer);
-    return (var_field0, var_field1);
+    var var_field1 = sse_decode_f_32(deserializer);
+    var var_field2 = sse_decode_list_eq_band_spec(deserializer);
+    return (var_field0, var_field1, var_field2);
   }
 
   @protected
@@ -6786,12 +6797,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_record_bool_list_eq_band_spec(
-    (bool, List<EqBandSpec>) self,
+  void sse_encode_box_autoadd_record_bool_f_32_list_eq_band_spec(
+    (bool, double, List<EqBandSpec>) self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_record_bool_list_eq_band_spec(self, serializer);
+    sse_encode_record_bool_f_32_list_eq_band_spec(self, serializer);
   }
 
   @protected
@@ -7187,15 +7198,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_opt_box_autoadd_record_bool_list_eq_band_spec(
-    (bool, List<EqBandSpec>)? self,
+  void sse_encode_opt_box_autoadd_record_bool_f_32_list_eq_band_spec(
+    (bool, double, List<EqBandSpec>)? self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
     if (self != null) {
-      sse_encode_box_autoadd_record_bool_list_eq_band_spec(self, serializer);
+      sse_encode_box_autoadd_record_bool_f_32_list_eq_band_spec(
+        self,
+        serializer,
+      );
     }
   }
 
@@ -7280,13 +7294,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_record_bool_list_eq_band_spec(
-    (bool, List<EqBandSpec>) self,
+  void sse_encode_record_bool_f_32_list_eq_band_spec(
+    (bool, double, List<EqBandSpec>) self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bool(self.$1, serializer);
-    sse_encode_list_eq_band_spec(self.$2, serializer);
+    sse_encode_f_32(self.$2, serializer);
+    sse_encode_list_eq_band_spec(self.$3, serializer);
   }
 
   @protected
