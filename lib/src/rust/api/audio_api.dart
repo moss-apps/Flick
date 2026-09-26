@@ -73,13 +73,15 @@ Future<(bool, double, CrossfadeCurve)?> takePendingCrossfade() =>
 
 Future<void> setPendingEqualizer({
   required bool enabled,
+  required double preampDb,
   required List<EqBandSpec> specs,
 }) => RustLib.instance.api.crateApiAudioApiSetPendingEqualizer(
   enabled: enabled,
+  preampDb: preampDb,
   specs: specs,
 );
 
-Future<(bool, List<EqBandSpec>)?> takePendingEqualizer() =>
+Future<(bool, double, List<EqBandSpec>)?> takePendingEqualizer() =>
     RustLib.instance.api.crateApiAudioApiTakePendingEqualizer();
 
 Future<void> setPendingCrossfeed({required int level}) =>
@@ -276,13 +278,16 @@ Future<void> audioSetReplaygainDefault({required double gainDb}) => RustLib
     .api
     .crateApiAudioApiAudioSetReplaygainDefault(gainDb: gainDb);
 
-/// Set EQ: enabled and a variable list of band specs (real per-type biquads,
-/// up to 31 bands). Graphic mode is expressed as 10 peaking specs.
+/// Set EQ: enabled, broadband preamp (dB) and a variable list of band specs
+/// (real per-type biquads, up to 31 bands). Graphic mode is expressed as 10
+/// peaking specs.
 Future<void> audioSetEqualizer({
   required bool enabled,
+  required double preampDb,
   required List<EqBandSpec> specs,
 }) => RustLib.instance.api.crateApiAudioApiAudioSetEqualizer(
   enabled: enabled,
+  preampDb: preampDb,
   specs: specs,
 );
 
