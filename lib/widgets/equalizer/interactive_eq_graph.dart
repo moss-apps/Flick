@@ -599,7 +599,9 @@ class _InteractiveEqGraphScreenState
     if (_qPointerStartDist < 4.0) return; // avoid division by near-zero
 
     final scale = currentDist / _qPointerStartDist;
-    final newQ = (_qStartValue * scale).clamp(0.2, 10.0);
+    final newQ = (_qStartValue * scale)
+        .clamp(EqualizerNotifier.qMin, EqualizerNotifier.qMax)
+        .toDouble();
     ref
         .read(equalizerProvider.notifier)
         .setParamBandQ(_qAdjustHandleIndex!, newQ);
