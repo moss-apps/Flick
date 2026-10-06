@@ -15,7 +15,7 @@ class ShuffleModeSheet extends StatelessWidget {
   static Future<void> show(BuildContext context, PlayerService playerService) {
     return GlassBottomSheet.show(
       context: context,
-      title: 'Shuffle Mode',
+      title: l10n.shuffleMode,
       content: ShuffleModeSheet(playerService: playerService),
     );
   }

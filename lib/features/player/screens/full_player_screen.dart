@@ -36,6 +36,7 @@ import 'package:flick/widgets/uac2/uac2_error_notification.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/utils/app_haptics.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class FullPlayerScreen extends ConsumerStatefulWidget {
   final Object heroTag;
@@ -601,7 +602,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Now Playing',
+                        l10n.nowPlaying,
                         style: TextStyle(
                           fontFamily: 'ProductSans',
                           fontSize: context.responsive(12.0, 13.0, 14.0),
@@ -613,7 +614,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       if (fromLocker) ...[
                         SizedBox(height: context.responsive(2.0, 3.0, 4.0)),
                         Text(
-                          'Opened from Locker',
+                          l10n.openedFromLocker,
                           style: TextStyle(
                             fontFamily: 'ProductSans',
                             fontSize: context.responsive(10.0, 10.5, 11.0),
@@ -728,7 +729,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             ),
             SizedBox(width: context.responsive(6.0, 7.0, 8.0)),
             Text(
-              'Back to Locker',
+              l10n.backToLocker,
               style: TextStyle(
                 fontFamily: 'ProductSans',
                 fontSize: context.responsive(11.0, 12.0, 13.0),
@@ -774,7 +775,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           ),
           SizedBox(width: context.responsive(4.0, 5.0, 6.0)),
           Text(
-            count > 0 ? 'Queue $count' : 'Queue',
+            count > 0 ? l10n.queue2(count) : l10n.queue,
             style: TextStyle(
               fontFamily: 'ProductSans',
               fontSize: context.responsive(10.0, 11.0, 12.0),

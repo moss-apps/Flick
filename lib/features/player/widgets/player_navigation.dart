@@ -7,6 +7,7 @@ import 'package:flick/features/albums/screens/album_detail_screen.dart';
 import 'package:flick/features/artists/screens/artist_detail_screen.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class PlayerNavigation {
   final PlayerService playerService;
@@ -22,10 +23,10 @@ class PlayerNavigation {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Queued "${song.title}"'),
+        content: Text(l10n.queued(song.title)),
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
-          label: 'View queue',
+          label: l10n.viewQueue,
           onPressed: () {
             NavigationHelper.navigateToQueue(context);
           },
@@ -42,7 +43,7 @@ class PlayerNavigation {
     final artistName = song.artist.trim();
     if (artistName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Artist is not available for this song')),
+        SnackBar(content: Text(l10n.artistIsNotAvailableForThis)),
       );
       return;
     }
@@ -53,7 +54,7 @@ class PlayerNavigation {
 
     if (artistSongs == null || artistSongs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not load artist songs')),
+        SnackBar(content: Text(l10n.couldNotLoadArtistSongs)),
       );
       return;
     }
@@ -82,7 +83,7 @@ class PlayerNavigation {
 
     if (albumGroup == null || albumGroup.songs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not load album songs')),
+        SnackBar(content: Text(l10n.couldNotLoadAlbumSongs)),
       );
       return;
     }

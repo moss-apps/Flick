@@ -12,6 +12,7 @@ import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class AlbumArtBox extends ConsumerStatefulWidget {
   final Song song;
@@ -701,7 +702,7 @@ class _RotationSeekRecognizer extends OneSequenceGestureRecognizer {
   void didStopTrackingLastPointer(int pointer) {}
 
   @override
-  String get debugDescription => 'rotation seek';
+  String get debugDescription => l10n.rotationSeek;
 
   @override
   void dispose() {

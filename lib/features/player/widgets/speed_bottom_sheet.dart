@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class SpeedBottomSheet extends StatelessWidget {
   final PlayerService playerService;
@@ -40,8 +41,8 @@ class SpeedBottomSheet extends StatelessWidget {
                 size: 24,
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Playback Speed',
+              Text(
+                l10n.playbackSpeed,
                 style: TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 18,
@@ -61,7 +62,7 @@ class SpeedBottomSheet extends StatelessWidget {
                     children: [
                       const SizedBox(width: 4),
                       Text(
-                        '${min}x',
+                        l10n.x(min),
                         style: const TextStyle(
                           fontFamily: 'ProductSans',
                           fontSize: 14,
@@ -80,7 +81,7 @@ class SpeedBottomSheet extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${max}x',
+                        l10n.x2(max),
                         style: const TextStyle(
                           fontFamily: 'ProductSans',
                           fontSize: 14,
@@ -91,7 +92,7 @@ class SpeedBottomSheet extends StatelessWidget {
                     ],
                   ),
                   Text(
-                    '${currentSpeed}x',
+                    l10n.x3(currentSpeed),
                     style: const TextStyle(
                       fontFamily: 'ProductSans',
                       fontSize: 16,

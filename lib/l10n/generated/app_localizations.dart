@@ -98,17 +98,11 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
-  /// Connection notice visibility setting in Interface settings
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1102
   ///
   /// In en, this message translates to:
-  /// **'Connection notices'**
-  String get connectionNotices;
-
-  /// Description of the connection notice visibility setting
-  ///
-  /// In en, this message translates to:
-  /// **'Show offline and back-online notices'**
-  String get connectionNoticesDescription;
+  /// **'AccurateRip'**
+  String get accuraterip;
 
   /// lib/widgets/uac2/uac2_fallback_manager.dart:179
   ///
@@ -121,6 +115,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Active'**
   String get active;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:475
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one lyric line first.'**
+  String get addAtLeastOneLyricLine;
+
+  /// lib/features/player/widgets/add_to_playlist_sheet.dart:52
+  ///
+  /// In en, this message translates to:
+  /// **'Add {arg1} Songs to Playlist'**
+  String addSongsToPlaylist2(Object arg1);
+
+  /// lib/features/player/widgets/song_actions_sheet.dart:211
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Playlist'**
+  String get addToPlaylist2;
+
+  /// lib/features/player/widgets/song_actions_sheet.dart:202
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Queue'**
+  String get addToQueue;
+
+  /// lib/features/player/widgets/add_to_playlist_sheet.dart:158
+  ///
+  /// In en, this message translates to:
+  /// **'Added {arg1} songs to \"{arg2}\"'**
+  String addedSongsTo(Object arg1, Object arg2);
+
+  /// lib/features/player/widgets/add_to_playlist_sheet.dart:157
+  ///
+  /// In en, this message translates to:
+  /// **'Added to \"{arg1}\"'**
+  String addedTo2(Object arg1);
+
+  /// lib/features/player/widgets/player_action_button_row.dart:487
+  ///
+  /// In en, this message translates to:
+  /// **'Added to favorites'**
+  String get addedToFavorites;
 
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:275
   ///
@@ -158,6 +194,18 @@ abstract class AppLocalizations {
   /// **'Advance to the next most recently added category'**
   String get advanceToTheNextMostRecently;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:905
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get advanced;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:686
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced mode'**
+  String get advancedMode;
+
   /// lib/features/settings/screens/equalizer_screen.dart:1891
   ///
   /// In en, this message translates to:
@@ -188,6 +236,18 @@ abstract class AppLocalizations {
   /// **'Album Art'**
   String get albumArt;
 
+  /// lib/features/player/widgets/song_metadata_sheet.dart:68
+  ///
+  /// In en, this message translates to:
+  /// **'Album Artist'**
+  String get albumArtist;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:395
+  ///
+  /// In en, this message translates to:
+  /// **'Album Colors'**
+  String get albumColors;
+
   /// lib/features/albums/screens/albums_screen.dart:252
   ///
   /// In en, this message translates to:
@@ -206,17 +266,41 @@ abstract class AppLocalizations {
   /// **'All Pass'**
   String get allPass;
 
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:701
+  ///
+  /// In en, this message translates to:
+  /// **'All results are hidden by active filters.'**
+  String get allResultsAreHiddenByActive;
+
   /// lib/models/playback_context.dart:15
   ///
   /// In en, this message translates to:
   /// **'All Songs'**
   String get allSongs;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1392
+  ///
+  /// In en, this message translates to:
+  /// **'All words stamped'**
+  String get allWordsStamped;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:683
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed'**
+  String get allowed;
+
   /// lib/models/advance_list_order.dart:7
   ///
   /// In en, this message translates to:
   /// **'Alphabetical'**
   String get alphabetical;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1003
+  ///
+  /// In en, this message translates to:
+  /// **'Alt {arg1}'**
+  String alt(Object arg1);
 
   /// lib/services/metadata_editor_service.dart:184
   ///
@@ -248,6 +332,12 @@ abstract class AppLocalizations {
   /// **'Artist'**
   String get artist;
 
+  /// lib/features/player/widgets/player_navigation.dart:45
+  ///
+  /// In en, this message translates to:
+  /// **'Artist is not available for this song'**
+  String get artistIsNotAvailableForThis;
+
   /// lib/features/artists/screens/artists_screen.dart:253
   ///
   /// In en, this message translates to:
@@ -259,6 +349,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Artwork Card'**
   String get artworkCard;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:239
+  ///
+  /// In en, this message translates to:
+  /// **'Artwork placement'**
+  String get artworkPlacement;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:208
+  ///
+  /// In en, this message translates to:
+  /// **'Artwork size'**
+  String get artworkSize;
 
   /// lib/models/song.dart:367
   ///
@@ -272,11 +374,35 @@ abstract class AppLocalizations {
   /// **' at {arg1}kHz/{arg2}bit'**
   String atKhzBit(Object arg1, Object arg2);
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:480
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Signal Path'**
+  String get audioSignalPath;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1224
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get auto;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1427
+  ///
+  /// In en, this message translates to:
+  /// **'Auto Advance'**
+  String get autoAdvance;
+
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:77
   ///
   /// In en, this message translates to:
   /// **'Auto Collapse'**
   String get autoCollapse;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1689
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-fill'**
+  String get autoFill;
 
   /// lib/widgets/uac2/uac2_connection_manager.dart:183
   ///
@@ -295,6 +421,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back online'**
   String get backOnline;
+
+  /// lib/features/player/screens/full_player_screen.dart:731
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Locker'**
+  String get backToLocker;
 
   /// lib/widgets/equalizer/interactive_eq_graph.dart:211
   ///
@@ -332,11 +464,23 @@ abstract class AppLocalizations {
   /// **'Bass'**
   String get bass;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:499
+  ///
+  /// In en, this message translates to:
+  /// **'Beside the song'**
+  String get besideTheSong;
+
   /// lib/features/settings/screens/uac2_preferences_screen.dart:1361
   ///
   /// In en, this message translates to:
   /// **'{depth}bit'**
   String bit(Object depth);
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:612
+  ///
+  /// In en, this message translates to:
+  /// **'Bit depth'**
+  String get bitDepth;
 
   /// lib/features/settings/screens/uac2_preferences_screen.dart:1350
   ///
@@ -349,6 +493,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bit Depths'**
   String get bitDepths;
+
+  /// lib/features/player/widgets/bit_perfect_capsule.dart:144
+  ///
+  /// In en, this message translates to:
+  /// **'BIT-PERFECT'**
+  String get bitPerfect;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:420
+  ///
+  /// In en, this message translates to:
+  /// **'Bit-perfect'**
+  String get bitPerfect2;
 
   /// lib/features/menu/screens/menu_screen.dart:512
   ///
@@ -368,6 +524,18 @@ abstract class AppLocalizations {
   /// **'Bit-perfect (USB DAC) enabled for {arg1}.'**
   String bitPerfectUsbDacEnabledFor(Object arg1);
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:490
+  ///
+  /// In en, this message translates to:
+  /// **'Bit-perfect verified'**
+  String get bitPerfectVerified;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:683
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get blocked;
+
   /// lib/models/album_color_mode.dart:39
   ///
   /// In en, this message translates to:
@@ -379,6 +547,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bottom Bar'**
   String get bottomBar;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1024
+  ///
+  /// In en, this message translates to:
+  /// **'Buffer'**
+  String get buffer;
 
   /// lib/core/constants/app_constants.dart:6
   ///
@@ -404,6 +578,18 @@ abstract class AppLocalizations {
   /// **'Calm Frequencies'**
   String get calmFrequencies;
 
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:1150
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1027
+  ///
+  /// In en, this message translates to:
+  /// **'cap {arg1} ms'**
+  String capMs(Object arg1);
+
   /// lib/features/settings/screens/uac2_settings_screen.dart:529
   ///
   /// In en, this message translates to:
@@ -415,6 +601,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cast'**
   String get cast;
+
+  /// lib/features/player/widgets/player_action_button_row.dart:843
+  ///
+  /// In en, this message translates to:
+  /// **'Casting — tap to manage'**
+  String get castingTapToManage;
 
   /// Snack bar shown after starting a cast session.
   ///
@@ -428,6 +620,24 @@ abstract class AppLocalizations {
   /// **'Categories'**
   String get categories;
 
+  /// lib/features/settings/screens/lyrics_settings_screen.dart:68
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get center;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:621
+  ///
+  /// In en, this message translates to:
+  /// **'{channels} ch'**
+  String ch(Object channels);
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:932
+  ///
+  /// In en, this message translates to:
+  /// **'{ch} ch'**
+  String ch2(Object ch);
+
   /// lib/features/player/widgets/bit_perfect_indicator.dart:620
   ///
   /// In en, this message translates to:
@@ -439,6 +649,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{ch} channels'**
   String channels3(Object ch);
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:494
+  ///
+  /// In en, this message translates to:
+  /// **'Choose location…'**
+  String get chooseLocationU2026;
 
   /// lib/models/song.dart:331
   ///
@@ -452,11 +668,41 @@ abstract class AppLocalizations {
   /// **'Clean straight line with precision scrubbing.'**
   String get cleanStraightLineWithPrecisionScrubbing;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1214
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:807
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters'**
+  String get clearFilters;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1594
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Word'**
+  String get clearWord;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1418
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Words'**
+  String get clearWords;
+
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:91
   ///
   /// In en, this message translates to:
   /// **'Collapse After'**
   String get collapseAfter;
+
+  /// lib/features/player/widgets/share/share_template.dart:9
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get color;
 
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:393
   ///
@@ -488,6 +734,24 @@ abstract class AppLocalizations {
   /// **'Connection Management'**
   String get connectionManagement;
 
+  /// Connection notice visibility setting in Interface settings
+  ///
+  /// In en, this message translates to:
+  /// **'Connection notices'**
+  String get connectionNotices;
+
+  /// Description of the connection notice visibility setting
+  ///
+  /// In en, this message translates to:
+  /// **'Show offline and back-online notices'**
+  String get connectionNoticesDescription;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:228
+  ///
+  /// In en, this message translates to:
+  /// **'Content placement'**
+  String get contentPlacement;
+
   /// lib/widgets/alac_conversion_indicator.dart:249
   ///
   /// In en, this message translates to:
@@ -518,11 +782,47 @@ abstract class AppLocalizations {
   /// **'Cosmic Orchestra'**
   String get cosmicOrchestra;
 
+  /// lib/features/player/widgets/player_navigation.dart:85
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load album songs'**
+  String get couldNotLoadAlbumSongs;
+
+  /// lib/features/player/widgets/player_navigation.dart:56
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load artist songs'**
+  String get couldNotLoadArtistSongs;
+
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:129
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the selected lyrics file.'**
+  String get couldNotReadTheSelectedLyrics;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:565
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the lyrics file.'**
+  String get couldNotSaveTheLyricsFile;
+
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:142
+  ///
+  /// In en, this message translates to:
+  /// **'Could not use the selected lyrics file.'**
+  String get couldNotUseTheSelectedLyrics;
+
   /// lib/features/settings/screens/library_settings_screen.dart:985
   ///
   /// In en, this message translates to:
   /// **'Counting files…'**
   String get countingFiles;
+
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:208
+  ///
+  /// In en, this message translates to:
+  /// **'Create Lyrics'**
+  String get createLyrics;
 
   /// lib/models/song.dart:348
   ///
@@ -572,11 +872,23 @@ abstract class AppLocalizations {
   /// **'Deactivate Fallback'**
   String get deactivateFallback;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:917
+  ///
+  /// In en, this message translates to:
+  /// **'Decode'**
+  String get decode;
+
   /// lib/models/song.dart:353
   ///
   /// In en, this message translates to:
   /// **'Deep Earth'**
   String get deepEarth;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:641
+  ///
+  /// In en, this message translates to:
+  /// **'Device'**
+  String get device;
 
   /// lib/widgets/uac2/uac2_device_capabilities.dart:38
   ///
@@ -608,17 +920,47 @@ abstract class AppLocalizations {
   /// **'Device Type'**
   String get deviceType;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:657
+  ///
+  /// In en, this message translates to:
+  /// **'Direct'**
+  String get direct;
+
   /// lib/widgets/uac2/uac2_player_status.dart:224
   ///
   /// In en, this message translates to:
   /// **'Direct USB'**
   String get directUsb;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:500
+  ///
+  /// In en, this message translates to:
+  /// **'Direct USB experimental'**
+  String get directUsbExperimental;
+
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:185
   ///
   /// In en, this message translates to:
   /// **'Disabled'**
   String get disabled;
+
+  /// lib/features/player/widgets/song_metadata_sheet.dart:80
+  ///
+  /// In en, this message translates to:
+  /// **'Disc'**
+  String get disc;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:594
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discard;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:588
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get discardChanges;
 
   /// lib/features/settings/widgets/lastfm_settings_tile.dart:253
   ///
@@ -631,6 +973,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Display text labels below icons'**
   String get displayTextLabelsBelowIcons;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:634
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:712
+  ///
+  /// In en, this message translates to:
+  /// **'DoP'**
+  String get dop;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:566
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1} down'**
+  String down(Object arg1);
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1705
+  ///
+  /// In en, this message translates to:
+  /// **'Drag a boundary to stretch or shrink the word before it. The last boundary moves the next line.'**
+  String get dragABoundaryToStretchOr;
 
   /// lib/widgets/equalizer/interactive_eq_graph.dart:129
   ///
@@ -656,11 +1022,77 @@ abstract class AppLocalizations {
   /// **'Drag vertically to change gain'**
   String get dragVerticallyToChangeGain;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1040
+  ///
+  /// In en, this message translates to:
+  /// **'Drift {arg1} ms'**
+  String driftMs(Object arg1);
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:713
+  ///
+  /// In en, this message translates to:
+  /// **'DSD mode'**
+  String get dsdMode;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:918
+  ///
+  /// In en, this message translates to:
+  /// **'DSD stream'**
+  String get dsdStream;
+
   /// lib/features/settings/screens/audio_settings_screen.dart:330
   ///
   /// In en, this message translates to:
   /// **'Duration'**
   String get duration;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:874
+  ///
+  /// In en, this message translates to:
+  /// **'Duration Match'**
+  String get durationMatch;
+
+  /// lib/features/player/widgets/song_actions_sheet.dart:268
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Metadata'**
+  String get editMetadata;
+
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:208
+  ///
+  /// In en, this message translates to:
+  /// **'Edit & Sync'**
+  String get editSync;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:770
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Text'**
+  String get editText;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1143
+  ///
+  /// In en, this message translates to:
+  /// **'(Empty line)'**
+  String get emptyLine;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:998
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoint'**
+  String get endpoint;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:628
+  ///
+  /// In en, this message translates to:
+  /// **'Engine'**
+  String get engine;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1000
+  ///
+  /// In en, this message translates to:
+  /// **'EP {arg1}'**
+  String ep(Object arg1);
 
   /// lib/features/player/widgets/player_action_button_row.dart:756
   ///
@@ -692,11 +1124,23 @@ abstract class AppLocalizations {
   /// **'Error loading capabilities: {error}'**
   String errorLoadingCapabilities(Object error);
 
+  /// lib/features/player/widgets/add_to_playlist_sheet.dart:70
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading playlists'**
+  String get errorLoadingPlaylists;
+
   /// lib/models/song.dart:349
   ///
   /// In en, this message translates to:
   /// **'Ethereal Tones'**
   String get etherealTones;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:363
+  ///
+  /// In en, this message translates to:
+  /// **'Exact Match'**
+  String get exactMatch;
 
   /// lib/widgets/uac2/usb_bit_perfect_prompt.dart:254
   ///
@@ -758,6 +1202,12 @@ abstract class AppLocalizations {
   /// **'Faint hue shift from album art.'**
   String get faintHueShiftFromAlbumArt;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:706
+  ///
+  /// In en, this message translates to:
+  /// **'Fallback'**
+  String get fallback;
+
   /// lib/widgets/uac2/uac2_fallback_manager.dart:136
   ///
   /// In en, this message translates to:
@@ -794,11 +1244,35 @@ abstract class AppLocalizations {
   /// **'Favorites'**
   String get favorites;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:909
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get file;
+
+  /// lib/features/player/widgets/song_metadata_sheet.dart:82
+  ///
+  /// In en, this message translates to:
+  /// **'File Path'**
+  String get filePath;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:1200
+  ///
+  /// In en, this message translates to:
+  /// **'FLAC · 24-bit / 96 kHz'**
+  String get flac24Bit96Khz;
+
   /// lib/services/eq_preset_service.dart:280
   ///
   /// In en, this message translates to:
   /// **'Flat'**
   String get flat;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:930
+  ///
+  /// In en, this message translates to:
+  /// **'Flick Preview'**
+  String get flickPreview;
 
   /// lib/features/settings/screens/app_info_settings_screen.dart:230
   ///
@@ -824,6 +1298,18 @@ abstract class AppLocalizations {
   /// **'Folders'**
   String get folders;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:551
+  ///
+  /// In en, this message translates to:
+  /// **'Format'**
+  String get format;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:988
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1} fr/pkt'**
+  String frPkt(Object arg1);
+
   /// lib/features/settings/screens/equalizer_screen.dart:2611
   ///
   /// In en, this message translates to:
@@ -848,11 +1334,29 @@ abstract class AppLocalizations {
   /// **'Full Player'**
   String get fullPlayer;
 
+  /// lib/features/player/widgets/player_layout_sheet.dart:304
+  ///
+  /// In en, this message translates to:
+  /// **'Full-view card size'**
+  String get fullViewCardSize;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:152
+  ///
+  /// In en, this message translates to:
+  /// **'Fullscreen'**
+  String get fullscreen;
+
   /// lib/features/settings/screens/equalizer_screen.dart:2666
   ///
   /// In en, this message translates to:
   /// **'Gain'**
   String get gain;
+
+  /// lib/features/player/widgets/song_metadata_sheet.dart:70
+  ///
+  /// In en, this message translates to:
+  /// **'Genre'**
+  String get genre;
 
   /// lib/features/onboarding/screens/onboarding_screen.dart:269
   ///
@@ -860,11 +1364,35 @@ abstract class AppLocalizations {
   /// **'Get Started'**
   String get getStarted;
 
+  /// lib/features/player/widgets/song_actions_sheet.dart:324
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Album'**
+  String get goToAlbum;
+
+  /// lib/features/player/widgets/song_actions_sheet.dart:315
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Artist'**
+  String get goToArtist;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:721
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get gotIt;
+
   /// lib/features/settings/screens/equalizer_screen.dart:4162
   ///
   /// In en, this message translates to:
   /// **'Graphic'**
   String get graphic;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1153
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware (USB DAC)'**
+  String get hardwareUsbDac;
 
   /// lib/widgets/uac2/uac2_volume_control.dart:246
   ///
@@ -884,11 +1412,29 @@ abstract class AppLocalizations {
   /// **'Hidden'**
   String get hidden;
 
+  /// lib/features/player/widgets/player_action_button_row.dart:440
+  ///
+  /// In en, this message translates to:
+  /// **'Hide lyrics'**
+  String get hideLyrics;
+
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:79
   ///
   /// In en, this message translates to:
   /// **'Hide navigation buttons after being idle'**
   String get hideNavigationButtonsAfterBeingIdle;
+
+  /// lib/features/player/widgets/player_action_button_row.dart:551
+  ///
+  /// In en, this message translates to:
+  /// **'Hide visualizer'**
+  String get hideVisualizer;
+
+  /// lib/features/player/widgets/song_actions_sheet.dart:305
+  ///
+  /// In en, this message translates to:
+  /// **'Hide Visualizer'**
+  String get hideVisualizer2;
 
   /// lib/providers/equalizer_provider.dart:35
   ///
@@ -901,6 +1447,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'High Shelf'**
   String get highShelf;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1145
+  ///
+  /// In en, this message translates to:
+  /// **'{rate} Hz'**
+  String hz(Object rate);
 
   /// lib/widgets/alac_conversion_indicator.dart:137
   ///
@@ -932,11 +1484,35 @@ abstract class AppLocalizations {
   /// **'Inactive'**
   String get inactive;
 
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:885
+  ///
+  /// In en, this message translates to:
+  /// **'Inst'**
+  String get inst;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:775
+  ///
+  /// In en, this message translates to:
+  /// **'Instructions'**
+  String get instructions;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:594
+  ///
+  /// In en, this message translates to:
+  /// **'Instrumental'**
+  String get instrumental;
+
   /// lib/widgets/equalizer/interactive_eq_graph.dart:121
   ///
   /// In en, this message translates to:
   /// **'Interactive EQ'**
   String get interactiveEq;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:693
+  ///
+  /// In en, this message translates to:
+  /// **'Interface claimed'**
+  String get interfaceClaimed;
 
   /// lib/features/settings/screens/uac2_preferences_screen.dart:758
   ///
@@ -944,11 +1520,29 @@ abstract class AppLocalizations {
   /// **'just_audio / ExoPlayer'**
   String get justAudioExoplayer;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1623
+  ///
+  /// In en, this message translates to:
+  /// **'Karaoke Preview'**
+  String get karaokePreview;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:598
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Editing'**
+  String get keepEditing;
+
   /// lib/widgets/uac2/uac2_player_status.dart:186
   ///
   /// In en, this message translates to:
   /// **'{arg1}kHz'**
   String khz(Object arg1);
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1143
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1} kHz'**
+  String khz2(Object arg1);
 
   /// lib/widgets/uac2/uac2_player_status.dart:77
   ///
@@ -986,6 +1580,30 @@ abstract class AppLocalizations {
   /// **'Late Night Sessions'**
   String get lateNightSessions;
 
+  /// lib/features/player/widgets/player_layout_sheet.dart:349
+  ///
+  /// In en, this message translates to:
+  /// **'Left (bottom)'**
+  String get leftBottom;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:337
+  ///
+  /// In en, this message translates to:
+  /// **'Left (top)'**
+  String get leftTop;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1838
+  ///
+  /// In en, this message translates to:
+  /// **'Length:'**
+  String get length;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1799
+  ///
+  /// In en, this message translates to:
+  /// **'Length {arg1}s'**
+  String lengthS(Object arg1);
+
   /// lib/providers/tutorial_provider.dart:8
   ///
   /// In en, this message translates to:
@@ -998,11 +1616,58 @@ abstract class AppLocalizations {
   /// **'Line'**
   String get line;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1290
+  ///
+  /// In en, this message translates to:
+  /// **'Line {arg1} of {arg2}'**
+  String lineOf(Object arg1, Object arg2);
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1366
+  ///
+  /// In en, this message translates to:
+  /// **'Line {arg1} of {arg2}  ·  {captured}/{segmentCount} words'**
+  String lineOfWords(
+    Object arg1,
+    Object arg2,
+    Object captured,
+    Object segmentCount,
+  );
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:919
+  ///
+  /// In en, this message translates to:
+  /// **'Linear'**
+  String get linear;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:865
+  ///
+  /// In en, this message translates to:
+  /// **'Lines'**
+  String get lines;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:952
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1} lines'**
+  String lines2(Object arg1);
+
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:140
+  ///
+  /// In en, this message translates to:
+  /// **'Linked \"{arg1}\" to this song.'**
+  String linkedToThisSong(Object arg1);
+
   /// lib/models/song_view_mode.dart:19
   ///
   /// In en, this message translates to:
   /// **'List'**
   String get list;
+
+  /// lib/features/player/widgets/share/share_bottom_sheet.dart:134
+  ///
+  /// In en, this message translates to:
+  /// **'Listening to {arg1} by {arg2} on Flick'**
+  String listeningToByOnFlick(Object arg1, Object arg2);
 
   /// lib/features/settings/screens/library_settings_screen.dart:961
   ///
@@ -1034,11 +1699,71 @@ abstract class AppLocalizations {
   /// **'Low Shelf'**
   String get lowShelf;
 
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:381
+  ///
+  /// In en, this message translates to:
+  /// **'LRCLib'**
+  String get lrclib;
+
+  /// lib/features/player/widgets/share/share_template.dart:5
+  ///
+  /// In en, this message translates to:
+  /// **'Lyric'**
+  String get lyric;
+
   /// lib/features/player/widgets/song_actions_sheet.dart:295
   ///
   /// In en, this message translates to:
   /// **'Lyrics'**
   String get lyrics;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:1012
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics Preview'**
+  String get lyricsPreview;
+
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:162
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics saved from LRCLib.'**
+  String get lyricsSavedFromLrclib;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:647
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics Sync Help'**
+  String get lyricsSyncHelp;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:747
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics Sync Studio'**
+  String get lyricsSyncStudio;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:615
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics Text'**
+  String get lyricsText;
+
+  /// lib/features/player/widgets/sleep_timer_bottom_sheet.dart:133
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1}m'**
+  String m(Object arg1);
+
+  /// lib/features/player/widgets/sleep_timer_bottom_sheet.dart:162
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1}m'**
+  String m2(Object arg1);
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1012
+  ///
+  /// In en, this message translates to:
+  /// **'Max {arg1} B'**
+  String maxB(Object arg1);
 
   /// lib/models/nav_bar_config.dart:5
   ///
@@ -1052,17 +1777,53 @@ abstract class AppLocalizations {
   /// **'Metropolitan'**
   String get metropolitan;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1141
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1} MHz'**
+  String mhz(Object arg1);
+
   /// lib/features/settings/screens/equalizer_screen.dart:1680
   ///
   /// In en, this message translates to:
   /// **'Mid'**
   String get mid;
 
+  /// lib/features/player/widgets/player_layout_sheet.dart:914
+  ///
+  /// In en, this message translates to:
+  /// **'Midnight Signal'**
+  String get midnightSignal;
+
+  /// lib/features/player/widgets/sleep_timer_bottom_sheet.dart:174
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1} min'**
+  String min(Object arg1);
+
   /// lib/providers/tutorial_provider.dart:38
   ///
   /// In en, this message translates to:
   /// **'Mini Player'**
   String get miniPlayer;
+
+  /// lib/features/player/widgets/share/share_template.dart:13
+  ///
+  /// In en, this message translates to:
+  /// **'Minimal'**
+  String get minimal;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:1187
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror Test'**
+  String get mirrorTest;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:659
+  ///
+  /// In en, this message translates to:
+  /// **'Mixer'**
+  String get mixer;
 
   /// lib/models/album_color_mode.dart:24
   ///
@@ -1088,6 +1849,24 @@ abstract class AppLocalizations {
   /// **'More'**
   String get more;
 
+  /// lib/features/player/widgets/song_actions_sheet.dart:255
+  ///
+  /// In en, this message translates to:
+  /// **'Motion art refreshed'**
+  String get motionArtRefreshed;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1987
+  ///
+  /// In en, this message translates to:
+  /// **'Move every stamped lyric forward or backward together.'**
+  String get moveEveryStampedLyricForwardOr;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1025
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1} ms'**
+  String ms(Object arg1);
+
   /// lib/widgets/uac2/iso_volume_popup.dart:260
   ///
   /// In en, this message translates to:
@@ -1099,6 +1878,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{arg1}%\n{arg2} dB'**
   String nDb(Object arg1, Object arg2);
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:712
+  ///
+  /// In en, this message translates to:
+  /// **'Native DSD'**
+  String get nativeDsd;
 
   /// lib/models/song.dart:317
   ///
@@ -1148,11 +1933,53 @@ abstract class AppLocalizations {
   /// **'Next song'**
   String get nextSong;
 
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:166
+  ///
+  /// In en, this message translates to:
+  /// **'No lyrics found online for this song.'**
+  String get noLyricsFoundOnlineForThis;
+
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:413
+  ///
+  /// In en, this message translates to:
+  /// **'No lyrics yet'**
+  String get noLyricsYet;
+
+  /// lib/features/player/widgets/add_to_playlist_sheet.dart:79
+  ///
+  /// In en, this message translates to:
+  /// **'No playlists yet.\nCreate one in the Playlists tab.'**
+  String get noPlaylistsYetNcreateOneIn;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:196
+  ///
+  /// In en, this message translates to:
+  /// **'No results found for \"{query}\".'**
+  String noResultsFoundFor(Object query);
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1063
+  ///
+  /// In en, this message translates to:
+  /// **'No rip data'**
+  String get noRipData;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:965
+  ///
+  /// In en, this message translates to:
+  /// **'No URB data'**
+  String get noUrbData;
+
   /// lib/features/settings/screens/uac2_settings_screen.dart:289
   ///
   /// In en, this message translates to:
   /// **'No USB audio devices found'**
   String get noUsbAudioDevicesFound;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1698
+  ///
+  /// In en, this message translates to:
+  /// **'No word timing yet. Auto-fill spreads the words evenly as a starting point — or capture them in Word Sync mode.'**
+  String get noWordTimingYetAutoFill;
 
   /// lib/features/settings/screens/equalizer_screen.dart:3769
   ///
@@ -1166,6 +1993,18 @@ abstract class AppLocalizations {
   /// **'Not an ALAC file'**
   String get notAnAlacFile;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1156
+  ///
+  /// In en, this message translates to:
+  /// **'Not stamped yet'**
+  String get notStampedYet;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1103
+  ///
+  /// In en, this message translates to:
+  /// **'Not verified'**
+  String get notVerified;
+
   /// lib/providers/equalizer_provider.dart:39
   ///
   /// In en, this message translates to:
@@ -1177,6 +2016,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Noticeable tinting from album art.'**
   String get noticeableTintingFromAlbumArt;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1032
+  ///
+  /// In en, this message translates to:
+  /// **'Now'**
+  String get now;
+
+  /// lib/features/player/screens/full_player_screen.dart:604
+  ///
+  /// In en, this message translates to:
+  /// **'Now Playing'**
+  String get nowPlaying;
 
   /// lib/models/song_tile_thumbnail_mode.dart:22
   ///
@@ -1202,6 +2053,12 @@ abstract class AppLocalizations {
   /// **'Open Manual'**
   String get openManual;
 
+  /// lib/features/player/screens/full_player_screen.dart:616
+  ///
+  /// In en, this message translates to:
+  /// **'Opened from Locker'**
+  String get openedFromLocker;
+
   /// lib/models/song_view_mode.dart:17
   ///
   /// In en, this message translates to:
@@ -1214,11 +2071,29 @@ abstract class AppLocalizations {
   /// **'Output'**
   String get output;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:601
+  ///
+  /// In en, this message translates to:
+  /// **'Output rate'**
+  String get outputRate;
+
   /// lib/features/settings/screens/equalizer_screen.dart:4169
   ///
   /// In en, this message translates to:
   /// **'Parametric'**
   String get parametric;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:682
+  ///
+  /// In en, this message translates to:
+  /// **'Passthrough'**
+  String get passthrough;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:623
+  ///
+  /// In en, this message translates to:
+  /// **'Paste or type the song lyrics here — one line per row'**
+  String get pasteOrTypeTheSongLyrics;
 
   /// lib/widgets/common/mini_player_bar.dart:262
   ///
@@ -1226,17 +2101,53 @@ abstract class AppLocalizations {
   /// **'Pause'**
   String get pause;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:987
+  ///
+  /// In en, this message translates to:
+  /// **'PCM Frames'**
+  String get pcmFrames;
+
   /// lib/providers/equalizer_provider.dart:27
   ///
   /// In en, this message translates to:
   /// **'Peaking'**
   String get peaking;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1390
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a line with lyrics'**
+  String get pickALineWithLyrics;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:678
+  ///
+  /// In en, this message translates to:
+  /// **'1. Pick a lyric line in Lines, then switch to Tools.\n2. Press play and tap the big \"Tap Word\" button as you hear each word — the first tap also stamps the line.\n3. Tap a word chip to nudge, re-time, or clear it.\n4. Lines with every word stamped save with per-word karaoke timing.'**
+  String get pickALyricLineIn;
+
   /// lib/widgets/equalizer/interactive_eq_graph.dart:158
   ///
   /// In en, this message translates to:
   /// **'Pinch apart = narrower (higher Q)\nPinch together = wider (lower Q)'**
   String get pinchApartNarrowerHigherQNpinch;
+
+  /// lib/features/player/widgets/pitch_bottom_sheet.dart:37
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch'**
+  String get pitch;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:581
+  ///
+  /// In en, this message translates to:
+  /// **'Plain'**
+  String get plain;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:379
+  ///
+  /// In en, this message translates to:
+  /// **'Plain Text'**
+  String get plainText;
 
   /// lib/widgets/common/detail_header.dart:273
   ///
@@ -1261,6 +2172,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Play in order'**
   String get playInOrder;
+
+  /// lib/features/player/widgets/song_actions_sheet.dart:342
+  ///
+  /// In en, this message translates to:
+  /// **'Playback Speed'**
+  String get playbackSpeed;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:92
+  ///
+  /// In en, this message translates to:
+  /// **'Player Layout'**
+  String get playerLayout;
 
   /// lib/models/playback_context.dart:14
   ///
@@ -1292,6 +2215,12 @@ abstract class AppLocalizations {
   /// **'Preview'**
   String get preview;
 
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:457
+  ///
+  /// In en, this message translates to:
+  /// **'Preview & Use'**
+  String get previewUse;
+
   /// lib/widgets/common/mini_player_bar.dart:258
   ///
   /// In en, this message translates to:
@@ -1310,6 +2239,24 @@ abstract class AppLocalizations {
   /// **'Queue'**
   String get queue;
 
+  /// lib/features/player/screens/full_player_screen.dart:777
+  ///
+  /// In en, this message translates to:
+  /// **'Queue {count}'**
+  String queue2(Object count);
+
+  /// lib/features/player/widgets/player_navigation.dart:25
+  ///
+  /// In en, this message translates to:
+  /// **'Queued \"{arg1}\"'**
+  String queued(Object arg1);
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:333
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Actions'**
+  String get quickActions;
+
   /// lib/models/advance_list_order.dart:9
   ///
   /// In en, this message translates to:
@@ -1321,6 +2268,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rating'**
   String get rating;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:918
+  ///
+  /// In en, this message translates to:
+  /// **'→ Raw PCM'**
+  String get rawPcm;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1086
+  ///
+  /// In en, this message translates to:
+  /// **'Read Mode'**
+  String get readMode;
 
   /// lib/widgets/uac2/uac2_connection_manager.dart:160
   ///
@@ -1346,11 +2305,23 @@ abstract class AppLocalizations {
   /// **'Reconnection successful'**
   String get reconnectionSuccessful;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:869
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded'**
+  String get recorded;
+
   /// lib/widgets/uac2/uac2_device_selector.dart:179
   ///
   /// In en, this message translates to:
   /// **'Refresh devices'**
   String get refreshDevices2;
+
+  /// lib/features/player/widgets/song_actions_sheet.dart:238
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh Motion Art'**
+  String get refreshMotionArt;
 
   /// lib/widgets/common/detail_header.dart:257
   ///
@@ -1358,17 +2329,47 @@ abstract class AppLocalizations {
   /// **'Remove from favorites'**
   String get removeFromFavorites2;
 
+  /// lib/features/player/widgets/player_action_button_row.dart:487
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from favorites'**
+  String get removedFromFavorites3;
+
   /// lib/providers/tutorial_provider.dart:28
   ///
   /// In en, this message translates to:
   /// **'Reorder, filter, and shuffle from this header.'**
   String get reorderFilterAndShuffleFromThis;
 
+  /// lib/features/player/widgets/player_controls.dart:218
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat: {arg1}'**
+  String repeat(Object arg1);
+
+  /// lib/features/player/widgets/loop_mode_sheet.dart:16
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat Mode'**
+  String get repeatMode;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:669
+  ///
+  /// In en, this message translates to:
+  /// **'Resampler'**
+  String get resampler;
+
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:283
   ///
   /// In en, this message translates to:
   /// **'Reset Navigation to Defaults'**
   String get resetNavigationToDefaults;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:560
+  ///
+  /// In en, this message translates to:
+  /// **'Resolution'**
+  String get resolution;
 
   /// lib/providers/equalizer_provider.dart:70
   ///
@@ -1400,17 +2401,47 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
+  /// lib/features/player/widgets/player_layout_sheet.dart:373
+  ///
+  /// In en, this message translates to:
+  /// **'Right (bottom)'**
+  String get rightBottom;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:361
+  ///
+  /// In en, this message translates to:
+  /// **'Right (top)'**
+  String get rightTop;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1078
+  ///
+  /// In en, this message translates to:
+  /// **'Rip Source'**
+  String get ripSource;
+
   /// lib/services/sources/upnp_service.dart:239
   ///
   /// In en, this message translates to:
   /// **'Root'**
   String get root;
 
+  /// lib/features/player/widgets/album_art_box.dart:704
+  ///
+  /// In en, this message translates to:
+  /// **'rotation seek'**
+  String get rotationSeek;
+
   /// lib/models/player_screen_mode.dart:28
   ///
   /// In en, this message translates to:
   /// **'Rounded album art card with a blurred album-art background.'**
   String get roundedAlbumArtCardWithA;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:654
+  ///
+  /// In en, this message translates to:
+  /// **'Route'**
+  String get route;
 
   /// lib/features/settings/screens/uac2_preferences_screen.dart:794
   ///
@@ -1424,11 +2455,23 @@ abstract class AppLocalizations {
   /// **'Rust via Oboe (high-res)'**
   String get rustViaOboeHighRes;
 
+  /// lib/features/player/widgets/lyrics_word_timeline.dart:192
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1}s'**
+  String s(Object arg1);
+
   /// lib/widgets/uac2/uac2_hotplug_monitor.dart:103
   ///
   /// In en, this message translates to:
   /// **'{arg1}s ago'**
   String sAgo(Object arg1);
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:874
+  ///
+  /// In en, this message translates to:
+  /// **'Sample preview'**
+  String get samplePreview;
 
   /// lib/features/settings/screens/uac2_preferences_screen.dart:1319
   ///
@@ -1448,6 +2491,72 @@ abstract class AppLocalizations {
   /// **'Samples'**
   String get samples;
 
+  /// lib/features/player/widgets/share/share_bottom_sheet.dart:299
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:2040
+  ///
+  /// In en, this message translates to:
+  /// **'Save creates an `.lrc` file. If some lines are not stamped yet, Flick fills their times automatically so the file stays usable. Lines with fully stamped words export with per-word karaoke timing.'**
+  String get saveCreatesAnLrcFileIf;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:503
+  ///
+  /// In en, this message translates to:
+  /// **'Save in Flick'**
+  String get saveInFlick;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:490
+  ///
+  /// In en, this message translates to:
+  /// **'Save LRC File'**
+  String get saveLrcFile;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:525
+  ///
+  /// In en, this message translates to:
+  /// **'Save LRC file'**
+  String get saveLrcFile2;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:1184
+  ///
+  /// In en, this message translates to:
+  /// **'Save Lyrics'**
+  String get saveLyrics;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:557
+  ///
+  /// In en, this message translates to:
+  /// **'Saved lyrics and linked them to this song.'**
+  String get savedLyricsAndLinkedThemTo;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:556
+  ///
+  /// In en, this message translates to:
+  /// **'Saved lyrics beside the song as an `.lrc` file.'**
+  String get savedLyricsBesideTheSongAs;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:554
+  ///
+  /// In en, this message translates to:
+  /// **'Saved lyrics to the chosen location.'**
+  String get savedLyricsToTheChosenLocation;
+
+  /// lib/features/player/widgets/share/share_bottom_sheet.dart:163
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to gallery'**
+  String get savedToGallery;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:791
+  ///
+  /// In en, this message translates to:
+  /// **'Saving...'**
+  String get saving;
+
   /// lib/widgets/common/floating_scan_progress.dart:489
   ///
   /// In en, this message translates to:
@@ -1466,11 +2575,41 @@ abstract class AppLocalizations {
   /// **'Search across songs, artists, and albums instantly.'**
   String get searchAcrossSongsArtistsAndAlbums;
 
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:618
+  ///
+  /// In en, this message translates to:
+  /// **'Search artist + title...'**
+  String get searchArtistTitle;
+
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:219
+  ///
+  /// In en, this message translates to:
+  /// **'Search Online'**
+  String get searchOnline;
+
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:424
+  ///
+  /// In en, this message translates to:
+  /// **'Search online, create your own synced lyrics, or import an existing file.'**
+  String get searchOnlineCreateYourOwnSynced;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:277
+  ///
+  /// In en, this message translates to:
+  /// **'Search Online Lyrics'**
+  String get searchOnlineLyrics;
+
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:93
   ///
   /// In en, this message translates to:
   /// **'Seconds of inactivity before collapsing'**
   String get secondsOfInactivityBeforeCollapsing;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:694
+  ///
+  /// In en, this message translates to:
+  /// **'1. Select a line and edit its timestamp directly, or use \"Use Current Time\".\n2. In the word timeline, drag a boundary to stretch or shrink the segment before it — edits snap to 10ms.\n3. Tap letters in the inspector to split a word into separately timed syllables (slow-then-fast pacing), then drag their boundaries.\n4. Drag the last boundary (or use Length ±) to retime the next line. Use Auto-fill to seed evenly spaced words.\n5. Use the shift controls to move all stamped lyrics together.\n6. Save to generate the final `.lrc` file.'**
+  String get selectALineAndEdit;
 
   /// lib/widgets/uac2/uac2_device_selector.dart:58
   ///
@@ -1483,6 +2622,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Separate from Nav Bar'**
   String get separateFromNavBar;
+
+  /// lib/features/player/widgets/song_actions_sheet.dart:220
+  ///
+  /// In en, this message translates to:
+  /// **'Set Album Art'**
+  String get setAlbumArt;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1589
+  ///
+  /// In en, this message translates to:
+  /// **'Set to Now'**
+  String get setToNow;
 
   /// lib/features/recap/screens/listening_recap_screen.dart:166
   ///
@@ -1502,17 +2653,53 @@ abstract class AppLocalizations {
   /// **'Share'**
   String get share;
 
+  /// lib/features/player/widgets/share/share_bottom_sheet.dart:139
+  ///
+  /// In en, this message translates to:
+  /// **'Share failed: {e}'**
+  String shareFailed(Object e);
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:261
+  ///
+  /// In en, this message translates to:
+  /// **'Show album'**
+  String get showAlbum;
+
   /// lib/models/song_tile_thumbnail_mode.dart:29
   ///
   /// In en, this message translates to:
   /// **'Show album artwork.'**
   String get showAlbumArtwork;
 
+  /// lib/features/player/widgets/player_layout_sheet.dart:256
+  ///
+  /// In en, this message translates to:
+  /// **'Show artist'**
+  String get showArtist;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:266
+  ///
+  /// In en, this message translates to:
+  /// **'Show file info'**
+  String get showFileInfo;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:271
+  ///
+  /// In en, this message translates to:
+  /// **'Show frame'**
+  String get showFrame;
+
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:306
   ///
   /// In en, this message translates to:
   /// **'Show Labels'**
   String get showLabels;
+
+  /// lib/features/player/widgets/player_action_button_row.dart:440
+  ///
+  /// In en, this message translates to:
+  /// **'Show lyrics'**
+  String get showLyrics;
 
   /// lib/features/songs/screens/songs_screen.dart:3180
   ///
@@ -1544,6 +2731,18 @@ abstract class AppLocalizations {
   /// **'Show the track number.'**
   String get showTheTrackNumber;
 
+  /// lib/features/player/widgets/player_layout_sheet.dart:251
+  ///
+  /// In en, this message translates to:
+  /// **'Show title'**
+  String get showTitle;
+
+  /// lib/features/player/widgets/player_action_button_row.dart:551
+  ///
+  /// In en, this message translates to:
+  /// **'Show visualizer'**
+  String get showVisualizer;
+
   /// lib/providers/tutorial_provider.dart:39
   ///
   /// In en, this message translates to:
@@ -1555,6 +2754,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shuffle'**
   String get shuffle;
+
+  /// lib/features/player/widgets/player_controls.dart:113
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle: {arg1}'**
+  String shuffle2(Object arg1);
+
+  /// lib/features/player/widgets/shuffle_mode_sheet.dart:18
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle Mode'**
+  String get shuffleMode;
 
   /// lib/models/shuffle_mode.dart:21
   ///
@@ -1568,11 +2779,29 @@ abstract class AppLocalizations {
   /// **'Shuffle songs in current list'**
   String get shuffleSongsInCurrentList;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:901
+  ///
+  /// In en, this message translates to:
+  /// **'Simple'**
+  String get simple;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:653
+  ///
+  /// In en, this message translates to:
+  /// **'Simple mode'**
+  String get simpleMode;
+
   /// lib/features/onboarding/screens/onboarding_screen.dart:167
   ///
   /// In en, this message translates to:
   /// **'Skip'**
   String get skip;
+
+  /// lib/features/albums/screens/album_detail_screen.dart:370
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer'**
+  String get sleepTimer;
 
   /// lib/features/player/widgets/sleep_timer_bottom_sheet.dart:55
   ///
@@ -1586,11 +2815,23 @@ abstract class AppLocalizations {
   /// **'Slope'**
   String get slope;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1155
+  ///
+  /// In en, this message translates to:
+  /// **'Software (App-controlled)'**
+  String get softwareAppControlled;
+
   /// lib/widgets/common/offline_notice.dart:185
   ///
   /// In en, this message translates to:
   /// **'  ·  Some online features may not work'**
   String get someOnlineFeaturesMayNotWork;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1702
+  ///
+  /// In en, this message translates to:
+  /// **'Some words are still untimed. Finish capturing in Word Sync mode.'**
+  String get someWordsAreStillUntimedFinish;
 
   /// lib/providers/tutorial_provider.dart:33
   ///
@@ -1598,11 +2839,23 @@ abstract class AppLocalizations {
   /// **'Song Gestures'**
   String get songGestures;
 
+  /// lib/features/player/widgets/song_metadata_sheet.dart:42
+  ///
+  /// In en, this message translates to:
+  /// **'Song Metadata'**
+  String get songMetadata;
+
   /// lib/features/manual/data/manual_data.dart:29
   ///
   /// In en, this message translates to:
   /// **'Songs'**
   String get songs14;
+
+  /// lib/features/player/widgets/add_to_playlist_sheet.dart:124
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1} songs'**
+  String songs9(Object arg1);
 
   /// lib/models/shuffle_mode.dart:13
   ///
@@ -1622,17 +2875,59 @@ abstract class AppLocalizations {
   /// **'Sort & Filter'**
   String get sortFilter;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:718
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get source;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:568
+  ///
+  /// In en, this message translates to:
+  /// **'Source rate'**
+  String get sourceRate;
+
   /// lib/models/song.dart:326
   ///
   /// In en, this message translates to:
   /// **'Space Odyssey'**
   String get spaceOdyssey;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1202
+  ///
+  /// In en, this message translates to:
+  /// **'Stamp & Next'**
+  String get stampNext;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1202
+  ///
+  /// In en, this message translates to:
+  /// **'Stamp Now'**
+  String get stampNow;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1695
+  ///
+  /// In en, this message translates to:
+  /// **'Stamp this line first to edit its word timeline.'**
+  String get stampThisLineFirstToEdit;
+
   /// lib/models/song.dart:321
   ///
   /// In en, this message translates to:
   /// **'Starlight Serenade'**
   String get starlightSerenade;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1816
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get start;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1871
+  ///
+  /// In en, this message translates to:
+  /// **'Start at Now'**
+  String get startAtNow;
 
   /// lib/widgets/uac2/uac2_stream_config.dart:207
   ///
@@ -1670,17 +2965,41 @@ abstract class AppLocalizations {
   /// **'Stop Streaming'**
   String get stopStreaming;
 
+  /// lib/features/player/widgets/sleep_timer_bottom_sheet.dart:113
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping in {arg1}'**
+  String stoppingIn(Object arg1);
+
   /// lib/models/song.dart:376
   ///
   /// In en, this message translates to:
   /// **'Storm Chasers'**
   String get stormChasers;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:633
+  ///
+  /// In en, this message translates to:
+  /// **'Strategy'**
+  String get strategy;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1035
+  ///
+  /// In en, this message translates to:
+  /// **'Stream'**
+  String get stream;
+
   /// lib/widgets/uac2/uac2_stream_config.dart:57
   ///
   /// In en, this message translates to:
   /// **'Stream configuration not available'**
   String get streamConfigurationNotAvailable;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:694
+  ///
+  /// In en, this message translates to:
+  /// **'Stream stable'**
+  String get streamStable;
 
   /// lib/features/settings/screens/uac2_settings_screen.dart:907
   ///
@@ -1718,17 +3037,59 @@ abstract class AppLocalizations {
   /// **'Switch Songs'**
   String get switchSongs;
 
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:151
+  ///
+  /// In en, this message translates to:
+  /// **'Switched back to the automatic lyrics source.'**
+  String get switchedBackToTheAutomaticLyrics;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1908
+  ///
+  /// In en, this message translates to:
+  /// **'Syllables — tap a letter to split or merge:'**
+  String get syllablesTapALetterToSplit;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:568
+  ///
+  /// In en, this message translates to:
+  /// **'Synced'**
+  String get synced;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:377
+  ///
+  /// In en, this message translates to:
+  /// **'Synced LRC'**
+  String get syncedLrc;
+
   /// lib/models/song.dart:308
   ///
   /// In en, this message translates to:
   /// **'Synthwave City'**
   String get synthwaveCity;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1151
+  ///
+  /// In en, this message translates to:
+  /// **'System (Android mixer)'**
+  String get systemAndroidMixer;
+
   /// lib/services/metadata_editor_service.dart:131
   ///
   /// In en, this message translates to:
   /// **'Tags were written but could not be confirmed by re-reading the file. A library rescan will reconcile any difference.'**
   String get tagsWereWrittenButCouldNot;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1393
+  ///
+  /// In en, this message translates to:
+  /// **'Tap: \"{label}\"'**
+  String tap(Object label);
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:661
+  ///
+  /// In en, this message translates to:
+  /// **'1. Tap \"Edit Text\" (top right) and paste the lyrics — one line per row.\n2. Play the song.\n3. Pick the current line in the Lines list.\n4. Tap \"Stamp & Next\" when you hear that line.\n5. Save when done.'**
+  String get tapEditTextTopRight;
 
   /// lib/providers/tutorial_provider.dart:12
   ///
@@ -1747,6 +3108,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap to play, long-press for options (queue, play next, info).'**
   String get tapToPlayLongPressFor;
+
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:955
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to preview'**
+  String get tapToPreview;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1028
+  ///
+  /// In en, this message translates to:
+  /// **'target {arg1} ms'**
+  String targetMs(Object arg1);
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1096
+  ///
+  /// In en, this message translates to:
+  /// **'Test: {arg1}'**
+  String test(Object arg1);
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:293
+  ///
+  /// In en, this message translates to:
+  /// **'Text placement'**
+  String get textPlacement;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:218
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get textSize;
 
   /// lib/providers/tutorial_provider.dart:53
   ///
@@ -1784,11 +3175,53 @@ abstract class AppLocalizations {
   /// **'Thunder Road'**
   String get thunderRoad;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1979
+  ///
+  /// In en, this message translates to:
+  /// **'Time Shift'**
+  String get timeShift;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1315
+  ///
+  /// In en, this message translates to:
+  /// **'Timestamp'**
+  String get timestamp;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:704
+  ///
+  /// In en, this message translates to:
+  /// **'Tips'**
+  String get tips;
+
+  /// lib/features/player/widgets/song_metadata_sheet.dart:53
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get title;
+
   /// lib/data/repositories/recently_played_repository.dart:23
   ///
   /// In en, this message translates to:
   /// **'Today\'s Recap'**
   String get todaySRecap;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:870
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get tools;
+
+  /// lib/features/settings/screens/audio_settings_screen.dart:197
+  ///
+  /// In en, this message translates to:
+  /// **'Track'**
+  String get track;
+
+  /// lib/features/player/widgets/share/share_cards/album_art_share_card.dart:45
+  ///
+  /// In en, this message translates to:
+  /// **'Track {arg1}'**
+  String track2(Object arg1);
 
   /// lib/models/song_tile_thumbnail_mode.dart:20
   ///
@@ -1802,6 +3235,12 @@ abstract class AppLocalizations {
   /// **'True random (may repeat before list ends)'**
   String get trueRandomMayRepeatBeforeList;
 
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:782
+  ///
+  /// In en, this message translates to:
+  /// **'Try original search'**
+  String get tryOriginalSearch;
+
   /// lib/widgets/uac2/uac2_device_selector.dart:20
   ///
   /// In en, this message translates to:
@@ -1813,6 +3252,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to check for updates right now.'**
   String get unableToCheckForUpdatesRight;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1157
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get unavailable2;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1037
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1} underruns'**
+  String underruns(Object arg1);
 
   /// lib/features/favorites/screens/favorites_screen.dart:63
   ///
@@ -1844,11 +3295,41 @@ abstract class AppLocalizations {
   /// **'Unknown Title'**
   String get unknownTitle;
 
+  /// lib/features/player/widgets/online_lyrics_search_sheet.dart:1051
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Track'**
+  String get unknownTrack;
+
   /// lib/widgets/uac2/iso_volume_popup.dart:260
   ///
   /// In en, this message translates to:
   /// **'Unmute'**
   String get unmute;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:586
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved Changes'**
+  String get unsavedChanges;
+
+  /// lib/features/player/widgets/player_layout_sheet.dart:566
+  ///
+  /// In en, this message translates to:
+  /// **'{arg1} up'**
+  String up(Object arg1);
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:1010
+  ///
+  /// In en, this message translates to:
+  /// **'URB Packet'**
+  String get urbPacket;
+
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:867
+  ///
+  /// In en, this message translates to:
+  /// **'URB Transfer'**
+  String get urbTransfer;
 
   /// lib/models/song.dart:330
   ///
@@ -1880,6 +3361,36 @@ abstract class AppLocalizations {
   /// **'USB Volume'**
   String get usbVolume;
 
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:225
+  ///
+  /// In en, this message translates to:
+  /// **'Use Auto Source'**
+  String get useAutoSource;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1335
+  ///
+  /// In en, this message translates to:
+  /// **'Use Current Time'**
+  String get useCurrentTime;
+
+  /// lib/features/player/widgets/inline_lyrics_panel.dart:214
+  ///
+  /// In en, this message translates to:
+  /// **'Use Existing File'**
+  String get useExistingFile;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:712
+  ///
+  /// In en, this message translates to:
+  /// **'- \"Use Existing File\" in the lyrics panel links an `.lrc`, `.txt`, or `.xml` file.\n- If some lines are not stamped, Flick fills their times automatically.\n- Save writes beside the song when possible, otherwise Flick stores a linked copy.'**
+  String get useExistingFileInTheLyrics;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:418
+  ///
+  /// In en, this message translates to:
+  /// **'Use mm:ss.cc, e.g. 01:23.45'**
+  String get useMmSsCcEG;
+
   /// lib/models/album_color_mode.dart:33
   ///
   /// In en, this message translates to:
@@ -1898,6 +3409,12 @@ abstract class AppLocalizations {
   /// **'Velvet Noir'**
   String get velvetNoir;
 
+  /// lib/features/player/widgets/bit_perfect_indicator.dart:704
+  ///
+  /// In en, this message translates to:
+  /// **'Verified'**
+  String get verified;
+
   /// lib/models/progress_bar_style.dart:25
   ///
   /// In en, this message translates to:
@@ -1910,47 +3427,29 @@ abstract class AppLocalizations {
   /// **'Vibrant'**
   String get vibrant;
 
+  /// lib/features/player/widgets/song_actions_sheet.dart:286
+  ///
+  /// In en, this message translates to:
+  /// **'View Metadata'**
+  String get viewMetadata;
+
+  /// lib/features/albums/screens/album_detail_screen.dart:265
+  ///
+  /// In en, this message translates to:
+  /// **'View queue'**
+  String get viewQueue;
+
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:36
   ///
   /// In en, this message translates to:
   /// **'Visualizer'**
   String get visualizer;
 
-  /// No description provided for @visualizerColors.
-  ///
-  /// In en, this message translates to:
-  /// **'Colors'**
-  String get visualizerColors;
-
   /// No description provided for @visualizerAlbumColorsDescription.
   ///
   /// In en, this message translates to:
   /// **'Follow the album cover colors; monochrome when unavailable'**
   String get visualizerAlbumColorsDescription;
-
-  /// No description provided for @visualizerRainbow.
-  ///
-  /// In en, this message translates to:
-  /// **'Rainbow'**
-  String get visualizerRainbow;
-
-  /// No description provided for @visualizerRainbowDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'A spectrum of colors across the visualizer'**
-  String get visualizerRainbowDescription;
-
-  /// No description provided for @visualizerMonochrome.
-  ///
-  /// In en, this message translates to:
-  /// **'Monochrome'**
-  String get visualizerMonochrome;
-
-  /// No description provided for @visualizerMonochromeDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'White and gray, independent of the album cover'**
-  String get visualizerMonochromeDescription;
 
   /// No description provided for @visualizerBlocks.
   ///
@@ -1964,11 +3463,47 @@ abstract class AppLocalizations {
   /// **'Segmented bars with softly fading trails'**
   String get visualizerBlocksDescription;
 
+  /// No description provided for @visualizerColors.
+  ///
+  /// In en, this message translates to:
+  /// **'Colors'**
+  String get visualizerColors;
+
+  /// No description provided for @visualizerMonochrome.
+  ///
+  /// In en, this message translates to:
+  /// **'Monochrome'**
+  String get visualizerMonochrome;
+
+  /// No description provided for @visualizerMonochromeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'White and gray, independent of the album cover'**
+  String get visualizerMonochromeDescription;
+
+  /// No description provided for @visualizerRainbow.
+  ///
+  /// In en, this message translates to:
+  /// **'Rainbow'**
+  String get visualizerRainbow;
+
+  /// No description provided for @visualizerRainbowDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A spectrum of colors across the visualizer'**
+  String get visualizerRainbowDescription;
+
   /// lib/features/player/widgets/bit_perfect_indicator.dart:646
   ///
   /// In en, this message translates to:
   /// **'Volume'**
   String get volume;
+
+  /// lib/features/player/widgets/volume_bottom_sheet.dart:112
+  ///
+  /// In en, this message translates to:
+  /// **'Volume is fixed while bit-perfect passthrough is active and this DAC has no hardware volume control.'**
+  String get volumeIsFixedWhileBitPerfect;
 
   /// lib/widgets/uac2/uac2_volume_control.dart:236
   ///
@@ -2000,6 +3535,12 @@ abstract class AppLocalizations {
   /// **'Welcome to Flick'**
   String get welcomeToFlick2;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:491
+  ///
+  /// In en, this message translates to:
+  /// **'Where should the .lrc file be saved?'**
+  String get whereShouldTheLrcFileBe;
+
   /// lib/models/song.dart:371
   ///
   /// In en, this message translates to:
@@ -2018,11 +3559,71 @@ abstract class AppLocalizations {
   /// **'Wild Weather'**
   String get wildWeather;
 
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1558
+  ///
+  /// In en, this message translates to:
+  /// **'Word {arg1} · \"{arg2}\"'**
+  String word(Object arg1, Object arg2);
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1788
+  ///
+  /// In en, this message translates to:
+  /// **'Word {arg1} · \"{token}\"'**
+  String word2(Object arg1, Object token);
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:903
+  ///
+  /// In en, this message translates to:
+  /// **'Word Sync'**
+  String get wordSync;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:670
+  ///
+  /// In en, this message translates to:
+  /// **'Word Sync mode (karaoke)'**
+  String get wordSyncModeKaraoke;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:1678
+  ///
+  /// In en, this message translates to:
+  /// **'Word Timeline · Line {arg1}'**
+  String wordTimelineLine(Object arg1);
+
+  /// lib/features/player/widgets/speed_bottom_sheet.dart:64
+  ///
+  /// In en, this message translates to:
+  /// **'{min}x'**
+  String x(Object min);
+
+  /// lib/features/player/widgets/speed_bottom_sheet.dart:83
+  ///
+  /// In en, this message translates to:
+  /// **'{max}x'**
+  String x2(Object max);
+
+  /// lib/features/player/widgets/speed_bottom_sheet.dart:94
+  ///
+  /// In en, this message translates to:
+  /// **'{currentSpeed}x'**
+  String x3(Object currentSpeed);
+
+  /// lib/features/player/widgets/song_metadata_sheet.dart:72
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get year;
+
   /// lib/data/repositories/recently_played_repository.dart:17
   ///
   /// In en, this message translates to:
   /// **'Yearly'**
   String get yearly;
+
+  /// lib/features/player/screens/lyrics_sync_screen.dart:590
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved lyric edits. Leave the Sync Studio without saving?'**
+  String get youHaveUnsavedLyricEditsLeave;
 
   /// lib/widgets/common/offline_notice.dart:180
   ///

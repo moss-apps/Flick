@@ -8,6 +8,7 @@ import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/online_lyrics_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class OnlineLyricsSearchSheet extends StatefulWidget {
   final Song song;
@@ -163,7 +164,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
       _applyFilters();
       if (results.isEmpty) {
         setState(() {
-          _errorMessage = 'No lyrics found online for this song.';
+          _errorMessage = l10n.noLyricsFoundOnlineForThis;
         });
       }
     });
@@ -193,7 +194,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
     _applyFilters();
     if (_rawResults.isEmpty) {
       setState(() {
-        _errorMessage = 'No results found for "$query".';
+        _errorMessage = l10n.noResultsFoundFor(query);
       });
     }
   }
@@ -274,7 +275,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Search Online Lyrics',
+            l10n.searchOnlineLyrics,
             style: TextStyle(
               fontFamily: 'ProductSans',
               fontSize: 17,
@@ -360,7 +361,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Exact Match',
+                    l10n.exactMatch,
                     style: TextStyle(
                       fontFamily: 'ProductSans',
                       fontSize: 10,
@@ -372,13 +373,13 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                 ),
                 const Spacer(),
                 if (result.instrumental)
-                  _buildTypeChip('Instrumental', LucideIcons.music2),
+                  _buildTypeChip(l10n.instrumental, LucideIcons.music2),
                 if (!result.instrumental && result.hasSyncedLyrics)
-                  _buildTypeChip('Synced LRC', LucideIcons.clock3),
+                  _buildTypeChip(l10n.syncedLrc, LucideIcons.clock3),
                 if (!result.instrumental && !result.hasSyncedLyrics)
-                  _buildTypeChip('Plain Text', LucideIcons.fileText),
+                  _buildTypeChip(l10n.plainText, LucideIcons.fileText),
                 const SizedBox(width: 4),
-                _buildTypeChip('LRCLib', LucideIcons.globe),
+                _buildTypeChip(l10n.lrclib, LucideIcons.globe),
               ],
             ),
             const SizedBox(height: 10),
@@ -454,7 +455,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                       AppColors.accent.withValues(alpha: 0.4),
                 ),
                 child: Text(
-                  'Preview & Use',
+                  l10n.previewUse,
                   style: TextStyle(
                     fontFamily: 'ProductSans',
                     fontSize: 14,
@@ -565,7 +566,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
         child: Row(
           children: [
             filterChip(
-              label: 'Synced',
+              label: l10n.synced,
               icon: LucideIcons.clock3,
               active: _filterSynced,
               onTap: () {
@@ -578,7 +579,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
             ),
             const SizedBox(width: 8),
             filterChip(
-              label: 'Plain',
+              label: l10n.plain,
               icon: LucideIcons.fileText,
               active: _filterPlain,
               onTap: () {
@@ -591,7 +592,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
             ),
             const SizedBox(width: 8),
             filterChip(
-              label: 'Instrumental',
+              label: l10n.instrumental,
               icon: LucideIcons.music2,
               active: _filterInstrumental,
               onTap: () {
@@ -615,7 +616,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
         color: AppColors.textPrimary,
       ),
       decoration: InputDecoration(
-        hintText: 'Search artist + title...',
+        hintText: l10n.searchArtistTitle,
         hintStyle: TextStyle(
           fontFamily: 'ProductSans',
           color: AppColors.textSecondary,
@@ -698,7 +699,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
         return AnimatedSwitcher(
           duration: AppConstants.animationFast,
           child: _buildEmptyState(
-            'All results are hidden by active filters.',
+            l10n.allResultsAreHiddenByActive,
             key: const ValueKey('empty-filters'),
           ),
         );
@@ -779,7 +780,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                   color: AppColors.accent,
                 ),
                 label: Text(
-                  'Try original search',
+                  l10n.tryOriginalSearch,
                   style: TextStyle(
                     fontFamily: 'ProductSans',
                     fontSize: 13,
@@ -804,7 +805,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                   color: AppColors.accent,
                 ),
                 label: Text(
-                  'Clear filters',
+                  l10n.clearFilters,
                   style: TextStyle(
                     fontFamily: 'ProductSans',
                     fontSize: 13,
@@ -871,7 +872,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          'Duration Match',
+                          l10n.durationMatch,
                           style: TextStyle(
                             fontFamily: 'ProductSans',
                             fontSize: 9,
@@ -882,7 +883,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                       ),
                     ),
                   if (result.instrumental)
-                    _buildTypeChip('Inst', LucideIcons.music2),
+                    _buildTypeChip(l10n.inst, LucideIcons.music2),
                   if (!result.instrumental && result.hasSyncedLyrics)
                     _buildTypeChip('LRC', LucideIcons.clock3),
                   if (!result.instrumental && !result.hasSyncedLyrics)
@@ -949,10 +950,10 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
               Row(
                 children: [
                   if (result.lineCount > 0)
-                    _buildMetaChip('${result.lineCount} lines'),
+                    _buildMetaChip(l10n.lines2(result.lineCount)),
                   const Spacer(),
                   Text(
-                    'Tap to preview',
+                    l10n.tapToPreview,
                     style: TextStyle(
                       fontFamily: 'ProductSans',
                       fontSize: 11,
@@ -1009,7 +1010,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Lyrics Preview',
+                l10n.lyricsPreview,
                 style: TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 17,
@@ -1048,7 +1049,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      result.trackName ?? 'Unknown Track',
+                      result.trackName ?? l10n.unknownTrack,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1082,7 +1083,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                         isSynced ? LucideIcons.clock3 : LucideIcons.fileText),
                     if (result.lineCount > 0)
                       _buildTypeChip(
-                          '${result.lineCount} lines', Icons.format_align_left),
+                          l10n.lines2(result.lineCount), Icons.format_align_left),
                     if (result.duration != null)
                       _buildTypeChip(
                         _formatDuration(
@@ -1091,7 +1092,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                       ),
                     if (_isDurationMatch(result))
                       _buildTypeChip(
-                          'Duration Match', Icons.check_circle_outline),
+                          l10n.durationMatch, Icons.check_circle_outline),
                   ],
                 ),
               ),
@@ -1147,7 +1148,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                   ),
                 ),
                 child: Text(
-                  'Cancel',
+                  l10n.cancel,
                   style: TextStyle(
                     fontFamily: 'ProductSans',
                     fontSize: 14,
@@ -1181,7 +1182,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                         ),
                       )
                     : Text(
-                        'Save Lyrics',
+                        l10n.saveLyrics,
                         style: TextStyle(
                           fontFamily: 'ProductSans',
                           fontSize: 14,

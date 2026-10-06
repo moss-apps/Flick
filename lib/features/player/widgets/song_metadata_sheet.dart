@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class SongMetadataSheet extends StatelessWidget {
   final Song song;
@@ -39,7 +40,7 @@ class SongMetadataSheet extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                'Song Metadata',
+                l10n.songMetadata,
                 style: TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 18,
@@ -50,36 +51,36 @@ class SongMetadataSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _buildMetadataRow(context, 'Title', song.title),
-          _buildMetadataRow(context, 'Artist', song.artist),
+          _buildMetadataRow(context, l10n.title, song.title),
+          _buildMetadataRow(context, l10n.artist, song.artist),
           if (song.album != null)
-            _buildMetadataRow(context, 'Album', song.album!),
-          _buildMetadataRow(context, 'Duration', song.formattedDuration),
+            _buildMetadataRow(context, l10n.album, song.album!),
+          _buildMetadataRow(context, l10n.duration, song.formattedDuration),
           _buildMetadataRow(
             context,
-            'Format',
+            l10n.format,
             song.isDsd
                 ? '${song.fileType.toUpperCase()} (${song.dsdRateLabel})'
                 : song.fileType.toUpperCase(),
           ),
           if (song.resolution != null && !song.isDsd)
-            _buildMetadataRow(context, 'Resolution', song.resolution!),
+            _buildMetadataRow(context, l10n.resolution, song.resolution!),
           if (song.albumArtist != null)
-            _buildMetadataRow(context, 'Album Artist', song.albumArtist!),
+            _buildMetadataRow(context, l10n.albumArtist, song.albumArtist!),
           if (song.genre != null)
-            _buildMetadataRow(context, 'Genre', song.genre!),
+            _buildMetadataRow(context, l10n.genre, song.genre!),
           if (song.year != null)
-            _buildMetadataRow(context, 'Year', song.year!.toString()),
+            _buildMetadataRow(context, l10n.year, song.year!.toString()),
           if (song.trackNumber != null)
             _buildMetadataRow(
               context,
-              'Track',
+              l10n.track,
               song.trackNumber!.toString(),
             ),
           if (song.discNumber != null)
-            _buildMetadataRow(context, 'Disc', song.discNumber!.toString()),
+            _buildMetadataRow(context, l10n.disc, song.discNumber!.toString()),
           if (song.filePath != null)
-            _buildMetadataRow(context, 'File Path', song.filePath!),
+            _buildMetadataRow(context, l10n.filePath, song.filePath!),
         ],
       ),
     );

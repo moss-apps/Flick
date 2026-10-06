@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class VolumeBottomSheet extends StatelessWidget {
   final PlayerService playerService;
@@ -45,8 +46,8 @@ class VolumeBottomSheet extends StatelessWidget {
                     size: 24,
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Volume',
+                  Text(
+                    l10n.volume,
                     style: TextStyle(
                       fontFamily: 'ProductSans',
                       fontSize: 18,
@@ -108,8 +109,8 @@ class VolumeBottomSheet extends StatelessWidget {
               ),
               if (!isAvailable) ...[
                 const SizedBox(height: 8),
-                const Text(
-                  'Volume is fixed while bit-perfect passthrough is active and this DAC has no hardware volume control.',
+                Text(
+                  l10n.volumeIsFixedWhileBitPerfect,
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,

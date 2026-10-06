@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/utils/duration_format.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class SleepTimerBottomSheet extends StatefulWidget {
   final PlayerService playerService;
@@ -51,8 +52,8 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
                     size: 24,
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Sleep Timer',
+                  Text(
+                    l10n.sleepTimer2,
                     style: TextStyle(
                       fontFamily: 'ProductSans',
                       fontSize: 18,
@@ -110,7 +111,7 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Stopping in ${formatDuration(remaining)}',
+                          l10n.stoppingIn(formatDuration(remaining)),
                           style: const TextStyle(
                             fontFamily: 'ProductSans',
                             fontSize: 14,
@@ -130,7 +131,7 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
             children: [
               const SizedBox(width: 4),
               Text(
-                '${_min.round()}m',
+                l10n.m(_min.round()),
                 style: const TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 14,
@@ -159,7 +160,7 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
                 ),
               ),
               Text(
-                '${_max.round()}m',
+                l10n.m2(_max.round()),
                 style: const TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 14,
@@ -171,7 +172,7 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
           ),
           Center(
             child: Text(
-              '${_value.round()} min',
+              l10n.min(_value.round()),
               style: const TextStyle(
                 fontFamily: 'ProductSans',
                 fontSize: 16,

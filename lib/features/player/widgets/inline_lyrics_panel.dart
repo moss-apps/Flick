@@ -14,6 +14,7 @@ import 'package:flick/features/player/screens/lyrics_sync_screen.dart';
 import 'package:flick/features/player/widgets/online_lyrics_search_sheet.dart';
 import 'package:flick/features/player/widgets/synced_lyrics_view.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
+import 'package:flick/l10n/l10n.dart';
 class InlineLyricsPanel extends ConsumerStatefulWidget {
   final PlayerService playerService;
   final LyricsService lyricsService;
@@ -126,7 +127,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
 
       final content = await readTextFromPickedLyricsFile(pickedFile);
       if (content == null || content.trim().isEmpty) {
-        _showMessage('Could not read the selected lyrics file.');
+        _showMessage(l10n.couldNotReadTheSelectedLyrics);
         return;
       }
 
@@ -137,9 +138,9 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
       );
       if (!mounted) return;
       await _loadLyricsForSong(widget.song);
-      _showMessage('Linked "${pickedFile.name}" to this song.');
+      _showMessage(l10n.linkedToThisSong(pickedFile.name));
     } catch (_) {
-      _showMessage('Could not use the selected lyrics file.');
+      _showMessage(l10n.couldNotUseTheSelectedLyrics);
     }
   }
 
@@ -148,7 +149,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
     if (!mounted) return;
     await _loadLyricsForSong(widget.song);
     if (!mounted) return;
-    _showMessage('Switched back to the automatic lyrics source.');
+    _showMessage(l10n.switchedBackToTheAutomaticLyrics);
   }
 
   Future<void> _searchOnlineLyrics() async {
@@ -159,7 +160,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
     );
     if (result == true && mounted) {
       await _loadLyricsForSong(widget.song);
-      _showMessage('Lyrics saved from LRCLib.');
+      _showMessage(l10n.lyricsSavedFromLrclib);
     }
   }
 
@@ -205,24 +206,24 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
         children: [
           action(
             icon: LucideIcons.pencilLine,
-            label: _lyricsData == null ? 'Create Lyrics' : 'Edit & Sync',
+            label: _lyricsData == null ? l10n.createLyrics : l10n.editSync,
             onPressed: () => unawaited(_openLyricsEditor()),
             emphasized: true,
           ),
           action(
             icon: LucideIcons.filePlus,
-            label: 'Use Existing File',
+            label: l10n.useExistingFile,
             onPressed: () => unawaited(_importLyricsFile()),
           ),
           action(
             icon: LucideIcons.globe,
-            label: 'Search Online',
+            label: l10n.searchOnline,
             onPressed: () => unawaited(_searchOnlineLyrics()),
           ),
           if (_hasManualLyricsSelection)
             action(
               icon: LucideIcons.refreshCcw,
-              label: 'Use Auto Source',
+              label: l10n.useAutoSource,
               onPressed: () => unawaited(_resetManualLyricsSource()),
             ),
         ],
@@ -303,7 +304,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
                   lyrics.isSynchronized
                       ? LucideIcons.clock3
                       : LucideIcons.fileText,
-                  lyrics.isSynchronized ? 'Synced' : 'Plain',
+                  lyrics.isSynchronized ? l10n.synced : l10n.plain,
                   accent: lyrics.isSynchronized,
                 ),
                 const SizedBox(width: 8),
@@ -410,7 +411,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
               ),
               const SizedBox(height: 18),
               Text(
-                'No lyrics yet',
+                l10n.noLyricsYet,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'ProductSans',
@@ -421,7 +422,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Search online, create your own synced lyrics, or import an existing file.',
+                l10n.searchOnlineCreateYourOwnSynced,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'ProductSans',

@@ -12,6 +12,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flick/l10n/l10n.dart';
 
 /// Compact bit-perfect indicator capsule for the player file-info row.
 ///
@@ -417,7 +418,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
                 Icon(Icons.verified_rounded, size: 12, color: Colors.green.shade400),
                 const SizedBox(width: 4),
                 Text(
-                  'Bit-perfect',
+                  l10n.bitPerfect2,
                   style: TextStyle(
                     fontFamily: 'ProductSans',
                     fontSize: 11,
@@ -477,7 +478,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Audio Signal Path',
+                l10n.audioSignalPath,
                 style: TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 18,
@@ -487,7 +488,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
               ),
               if (widget.isVerified)
                 Text(
-                  'Bit-perfect verified',
+                  l10n.bitPerfectVerified,
                   style: TextStyle(
                     fontFamily: 'ProductSans',
                     fontSize: 12,
@@ -497,7 +498,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
                 )
               else if (widget.isDirectUsb)
                 Text(
-                  'Direct USB experimental',
+                  l10n.directUsbExperimental,
                   style: TextStyle(
                     fontFamily: 'ProductSans',
                     fontSize: 12,
@@ -548,7 +549,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     rows.add(
       _buildRow(
         context,
-        label: 'Format',
+        label: l10n.format,
         value: widget.song.isDsd
             ? '${widget.song.fileType.toUpperCase()} (${widget.song.dsdRateLabel})'
             : widget.song.fileType.toUpperCase(),
@@ -557,7 +558,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
 
     if (widget.song.resolution != null && !widget.song.isDsd) {
       rows.add(
-        _buildRow(context, label: 'Resolution', value: widget.song.resolution!),
+        _buildRow(context, label: l10n.resolution, value: widget.song.resolution!),
       );
     }
 
@@ -565,7 +566,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       rows.add(
         _buildRow(
           context,
-          label: 'Source rate',
+          label: l10n.sourceRate,
           value: _formatHz(widget.song.sampleRate!),
         ),
       );
@@ -598,7 +599,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       rows.add(
         _buildRow(
           context,
-          label: 'Output rate',
+          label: l10n.outputRate,
           value: _formatHz(displayRate),
           trailing: matches
               ? Icon(Icons.check_circle_rounded, size: 14, color: Colors.green.shade400)
@@ -609,7 +610,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
 
     final bitDepth = widget.deviceStatus?.currentFormat?.bitDepth ?? widget.song.bitDepth;
     if (bitDepth != null) {
-      rows.add(_buildRow(context, label: 'Bit depth', value: '$bitDepth-bit'));
+      rows.add(_buildRow(context, label: l10n.bitDepth, value: '$bitDepth-bit'));
     }
 
     final channels = widget.deviceStatus?.currentFormat?.channels;
@@ -617,20 +618,20 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       rows.add(
         _buildRow(
           context,
-          label: 'Channels',
-          value: channels == 1 ? 'Mono' : channels == 2 ? 'Stereo' : '$channels ch',
+          label: l10n.channels,
+          value: channels == 1 ? l10n.mono : channels == 2 ? l10n.stereo : l10n.ch(channels),
         ),
       );
     }
 
     final backendDesc = d?.backendDescription;
     if (backendDesc != null && backendDesc.isNotEmpty) {
-      rows.add(_buildRow(context, label: 'Engine', value: backendDesc));
+      rows.add(_buildRow(context, label: l10n.engine, value: backendDesc));
     }
 
     final strategy = d?.outputStrategyLabel;
     if (strategy != null && strategy.isNotEmpty) {
-      rows.add(_buildRow(context, label: 'Strategy', value: strategy));
+      rows.add(_buildRow(context, label: l10n.strategy, value: strategy));
     }
 
     final deviceLabel =
@@ -638,12 +639,12 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
         d?.outputDeviceLabel ??
         d?.detectedDapBrand;
     if (deviceLabel != null && deviceLabel.isNotEmpty) {
-      rows.add(_buildRow(context, label: 'Device', value: deviceLabel));
+      rows.add(_buildRow(context, label: l10n.device, value: deviceLabel));
     }
 
     final volMode = widget.deviceStatus?.volumeMode;
     if (volMode != null && volMode != Uac2VolumeMode.unavailable) {
-      rows.add(_buildRow(context, label: 'Volume', value: _formatVolumeMode(volMode)));
+      rows.add(_buildRow(context, label: l10n.volume, value: _formatVolumeMode(volMode)));
     }
 
     final routeLabel = d?.routeLabel;
@@ -651,12 +652,12 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       rows.add(
         _buildRow(
           context,
-          label: 'Route',
+          label: l10n.route,
           value: routeLabel,
           trailing: widget.isDirectUsb
-              ? _buildTinyBadge('Direct', Colors.blue)
+              ? _buildTinyBadge(l10n.direct, Colors.blue)
               : (d?.isMixerManaged ?? false)
-                  ? _buildTinyBadge('Mixer', Colors.grey)
+                  ? _buildTinyBadge(l10n.mixer, Colors.grey)
                   : null,
         ),
       );
@@ -666,8 +667,8 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       rows.add(
         _buildRow(
           context,
-          label: 'Resampler',
-          value: d.resamplerActive ? 'Active' : 'Inactive',
+          label: l10n.resampler,
+          value: d.resamplerActive ? l10n.active : l10n.inactive,
           trailing: d.resamplerActive
               ? Icon(Icons.warning_amber_rounded, size: 14, color: Colors.amber.shade400)
               : Icon(Icons.check_circle_rounded, size: 14, color: Colors.green.shade400),
@@ -679,8 +680,8 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       rows.add(
         _buildRow(
           context,
-          label: 'Passthrough',
-          value: d.passthroughAllowed ? 'Allowed' : 'Blocked',
+          label: l10n.passthrough,
+          value: d.passthroughAllowed ? l10n.allowed : l10n.blocked,
           trailing: d.passthroughAllowed
               ? Icon(Icons.check_circle_rounded, size: 14, color: Colors.green.shade400)
               : Icon(Icons.block_rounded, size: 14, color: Colors.red.shade400),
@@ -690,8 +691,8 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
 
     if (d?.directUsbRegistered == true) {
       final usbParts = <String>[
-        if (d!.usbInterfaceClaimed) 'Interface claimed',
-        if (d.usbStreamStable) 'Stream stable',
+        if (d!.usbInterfaceClaimed) l10n.interfaceClaimed,
+        if (d.usbStreamStable) l10n.streamStable,
       ];
       if (usbParts.isNotEmpty) {
         rows.add(_buildRow(context, label: 'USB', value: usbParts.join(' · ')));
@@ -701,21 +702,21 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     final verification = d?.verificationReason;
     final fallback = d?.fallbackReason;
     if (verification != null && verification.isNotEmpty) {
-      rows.add(_buildRow(context, label: 'Verified', value: verification));
+      rows.add(_buildRow(context, label: l10n.verified, value: verification));
     } else if (fallback != null && fallback.isNotEmpty) {
-      rows.add(_buildRow(context, label: 'Fallback', value: fallback));
+      rows.add(_buildRow(context, label: l10n.fallback, value: fallback));
     }
 
     final isDop = widget.deviceStatus?.currentFormat?.isDop ?? false;
     final isNativeDsd = widget.deviceStatus?.currentFormat?.isNativeDsd ?? false;
     if (isDop || isNativeDsd || widget.song.isDsd) {
-      final dsdLabel = isNativeDsd ? 'Native DSD' : isDop ? 'DoP' : 'DSD';
-      rows.add(_buildRow(context, label: 'DSD mode', value: dsdLabel));
+      final dsdLabel = isNativeDsd ? l10n.nativeDsd : isDop ? l10n.dop : 'DSD';
+      rows.add(_buildRow(context, label: l10n.dsdMode, value: dsdLabel));
     }
 
     if (widget.song.filePath != null) {
       rows.add(
-        _buildRow(context, label: 'Source', value: _truncatePath(widget.song.filePath!)),
+        _buildRow(context, label: l10n.source, value: _truncatePath(widget.song.filePath!)),
       );
     }
 
@@ -788,7 +789,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
   // ---- PageView area ----
 
   Widget _buildPageLabelBadge(BuildContext context) {
-    final label = _showPageView ? _pageLabel(_currentPage) : 'Visualizer';
+    final label = _showPageView ? _pageLabel(_currentPage) : l10n.visualizer;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -860,13 +861,13 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
   String _pageLabel(int page) {
     switch (page) {
       case 0:
-        return 'Visualizer';
+        return l10n.visualizer;
       case 1:
-        return 'Source';
+        return l10n.source;
       case 2:
-        return 'URB Transfer';
+        return l10n.urbTransfer;
       case 3:
-        return 'Recorded';
+        return l10n.recorded;
       default:
         return '';
     }
@@ -906,7 +907,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     final stages = <_FlowStageData>[
       _FlowStageData(
         icon: Icons.insert_drive_file_outlined,
-        title: 'File',
+        title: l10n.file,
         subtitle: fmt,
         detail: song.resolution ?? song.filePath?.split('.').last.toUpperCase(),
         visual: _FlowVisual.bytes(bytes, stageIndex: 0),
@@ -914,9 +915,9 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       ),
       _FlowStageData(
         icon: Icons.transform_rounded,
-        title: 'Decode',
-        subtitle: song.isDsd ? 'DSD stream' : '→ Raw PCM',
-        detail: song.isDsd ? '1-bit' : 'Linear',
+        title: l10n.decode,
+        subtitle: song.isDsd ? l10n.dsdStream : l10n.rawPcm,
+        detail: song.isDsd ? '1-bit' : l10n.linear,
         visual: _FlowVisual.bytes(
           bytes.map((b) => (b * 3) & 0xFF).toList(),
           stageIndex: 1,
@@ -925,11 +926,11 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       ),
       _FlowStageData(
         icon: Icons.multiline_chart_rounded,
-        title: 'Format',
+        title: l10n.format,
         subtitle: rate ?? '-',
         detail: [
           if (bd != null) '$bd-bit',
-          if (ch != null) (ch == 2 ? 'Stereo' : '$ch ch'),
+          if (ch != null) (ch == 2 ? l10n.stereo : l10n.ch2(ch)),
         ].join(' · '),
         visual: _FlowVisual.buffer(
           bd != null ? bd / 32.0 : 0.5,
@@ -962,7 +963,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
   Widget _buildUrbFlowPage(BuildContext context, bool expanded) {
     final urb = widget.diagnostics?.urbTransport;
     if (urb == null) {
-      return _emptyFlowPage(context, 'No URB data');
+      return _emptyFlowPage(context, l10n.noUrbData);
     }
 
     final fillRatio = (urb.bufferFillMs != null && urb.bufferTargetMs != null)
@@ -984,8 +985,8 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     final stages = <_FlowStageData>[
       _FlowStageData(
         icon: Icons.grid_on_rounded,
-        title: 'PCM Frames',
-        subtitle: urb.framesPerPacket != null ? '${urb.framesPerPacket} fr/pkt' : '-',
+        title: l10n.pcmFrames,
+        subtitle: urb.framesPerPacket != null ? l10n.frPkt(urb.framesPerPacket!) : '-',
         detail: urb.transportFormat,
         visual: _FlowVisual.bytes(
           _seededBytes('pcm-${widget.song.id}', 12),
@@ -995,21 +996,21 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       ),
       _FlowStageData(
         icon: Icons.usb_rounded,
-        title: 'Endpoint',
+        title: l10n.endpoint,
         subtitle: urb.activeEndpointAddress != null
-            ? 'EP ${urb.activeEndpointAddress}'
+            ? l10n.ep(urb.activeEndpointAddress!)
             : '-',
         detail: [
-          if (urb.activeAltSetting != null) 'Alt ${urb.activeAltSetting}',
+          if (urb.activeAltSetting != null) l10n.alt(urb.activeAltSetting!),
           if (urb.activeSyncType != null) urb.activeSyncType,
         ].join(' · '),
         color: stageColors[1],
       ),
       _FlowStageData(
         icon: Icons.send_rounded,
-        title: 'URB Packet',
+        title: l10n.urbPacket,
         subtitle: urb.activeMaxPacketBytes != null
-            ? 'Max ${urb.activeMaxPacketBytes} B'
+            ? l10n.maxB(urb.activeMaxPacketBytes!)
             : '-',
         detail: [
           if (urb.activeUsageType != null) urb.activeUsageType,
@@ -1021,23 +1022,23 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       ),
       _FlowStageData(
         icon: Icons.storage_rounded,
-        title: 'Buffer',
-        subtitle: urb.bufferFillMs != null ? '${urb.bufferFillMs} ms' : '-',
+        title: l10n.buffer,
+        subtitle: urb.bufferFillMs != null ? l10n.ms(urb.bufferFillMs!) : '-',
         detail: [
-          if (urb.bufferCapacityMs != null) 'cap ${urb.bufferCapacityMs} ms',
-          if (urb.bufferTargetMs != null) 'target ${urb.bufferTargetMs} ms',
+          if (urb.bufferCapacityMs != null) l10n.capMs(urb.bufferCapacityMs!),
+          if (urb.bufferTargetMs != null) l10n.targetMs(urb.bufferTargetMs!),
         ].join(' · '),
         visual: _FlowVisual.buffer(fillRatio, stageIndex: 3),
         color: stageColors[3],
       ),
       _FlowStageData(
         icon: Icons.stream_rounded,
-        title: 'Stream',
+        title: l10n.stream,
         subtitle: urb.underrunCount != null
-            ? '${urb.underrunCount} underruns'
+            ? l10n.underruns(urb.underrunCount!)
             : '-',
         detail: urb.driftMsFromTarget != null
-            ? 'Drift ${urb.driftMsFromTarget} ms'
+            ? l10n.driftMs(urb.driftMsFromTarget!)
             : null,
         visual: _FlowVisual.check(
           (urb.underrunCount ?? 0) == 0,
@@ -1060,7 +1061,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     final hasRipData = song.ripper != null || song.readMode != null;
 
     if (!hasRipData) {
-      return _emptyFlowPage(context, 'No rip data');
+      return _emptyFlowPage(context, l10n.noRipData);
     }
 
     final crcOk = _crcMatch(song);
@@ -1075,7 +1076,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     final stages = <_FlowStageData>[
       _FlowStageData(
         icon: Icons.disc_full_rounded,
-        title: 'Rip Source',
+        title: l10n.ripSource,
         subtitle: song.ripper ?? '-',
         detail: null,
         visual: _FlowVisual.check(song.ripper != null, stageIndex: 0),
@@ -1083,7 +1084,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       ),
       _FlowStageData(
         icon: Icons.playlist_add_check_rounded,
-        title: 'Read Mode',
+        title: l10n.readMode,
         subtitle: song.readMode ?? '-',
         detail: null,
         visual: _FlowVisual.check(song.readMode != null, stageIndex: 1),
@@ -1093,14 +1094,14 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
         icon: Icons.compare_arrows_rounded,
         title: 'CRC',
         subtitle: song.copyCrc ?? '-',
-        detail: song.testCrc != null ? 'Test: ${song.testCrc}' : null,
+        detail: song.testCrc != null ? l10n.test(song.testCrc!) : null,
         visual: _FlowVisual.check(crcOk, pending: !crcOk, stageIndex: 2),
         color: stageColors[2],
       ),
       _FlowStageData(
         icon: Icons.verified_rounded,
-        title: 'AccurateRip',
-        subtitle: song.accurateRip == true ? 'Verified' : 'Not verified',
+        title: l10n.accuraterip,
+        subtitle: song.accurateRip == true ? l10n.verified : l10n.notVerified,
         detail: null,
         visual: _FlowVisual.check(
           song.accurateRip == true,
@@ -1138,23 +1139,23 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
 
   static String _formatHz(int rate) {
     if (rate >= 1000000) {
-      return '${(rate / 1000000).toStringAsFixed(2)} MHz';
+      return l10n.mhz((rate / 1000000).toStringAsFixed(2));
     } else if (rate >= 1000) {
-      return '${(rate / 1000).toStringAsFixed(1)} kHz';
+      return l10n.khz2((rate / 1000).toStringAsFixed(1));
     }
-    return '$rate Hz';
+    return l10n.hz(rate);
   }
 
   static String _formatVolumeMode(Uac2VolumeMode mode) {
     switch (mode) {
       case Uac2VolumeMode.system:
-        return 'System (Android mixer)';
+        return l10n.systemAndroidMixer;
       case Uac2VolumeMode.hardware:
-        return 'Hardware (USB DAC)';
+        return l10n.hardwareUsbDac;
       case Uac2VolumeMode.software:
-        return 'Software (App-controlled)';
+        return l10n.softwareAppControlled;
       case Uac2VolumeMode.unavailable:
-        return 'Unavailable';
+        return l10n.unavailable2;
     }
   }
 

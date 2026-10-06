@@ -4,6 +4,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class LoopModeSheet extends StatelessWidget {
   final PlayerService playerService;
@@ -13,7 +14,7 @@ class LoopModeSheet extends StatelessWidget {
   static Future<void> show(BuildContext context, PlayerService playerService) {
     return GlassBottomSheet.show(
       context: context,
-      title: 'Repeat Mode',
+      title: l10n.repeatMode,
       content: LoopModeSheet(playerService: playerService),
     );
   }

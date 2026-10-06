@@ -89,7 +89,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Player Layout',
+                    l10n.playerLayout,
                     style: TextStyle(
                       fontFamily: 'ProductSans',
                       fontSize: 18,
@@ -149,7 +149,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Fullscreen',
+                              l10n.fullscreen,
                               style: TextStyle(
                                 fontFamily: 'ProductSans',
                                 fontSize: 11,
@@ -201,11 +201,11 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                     ),
                     const SizedBox(height: 20),
                     _PlayerCustomizationGroup(
-                      title: 'Artwork Card',
+                      title: l10n.artworkCard,
                       icon: Icons.rounded_corner_rounded,
                       children: [
                         _PlayerCustomizationSlider(
-                          title: 'Artwork size',
+                          title: l10n.artworkSize,
                           value: appPrefs.artworkCardArtworkScale,
                           min: 0.8,
                           max: 1.36,
@@ -215,7 +215,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                           onChanged: prefsNotifier.setArtworkCardArtworkScale,
                         ),
                         _PlayerCustomizationSlider(
-                          title: 'Text size',
+                          title: l10n.textSize,
                           value: appPrefs.artworkCardTextScale,
                           min: 0.82,
                           max: 1.2,
@@ -225,7 +225,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                           onChanged: prefsNotifier.setArtworkCardTextScale,
                         ),
                         _PlayerCustomizationSlider(
-                          title: 'Content placement',
+                          title: l10n.contentPlacement,
                           value: appPrefs.artworkCardVerticalOffset,
                           min: -36,
                           max: 36,
@@ -236,7 +236,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                           onChanged: prefsNotifier.setArtworkCardVerticalOffset,
                         ),
                         _PlayerCustomizationSlider(
-                          title: 'Artwork placement',
+                          title: l10n.artworkPlacement,
                           value: appPrefs.artworkCardArtworkOffset,
                           min: -48,
                           max: 48,
@@ -248,27 +248,27 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                         ),
                         const SizedBox(height: 6),
                         _PlayerCustomizationToggle(
-                          title: 'Show title',
+                          title: l10n.showTitle,
                           value: appPrefs.artworkCardShowTitle,
                           onChanged: prefsNotifier.setArtworkCardShowTitle,
                         ),
                         _PlayerCustomizationToggle(
-                          title: 'Show artist',
+                          title: l10n.showArtist,
                           value: appPrefs.artworkCardShowArtist,
                           onChanged: prefsNotifier.setArtworkCardShowArtist,
                         ),
                         _PlayerCustomizationToggle(
-                          title: 'Show album',
+                          title: l10n.showAlbum,
                           value: appPrefs.artworkCardShowAlbum,
                           onChanged: prefsNotifier.setArtworkCardShowAlbum,
                         ),
                         _PlayerCustomizationToggle(
-                          title: 'Show file info',
+                          title: l10n.showFileInfo,
                           value: appPrefs.artworkCardShowFileInfo,
                           onChanged: prefsNotifier.setArtworkCardShowFileInfo,
                         ),
                         _PlayerCustomizationToggle(
-                          title: 'Show frame',
+                          title: l10n.showFrame,
                           value: appPrefs.artworkCardShowFrame,
                           onChanged: prefsNotifier.setArtworkCardShowFrame,
                         ),
@@ -276,11 +276,11 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                     ),
                     const SizedBox(height: 16),
                     _PlayerCustomizationGroup(
-                      title: 'Immersive',
+                      title: l10n.immersive,
                       icon: Icons.fit_screen_rounded,
                       children: [
                         _PlayerCustomizationSlider(
-                          title: 'Text size',
+                          title: l10n.textSize,
                           value: appPrefs.immersiveTextScale,
                           min: 0.82,
                           max: 1.2,
@@ -290,7 +290,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                           onChanged: prefsNotifier.setImmersiveTextScale,
                         ),
                         _PlayerCustomizationSlider(
-                          title: 'Text placement',
+                          title: l10n.textPlacement,
                           value: appPrefs.immersiveVerticalOffset,
                           min: -36,
                           max: 36,
@@ -301,7 +301,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                           onChanged: prefsNotifier.setImmersiveVerticalOffset,
                         ),
                         _PlayerCustomizationSlider(
-                          title: 'Full-view card size',
+                          title: l10n.fullViewCardSize,
                           value: appPrefs.immersiveFullViewScale,
                           min: 0.82,
                           max: 1.18,
@@ -312,17 +312,17 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                         ),
                         const SizedBox(height: 6),
                         _PlayerCustomizationToggle(
-                          title: 'Show title',
+                          title: l10n.showTitle,
                           value: appPrefs.immersiveShowTitle,
                           onChanged: prefsNotifier.setImmersiveShowTitle,
                         ),
                         _PlayerCustomizationToggle(
-                          title: 'Show artist',
+                          title: l10n.showArtist,
                           value: appPrefs.immersiveShowArtist,
                           onChanged: prefsNotifier.setImmersiveShowArtist,
                         ),
                         _PlayerCustomizationToggle(
-                          title: 'Show file info',
+                          title: l10n.showFileInfo,
                           value: appPrefs.immersiveShowFileInfo,
                           onChanged: prefsNotifier.setImmersiveShowFileInfo,
                         ),
@@ -330,11 +330,11 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                     ),
                     const SizedBox(height: 16),
                     _PlayerCustomizationGroup(
-                      title: 'Quick Actions',
+                      title: l10n.quickActions,
                       icon: Icons.swap_horiz_rounded,
                       children: [
                         _PlayerActionButtonSelector(
-                          label: 'Left (top)',
+                          label: l10n.leftTop,
                           currentValue: PlayerActionButtonX.fromStorageValue(
                             appPrefs.leftTopActionButton,
                           ),
@@ -346,7 +346,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                         ),
                         const SizedBox(height: 8),
                         _PlayerActionButtonSelector(
-                          label: 'Left (bottom)',
+                          label: l10n.leftBottom,
                           currentValue: PlayerActionButtonX.fromStorageValue(
                             appPrefs.leftActionButton,
                           ),
@@ -358,7 +358,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                         ),
                         const SizedBox(height: 8),
                         _PlayerActionButtonSelector(
-                          label: 'Right (top)',
+                          label: l10n.rightTop,
                           currentValue: PlayerActionButtonX.fromStorageValue(
                             appPrefs.rightTopActionButton,
                           ),
@@ -370,7 +370,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                         ),
                         const SizedBox(height: 8),
                         _PlayerActionButtonSelector(
-                          label: 'Right (bottom)',
+                          label: l10n.rightBottom,
                           currentValue: PlayerActionButtonX.fromStorageValue(
                             appPrefs.rightActionButton,
                           ),
@@ -392,7 +392,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          'Album Colors',
+                          l10n.albumColors,
                           style: TextStyle(
                             fontFamily: 'ProductSans',
                             fontSize: 18,
@@ -562,8 +562,8 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
 }
 
 String _placementLabel(double value) {
-  if (value == 0) return 'Center';
-  return value < 0 ? '${value.abs().round()} up' : '${value.round()} down';
+  if (value == 0) return l10n.center;
+  return value < 0 ? l10n.up(value.abs().round()) : l10n.down(value.round());
 }
 class _PlayerLayoutOptionTile extends StatelessWidget {
   final String title;
@@ -871,7 +871,7 @@ class _PlayerLayoutPreview extends StatelessWidget {
               top: 12,
               left: 14,
               child: Text(
-                'Sample preview',
+                l10n.samplePreview,
                 style: TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 12,
@@ -911,7 +911,7 @@ class _PlayerLayoutPreview extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 28),
                   child: Text(
-                    song?.title ?? 'Midnight Signal',
+                    song?.title ?? l10n.midnightSignal,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
@@ -927,7 +927,7 @@ class _PlayerLayoutPreview extends StatelessWidget {
                 const SizedBox(height: 4),
               if (artworkCardShowArtist)
                 Text(
-                  song?.artist ?? 'Flick Preview',
+                  song?.artist ?? l10n.flickPreview,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -989,7 +989,7 @@ class _PlayerLayoutPreview extends StatelessWidget {
                     children: [
                       if (immersiveShowTitle)
                         Text(
-                          song?.title ?? 'Midnight Signal',
+                          song?.title ?? l10n.midnightSignal,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1004,7 +1004,7 @@ class _PlayerLayoutPreview extends StatelessWidget {
                         const SizedBox(height: 5),
                       if (immersiveShowArtist)
                         Text(
-                          song?.artist ?? 'Flick Preview',
+                          song?.artist ?? l10n.flickPreview,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1155,7 +1155,7 @@ class _FullScreenPreview extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 40),
                       child: Text(
-                        song?.title ?? 'Midnight Signal',
+                        song?.title ?? l10n.midnightSignal,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
@@ -1171,7 +1171,7 @@ class _FullScreenPreview extends StatelessWidget {
                     const SizedBox(height: 8),
                   if (artworkCardShowArtist)
                     Text(
-                      song?.artist ?? 'Flick Preview',
+                      song?.artist ?? l10n.flickPreview,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1184,7 +1184,7 @@ class _FullScreenPreview extends StatelessWidget {
                     const SizedBox(height: 6),
                   if (artworkCardShowAlbum)
                     Text(
-                      song?.album ?? 'Mirror Test',
+                      song?.album ?? l10n.mirrorTest,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1197,7 +1197,7 @@ class _FullScreenPreview extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
                       child: Text(
-                        'FLAC · 24-bit / 96 kHz',
+                        l10n.flac24Bit96Khz,
                         style: TextStyle(
                           fontFamily: 'ProductSans',
                           fontSize: 11,
@@ -1260,7 +1260,7 @@ class _FullScreenPreview extends StatelessWidget {
                     children: [
                       if (immersiveShowTitle)
                         Text(
-                          song?.title ?? 'Midnight Signal',
+                          song?.title ?? l10n.midnightSignal,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1275,7 +1275,7 @@ class _FullScreenPreview extends StatelessWidget {
                         const SizedBox(height: 8),
                       if (immersiveShowArtist)
                         Text(
-                          song?.artist ?? 'Flick Preview',
+                          song?.artist ?? l10n.flickPreview,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1288,7 +1288,7 @@ class _FullScreenPreview extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(
-                            'FLAC · 24-bit / 96 kHz',
+                            l10n.flac24Bit96Khz,
                             style: TextStyle(
                               fontFamily: 'ProductSans',
                               fontSize: 12,

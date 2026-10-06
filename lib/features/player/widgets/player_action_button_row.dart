@@ -21,6 +21,7 @@ import 'package:flick/features/player/widgets/volume_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/share/share_bottom_sheet.dart';
 import 'package:flick/features/settings/screens/equalizer_screen.dart';
 import 'package:flick/features/settings/screens/casting_settings_screen.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class PlayerActionButtonRow extends ConsumerStatefulWidget {
   final Song song;
@@ -437,7 +438,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         : AppColors.accent.withValues(alpha: 0.45);
 
     return Tooltip(
-      message: lyricsMode ? 'Hide lyrics' : 'Show lyrics',
+      message: lyricsMode ? l10n.hideLyrics : l10n.showLyrics,
       child: GestureDetector(
         onTap: () => widget.onToggleLyrics(),
         child: Container(
@@ -484,7 +485,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    newState ? 'Added to favorites' : 'Removed from favorites',
+                    newState ? l10n.addedToFavorites : l10n.removedFromFavorites3,
                   ),
                   duration: const Duration(seconds: 1),
                 ),
@@ -548,7 +549,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         : AppColors.accent.withValues(alpha: 0.45);
 
     return Tooltip(
-      message: isVisMode ? 'Hide visualizer' : 'Show visualizer',
+      message: isVisMode ? l10n.hideVisualizer : l10n.showVisualizer,
       child: GestureDetector(
         onTap: () => widget.onToggleVisualization(!isVisMode),
         child: Container(
@@ -615,7 +616,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required bool hasAlbumTint,
   }) {
     return Tooltip(
-      message: 'Queue',
+      message: l10n.queue,
       child: GestureDetector(
         onTap: () => widget.onOpenQueue(context),
         child: Container(
@@ -644,7 +645,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required Color inactiveBorder,
   }) {
     return Tooltip(
-      message: 'Sleep timer',
+      message: l10n.sleepTimer,
       child: GestureDetector(
         onTap: () => SleepTimerBottomSheet.show(context, widget.playerService),
         child: Container(
@@ -673,7 +674,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required Color inactiveBorder,
   }) {
     return Tooltip(
-      message: 'Share',
+      message: l10n.share,
       child: GestureDetector(
         onTap: () {
           showModalBottomSheet(
@@ -723,7 +724,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     }
 
     return Tooltip(
-      message: 'USB Volume',
+      message: l10n.usbVolume,
       child: GestureDetector(
         key: widget.usbVolumeButtonKey,
         onTap: () => widget.onShowUsbVolumePopup(context),
@@ -753,7 +754,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required Color inactiveBorder,
   }) {
     return Tooltip(
-      message: 'Equalizer',
+      message: l10n.equalizer,
       child: GestureDetector(
         onTap: () {
           Navigator.of(context).push(
@@ -810,7 +811,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required Color inactiveBorder,
   }) {
     return Tooltip(
-      message: 'Volume',
+      message: l10n.volume,
       child: GestureDetector(
         onTap: () => VolumeBottomSheet.show(context, widget.playerService),
         child: Container(
@@ -840,7 +841,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
   }) {
     final isCasting = ref.watch(isCastingProvider);
     return Tooltip(
-      message: isCasting ? 'Casting — tap to manage' : 'Cast',
+      message: isCasting ? l10n.castingTapToManage : l10n.cast,
       child: GestureDetector(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(

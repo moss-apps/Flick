@@ -110,7 +110,7 @@ class PlayerControls extends StatelessWidget {
                                 ..hideCurrentSnackBar()
                                 ..showSnackBar(
                                   SnackBar(
-                                    content: Text('Shuffle: ${next.label}'),
+                                    content: Text(l10n.shuffle2(next.label)),
                                     behavior: SnackBarBehavior.floating,
                                     duration: const Duration(seconds: 1),
                                   ),
@@ -215,7 +215,7 @@ class PlayerControls extends StatelessWidget {
                                 ..hideCurrentSnackBar()
                                 ..showSnackBar(
                                   SnackBar(
-                                    content: Text('Repeat: ${next.label}'),
+                                    content: Text(l10n.repeat(next.label)),
                                     behavior: SnackBarBehavior.floating,
                                     duration: const Duration(seconds: 1),
                                   ),

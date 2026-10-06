@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/audio_output_diagnostics.dart';
+import 'package:flick/l10n/l10n.dart';
 
 enum _CapsulePhase { entering, visible, exiting, hidden }
 
@@ -141,7 +142,7 @@ class _BitPerfectCapsuleState extends State<BitPerfectCapsule>
               Icon(iconData, size: widget.fontSize + 2, color: textColor),
               const SizedBox(width: 4),
               Text(
-                'BIT-PERFECT',
+                l10n.bitPerfect,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(

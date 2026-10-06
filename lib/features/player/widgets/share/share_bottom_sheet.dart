@@ -19,6 +19,7 @@ import 'package:flick/services/gallery_save_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class ShareBottomSheet extends ConsumerStatefulWidget {
   final Song song;
@@ -131,12 +132,12 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'Listening to ${widget.song.title} by ${widget.song.artist} on Flick',
+        text: l10n.listeningToByOnFlick(widget.song.title, widget.song.artist),
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Share failed: $e')),
+          SnackBar(content: Text(l10n.shareFailed(e))),
         );
       }
     } finally {
@@ -160,7 +161,7 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved to gallery')),
+          SnackBar(content: Text(l10n.savedToGallery)),
         );
       }
     } catch (e) {
@@ -192,7 +193,7 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
         ),
         const SizedBox(width: 6),
         _SizePill(
-          label: 'Auto',
+          label: l10n.auto,
           active: _lyricAutoFit,
           onTap: () => setState(() => _lyricAutoFit = true),
         ),
@@ -238,7 +239,7 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
               const Icon(LucideIcons.share2, color: AppColors.accent, size: 22),
               const SizedBox(width: 12),
               Text(
-                'Share',
+                l10n.share,
                 style: TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 18,
@@ -283,7 +284,7 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
           Row(
             children: [
               Text(
-                templates[_selectedTemplate].label,
+                templates[_selectedTemplate].label(context.l10n),
                 style: TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 14,
@@ -296,14 +297,14 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
               const Spacer(),
               _ActionButton(
                 icon: LucideIcons.download,
-                label: 'Save',
+                label: l10n.save,
                 isLoading: _isSaving,
                 onTap: _saveToGallery,
               ),
               const SizedBox(width: 12),
               _ActionButton(
                 icon: LucideIcons.share2,
-                label: 'Share',
+                label: l10n.share,
                 isLoading: _isSharing,
                 onTap: _share,
               ),

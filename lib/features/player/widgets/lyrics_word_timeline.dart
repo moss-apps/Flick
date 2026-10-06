@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/l10n/l10n.dart';
 
 typedef WordBoundaryChanged = void Function(int wordIndex, Duration newStart);
 typedef LineEndChanged = void Function(Duration newEnd);
@@ -189,7 +190,7 @@ class WordTimeline extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${(durationMs / 1000).toStringAsFixed(2)}s',
+                l10n.s((durationMs / 1000).toStringAsFixed(2)),
                 maxLines: 1,
                 style: const TextStyle(
                   color: AppColors.textTertiary,

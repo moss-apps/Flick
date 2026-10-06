@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class AlbumArtShareCard extends StatelessWidget {
   final Song song;
@@ -42,7 +43,7 @@ class AlbumArtShareCard extends StatelessWidget {
                 const Spacer(),
                 if (song.trackNumber != null)
                   Text(
-                    'Track ${song.trackNumber}',
+                    l10n.track2(song.trackNumber!),
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 12,

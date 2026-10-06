@@ -15,6 +15,7 @@ import 'package:flick/features/player/widgets/karaoke_lyric_line.dart';
 import 'package:flick/features/player/widgets/lyrics_editor_model.dart';
 import 'package:flick/features/player/widgets/lyrics_word_timeline.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flick/l10n/l10n.dart';
 
 enum LyricsEditorViewMode { simple, wordSync, advanced }
 
@@ -415,7 +416,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
     final normalized = value.replaceAll('[', '').replaceAll(']', '').trim();
     final parsed = widget.lyricsService.parseTimestamp(normalized);
     if (parsed == null) {
-      _showMessage('Use mm:ss.cc, e.g. 01:23.45');
+      _showMessage(l10n.useMmSsCcEG);
       return;
     }
     setState(() {
@@ -472,7 +473,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
   Future<void> _save() async {
     final normalizedLines = _model.normalizeForSave();
     if (normalizedLines.isEmpty) {
-      _showMessage('Add at least one lyric line first.');
+      _showMessage(l10n.addAtLeastOneLyricLine);
       return;
     }
 
@@ -485,22 +486,22 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
 
     final choice = await showFlickDialog<String>(
       context: context,
-      barrierLabel: 'Save LRC File',
+      barrierLabel: l10n.saveLrcFile,
       builder: (ctx) => FlickDialog(
-        title: 'Save LRC File',
-        content: const Text('Where should the .lrc file be saved?'),
+        title: l10n.saveLrcFile,
+        content: Text(l10n.whereShouldTheLrcFileBe),
         actions: [
           FlickDialogButton(
-            label: 'Choose location\u2026',
+            label: l10n.chooseLocationU2026,
             onPressed: () => Navigator.pop(ctx, 'custom'),
           ),
           if (sidecarPath != null)
             FlickDialogButton(
-              label: 'Beside the song',
+              label: l10n.besideTheSong,
               onPressed: () => Navigator.pop(ctx, 'beside'),
             ),
           FlickDialogButton(
-            label: 'Save in Flick',
+            label: l10n.saveInFlick,
             style: FlickDialogButtonStyle.primary,
             onPressed: () => Navigator.pop(ctx, 'managed'),
           ),
@@ -522,7 +523,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             ? widget.song.title
             : 'lyrics';
         final savePath = await FilePicker.saveFile(
-          dialogTitle: 'Save LRC file',
+          dialogTitle: l10n.saveLrcFile2,
           fileName: '$safeStem.lrc',
           type: FileType.custom,
           allowedExtensions: const ['lrc'],
@@ -551,10 +552,10 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
 
       if (!mounted) return;
       final message = choice == 'custom'
-          ? 'Saved lyrics to the chosen location.'
+          ? l10n.savedLyricsToTheChosenLocation
           : result.savedBesideSong
-              ? 'Saved lyrics beside the song as an `.lrc` file.'
-              : 'Saved lyrics and linked them to this song.';
+              ? l10n.savedLyricsBesideTheSongAs
+              : l10n.savedLyricsAndLinkedThemTo;
       Navigator.of(context).pop(
         LyricsEditorResult(
           message: message,
@@ -562,7 +563,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
         ),
       );
     } catch (_) {
-      _showMessage('Could not save the lyrics file.');
+      _showMessage(l10n.couldNotSaveTheLyricsFile);
     } finally {
       if (mounted) {
         setState(() {
@@ -583,19 +584,19 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
   Future<void> _confirmDiscard() async {
     final discard = await showFlickDialog<bool>(
       context: context,
-      barrierLabel: 'Unsaved Changes',
+      barrierLabel: l10n.unsavedChanges,
       builder: (ctx) => FlickDialog(
-        title: 'Discard changes?',
-        content: const Text(
-          'You have unsaved lyric edits. Leave the Sync Studio without saving?',
+        title: l10n.discardChanges,
+        content: Text(
+          l10n.youHaveUnsavedLyricEditsLeave,
         ),
         actions: [
           FlickDialogButton(
-            label: 'Discard',
+            label: l10n.discard,
             onPressed: () => Navigator.pop(ctx, true),
           ),
           FlickDialogButton(
-            label: 'Keep Editing',
+            label: l10n.keepEditing,
             style: FlickDialogButtonStyle.primary,
             onPressed: () => Navigator.pop(ctx, false),
           ),
@@ -610,9 +611,9 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
   Future<void> _showTextEditor() async {
     await showFlickDialog<void>(
       context: context,
-      barrierLabel: 'Lyrics Text',
+      barrierLabel: l10n.lyricsText,
       builder: (ctx) => FlickDialog(
-        title: 'Lyrics Text',
+        title: l10n.lyricsText,
         content: SizedBox(
           width: double.infinity,
           child: TextField(
@@ -620,7 +621,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             minLines: 10,
             maxLines: 14,
             decoration: InputDecoration(
-              hintText: 'Paste or type the song lyrics here — one line per row',
+              hintText: l10n.pasteOrTypeTheSongLyrics,
               filled: true,
               fillColor: AppColors.surfaceLight,
               border: OutlineInputBorder(
@@ -631,7 +632,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
         ),
         actions: [
           FlickDialogButton(
-            label: 'Done',
+            label: l10n.done,
             onPressed: () => Navigator.pop(ctx),
           ),
         ],
@@ -642,15 +643,15 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
   Future<void> _showInstructions() async {
     await showFlickDialog<void>(
       context: context,
-      barrierLabel: 'Lyrics Sync Help',
+      barrierLabel: l10n.lyricsSyncHelp,
       builder: (dialogContext) => FlickDialog(
-        title: 'Lyrics Sync Help',
+        title: l10n.lyricsSyncHelp,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Simple mode',
+              l10n.simpleMode,
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
@@ -658,16 +659,12 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              '1. Tap "Edit Text" (top right) and paste the lyrics — one line per row.\n'
-              '2. Play the song.\n'
-              '3. Pick the current line in the Lines list.\n'
-              '4. Tap "Stamp & Next" when you hear that line.\n'
-              '5. Save when done.',
+              l10n.tapEditTextTopRight,
               style: TextStyle(color: AppColors.textSecondary, height: 1.5),
             ),
             const SizedBox(height: 16),
             Text(
-              'Word Sync mode (karaoke)',
+              l10n.wordSyncModeKaraoke,
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
@@ -675,15 +672,12 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              '1. Pick a lyric line in Lines, then switch to Tools.\n'
-              '2. Press play and tap the big "Tap Word" button as you hear each word — the first tap also stamps the line.\n'
-              '3. Tap a word chip to nudge, re-time, or clear it.\n'
-              '4. Lines with every word stamped save with per-word karaoke timing.',
+              l10n.pickALyricLineIn,
               style: TextStyle(color: AppColors.textSecondary, height: 1.5),
             ),
             const SizedBox(height: 16),
             Text(
-              'Advanced mode',
+              l10n.advancedMode,
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
@@ -691,17 +685,12 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              '1. Select a line and edit its timestamp directly, or use "Use Current Time".\n'
-              '2. In the word timeline, drag a boundary to stretch or shrink the segment before it — edits snap to 10ms.\n'
-              '3. Tap letters in the inspector to split a word into separately timed syllables (slow-then-fast pacing), then drag their boundaries.\n'
-              '4. Drag the last boundary (or use Length ±) to retime the next line. Use Auto-fill to seed evenly spaced words.\n'
-              '5. Use the shift controls to move all stamped lyrics together.\n'
-              '6. Save to generate the final `.lrc` file.',
+              l10n.selectALineAndEdit,
               style: TextStyle(color: AppColors.textSecondary, height: 1.5),
             ),
             const SizedBox(height: 16),
             Text(
-              'Tips',
+              l10n.tips,
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
@@ -709,16 +698,14 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              '- "Use Existing File" in the lyrics panel links an `.lrc`, `.txt`, or `.xml` file.\n'
-              '- If some lines are not stamped, Flick fills their times automatically.\n'
-              '- Save writes beside the song when possible, otherwise Flick stores a linked copy.',
+              l10n.useExistingFileInTheLyrics,
               style: TextStyle(color: AppColors.textSecondary, height: 1.5),
             ),
           ],
         ),
         actions: [
           FlickDialogButton(
-            label: 'Got it',
+            label: l10n.gotIt,
             onPressed: () => Navigator.of(dialogContext).pop(),
           ),
         ],
@@ -744,7 +731,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Lyrics Sync Studio',
+                l10n.lyricsSyncStudio,
                 style: TextStyle(
                   color: context.adaptiveTextPrimary,
                   fontSize: 17,
@@ -767,12 +754,12 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             IconButton(
               onPressed: _isSaving ? null : _showTextEditor,
               icon: const Icon(Icons.edit_note_rounded),
-              tooltip: 'Edit Text',
+              tooltip: l10n.editText,
             ),
             IconButton(
               onPressed: _isSaving ? null : _showInstructions,
               icon: const Icon(Icons.help_outline_rounded),
-              tooltip: 'Instructions',
+              tooltip: l10n.instructions,
             ),
             Padding(
               padding: const EdgeInsets.only(right: AppConstants.spacingMd),
@@ -788,7 +775,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(LucideIcons.save, size: 16),
-                label: Text(_isSaving ? 'Saving...' : 'Save'),
+                label: Text(_isSaving ? l10n.saving : l10n.save),
               ),
             ),
           ],
@@ -858,16 +845,16 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             children: [
               Expanded(
                 child: SegmentedButton<_StudioTab>(
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: _StudioTab.lines,
                       icon: Icon(Icons.format_list_bulleted_rounded, size: 16),
-                      label: Text('Lines'),
+                      label: Text(l10n.lines),
                     ),
                     ButtonSegment(
                       value: _StudioTab.tools,
                       icon: Icon(LucideIcons.slidersHorizontal, size: 16),
-                      label: Text('Tools'),
+                      label: Text(l10n.tools),
                     ),
                   ],
                   selected: {_tab},
@@ -898,11 +885,11 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
     String labelFor(LyricsEditorViewMode mode) {
       switch (mode) {
         case LyricsEditorViewMode.simple:
-          return 'Simple';
+          return l10n.simple;
         case LyricsEditorViewMode.wordSync:
-          return 'Word Sync';
+          return l10n.wordSync;
         case LyricsEditorViewMode.advanced:
-          return 'Advanced';
+          return l10n.advanced;
       }
     }
 
@@ -1009,7 +996,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                       isPlaying ? LucideIcons.pause : LucideIcons.play,
                       size: 16,
                     ),
-                    label: Text(isPlaying ? 'Pause' : 'Play'),
+                    label: Text(isPlaying ? l10n.pause : l10n.play),
                   );
                 },
               ),
@@ -1029,7 +1016,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                   readOnly: true,
                   style: const TextStyle(fontSize: 12),
                   decoration: InputDecoration(
-                    labelText: 'Now',
+                    labelText: l10n.now,
                     isDense: true,
                     filled: true,
                     fillColor: AppColors.surfaceDark,
@@ -1140,7 +1127,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                line.text.isEmpty ? '(Empty line)' : line.text,
+                                line.text.isEmpty ? l10n.emptyLine : line.text,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -1153,7 +1140,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 line.timestamp == null
-                                    ? 'Not stamped yet'
+                                    ? l10n.notStampedYet
                                     : widget.lyricsService.formatTimestamp(
                                         line.timestamp!,
                                       ),
@@ -1199,7 +1186,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                         ? () => _stampSelectedLine(advance: _autoAdvance)
                         : null,
                     icon: const Icon(LucideIcons.clock3, size: 16),
-                    label: Text(_autoAdvance ? 'Stamp & Next' : 'Stamp Now'),
+                    label: Text(_autoAdvance ? l10n.stampNext : l10n.stampNow),
                   ),
                 ),
                 const SizedBox(width: AppConstants.spacingSm),
@@ -1211,7 +1198,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                     visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(LucideIcons.eraser, size: 14),
-                  label: const Text('Clear'),
+                  label: Text(l10n.clear),
                 ),
                 const SizedBox(width: AppConstants.spacingSm),
                 FilterChip(
@@ -1221,7 +1208,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                       _autoAdvance = value;
                     });
                   },
-                  label: const Text('Auto'),
+                  label: Text(l10n.auto),
                 ),
               ],
             ),
@@ -1287,7 +1274,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Line ${_selectedLineIndex + 1} of ${_lines.length}',
+            l10n.lineOf(_selectedLineIndex + 1, _lines.length),
             style: TextStyle(
               color: context.adaptiveTextSecondary,
               fontSize: 12,
@@ -1295,7 +1282,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            line.text.isEmpty ? '(Empty line)' : line.text,
+            line.text.isEmpty ? l10n.emptyLine : line.text,
             style: TextStyle(
               color: context.adaptiveTextPrimary,
               fontSize: 16,
@@ -1312,7 +1299,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                   onChanged: (value) =>
                       _applyTimestampText(_selectedLineIndex, value),
                   decoration: InputDecoration(
-                    labelText: 'Timestamp',
+                    labelText: l10n.timestamp,
                     hintText: '00:12.34',
                     isDense: true,
                     filled: true,
@@ -1332,7 +1319,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                   visualDensity: VisualDensity.compact,
                 ),
                 icon: const Icon(LucideIcons.clock3, size: 14),
-                label: const Text('Use Current Time'),
+                label: Text(l10n.useCurrentTime),
               ),
             ],
           ),
@@ -1363,8 +1350,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Line ${_selectedLineIndex + 1} of ${_lines.length}'
-            '  ·  $captured/$segmentCount words',
+            l10n.lineOfWords(_selectedLineIndex + 1, _lines.length, captured, segmentCount),
             style: TextStyle(
               color: context.adaptiveTextSecondary,
               fontSize: 12,
@@ -1387,10 +1373,10 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
               icon: const Icon(LucideIcons.mic),
               label: Text(
                 tokens.isEmpty
-                    ? 'Pick a line with lyrics'
+                    ? l10n.pickALineWithLyrics
                     : nextWordIndex < 0
-                    ? 'All words stamped'
-                    : 'Tap: "${line?.segmentLabel(nextWordIndex) ?? tokens[nextWordIndex].trim()}"',
+                    ? l10n.allWordsStamped
+                    : l10n.tap(line?.segmentLabel(nextWordIndex) ?? tokens[nextWordIndex].trim()),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1407,7 +1393,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                   visualDensity: VisualDensity.compact,
                 ),
                 icon: const Icon(LucideIcons.undo2, size: 16),
-                label: const Text('Undo'),
+                label: Text(l10n.undo),
               ),
               OutlinedButton.icon(
                 onPressed: (line?.hasAnyWords ?? false) ? _clearWords : null,
@@ -1415,7 +1401,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                   visualDensity: VisualDensity.compact,
                 ),
                 icon: const Icon(LucideIcons.eraser, size: 16),
-                label: const Text('Clear Words'),
+                label: Text(l10n.clearWords),
               ),
               FilterChip(
                 selected: _autoAdvance,
@@ -1424,7 +1410,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                     _autoAdvance = value;
                   });
                 },
-                label: const Text('Auto Advance'),
+                label: Text(l10n.autoAdvance),
               ),
             ],
           ),
@@ -1555,7 +1541,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Word ${wordIndex + 1} · "${line.segmentLabel(wordIndex)}"',
+            l10n.word(wordIndex + 1, line.segmentLabel(wordIndex)),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -1586,12 +1572,12 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
               OutlinedButton.icon(
                 onPressed: _setSelectedWordToNow,
                 icon: const Icon(LucideIcons.clock3, size: 14),
-                label: const Text('Set to Now'),
+                label: Text(l10n.setToNow),
               ),
               OutlinedButton.icon(
                 onPressed: captured ? _clearSelectedWord : null,
                 icon: const Icon(LucideIcons.eraser, size: 14),
-                label: const Text('Clear Word'),
+                label: Text(l10n.clearWord),
               ),
             ],
           ),
@@ -1620,7 +1606,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
       child: Column(
         children: [
           Text(
-            'Karaoke Preview',
+            l10n.karaokePreview,
             style: TextStyle(
               color: context.adaptiveTextSecondary,
               fontSize: 12,
@@ -1675,7 +1661,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Word Timeline · Line ${_selectedLineIndex + 1}',
+                  l10n.wordTimelineLine(_selectedLineIndex + 1),
                   style: TextStyle(
                     color: context.adaptiveTextPrimary,
                     fontWeight: FontWeight.w600,
@@ -1686,24 +1672,22 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                 TextButton.icon(
                   onPressed: _autoFillWords,
                   icon: const Icon(LucideIcons.wand2, size: 14),
-                  label: const Text('Auto-fill'),
+                  label: Text(l10n.autoFill),
                 ),
             ],
           ),
           const SizedBox(height: 6),
           if (line.timestamp == null)
-            hint('Stamp this line first to edit its word timeline.')
+            hint(l10n.stampThisLineFirstToEdit)
           else if (!line.hasAnyWords)
             hint(
-              'No word timing yet. Auto-fill spreads the words evenly as a '
-              'starting point — or capture them in Word Sync mode.',
+              l10n.noWordTimingYetAutoFill,
             )
           else if (!line.hasCompleteWords)
-            hint('Some words are still untimed. Finish capturing in Word Sync mode.')
+            hint(l10n.someWordsAreStillUntimedFinish)
           else if (windows != null) ...[
             Text(
-              'Drag a boundary to stretch or shrink the word before it. The '
-              'last boundary moves the next line.',
+              l10n.dragABoundaryToStretchOr,
               style: TextStyle(
                 color: context.adaptiveTextSecondary,
                 fontSize: 12,
@@ -1785,7 +1769,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Word ${wordIndex + 1} · "$token"',
+                      l10n.word2(wordIndex + 1, token),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1796,7 +1780,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Length ${(lengthMs / 1000).toStringAsFixed(2)}s',
+                      l10n.lengthS((lengthMs / 1000).toStringAsFixed(2)),
                       style: TextStyle(
                         color: context.adaptiveTextSecondary,
                         fontSize: 11,
@@ -1813,7 +1797,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                   focusNode: _boundaryFocus,
                   onSubmitted: _applyBoundaryText,
                   decoration: InputDecoration(
-                    labelText: 'Start',
+                    labelText: l10n.start,
                     hintText: '00:12.34',
                     isDense: true,
                     filled: true,
@@ -1835,7 +1819,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
-                'Length:',
+                l10n.length,
                 style: TextStyle(
                   color: context.adaptiveTextSecondary,
                   fontSize: 12,
@@ -1868,7 +1852,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
               OutlinedButton.icon(
                 onPressed: _setSelectedBoundaryToNow,
                 icon: const Icon(LucideIcons.clock3, size: 14),
-                label: const Text('Start at Now'),
+                label: Text(l10n.startAtNow),
               ),
             ],
           ),
@@ -1905,7 +1889,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
       children: [
         const Divider(height: 20),
         Text(
-          'Syllables — tap a letter to split or merge:',
+          l10n.syllablesTapALetterToSplit,
           style: TextStyle(color: context.adaptiveTextSecondary, fontSize: 11),
         ),
         const SizedBox(height: 6),
@@ -1976,7 +1960,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Time Shift',
+            l10n.timeShift,
             style: TextStyle(
               color: context.adaptiveTextPrimary,
               fontWeight: FontWeight.w600,
@@ -1984,7 +1968,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Move every stamped lyric forward or backward together.',
+            l10n.moveEveryStampedLyricForwardOr,
             style: TextStyle(
               color: context.adaptiveTextSecondary,
               fontSize: 12,
@@ -2037,7 +2021,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Save creates an `.lrc` file. If some lines are not stamped yet, Flick fills their times automatically so the file stays usable. Lines with fully stamped words export with per-word karaoke timing.',
+              l10n.saveCreatesAnLrcFileIf,
               style: TextStyle(
                 color: context.adaptiveTextSecondary,
                 fontSize: 12,

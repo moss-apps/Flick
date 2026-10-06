@@ -6,6 +6,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class AddToPlaylistSheet extends ConsumerWidget {
   final List<Song> songs;
@@ -48,8 +49,8 @@ class AddToPlaylistSheet extends ConsumerWidget {
               const SizedBox(width: 12),
               Text(
                 songs.length == 1
-                    ? 'Add to Playlist'
-                    : 'Add ${songs.length} Songs to Playlist',
+                    ? l10n.addToPlaylist2
+                    : l10n.addSongsToPlaylist2(songs.length),
                 style: TextStyle(
                   fontFamily: 'ProductSans',
                   fontSize: 18,
@@ -67,7 +68,7 @@ class AddToPlaylistSheet extends ConsumerWidget {
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Text(
-                  'Error loading playlists',
+                  l10n.errorLoadingPlaylists,
                   style: TextStyle(color: context.adaptiveTextTertiary),
                 ),
                 data: (state) {
@@ -76,7 +77,7 @@ class AddToPlaylistSheet extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(vertical: 24),
                       child: Center(
                         child: Text(
-                          'No playlists yet.\nCreate one in the Playlists tab.',
+                          l10n.noPlaylistsYetNcreateOneIn,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: context.adaptiveTextTertiary,
@@ -121,7 +122,7 @@ class AddToPlaylistSheet extends ConsumerWidget {
                             ),
                           ),
                           subtitle: Text(
-                            '${playlist.songIds.length} songs',
+                            l10n.songs9(playlist.songIds.length),
                             style: TextStyle(
                               color: context.adaptiveTextTertiary,
                               fontFamily: 'ProductSans',
@@ -154,8 +155,8 @@ class AddToPlaylistSheet extends ConsumerWidget {
                                       SnackBar(
                                         content: Text(
                                           songs.length == 1
-                                              ? 'Added to "${playlist.name}"'
-                                              : 'Added ${songs.length} songs to "${playlist.name}"',
+                                              ? l10n.addedTo2(playlist.name)
+                                              : l10n.addedSongsTo(songs.length, playlist.name),
                                         ),
                                       ),
                                     );
