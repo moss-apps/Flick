@@ -30,10 +30,10 @@ environment:
 dependencies:
   audio_session: ^0.2.4
   crypto: ^3.0.3
-  connectivity_plus: ^7.0.0
+  connectivity_plus: ^7.3.1
   cupertino_icons: ^2.0.0
   fading_marquee_widget: ^1.2.1
-  file_picker: ^11.0.3
+  file_picker: ^13.1.0
   fl_chart: ^1.1.1
   flutter:
     sdk: flutter
@@ -44,7 +44,7 @@ dependencies:
   flutter_markdown: ^0.7.7
   flutter_riverpod: ^3.0.3
   flutter_rust_bridge: ^2.13.0
-  flutter_secure_storage: ^10.3.4
+  flutter_secure_storage: ^11.2.0
   flutter_svg: ^2.3.0
   home_widget: ^0.10.0
   freezed_annotation: ^3.0.0
@@ -56,7 +56,7 @@ dependencies:
   isar_community_flutter_libs: ^3.3.2
   json_annotation: ^4.9.0
   just_audio: ^0.10.6
-  lucide_icons_flutter: ^3.1.8
+  lucide_icons_flutter: ^3.1.22
   native_toolchain_rust: ^1.0.7
   path: ^1.9.1
   path_provider: ^2.1.6
@@ -68,10 +68,10 @@ dependencies:
     path: rust_builder
   shared_preferences: ^2.2.2
   in_app_update: ^5.0.0
-  share_plus: ^10.1.4
+  share_plus: ^13.3.1
   skeletonizer: ^3.0.0
-  url_launcher: ^6.3.2
-  video_player: ^2.9.5
+  url_launcher: ^6.3.3
+  video_player: ^2.14.1
   xml: ^7.0.1
 
 dev_dependencies:
@@ -81,7 +81,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   test: ^1.25.0
-  freezed: ^3.0.0
+  freezed: ^3.2.3
   integration_test:
     sdk: flutter
   isar_community_generator: ^3.3.2
