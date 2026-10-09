@@ -255,6 +255,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get albumName => '专辑名称';
 
   @override
+  String get albumOptions => '专辑选项';
+
+  @override
   String get albums => '专辑';
 
   @override
@@ -6308,6 +6311,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibrant => '鲜艳';
+
+  @override
+  String get viewAsGrid => '网格视图';
+
+  @override
+  String get viewAsList => '列表视图';
 
   @override
   String get viewMetadata => '查看元数据';

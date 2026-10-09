@@ -356,6 +356,10 @@
   "@albumName": {
     "description": "lib/features/albums/screens/albums_screen.dart:916"
   },
+  "albumOptions": "Album options",
+  "@albumOptions": {
+    "description": "lib/features/songs/screens/songs_screen.dart"
+  },
   "albums": "Albums",
   "@albums": {
     "description": "lib/features/albums/screens/albums_screen.dart:252"
@@ -9006,6 +9010,14 @@
   "vibrant": "Vibrant",
   "@vibrant": {
     "description": "lib/models/album_color_mode.dart:26"
+  },
+  "viewAsGrid": "View as grid",
+  "@viewAsGrid": {
+    "description": "lib/features/songs/screens/songs_screen.dart"
+  },
+  "viewAsList": "View as list",
+  "@viewAsList": {
+    "description": "lib/features/songs/screens/songs_screen.dart"
   },
   "viewMetadata": "View Metadata",
   "@viewMetadata": {
