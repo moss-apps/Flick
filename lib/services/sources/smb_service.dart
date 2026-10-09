@@ -41,6 +41,11 @@ class SmbService implements NetworkSourceService {
   SongRepository get _repo => _songRepository ??= SongRepository();
   NetworkCacheService get _cache => _networkCache ??= NetworkCacheService();
 
+  String? _lastPingError;
+
+  @override
+  String? get lastPingError => _lastPingError;
+
   @override
   String get protocol => NetworkProtocol.smb;
 
@@ -69,15 +74,38 @@ class SmbService implements NetworkSourceService {
 
   ({String host, int port, String share, String rootPath}) _parseServer(
     NetworkServerEntity server,
-  ) {
-    final uri = Uri.parse(server.baseUrl);
+  ) =>
+      parseServerUrl(server.baseUrl);
+
+  /// Parse a saved server URL into host/port/share/root. Accepts both
+  /// `smb://host/share/path` and the Windows form `\\host\share\path`.
+  /// Throws [FormatException] with user-facing text when the host or share is
+  /// missing; the edit screen shows it in the failure banner.
+  static ({String host, int port, String share, String rootPath})
+      parseServerUrl(String url) {
+    var source = url.trim();
+    if (source.startsWith(r'\\')) {
+      source = 'smb://${source.substring(2).replaceAll(r'\', '/')}';
+    }
+    final uri = Uri.parse(source);
+    if (uri.host.isEmpty) {
+      throw const FormatException(
+        'Missing server address — use smb://host/share (e.g. smb://nas/music).',
+      );
+    }
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    if (segments.isEmpty) {
+      throw const FormatException(
+        'Missing share name — use smb://host/share (e.g. smb://nas/music).',
+      );
+    }
     return (
       host: uri.host,
       port: uri.port == 0 ? 445 : uri.port,
-      share: segments.isNotEmpty ? Uri.decodeComponent(segments.first) : '',
-      rootPath:
-          segments.length > 1 ? segments.skip(1).map(Uri.decodeComponent).join('/') : '',
+      share: Uri.decodeComponent(segments.first),
+      rootPath: segments.length > 1
+          ? segments.skip(1).map(Uri.decodeComponent).join('/')
+          : '',
     );
   }
 
@@ -85,6 +113,7 @@ class SmbService implements NetworkSourceService {
 
   @override
   Future<bool> ping(NetworkServerEntity server) async {
+    _lastPingError = null;
     try {
       final s = _parseServer(server);
       await smbPing(
@@ -96,9 +125,54 @@ class SmbService implements NetworkSourceService {
       );
       return true;
     } catch (e) {
+      _lastPingError = e is FormatException ? e.message : describePingError(e);
       AppLog.instance.add('SMB ping failed: $e');
       return false;
     }
+  }
+
+  /// Turn an smb2 error into one actionable line for the failure banner. The
+  /// raw error still goes to [AppLog] for full detail.
+  static String describePingError(Object error) {
+    final raw = error.toString();
+    final lower = raw.toLowerCase();
+    if (lower.contains('authentication failed') ||
+        lower.contains('logon_failure')) {
+      return 'The server rejected the username or password. Check the '
+          'account — Samba may map unknown users to guest.';
+    }
+    if (lower.contains('bad_network_name') || lower.contains('name_not_found')) {
+      return 'The server answered but the share was not found. Check the '
+          'share name in the URL.';
+    }
+    if (lower.contains('access_denied') || lower.contains('access denied')) {
+      return 'Access denied. Check that the account can read this share.';
+    }
+    if (lower.contains('lookup') ||
+        lower.contains('resolve') ||
+        lower.contains('name or service not known')) {
+      return 'Could not resolve the server name. Try the IP address instead — '
+          'Android cannot resolve NetBIOS/.local names.';
+    }
+    if (lower.contains('timed out')) {
+      return 'Timed out. Use the server IP (not a NetBIOS/.local name), check '
+          'port 445, and that the phone is on the same network.';
+    }
+    if (lower.contains('connection refused')) {
+      return 'Connection refused. Check that file sharing is enabled and '
+          'port 445 is reachable.';
+    }
+    if (lower.contains('could not connect') ||
+        lower.contains('unreachable') ||
+        lower.contains('no route')) {
+      return 'Could not reach the server. Check the IP address, then that the '
+          'phone is on the same network.';
+    }
+    if (lower.contains('server stopped answering') ||
+        lower.contains('unresponsive')) {
+      return 'The server stopped answering. Check the server, then retry.';
+    }
+    return raw;
   }
 
   // --- Cover art + stream -------------------------------------------------

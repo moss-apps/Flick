@@ -72,6 +72,9 @@ class WebdavService implements NetworkSourceService {
   @override
   String get coverScheme => _coverMarkerScheme;
 
+  @override
+  String? get lastPingError => null;
+
   // --- Auth ---------------------------------------------------------------
 
   @override

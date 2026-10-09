@@ -6640,7 +6640,7 @@
   "@sCurve": {
     "description": "lib/features/settings/screens/audio_settings_screen.dart:248"
   },
-  "sambaWindowsShareTransportPending": "Samba · Windows share (transport pending)",
+  "sambaWindowsShareTransportPending": "Samba · Windows share",
   "@sambaWindowsShareTransportPending": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:90"
   },
@@ -7558,7 +7558,7 @@
   "@slope": {
     "description": "lib/providers/equalizer_provider.dart:64"
   },
-  "smbSharesCanBeAddedNow": "SMB shares can be added now, but streaming needs a native transport that is not yet wired into this build.",
+  "smbSharesCanBeAddedNow": "SMB2/3 shares connect through the built-in client. Enter the share URL (smb://host/share) and sign in if the server asks for it.",
   "@smbSharesCanBeAddedNow": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:405"
   },
@@ -7957,7 +7957,7 @@
   "@storedAsASaltedHashNever": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:61"
   },
-  "storedEncodedPlaybackUnavailableInThis": "Stored encoded; playback unavailable in this build",
+  "storedEncodedPlaybackUnavailableInThis": "Stored base64-encoded — required for NTLM sign-in",
   "@storedEncodedPlaybackUnavailableInThis": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:93"
   },

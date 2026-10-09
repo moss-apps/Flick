@@ -65,6 +65,9 @@ class UpnpService implements NetworkSourceService {
   String get coverScheme => _coverMarkerScheme;
 
   @override
+  String? get lastPingError => null;
+
+  @override
   Future<String?> resolveToken(
     NetworkServerEntity server,
     String password,

@@ -228,11 +228,13 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     }
     final entity = _draftEntity(token: token);
     try {
-      final ok = await networkSourceServiceFor(_selectedProtocol).ping(entity);
+      final service = networkSourceServiceFor(_selectedProtocol);
+      final ok = await service.ping(entity);
       if (!mounted) return;
       setState(() {
         _testing = false;
         _testPassed = ok;
+        if (!ok) _testError = service.lastPingError;
       });
     } catch (e) {
       if (!mounted) return;

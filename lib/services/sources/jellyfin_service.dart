@@ -81,6 +81,9 @@ class JellyfinService implements NetworkSourceService {
   @override
   String get coverScheme => _coverMarkerScheme;
 
+  @override
+  String? get lastPingError => null;
+
   String _base(NetworkServerEntity server) =>
       server.baseUrl.replaceAll(RegExp(r'/+$'), '');
 
