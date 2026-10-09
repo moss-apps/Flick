@@ -8476,7 +8476,7 @@ abstract class AppLocalizations {
   /// lib/features/settings/screens/network_server_edit_screen.dart:90
   ///
   /// In en, this message translates to:
-  /// **'Samba · Windows share (transport pending)'**
+  /// **'Samba · Windows share'**
   String get sambaWindowsShareTransportPending;
 
   /// lib/features/settings/widgets/mini_player_customization.dart:370
@@ -9766,7 +9766,7 @@ abstract class AppLocalizations {
   /// lib/features/settings/screens/network_server_edit_screen.dart:405
   ///
   /// In en, this message translates to:
-  /// **'SMB shares can be added now, but streaming needs a native transport that is not yet wired into this build.'**
+  /// **'SMB2/3 shares connect through the built-in client. Enter the share URL (smb://host/share) and sign in if the server asks for it.'**
   String get smbSharesCanBeAddedNow;
 
   /// lib/features/settings/screens/visualizer_settings_screen.dart:177
@@ -10222,7 +10222,7 @@ abstract class AppLocalizations {
   /// lib/features/settings/screens/network_server_edit_screen.dart:93
   ///
   /// In en, this message translates to:
-  /// **'Stored encoded; playback unavailable in this build'**
+  /// **'Stored base64-encoded — required for NTLM sign-in'**
   String get storedEncodedPlaybackUnavailableInThis;
 
   /// lib/models/song.dart:376

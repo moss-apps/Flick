@@ -4639,7 +4639,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sCurve => 'S 曲线';
 
   @override
-  String get sambaWindowsShareTransportPending => 'Samba · Windows 共享（传输待实现）';
+  String get sambaWindowsShareTransportPending => 'Samba · Windows 共享';
 
   @override
   String get sampleArtist => '示例艺术家';
@@ -5311,7 +5311,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get slope => '斜率';
 
   @override
-  String get smbSharesCanBeAddedNow => '现在可以添加 SMB 共享，但播放还需要一个尚未接入此版本的原生传输层。';
+  String get smbSharesCanBeAddedNow =>
+      'SMB2/3 共享通过内置客户端连接。请输入共享地址（smb://host/share），如服务器要求请先登录。';
 
   @override
   String get smooth => '平滑';
@@ -5572,7 +5573,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storedAsASaltedHashNever => '以加盐哈希存储，绝不保存明文';
 
   @override
-  String get storedEncodedPlaybackUnavailableInThis => '以编码形式存储；此版本不支持播放';
+  String get storedEncodedPlaybackUnavailableInThis =>
+      '以 Base64 编码存储——NTLM 登录需要此格式';
 
   @override
   String get stormChasers => '追风者';

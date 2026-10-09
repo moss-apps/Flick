@@ -4908,8 +4908,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sCurve => 'S-Curve';
 
   @override
-  String get sambaWindowsShareTransportPending =>
-      'Samba · Windows share (transport pending)';
+  String get sambaWindowsShareTransportPending => 'Samba · Windows share';
 
   @override
   String get sampleArtist => 'Sample artist';
@@ -5632,7 +5631,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get smbSharesCanBeAddedNow =>
-      'SMB shares can be added now, but streaming needs a native transport that is not yet wired into this build.';
+      'SMB2/3 shares connect through the built-in client. Enter the share URL (smb://host/share) and sign in if the server asks for it.';
 
   @override
   String get smooth => 'Smooth';
@@ -5924,7 +5923,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get storedEncodedPlaybackUnavailableInThis =>
-      'Stored encoded; playback unavailable in this build';
+      'Stored base64-encoded — required for NTLM sign-in';
 
   @override
   String get stormChasers => 'Storm Chasers';
