@@ -18,8 +18,14 @@ pub struct SmbProgress {
     pub is_complete: bool,
 }
 
+/// Format `host:port` for smb2. Bare IPv6 literals are bracketed so the
+/// host/port split stays unambiguous (`fe80::1` must become `[fe80::1]:445`).
 fn addr(host: &str, port: u16) -> String {
-    format!("{}:{}", host, port)
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{}]:{}", host, port)
+    } else {
+        format!("{}:{}", host, port)
+    }
 }
 
 /// Connect + open the share. Used by the ping flow; success means credentials
@@ -133,4 +139,17 @@ pub async fn smb_download_file(
     })
     .map_err(|err| anyhow::anyhow!(err.to_string()))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::addr;
+
+    #[test]
+    fn addr_brackets_bare_ipv6_hosts() {
+        assert_eq!(addr("fd00::1", 445), "[fd00::1]:445");
+        assert_eq!(addr("[fd00::1]", 445), "[fd00::1]:445");
+        assert_eq!(addr("192.168.1.10", 445), "192.168.1.10:445");
+        assert_eq!(addr("nas.local", 1445), "nas.local:1445");
+    }
 }
