@@ -92,6 +92,9 @@ class TidalService implements NetworkSourceService {
   @override
   String get coverScheme => _coverMarkerScheme;
 
+  @override
+  String? get lastPingError => null;
+
   _TidalCreds? _creds(String? token) {
     if (token == null || token.isEmpty) return null;
     try {

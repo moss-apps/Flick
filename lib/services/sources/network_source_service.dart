@@ -40,6 +40,11 @@ abstract class NetworkSourceService {
   /// on expected auth/network failures so the edit screen can show a banner.
   Future<bool> ping(NetworkServerEntity server);
 
+  /// Human-readable detail for the last false return from [ping], when the
+  /// implementation can provide one (SMB does; others do not). The edit screen
+  /// shows it in the failure banner; null keeps the generic fallback copy.
+  String? get lastPingError => null;
+
   /// Raw cover-art bytes for [marker] (the opaque id/path/url stored after
   /// [coverScheme] in [SongEntity.albumArtPath]).
   Future<List<int>> getCoverArt(NetworkServerEntity server, String marker);

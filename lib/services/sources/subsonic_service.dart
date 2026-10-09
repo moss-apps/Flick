@@ -62,6 +62,9 @@ class SubsonicService implements NetworkSourceService {
   String get coverScheme => networkCoverArtScheme;
 
   @override
+  String? get lastPingError => null;
+
+  @override
   Future<String?> resolveToken(NetworkServerEntity server, String password) async {
     // Local transform: salt + md5, no round-trip. The [server] is ignored.
     return buildToken(password);
