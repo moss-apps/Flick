@@ -542,6 +542,12 @@ abstract class AppLocalizations {
   /// **'Album Name'**
   String get albumName;
 
+  /// lib/features/songs/screens/songs_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Album options'**
+  String get albumOptions;
+
   /// lib/features/albums/screens/albums_screen.dart:252
   ///
   /// In en, this message translates to:
@@ -11538,6 +11544,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Vibrant'**
   String get vibrant;
+
+  /// lib/features/songs/screens/songs_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'View as grid'**
+  String get viewAsGrid;
+
+  /// lib/features/songs/screens/songs_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'View as list'**
+  String get viewAsList;
 
   /// lib/features/player/widgets/song_actions_sheet.dart:286
   ///

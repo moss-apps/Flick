@@ -686,6 +686,15 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                         playlistCount: playlists.length,
                       ),
                     ),
+                    if (appPreferences.showBrowseMore)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: AppConstants.spacingMd,
+                          ),
+                          child: _buildBrowseShortcuts(context),
+                        ),
+                      ),
                     SliverToBoxAdapter(
                         child: AnimatedSize(
                           duration: AppConstants.animationNormal,
@@ -1026,87 +1035,6 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                     ),
                           ),
                         ),
-                      if (appPreferences.showBrowseMore)
-                        SliverToBoxAdapter(
-                          child: _buildSection(
-                            context,
-                            title: 'Browse More',
-                            subtitle:
-                                'Library views and utilities that still belong close to the music.',
-                            child: SizedBox(
-                              height: 52,
-                              child: ListView.separated(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppConstants.spacingLg,
-                                ),
-                                scrollDirection: Axis.horizontal,
-                                itemCount: 6,
-                                separatorBuilder: (_, _) => const SizedBox(
-                                  width: AppConstants.spacingSm,
-                                ),
-                                itemBuilder: (context, index) {
-                                  return switch (index) {
-                                    0 => _BrowseChip(
-                                      icon: LucideIcons.library,
-                                      label: 'Library',
-                                      onTap: () {
-                                        if (widget.onNavigateToTab != null) {
-                                          widget.onNavigateToTab!(1);
-                                        } else {
-                                          _navigateTo(
-                                            context,
-                                            const SongsScreen(),
-                                          );
-                                        }
-                                      },
-                                    ),
-                                    1 => _BrowseChip(
-                                      icon: LucideIcons.disc,
-                                      label: 'Albums',
-                                      onTap: () => _navigateTo(
-                                        context,
-                                        const AlbumsScreen(),
-                                      ),
-                                    ),
-                                    2 => _BrowseChip(
-                                      icon: LucideIcons.folder,
-                                      label: 'Folders',
-                                      onTap: () => _navigateTo(
-                                        context,
-                                        const FoldersScreen(),
-                                      ),
-                                    ),
-                                    3 => _BrowseChip(
-                                      icon: LucideIcons.list,
-                                      label: 'Queue',
-                                      onTap: () => _navigateTo(
-                                        context,
-                                        const QueueScreen(),
-                                      ),
-                                    ),
-                                    4 => _BrowseChip(
-                                      icon: Icons.auto_graph_rounded,
-                                      label: 'Flick Replay',
-                                      highlighted: true,
-                                      onTap: () => _navigateTo(
-                                        context,
-                                        const ListeningRecapScreen(),
-                                      ),
-                                    ),
-                                    _ => _BrowseChip(
-                                      icon: LucideIcons.users,
-                                      label: 'Artists',
-                                      onTap: () => _navigateTo(
-                                        context,
-                                        const ArtistsScreen(),
-                                      ),
-                                    ),
-                                  };
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
                       const SliverToBoxAdapter(
                         child: SizedBox(
                           height: AppConstants.navBarHeight + 136,
@@ -1120,6 +1048,63 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBrowseShortcuts(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppConstants.spacingLg,
+        ),
+        scrollDirection: Axis.horizontal,
+        itemCount: 6,
+        separatorBuilder: (_, _) => const SizedBox(
+          width: AppConstants.spacingSm,
+        ),
+        itemBuilder: (context, index) {
+          return switch (index) {
+            0 => _BrowseChip(
+              icon: LucideIcons.library,
+              label: 'Library',
+              onTap: () {
+                if (widget.onNavigateToTab != null) {
+                  widget.onNavigateToTab!(1);
+                } else {
+                  _navigateTo(context, const SongsScreen());
+                }
+              },
+            ),
+            1 => _BrowseChip(
+              icon: LucideIcons.disc,
+              label: 'Albums',
+              onTap: () => _navigateTo(context, const AlbumsScreen()),
+            ),
+            2 => _BrowseChip(
+              icon: LucideIcons.folder,
+              label: 'Folders',
+              onTap: () => _navigateTo(context, const FoldersScreen()),
+            ),
+            3 => _BrowseChip(
+              icon: LucideIcons.list,
+              label: 'Queue',
+              onTap: () => _navigateTo(context, const QueueScreen()),
+            ),
+            4 => _BrowseChip(
+              icon: Icons.auto_graph_rounded,
+              label: 'Flick Replay',
+              highlighted: true,
+              onTap: () => _navigateTo(context, const ListeningRecapScreen()),
+            ),
+            _ => _BrowseChip(
+              icon: LucideIcons.users,
+              label: 'Artists',
+              onTap: () => _navigateTo(context, const ArtistsScreen()),
+            ),
+          };
+        },
       ),
     );
   }
@@ -2468,38 +2453,39 @@ class _QuickAccessCard extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              if (item.artPath != null)
-                Positioned(
-                  right: -10,
-                  bottom: -14,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(26),
-                    child: SizedBox(
-                      width: 82,
-                      height: 82,
-                      child: CachedImageWidget(
-                        imagePath: item.artPath!,
-                        fit: BoxFit.cover,
-                        useThumbnail: true,
-                        thumbnailWidth: 180,
-                        thumbnailHeight: 180,
-                      ),
-                    ),
-                  ),
-                ),
               Padding(
                 padding: const EdgeInsets.all(AppConstants.spacingMd),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(item.icon, color: Colors.white, size: 18),
+                    Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(item.icon, color: Colors.white, size: 18),
+                        ),
+                        const Spacer(),
+                        if (item.artPath != null)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: SizedBox(
+                              width: 36,
+                              height: 36,
+                              child: CachedImageWidget(
+                                imagePath: item.artPath!,
+                                fit: BoxFit.cover,
+                                useThumbnail: true,
+                                thumbnailWidth: 180,
+                                thumbnailHeight: 180,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const Spacer(),
                     Text(

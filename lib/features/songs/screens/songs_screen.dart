@@ -24,6 +24,7 @@ import 'package:flick/features/songs/widgets/sort_filter_bottom_sheet.dart';
 import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/screens/album_detail_screen.dart';
+import 'package:flick/features/settings/screens/casting_settings_screen.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/services/player_service.dart';
@@ -39,6 +40,8 @@ import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/l10n/l10n.dart';
 
 enum _AlbumGridSortOption { name, artist, tracks }
+
+enum _AlbumOverflowAction { viewMode, albumOptions, sortFilter }
 
 /// Main songs screen with orbital scrolling.
 class SongsScreen extends ConsumerStatefulWidget {
@@ -1901,68 +1904,132 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               if (isAlbumMode) ...[
-                _buildHeaderIconButton(
-                  context: context,
-                  icon: _albumIsListView
-                      ? LucideIcons.layoutGrid
-                      : LucideIcons.list,
-                  onTap: () => _setAlbumViewMode(!_albumIsListView),
-                ),
+                _buildCastButton(),
                 SizedBox(width: buttonGap),
                 _buildHeaderIconButton(
                   context: context,
-                  icon: LucideIcons.listFilter,
-                  onTap: () => _showAlbumFilterPopup(context, currentFilter),
+                  icon: LucideIcons.shuffle,
+                  onTap: () => _shufflePlayFromLibrary(songsAsync),
                 ),
-              ] else
+                SizedBox(width: buttonGap),
+                TutorialTargetAnchor(
+                  target: TutorialTarget.songsSortButton,
+                  child: _buildOverflowMenu(
+                    context,
+                    currentSort,
+                    currentFilter,
+                  ),
+                ),
+              ] else ...[
                 _buildHeaderIconButton(
                   context: context,
                   icon: LucideIcons.checkCheck,
                   onTap: () => _enterSelectionMode(null),
                 ),
-              SizedBox(width: buttonGap),
-              _buildHeaderIconButton(
-                context: context,
-                icon: LucideIcons.shuffle,
-                onTap: () => _shufflePlayFromLibrary(songsAsync),
-              ),
-              SizedBox(width: buttonGap),
-              TutorialTargetAnchor(
-                target: TutorialTarget.songsSortButton,
-                child: _buildHeaderIconButton(
+                SizedBox(width: buttonGap),
+                _buildHeaderIconButton(
                   context: context,
-                  icon: Icons.sort_rounded,
-                  onTap: () {
-                    SortFilterBottomSheet.show(
-                      context,
-                      currentSort: currentSort,
-                      currentFilter: currentFilter,
-                      onSortChanged: (option) {
-                        ref
-                            .read(songsProvider.notifier)
-                            .setSortOption(option);
-                        setState(() {
-                          _selectedIndex = 0;
-                          _lastSyncedSong = null;
-                        });
-                      },
-                      onFilterChanged: (filter) {
-                        ref
-                            .read(songsProvider.notifier)
-                            .setFileTypeFilter(filter);
-                        setState(() {
-                          _selectedIndex = 0;
-                          _lastSyncedSong = null;
-                        });
-                      },
-                    );
-                  },
+                  icon: LucideIcons.shuffle,
+                  onTap: () => _shufflePlayFromLibrary(songsAsync),
                 ),
-              ),
+                SizedBox(width: buttonGap),
+                TutorialTargetAnchor(
+                  target: TutorialTarget.songsSortButton,
+                  child: _buildHeaderIconButton(
+                    context: context,
+                    icon: Icons.sort_rounded,
+                    onTap: () => _showSortFilterSheet(
+                      context,
+                      currentSort,
+                      currentFilter,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCastButton() {
+    final isCasting = ref.watch(isCastingProvider);
+    return Tooltip(
+      message: isCasting ? l10n.castingTapToManage : l10n.cast,
+      child: _buildHeaderIconButton(
+        context: context,
+        icon: LucideIcons.cast,
+        iconColor: isCasting ? AppColors.accent : null,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const CastingSettingsScreen(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOverflowMenu(
+    BuildContext context,
+    SongSortOption currentSort,
+    SongFileTypeFilter currentFilter,
+  ) {
+    return SurfaceIconButton(
+      child: PopupMenuButton<_AlbumOverflowAction>(
+        icon: Icon(
+          LucideIcons.ellipsisVertical,
+          color: context.adaptiveTextPrimary,
+          size: context.responsiveIcon(AppConstants.iconSizeMd),
+        ),
+        color: AppColors.surface,
+        tooltip: l10n.moreActions,
+        onSelected: (action) {
+          switch (action) {
+            case _AlbumOverflowAction.viewMode:
+              _setAlbumViewMode(!_albumIsListView);
+            case _AlbumOverflowAction.albumOptions:
+              _showAlbumFilterPopup(context, currentFilter);
+            case _AlbumOverflowAction.sortFilter:
+              _showSortFilterSheet(context, currentSort, currentFilter);
+          }
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            value: _AlbumOverflowAction.viewMode,
+            child: _overflowMenuRow(
+              icon: _albumIsListView
+                  ? LucideIcons.layoutGrid
+                  : LucideIcons.list,
+              label: _albumIsListView ? l10n.viewAsGrid : l10n.viewAsList,
+            ),
+          ),
+          PopupMenuItem(
+            value: _AlbumOverflowAction.albumOptions,
+            child: _overflowMenuRow(
+              icon: LucideIcons.listFilter,
+              label: l10n.albumOptions,
+            ),
+          ),
+          PopupMenuItem(
+            value: _AlbumOverflowAction.sortFilter,
+            child: _overflowMenuRow(
+              icon: Icons.sort_rounded,
+              label: l10n.sortFilter,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _overflowMenuRow({required IconData icon, required String label}) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: context.adaptiveTextSecondary),
+        const SizedBox(width: 12),
+        Text(label),
+      ],
     );
   }
 
@@ -2033,10 +2100,12 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     required BuildContext context,
     required IconData icon,
     required VoidCallback onTap,
+    Color? iconColor,
   }) {
     return SurfaceIconButton.icon(
       icon: icon,
       onPressed: onTap,
+      iconColor: iconColor,
       compact: context.isCompact,
     );
   }
@@ -2080,6 +2149,32 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
             });
           },
         );
+      },
+    );
+  }
+
+  void _showSortFilterSheet(
+    BuildContext context,
+    SongSortOption currentSort,
+    SongFileTypeFilter currentFilter,
+  ) {
+    SortFilterBottomSheet.show(
+      context,
+      currentSort: currentSort,
+      currentFilter: currentFilter,
+      onSortChanged: (option) {
+        ref.read(songsProvider.notifier).setSortOption(option);
+        setState(() {
+          _selectedIndex = 0;
+          _lastSyncedSong = null;
+        });
+      },
+      onFilterChanged: (filter) {
+        ref.read(songsProvider.notifier).setFileTypeFilter(filter);
+        setState(() {
+          _selectedIndex = 0;
+          _lastSyncedSong = null;
+        });
       },
     );
   }

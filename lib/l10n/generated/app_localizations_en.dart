@@ -266,6 +266,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get albumName => 'Album Name';
 
   @override
+  String get albumOptions => 'Album options';
+
+  @override
   String get albums => 'Albums';
 
   @override
@@ -6703,6 +6706,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibrant => 'Vibrant';
+
+  @override
+  String get viewAsGrid => 'View as grid';
+
+  @override
+  String get viewAsList => 'View as list';
 
   @override
   String get viewMetadata => 'View Metadata';
