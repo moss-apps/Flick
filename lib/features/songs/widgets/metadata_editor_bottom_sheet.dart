@@ -335,7 +335,8 @@ class _MetadataEditorBottomSheetState
                   ],
                   _buildField(context, l10n.title, _titleController,
                       focusNode: _titleFocus,
-                      enabled: _isEditable && !_isSaving),
+                      enabled: _isEditable && !_isSaving,
+                      textInputAction: TextInputAction.next),
                   _buildField(context, l10n.artist, _artistController,
                       enabled: _isEditable && !_isSaving),
                   _buildField(context, l10n.album, _albumController,
@@ -449,6 +450,7 @@ class _MetadataEditorBottomSheetState
     FocusNode? focusNode,
     bool enabled = true,
     TextInputType keyboardType = TextInputType.text,
+    TextInputAction? textInputAction,
     String? errorText,
   }) {
     return Padding(
@@ -471,7 +473,7 @@ class _MetadataEditorBottomSheetState
             focusNode: focusNode,
             enabled: enabled,
             keyboardType: keyboardType,
-            textInputAction: label == 'Title' ? TextInputAction.next : null,
+            textInputAction: textInputAction,
             style: TextStyle(
               fontFamily: 'ProductSans',
               fontSize: 15,
