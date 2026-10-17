@@ -46,7 +46,7 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", 
 
 # ponytail: pure-Rust SMB2/3 client; cross-compiles to Android NDK like ureq.
 # Activates tokio "net" + "time" via feature unification (no manual enable needed).
-smb2 = "0.27"
+smb2 = "0.28"
 
 # Audio Engine Dependencies (available on all platforms including Android)
 cpal = { path = "vendor/cpal", optional = true, features = ["oboe-shared-stdcxx"] }
