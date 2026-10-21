@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:flick/services/lastfm/lastfm_credentials.dart';
+import 'package:flick/l10n/l10n.dart';
 
 /// Last.fm API constants for fallback (when user hasn't configured credentials).
 class LastFmConfig {
@@ -118,7 +119,7 @@ class LastFmApiClient {
     if (data.containsKey('error')) {
       throw LastFmApiException(
         data['error'] as int,
-        data['message'] as String? ?? 'Unknown Last.fm error',
+        data['message'] as String? ?? l10n.unknownLastFmError,
       );
     }
 

@@ -12,6 +12,7 @@ import '../models/song.dart';
 import 'album_art_service.dart';
 import 'player_service.dart';
 import 'sources/network_source_service.dart';
+import 'package:flick/l10n/l10n.dart';
 
 class AlbumArtImportException implements Exception {
   const AlbumArtImportException(this.message);
@@ -154,7 +155,7 @@ class AlbumArtImportService {
         .timeout(_requestTimeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw AlbumArtImportException(
-        'Failed to download album art (HTTP ${response.statusCode}).',
+        l10n.failedToDownloadAlbumArt(response.statusCode),
       );
     }
 
@@ -170,7 +171,7 @@ class AlbumArtImportService {
         .timeout(_requestTimeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw AlbumArtImportException(
-        'Failed to download album art (HTTP ${response.statusCode}).',
+        l10n.failedToDownloadAlbumArt(response.statusCode),
       );
     }
 
@@ -182,9 +183,7 @@ class AlbumArtImportService {
     required Uint8List bytes,
   }) async {
     if (!_looksLikeImage(bytes)) {
-      throw const AlbumArtImportException(
-        'Selected file is not a supported image.',
-      );
+      throw AlbumArtImportException(l10n.selectedFileIsNotASupported);
     }
 
     final group = await _resolveAlbumGroup(song);
@@ -211,7 +210,7 @@ class AlbumArtImportService {
         .toSet();
 
     if (customPaths.isEmpty) {
-      throw const AlbumArtImportException('No custom album art is set yet.');
+      throw AlbumArtImportException(l10n.noCustomAlbumArtIsSet);
     }
 
     await _songRepository.updateAlbumArtPaths(filePaths, null);
@@ -240,16 +239,12 @@ class AlbumArtImportService {
     required Uint8List bytes,
   }) async {
     if (!_looksLikeImage(bytes)) {
-      throw const AlbumArtImportException(
-        'Selected file is not a supported image.',
-      );
+      throw AlbumArtImportException(l10n.selectedFileIsNotASupported);
     }
 
     final filePath = song.filePath;
     if (filePath == null || filePath.isEmpty) {
-      throw const AlbumArtImportException(
-        'Song has no file path.',
-      );
+      throw AlbumArtImportException(l10n.songHasNoFilePath);
     }
 
     final file = await _writeCustomArtwork(filePath, bytes);
@@ -266,14 +261,12 @@ class AlbumArtImportService {
   Future<AlbumArtUpdateResult> removeCustomArtworkForSong(Song song) async {
     final filePath = song.filePath;
     if (filePath == null || filePath.isEmpty) {
-      throw const AlbumArtImportException(
-        'Song has no file path.',
-      );
+      throw AlbumArtImportException(l10n.songHasNoFilePath);
     }
 
     final currentPath = song.albumArt;
     if (currentPath == null || !isCustomArtworkPath(currentPath)) {
-      throw const AlbumArtImportException('No custom album art is set yet.');
+      throw AlbumArtImportException(l10n.noCustomAlbumArtIsSet);
     }
 
     await _songRepository.updateAlbumArtPath(filePath, null);
@@ -332,9 +325,7 @@ class AlbumArtImportService {
     }
 
     if (filePaths.isEmpty) {
-      throw const AlbumArtImportException(
-        'No library files were found for this album.',
-      );
+      throw AlbumArtImportException(l10n.noLibraryFilesForThisAlbum);
     }
 
     for (final path in filePaths) {
@@ -640,9 +631,7 @@ class AlbumArtImportService {
 
     final decoded = jsonDecode(response.body);
     if (decoded is! Map<String, dynamic>) {
-      throw const AlbumArtImportException(
-        'Artwork lookup returned invalid data.',
-      );
+      throw AlbumArtImportException(l10n.artworkLookupInvalidData);
     }
 
     return decoded;
@@ -662,9 +651,7 @@ class AlbumArtImportService {
   Future<AlbumGroup> _resolveAlbumGroup(Song song) async {
     final group = await _songRepository.getAlbumGroupForSong(song);
     if (group == null || group.songs.isEmpty) {
-      throw const AlbumArtImportException(
-        'Could not resolve the album for this song.',
-      );
+      throw AlbumArtImportException(l10n.couldNotResolveTheAlbum);
     }
     return group;
   }
@@ -677,9 +664,7 @@ class AlbumArtImportService {
         .toSet()
         .toList();
     if (filePaths.isEmpty) {
-      throw const AlbumArtImportException(
-        'No library files were found for this album.',
-      );
+      throw AlbumArtImportException(l10n.noLibraryFilesForThisAlbum);
     }
     return filePaths;
   }
@@ -860,15 +845,15 @@ class AlbumArtImportService {
     }
     if (error is _AlbumArtHttpException) {
       if (error.statusCode == 503) {
-        return const AlbumArtImportException(
-          'Artwork lookup is temporarily unavailable.',
+        return AlbumArtImportException(
+          l10n.artworkLookupTemporarilyUnavailable,
         );
       }
       return AlbumArtImportException(
-        'Artwork lookup failed (HTTP ${error.statusCode}).',
+        l10n.artworkLookupFailed(error.statusCode),
       );
     }
-    return const AlbumArtImportException('Failed to search album art online.');
+    return AlbumArtImportException(l10n.failedToSearchAlbumArtOnline);
   }
 }
 

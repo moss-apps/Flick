@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/services/eq_preset_service.dart';
+import 'package:flick/l10n/l10n.dart';
 
 /// Result of parsing a preset file: the preset plus any values that had to be
 /// clamped to Flick's supported ranges (so the UI can surface them instead of
@@ -87,7 +88,7 @@ class EqPresetFileService {
     if (trimmed.startsWith('{')) {
       final decoded = jsonDecode(text);
       if (decoded is! Map) {
-        throw const FormatException('Expected a JSON object.');
+        throw FormatException(l10n.expectedAJsonObject);
       }
       final preset = EqPreset.fromJson(decoded.cast<String, dynamic>());
       return EqPresetImportResult(
@@ -112,7 +113,7 @@ class EqPresetFileService {
         .toList(growable: false);
 
     if (lines.isEmpty) {
-      throw const FormatException('Preset file is empty.');
+      throw FormatException(l10n.presetFileIsEmpty);
     }
 
     double preampDb = 0.0;
@@ -182,13 +183,13 @@ class EqPresetFileService {
     }
 
     if (bands.isEmpty) {
-      throw const FormatException('No filters found in preset file.');
+      throw FormatException(l10n.noFiltersFoundInPresetFile);
     }
 
     return EqPresetImportResult(
       preset: EqPreset(
         id: '',
-        name: fileName.isEmpty ? 'Imported Preset' : fileName,
+        name: fileName.isEmpty ? l10n.importedPreset : fileName,
         enabled: true,
         mode: EqMode.parametric,
         preampDb: preampDb,

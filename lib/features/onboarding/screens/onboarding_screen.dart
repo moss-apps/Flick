@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/providers/onboarding_provider.dart';
 import 'package:flick/providers/tutorial_provider.dart';
 
@@ -22,36 +23,39 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   int _currentPage = 0;
 
   static const int _totalPages = 5;
-  static const List<_StepData> _steps = [
+
+  /// The five pages, built at build time rather than held in a `static const`.
+  ///
+  /// These were a `const` list of English literals, which is why the screen a
+  /// new user sees first stayed in English in every locale: `l10n` is a runtime
+  /// accessor and cannot appear in a `const` expression, so the codemod that
+  /// converted the rest of the app skipped them. The line breaks are part of the
+  /// layout (the title is set at 38pt/0.92), so they live in the translations.
+  List<_StepData> _steps(AppLocalizations l10n) => [
     _StepData(
       icon: LucideIcons.zap,
-      title: 'Welcome to\nFlick Player',
-      description:
-          'A beautiful, fast music player\nbuilt for your local library.\nNo ads. No tracking. Just music.',
+      title: l10n.onboardingWelcomeTitle,
+      description: l10n.onboardingWelcomeBody,
     ),
     _StepData(
       icon: LucideIcons.folderOpen,
-      title: 'Build Your\nLibrary',
-      description:
-          'Head to Settings and tap\nMusic Folders to scan your\ndevice. Supports MP3, FLAC,\nAAC, WAV, and more.',
+      title: l10n.onboardingLibraryTitle,
+      description: l10n.onboardingLibraryBody,
     ),
     _StepData(
       icon: LucideIcons.layoutGrid,
-      title: 'Browse\nYour Music',
-      description:
-          'Swipe between tabs to explore\nSongs, Artists, Albums, and\nPlaylists. Sort and search\nyour entire collection.',
+      title: l10n.onboardingBrowseTitle,
+      description: l10n.onboardingBrowseBody,
     ),
     _StepData(
       icon: LucideIcons.music,
-      title: 'Rich\nPlayback',
-      description:
-          'Tap any song for the full player\nwith waveform seek bar,\nequalizer, lyrics, and ambient\nalbum art visuals.',
+      title: l10n.onboardingPlaybackTitle,
+      description: l10n.onboardingPlaybackBody,
     ),
     _StepData(
       icon: LucideIcons.headphones,
-      title: "You're\nAll Set",
-      description:
-          'Start exploring your music.\nSit back, relax, and enjoy\nthe sound of Flick Player.',
+      title: l10n.onboardingReadyTitle,
+      description: l10n.onboardingReadyBody,
     ),
   ];
 
@@ -105,6 +109,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final steps = _steps(l10n);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -122,7 +128,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                     onPageChanged: (index) {
                       setState(() => _currentPage = index);
                     },
-                    children: _steps.map((step) {
+                    children: steps.map((step) {
                       return AnimatedSwitcher(
                         duration: AppConstants.animationNormal,
                         switchInCurve: Curves.easeOutCubic,
@@ -145,6 +151,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   Widget _buildHeader() {
+    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppConstants.spacingMd,
@@ -163,9 +170,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                   vertical: AppConstants.spacingXs,
                 ),
               ),
-              child: const Text(
-                'Skip',
-                style: TextStyle(
+              child: Text(
+                l10n.skip,
+                style: const TextStyle(
                   fontFamily: 'GoogleSansFlex',
                   fontSize: AppConstants.fontSizeMd,
                   fontWeight: FontWeight.w500,
@@ -188,10 +195,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         AppConstants.spacingXl,
         AppConstants.spacingXl,
       ),
+      // The dots and the action button share one row, and the button's label is
+      // a fourth the width of "Next" again in Chinese (下一步 + the chevron).
+      // A fixed Row overflowed by 8.9px on a 320dp phone at 2x text scale in
+      // zh, while English still fitted, so the dots give up their space first.
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildDots(),
+          Flexible(child: _buildDots()),
           _buildActionButton(isLastPage: isLastPage),
         ],
       ),
@@ -199,40 +210,45 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   Widget _buildDots() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(_totalPages, (index) {
-        final isActive = index == _currentPage;
-        return AnimatedContainer(
-          duration: AppConstants.animationFast,
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: isActive ? 28 : 8,
-          height: 8,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            gradient: isActive
-                ? const LinearGradient(
-                    colors: [Color(0xFFEDF6FF), Color(0xFF8AB7FF)],
-                  )
-                : null,
-            color: isActive ? null : AppColors.inactiveState,
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF8AB7FF).withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-        );
-      }),
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(_totalPages, (index) {
+          final isActive = index == _currentPage;
+          return AnimatedContainer(
+            duration: AppConstants.animationFast,
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            width: isActive ? 28 : 8,
+            height: 8,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              gradient: isActive
+                  ? const LinearGradient(
+                      colors: [Color(0xFFEDF6FF), Color(0xFF8AB7FF)],
+                    )
+                  : null,
+              color: isActive ? null : AppColors.inactiveState,
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF8AB7FF).withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+          );
+        }),
+      ),
     );
   }
 
   Widget _buildActionButton({required bool isLastPage}) {
+    final l10n = context.l10n;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
@@ -266,7 +282,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              isLastPage ? 'Get Started' : 'Next',
+              isLastPage ? l10n.getStarted : l10n.next,
               style: const TextStyle(
                 fontFamily: 'GoogleSansFlex',
                 fontSize: AppConstants.fontSizeMd,
@@ -385,7 +401,8 @@ class _OnboardingBackdropState extends State<_OnboardingBackdrop>
     final next = (base + 1).clamp(0, _orbConfigs.length - 1);
     final t = _page - _page.floor();
     return [
-      for (int i = 0; i < 3; i++) _orbConfigs[base][i].lerp(_orbConfigs[next][i], t),
+      for (int i = 0; i < 3; i++)
+        _orbConfigs[base][i].lerp(_orbConfigs[next][i], t),
     ];
   }
 
@@ -424,7 +441,13 @@ class _OnboardingBackdropState extends State<_OnboardingBackdrop>
     );
   }
 
-  Widget _buildOrb(_OrbState orb, int index, double breath, double w, double h) {
+  Widget _buildOrb(
+    _OrbState orb,
+    int index,
+    double breath,
+    double w,
+    double h,
+  ) {
     // Each orb breathes with a slightly different phase offset
     final phase = math.sin((breath + index * 0.33) * math.pi);
     final sizeScale = 1.0 + phase * 0.08; // ±8% size pulse
@@ -435,11 +458,7 @@ class _OnboardingBackdropState extends State<_OnboardingBackdrop>
     return Positioned(
       left: orb.x * w + offsetX - s / 2,
       top: orb.y * h + offsetY - s / 2,
-      child: _GlowOrb(
-        size: s,
-        color: orb.color,
-        opacity: 0.85 + phase * 0.15,
-      ),
+      child: _GlowOrb(size: s, color: orb.color, opacity: 0.85 + phase * 0.15),
     );
   }
 }
@@ -467,10 +486,7 @@ class _StepContent extends StatelessWidget {
                 colors: [Color(0x26FFFFFF), Color(0x08FFFFFF)],
               ),
               borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-              border: Border.all(
-                color: const Color(0x33FFFFFF),
-                width: 1,
-              ),
+              border: Border.all(color: const Color(0x33FFFFFF), width: 1),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF8AB7FF).withValues(alpha: 0.08),
@@ -519,11 +535,7 @@ class _GlowOrb extends StatelessWidget {
   final Color color;
   final double opacity;
 
-  const _GlowOrb({
-    required this.size,
-    required this.color,
-    this.opacity = 1.0,
-  });
+  const _GlowOrb({required this.size, required this.color, this.opacity = 1.0});
 
   @override
   Widget build(BuildContext context) {
@@ -534,9 +546,7 @@ class _GlowOrb extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [color, color.withValues(alpha: 0)],
-          ),
+          gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
         ),
       ),
     );
@@ -554,4 +564,3 @@ class _StepData {
     required this.description,
   });
 }
-

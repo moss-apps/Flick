@@ -485,10 +485,12 @@ class _MainShellState extends ConsumerState<MainShell>
 
     ScaffoldMessenger.of(context).showFlickSnackBar(
       SnackBar(
-        content: const Text('Playback desynced'),
+        // The global accessor, not `context.l10n`: this listener runs outside
+        // build, and it is what the rest of `_FlickAppState` already reads.
+        content: Text(l10n.playbackDesynced),
         duration: const Duration(days: 1),
         action: SnackBarAction(
-          label: 'Sync',
+          label: l10n.sync,
           onPressed: () {
             _playerService.syncNow();
           },
@@ -733,13 +735,12 @@ class _MainShellState extends ConsumerState<MainShell>
     if (_lastBackPressTime == null ||
         now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
       _lastBackPressTime = now;
-      ScaffoldMessenger.of(context)
-        .showFlickSnackBar(
-          const SnackBar(
-            content: Text('Press back again to exit'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+      ScaffoldMessenger.of(context).showFlickSnackBar(
+        SnackBar(
+          content: Text(l10n.pressBackAgainToExit),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     } else {
       SystemNavigator.pop();
     }

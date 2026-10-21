@@ -662,16 +662,20 @@ class _ReplayTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final prefs = ref.watch(appPreferencesProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader('Background'),
+        SettingsSectionHeader(l10n.background),
         SettingsCard(
           children: [
+            // The four look *names* (Acid / Night / Signal / Album) stay as they
+            // are: they are the names of shipped widgets, the same way 'Orbital'
+            // is a view-mode name. Their descriptions are prose and are translated.
             _ReplayLookOption(
               label: 'Acid',
-              subtitle: 'Neon lime with signal-orange Replay accents',
+              subtitle: l10n.neonLimeWithSignalOrangeReplay,
               icon: LucideIcons.sparkles,
               value: 'acid',
               groupValue: prefs.widgetReplayLook,
@@ -680,7 +684,7 @@ class _ReplayTab extends ConsumerWidget {
             const SettingsDivider(),
             _ReplayLookOption(
               label: 'Night',
-              subtitle: 'Ink card with the Replay signature accents',
+              subtitle: l10n.inkCardWithTheReplaySignature,
               icon: LucideIcons.moon,
               value: 'night',
               groupValue: prefs.widgetReplayLook,
@@ -689,7 +693,7 @@ class _ReplayTab extends ConsumerWidget {
             const SettingsDivider(),
             _ReplayLookOption(
               label: 'Signal',
-              subtitle: 'Signal orange surface from the Replay cover',
+              subtitle: l10n.signalOrangeSurfaceFromTheReplay,
               icon: LucideIcons.zap,
               value: 'signal',
               groupValue: prefs.widgetReplayLook,
@@ -698,7 +702,7 @@ class _ReplayTab extends ConsumerWidget {
             const SettingsDivider(),
             _ReplayLookOption(
               label: 'Album',
-              subtitle: "Tinted from today's top cover",
+              subtitle: l10n.tintedFromTodaySTopCover,
               icon: LucideIcons.image,
               value: 'artwork',
               groupValue: prefs.widgetReplayLook,

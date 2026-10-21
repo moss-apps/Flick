@@ -12,6 +12,7 @@ import '../library_scanner_service.dart' show ScanProgress;
 import '../network_cache_service.dart';
 import 'jellyfin_password_store.dart';
 import 'network_source_service.dart';
+import 'package:flick/l10n/l10n.dart';
 
 /// Jellyfin / Emby REST client (JSON).
 ///
@@ -183,7 +184,7 @@ class JellyfinService implements NetworkSourceService {
         ((body['SessionInfo'] as Map<String, dynamic>?)?['AccessToken']
             as String?);
     if (userId == null || accessToken == null) {
-      throw JellyfinNetworkException('Authentication response missing token');
+      throw JellyfinNetworkException(l10n.authenticationResponseMissingToken);
     }
     return jsonEncode({'userId': userId, 'token': accessToken});
   }

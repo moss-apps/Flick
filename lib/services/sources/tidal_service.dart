@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:flick/l10n/l10n.dart';
 import '../../core/utils/dev_log.dart';
 import '../../data/database.dart';
 import '../../data/repositories/song_repository.dart';
@@ -146,7 +147,7 @@ class TidalService implements NetworkSourceService {
     final intervalSec = (dev['interval'] as num?)?.toInt() ?? 5;
     final expiresInSec = (dev['expiresIn'] as num?)?.toInt() ?? 300;
     if (deviceCode == null || verificationUri == null) {
-      throw TidalException('Tidal did not return a sign-in code.');
+      throw TidalException(l10n.tidalNoSignInCode);
     }
     // Opening the browser can throw (e.g. Android ACTIVITY_NOT_FOUND when no
     // app handles the link). Treat a throw the same as a false return — with a
@@ -163,9 +164,7 @@ class TidalService implements NetworkSourceService {
         onVerificationLink(verificationUri);
       } else {
         throw TidalException(
-          "Couldn't open the browser automatically. Open this link on any "
-          'device to finish signing in, then tap Sign in again:\n\n'
-          '$verificationUri',
+          l10n.tidalOpenLinkManually(verificationUri),
           verificationUri: verificationUri,
         );
       }
@@ -199,9 +198,9 @@ class TidalService implements NetworkSourceService {
       }
       switch (tok['error']) {
         case 'expired_token':
-          throw TidalException('The Tidal sign-in code expired. Try again.');
+          throw TidalException(l10n.tidalSignInExpired);
         case 'access_denied':
-          throw TidalException('Tidal sign-in was denied.');
+          throw TidalException(l10n.tidalSignInDenied);
         case 'slow_down':
           sleep += 5;
           break;
@@ -209,7 +208,7 @@ class TidalService implements NetworkSourceService {
           break; // authorization_pending — keep polling.
       }
     }
-    throw TidalException('Timed out waiting for Tidal sign-in.');
+    throw TidalException(l10n.tidalSignInTimedOut);
   }
 
   /// Resolve the user id + country code from the bearer `/sessions` endpoint.
@@ -244,7 +243,7 @@ class TidalService implements NetworkSourceService {
   Future<_TidalCreds> _ensureValidToken(NetworkServerEntity server) async {
     final creds = _creds(server.token);
     if (creds == null) {
-      throw TidalException('No Tidal sign-in. Tap "Sign in with Tidal".');
+      throw TidalException(l10n.tidalNotSignedIn);
     }
     final nearExpiry = creds.expiresAtMs == null ||
         DateTime.now().millisecondsSinceEpoch > creds.expiresAtMs! - 60000;
@@ -260,7 +259,7 @@ class TidalService implements NetworkSourceService {
   ) async {
     final refresh = old.refreshToken;
     if (refresh == null) {
-      throw TidalException('Tidal session expired. Please sign in again.');
+      throw TidalException(l10n.tidalSessionExpired);
     }
     final tok = await _postForm('$_authBase/token', {
       'client_id': clientId,
@@ -270,7 +269,7 @@ class TidalService implements NetworkSourceService {
     });
     final access = tok['access_token'] as String?;
     if (access == null) {
-      throw TidalException('Tidal token refresh failed.');
+      throw TidalException(l10n.tidalTokenRefreshFailed);
     }
     final updated = _TidalCreds(
       accessToken: access,
@@ -361,19 +360,18 @@ class TidalService implements NetworkSourceService {
   static String _friendlyHttp(int status, Map<String, dynamic>? parsed) {
     final err = parsed?['error'] as String?;
     if (err == 'invalid_client') {
-      return 'Tidal rejected the app sign-in key. It rotates these — the built-in '
-          'key may be out of date (a known limitation of the unofficial path).';
+      return l10n.tidalAppKeyRejected;
     }
     if (status == 401 || status == 403) {
-      return 'Tidal refused the sign-in. Try again.';
+      return l10n.tidalSignInRefused;
     }
     if (status == 429) {
-      return 'Too many Tidal requests. Wait a moment and try again.';
+      return l10n.tidalTooManyRequests;
     }
     if (status >= 500) {
-      return 'Tidal is unavailable right now. Try again shortly.';
+      return l10n.tidalUnavailable;
     }
-    return 'Could not reach Tidal (HTTP $status). Check your connection.';
+    return l10n.tidalCouldNotReach(status);
   }
 
   // --- ping --------------------------------------------------------------
@@ -447,7 +445,7 @@ class TidalService implements NetworkSourceService {
 
     final resolved = await _resolveStreamable(server, remoteId);
     if (resolved == null) {
-      throw TidalException('No playable stream for $remoteId.');
+      throw TidalException(l10n.tidalNoPlayableStream);
     }
     final request = http.Request('GET', Uri.parse(resolved.url));
     final response =
@@ -488,8 +486,7 @@ class TidalService implements NetworkSourceService {
     final manifest = info['manifest'] as String?;
     if (mime != 'application/vnd.tidal.bts' || manifest == null) {
       throw TidalException(
-        'Track $trackId uses an unsupported Tidal format (HiRes/MQA/Atmos). '
-        'Only unencrypted HiFi lossless is supported.',
+        l10n.tidalUnsupportedFormat(trackId),
       );
     }
     final Map<String, dynamic> decoded;
@@ -497,17 +494,16 @@ class TidalService implements NetworkSourceService {
       decoded =
           jsonDecode(utf8.decode(base64Decode(manifest))) as Map<String, dynamic>;
     } catch (e) {
-      throw TidalException('Could not decode Tidal manifest for $trackId: $e');
+      throw TidalException(l10n.tidalManifestDecodeFailed(trackId));
     }
     if (decoded['encryptionType'] != 'NONE') {
       throw TidalException(
-        'Track $trackId is encrypted (HiRes/MQA). Only unencrypted HiFi '
-        'lossless is supported.',
+        l10n.tidalEncryptedTrack(trackId),
       );
     }
     final urls = decoded['urls'] as List<dynamic>?;
     if (urls == null || urls.isEmpty) {
-      throw TidalException('Track $trackId manifest has no stream URL.');
+      throw TidalException(l10n.tidalManifestNoStream(trackId));
     }
     return (
       url: urls.first as String,
@@ -539,7 +535,7 @@ class TidalService implements NetworkSourceService {
   Stream<ScanProgress> syncLibrary(NetworkServerEntity server) async* {
     final creds = _creds(server.token);
     if (creds == null || creds.userId == null || creds.userId!.isEmpty) {
-      throw TidalException('No Tidal sign-in. Tap "Sign in with Tidal".');
+      throw TidalException(l10n.tidalNotSignedIn);
     }
     // ponytail: sync the user's favorite tracks (paginated, capped). Favorites
     // map 1:1 to SongEntity with embedded album/artist metadata. Pulling full

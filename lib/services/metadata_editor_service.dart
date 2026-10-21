@@ -93,7 +93,7 @@ class MetadataEditorService {
       // No SAF route available — surface the original failure.
       return MetadataWriteResult(
         MetadataWriteOutcome.failed,
-        message: direct.error ?? 'Failed to write tags to the file.',
+        message: direct.error ?? l10n.failedToWriteTagsToTheFile,
       );
     } catch (e) {
       return MetadataWriteResult(
@@ -165,7 +165,7 @@ class MetadataEditorService {
       return MetadataWriteResult(
         MetadataWriteOutcome.failed,
         message:
-            'Could not prepare the edited file: ${temp.error ?? "unknown error"}',
+            l10n.couldNotPrepareTheEditedFile(temp.error ?? 'unknown'),
       );
     }
 

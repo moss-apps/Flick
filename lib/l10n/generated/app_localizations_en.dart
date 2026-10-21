@@ -432,6 +432,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Android Developer Options — the reliable way to switch codec (in-app forcing uses a hidden system API that is blocked on stock Android)';
 
   @override
+  String get androidDidNotReturnGalleryPath =>
+      'Android did not return a gallery path for the saved image.';
+
+  @override
   String get androidDockRoute => 'Android dock route';
 
   @override
@@ -582,6 +586,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get artworkCard => 'Artwork Card';
 
   @override
+  String artworkLookupFailed(int status) {
+    return 'Artwork lookup failed (HTTP $status).';
+  }
+
+  @override
+  String get artworkLookupInvalidData =>
+      'Artwork lookup returned invalid data.';
+
+  @override
+  String get artworkLookupTemporarilyUnavailable =>
+      'Artwork lookup is temporarily unavailable.';
+
+  @override
   String get artworkPlacement => 'Artwork placement';
 
   @override
@@ -627,6 +644,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aug => 'Aug';
+
+  @override
+  String get auroraSounds => 'Aurora Sounds';
+
+  @override
+  String get authenticationResponseMissingToken =>
+      'Authentication response missing token';
 
   @override
   String get auto => 'Auto';
@@ -1513,12 +1537,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get couldNotOpenThePlayStore3 => 'Could not open the Play Store';
 
   @override
+  String couldNotPrepareTheEditedFile(String error) {
+    return 'Could not prepare the edited file: $error';
+  }
+
+  @override
+  String get couldNotReachTheServer =>
+      'Could not reach the server. Check the URL and credentials, then try again.';
+
+  @override
   String get couldNotReadTheCoverColors =>
       'Could not read the cover colors. Signal is still available.';
 
   @override
+  String get couldNotReadTheSelectedImage =>
+      'Could not read the selected image.';
+
+  @override
   String get couldNotReadTheSelectedLyrics =>
       'Could not read the selected lyrics file.';
+
+  @override
+  String get couldNotResolveTheAlbum =>
+      'Could not resolve the album for this song.';
 
   @override
   String get couldNotSaveTheLyricsFile => 'Could not save the lyrics file.';
@@ -2256,6 +2297,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editToken => 'Edit Token';
 
   @override
+  String get electricSunset => 'Electric Sunset';
+
+  @override
   String get empty => 'Empty';
 
   @override
@@ -2410,6 +2454,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get expandedHeaderArt => 'Expanded Header Art';
 
   @override
+  String get expectedAJsonObject => 'Expected a JSON object.';
+
+  @override
   String get experimental => 'Experimental';
 
   @override
@@ -2494,6 +2541,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get failedToDeactivateFallback => 'Failed to deactivate fallback';
 
   @override
+  String failedToDownloadAlbumArt(int status) {
+    return 'Failed to download album art (HTTP $status).';
+  }
+
+  @override
+  String failedToGetPersistedUris(String? error) {
+    return 'Failed to get persisted URIs: $error';
+  }
+
+  @override
   String get failedToImportPresetFile => 'Failed to import preset file.';
 
   @override
@@ -2507,6 +2564,29 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String failedToOpenFolderPicker(String? error) {
+    return 'Failed to open folder picker: $error';
+  }
+
+  @override
+  String get failedToPersistFolderAccess => 'Failed to persist folder access';
+
+  @override
+  String failedToPersistPermission(String? error) {
+    return 'Failed to persist permission: $error';
+  }
+
+  @override
+  String failedToReadBatteryOptimizationStatus(String? error) {
+    return 'Failed to read battery optimization status: $error';
+  }
+
+  @override
+  String failedToReleasePermission(String? error) {
+    return 'Failed to release permission: $error';
+  }
+
+  @override
   String failedToRemoveFolder(Object e) {
     return 'Failed to remove folder: $e';
   }
@@ -2517,6 +2597,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String failedToRequestBatteryOptimizationBypass(String? error) {
+    return 'Failed to request battery optimization bypass: $error';
+  }
+
+  @override
+  String get failedToSave => 'Failed to save';
+
+  @override
   String failedToSaveMetadata(Object e) {
     return 'Failed to save metadata: $e';
   }
@@ -2525,10 +2613,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get failedToSaveMetadata2 => 'Failed to save metadata.';
 
   @override
+  String get failedToSaveTheRecapImage =>
+      'Failed to save the recap image to your gallery.';
+
+  @override
+  String get failedToSearchAlbumArtOnline =>
+      'Failed to search album art online.';
+
+  @override
   String get failedToStartStreaming => 'Failed to start streaming';
 
   @override
   String get failedToStopStreaming => 'Failed to stop streaming';
+
+  @override
+  String get failedToWritePlaylistFile => 'Failed to write playlist file';
+
+  @override
+  String get failedToWriteTagsToTheFile => 'Failed to write tags to the file.';
 
   @override
   String get faintHueShiftFromAlbumArt => 'Faint hue shift from album art.';
@@ -3219,6 +3321,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Imported art is saved inside the app for this song only.';
 
   @override
+  String get importedPreset => 'Imported Preset';
+
+  @override
   String importedWithSongs(Object arg1, Object arg2, Object unmatchedText) {
     return 'Imported \"$arg1\" with $arg2 songs.$unmatchedText';
   }
@@ -3259,7 +3364,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get initializing => 'Initializing…';
 
   @override
+  String get inkCardWithTheReplaySignature =>
+      'Ink card with the Replay signature accents';
+
+  @override
   String get inputGain => 'Input Gain';
+
+  @override
+  String get insertIntoTheCurrentQueueFallBackToResults =>
+      'Insert into the current queue, fall back to results';
 
   @override
   String get inst => 'Inst';
@@ -3284,6 +3397,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get interfaceLabel => 'Interface';
+
+  @override
+  String get invalidToken => 'Invalid token';
 
   @override
   String isOfflineRetainedSongsStillListed(Object folder) {
@@ -3946,6 +4062,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get midnightCityDreams => 'Midnight City Dreams';
 
   @override
+  String get midnightDreams => 'Midnight Dreams';
+
+  @override
   String get midnightSignal => 'Midnight Signal';
 
   @override
@@ -4196,7 +4315,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get neonLimeWithSignalOrangeReplay =>
+      'Neon lime with signal-orange Replay accents';
+
+  @override
   String get neonNights => 'Neon Nights';
+
+  @override
+  String get neonPulse => 'Neon Pulse';
 
   @override
   String get neonSkyline => 'Neon Skyline';
@@ -4279,6 +4405,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'No changelog notes for this version yet.';
 
   @override
+  String get noCustomAlbumArtIsSet => 'No custom album art is set yet.';
+
+  @override
   String get noCustomPresetsYet => 'No custom presets yet.';
 
   @override
@@ -4291,6 +4420,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noFeaturedTrackYet => 'No featured track yet';
 
   @override
+  String get noFiltersFoundInPresetFile => 'No filters found in preset file.';
+
+  @override
   String get noFoldersAdded => 'No Folders Added';
 
   @override
@@ -4299,6 +4431,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noInternetConnectionPleaseCheckYour =>
       'No internet connection. Please check your network and try again.';
+
+  @override
+  String get noLibraryFilesForThisAlbum =>
+      'No library files were found for this album.';
 
   @override
   String get noLogsYet => 'No logs yet.';
@@ -4410,6 +4546,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'No word timing yet. Auto-fill spreads the words evenly as a starting point — or capture them in Word Sync mode.';
 
   @override
+  String get nocturnal => 'Nocturnal';
+
+  @override
   String get none => 'None';
 
   @override
@@ -4501,6 +4640,41 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onRepeat => 'On Repeat';
+
+  @override
+  String get onboardingBrowseBody =>
+      'Swipe between tabs to explore\nSongs, Artists, Albums, and\nPlaylists. Sort and search\nyour entire collection.';
+
+  @override
+  String get onboardingBrowseTitle => 'Browse\nYour Music';
+
+  @override
+  String get onboardingLibraryBody =>
+      'Head to Settings and tap\nMusic Folders to scan your\ndevice. Supports MP3, FLAC,\nAAC, WAV, and more.';
+
+  @override
+  String get onboardingLibraryTitle => 'Build Your\nLibrary';
+
+  @override
+  String get onboardingPlaybackBody =>
+      'Tap any song for the full player\nwith waveform seek bar,\nequalizer, lyrics, and ambient\nalbum art visuals.';
+
+  @override
+  String get onboardingPlaybackTitle => 'Rich\nPlayback';
+
+  @override
+  String get onboardingReadyBody =>
+      'Start exploring your music.\nSit back, relax, and enjoy\nthe sound of Flick Player.';
+
+  @override
+  String get onboardingReadyTitle => 'You\'re\nAll Set';
+
+  @override
+  String get onboardingWelcomeBody =>
+      'A beautiful, fast music player\nbuilt for your local library.\nNo ads. No tracking. Just music.';
+
+  @override
+  String get onboardingWelcomeTitle => 'Welcome to\nFlick Player';
 
   @override
   String get onlineResults => 'Online Results';
@@ -4796,6 +4970,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Playback continues when the app is swiped away';
 
   @override
+  String get playbackDesynced => 'Playback desynced';
+
+  @override
   String get playbackDisplay => 'Playback & Display';
 
   @override
@@ -4881,7 +5058,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get playlistExportAndroidOnly =>
+      'Playlist export is currently supported on Android only.';
+
+  @override
+  String get playlistImportAndroidOnly =>
+      'Playlist import is currently supported on Android only.';
+
+  @override
   String get playlistName => 'Playlist name';
+
+  @override
+  String get playlistNotFound => 'Playlist not found';
 
   @override
   String get playlists => 'Playlists';
@@ -4955,6 +5143,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get presetFileIsEmpty => 'Preset file is empty.';
+
+  @override
   String get presetImportedWithAdjustments =>
       'Preset imported with adjustments';
 
@@ -4963,6 +5154,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get presets => 'Presets';
+
+  @override
+  String get pressBackAgainToExit => 'Press back again to exit';
 
   @override
   String get preventClipping => 'Prevent Clipping';
@@ -5653,6 +5847,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get saving2 => 'Saving';
 
   @override
+  String get savingRecapAndroidOnly =>
+      'Saving recap images is currently supported on Android only.';
+
+  @override
   String get scaleOfTheCenteredFocusedSong =>
       'Scale of the centered, focused song card';
 
@@ -5833,6 +6031,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get selectedFileIsNotASupported =>
+      'Selected file is not a supported image.';
+
+  @override
   String selectedOfSong(Object selected, int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -5842,6 +6044,9 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$selected selected of $_temp0';
   }
+
+  @override
+  String get selectedPlaylistFileIsEmpty => 'Selected playlist file is empty';
 
   @override
   String get selectedSize => 'Selected Size';
@@ -6193,6 +6398,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signalNotVerified => 'Not verified';
 
   @override
+  String get signalOrangeSurfaceFromTheReplay =>
+      'Signal orange surface from the Replay cover';
+
+  @override
   String get signalRecordingUnavailable => 'Rip history unavailable';
 
   @override
@@ -6321,8 +6530,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get slope => 'Slope';
 
   @override
+  String get smbAccessDenied =>
+      'Access denied. Check that the account can read this share.';
+
+  @override
+  String get smbAuthFailed =>
+      'The server rejected the username or password. Check the account — Samba may map unknown users to guest.';
+
+  @override
+  String get smbConnectionRefused =>
+      'Connection refused. Check that file sharing is enabled and port 445 is reachable.';
+
+  @override
+  String get smbCouldNotReach =>
+      'Could not reach the server. Check the IP address, then that the phone is on the same network.';
+
+  @override
+  String get smbHostNotResolved =>
+      'Could not resolve the server name. Try the IP address instead — Android cannot resolve NetBIOS/.local names.';
+
+  @override
+  String get smbMissingServerAddress =>
+      'Missing server address — use smb://host/share (e.g. smb://nas/music).';
+
+  @override
+  String get smbMissingShareName =>
+      'Missing share name — use smb://host/share (e.g. smb://nas/music).';
+
+  @override
+  String get smbServerUnresponsive =>
+      'The server stopped answering. Check the server, then retry.';
+
+  @override
+  String get smbShareNotFound =>
+      'The server answered but the share was not found. Check the share name in the URL.';
+
+  @override
   String get smbSharesCanBeAddedNow =>
       'SMB2/3 shares connect through the built-in client. Enter the share URL (smb://host/share) and sign in if the server asks for it.';
+
+  @override
+  String get smbTimedOut =>
+      'Timed out. Use the server IP (not a NetBIOS/.local name), check port 445, and that the phone is on the same network.';
 
   @override
   String get smooth => 'Smooth';
@@ -6394,6 +6643,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get songGestures => 'Song Gestures';
+
+  @override
+  String get songHasNoFilePath => 'Song has no file path.';
 
   @override
   String get songMetadata => 'Song Metadata';
@@ -6669,6 +6921,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Storage permission is required to add music folders';
 
   @override
+  String get storagePermissionRequiredForRecap =>
+      'Storage permission is required to save recap images on this Android version.';
+
+  @override
   String get storagePermissions => 'Storage Permissions';
 
   @override
@@ -6802,6 +7058,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get symmetricalBarsMirroredFromTheCenter =>
       'Symmetrical bars mirrored from the center';
+
+  @override
+  String get sync => 'Sync';
 
   @override
   String syncFailed(Object e) {
@@ -6979,6 +7238,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get thisFolderAppearsToBeEmpty => 'This folder appears to be empty';
 
   @override
+  String get thisFolderHasAlreadyBeenAdded =>
+      'This folder has already been added';
+
+  @override
   String get thisMonth => 'This Month';
 
   @override
@@ -7023,6 +7286,77 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tidal => 'Tidal';
 
   @override
+  String get tidalAppKeyRejected =>
+      'Tidal rejected the app sign-in key. It rotates these — the built-in key may be out of date (a known limitation of the unofficial path).';
+
+  @override
+  String tidalCouldNotReach(int status) {
+    return 'Could not reach Tidal (HTTP $status). Check your connection.';
+  }
+
+  @override
+  String tidalEncryptedTrack(String trackId) {
+    return 'Track $trackId is encrypted (HiRes/MQA). Only unencrypted HiFi lossless is supported.';
+  }
+
+  @override
+  String tidalManifestDecodeFailed(String trackId) {
+    return 'Could not decode the Tidal manifest for track $trackId.';
+  }
+
+  @override
+  String tidalManifestNoStream(String trackId) {
+    return 'Track $trackId has no stream URL in its manifest.';
+  }
+
+  @override
+  String get tidalNoPlayableStream => 'No playable stream for this track.';
+
+  @override
+  String get tidalNoSignInCode => 'Tidal did not return a sign-in code.';
+
+  @override
+  String get tidalNotSignedIn =>
+      'No Tidal sign-in. Tap \"Sign in with Tidal\".';
+
+  @override
+  String tidalOpenLinkManually(String uri) {
+    return 'Couldn\'t open the browser automatically. Open this link on any device to finish signing in, then tap Sign in again:\n\n$uri';
+  }
+
+  @override
+  String get tidalSessionExpired =>
+      'Tidal session expired. Please sign in again.';
+
+  @override
+  String get tidalSignInDenied => 'Tidal sign-in was denied.';
+
+  @override
+  String get tidalSignInExpired => 'The Tidal sign-in code expired. Try again.';
+
+  @override
+  String get tidalSignInRefused => 'Tidal refused the sign-in. Try again.';
+
+  @override
+  String get tidalSignInTimedOut => 'Timed out waiting for Tidal sign-in.';
+
+  @override
+  String get tidalTokenRefreshFailed => 'Tidal token refresh failed.';
+
+  @override
+  String get tidalTooManyRequests =>
+      'Too many Tidal requests. Wait a moment and try again.';
+
+  @override
+  String get tidalUnavailable =>
+      'Tidal is unavailable right now. Try again shortly.';
+
+  @override
+  String tidalUnsupportedFormat(String trackId) {
+    return 'Track $trackId uses an unsupported Tidal format (HiRes/MQA/Atmos). Only unencrypted HiFi lossless is supported.';
+  }
+
+  @override
   String get time => 'Time';
 
   @override
@@ -7030,6 +7364,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timestamp => 'Timestamp';
+
+  @override
+  String get tintedFromTodaySTopCover => 'Tinted from today\'s top cover';
 
   @override
   String get tips => 'Tips';
@@ -7324,6 +7661,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unknownFolder => 'Unknown Folder';
+
+  @override
+  String get unknownLastFmError => 'Unknown Last.fm error';
 
   @override
   String get unknownTitle => 'Unknown Title';

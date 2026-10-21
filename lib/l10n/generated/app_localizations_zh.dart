@@ -413,6 +413,9 @@ class AppLocalizationsZh extends AppLocalizations {
       'Android 开发者选项——切换编解码器最可靠的方式（应用内强制走的是被官方 Android 屏蔽的隐藏系统 API）';
 
   @override
+  String get androidDidNotReturnGalleryPath => 'Android 没有返回已保存图片的相册路径。';
+
+  @override
   String get androidDockRoute => 'Android 底座路由';
 
   @override
@@ -545,6 +548,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get artworkCard => '封面卡片';
 
   @override
+  String artworkLookupFailed(int status) {
+    return '封面查询失败（HTTP $status）。';
+  }
+
+  @override
+  String get artworkLookupInvalidData => '封面查询返回了无效数据。';
+
+  @override
+  String get artworkLookupTemporarilyUnavailable => '封面查询暂时不可用。';
+
+  @override
   String get artworkPlacement => '封面位置';
 
   @override
@@ -590,6 +604,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aug => '8 月';
+
+  @override
+  String get auroraSounds => '极光之声';
+
+  @override
+  String get authenticationResponseMissingToken => '登录响应里没有令牌';
 
   @override
   String get auto => '自动';
@@ -1437,10 +1457,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get couldNotOpenThePlayStore3 => '无法打开 Play Store';
 
   @override
+  String couldNotPrepareTheEditedFile(String error) {
+    return '无法准备待写入的文件：$error';
+  }
+
+  @override
+  String get couldNotReachTheServer => '无法连接服务器。请检查地址与凭据后重试。';
+
+  @override
   String get couldNotReadTheCoverColors => '无法读取封面配色。信号图仍可使用。';
 
   @override
+  String get couldNotReadTheSelectedImage => '无法读取所选的图片。';
+
+  @override
   String get couldNotReadTheSelectedLyrics => '无法读取所选歌词文件。';
+
+  @override
+  String get couldNotResolveTheAlbum => '无法确定这首歌所属的专辑。';
 
   @override
   String get couldNotSaveTheLyricsFile => '无法保存歌词文件。';
@@ -2131,6 +2165,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editToken => '编辑令牌';
 
   @override
+  String get electricSunset => '电子日落';
+
+  @override
   String get empty => '空';
 
   @override
@@ -2277,6 +2314,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get expandedHeaderArt => '扩展头部封面';
 
   @override
+  String get expectedAJsonObject => '这里应该是一个 JSON 对象。';
+
+  @override
   String get experimental => '实验性';
 
   @override
@@ -2361,6 +2401,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get failedToDeactivateFallback => '停用回退失败';
 
   @override
+  String failedToDownloadAlbumArt(int status) {
+    return '下载专辑封面失败（HTTP $status）。';
+  }
+
+  @override
+  String failedToGetPersistedUris(String? error) {
+    return '无法获取已保存的 URI：$error';
+  }
+
+  @override
   String get failedToImportPresetFile => '导入预设文件失败。';
 
   @override
@@ -2374,6 +2424,29 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String failedToOpenFolderPicker(String? error) {
+    return '无法打开文件夹选择器：$error';
+  }
+
+  @override
+  String get failedToPersistFolderAccess => '无法保存文件夹访问权限';
+
+  @override
+  String failedToPersistPermission(String? error) {
+    return '无法保存权限：$error';
+  }
+
+  @override
+  String failedToReadBatteryOptimizationStatus(String? error) {
+    return '无法读取电池优化状态：$error';
+  }
+
+  @override
+  String failedToReleasePermission(String? error) {
+    return '无法释放权限：$error';
+  }
+
+  @override
   String failedToRemoveFolder(Object e) {
     return '移除文件夹失败：$e';
   }
@@ -2384,6 +2457,14 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String failedToRequestBatteryOptimizationBypass(String? error) {
+    return '无法请求忽略电池优化：$error';
+  }
+
+  @override
+  String get failedToSave => '保存失败';
+
+  @override
   String failedToSaveMetadata(Object e) {
     return '保存元数据失败：$e';
   }
@@ -2392,10 +2473,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get failedToSaveMetadata2 => '保存元数据失败。';
 
   @override
+  String get failedToSaveTheRecapImage => '把回顾图保存到相册失败。';
+
+  @override
+  String get failedToSearchAlbumArtOnline => '在线搜索专辑封面失败。';
+
+  @override
   String get failedToStartStreaming => '无法启动音频流';
 
   @override
   String get failedToStopStreaming => '无法停止音频流';
+
+  @override
+  String get failedToWritePlaylistFile => '写入播放列表文件失败';
+
+  @override
+  String get failedToWriteTagsToTheFile => '写入文件标签失败。';
 
   @override
   String get faintHueShiftFromAlbumArt => '来自专辑封面的轻微色相偏移。';
@@ -3029,6 +3122,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get importedArtIsSavedInsideThe2 => '导入的封面仅保存在应用内，且仅用于此歌曲。';
 
   @override
+  String get importedPreset => '导入的预设';
+
+  @override
   String importedWithSongs(Object arg1, Object arg2, Object unmatchedText) {
     return '已导入“$arg1”，共 $arg2 首歌曲。$unmatchedText';
   }
@@ -3062,7 +3158,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get initializing => '初始化中…';
 
   @override
+  String get inkCardWithTheReplaySignature => '墨色卡片，配 Replay 标志性的点缀色';
+
+  @override
   String get inputGain => '输入增益';
+
+  @override
+  String get insertIntoTheCurrentQueueFallBackToResults =>
+      '插入当前队列，队列为空时回退到搜索结果';
 
   @override
   String get inst => '纯音乐';
@@ -3087,6 +3190,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get interfaceLabel => '界面';
+
+  @override
+  String get invalidToken => '令牌无效';
 
   @override
   String isOfflineRetainedSongsStillListed(Object folder) {
@@ -3711,6 +3817,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get midnightCityDreams => '午夜城市之梦';
 
   @override
+  String get midnightDreams => '午夜之梦';
+
+  @override
   String get midnightSignal => '午夜信号';
 
   @override
@@ -3956,7 +4065,13 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get neonLimeWithSignalOrangeReplay => '霓虹青柠色，配信号橙的 Replay 点缀';
+
+  @override
   String get neonNights => '霓虹之夜';
+
+  @override
+  String get neonPulse => '霓虹脉冲';
 
   @override
   String get neonSkyline => '霓虹天际';
@@ -4036,6 +4151,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noChangelogNotesForThisVersion => '此版本暂无更新说明。';
 
   @override
+  String get noCustomAlbumArtIsSet => '尚未设置自定义专辑封面。';
+
+  @override
   String get noCustomPresetsYet => '还没有自定义预设。';
 
   @override
@@ -4048,6 +4166,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noFeaturedTrackYet => '暂无精选曲目';
 
   @override
+  String get noFiltersFoundInPresetFile => '预设文件里没有找到任何滤波器。';
+
+  @override
   String get noFoldersAdded => '未添加文件夹';
 
   @override
@@ -4055,6 +4176,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noInternetConnectionPleaseCheckYour => '无网络连接。请检查网络后重试。';
+
+  @override
+  String get noLibraryFilesForThisAlbum => '在音乐库中没有找到这张专辑的文件。';
 
   @override
   String get noLogsYet => '暂无日志。';
@@ -4163,6 +4287,9 @@ class AppLocalizationsZh extends AppLocalizations {
       '尚无逐词时间轴。自动填充会先均匀分配各词时间作为起点，也可在逐词同步模式下采集。';
 
   @override
+  String get nocturnal => '夜行';
+
+  @override
   String get none => '无';
 
   @override
@@ -4248,6 +4375,39 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onRepeat => '循环热播';
+
+  @override
+  String get onboardingBrowseBody =>
+      '左右滑动标签页，浏览歌曲、\n艺术家、专辑与播放列表。\n可对整个音乐库排序和搜索。';
+
+  @override
+  String get onboardingBrowseTitle => '浏览你的\n音乐';
+
+  @override
+  String get onboardingLibraryBody =>
+      '前往设置，点开「音乐文件夹」\n扫描你的设备。支持 MP3、\nFLAC、AAC、WAV 等格式。';
+
+  @override
+  String get onboardingLibraryTitle => '建立你的\n音乐库';
+
+  @override
+  String get onboardingPlaybackBody =>
+      '点开任意歌曲进入完整播放器：\n波形进度条、均衡器、歌词，\n以及沉浸式的专辑封面效果。';
+
+  @override
+  String get onboardingPlaybackTitle => '丰富的\n播放体验';
+
+  @override
+  String get onboardingReadyBody => '开始探索你的音乐吧。\n放松下来，享受\nFlick 播放器的声音。';
+
+  @override
+  String get onboardingReadyTitle => '一切\n就绪';
+
+  @override
+  String get onboardingWelcomeBody => '一款为本地音乐库打造的\n漂亮、快速播放器。\n无广告，无追踪，只有音乐。';
+
+  @override
+  String get onboardingWelcomeTitle => '欢迎使用\nFlick 播放器';
 
   @override
   String get onlineResults => '在线结果';
@@ -4518,6 +4678,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playbackContinuesWhenTheAppIs => '应用被划掉后仍继续播放';
 
   @override
+  String get playbackDesynced => '播放状态不同步';
+
+  @override
   String get playbackDisplay => '播放与显示';
 
   @override
@@ -4582,7 +4745,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get playlistExportAndroidOnly => '目前仅支持在 Android 上导出播放列表。';
+
+  @override
+  String get playlistImportAndroidOnly => '目前仅支持在 Android 上导入播放列表。';
+
+  @override
   String get playlistName => '播放列表名称';
+
+  @override
+  String get playlistNotFound => '找不到该播放列表';
 
   @override
   String get playlists => '播放列表';
@@ -4649,6 +4821,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get presetFileIsEmpty => '预设文件是空的。';
+
+  @override
   String get presetImportedWithAdjustments => '预设已导入，并做了调整';
 
   @override
@@ -4656,6 +4831,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get presets => '预设';
+
+  @override
+  String get pressBackAgainToExit => '再按一次返回键退出';
 
   @override
   String get preventClipping => '防止削波';
@@ -5314,6 +5492,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get saving2 => '保存中';
 
   @override
+  String get savingRecapAndroidOnly => '目前仅支持在 Android 上保存回顾图。';
+
+  @override
   String get scaleOfTheCenteredFocusedSong => '居中聚焦歌曲卡片的缩放';
 
   @override
@@ -5481,9 +5662,15 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get selectedFileIsNotASupported => '所选文件不是支持的图片格式。';
+
+  @override
   String selectedOfSong(Object selected, int count) {
     return '已选择 $selected 首，共 $count 首';
   }
+
+  @override
+  String get selectedPlaylistFileIsEmpty => '所选的播放列表文件是空的';
 
   @override
   String get selectedSize => '选中尺寸';
@@ -5806,6 +5993,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get signalNotVerified => '未验证';
 
   @override
+  String get signalOrangeSurfaceFromTheReplay => '取自 Replay 封面的信号橙底色';
+
+  @override
   String get signalRecordingUnavailable => '抓轨记录不可用';
 
   @override
@@ -5923,8 +6113,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get slope => '斜率';
 
   @override
+  String get smbAccessDenied => '访问被拒绝。请确认该账号有权读取此共享。';
+
+  @override
+  String get smbAuthFailed => '服务器拒绝了用户名或密码。请检查该账号，Samba 可能把未知用户映射为访客。';
+
+  @override
+  String get smbConnectionRefused => '连接被拒绝。请确认服务器已开启文件共享，且 445 端口可达。';
+
+  @override
+  String get smbCouldNotReach => '无法连接服务器。请检查 IP 地址，并确认手机与服务器在同一网络。';
+
+  @override
+  String get smbHostNotResolved =>
+      '无法解析服务器名称。请改用 IP 地址，Android 无法解析 NetBIOS/.local 名称。';
+
+  @override
+  String get smbMissingServerAddress =>
+      '缺少服务器地址。格式为 smb://主机/共享名（例如 smb://nas/music）。';
+
+  @override
+  String get smbMissingShareName =>
+      '缺少共享名。格式为 smb://主机/共享名（例如 smb://nas/music）。';
+
+  @override
+  String get smbServerUnresponsive => '服务器无响应。请检查服务器后重试。';
+
+  @override
+  String get smbShareNotFound => '服务器有响应，但没有找到该共享。请检查地址里的共享名。';
+
+  @override
   String get smbSharesCanBeAddedNow =>
       'SMB2/3 共享通过内置客户端连接。请输入共享地址（smb://host/share），如服务器要求请先登录。';
+
+  @override
+  String get smbTimedOut =>
+      '连接超时。请改用服务器 IP（而非 NetBIOS/.local 名称），确认 445 端口可用，且手机与服务器在同一网络。';
 
   @override
   String get smooth => '平滑';
@@ -5980,6 +6204,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get songGestures => '歌曲手势';
+
+  @override
+  String get songHasNoFilePath => '歌曲没有文件路径。';
 
   @override
   String get songMetadata => '歌曲元数据';
@@ -6217,6 +6444,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storagePermissionIsRequiredToAdd => '需要存储权限才能添加音乐文件夹';
 
   @override
+  String get storagePermissionRequiredForRecap => '在此 Android 版本上保存回顾图需要存储权限。';
+
+  @override
   String get storagePermissions => '存储权限';
 
   @override
@@ -6334,6 +6564,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get symmetricalBarsMirroredFromTheCenter => '从中心向两侧镜像的对称柱条';
+
+  @override
+  String get sync => '同步';
 
   @override
   String syncFailed(Object e) {
@@ -6494,6 +6727,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get thisFolderAppearsToBeEmpty => '此文件夹似乎是空的';
 
   @override
+  String get thisFolderHasAlreadyBeenAdded => '这个文件夹已经添加过了';
+
+  @override
   String get thisMonth => '本月';
 
   @override
@@ -6536,6 +6772,73 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tidal => 'Tidal';
 
   @override
+  String get tidalAppKeyRejected =>
+      'Tidal 拒绝了这个应用的登录密钥。这些密钥会轮换，内置密钥可能已过期（这是非官方接入方式的已知限制）。';
+
+  @override
+  String tidalCouldNotReach(int status) {
+    return '无法连接 Tidal（HTTP $status），请检查网络连接。';
+  }
+
+  @override
+  String tidalEncryptedTrack(String trackId) {
+    return '曲目 $trackId 已加密（HiRes/MQA）。仅支持未加密的 HiFi 无损。';
+  }
+
+  @override
+  String tidalManifestDecodeFailed(String trackId) {
+    return '无法解析曲目 $trackId 的 Tidal 清单。';
+  }
+
+  @override
+  String tidalManifestNoStream(String trackId) {
+    return '曲目 $trackId 的清单中没有串流地址。';
+  }
+
+  @override
+  String get tidalNoPlayableStream => '该曲目没有可播放的串流。';
+
+  @override
+  String get tidalNoSignInCode => 'Tidal 没有返回登录码。';
+
+  @override
+  String get tidalNotSignedIn => '尚未登录 Tidal。请点「使用 Tidal 登录」。';
+
+  @override
+  String tidalOpenLinkManually(String uri) {
+    return '无法自动打开浏览器。请在任意设备上打开此链接完成登录，然后点「重新登录」：\n\n$uri';
+  }
+
+  @override
+  String get tidalSessionExpired => 'Tidal 登录已过期，请重新登录。';
+
+  @override
+  String get tidalSignInDenied => 'Tidal 登录被拒绝。';
+
+  @override
+  String get tidalSignInExpired => 'Tidal 登录码已过期，请重试。';
+
+  @override
+  String get tidalSignInRefused => 'Tidal 拒绝了本次登录，请重试。';
+
+  @override
+  String get tidalSignInTimedOut => '等待 Tidal 登录超时。';
+
+  @override
+  String get tidalTokenRefreshFailed => 'Tidal 令牌刷新失败。';
+
+  @override
+  String get tidalTooManyRequests => 'Tidal 请求过于频繁，请稍候再试。';
+
+  @override
+  String get tidalUnavailable => 'Tidal 当前不可用，请稍后重试。';
+
+  @override
+  String tidalUnsupportedFormat(String trackId) {
+    return '曲目 $trackId 使用了不支持的 Tidal 格式（HiRes/MQA/Atmos）。仅支持未加密的 HiFi 无损。';
+  }
+
+  @override
   String get time => '耗时';
 
   @override
@@ -6543,6 +6846,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get timestamp => '时间戳';
+
+  @override
+  String get tintedFromTodaySTopCover => '用今日播放最多专辑的封面取色';
 
   @override
   String get tips => '提示';
@@ -6822,6 +7128,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get unknownFolder => '未知文件夹';
+
+  @override
+  String get unknownLastFmError => '未知的 Last.fm 错误';
 
   @override
   String get unknownTitle => '未知标题';

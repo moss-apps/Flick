@@ -11,6 +11,7 @@ import '../data/repositories/folder_repository.dart';
 import '../data/repositories/song_repository.dart';
 import '../data/entities/folder_entity.dart';
 import 'package:flick/core/utils/dev_log.dart';
+import 'package:flick/l10n/l10n.dart';
 
 String normalizeFolderIdentifier(String uri) {
   final parsed = Uri.tryParse(uri);
@@ -277,7 +278,7 @@ class MusicFolderService {
     for (final folder in existingFolders) {
       if (folder.uri == uri) {
         throw FolderAlreadyExistsException(
-          'This folder has already been added',
+          l10n.thisFolderHasAlreadyBeenAdded,
         );
       }
       if (foldersOverlap(folder.uri, uri)) {
@@ -290,7 +291,7 @@ class MusicFolderService {
     // Take persistable permission
     final success = await _permissionService.takePersistablePermission(uri);
     if (!success) {
-      throw StorageException('Failed to persist folder access');
+      throw StorageException(l10n.failedToPersistFolderAccess);
     }
 
     // Get display name

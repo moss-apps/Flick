@@ -577,6 +577,10 @@
   "@androidDeveloperOptionsTheReliableWay": {
     "description": "lib/features/settings/screens/bluetooth_settings_screen.dart:352"
   },
+  "androidDidNotReturnGalleryPath": "Android did not return a gallery path for the saved image.",
+  "@androidDidNotReturnGalleryPath": {
+    "description": "l10n pass: user-visible service error"
+  },
   "androidDockRoute": "Android dock route",
   "@androidDockRoute": {
     "description": "lib/features/settings/screens/uac2_settings_screen.dart:931"
@@ -762,6 +766,23 @@
   "@artworkCard": {
     "description": "lib/features/player/widgets/player_layout_sheet.dart:203"
   },
+  "artworkLookupFailed": "Artwork lookup failed (HTTP {status}).",
+  "@artworkLookupFailed": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "artworkLookupInvalidData": "Artwork lookup returned invalid data.",
+  "@artworkLookupInvalidData": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "artworkLookupTemporarilyUnavailable": "Artwork lookup is temporarily unavailable.",
+  "@artworkLookupTemporarilyUnavailable": {
+    "description": "l10n pass: user-visible service error"
+  },
   "artworkPlacement": "Artwork placement",
   "@artworkPlacement": {
     "description": "lib/features/player/widgets/player_layout_sheet.dart:239"
@@ -829,6 +850,14 @@
   "aug": "Aug",
   "@aug": {
     "description": "lib/features/milestone/screens/milestones_screen.dart:509"
+  },
+  "auroraSounds": "Aurora Sounds",
+  "@auroraSounds": {
+    "description": "lib/models/song.dart:319"
+  },
+  "authenticationResponseMissingToken": "Authentication response missing token",
+  "@authenticationResponseMissingToken": {
+    "description": "l10n pass: user-visible service error"
   },
   "auto": "Auto",
   "@auto": {
@@ -2048,13 +2077,34 @@
   "@couldNotOpenThePlayStore3": {
     "description": "lib/features/settings/screens/app_info_settings_screen.dart:117"
   },
+  "couldNotPrepareTheEditedFile": "Could not prepare the edited file: {error}",
+  "@couldNotPrepareTheEditedFile": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "couldNotReachTheServer": "Could not reach the server. Check the URL and credentials, then try again.",
+  "@couldNotReachTheServer": {
+    "description": "l10n pass: user-visible service error"
+  },
   "couldNotReadTheCoverColors": "Could not read the cover colors. Signal is still available.",
   "@couldNotReadTheCoverColors": {
     "description": "lib/features/recap/screens/replay_studio_screen.dart:103"
   },
+  "couldNotReadTheSelectedImage": "Could not read the selected image.",
+  "@couldNotReadTheSelectedImage": {
+    "description": "lib/features/songs/widgets/album_art_picker_bottom_sheet.dart:142"
+  },
   "couldNotReadTheSelectedLyrics": "Could not read the selected lyrics file.",
   "@couldNotReadTheSelectedLyrics": {
     "description": "lib/features/player/widgets/inline_lyrics_panel.dart:129"
+  },
+  "couldNotResolveTheAlbum": "Could not resolve the album for this song.",
+  "@couldNotResolveTheAlbum": {
+    "description": "l10n pass: user-visible service error"
   },
   "couldNotSaveTheLyricsFile": "Could not save the lyrics file.",
   "@couldNotSaveTheLyricsFile": {
@@ -3033,6 +3083,10 @@
   "@editToken": {
     "description": "lib/features/settings/widgets/listenbrainz_settings_tile.dart:348"
   },
+  "electricSunset": "Electric Sunset",
+  "@electricSunset": {
+    "description": "lib/models/song.dart:327"
+  },
   "empty": "Empty",
   "@empty": {
     "description": "lib/features/folders/screens/folders_screen.dart:2039"
@@ -3243,6 +3297,10 @@
   "@expandedHeaderArt": {
     "description": "lib/features/settings/screens/ui_customization_settings_screen.dart:179"
   },
+  "expectedAJsonObject": "Expected a JSON object.",
+  "@expectedAJsonObject": {
+    "description": "lib/services/eq_preset_file_service.dart:90"
+  },
   "experimental": "Experimental",
   "@experimental": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:96"
@@ -3373,6 +3431,24 @@
   "@failedToDeactivateFallback": {
     "description": "lib/widgets/uac2/uac2_fallback_manager.dart:81"
   },
+  "failedToDownloadAlbumArt": "Failed to download album art (HTTP {status}).",
+  "@failedToDownloadAlbumArt": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "failedToGetPersistedUris": "Failed to get persisted URIs: {error}",
+  "@failedToGetPersistedUris": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "error": {
+        "type": "String?"
+      }
+    }
+  },
   "failedToImportPresetFile": "Failed to import preset file.",
   "@failedToImportPresetFile": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:566"
@@ -3395,6 +3471,46 @@
       }
     }
   },
+  "failedToOpenFolderPicker": "Failed to open folder picker: {error}",
+  "@failedToOpenFolderPicker": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "error": {
+        "type": "String?"
+      }
+    }
+  },
+  "failedToPersistFolderAccess": "Failed to persist folder access",
+  "@failedToPersistFolderAccess": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "failedToPersistPermission": "Failed to persist permission: {error}",
+  "@failedToPersistPermission": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "error": {
+        "type": "String?"
+      }
+    }
+  },
+  "failedToReadBatteryOptimizationStatus": "Failed to read battery optimization status: {error}",
+  "@failedToReadBatteryOptimizationStatus": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "error": {
+        "type": "String?"
+      }
+    }
+  },
+  "failedToReleasePermission": "Failed to release permission: {error}",
+  "@failedToReleasePermission": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "error": {
+        "type": "String?"
+      }
+    }
+  },
   "failedToRemoveFolder": "Failed to remove folder: {e}",
   "@failedToRemoveFolder": {
     "description": "lib/features/settings/screens/library_settings_screen.dart:501",
@@ -3413,6 +3529,19 @@
       }
     }
   },
+  "failedToRequestBatteryOptimizationBypass": "Failed to request battery optimization bypass: {error}",
+  "@failedToRequestBatteryOptimizationBypass": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "error": {
+        "type": "String?"
+      }
+    }
+  },
+  "failedToSave": "Failed to save",
+  "@failedToSave": {
+    "description": "lib/features/player/widgets/share/share_bottom_sheet.dart:171"
+  },
   "failedToSaveMetadata": "Failed to save metadata: {e}",
   "@failedToSaveMetadata": {
     "description": "lib/services/metadata_editor_service.dart:100",
@@ -3426,6 +3555,14 @@
   "@failedToSaveMetadata2": {
     "description": "lib/features/songs/screens/metadata_editor_screen.dart:204"
   },
+  "failedToSaveTheRecapImage": "Failed to save the recap image to your gallery.",
+  "@failedToSaveTheRecapImage": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "failedToSearchAlbumArtOnline": "Failed to search album art online.",
+  "@failedToSearchAlbumArtOnline": {
+    "description": "l10n pass: user-visible service error"
+  },
   "failedToStartStreaming": "Failed to start streaming",
   "@failedToStartStreaming": {
     "description": "lib/widgets/uac2/uac2_stream_config.dart:270"
@@ -3433,6 +3570,14 @@
   "failedToStopStreaming": "Failed to stop streaming",
   "@failedToStopStreaming": {
     "description": "lib/widgets/uac2/uac2_stream_config.dart:283"
+  },
+  "failedToWritePlaylistFile": "Failed to write playlist file",
+  "@failedToWritePlaylistFile": {
+    "description": "lib/services/playlist_service.dart:655"
+  },
+  "failedToWriteTagsToTheFile": "Failed to write tags to the file.",
+  "@failedToWriteTagsToTheFile": {
+    "description": "l10n pass: user-visible service error"
   },
   "faintHueShiftFromAlbumArt": "Faint hue shift from album art.",
   "@faintHueShiftFromAlbumArt": {
@@ -4330,6 +4475,10 @@
   "@importedArtIsSavedInsideThe2": {
     "description": "lib/features/songs/widgets/album_art_picker_bottom_sheet.dart:670"
   },
+  "importedPreset": "Imported Preset",
+  "@importedPreset": {
+    "description": "lib/services/eq_preset_file_service.dart:191"
+  },
   "importedWithSongs": "Imported \"{arg1}\" with {arg2} songs.{unmatchedText}",
   "@importedWithSongs": {
     "description": "lib/features/playlists/screens/playlists_screen.dart:498",
@@ -4387,9 +4536,17 @@
   "@initializing": {
     "description": "lib/features/settings/screens/library_settings_screen.dart:1171"
   },
+  "inkCardWithTheReplaySignature": "Ink card with the Replay signature accents",
+  "@inkCardWithTheReplaySignature": {
+    "description": "lib/features/settings/screens/widget_settings_screen.dart:683"
+  },
   "inputGain": "Input Gain",
   "@inputGain": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:3406"
+  },
+  "insertIntoTheCurrentQueueFallBackToResults": "Insert into the current queue, fall back to results",
+  "@insertIntoTheCurrentQueueFallBackToResults": {
+    "description": "lib/features/settings/screens/interface_settings_screen.dart:278"
   },
   "inst": "Inst",
   "@inst": {
@@ -4422,6 +4579,10 @@
   "interfaceLabel": "Interface",
   "@interfaceLabel": {
     "description": "lib/features/settings/screens/interface_settings_screen.dart:36"
+  },
+  "invalidToken": "Invalid token",
+  "@invalidToken": {
+    "description": "l10n pass: user-visible service error"
   },
   "isOfflineRetainedSongsStillListed": "{folder} is offline — retained songs still listed",
   "@isOfflineRetainedSongsStillListed": {
@@ -5341,6 +5502,10 @@
   "@midnightCityDreams": {
     "description": "lib/features/settings/screens/widget_settings_screen.dart:866"
   },
+  "midnightDreams": "Midnight Dreams",
+  "@midnightDreams": {
+    "description": "lib/models/song.dart:318"
+  },
   "midnightSignal": "Midnight Signal",
   "@midnightSignal": {
     "description": "lib/features/player/widgets/player_layout_sheet.dart:914"
@@ -5719,9 +5884,17 @@
       }
     }
   },
+  "neonLimeWithSignalOrangeReplay": "Neon lime with signal-orange Replay accents",
+  "@neonLimeWithSignalOrangeReplay": {
+    "description": "lib/features/settings/screens/widget_settings_screen.dart:674"
+  },
   "neonNights": "Neon Nights",
   "@neonNights": {
     "description": "lib/models/song.dart:357"
+  },
+  "neonPulse": "Neon Pulse",
+  "@neonPulse": {
+    "description": "lib/models/song.dart:328"
   },
   "neonSkyline": "Neon Skyline",
   "@neonSkyline": {
@@ -5836,6 +6009,10 @@
   "@noChangelogNotesForThisVersion": {
     "description": "lib/features/whats_new/widgets/whats_new_bottom_sheet.dart:56"
   },
+  "noCustomAlbumArtIsSet": "No custom album art is set yet.",
+  "@noCustomAlbumArtIsSet": {
+    "description": "l10n pass: user-visible service error"
+  },
   "noCustomPresetsYet": "No custom presets yet.",
   "@noCustomPresetsYet": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:788"
@@ -5852,6 +6029,10 @@
   "@noFeaturedTrackYet": {
     "description": "lib/features/menu/screens/menu_screen.dart:2329"
   },
+  "noFiltersFoundInPresetFile": "No filters found in preset file.",
+  "@noFiltersFoundInPresetFile": {
+    "description": "lib/services/eq_preset_file_service.dart:185"
+  },
   "noFoldersAdded": "No Folders Added",
   "@noFoldersAdded": {
     "description": "lib/features/folders/screens/folders_screen.dart:368"
@@ -5863,6 +6044,10 @@
   "noInternetConnectionPleaseCheckYour": "No internet connection. Please check your network and try again.",
   "@noInternetConnectionPleaseCheckYour": {
     "description": "lib/features/settings/widgets/lastfm_settings_tile.dart:80"
+  },
+  "noLibraryFilesForThisAlbum": "No library files were found for this album.",
+  "@noLibraryFilesForThisAlbum": {
+    "description": "l10n pass: user-visible service error"
   },
   "noLogsYet": "No logs yet.",
   "@noLogsYet": {
@@ -6011,6 +6196,10 @@
   "@noWordTimingYetAutoFill": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:1698"
   },
+  "nocturnal": "Nocturnal",
+  "@nocturnal": {
+    "description": "lib/models/song.dart:323"
+  },
   "none": "None",
   "@none": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:3769"
@@ -6122,6 +6311,46 @@
   "onRepeat": "On Repeat",
   "@onRepeat": {
     "description": "lib/features/menu/screens/menu_screen.dart:1748"
+  },
+  "onboardingBrowseBody": "Swipe between tabs to explore\nSongs, Artists, Albums, and\nPlaylists. Sort and search\nyour entire collection.",
+  "@onboardingBrowseBody": {
+    "description": "lib/features/onboarding/screens/onboarding_screen.dart:44"
+  },
+  "onboardingBrowseTitle": "Browse\nYour Music",
+  "@onboardingBrowseTitle": {
+    "description": "lib/features/onboarding/screens/onboarding_screen.dart:43"
+  },
+  "onboardingLibraryBody": "Head to Settings and tap\nMusic Folders to scan your\ndevice. Supports MP3, FLAC,\nAAC, WAV, and more.",
+  "@onboardingLibraryBody": {
+    "description": "lib/features/onboarding/screens/onboarding_screen.dart:38"
+  },
+  "onboardingLibraryTitle": "Build Your\nLibrary",
+  "@onboardingLibraryTitle": {
+    "description": "lib/features/onboarding/screens/onboarding_screen.dart:37"
+  },
+  "onboardingPlaybackBody": "Tap any song for the full player\nwith waveform seek bar,\nequalizer, lyrics, and ambient\nalbum art visuals.",
+  "@onboardingPlaybackBody": {
+    "description": "lib/features/onboarding/screens/onboarding_screen.dart:50"
+  },
+  "onboardingPlaybackTitle": "Rich\nPlayback",
+  "@onboardingPlaybackTitle": {
+    "description": "lib/features/onboarding/screens/onboarding_screen.dart:49"
+  },
+  "onboardingReadyBody": "Start exploring your music.\nSit back, relax, and enjoy\nthe sound of Flick Player.",
+  "@onboardingReadyBody": {
+    "description": "lib/features/onboarding/screens/onboarding_screen.dart:56"
+  },
+  "onboardingReadyTitle": "You're\nAll Set",
+  "@onboardingReadyTitle": {
+    "description": "lib/features/onboarding/screens/onboarding_screen.dart:55"
+  },
+  "onboardingWelcomeBody": "A beautiful, fast music player\nbuilt for your local library.\nNo ads. No tracking. Just music.",
+  "@onboardingWelcomeBody": {
+    "description": "lib/features/onboarding/screens/onboarding_screen.dart:31"
+  },
+  "onboardingWelcomeTitle": "Welcome to\nFlick Player",
+  "@onboardingWelcomeTitle": {
+    "description": "lib/features/onboarding/screens/onboarding_screen.dart:30"
   },
   "onlineResults": "Online Results",
   "@onlineResults": {
@@ -6482,6 +6711,10 @@
   "@playbackContinuesWhenTheAppIs": {
     "description": "lib/features/settings/screens/playback_display_settings_screen.dart:37"
   },
+  "playbackDesynced": "Playback desynced",
+  "@playbackDesynced": {
+    "description": "lib/app/app.dart:488"
+  },
   "playbackDisplay": "Playback & Display",
   "@playbackDisplay": {
     "description": "lib/features/settings/screens/playback_display_settings_screen.dart:24"
@@ -6573,9 +6806,21 @@
       }
     }
   },
+  "playlistExportAndroidOnly": "Playlist export is currently supported on Android only.",
+  "@playlistExportAndroidOnly": {
+    "description": "lib/services/playlist_service.dart:627"
+  },
+  "playlistImportAndroidOnly": "Playlist import is currently supported on Android only.",
+  "@playlistImportAndroidOnly": {
+    "description": "lib/services/playlist_service.dart:469"
+  },
   "playlistName": "Playlist name",
   "@playlistName": {
     "description": "lib/features/playlists/screens/playlists_screen.dart:356"
+  },
+  "playlistNotFound": "Playlist not found",
+  "@playlistNotFound": {
+    "description": "lib/services/playlist_service.dart:634"
   },
   "playlists": "Playlists",
   "@playlists": {
@@ -6680,6 +6925,10 @@
       }
     }
   },
+  "presetFileIsEmpty": "Preset file is empty.",
+  "@presetFileIsEmpty": {
+    "description": "lib/services/eq_preset_file_service.dart:115"
+  },
   "presetImportedWithAdjustments": "Preset imported with adjustments",
   "@presetImportedWithAdjustments": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:578"
@@ -6691,6 +6940,10 @@
   "presets": "Presets",
   "@presets": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:66"
+  },
+  "pressBackAgainToExit": "Press back again to exit",
+  "@pressBackAgainToExit": {
+    "description": "lib/app/app.dart:739"
   },
   "preventClipping": "Prevent Clipping",
   "@preventClipping": {
@@ -7634,6 +7887,10 @@
   "@saving2": {
     "description": "lib/features/settings/screens/lyrics_settings_screen.dart:20"
   },
+  "savingRecapAndroidOnly": "Saving recap images is currently supported on Android only.",
+  "@savingRecapAndroidOnly": {
+    "description": "l10n pass: user-visible service error"
+  },
   "scaleOfTheCenteredFocusedSong": "Scale of the centered, focused song card",
   "@scaleOfTheCenteredFocusedSong": {
     "description": "lib/features/settings/screens/orbit_settings_screen.dart:114"
@@ -7867,6 +8124,10 @@
       }
     }
   },
+  "selectedFileIsNotASupported": "Selected file is not a supported image.",
+  "@selectedFileIsNotASupported": {
+    "description": "l10n pass: user-visible service error"
+  },
   "selectedOfSong": "{selected} selected of {count, plural, =1{{count} song} other{{count} songs}}",
   "@selectedOfSong": {
     "description": "lib/features/queue/screens/queue_screen.dart:349",
@@ -7878,6 +8139,10 @@
         "type": "int"
       }
     }
+  },
+  "selectedPlaylistFileIsEmpty": "Selected playlist file is empty",
+  "@selectedPlaylistFileIsEmpty": {
+    "description": "l10n pass: user-visible service error"
   },
   "selectedSize": "Selected Size",
   "@selectedSize": {
@@ -8320,6 +8585,10 @@
   "@signalNotVerified": {
     "description": "lib/features/player/widgets/audio_signal_report.dart"
   },
+  "signalOrangeSurfaceFromTheReplay": "Signal orange surface from the Replay cover",
+  "@signalOrangeSurfaceFromTheReplay": {
+    "description": "lib/features/settings/screens/widget_settings_screen.dart:692"
+  },
   "signalRecordingUnavailable": "Rip history unavailable",
   "@signalRecordingUnavailable": {
     "description": "lib/features/player/widgets/audio_signal_report.dart"
@@ -8477,9 +8746,49 @@
   "@slope": {
     "description": "lib/providers/equalizer_provider.dart:64"
   },
+  "smbAccessDenied": "Access denied. Check that the account can read this share.",
+  "@smbAccessDenied": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "smbAuthFailed": "The server rejected the username or password. Check the account — Samba may map unknown users to guest.",
+  "@smbAuthFailed": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "smbConnectionRefused": "Connection refused. Check that file sharing is enabled and port 445 is reachable.",
+  "@smbConnectionRefused": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "smbCouldNotReach": "Could not reach the server. Check the IP address, then that the phone is on the same network.",
+  "@smbCouldNotReach": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "smbHostNotResolved": "Could not resolve the server name. Try the IP address instead — Android cannot resolve NetBIOS/.local names.",
+  "@smbHostNotResolved": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "smbMissingServerAddress": "Missing server address — use smb://host/share (e.g. smb://nas/music).",
+  "@smbMissingServerAddress": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "smbMissingShareName": "Missing share name — use smb://host/share (e.g. smb://nas/music).",
+  "@smbMissingShareName": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "smbServerUnresponsive": "The server stopped answering. Check the server, then retry.",
+  "@smbServerUnresponsive": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "smbShareNotFound": "The server answered but the share was not found. Check the share name in the URL.",
+  "@smbShareNotFound": {
+    "description": "l10n pass: user-visible service error"
+  },
   "smbSharesCanBeAddedNow": "SMB2/3 shares connect through the built-in client. Enter the share URL (smb://host/share) and sign in if the server asks for it.",
   "@smbSharesCanBeAddedNow": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:405"
+  },
+  "smbTimedOut": "Timed out. Use the server IP (not a NetBIOS/.local name), check port 445, and that the phone is on the same network.",
+  "@smbTimedOut": {
+    "description": "l10n pass: user-visible service error"
   },
   "smooth": "Smooth",
   "@smooth": {
@@ -8561,6 +8870,10 @@
   "songGestures": "Song Gestures",
   "@songGestures": {
     "description": "lib/providers/tutorial_provider.dart:33"
+  },
+  "songHasNoFilePath": "Song has no file path.",
+  "@songHasNoFilePath": {
+    "description": "l10n pass: user-visible service error"
   },
   "songMetadata": "Song Metadata",
   "@songMetadata": {
@@ -8931,6 +9244,10 @@
   "@storagePermissionIsRequiredToAdd": {
     "description": "lib/features/settings/screens/library_settings_screen.dart:461"
   },
+  "storagePermissionRequiredForRecap": "Storage permission is required to save recap images on this Android version.",
+  "@storagePermissionRequiredForRecap": {
+    "description": "l10n pass: user-visible service error"
+  },
   "storagePermissions": "Storage Permissions",
   "@storagePermissions": {
     "description": "lib/features/settings/screens/privacy_policy_screen.dart:49"
@@ -9087,6 +9404,10 @@
   "symmetricalBarsMirroredFromTheCenter": "Symmetrical bars mirrored from the center",
   "@symmetricalBarsMirroredFromTheCenter": {
     "description": "lib/features/settings/screens/visualizer_settings_screen.dart:104"
+  },
+  "sync": "Sync",
+  "@sync": {
+    "description": "lib/app/app.dart:491"
   },
   "syncFailed": "Sync failed: {e}",
   "@syncFailed": {
@@ -9307,6 +9628,10 @@
   "@thisFolderAppearsToBeEmpty": {
     "description": "lib/features/folders/screens/folders_screen.dart:1370"
   },
+  "thisFolderHasAlreadyBeenAdded": "This folder has already been added",
+  "@thisFolderHasAlreadyBeenAdded": {
+    "description": "l10n pass: user-visible service error"
+  },
   "thisMonth": "This Month",
   "@thisMonth": {
     "description": "lib/data/repositories/recently_played_repository.dart:294"
@@ -9364,6 +9689,108 @@
   "@tidal": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:97"
   },
+  "tidalAppKeyRejected": "Tidal rejected the app sign-in key. It rotates these — the built-in key may be out of date (a known limitation of the unofficial path).",
+  "@tidalAppKeyRejected": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalCouldNotReach": "Could not reach Tidal (HTTP {status}). Check your connection.",
+  "@tidalCouldNotReach": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "tidalEncryptedTrack": "Track {trackId} is encrypted (HiRes/MQA). Only unencrypted HiFi lossless is supported.",
+  "@tidalEncryptedTrack": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "trackId": {
+        "type": "String"
+      }
+    }
+  },
+  "tidalManifestDecodeFailed": "Could not decode the Tidal manifest for track {trackId}.",
+  "@tidalManifestDecodeFailed": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "trackId": {
+        "type": "String"
+      }
+    }
+  },
+  "tidalManifestNoStream": "Track {trackId} has no stream URL in its manifest.",
+  "@tidalManifestNoStream": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "trackId": {
+        "type": "String"
+      }
+    }
+  },
+  "tidalNoPlayableStream": "No playable stream for this track.",
+  "@tidalNoPlayableStream": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalNoSignInCode": "Tidal did not return a sign-in code.",
+  "@tidalNoSignInCode": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalNotSignedIn": "No Tidal sign-in. Tap \"Sign in with Tidal\".",
+  "@tidalNotSignedIn": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalOpenLinkManually": "Couldn't open the browser automatically. Open this link on any device to finish signing in, then tap Sign in again:\n\n{uri}",
+  "@tidalOpenLinkManually": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "uri": {
+        "type": "String"
+      }
+    }
+  },
+  "tidalSessionExpired": "Tidal session expired. Please sign in again.",
+  "@tidalSessionExpired": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalSignInDenied": "Tidal sign-in was denied.",
+  "@tidalSignInDenied": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalSignInExpired": "The Tidal sign-in code expired. Try again.",
+  "@tidalSignInExpired": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalSignInRefused": "Tidal refused the sign-in. Try again.",
+  "@tidalSignInRefused": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalSignInTimedOut": "Timed out waiting for Tidal sign-in.",
+  "@tidalSignInTimedOut": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalTokenRefreshFailed": "Tidal token refresh failed.",
+  "@tidalTokenRefreshFailed": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalTooManyRequests": "Too many Tidal requests. Wait a moment and try again.",
+  "@tidalTooManyRequests": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalUnavailable": "Tidal is unavailable right now. Try again shortly.",
+  "@tidalUnavailable": {
+    "description": "l10n pass: user-visible service error"
+  },
+  "tidalUnsupportedFormat": "Track {trackId} uses an unsupported Tidal format (HiRes/MQA/Atmos). Only unencrypted HiFi lossless is supported.",
+  "@tidalUnsupportedFormat": {
+    "description": "l10n pass: user-visible service error",
+    "placeholders": {
+      "trackId": {
+        "type": "String"
+      }
+    }
+  },
   "time": "Time",
   "@time": {
     "description": "lib/features/settings/screens/library_settings_screen.dart:1030"
@@ -9375,6 +9802,10 @@
   "timestamp": "Timestamp",
   "@timestamp": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:1315"
+  },
+  "tintedFromTodaySTopCover": "Tinted from today's top cover",
+  "@tintedFromTodaySTopCover": {
+    "description": "lib/features/settings/screens/widget_settings_screen.dart:701"
   },
   "tips": "Tips",
   "@tips": {
@@ -9797,6 +10228,10 @@
   "unknownFolder": "Unknown Folder",
   "@unknownFolder": {
     "description": "lib/features/search/providers/global_search_provider.dart:106"
+  },
+  "unknownLastFmError": "Unknown Last.fm error",
+  "@unknownLastFmError": {
+    "description": "l10n pass: user-visible service error"
   },
   "unknownTitle": "Unknown Title",
   "@unknownTitle": {

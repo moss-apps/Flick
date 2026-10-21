@@ -313,20 +313,20 @@ class Song {
 
   /// Sample songs for UI development and testing
   static List<Song> get sampleSongs => [
-    const Song(
+    Song(
       id: '1',
-      title: 'Midnight Dreams',
-      artist: 'Aurora Sounds',
-      duration: Duration(minutes: 4, seconds: 32),
+      title: l10n.midnightDreams,
+      artist: l10n.auroraSounds,
+      duration: const Duration(minutes: 4, seconds: 32),
       fileType: 'FLAC',
       resolution: '24-bit/96kHz',
-      album: 'Nocturnal',
+      album: l10n.nocturnal,
     ),
     Song(
       id: '2',
-      title: 'Electric Sunset',
-      artist: 'Neon Pulse',
-      duration: Duration(minutes: 3, seconds: 45),
+      title: l10n.electricSunset,
+      artist: l10n.neonPulse,
+      duration: const Duration(minutes: 3, seconds: 45),
       fileType: 'MP3',
       resolution: '320kbps',
       album: l10n.synthwaveCity,

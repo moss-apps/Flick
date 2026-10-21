@@ -549,9 +549,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              _testError ??
-                  'Could not reach the server. Check the URL and credentials, '
-                  'then try again.',
+              _testError ?? l10n.couldNotReachTheServer,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: context.adaptiveTextSecondary,
               ),

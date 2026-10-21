@@ -827,6 +827,12 @@ abstract class AppLocalizations {
   /// **'Android Developer Options — the reliable way to switch codec (in-app forcing uses a hidden system API that is blocked on stock Android)'**
   String get androidDeveloperOptionsTheReliableWay;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Android did not return a gallery path for the saved image.'**
+  String get androidDidNotReturnGalleryPath;
+
   /// lib/features/settings/screens/uac2_settings_screen.dart:931
   ///
   /// In en, this message translates to:
@@ -1067,6 +1073,24 @@ abstract class AppLocalizations {
   /// **'Artwork Card'**
   String get artworkCard;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Artwork lookup failed (HTTP {status}).'**
+  String artworkLookupFailed(int status);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Artwork lookup returned invalid data.'**
+  String get artworkLookupInvalidData;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Artwork lookup is temporarily unavailable.'**
+  String get artworkLookupTemporarilyUnavailable;
+
   /// lib/features/player/widgets/player_layout_sheet.dart:239
   ///
   /// In en, this message translates to:
@@ -1156,6 +1180,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Aug'**
   String get aug;
+
+  /// lib/models/song.dart:319
+  ///
+  /// In en, this message translates to:
+  /// **'Aurora Sounds'**
+  String get auroraSounds;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication response missing token'**
+  String get authenticationResponseMissingToken;
 
   /// lib/features/player/screens/lyrics_sync_screen.dart:1224
   ///
@@ -2681,17 +2717,41 @@ abstract class AppLocalizations {
   /// **'Could not open the Play Store'**
   String get couldNotOpenThePlayStore3;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Could not prepare the edited file: {error}'**
+  String couldNotPrepareTheEditedFile(String error);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the server. Check the URL and credentials, then try again.'**
+  String get couldNotReachTheServer;
+
   /// lib/features/recap/screens/replay_studio_screen.dart:103
   ///
   /// In en, this message translates to:
   /// **'Could not read the cover colors. Signal is still available.'**
   String get couldNotReadTheCoverColors;
 
+  /// lib/features/songs/widgets/album_art_picker_bottom_sheet.dart:142
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the selected image.'**
+  String get couldNotReadTheSelectedImage;
+
   /// lib/features/player/widgets/inline_lyrics_panel.dart:129
   ///
   /// In en, this message translates to:
   /// **'Could not read the selected lyrics file.'**
   String get couldNotReadTheSelectedLyrics;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Could not resolve the album for this song.'**
+  String get couldNotResolveTheAlbum;
 
   /// lib/features/player/screens/lyrics_sync_screen.dart:565
   ///
@@ -3935,6 +3995,12 @@ abstract class AppLocalizations {
   /// **'Edit Token'**
   String get editToken;
 
+  /// lib/models/song.dart:327
+  ///
+  /// In en, this message translates to:
+  /// **'Electric Sunset'**
+  String get electricSunset;
+
   /// lib/features/folders/screens/folders_screen.dart:2039
   ///
   /// In en, this message translates to:
@@ -4193,6 +4259,12 @@ abstract class AppLocalizations {
   /// **'Expanded Header Art'**
   String get expandedHeaderArt;
 
+  /// lib/services/eq_preset_file_service.dart:90
+  ///
+  /// In en, this message translates to:
+  /// **'Expected a JSON object.'**
+  String get expectedAJsonObject;
+
   /// lib/features/settings/screens/uac2_preferences_screen.dart:96
   ///
   /// In en, this message translates to:
@@ -4331,6 +4403,18 @@ abstract class AppLocalizations {
   /// **'Failed to deactivate fallback'**
   String get failedToDeactivateFallback;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to download album art (HTTP {status}).'**
+  String failedToDownloadAlbumArt(int status);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to get persisted URIs: {error}'**
+  String failedToGetPersistedUris(String? error);
+
   /// lib/features/settings/screens/equalizer_screen.dart:566
   ///
   /// In en, this message translates to:
@@ -4349,6 +4433,36 @@ abstract class AppLocalizations {
   /// **'Failed to open battery optimization settings: {e}'**
   String failedToOpenBatteryOptimizationSettings(Object e);
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open folder picker: {error}'**
+  String failedToOpenFolderPicker(String? error);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to persist folder access'**
+  String get failedToPersistFolderAccess;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to persist permission: {error}'**
+  String failedToPersistPermission(String? error);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to read battery optimization status: {error}'**
+  String failedToReadBatteryOptimizationStatus(String? error);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to release permission: {error}'**
+  String failedToReleasePermission(String? error);
+
   /// lib/features/settings/screens/library_settings_screen.dart:501
   ///
   /// In en, this message translates to:
@@ -4360,6 +4474,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to remove songs: {e}'**
   String failedToRemoveSongs(Object e);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to request battery optimization bypass: {error}'**
+  String failedToRequestBatteryOptimizationBypass(String? error);
+
+  /// lib/features/player/widgets/share/share_bottom_sheet.dart:171
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save'**
+  String get failedToSave;
 
   /// lib/services/metadata_editor_service.dart:100
   ///
@@ -4373,6 +4499,18 @@ abstract class AppLocalizations {
   /// **'Failed to save metadata.'**
   String get failedToSaveMetadata2;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save the recap image to your gallery.'**
+  String get failedToSaveTheRecapImage;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to search album art online.'**
+  String get failedToSearchAlbumArtOnline;
+
   /// lib/widgets/uac2/uac2_stream_config.dart:270
   ///
   /// In en, this message translates to:
@@ -4384,6 +4522,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to stop streaming'**
   String get failedToStopStreaming;
+
+  /// lib/services/playlist_service.dart:655
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to write playlist file'**
+  String get failedToWritePlaylistFile;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to write tags to the file.'**
+  String get failedToWriteTagsToTheFile;
 
   /// lib/models/album_color_mode.dart:35
   ///
@@ -5537,6 +5687,12 @@ abstract class AppLocalizations {
   /// **'Imported art is saved inside the app for this song only.'**
   String get importedArtIsSavedInsideThe2;
 
+  /// lib/services/eq_preset_file_service.dart:191
+  ///
+  /// In en, this message translates to:
+  /// **'Imported Preset'**
+  String get importedPreset;
+
   /// lib/features/playlists/screens/playlists_screen.dart:498
   ///
   /// In en, this message translates to:
@@ -5591,11 +5747,23 @@ abstract class AppLocalizations {
   /// **'Initializing…'**
   String get initializing;
 
+  /// lib/features/settings/screens/widget_settings_screen.dart:683
+  ///
+  /// In en, this message translates to:
+  /// **'Ink card with the Replay signature accents'**
+  String get inkCardWithTheReplaySignature;
+
   /// lib/features/settings/screens/equalizer_screen.dart:3406
   ///
   /// In en, this message translates to:
   /// **'Input Gain'**
   String get inputGain;
+
+  /// lib/features/settings/screens/interface_settings_screen.dart:278
+  ///
+  /// In en, this message translates to:
+  /// **'Insert into the current queue, fall back to results'**
+  String get insertIntoTheCurrentQueueFallBackToResults;
 
   /// lib/features/player/widgets/online_lyrics_search_sheet.dart:885
   ///
@@ -5644,6 +5812,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Interface'**
   String get interfaceLabel;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid token'**
+  String get invalidToken;
 
   /// lib/features/settings/screens/library_settings_screen.dart:1254
   ///
@@ -6772,6 +6946,12 @@ abstract class AppLocalizations {
   /// **'Midnight City Dreams'**
   String get midnightCityDreams;
 
+  /// lib/models/song.dart:318
+  ///
+  /// In en, this message translates to:
+  /// **'Midnight Dreams'**
+  String get midnightDreams;
+
   /// lib/features/player/widgets/player_layout_sheet.dart:914
   ///
   /// In en, this message translates to:
@@ -7186,11 +7366,23 @@ abstract class AppLocalizations {
   /// **'Negotiated: {arg1}'**
   String negotiated(Object arg1);
 
+  /// lib/features/settings/screens/widget_settings_screen.dart:674
+  ///
+  /// In en, this message translates to:
+  /// **'Neon lime with signal-orange Replay accents'**
+  String get neonLimeWithSignalOrangeReplay;
+
   /// lib/models/song.dart:357
   ///
   /// In en, this message translates to:
   /// **'Neon Nights'**
   String get neonNights;
+
+  /// lib/models/song.dart:328
+  ///
+  /// In en, this message translates to:
+  /// **'Neon Pulse'**
+  String get neonPulse;
 
   /// lib/features/settings/screens/widget_settings_screen.dart:878
   ///
@@ -7330,6 +7522,12 @@ abstract class AppLocalizations {
   /// **'No changelog notes for this version yet.'**
   String get noChangelogNotesForThisVersion;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'No custom album art is set yet.'**
+  String get noCustomAlbumArtIsSet;
+
   /// lib/features/settings/screens/equalizer_screen.dart:788
   ///
   /// In en, this message translates to:
@@ -7354,6 +7552,12 @@ abstract class AppLocalizations {
   /// **'No featured track yet'**
   String get noFeaturedTrackYet;
 
+  /// lib/services/eq_preset_file_service.dart:185
+  ///
+  /// In en, this message translates to:
+  /// **'No filters found in preset file.'**
+  String get noFiltersFoundInPresetFile;
+
   /// lib/features/folders/screens/folders_screen.dart:368
   ///
   /// In en, this message translates to:
@@ -7371,6 +7575,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No internet connection. Please check your network and try again.'**
   String get noInternetConnectionPleaseCheckYour;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'No library files were found for this album.'**
+  String get noLibraryFilesForThisAlbum;
 
   /// lib/features/settings/screens/logs_screen.dart:441
   ///
@@ -7570,6 +7780,12 @@ abstract class AppLocalizations {
   /// **'No word timing yet. Auto-fill spreads the words evenly as a starting point — or capture them in Word Sync mode.'**
   String get noWordTimingYetAutoFill;
 
+  /// lib/models/song.dart:323
+  ///
+  /// In en, this message translates to:
+  /// **'Nocturnal'**
+  String get nocturnal;
+
   /// lib/features/settings/screens/equalizer_screen.dart:3769
   ///
   /// In en, this message translates to:
@@ -7737,6 +7953,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'On Repeat'**
   String get onRepeat;
+
+  /// lib/features/onboarding/screens/onboarding_screen.dart:44
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe between tabs to explore\nSongs, Artists, Albums, and\nPlaylists. Sort and search\nyour entire collection.'**
+  String get onboardingBrowseBody;
+
+  /// lib/features/onboarding/screens/onboarding_screen.dart:43
+  ///
+  /// In en, this message translates to:
+  /// **'Browse\nYour Music'**
+  String get onboardingBrowseTitle;
+
+  /// lib/features/onboarding/screens/onboarding_screen.dart:38
+  ///
+  /// In en, this message translates to:
+  /// **'Head to Settings and tap\nMusic Folders to scan your\ndevice. Supports MP3, FLAC,\nAAC, WAV, and more.'**
+  String get onboardingLibraryBody;
+
+  /// lib/features/onboarding/screens/onboarding_screen.dart:37
+  ///
+  /// In en, this message translates to:
+  /// **'Build Your\nLibrary'**
+  String get onboardingLibraryTitle;
+
+  /// lib/features/onboarding/screens/onboarding_screen.dart:50
+  ///
+  /// In en, this message translates to:
+  /// **'Tap any song for the full player\nwith waveform seek bar,\nequalizer, lyrics, and ambient\nalbum art visuals.'**
+  String get onboardingPlaybackBody;
+
+  /// lib/features/onboarding/screens/onboarding_screen.dart:49
+  ///
+  /// In en, this message translates to:
+  /// **'Rich\nPlayback'**
+  String get onboardingPlaybackTitle;
+
+  /// lib/features/onboarding/screens/onboarding_screen.dart:56
+  ///
+  /// In en, this message translates to:
+  /// **'Start exploring your music.\nSit back, relax, and enjoy\nthe sound of Flick Player.'**
+  String get onboardingReadyBody;
+
+  /// lib/features/onboarding/screens/onboarding_screen.dart:55
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re\nAll Set'**
+  String get onboardingReadyTitle;
+
+  /// lib/features/onboarding/screens/onboarding_screen.dart:31
+  ///
+  /// In en, this message translates to:
+  /// **'A beautiful, fast music player\nbuilt for your local library.\nNo ads. No tracking. Just music.'**
+  String get onboardingWelcomeBody;
+
+  /// lib/features/onboarding/screens/onboarding_screen.dart:30
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to\nFlick Player'**
+  String get onboardingWelcomeTitle;
 
   /// lib/features/songs/widgets/album_art_picker_bottom_sheet.dart:365
   ///
@@ -8254,6 +8530,12 @@ abstract class AppLocalizations {
   /// **'Playback continues when the app is swiped away'**
   String get playbackContinuesWhenTheAppIs;
 
+  /// lib/app/app.dart:488
+  ///
+  /// In en, this message translates to:
+  /// **'Playback desynced'**
+  String get playbackDesynced;
+
   /// lib/features/settings/screens/playback_display_settings_screen.dart:24
   ///
   /// In en, this message translates to:
@@ -8368,11 +8650,29 @@ abstract class AppLocalizations {
   /// **'Playlist \"{arg1}\" created'**
   String playlistCreated(Object arg1);
 
+  /// lib/services/playlist_service.dart:627
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist export is currently supported on Android only.'**
+  String get playlistExportAndroidOnly;
+
+  /// lib/services/playlist_service.dart:469
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist import is currently supported on Android only.'**
+  String get playlistImportAndroidOnly;
+
   /// lib/features/playlists/screens/playlists_screen.dart:356
   ///
   /// In en, this message translates to:
   /// **'Playlist name'**
   String get playlistName;
+
+  /// lib/services/playlist_service.dart:634
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist not found'**
+  String get playlistNotFound;
 
   /// lib/features/menu/screens/menu_screen.dart:1446
   ///
@@ -8482,6 +8782,12 @@ abstract class AppLocalizations {
   /// **'Preset: {activePresetName}'**
   String preset(Object activePresetName);
 
+  /// lib/services/eq_preset_file_service.dart:115
+  ///
+  /// In en, this message translates to:
+  /// **'Preset file is empty.'**
+  String get presetFileIsEmpty;
+
   /// lib/features/settings/screens/equalizer_screen.dart:578
   ///
   /// In en, this message translates to:
@@ -8499,6 +8805,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Presets'**
   String get presets;
+
+  /// lib/app/app.dart:739
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit'**
+  String get pressBackAgainToExit;
 
   /// lib/features/settings/screens/audio_settings_screen.dart:228
   ///
@@ -9694,6 +10006,12 @@ abstract class AppLocalizations {
   /// **'Saving'**
   String get saving2;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Saving recap images is currently supported on Android only.'**
+  String get savingRecapAndroidOnly;
+
   /// lib/features/settings/screens/orbit_settings_screen.dart:114
   ///
   /// In en, this message translates to:
@@ -10006,11 +10324,23 @@ abstract class AppLocalizations {
   /// **'{count} selected'**
   String selected(Object count);
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Selected file is not a supported image.'**
+  String get selectedFileIsNotASupported;
+
   /// lib/features/queue/screens/queue_screen.dart:349
   ///
   /// In en, this message translates to:
   /// **'{selected} selected of {count, plural, =1{{count} song} other{{count} songs}}'**
   String selectedOfSong(Object selected, int count);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Selected playlist file is empty'**
+  String get selectedPlaylistFileIsEmpty;
 
   /// lib/features/settings/screens/orbit_settings_screen.dart:113
   ///
@@ -10624,6 +10954,12 @@ abstract class AppLocalizations {
   /// **'Not verified'**
   String get signalNotVerified;
 
+  /// lib/features/settings/screens/widget_settings_screen.dart:692
+  ///
+  /// In en, this message translates to:
+  /// **'Signal orange surface from the Replay cover'**
+  String get signalOrangeSurfaceFromTheReplay;
+
   /// lib/features/player/widgets/audio_signal_report.dart
   ///
   /// In en, this message translates to:
@@ -10852,11 +11188,71 @@ abstract class AppLocalizations {
   /// **'Slope'**
   String get slope;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Access denied. Check that the account can read this share.'**
+  String get smbAccessDenied;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'The server rejected the username or password. Check the account — Samba may map unknown users to guest.'**
+  String get smbAuthFailed;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Connection refused. Check that file sharing is enabled and port 445 is reachable.'**
+  String get smbConnectionRefused;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the server. Check the IP address, then that the phone is on the same network.'**
+  String get smbCouldNotReach;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Could not resolve the server name. Try the IP address instead — Android cannot resolve NetBIOS/.local names.'**
+  String get smbHostNotResolved;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Missing server address — use smb://host/share (e.g. smb://nas/music).'**
+  String get smbMissingServerAddress;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Missing share name — use smb://host/share (e.g. smb://nas/music).'**
+  String get smbMissingShareName;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'The server stopped answering. Check the server, then retry.'**
+  String get smbServerUnresponsive;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'The server answered but the share was not found. Check the share name in the URL.'**
+  String get smbShareNotFound;
+
   /// lib/features/settings/screens/network_server_edit_screen.dart:405
   ///
   /// In en, this message translates to:
   /// **'SMB2/3 shares connect through the built-in client. Enter the share URL (smb://host/share) and sign in if the server asks for it.'**
   String get smbSharesCanBeAddedNow;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Timed out. Use the server IP (not a NetBIOS/.local name), check port 445, and that the phone is on the same network.'**
+  String get smbTimedOut;
 
   /// lib/features/settings/screens/visualizer_settings_screen.dart:177
   ///
@@ -10959,6 +11355,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Song Gestures'**
   String get songGestures;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Song has no file path.'**
+  String get songHasNoFilePath;
 
   /// lib/features/player/widgets/song_metadata_sheet.dart:42
   ///
@@ -11356,6 +11758,12 @@ abstract class AppLocalizations {
   /// **'Storage permission is required to add music folders'**
   String get storagePermissionIsRequiredToAdd;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Storage permission is required to save recap images on this Android version.'**
+  String get storagePermissionRequiredForRecap;
+
   /// lib/features/settings/screens/privacy_policy_screen.dart:49
   ///
   /// In en, this message translates to:
@@ -11583,6 +11991,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Symmetrical bars mirrored from the center'**
   String get symmetricalBarsMirroredFromTheCenter;
+
+  /// lib/app/app.dart:491
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get sync;
 
   /// lib/features/settings/screens/network_sources_screen.dart:112
   ///
@@ -11860,6 +12274,12 @@ abstract class AppLocalizations {
   /// **'This folder appears to be empty'**
   String get thisFolderAppearsToBeEmpty;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'This folder has already been added'**
+  String get thisFolderHasAlreadyBeenAdded;
+
   /// lib/data/repositories/recently_played_repository.dart:294
   ///
   /// In en, this message translates to:
@@ -11938,6 +12358,114 @@ abstract class AppLocalizations {
   /// **'Tidal'**
   String get tidal;
 
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Tidal rejected the app sign-in key. It rotates these — the built-in key may be out of date (a known limitation of the unofficial path).'**
+  String get tidalAppKeyRejected;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach Tidal (HTTP {status}). Check your connection.'**
+  String tidalCouldNotReach(int status);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Track {trackId} is encrypted (HiRes/MQA). Only unencrypted HiFi lossless is supported.'**
+  String tidalEncryptedTrack(String trackId);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Could not decode the Tidal manifest for track {trackId}.'**
+  String tidalManifestDecodeFailed(String trackId);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Track {trackId} has no stream URL in its manifest.'**
+  String tidalManifestNoStream(String trackId);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'No playable stream for this track.'**
+  String get tidalNoPlayableStream;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Tidal did not return a sign-in code.'**
+  String get tidalNoSignInCode;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'No Tidal sign-in. Tap \"Sign in with Tidal\".'**
+  String get tidalNotSignedIn;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the browser automatically. Open this link on any device to finish signing in, then tap Sign in again:\n\n{uri}'**
+  String tidalOpenLinkManually(String uri);
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Tidal session expired. Please sign in again.'**
+  String get tidalSessionExpired;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Tidal sign-in was denied.'**
+  String get tidalSignInDenied;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'The Tidal sign-in code expired. Try again.'**
+  String get tidalSignInExpired;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Tidal refused the sign-in. Try again.'**
+  String get tidalSignInRefused;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Timed out waiting for Tidal sign-in.'**
+  String get tidalSignInTimedOut;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Tidal token refresh failed.'**
+  String get tidalTokenRefreshFailed;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Too many Tidal requests. Wait a moment and try again.'**
+  String get tidalTooManyRequests;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Tidal is unavailable right now. Try again shortly.'**
+  String get tidalUnavailable;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Track {trackId} uses an unsupported Tidal format (HiRes/MQA/Atmos). Only unencrypted HiFi lossless is supported.'**
+  String tidalUnsupportedFormat(String trackId);
+
   /// lib/features/settings/screens/library_settings_screen.dart:1030
   ///
   /// In en, this message translates to:
@@ -11955,6 +12483,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Timestamp'**
   String get timestamp;
+
+  /// lib/features/settings/screens/widget_settings_screen.dart:701
+  ///
+  /// In en, this message translates to:
+  /// **'Tinted from today\'s top cover'**
+  String get tintedFromTodaySTopCover;
 
   /// lib/features/player/screens/lyrics_sync_screen.dart:704
   ///
@@ -12445,6 +12979,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown Folder'**
   String get unknownFolder;
+
+  /// l10n pass: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Last.fm error'**
+  String get unknownLastFmError;
 
   /// lib/services/playlist_service.dart:688
   ///

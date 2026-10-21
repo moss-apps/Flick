@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flick/l10n/l10n.dart';
 
 /// Saves generated images to the device gallery.
 class GallerySaveService {
@@ -16,9 +17,7 @@ class GallerySaveService {
     bool retryOnPermissionRequest = true,
   }) async {
     if (!Platform.isAndroid) {
-      throw const GallerySaveException(
-        'Saving recap images is currently supported on Android only.',
-      );
+      throw GallerySaveException(l10n.savingRecapAndroidOnly);
     }
 
     try {
@@ -28,9 +27,7 @@ class GallerySaveService {
       );
 
       if (savedUri == null || savedUri.isEmpty) {
-        throw const GallerySaveException(
-          'Android did not return a gallery path for the saved image.',
-        );
+        throw GallerySaveException(l10n.androidDidNotReturnGalleryPath);
       }
 
       return savedUri;
@@ -47,13 +44,11 @@ class GallerySaveService {
           );
         }
 
-        throw const GallerySaveException(
-          'Storage permission is required to save recap images on this Android version.',
-        );
+        throw GallerySaveException(l10n.storagePermissionRequiredForRecap);
       }
 
       throw GallerySaveException(
-        error.message ?? 'Failed to save the recap image to your gallery.',
+        error.message ?? l10n.failedToSaveTheRecapImage,
       );
     }
   }

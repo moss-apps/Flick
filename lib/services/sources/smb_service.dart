@@ -9,6 +9,7 @@ import '../library_scanner_service.dart' show ScanProgress;
 import '../network_cache_service.dart';
 import '../../src/rust/api/smb_api.dart';
 import 'network_source_service.dart';
+import 'package:flick/l10n/l10n.dart';
 
 /// SMB2/3 client backed by the pure-Rust `smb2` crate (via flutter_rust_bridge).
 ///
@@ -89,15 +90,11 @@ class SmbService implements NetworkSourceService {
     }
     final uri = Uri.parse(source);
     if (uri.host.isEmpty) {
-      throw const FormatException(
-        'Missing server address — use smb://host/share (e.g. smb://nas/music).',
-      );
+      throw FormatException(l10n.smbMissingServerAddress);
     }
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
     if (segments.isEmpty) {
-      throw const FormatException(
-        'Missing share name — use smb://host/share (e.g. smb://nas/music).',
-      );
+      throw FormatException(l10n.smbMissingShareName);
     }
     return (
       host: uri.host,
@@ -138,39 +135,33 @@ class SmbService implements NetworkSourceService {
     final lower = raw.toLowerCase();
     if (lower.contains('authentication failed') ||
         lower.contains('logon_failure')) {
-      return 'The server rejected the username or password. Check the '
-          'account — Samba may map unknown users to guest.';
+      return l10n.smbAuthFailed;
     }
     if (lower.contains('bad_network_name') || lower.contains('name_not_found')) {
-      return 'The server answered but the share was not found. Check the '
-          'share name in the URL.';
+      return l10n.smbShareNotFound;
     }
     if (lower.contains('access_denied') || lower.contains('access denied')) {
-      return 'Access denied. Check that the account can read this share.';
+      return l10n.smbAccessDenied;
     }
     if (lower.contains('lookup') ||
         lower.contains('resolve') ||
         lower.contains('name or service not known')) {
-      return 'Could not resolve the server name. Try the IP address instead — '
-          'Android cannot resolve NetBIOS/.local names.';
+      return l10n.smbHostNotResolved;
     }
     if (lower.contains('timed out')) {
-      return 'Timed out. Use the server IP (not a NetBIOS/.local name), check '
-          'port 445, and that the phone is on the same network.';
+      return l10n.smbTimedOut;
     }
     if (lower.contains('connection refused')) {
-      return 'Connection refused. Check that file sharing is enabled and '
-          'port 445 is reachable.';
+      return l10n.smbConnectionRefused;
     }
     if (lower.contains('could not connect') ||
         lower.contains('unreachable') ||
         lower.contains('no route')) {
-      return 'Could not reach the server. Check the IP address, then that the '
-          'phone is on the same network.';
+      return l10n.smbCouldNotReach;
     }
     if (lower.contains('server stopped answering') ||
         lower.contains('unresponsive')) {
-      return 'The server stopped answering. Check the server, then retry.';
+      return l10n.smbServerUnresponsive;
     }
     return raw;
   }

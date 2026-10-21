@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flick/l10n/l10n.dart';
 
 /// Service for handling Android storage permissions and folder selection.
 ///
@@ -69,7 +70,7 @@ class PermissionService {
       final result = await _channel.invokeMethod<String>('openDocumentTree');
       return result;
     } on PlatformException catch (e) {
-      throw StorageException('Failed to open folder picker: ${e.message}');
+      throw StorageException(l10n.failedToOpenFolderPicker(e.message));
     }
   }
 
@@ -83,7 +84,7 @@ class PermissionService {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      throw StorageException('Failed to persist permission: ${e.message}');
+      throw StorageException(l10n.failedToPersistPermission(e.message));
     }
   }
 
@@ -94,7 +95,7 @@ class PermissionService {
         'uri': uri,
       });
     } on PlatformException catch (e) {
-      throw StorageException('Failed to release permission: ${e.message}');
+      throw StorageException(l10n.failedToReleasePermission(e.message));
     }
   }
 
@@ -106,7 +107,7 @@ class PermissionService {
       );
       return result?.cast<String>() ?? [];
     } on PlatformException catch (e) {
-      throw StorageException('Failed to get persisted URIs: ${e.message}');
+      throw StorageException(l10n.failedToGetPersistedUris(e.message));
     }
   }
 
@@ -122,7 +123,7 @@ class PermissionService {
           false;
     } on PlatformException catch (e) {
       throw StorageException(
-        'Failed to request battery optimization bypass: ${e.message}',
+        l10n.failedToRequestBatteryOptimizationBypass(e.message),
       );
     }
   }
@@ -139,7 +140,7 @@ class PermissionService {
           false;
     } on PlatformException catch (e) {
       throw StorageException(
-        'Failed to read battery optimization status: ${e.message}',
+        l10n.failedToReadBatteryOptimizationStatus(e.message),
       );
     }
   }

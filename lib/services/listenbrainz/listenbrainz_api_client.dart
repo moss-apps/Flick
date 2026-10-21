@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/services/listenbrainz/listenbrainz_credentials.dart';
+import 'package:flick/l10n/l10n.dart';
 
 /// ListenBrainz API configuration.
 class ListenBrainzConfig {
@@ -155,7 +156,7 @@ class ListenBrainzApiClient {
     if (data['valid'] == false) {
       throw ListenBrainzApiException(
         401,
-        data['message'] as String? ?? 'Invalid token',
+        data['message'] as String? ?? l10n.invalidToken,
       );
     }
 

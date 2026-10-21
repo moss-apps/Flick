@@ -138,9 +138,7 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
 
       final bytes = file.bytes ?? await _readFileBytes(file.path);
       if (bytes == null || bytes.isEmpty) {
-        throw const AlbumArtImportException(
-          'Could not read the selected image.',
-        );
+        throw AlbumArtImportException(l10n.couldNotReadTheSelectedImage);
       }
 
       await _runMutation(

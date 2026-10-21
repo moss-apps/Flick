@@ -169,7 +169,11 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showFlickSnackBar(
-          SnackBar(content: Text(e is GallerySaveException ? e.message : 'Failed to save')),
+          SnackBar(
+            content: Text(
+              e is GallerySaveException ? e.message : l10n.failedToSave,
+            ),
+          ),
         );
       }
     } finally {

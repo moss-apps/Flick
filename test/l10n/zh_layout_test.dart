@@ -35,6 +35,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flick/core/theme/app_theme.dart';
+import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
 import 'package:flick/features/songs/widgets/metadata_editor_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/mini_player_config.dart';
@@ -415,5 +416,136 @@ void main() {
       reason: 'the input dialog cancel button is not localized',
     );
     expect(find.text('Cancel'), findsNothing);
+  });
+
+  testWidgets('zh: the five onboarding pages are Chinese, not English', (
+    tester,
+  ) async {
+    // The first screen a new user ever sees was the last one left in English:
+    // its five pages lived in a `static const _steps` list, and `l10n` cannot
+    // appear in a `const` expression, so the codemod could not touch it.
+    //
+    // This asserts the copy, not the geometry. The page body is a `Column` of
+    // icon + 38pt title + body with two `Spacer`s, and it overflows from 2x text
+    // scale *in English too* (331px at 320dp/2x, against 241px in Chinese), so
+    // asserting "no overflow" here would fail for a reason this change did not
+    // cause and could not fix without redesigning the page. The Chinese-only
+    // overflow that this change *did* own was the footer `Row` (8.9px at
+    // 320dp/2x, because 下一步+chevron is wider than "Next"); that is fixed and
+    // pinned by the footer assertion at the end.
+    final en = lookupAppLocalizations(const Locale('en'));
+    final zh = lookupAppLocalizations(const Locale('zh', 'CN'));
+
+    for (final scale in const [1.0, 1.5, 2.0, 3.0]) {
+      await tester.pumpWidget(
+        _host(
+          const OnboardingScreen(),
+          locale: const Locale('zh', 'CN'),
+          width: 320,
+          textScale: scale,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Page one, and the two buttons that are on every page.
+      expect(find.text(zh.onboardingWelcomeTitle), findsOneWidget);
+      expect(find.text(zh.skip), findsOneWidget);
+      expect(find.text(zh.next), findsOneWidget);
+
+      // The English must be gone, not merely overlapped: finding both would mean
+      // the localized copy was added next to the hardcoded original.
+      expect(
+        find.text(en.onboardingWelcomeTitle),
+        findsNothing,
+        reason: 'the onboarding title is still the English literal at '
+            'scale=$scale',
+      );
+      expect(find.text('Skip'), findsNothing);
+      expect(find.text('Next'), findsNothing);
+
+      // The footer row is the part Chinese alone broke, so it is what this test
+      // holds to zero in every scale.
+      final overflow = tester.takeException();
+      final rightOverflow =
+          overflow != null && overflow.toString().contains('on the right');
+      expect(
+        rightOverflow,
+        isFalse,
+        reason: 'the onboarding footer overflowed horizontally at scale=$scale '
+            '-- the dots and the action button no longer fit side by side',
+      );
+    }
+
+    if (_screenshots) await _shoot(tester, 'zh-onboarding-320');
+
+    // Walk to the last page and check the CTA there, in Chinese.
+    await tester.pumpWidget(
+      _host(
+        const OnboardingScreen(),
+        locale: const Locale('zh', 'CN'),
+        width: 375,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.text(zh.next));
+      // Not `pumpAndSettle`: the backdrop's orbs breathe on a repeating
+      // 6-second controller, so the tree never goes quiet and settling times
+      // out. The page transition is `AppConstants.animationNormal`.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+    expect(find.text(zh.onboardingReadyTitle), findsOneWidget);
+    expect(find.text(zh.getStarted), findsOneWidget);
+    expect(find.text('Get Started'), findsNothing);
+  });
+
+  testWidgets('zh: the two transient hints are translated', (tester) async {
+    // `app.dart` showed 'Playback desynced' with a 'Sync' action and
+    // 'Press back again to exit' as raw literals. Both are shown through
+    // `ScaffoldMessenger`, so they cannot be found by pumping the app's page --
+    // they are asserted through the same `l10n` the app reads.
+    final zh = lookupAppLocalizations(const Locale('zh', 'CN'));
+    final en = lookupAppLocalizations(const Locale('en'));
+
+    expect(zh.playbackDesynced, isNot(en.playbackDesynced));
+    expect(zh.sync, isNot(en.sync));
+    expect(zh.pressBackAgainToExit, isNot(en.pressBackAgainToExit));
+
+    // And they render: a snack bar using them must not leak the English.
+    await tester.pumpWidget(
+      _host(
+        Builder(
+          builder: (context) => Center(
+            child: FilledButton(
+              key: _openDialogKey,
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.playbackDesynced),
+                  action: SnackBarAction(
+                    label: l10n.sync,
+                    onPressed: () {},
+                  ),
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+        locale: const Locale('zh', 'CN'),
+        width: 320,
+      ),
+    );
+    await tester.tap(find.byKey(_openDialogKey), warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 750));
+
+    expect(find.text(zh.playbackDesynced), findsOneWidget);
+    expect(find.text(zh.sync), findsOneWidget);
+    expect(find.text('Playback desynced'), findsNothing);
+    expect(find.text('Sync'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    if (_screenshots) await _shoot(tester, 'zh-desync-snackbar-320');
   });
 }

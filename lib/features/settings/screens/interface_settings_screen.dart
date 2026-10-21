@@ -236,8 +236,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               SelectionSetting(
                 icon: LucideIcons.listPlus,
                 title: l10n.activeQueue,
-                subtitle:
-                    'Insert into the current queue, fall back to results',
+                subtitle: l10n.insertIntoTheCurrentQueueFallBackToResults,
                 selected: appPreferences.searchPlaybackMode == 'queue',
                 onTap: () {
                   ref
