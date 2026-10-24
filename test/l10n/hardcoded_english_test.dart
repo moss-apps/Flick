@@ -42,9 +42,6 @@ const Map<String, String> _allowedPaths = <String, String>{
   'lib/features/whats_new/data/changelog_data.dart':
       'release notes are historical product copy, one entry per shipped '
           'version; they are not UI strings and are translated as documents',
-  'lib/features/manual/data/manual_data.dart':
-      'the user manual is a document rendered by manual_screen.dart, not a '
-          'set of UI labels',
   'lib/features/settings/widgets/lastfm_settings_tile.dart':
       'the literal is the URL last.fm/api/account/create, shown as link text',
   'lib/features/settings/widgets/language_settings_card.dart':

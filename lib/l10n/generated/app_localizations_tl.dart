@@ -36,6 +36,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String get aSongWithALongTitle => 'A song with a long title to preview';
 
   @override
+  String get aSwipeGestureWhenConfigured =>
+      'A swipe gesture (when configured) toggles an inline visualizer inside the mini player.';
+
+  @override
   String get aTighterMixOfFavoritesAnd =>
       'A tighter mix of favorites and the songs you keep circling back to.';
 
@@ -155,6 +159,10 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
+  String get addTheSearchTabVia =>
+      'Add the Search tab via long-press on the nav bar → Bottom Bar Settings.';
+
+  @override
   String get addToFavorites => 'Add to favorites';
 
   @override
@@ -211,6 +219,12 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
+  String get addingFavorites => 'Adding favorites';
+
+  @override
+  String get addingTheWidget => 'Adding the widget';
+
+  @override
   String get addsPreDriveAndCatchesPeaks =>
       'Adds pre-drive and catches peaks against a final output ceiling.';
 
@@ -224,6 +238,10 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get adjustMetadataTextSizeInImmersive =>
       'Adjust metadata text size in immersive mode';
+
+  @override
+  String get adjustPlaybackSpeed05x =>
+      'Adjust playback speed (0.5x\\u20132x) from the speed control. Pitch is preserved.';
 
   @override
   String get adjustSpacingBetweenButtons => 'Adjust spacing between buttons';
@@ -300,6 +318,9 @@ class AppLocalizationsTl extends AppLocalizations {
   String get albumCount => 'Album Count';
 
   @override
+  String get albumDetail => 'Album detail';
+
+  @override
   String get albumLimit => 'ALBUM LIMIT';
 
   @override
@@ -320,6 +341,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String albums3(Object _totalAlbums) {
     return '$_totalAlbums albums';
   }
+
+  @override
+  String get albumsAppearAsAGrid =>
+      'Albums appear as a grid of cover art. Tap any album to open its detail screen with the full tracklist.';
 
   @override
   String get albumsShownPerPage => 'Albums shown per page';
@@ -350,6 +375,10 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get allDataIsStoredLocallyOn =>
       'All data is stored locally on your device only: music library metadata, play history, playlists, equalizer presets, and app preferences. Last.fm credentials are stored securely on-device. This data never leaves your device unless you explicitly use an integration.';
+
+  @override
+  String get allFavoritedTracksInOne =>
+      'All favorited tracks in one place. Play, shuffle, or manage from here.';
 
   @override
   String get allFolders => 'All Folders';
@@ -462,6 +491,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String get animationsAndHapticFeedback => 'Animations and haptic feedback';
 
   @override
+  String get animationsAndHapticFeedbackToggles =>
+      'Animations and haptic feedback toggles.';
+
+  @override
   String get apiKey => 'API Key';
 
   @override
@@ -548,8 +581,14 @@ class AppLocalizationsTl extends AppLocalizations {
   String get artist => 'Artist';
 
   @override
+  String get artistDetail => 'Artist detail';
+
+  @override
   String get artistIsNotAvailableForThis =>
       'Artist is not available for this song';
+
+  @override
+  String get artistList => 'Artist list';
 
   @override
   String get artistName => 'Artist Name';
@@ -972,8 +1011,15 @@ class AppLocalizationsTl extends AppLocalizations {
   String get bouncy => 'Bouncy';
 
   @override
+  String get browseAllArtistsInYour =>
+      'Browse all artists in your library. Tap an artist to see their albums and tracks.';
+
+  @override
   String get browseByArtworkOpenAnyAlbum =>
       'Browse by artwork, open any album, and jump straight into the tracklist.';
+
+  @override
+  String get browseByFolder => 'Browse by folder';
 
   @override
   String get browseMore => 'Browse More';
@@ -987,6 +1033,9 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get browseYourArtistsExploreTheirDiscographies =>
       'Browse your artists, explore their discographies, and play their tracks.';
+
+  @override
+  String get browsingYourLibrary => 'Browsing your library';
 
   @override
   String get buffer => 'Buffer';
@@ -1133,6 +1182,10 @@ class AppLocalizationsTl extends AppLocalizations {
       'Centered; widens to fit your controls';
 
   @override
+  String get centralTransportControlsPreviousRestarts =>
+      'Central transport controls. Previous restarts the track if you\\\'re past 3 seconds in.';
+
+  @override
   String ch(Object channels) {
     return '$channels ch';
   }
@@ -1195,6 +1248,10 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get chooseAudioEngine => 'Choose Audio Engine';
+
+  @override
+  String get chooseFromBuiltInPresets =>
+      'Choose from built-in presets (Flat, Bass Boost, Treble Boost, Vocal, etc.) or save your own.';
 
   @override
   String get chooseLocationU2026 => 'Choose location…';
@@ -1321,7 +1378,23 @@ class AppLocalizationsTl extends AppLocalizations {
   String get compressorOn => 'Compressor on';
 
   @override
+  String get configureDefaultStyleAndSensitivity =>
+      'Configure default style and sensitivity in Settings → Visualizer.';
+
+  @override
+  String get configureLyricsSavingAndFetching =>
+      'Configure lyrics saving and fetching behavior.';
+
+  @override
+  String get configureSwipeBehaviorInSettings =>
+      'Configure swipe behavior in Settings → Player Layout → Mini Player Swipe.';
+
+  @override
   String get configureUsbDacAmpDevices => 'Configure USB DAC/AMP devices';
+
+  @override
+  String get configureWidgetAppearanceAndShown =>
+      'Configure widget appearance and shown controls in Settings → Widgets.';
 
   @override
   String get configureYourMusicExperience => 'Configure your music experience';
@@ -1423,6 +1496,9 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get continueThroughYourEntireLibrary =>
       'Continue through your entire library';
+
+  @override
+  String get controls => 'Controls';
 
   @override
   String conversionFailed(Object error) {
@@ -1595,7 +1671,49 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
+  String get creatingPlaylists => 'Creating playlists';
+
+  @override
   String get cropCoverHint => 'Pinch to zoom, drag to reposition';
+
+  @override
+  String get customActionButtons => 'Custom action buttons';
+
+  @override
+  String get customizeTheHomeScreenWidget =>
+      'Customize the home screen widget appearance.';
+
+  @override
+  String get customizing => 'Customizing';
+
+  @override
+  String get dedicatedSearchTab => 'Dedicated Search tab';
+
+  @override
+  String get drag => 'Drag';
+
+  @override
+  String get dragAnywhereOnTheWaveform =>
+      'Drag anywhere on the waveform to scrub through the track. The waveform reflects the audio\\\'s loudness over time.';
+
+  @override
+  String get dragEachFrequencyBandSlider =>
+      'Drag each frequency band slider to shape the sound. The EQ applies system-wide to Flick\\\'s output.';
+
+  @override
+  String get dragScrollHandle => 'Drag scroll handle';
+
+  @override
+  String get dragTheScrollHandleOn =>
+      'Drag the scroll handle on the right edge to jump through the alphabet. A bubble shows the current letter.';
+
+  @override
+  String get dragTracksByTheirHandle =>
+      'Drag tracks by their handle to reorder. Changes apply immediately.';
+
+  @override
+  String get eachBrowseTabHasIts =>
+      'Each browse tab has its own search bar at the top that filters that tab\\\'s content live as you type.';
 
   @override
   String get editCover => 'Edit cover';
@@ -1607,6 +1725,25 @@ class AppLocalizationsTl extends AppLocalizations {
   String get adjust => 'Adjust';
 
   @override
+  String get editing => 'Editing';
+
+  @override
+  String get enableDisable => 'Enable / Disable';
+
+  @override
+  String get fastScroll => 'Fast scroll';
+
+  @override
+  String get fastScrollThroughLongLists =>
+      'Fast-scroll through long lists (Songs tab).';
+
+  @override
+  String get favoritesTab => 'Favorites tab';
+
+  @override
+  String get fetchingLyrics => 'Fetching lyrics';
+
+  @override
   String get filters => 'Filters';
 
   @override
@@ -1616,7 +1753,372 @@ class AppLocalizationsTl extends AppLocalizations {
   String get contrast => 'Contrast';
 
   @override
+  String get flickFetchesLyricsAutomaticallyWhen =>
+      'Flick fetches lyrics automatically when available. You can also paste or edit them manually.';
+
+  @override
+  String get folderPlayback => 'Folder playback';
+
+  @override
+  String get fromAnySongsLong =>
+      'From any song\\\'s long-press menu, choose Play Next to insert it right after the current track.';
+
+  @override
+  String get gaplessPlaybackCrossfadeViewModes =>
+      'Gapless playback, crossfade, view modes, and theme appearance.';
+
+  @override
+  String get generateAShareCardWith =>
+      'Generate a share card with the album art and track info, or share the file directly.';
+
+  @override
+  String get gestures => 'Gestures';
+
+  @override
+  String get gridView => 'Grid view';
+
+  @override
+  String get homeScreenWidget => 'Home Screen Widget';
+
+  @override
+  String get ifSearchIsInYour =>
+      'If Search is in your nav bar, it searches across songs, albums, and artists simultaneously with grouped results.';
+
+  @override
+  String get immersiveView => 'Immersive view';
+
+  @override
+  String get inAppInfoU2192Interactive =>
+      'In App Info → Interactive Tutorial, replay the spotlight tour. View Onboarding replays the welcome screens.';
+
+  @override
+  String get inTabSearch => 'In-tab search';
+
+  @override
+  String get inTheFullPlayerTap =>
+      'In the full player, tap the visualizer icon to turn it on or off.';
+
+  @override
+  String get interface => 'Interface';
+
+  @override
+  String get lastFmAndListenBrainzScrobbling =>
+      'Last.fm and ListenBrainz scrobbling setup.';
+
+  @override
+  String get layoutModeSizingMiniPlayer =>
+      'Layout mode, sizing, mini player swipe action, and custom quick action buttons.';
+
+  @override
+  String get library => 'Library';
+
+  @override
+  String get longPressASong => 'Long-press a song';
+
+  @override
+  String get longPressOrTapAgain =>
+      'Long-press or tap again to cycle through visualizer styles (bars, wave, radial, etc.).';
+
+  @override
+  String get longPressTheNavBar =>
+      'Long-press the nav bar, or open Settings → Bottom Bar, to choose which tabs appear and in what order.';
+
+  @override
+  String get longPressYourHomeScreen =>
+      'Long-press your home screen → Add widget → Flick. Choose a size and drop it on the home screen.';
+
+  @override
+  String get manageScanFoldersTriggerRescans =>
+      'Manage scan folders, trigger rescans, and run the duplicate cleaner.';
+
+  @override
+  String get manualBands => 'Manual bands';
+
+  @override
+  String get manualBitPerfectCapsule => 'Bit-perfect capsule';
+
+  @override
+  String get manualBottomBar => 'Bottom Bar';
+
+  @override
+  String get manualLongPress => 'Long-press';
+
+  @override
+  String get manualLyricsSyncStudio => 'Lyrics & Sync Studio';
+
+  @override
+  String get manualPlayNext => 'Play Next';
+
+  @override
+  String get manualPlaybackSpeed => 'Playback speed';
+
+  @override
+  String get manualQueue2 => 'Queue';
+
+  @override
+  String get manualRemoving => 'Removing';
+
+  @override
+  String get manualSongs => 'Songs';
+
+  @override
+  String get manualSwipeLeftRightOnThe =>
+      'Swipe left/right on the main page area to move between nav bar tabs.';
+
+  @override
+  String get manualTap => 'Tap';
+
+  @override
+  String get nextPreviousTrackOrToggle =>
+      'Next / previous track (or toggle visualizer, depending on settings).';
+
+  @override
+  String get openAPlaylistToReorder =>
+      'Open a playlist to reorder tracks (drag the handle), remove tracks (swipe or long-press), or rename/delete the playlist from its menu.';
+
+  @override
+  String get openFromTheLyricsEdit =>
+      'Open from the lyrics edit icon. Tap \"Set\" as each line plays to time-sync lyrics to the music. Save to persist the sync.';
+
+  @override
+  String get openTheActionsSheetFor =>
+      'Open the actions sheet for a song, or customize the nav bar.';
+
+  @override
+  String get openTheFullPlayer => 'Open the full player';
+
+  @override
+  String get openTheQueueFromThe =>
+      'Open the queue from the full player. The currently playing track is highlighted; upcoming tracks are listed below.';
+
+  @override
+  String get openingTheFullPlayer => 'Opening the full player';
+
+  @override
+  String get opensTheActionsSheetPlay =>
+      'Opens the actions sheet: Play Next, Add to Queue, Add to Playlist, Go to Album, Go to Artist, Share, View Info, or Delete.';
+
+  @override
+  String get playASongOpenAn => 'Play a song, open an album, toggle a control.';
+
+  @override
+  String get playPauseNextPrevious => 'Play / Pause / Next / Previous';
+
+  @override
+  String get playTheWholeAlbumShuffle =>
+      'Play the whole album, shuffle it, or pick individual tracks. Album art, year, and artist are shown at the top.';
+
+  @override
+  String get playing => 'Playing';
+
+  @override
+  String get playingASong => 'Playing a song';
+
+  @override
+  String get reSyncALineBy =>
+      'Re-sync a line by tapping it again at the right moment.';
+
+  @override
+  String get removeItFromTheQueue => 'Remove it from the queue.';
+
+  @override
+  String get reordering => 'Reordering';
+
+  @override
+  String get replayTutorial => 'Replay tutorial';
+
+  @override
   String get saturation => 'Saturation';
+
+  @override
+  String get scrubTheWaveformSeekbarReorder =>
+      'Scrub the waveform seekbar, reorder queue items, reorder playlist tracks.';
+
+  @override
+  String get seeYourMusicOrganizedBy =>
+      'See your music organized by the folder structure on disk. Useful if you organize files manually.';
+
+  @override
+  String get selectionMode => 'Selection mode';
+
+  @override
+  String get setACountdownAfterWhich =>
+      'Set a countdown after which playback stops. Options: 5, 10, 15, 30, 45, 60 minutes, or end of track.';
+
+  @override
+  String get showOrHideHomeScreen =>
+      'Show or hide home screen sections and tabs.';
+
+  @override
+  String get showsTheArtistsAlbums =>
+      'Shows the artist\\\'s albums and a complete track list. Play all, shuffle, or pick a starting track.';
+
+  @override
+  String get shuffleFromTheHeaderPlays =>
+      'Shuffle from the header plays the whole library in random order.';
+
+  @override
+  String get shuffleRepeat => 'Shuffle & Repeat';
+
+  @override
+  String get sort => 'Sort';
+
+  @override
+  String get sortAlbumsByTitleArtist =>
+      'Sort albums by title, artist, year, or date added from the sort icon.';
+
+  @override
+  String get sortPersistsAcrossSessions => 'Sort persists across sessions.';
+
+  @override
+  String get starRateTheCurrentTrack =>
+      'Star-rate the current track. Ratings are stored and can be used for sorting.';
+
+  @override
+  String get styles => 'Styles';
+
+  @override
+  String get swipeATrackLeftOr =>
+      'Swipe a track left or right to remove it from the queue.';
+
+  @override
+  String get swipeBetweenTabs => 'Swipe between tabs';
+
+  @override
+  String get swipeHorizontallyOnMiniPlayer =>
+      'Swipe horizontally on mini player';
+
+  @override
+  String get swipeLeftRightOnThe =>
+      'Swipe left/right on the mini player to go to next/previous track (if enabled in settings).';
+
+  @override
+  String get swipeOnAQueueItem => 'Swipe on a queue item';
+
+  @override
+  String get swipeToSwitch => 'Swipe to switch';
+
+  @override
+  String get syncStudio => 'Sync Studio';
+
+  @override
+  String get tapAFolderToPlay =>
+      'Tap a folder to play all tracks inside it, including subfolders.';
+
+  @override
+  String get tapAPlaylistToPlay =>
+      'Tap a playlist to play it in order, or use the shuffle button for random order.';
+
+  @override
+  String get tapAnySongToPlay =>
+      'Tap any song to play it immediately. The queue is rebuilt starting from that song.';
+
+  @override
+  String get tapAnywhereOnTheMini =>
+      'Tap anywhere on the mini player to expand into the full player.';
+
+  @override
+  String get tapShuffleToToggleRandom =>
+      'Tap shuffle to toggle random order. Tap repeat to cycle: off → all → one. Long-press either for advanced options.';
+
+  @override
+  String get tapTheAlbumArtTo =>
+      'Tap the album art to morph between the cover view and a spinning vinyl record view.';
+
+  @override
+  String get tapTheButtonToCreate =>
+      'Tap the + button to create a new playlist. Name it, then add songs via long-press on any song → Add to Playlist.';
+
+  @override
+  String get tapTheCheckIconIn =>
+      'Tap the check icon in the header to enter selection mode. Select multiple songs to queue, add to a playlist, or delete in bulk.';
+
+  @override
+  String get tapTheEQIconTo =>
+      'Tap the EQ icon to open the equalizer with presets and manual band control.';
+
+  @override
+  String get tapTheEditIconIn =>
+      'Tap the edit icon in lyrics to open the Lyrics Sync Studio.';
+
+  @override
+  String get tapTheHeartOnA =>
+      'Tap the heart on a song (in the full player or long-press menu) to mark it as a favorite.';
+
+  @override
+  String get tapTheLyricsIconIn =>
+      'Tap the lyrics icon in the full player. Synced lyrics scroll and highlight automatically; unsynced lyrics show as plain text.';
+
+  @override
+  String get tapTheLyricsIconTo =>
+      'Tap the lyrics icon to open the lyrics view. If synced lyrics are available, they highlight in time with the music.';
+
+  @override
+  String get tapTheMiniPlayerThe =>
+      'Tap the mini player. The full player expands with album art, the waveform seekbar, and all playback controls.';
+
+  @override
+  String get tapTheQueueIconTo =>
+      'Tap the queue icon to view and reorder upcoming tracks. Drag to reorder, swipe to remove.';
+
+  @override
+  String get tapTheSortIconTop =>
+      'Tap the sort icon (top-right of the header) to open the Sort & Filter sheet. Reorder by title, artist, album, date added, or last played. Filter by file type (FLAC, MP3, etc.).';
+
+  @override
+  String get tapToHideControlsFor =>
+      'Tap to hide controls for a clean album-art-only view. Tap again to bring them back.';
+
+  @override
+  String get theLeftAndRightAction =>
+      'The left and right action buttons above the transport row can be customized in Settings → Player Layout → Quick Actions.';
+
+  @override
+  String get theMiniPlayerSitsAbove =>
+      'The mini player sits above the nav bar and shows the current track\\\'s art, title, and artist with a progress indicator.';
+
+  @override
+  String get theSongsTabListsEvery =>
+      'The Songs tab lists every track Flick has scanned. Scroll to browse, or use the search bar to filter by title or artist.';
+
+  @override
+  String get theWidgetShowsCurrentTrack =>
+      'The widget shows current track art and title with play/pause and skip controls. Tapping art opens the app.';
+
+  @override
+  String get thisScreenReopenAnytimeFrom =>
+      'This screen. Reopen anytime from Settings → Help & Manual.';
+
+  @override
+  String get toggleTheAudioVisualizerOn =>
+      'Toggle the audio visualizer on/off and cycle through visualizer styles from the visualizer icon.';
+
+  @override
+  String get toggleTheMasterSwitchAt =>
+      'Toggle the master switch at the top to bypass the EQ without losing your settings.';
+
+  @override
+  String get toggling => 'Toggling';
+
+  @override
+  String get uac2USBDACPreferencesAnd =>
+      'UAC2 USB DAC preferences and equalizer settings.';
+
+  @override
+  String get useTheWaveformScrubberTo =>
+      'Use the waveform scrubber to jump to a line you missed.';
+
+  @override
+  String get viewingLyrics => 'Viewing lyrics';
+
+  @override
+  String get viewingTheQueue => 'Viewing the queue';
+
+  @override
+  String get vinylMorph => 'Vinyl morph';
+
+  @override
+  String get visualizerToggle => 'Visualizer toggle';
 
   @override
   String get warmth => 'Warmth';
@@ -8134,6 +8636,9 @@ class AppLocalizationsTl extends AppLocalizations {
   String get waveform => 'Waveform';
 
   @override
+  String get waveformSeekbar => 'Waveform seekbar';
+
+  @override
   String weLlKeepTheBestQuality(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -8177,7 +8682,14 @@ class AppLocalizationsTl extends AppLocalizations {
   String get welcomeToFlick2 => 'Welcome to Flick';
 
   @override
+  String get whatItShows => 'What it shows';
+
+  @override
   String get whatSNew => 'What\'s New';
+
+  @override
+  String get whenBitPerfectOutputIs =>
+      'When bit-perfect output is active, a capsule shows the sample rate and bit depth being sent to your DAC.';
 
   @override
   String get whenYouPlayOverBluetoothAndroid =>

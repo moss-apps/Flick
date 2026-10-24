@@ -31,6 +31,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aSongWithALongTitle => '一首标题很长的歌曲，用于预览';
 
   @override
+  String get aSwipeGestureWhenConfigured => '配置好滑动手势后，可用它在迷你播放器内切换内嵌的可视化效果。';
+
+  @override
   String get aTighterMixOfFavoritesAnd => '收藏与反复回味的歌曲更紧凑的混合。';
 
   @override
@@ -144,6 +147,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get addTheSearchTabVia => '长按导航栏 →「底栏设置」即可添加「搜索」标签页。';
+
+  @override
   String get addToFavorites => '添加到收藏';
 
   @override
@@ -200,6 +206,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get addingFavorites => '添加收藏';
+
+  @override
+  String get addingTheWidget => '添加小组件';
+
+  @override
   String get addsPreDriveAndCatchesPeaks => '增加前置驱动，并针对最终输出上限抑制峰值。';
 
   @override
@@ -210,6 +222,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get adjustMetadataTextSizeInImmersive => '调整沉浸模式下的元数据文字大小';
+
+  @override
+  String get adjustPlaybackSpeed05x => '在倍速控制中调整播放速度（0.5x–2x），音高保持不变。';
 
   @override
   String get adjustSpacingBetweenButtons => '调整按钮之间的间距';
@@ -284,6 +299,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get albumCount => '专辑数量';
 
   @override
+  String get albumDetail => '专辑详情';
+
+  @override
   String get albumLimit => '专辑上限';
 
   @override
@@ -304,6 +322,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String albums3(Object _totalAlbums) {
     return '$_totalAlbums 张专辑';
   }
+
+  @override
+  String get albumsAppearAsAGrid => '专辑以封面网格展示。点击任意专辑打开详情页，查看完整曲目列表。';
 
   @override
   String get albumsShownPerPage => '每页显示的专辑数';
@@ -334,6 +355,9 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get allDataIsStoredLocallyOn =>
       '所有数据仅存储在你的设备本地：音乐库元数据、播放历史、播放列表、均衡器预设和应用偏好设置。Last.fm 凭据安全存储在设备上。除非你主动使用某项集成，否则这些数据不会离开你的设备。';
+
+  @override
+  String get allFavoritedTracksInOne => '所有收藏曲目集中在这里。可播放、随机播放或在此管理。';
 
   @override
   String get allFolders => '所有文件夹';
@@ -441,6 +465,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get animationsAndHapticFeedback => '动画与触感反馈';
 
   @override
+  String get animationsAndHapticFeedbackToggles => '动画与触感反馈开关。';
+
+  @override
   String get apiKey => 'API 密钥';
 
   @override
@@ -517,7 +544,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get artist => '艺术家';
 
   @override
+  String get artistDetail => '艺术家详情';
+
+  @override
   String get artistIsNotAvailableForThis => '此歌曲没有可用的艺术家';
+
+  @override
+  String get artistList => '艺术家列表';
 
   @override
   String get artistName => '艺术家名称';
@@ -914,7 +947,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bouncy => '弹跳';
 
   @override
+  String get browseAllArtistsInYour => '浏览音乐库中的所有艺术家。点击某位艺术家可查看其专辑与曲目。';
+
+  @override
   String get browseByArtworkOpenAnyAlbum => '按封面浏览，打开任意专辑，直接进入曲目列表。';
+
+  @override
+  String get browseByFolder => '按文件夹浏览';
 
   @override
   String get browseMore => '浏览更多';
@@ -928,6 +967,9 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get browseYourArtistsExploreTheirDiscographies =>
       '浏览你的艺术家，探索他们的作品，播放他们的曲目。';
+
+  @override
+  String get browsingYourLibrary => '浏览音乐库';
 
   @override
   String get buffer => '缓冲区';
@@ -1069,6 +1111,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get centeredWidensToFitYourControls => '居中；会加宽以容纳控件';
 
   @override
+  String get centralTransportControlsPreviousRestarts =>
+      '中央的播放控制。若已播放超过 3 秒，「上一首」会重新开始当前曲目。';
+
+  @override
   String ch(Object channels) {
     return '$channels 声道';
   }
@@ -1129,6 +1175,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chooseAudioEngine => '选择音频引擎';
+
+  @override
+  String get chooseFromBuiltInPresets => '可选择内置预设（平坦、低音增强、高音增强、人声等），也可保存自己的预设。';
 
   @override
   String get chooseLocationU2026 => '选择位置…';
@@ -1251,7 +1300,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compressorOn => '压缩器开';
 
   @override
+  String get configureDefaultStyleAndSensitivity => '在「设置 → 可视化」中配置默认样式与灵敏度。';
+
+  @override
+  String get configureLyricsSavingAndFetching => '配置歌词的保存与获取行为。';
+
+  @override
+  String get configureSwipeBehaviorInSettings =>
+      '在「设置 → 播放器布局 → 迷你播放器滑动」中配置滑动行为。';
+
+  @override
   String get configureUsbDacAmpDevices => '配置 USB DAC/AMP 设备';
+
+  @override
+  String get configureWidgetAppearanceAndShown => '在「设置 → 小组件」中配置小组件的外观与显示的控件。';
 
   @override
   String get configureYourMusicExperience => '配置你的音乐体验';
@@ -1347,6 +1409,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get continueThroughYourEntireLibrary => '在整个音乐库中继续播放';
+
+  @override
+  String get controls => '控件';
 
   @override
   String conversionFailed(Object error) {
@@ -1507,7 +1572,43 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get creatingPlaylists => '新建播放列表';
+
+  @override
   String get cropCoverHint => '双指缩放，拖动调整位置';
+
+  @override
+  String get customActionButtons => '自定义动作按钮';
+
+  @override
+  String get customizeTheHomeScreenWidget => '自定义主屏幕小组件的外观。';
+
+  @override
+  String get customizing => '自定义';
+
+  @override
+  String get dedicatedSearchTab => '独立「搜索」标签页';
+
+  @override
+  String get drag => '拖动';
+
+  @override
+  String get dragAnywhereOnTheWaveform => '在波形上任意位置拖动即可定位。波形反映音频随时间的响度变化。';
+
+  @override
+  String get dragEachFrequencyBandSlider => '拖动各频段滑块塑造音色。均衡器会作用于 Flick 的全部输出。';
+
+  @override
+  String get dragScrollHandle => '拖动滚动条';
+
+  @override
+  String get dragTheScrollHandleOn => '拖动右边缘的滚动条可在字母间快速跳转，气泡会显示当前字母。';
+
+  @override
+  String get dragTracksByTheirHandle => '拖动曲目右侧的手柄即可重新排序，改动立即生效。';
+
+  @override
+  String get eachBrowseTabHasIts => '每个浏览标签页顶部都有自己的搜索栏，输入时会实时筛选该标签页的内容。';
 
   @override
   String get editCover => '编辑封面';
@@ -1519,6 +1620,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adjust => '调整';
 
   @override
+  String get editing => '编辑';
+
+  @override
+  String get enableDisable => '启用／停用';
+
+  @override
+  String get fastScroll => '快速滚动';
+
+  @override
+  String get fastScrollThroughLongLists => '在长列表（歌曲标签页）中快速滚动。';
+
+  @override
+  String get favoritesTab => '收藏标签页';
+
+  @override
+  String get fetchingLyrics => '获取歌词';
+
+  @override
   String get filters => '滤镜';
 
   @override
@@ -1528,7 +1647,323 @@ class AppLocalizationsZh extends AppLocalizations {
   String get contrast => '对比度';
 
   @override
+  String get flickFetchesLyricsAutomaticallyWhen =>
+      'Flick 会在有歌词时自动获取。你也可以手动粘贴或编辑歌词。';
+
+  @override
+  String get folderPlayback => '文件夹播放';
+
+  @override
+  String get fromAnySongsLong => '在任意歌曲的长按菜单中选择「下一首播放」，可把它插到当前曲目之后。';
+
+  @override
+  String get gaplessPlaybackCrossfadeViewModes => '无缝播放、淡入淡出、视图模式与主题外观。';
+
+  @override
+  String get generateAShareCardWith => '生成带专辑封面与曲目信息的分享卡片，或直接分享文件。';
+
+  @override
+  String get gestures => '手势';
+
+  @override
+  String get gridView => '网格视图';
+
+  @override
+  String get homeScreenWidget => '主屏幕小组件';
+
+  @override
+  String get ifSearchIsInYour => '如果导航栏中有「搜索」，它会同时搜索歌曲、专辑与艺术家，并按类别分组显示结果。';
+
+  @override
+  String get immersiveView => '沉浸视图';
+
+  @override
+  String get inAppInfoU2192Interactive =>
+      '在「应用信息 → 交互教程」中可重看聚光灯式导览；「查看引导」可重看欢迎页。';
+
+  @override
+  String get inTabSearch => '标签页内搜索';
+
+  @override
+  String get inTheFullPlayerTap => '在完整播放器中点击可视化图标即可开启或关闭。';
+
+  @override
+  String get interface => '界面';
+
+  @override
+  String get lastFmAndListenBrainzScrobbling =>
+      'Last.fm 与 ListenBrainz 的收听记录设置。';
+
+  @override
+  String get layoutModeSizingMiniPlayer => '布局模式、尺寸、迷你播放器滑动手势，以及自定义快捷按钮。';
+
+  @override
+  String get library => '音乐库';
+
+  @override
+  String get longPressASong => '长按歌曲';
+
+  @override
+  String get longPressOrTapAgain => '长按或再次点击可循环切换可视化样式（柱状、波形、环形等）。';
+
+  @override
+  String get longPressTheNavBar => '长按导航栏，或打开「设置 → 底栏」，选择显示哪些标签页以及它们的顺序。';
+
+  @override
+  String get longPressYourHomeScreen => '长按主屏幕 →「添加小组件」→ Flick，选择尺寸后拖到主屏幕上。';
+
+  @override
+  String get manageScanFoldersTriggerRescans => '管理扫描文件夹、触发重新扫描，以及运行重复项清理。';
+
+  @override
+  String get manualBands => '手动调节频段';
+
+  @override
+  String get manualBitPerfectCapsule => '位完美胶囊';
+
+  @override
+  String get manualBottomBar => '底栏';
+
+  @override
+  String get manualLongPress => '长按';
+
+  @override
+  String get manualLyricsSyncStudio => '歌词与同步工作室';
+
+  @override
+  String get manualPlayNext => '下一首播放';
+
+  @override
+  String get manualPlaybackSpeed => '播放速度';
+
+  @override
+  String get manualQueue2 => '播放队列';
+
+  @override
+  String get manualRemoving => '移除曲目';
+
+  @override
+  String get manualSongs => '歌曲';
+
+  @override
+  String get manualSwipeLeftRightOnThe => '在主内容区域左右滑动，可在导航栏标签页之间切换。';
+
+  @override
+  String get manualTap => '点击';
+
+  @override
+  String get nextPreviousTrackOrToggle => '切换到下一首／上一首（或按设置切换可视化效果）。';
+
+  @override
+  String get openAPlaylistToReorder => '打开播放列表可拖动排序、滑动或长按删除曲目，也可从菜单重命名或删除整个列表。';
+
+  @override
+  String get openFromTheLyricsEdit => '从歌词编辑图标打开。每句播放时点击「设定」即可为其打上时间轴，保存后同步生效。';
+
+  @override
+  String get openTheActionsSheetFor => '打开歌曲的操作面板，或自定义导航栏。';
+
+  @override
+  String get openTheFullPlayer => '打开完整播放器';
+
+  @override
+  String get openTheQueueFromThe => '从完整播放器打开队列。正在播放的曲目会高亮显示，待播曲目列在下方。';
+
+  @override
+  String get openingTheFullPlayer => '展开完整播放器';
+
+  @override
+  String get opensTheActionsSheetPlay =>
+      '打开操作面板：下一首播放、加入队列、加入播放列表、前往专辑、前往艺术家、分享、查看信息或删除。';
+
+  @override
+  String get playASongOpenAn => '播放歌曲、打开专辑、切换控件。';
+
+  @override
+  String get playPauseNextPrevious => '播放／暂停／下一首／上一首';
+
+  @override
+  String get playTheWholeAlbumShuffle => '可整张播放、随机播放，或单独挑选曲目。顶部会显示封面、年份与艺术家。';
+
+  @override
+  String get playing => '播放';
+
+  @override
+  String get playingASong => '播放歌曲';
+
+  @override
+  String get reSyncALineBy => '在正确时机再次点击某句即可重新同步。';
+
+  @override
+  String get removeItFromTheQueue => '把它从队列中移除。';
+
+  @override
+  String get reordering => '调整顺序';
+
+  @override
+  String get replayTutorial => '重看教程';
+
+  @override
   String get saturation => '饱和度';
+
+  @override
+  String get scrubTheWaveformSeekbarReorder => '拖动波形进度条、调整队列顺序、调整播放列表曲目顺序。';
+
+  @override
+  String get seeYourMusicOrganizedBy => '按磁盘上的文件夹结构查看音乐。如果你习惯手动整理文件，这种方式很有用。';
+
+  @override
+  String get selectionMode => '多选模式';
+
+  @override
+  String get setACountdownAfterWhich =>
+      '设置倒计时，到点后自动停止播放。可选 5、10、15、30、45、60 分钟，或播完当前曲目。';
+
+  @override
+  String get showOrHideHomeScreen => '显示或隐藏主屏幕区块与标签页。';
+
+  @override
+  String get showsTheArtistsAlbums => '显示该艺术家的专辑与完整曲目列表。可全部播放、随机播放，或指定一首作为起点。';
+
+  @override
+  String get shuffleFromTheHeaderPlays => '用标题栏的随机播放会以随机顺序播放整个音乐库。';
+
+  @override
+  String get shuffleRepeat => '随机播放与循环';
+
+  @override
+  String get sort => '排序';
+
+  @override
+  String get sortAlbumsByTitleArtist => '用排序图标按标题、艺术家、年份或添加日期排序专辑。';
+
+  @override
+  String get sortPersistsAcrossSessions => '排序方式会跨会话保留。';
+
+  @override
+  String get starRateTheCurrentTrack => '为当前曲目打星。评分会被保存，并可用于排序。';
+
+  @override
+  String get styles => '样式';
+
+  @override
+  String get swipeATrackLeftOr => '向左或向右滑动曲目即可将其从队列中移除。';
+
+  @override
+  String get swipeBetweenTabs => '在标签页间滑动';
+
+  @override
+  String get swipeHorizontallyOnMiniPlayer => '在迷你播放器上横向滑动';
+
+  @override
+  String get swipeLeftRightOnThe => '在迷你播放器上左右滑动可切换到下一首／上一首（需在设置中启用）。';
+
+  @override
+  String get swipeOnAQueueItem => '在队列曲目上滑动';
+
+  @override
+  String get swipeToSwitch => '滑动切歌';
+
+  @override
+  String get syncStudio => '同步工作室';
+
+  @override
+  String get tapAFolderToPlay => '点击某个文件夹可播放其中的所有曲目，包括子文件夹。';
+
+  @override
+  String get tapAPlaylistToPlay => '点击播放列表按顺序播放，或用随机播放按钮以随机顺序播放。';
+
+  @override
+  String get tapAnySongToPlay => '点击任意歌曲立即播放，播放队列会从这首歌开始重建。';
+
+  @override
+  String get tapAnywhereOnTheMini => '点击迷你播放器的任意位置即可展开完整播放器。';
+
+  @override
+  String get tapShuffleToToggleRandom =>
+      '点击随机播放开关切换随机顺序。点击循环依次切换：关闭 → 全部 → 单曲。长按任一按钮可打开高级选项。';
+
+  @override
+  String get tapTheAlbumArtTo => '点击专辑封面，可在封面视图与旋转黑胶视图之间切换。';
+
+  @override
+  String get tapTheButtonToCreate => '点击 + 按钮新建播放列表，命名后长按任意歌曲 →「加入播放列表」即可添加。';
+
+  @override
+  String get tapTheCheckIconIn => '点击标题栏的对勾图标进入多选模式，可批量加入队列、加入播放列表或删除。';
+
+  @override
+  String get tapTheEQIconTo => '点击均衡器图标打开均衡器，可选预设或手动调节各频段。';
+
+  @override
+  String get tapTheEditIconIn => '点击歌词中的编辑图标可打开「歌词同步工作室」。';
+
+  @override
+  String get tapTheHeartOnA => '点击歌曲上的爱心（在完整播放器或长按菜单中）将其标记为收藏。';
+
+  @override
+  String get tapTheLyricsIconIn => '点击完整播放器中的歌词图标。同步歌词会自动滚动并高亮；未同步的歌词以纯文本显示。';
+
+  @override
+  String get tapTheLyricsIconTo => '点击歌词图标打开歌词视图。若为同步歌词，会随时间逐句高亮。';
+
+  @override
+  String get tapTheMiniPlayerThe => '点击迷你播放器即可展开完整播放器，包含专辑封面、波形进度条与全部播放控制。';
+
+  @override
+  String get tapTheQueueIconTo => '点击队列图标查看并调整待播曲目。拖动可排序，滑动可移除。';
+
+  @override
+  String get tapTheSortIconTop =>
+      '点击排序图标（标题栏右上角）打开「排序与筛选」面板。可按标题、艺术家、专辑、添加日期或最近播放重新排序，也可按文件类型（FLAC、MP3 等）筛选。';
+
+  @override
+  String get tapToHideControlsFor => '点击可隐藏控件，只留下干净的专辑封面视图。再次点击恢复。';
+
+  @override
+  String get theLeftAndRightAction =>
+      '播放控制行上方的左右两个动作按钮可在「设置 → 播放器布局 → 快捷操作」中自定义。';
+
+  @override
+  String get theMiniPlayerSitsAbove => '迷你播放器位于导航栏上方，显示当前曲目的封面、标题与艺术家，并带进度指示。';
+
+  @override
+  String get theSongsTabListsEvery =>
+      '「歌曲」标签页会列出 Flick 扫描到的所有曲目。滚动浏览，或用搜索栏按标题、艺术家筛选。';
+
+  @override
+  String get theWidgetShowsCurrentTrack =>
+      '小组件显示当前曲目的封面与标题，并提供播放／暂停与切歌控件。点击封面会打开应用。';
+
+  @override
+  String get thisScreenReopenAnytimeFrom => '就是当前这个页面。随时可从「设置 → 帮助与手册」重新打开。';
+
+  @override
+  String get toggleTheAudioVisualizerOn => '从可视化图标处可开关音频可视化效果，并循环切换可视化样式。';
+
+  @override
+  String get toggleTheMasterSwitchAt => '用顶部的总开关旁通均衡器，同时保留你的设置。';
+
+  @override
+  String get toggling => '开关可视化';
+
+  @override
+  String get uac2USBDACPreferencesAnd => 'UAC2 USB DAC 偏好设置与均衡器设置。';
+
+  @override
+  String get useTheWaveformScrubberTo => '用波形进度条可跳回错过的句子。';
+
+  @override
+  String get viewingLyrics => '查看歌词';
+
+  @override
+  String get viewingTheQueue => '查看队列';
+
+  @override
+  String get vinylMorph => '黑胶切换';
+
+  @override
+  String get visualizerToggle => '可视化开关';
 
   @override
   String get warmth => '色温';
@@ -7579,6 +8014,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get waveform => '波形';
 
   @override
+  String get waveformSeekbar => '波形进度条';
+
+  @override
   String weLlKeepTheBestQuality(int count) {
     return '每组保留质量最好的版本（优先有专辑封面，其次码率最高），并移除 $count 个。磁盘上的文件不会被删除。';
   }
@@ -7604,7 +8042,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get welcomeToFlick2 => '欢迎使用 Flick';
 
   @override
+  String get whatItShows => '显示内容';
+
+  @override
   String get whatSNew => '新功能';
+
+  @override
+  String get whenBitPerfectOutputIs => '启用位完美输出时，胶囊会显示当前发送给 DAC 的采样率与位深。';
 
   @override
   String get whenYouPlayOverBluetoothAndroid =>

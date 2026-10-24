@@ -143,6 +143,12 @@ abstract class AppLocalizations {
   /// **'A song with a long title to preview'**
   String get aSongWithALongTitle;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'A swipe gesture (when configured) toggles an inline visualizer inside the mini player.'**
+  String get aSwipeGestureWhenConfigured;
+
   /// lib/features/menu/screens/menu_screen.dart:1768
   ///
   /// In en, this message translates to:
@@ -353,6 +359,12 @@ abstract class AppLocalizations {
   /// **'Add {arg1} Songs to Playlist'**
   String addSongsToPlaylist2(Object arg1);
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Add the Search tab via long-press on the nav bar → Bottom Bar Settings.'**
+  String get addTheSearchTabVia;
+
   /// lib/features/songs/screens/songs_screen.dart:2008
   ///
   /// In en, this message translates to:
@@ -437,6 +449,18 @@ abstract class AppLocalizations {
   /// **'Added \"{arg1}\" to favorites'**
   String addedToFavorites2(Object arg1);
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Adding favorites'**
+  String get addingFavorites;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Adding the widget'**
+  String get addingTheWidget;
+
   /// lib/features/settings/screens/equalizer_screen.dart:3393
   ///
   /// In en, this message translates to:
@@ -460,6 +484,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Adjust metadata text size in immersive mode'**
   String get adjustMetadataTextSizeInImmersive;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust playback speed (0.5x\\u20132x) from the speed control. Pitch is preserved.'**
+  String get adjustPlaybackSpeed05x;
 
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:275
   ///
@@ -599,6 +629,12 @@ abstract class AppLocalizations {
   /// **'Album Count'**
   String get albumCount;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Album detail'**
+  String get albumDetail;
+
   /// lib/features/songs/screens/songs_screen.dart:2958
   ///
   /// In en, this message translates to:
@@ -634,6 +670,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{_totalAlbums} albums'**
   String albums3(Object _totalAlbums);
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Albums appear as a grid of cover art. Tap any album to open its detail screen with the full tracklist.'**
+  String get albumsAppearAsAGrid;
 
   /// lib/features/songs/screens/songs_screen.dart:2968
   ///
@@ -688,6 +730,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All data is stored locally on your device only: music library metadata, play history, playlists, equalizer presets, and app preferences. Last.fm credentials are stored securely on-device. This data never leaves your device unless you explicitly use an integration.'**
   String get allDataIsStoredLocallyOn;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'All favorited tracks in one place. Play, shuffle, or manage from here.'**
+  String get allFavoritedTracksInOne;
 
   /// lib/features/settings/screens/library_settings_screen.dart:682
   ///
@@ -881,6 +929,12 @@ abstract class AppLocalizations {
   /// **'Animations and haptic feedback'**
   String get animationsAndHapticFeedback;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Animations and haptic feedback toggles.'**
+  String get animationsAndHapticFeedbackToggles;
+
   /// lib/features/settings/widgets/lastfm_settings_tile.dart:447
   ///
   /// In en, this message translates to:
@@ -1019,11 +1073,23 @@ abstract class AppLocalizations {
   /// **'Artist'**
   String get artist;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Artist detail'**
+  String get artistDetail;
+
   /// lib/features/player/widgets/player_navigation.dart:45
   ///
   /// In en, this message translates to:
   /// **'Artist is not available for this song'**
   String get artistIsNotAvailableForThis;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Artist list'**
+  String get artistList;
 
   /// lib/features/settings/screens/widget_settings_screen.dart:215
   ///
@@ -1739,11 +1805,23 @@ abstract class AppLocalizations {
   /// **'Bouncy'**
   String get bouncy;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Browse all artists in your library. Tap an artist to see their albums and tracks.'**
+  String get browseAllArtistsInYour;
+
   /// lib/features/albums/screens/albums_screen.dart:348
   ///
   /// In en, this message translates to:
   /// **'Browse by artwork, open any album, and jump straight into the tracklist.'**
   String get browseByArtworkOpenAnyAlbum;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Browse by folder'**
+  String get browseByFolder;
 
   /// lib/features/menu/screens/menu_screen.dart:1033
   ///
@@ -1768,6 +1846,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Browse your artists, explore their discographies, and play their tracks.'**
   String get browseYourArtistsExploreTheirDiscographies;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Browsing your library'**
+  String get browsingYourLibrary;
 
   /// lib/features/player/widgets/bit_perfect_indicator.dart:1024
   ///
@@ -2015,6 +2099,12 @@ abstract class AppLocalizations {
   /// **'Centered; widens to fit your controls'**
   String get centeredWidensToFitYourControls;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Central transport controls. Previous restarts the track if you\\\'re past 3 seconds in.'**
+  String get centralTransportControlsPreviousRestarts;
+
   /// lib/features/player/widgets/bit_perfect_indicator.dart:621
   ///
   /// In en, this message translates to:
@@ -2116,6 +2206,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose Audio Engine'**
   String get chooseAudioEngine;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from built-in presets (Flat, Bass Boost, Treble Boost, Vocal, etc.) or save your own.'**
+  String get chooseFromBuiltInPresets;
 
   /// lib/features/player/screens/lyrics_sync_screen.dart:494
   ///
@@ -2351,11 +2447,35 @@ abstract class AppLocalizations {
   /// **'Compressor on'**
   String get compressorOn;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Configure default style and sensitivity in Settings → Visualizer.'**
+  String get configureDefaultStyleAndSensitivity;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Configure lyrics saving and fetching behavior.'**
+  String get configureLyricsSavingAndFetching;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Configure swipe behavior in Settings → Player Layout → Mini Player Swipe.'**
+  String get configureSwipeBehaviorInSettings;
+
   /// lib/features/settings/screens/audio_settings_screen.dart:50
   ///
   /// In en, this message translates to:
   /// **'Configure USB DAC/AMP devices'**
   String get configureUsbDacAmpDevices;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Configure widget appearance and shown controls in Settings → Widgets.'**
+  String get configureWidgetAppearanceAndShown;
 
   /// lib/features/settings/screens/settings_screen.dart:312
   ///
@@ -2536,6 +2656,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue through your entire library'**
   String get continueThroughYourEntireLibrary;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Controls'**
+  String get controls;
 
   /// lib/widgets/alac_conversion_indicator.dart:249
   ///
@@ -2807,11 +2933,83 @@ abstract class AppLocalizations {
   /// **'{done} / {total} covers'**
   String covers(Object done, Object total);
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Creating playlists'**
+  String get creatingPlaylists;
+
   /// lib/features/playlists/screens/playlist_cover_editor_screen.dart
   ///
   /// In en, this message translates to:
   /// **'Pinch to zoom, drag to reposition'**
   String get cropCoverHint;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Custom action buttons'**
+  String get customActionButtons;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Customize the home screen widget appearance.'**
+  String get customizeTheHomeScreenWidget;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Customizing'**
+  String get customizing;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Dedicated Search tab'**
+  String get dedicatedSearchTab;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Drag'**
+  String get drag;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Drag anywhere on the waveform to scrub through the track. The waveform reflects the audio\\\'s loudness over time.'**
+  String get dragAnywhereOnTheWaveform;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Drag each frequency band slider to shape the sound. The EQ applies system-wide to Flick\\\'s output.'**
+  String get dragEachFrequencyBandSlider;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Drag scroll handle'**
+  String get dragScrollHandle;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the scroll handle on the right edge to jump through the alphabet. A bubble shows the current letter.'**
+  String get dragTheScrollHandleOn;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Drag tracks by their handle to reorder. Changes apply immediately.'**
+  String get dragTracksByTheirHandle;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Each browse tab has its own search bar at the top that filters that tab\\\'s content live as you type.'**
+  String get eachBrowseTabHasIts;
 
   /// No description provided for @editCover.
   ///
@@ -2831,6 +3029,42 @@ abstract class AppLocalizations {
   /// **'Adjust'**
   String get adjust;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Editing'**
+  String get editing;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Enable / Disable'**
+  String get enableDisable;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Fast scroll'**
+  String get fastScroll;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Fast-scroll through long lists (Songs tab).'**
+  String get fastScrollThroughLongLists;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites tab'**
+  String get favoritesTab;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching lyrics'**
+  String get fetchingLyrics;
+
   /// No description provided for @filters.
   ///
   /// In en, this message translates to:
@@ -2849,11 +3083,623 @@ abstract class AppLocalizations {
   /// **'Contrast'**
   String get contrast;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Flick fetches lyrics automatically when available. You can also paste or edit them manually.'**
+  String get flickFetchesLyricsAutomaticallyWhen;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Folder playback'**
+  String get folderPlayback;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'From any song\\\'s long-press menu, choose Play Next to insert it right after the current track.'**
+  String get fromAnySongsLong;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Gapless playback, crossfade, view modes, and theme appearance.'**
+  String get gaplessPlaybackCrossfadeViewModes;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Generate a share card with the album art and track info, or share the file directly.'**
+  String get generateAShareCardWith;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Gestures'**
+  String get gestures;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Grid view'**
+  String get gridView;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Home Screen Widget'**
+  String get homeScreenWidget;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'If Search is in your nav bar, it searches across songs, albums, and artists simultaneously with grouped results.'**
+  String get ifSearchIsInYour;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Immersive view'**
+  String get immersiveView;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'In App Info → Interactive Tutorial, replay the spotlight tour. View Onboarding replays the welcome screens.'**
+  String get inAppInfoU2192Interactive;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'In-tab search'**
+  String get inTabSearch;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'In the full player, tap the visualizer icon to turn it on or off.'**
+  String get inTheFullPlayerTap;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Interface'**
+  String get interface;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Last.fm and ListenBrainz scrobbling setup.'**
+  String get lastFmAndListenBrainzScrobbling;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Layout mode, sizing, mini player swipe action, and custom quick action buttons.'**
+  String get layoutModeSizingMiniPlayer;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get library;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press a song'**
+  String get longPressASong;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press or tap again to cycle through visualizer styles (bars, wave, radial, etc.).'**
+  String get longPressOrTapAgain;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press the nav bar, or open Settings → Bottom Bar, to choose which tabs appear and in what order.'**
+  String get longPressTheNavBar;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press your home screen → Add widget → Flick. Choose a size and drop it on the home screen.'**
+  String get longPressYourHomeScreen;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Manage scan folders, trigger rescans, and run the duplicate cleaner.'**
+  String get manageScanFoldersTriggerRescans;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Manual bands'**
+  String get manualBands;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Bit-perfect capsule'**
+  String get manualBitPerfectCapsule;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom Bar'**
+  String get manualBottomBar;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press'**
+  String get manualLongPress;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics & Sync Studio'**
+  String get manualLyricsSyncStudio;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Play Next'**
+  String get manualPlayNext;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Playback speed'**
+  String get manualPlaybackSpeed;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get manualQueue2;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Removing'**
+  String get manualRemoving;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Songs'**
+  String get manualSongs;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe left/right on the main page area to move between nav bar tabs.'**
+  String get manualSwipeLeftRightOnThe;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap'**
+  String get manualTap;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Next / previous track (or toggle visualizer, depending on settings).'**
+  String get nextPreviousTrackOrToggle;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Open a playlist to reorder tracks (drag the handle), remove tracks (swipe or long-press), or rename/delete the playlist from its menu.'**
+  String get openAPlaylistToReorder;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Open from the lyrics edit icon. Tap \"Set\" as each line plays to time-sync lyrics to the music. Save to persist the sync.'**
+  String get openFromTheLyricsEdit;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Open the actions sheet for a song, or customize the nav bar.'**
+  String get openTheActionsSheetFor;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Open the full player'**
+  String get openTheFullPlayer;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Open the queue from the full player. The currently playing track is highlighted; upcoming tracks are listed below.'**
+  String get openTheQueueFromThe;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Opening the full player'**
+  String get openingTheFullPlayer;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Opens the actions sheet: Play Next, Add to Queue, Add to Playlist, Go to Album, Go to Artist, Share, View Info, or Delete.'**
+  String get opensTheActionsSheetPlay;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Play a song, open an album, toggle a control.'**
+  String get playASongOpenAn;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Play / Pause / Next / Previous'**
+  String get playPauseNextPrevious;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Play the whole album, shuffle it, or pick individual tracks. Album art, year, and artist are shown at the top.'**
+  String get playTheWholeAlbumShuffle;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Playing'**
+  String get playing;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Playing a song'**
+  String get playingASong;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Re-sync a line by tapping it again at the right moment.'**
+  String get reSyncALineBy;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Remove it from the queue.'**
+  String get removeItFromTheQueue;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Reordering'**
+  String get reordering;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Replay tutorial'**
+  String get replayTutorial;
+
   /// No description provided for @saturation.
   ///
   /// In en, this message translates to:
   /// **'Saturation'**
   String get saturation;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Scrub the waveform seekbar, reorder queue items, reorder playlist tracks.'**
+  String get scrubTheWaveformSeekbarReorder;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'See your music organized by the folder structure on disk. Useful if you organize files manually.'**
+  String get seeYourMusicOrganizedBy;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Selection mode'**
+  String get selectionMode;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Set a countdown after which playback stops. Options: 5, 10, 15, 30, 45, 60 minutes, or end of track.'**
+  String get setACountdownAfterWhich;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Show or hide home screen sections and tabs.'**
+  String get showOrHideHomeScreen;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Shows the artist\\\'s albums and a complete track list. Play all, shuffle, or pick a starting track.'**
+  String get showsTheArtistsAlbums;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle from the header plays the whole library in random order.'**
+  String get shuffleFromTheHeaderPlays;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle & Repeat'**
+  String get shuffleRepeat;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get sort;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Sort albums by title, artist, year, or date added from the sort icon.'**
+  String get sortAlbumsByTitleArtist;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Sort persists across sessions.'**
+  String get sortPersistsAcrossSessions;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Star-rate the current track. Ratings are stored and can be used for sorting.'**
+  String get starRateTheCurrentTrack;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Styles'**
+  String get styles;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe a track left or right to remove it from the queue.'**
+  String get swipeATrackLeftOr;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe between tabs'**
+  String get swipeBetweenTabs;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe horizontally on mini player'**
+  String get swipeHorizontallyOnMiniPlayer;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe left/right on the mini player to go to next/previous track (if enabled in settings).'**
+  String get swipeLeftRightOnThe;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe on a queue item'**
+  String get swipeOnAQueueItem;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe to switch'**
+  String get swipeToSwitch;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Studio'**
+  String get syncStudio;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a folder to play all tracks inside it, including subfolders.'**
+  String get tapAFolderToPlay;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a playlist to play it in order, or use the shuffle button for random order.'**
+  String get tapAPlaylistToPlay;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap any song to play it immediately. The queue is rebuilt starting from that song.'**
+  String get tapAnySongToPlay;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap anywhere on the mini player to expand into the full player.'**
+  String get tapAnywhereOnTheMini;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap shuffle to toggle random order. Tap repeat to cycle: off → all → one. Long-press either for advanced options.'**
+  String get tapShuffleToToggleRandom;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the album art to morph between the cover view and a spinning vinyl record view.'**
+  String get tapTheAlbumArtTo;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the + button to create a new playlist. Name it, then add songs via long-press on any song → Add to Playlist.'**
+  String get tapTheButtonToCreate;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the check icon in the header to enter selection mode. Select multiple songs to queue, add to a playlist, or delete in bulk.'**
+  String get tapTheCheckIconIn;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the EQ icon to open the equalizer with presets and manual band control.'**
+  String get tapTheEQIconTo;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the edit icon in lyrics to open the Lyrics Sync Studio.'**
+  String get tapTheEditIconIn;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the heart on a song (in the full player or long-press menu) to mark it as a favorite.'**
+  String get tapTheHeartOnA;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the lyrics icon in the full player. Synced lyrics scroll and highlight automatically; unsynced lyrics show as plain text.'**
+  String get tapTheLyricsIconIn;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the lyrics icon to open the lyrics view. If synced lyrics are available, they highlight in time with the music.'**
+  String get tapTheLyricsIconTo;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the mini player. The full player expands with album art, the waveform seekbar, and all playback controls.'**
+  String get tapTheMiniPlayerThe;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the queue icon to view and reorder upcoming tracks. Drag to reorder, swipe to remove.'**
+  String get tapTheQueueIconTo;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the sort icon (top-right of the header) to open the Sort & Filter sheet. Reorder by title, artist, album, date added, or last played. Filter by file type (FLAC, MP3, etc.).'**
+  String get tapTheSortIconTop;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to hide controls for a clean album-art-only view. Tap again to bring them back.'**
+  String get tapToHideControlsFor;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'The left and right action buttons above the transport row can be customized in Settings → Player Layout → Quick Actions.'**
+  String get theLeftAndRightAction;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'The mini player sits above the nav bar and shows the current track\\\'s art, title, and artist with a progress indicator.'**
+  String get theMiniPlayerSitsAbove;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'The Songs tab lists every track Flick has scanned. Scroll to browse, or use the search bar to filter by title or artist.'**
+  String get theSongsTabListsEvery;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'The widget shows current track art and title with play/pause and skip controls. Tapping art opens the app.'**
+  String get theWidgetShowsCurrentTrack;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'This screen. Reopen anytime from Settings → Help & Manual.'**
+  String get thisScreenReopenAnytimeFrom;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle the audio visualizer on/off and cycle through visualizer styles from the visualizer icon.'**
+  String get toggleTheAudioVisualizerOn;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle the master switch at the top to bypass the EQ without losing your settings.'**
+  String get toggleTheMasterSwitchAt;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Toggling'**
+  String get toggling;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'UAC2 USB DAC preferences and equalizer settings.'**
+  String get uac2USBDACPreferencesAnd;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Use the waveform scrubber to jump to a line you missed.'**
+  String get useTheWaveformScrubberTo;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Viewing lyrics'**
+  String get viewingLyrics;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Viewing the queue'**
+  String get viewingTheQueue;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Vinyl morph'**
+  String get vinylMorph;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Visualizer toggle'**
+  String get visualizerToggle;
 
   /// No description provided for @warmth.
   ///
@@ -13784,6 +14630,12 @@ abstract class AppLocalizations {
   /// **'Waveform'**
   String get waveform;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Waveform seekbar'**
+  String get waveformSeekbar;
+
   /// lib/features/settings/screens/duplicate_cleaner_screen.dart:926
   ///
   /// In en, this message translates to:
@@ -13826,11 +14678,23 @@ abstract class AppLocalizations {
   /// **'Welcome to Flick'**
   String get welcomeToFlick2;
 
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'What it shows'**
+  String get whatItShows;
+
   /// lib/features/whats_new/widgets/whats_new_bottom_sheet.dart:22
   ///
   /// In en, this message translates to:
   /// **'What\'s New'**
   String get whatSNew;
+
+  /// lib/features/manual/data/manual_data.dart
+  ///
+  /// In en, this message translates to:
+  /// **'When bit-perfect output is active, a capsule shows the sample rate and bit depth being sent to your DAC.'**
+  String get whenBitPerfectOutputIs;
 
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:529
   ///

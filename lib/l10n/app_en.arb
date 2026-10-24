@@ -27,6 +27,10 @@
   "@aSongWithALongTitle": {
     "description": "lib/features/settings/widgets/mini_player_customization.dart:369"
   },
+  "aSwipeGestureWhenConfigured": "A swipe gesture (when configured) toggles an inline visualizer inside the mini player.",
+  "@aSwipeGestureWhenConfigured": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "aTighterMixOfFavoritesAnd": "A tighter mix of favorites and the songs you keep circling back to.",
   "@aTighterMixOfFavoritesAnd": {
     "description": "lib/features/menu/screens/menu_screen.dart:1768"
@@ -187,6 +191,10 @@
       }
     }
   },
+  "addTheSearchTabVia": "Add the Search tab via long-press on the nav bar → Bottom Bar Settings.",
+  "@addTheSearchTabVia": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "addToFavorites": "Add to favorites",
   "@addToFavorites": {
     "description": "lib/features/songs/screens/songs_screen.dart:2008"
@@ -284,6 +292,14 @@
       }
     }
   },
+  "addingFavorites": "Adding favorites",
+  "@addingFavorites": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "addingTheWidget": "Adding the widget",
+  "@addingTheWidget": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "addsPreDriveAndCatchesPeaks": "Adds pre-drive and catches peaks against a final output ceiling.",
   "@addsPreDriveAndCatchesPeaks": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:3393"
@@ -299,6 +315,10 @@
   "adjustMetadataTextSizeInImmersive": "Adjust metadata text size in immersive mode",
   "@adjustMetadataTextSizeInImmersive": {
     "description": "lib/features/settings/screens/player_layout_settings_screen.dart:133"
+  },
+  "adjustPlaybackSpeed05x": "Adjust playback speed (0.5x\\u20132x) from the speed control. Pitch is preserved.",
+  "@adjustPlaybackSpeed05x": {
+    "description": "lib/features/manual/data/manual_data.dart"
   },
   "adjustSpacingBetweenButtons": "Adjust spacing between buttons",
   "@adjustSpacingBetweenButtons": {
@@ -397,6 +417,10 @@
   "@albumCount": {
     "description": "lib/features/artists/screens/artists_screen.dart:878"
   },
+  "albumDetail": "Album detail",
+  "@albumDetail": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "albumLimit": "ALBUM LIMIT",
   "@albumLimit": {
     "description": "lib/features/songs/screens/songs_screen.dart:2958"
@@ -430,6 +454,10 @@
         "type": "Object"
       }
     }
+  },
+  "albumsAppearAsAGrid": "Albums appear as a grid of cover art. Tap any album to open its detail screen with the full tracklist.",
+  "@albumsAppearAsAGrid": {
+    "description": "lib/features/manual/data/manual_data.dart"
   },
   "albumsShownPerPage": "Albums shown per page",
   "@albumsShownPerPage": {
@@ -474,6 +502,10 @@
   "allDataIsStoredLocallyOn": "All data is stored locally on your device only: music library metadata, play history, playlists, equalizer presets, and app preferences. Last.fm credentials are stored securely on-device. This data never leaves your device unless you explicitly use an integration.",
   "@allDataIsStoredLocallyOn": {
     "description": "lib/features/settings/screens/privacy_policy_screen.dart:41"
+  },
+  "allFavoritedTracksInOne": "All favorited tracks in one place. Play, shuffle, or manage from here.",
+  "@allFavoritedTracksInOne": {
+    "description": "lib/features/manual/data/manual_data.dart"
   },
   "allFolders": "All Folders",
   "@allFolders": {
@@ -613,6 +645,10 @@
   "@animationsAndHapticFeedback": {
     "description": "lib/features/settings/screens/settings_screen.dart:187"
   },
+  "animationsAndHapticFeedbackToggles": "Animations and haptic feedback toggles.",
+  "@animationsAndHapticFeedbackToggles": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "apiKey": "API Key",
   "@apiKey": {
     "description": "lib/features/settings/widgets/lastfm_settings_tile.dart:447"
@@ -720,9 +756,17 @@
   "@artist": {
     "description": "lib/features/albums/widgets/identify_album_sheet.dart:254"
   },
+  "artistDetail": "Artist detail",
+  "@artistDetail": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "artistIsNotAvailableForThis": "Artist is not available for this song",
   "@artistIsNotAvailableForThis": {
     "description": "lib/features/player/widgets/player_navigation.dart:45"
+  },
+  "artistList": "Artist list",
+  "@artistList": {
+    "description": "lib/features/manual/data/manual_data.dart"
   },
   "artistName": "Artist Name",
   "@artistName": {
@@ -1298,9 +1342,17 @@
   "@bouncy": {
     "description": "lib/features/settings/screens/visualizer_settings_screen.dart:169"
   },
+  "browseAllArtistsInYour": "Browse all artists in your library. Tap an artist to see their albums and tracks.",
+  "@browseAllArtistsInYour": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "browseByArtworkOpenAnyAlbum": "Browse by artwork, open any album, and jump straight into the tracklist.",
   "@browseByArtworkOpenAnyAlbum": {
     "description": "lib/features/albums/screens/albums_screen.dart:348"
+  },
+  "browseByFolder": "Browse by folder",
+  "@browseByFolder": {
+    "description": "lib/features/manual/data/manual_data.dart"
   },
   "browseMore": "Browse More",
   "@browseMore": {
@@ -1317,6 +1369,10 @@
   "browseYourArtistsExploreTheirDiscographies": "Browse your artists, explore their discographies, and play their tracks.",
   "@browseYourArtistsExploreTheirDiscographies": {
     "description": "lib/features/artists/screens/artists_screen.dart:378"
+  },
+  "browsingYourLibrary": "Browsing your library",
+  "@browsingYourLibrary": {
+    "description": "lib/features/manual/data/manual_data.dart"
   },
   "buffer": "Buffer",
   "@buffer": {
@@ -1523,6 +1579,10 @@
   "@centeredWidensToFitYourControls": {
     "description": "lib/features/settings/widgets/mini_player_customization.dart:91"
   },
+  "centralTransportControlsPreviousRestarts": "Central transport controls. Previous restarts the track if you\\'re past 3 seconds in.",
+  "@centralTransportControlsPreviousRestarts": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "ch": "{channels} ch",
   "@ch": {
     "description": "lib/features/player/widgets/bit_perfect_indicator.dart:621",
@@ -1618,6 +1678,10 @@
   "chooseAudioEngine": "Choose Audio Engine",
   "@chooseAudioEngine": {
     "description": "lib/features/menu/screens/menu_screen.dart:464"
+  },
+  "chooseFromBuiltInPresets": "Choose from built-in presets (Flat, Bass Boost, Treble Boost, Vocal, etc.) or save your own.",
+  "@chooseFromBuiltInPresets": {
+    "description": "lib/features/manual/data/manual_data.dart"
   },
   "chooseLocationU2026": "Choose location…",
   "@chooseLocationU2026": {
@@ -1780,9 +1844,25 @@
   "@compressorOn": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:3263"
   },
+  "configureDefaultStyleAndSensitivity": "Configure default style and sensitivity in Settings → Visualizer.",
+  "@configureDefaultStyleAndSensitivity": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "configureLyricsSavingAndFetching": "Configure lyrics saving and fetching behavior.",
+  "@configureLyricsSavingAndFetching": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "configureSwipeBehaviorInSettings": "Configure swipe behavior in Settings → Player Layout → Mini Player Swipe.",
+  "@configureSwipeBehaviorInSettings": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "configureUsbDacAmpDevices": "Configure USB DAC/AMP devices",
   "@configureUsbDacAmpDevices": {
     "description": "lib/features/settings/screens/audio_settings_screen.dart:50"
+  },
+  "configureWidgetAppearanceAndShown": "Configure widget appearance and shown controls in Settings → Widgets.",
+  "@configureWidgetAppearanceAndShown": {
+    "description": "lib/features/manual/data/manual_data.dart"
   },
   "configureYourMusicExperience": "Configure your music experience",
   "@configureYourMusicExperience": {
@@ -1913,6 +1993,10 @@
   "continueThroughYourEntireLibrary": "Continue through your entire library",
   "@continueThroughYourEntireLibrary": {
     "description": "lib/features/settings/screens/interface_settings_screen.dart:265"
+  },
+  "controls": "Controls",
+  "@controls": {
+    "description": "lib/features/manual/data/manual_data.dart"
   },
   "conversionFailed": "Conversion failed: {error}",
   "@conversionFailed": {
@@ -2150,17 +2234,497 @@
       }
     }
   },
+  "creatingPlaylists": "Creating playlists",
+  "@creatingPlaylists": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "cropCoverHint": "Pinch to zoom, drag to reposition",
   "@cropCoverHint": {
     "description": "lib/features/playlists/screens/playlist_cover_editor_screen.dart"
   },
+  "customActionButtons": "Custom action buttons",
+  "@customActionButtons": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "customizeTheHomeScreenWidget": "Customize the home screen widget appearance.",
+  "@customizeTheHomeScreenWidget": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "customizing": "Customizing",
+  "@customizing": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "dedicatedSearchTab": "Dedicated Search tab",
+  "@dedicatedSearchTab": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "drag": "Drag",
+  "@drag": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "dragAnywhereOnTheWaveform": "Drag anywhere on the waveform to scrub through the track. The waveform reflects the audio\\'s loudness over time.",
+  "@dragAnywhereOnTheWaveform": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "dragEachFrequencyBandSlider": "Drag each frequency band slider to shape the sound. The EQ applies system-wide to Flick\\'s output.",
+  "@dragEachFrequencyBandSlider": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "dragScrollHandle": "Drag scroll handle",
+  "@dragScrollHandle": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "dragTheScrollHandleOn": "Drag the scroll handle on the right edge to jump through the alphabet. A bubble shows the current letter.",
+  "@dragTheScrollHandleOn": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "dragTracksByTheirHandle": "Drag tracks by their handle to reorder. Changes apply immediately.",
+  "@dragTracksByTheirHandle": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "eachBrowseTabHasIts": "Each browse tab has its own search bar at the top that filters that tab\\'s content live as you type.",
+  "@eachBrowseTabHasIts": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "editCover": "Edit cover",
   "crop": "Crop",
   "adjust": "Adjust",
+  "editing": "Editing",
+  "@editing": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "enableDisable": "Enable / Disable",
+  "@enableDisable": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "fastScroll": "Fast scroll",
+  "@fastScroll": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "fastScrollThroughLongLists": "Fast-scroll through long lists (Songs tab).",
+  "@fastScrollThroughLongLists": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "favoritesTab": "Favorites tab",
+  "@favoritesTab": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "fetchingLyrics": "Fetching lyrics",
+  "@fetchingLyrics": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "filters": "Filters",
   "brightness": "Brightness",
   "contrast": "Contrast",
+  "flickFetchesLyricsAutomaticallyWhen": "Flick fetches lyrics automatically when available. You can also paste or edit them manually.",
+  "@flickFetchesLyricsAutomaticallyWhen": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "folderPlayback": "Folder playback",
+  "@folderPlayback": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "fromAnySongsLong": "From any song\\'s long-press menu, choose Play Next to insert it right after the current track.",
+  "@fromAnySongsLong": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "gaplessPlaybackCrossfadeViewModes": "Gapless playback, crossfade, view modes, and theme appearance.",
+  "@gaplessPlaybackCrossfadeViewModes": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "generateAShareCardWith": "Generate a share card with the album art and track info, or share the file directly.",
+  "@generateAShareCardWith": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "gestures": "Gestures",
+  "@gestures": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "gridView": "Grid view",
+  "@gridView": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "homeScreenWidget": "Home Screen Widget",
+  "@homeScreenWidget": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "ifSearchIsInYour": "If Search is in your nav bar, it searches across songs, albums, and artists simultaneously with grouped results.",
+  "@ifSearchIsInYour": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "immersiveView": "Immersive view",
+  "@immersiveView": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "inAppInfoU2192Interactive": "In App Info → Interactive Tutorial, replay the spotlight tour. View Onboarding replays the welcome screens.",
+  "@inAppInfoU2192Interactive": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "inTabSearch": "In-tab search",
+  "@inTabSearch": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "inTheFullPlayerTap": "In the full player, tap the visualizer icon to turn it on or off.",
+  "@inTheFullPlayerTap": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "interface": "Interface",
+  "@interface": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "lastFmAndListenBrainzScrobbling": "Last.fm and ListenBrainz scrobbling setup.",
+  "@lastFmAndListenBrainzScrobbling": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "layoutModeSizingMiniPlayer": "Layout mode, sizing, mini player swipe action, and custom quick action buttons.",
+  "@layoutModeSizingMiniPlayer": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "library": "Library",
+  "@library": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "longPressASong": "Long-press a song",
+  "@longPressASong": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "longPressOrTapAgain": "Long-press or tap again to cycle through visualizer styles (bars, wave, radial, etc.).",
+  "@longPressOrTapAgain": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "longPressTheNavBar": "Long-press the nav bar, or open Settings → Bottom Bar, to choose which tabs appear and in what order.",
+  "@longPressTheNavBar": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "longPressYourHomeScreen": "Long-press your home screen → Add widget → Flick. Choose a size and drop it on the home screen.",
+  "@longPressYourHomeScreen": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manageScanFoldersTriggerRescans": "Manage scan folders, trigger rescans, and run the duplicate cleaner.",
+  "@manageScanFoldersTriggerRescans": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualBands": "Manual bands",
+  "@manualBands": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualBitPerfectCapsule": "Bit-perfect capsule",
+  "@manualBitPerfectCapsule": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualBottomBar": "Bottom Bar",
+  "@manualBottomBar": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualLongPress": "Long-press",
+  "@manualLongPress": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualLyricsSyncStudio": "Lyrics & Sync Studio",
+  "@manualLyricsSyncStudio": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualPlayNext": "Play Next",
+  "@manualPlayNext": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualPlaybackSpeed": "Playback speed",
+  "@manualPlaybackSpeed": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualQueue2": "Queue",
+  "@manualQueue2": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualRemoving": "Removing",
+  "@manualRemoving": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualSongs": "Songs",
+  "@manualSongs": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualSwipeLeftRightOnThe": "Swipe left/right on the main page area to move between nav bar tabs.",
+  "@manualSwipeLeftRightOnThe": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "manualTap": "Tap",
+  "@manualTap": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "nextPreviousTrackOrToggle": "Next / previous track (or toggle visualizer, depending on settings).",
+  "@nextPreviousTrackOrToggle": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "openAPlaylistToReorder": "Open a playlist to reorder tracks (drag the handle), remove tracks (swipe or long-press), or rename/delete the playlist from its menu.",
+  "@openAPlaylistToReorder": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "openFromTheLyricsEdit": "Open from the lyrics edit icon. Tap \"Set\" as each line plays to time-sync lyrics to the music. Save to persist the sync.",
+  "@openFromTheLyricsEdit": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "openTheActionsSheetFor": "Open the actions sheet for a song, or customize the nav bar.",
+  "@openTheActionsSheetFor": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "openTheFullPlayer": "Open the full player",
+  "@openTheFullPlayer": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "openTheQueueFromThe": "Open the queue from the full player. The currently playing track is highlighted; upcoming tracks are listed below.",
+  "@openTheQueueFromThe": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "openingTheFullPlayer": "Opening the full player",
+  "@openingTheFullPlayer": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "opensTheActionsSheetPlay": "Opens the actions sheet: Play Next, Add to Queue, Add to Playlist, Go to Album, Go to Artist, Share, View Info, or Delete.",
+  "@opensTheActionsSheetPlay": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "playASongOpenAn": "Play a song, open an album, toggle a control.",
+  "@playASongOpenAn": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "playPauseNextPrevious": "Play / Pause / Next / Previous",
+  "@playPauseNextPrevious": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "playTheWholeAlbumShuffle": "Play the whole album, shuffle it, or pick individual tracks. Album art, year, and artist are shown at the top.",
+  "@playTheWholeAlbumShuffle": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "playing": "Playing",
+  "@playing": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "playingASong": "Playing a song",
+  "@playingASong": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "reSyncALineBy": "Re-sync a line by tapping it again at the right moment.",
+  "@reSyncALineBy": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "removeItFromTheQueue": "Remove it from the queue.",
+  "@removeItFromTheQueue": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "reordering": "Reordering",
+  "@reordering": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "replayTutorial": "Replay tutorial",
+  "@replayTutorial": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "saturation": "Saturation",
+  "scrubTheWaveformSeekbarReorder": "Scrub the waveform seekbar, reorder queue items, reorder playlist tracks.",
+  "@scrubTheWaveformSeekbarReorder": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "seeYourMusicOrganizedBy": "See your music organized by the folder structure on disk. Useful if you organize files manually.",
+  "@seeYourMusicOrganizedBy": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "selectionMode": "Selection mode",
+  "@selectionMode": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "setACountdownAfterWhich": "Set a countdown after which playback stops. Options: 5, 10, 15, 30, 45, 60 minutes, or end of track.",
+  "@setACountdownAfterWhich": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "showOrHideHomeScreen": "Show or hide home screen sections and tabs.",
+  "@showOrHideHomeScreen": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "showsTheArtistsAlbums": "Shows the artist\\'s albums and a complete track list. Play all, shuffle, or pick a starting track.",
+  "@showsTheArtistsAlbums": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "shuffleFromTheHeaderPlays": "Shuffle from the header plays the whole library in random order.",
+  "@shuffleFromTheHeaderPlays": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "shuffleRepeat": "Shuffle & Repeat",
+  "@shuffleRepeat": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "sort": "Sort",
+  "@sort": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "sortAlbumsByTitleArtist": "Sort albums by title, artist, year, or date added from the sort icon.",
+  "@sortAlbumsByTitleArtist": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "sortPersistsAcrossSessions": "Sort persists across sessions.",
+  "@sortPersistsAcrossSessions": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "starRateTheCurrentTrack": "Star-rate the current track. Ratings are stored and can be used for sorting.",
+  "@starRateTheCurrentTrack": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "styles": "Styles",
+  "@styles": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "swipeATrackLeftOr": "Swipe a track left or right to remove it from the queue.",
+  "@swipeATrackLeftOr": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "swipeBetweenTabs": "Swipe between tabs",
+  "@swipeBetweenTabs": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "swipeHorizontallyOnMiniPlayer": "Swipe horizontally on mini player",
+  "@swipeHorizontallyOnMiniPlayer": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "swipeLeftRightOnThe": "Swipe left/right on the mini player to go to next/previous track (if enabled in settings).",
+  "@swipeLeftRightOnThe": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "swipeOnAQueueItem": "Swipe on a queue item",
+  "@swipeOnAQueueItem": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "swipeToSwitch": "Swipe to switch",
+  "@swipeToSwitch": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "syncStudio": "Sync Studio",
+  "@syncStudio": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapAFolderToPlay": "Tap a folder to play all tracks inside it, including subfolders.",
+  "@tapAFolderToPlay": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapAPlaylistToPlay": "Tap a playlist to play it in order, or use the shuffle button for random order.",
+  "@tapAPlaylistToPlay": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapAnySongToPlay": "Tap any song to play it immediately. The queue is rebuilt starting from that song.",
+  "@tapAnySongToPlay": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapAnywhereOnTheMini": "Tap anywhere on the mini player to expand into the full player.",
+  "@tapAnywhereOnTheMini": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapShuffleToToggleRandom": "Tap shuffle to toggle random order. Tap repeat to cycle: off → all → one. Long-press either for advanced options.",
+  "@tapShuffleToToggleRandom": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheAlbumArtTo": "Tap the album art to morph between the cover view and a spinning vinyl record view.",
+  "@tapTheAlbumArtTo": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheButtonToCreate": "Tap the + button to create a new playlist. Name it, then add songs via long-press on any song → Add to Playlist.",
+  "@tapTheButtonToCreate": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheCheckIconIn": "Tap the check icon in the header to enter selection mode. Select multiple songs to queue, add to a playlist, or delete in bulk.",
+  "@tapTheCheckIconIn": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheEQIconTo": "Tap the EQ icon to open the equalizer with presets and manual band control.",
+  "@tapTheEQIconTo": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheEditIconIn": "Tap the edit icon in lyrics to open the Lyrics Sync Studio.",
+  "@tapTheEditIconIn": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheHeartOnA": "Tap the heart on a song (in the full player or long-press menu) to mark it as a favorite.",
+  "@tapTheHeartOnA": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheLyricsIconIn": "Tap the lyrics icon in the full player. Synced lyrics scroll and highlight automatically; unsynced lyrics show as plain text.",
+  "@tapTheLyricsIconIn": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheLyricsIconTo": "Tap the lyrics icon to open the lyrics view. If synced lyrics are available, they highlight in time with the music.",
+  "@tapTheLyricsIconTo": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheMiniPlayerThe": "Tap the mini player. The full player expands with album art, the waveform seekbar, and all playback controls.",
+  "@tapTheMiniPlayerThe": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheQueueIconTo": "Tap the queue icon to view and reorder upcoming tracks. Drag to reorder, swipe to remove.",
+  "@tapTheQueueIconTo": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapTheSortIconTop": "Tap the sort icon (top-right of the header) to open the Sort & Filter sheet. Reorder by title, artist, album, date added, or last played. Filter by file type (FLAC, MP3, etc.).",
+  "@tapTheSortIconTop": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "tapToHideControlsFor": "Tap to hide controls for a clean album-art-only view. Tap again to bring them back.",
+  "@tapToHideControlsFor": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "theLeftAndRightAction": "The left and right action buttons above the transport row can be customized in Settings → Player Layout → Quick Actions.",
+  "@theLeftAndRightAction": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "theMiniPlayerSitsAbove": "The mini player sits above the nav bar and shows the current track\\'s art, title, and artist with a progress indicator.",
+  "@theMiniPlayerSitsAbove": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "theSongsTabListsEvery": "The Songs tab lists every track Flick has scanned. Scroll to browse, or use the search bar to filter by title or artist.",
+  "@theSongsTabListsEvery": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "theWidgetShowsCurrentTrack": "The widget shows current track art and title with play/pause and skip controls. Tapping art opens the app.",
+  "@theWidgetShowsCurrentTrack": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "thisScreenReopenAnytimeFrom": "This screen. Reopen anytime from Settings → Help & Manual.",
+  "@thisScreenReopenAnytimeFrom": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "toggleTheAudioVisualizerOn": "Toggle the audio visualizer on/off and cycle through visualizer styles from the visualizer icon.",
+  "@toggleTheAudioVisualizerOn": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "toggleTheMasterSwitchAt": "Toggle the master switch at the top to bypass the EQ without losing your settings.",
+  "@toggleTheMasterSwitchAt": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "toggling": "Toggling",
+  "@toggling": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "uac2USBDACPreferencesAnd": "UAC2 USB DAC preferences and equalizer settings.",
+  "@uac2USBDACPreferencesAnd": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "useTheWaveformScrubberTo": "Use the waveform scrubber to jump to a line you missed.",
+  "@useTheWaveformScrubberTo": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "viewingLyrics": "Viewing lyrics",
+  "@viewingLyrics": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "viewingTheQueue": "Viewing the queue",
+  "@viewingTheQueue": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "vinylMorph": "Vinyl morph",
+  "@vinylMorph": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
+  "visualizerToggle": "Visualizer toggle",
+  "@visualizerToggle": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "warmth": "Warmth",
   "vignette": "Vignette",
   "rotateLeft": "Rotate left",
@@ -10775,6 +11339,10 @@
   "@waveform": {
     "description": "lib/models/progress_bar_style.dart:16"
   },
+  "waveformSeekbar": "Waveform seekbar",
+  "@waveformSeekbar": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "weLlKeepTheBestQuality": "We’ll keep the best-quality version in each group (prefers album art, then highest bitrate) and remove {count, plural, =1{{count} copy} other{{count} copies}}. Files on disk are not deleted.",
   "@weLlKeepTheBestQuality": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:926",
@@ -10816,9 +11384,17 @@
   "@welcomeToFlick2": {
     "description": "lib/providers/tutorial_provider.dart:7"
   },
+  "whatItShows": "What it shows",
+  "@whatItShows": {
+    "description": "lib/features/manual/data/manual_data.dart"
+  },
   "whatSNew": "What's New",
   "@whatSNew": {
     "description": "lib/features/whats_new/widgets/whats_new_bottom_sheet.dart:22"
+  },
+  "whenBitPerfectOutputIs": "When bit-perfect output is active, a capsule shows the sample rate and bit depth being sent to your DAC.",
+  "@whenBitPerfectOutputIs": {
+    "description": "lib/features/manual/data/manual_data.dart"
   },
   "whenYouPlayOverBluetoothAndroid": "When you play over Bluetooth, Android negotiates the codec with your headphones or speaker.",
   "@whenYouPlayOverBluetoothAndroid": {
