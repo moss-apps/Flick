@@ -44,6 +44,10 @@ class AppLocalizationsTl extends AppLocalizations {
       'Kantang may mahabang pamagat para sa paunang tingin';
 
   @override
+  String get aSwipeGestureWhenConfigured =>
+      'Kapag naka-configure ang swipe gesture, ito ang nagpapa-on/off ng inline visualizer sa loob ng mini player.';
+
+  @override
   String get aTighterMixOfFavoritesAnd =>
       'Mas piling halo ng mga paborito at kantang lagi mong binabalikan.';
 
@@ -169,6 +173,10 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
+  String get addTheSearchTabVia =>
+      'Idagdag ang tab na Search sa pamamagitan ng matagal na pindot sa nav bar → Bottom Bar Settings.';
+
+  @override
   String get addToFavorites => 'Idagdag sa mga paborito';
 
   @override
@@ -225,6 +233,12 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
+  String get addingFavorites => 'Pagdaragdag ng mga paborito';
+
+  @override
+  String get addingTheWidget => 'Pagdaragdag ng widget';
+
+  @override
   String get addsPreDriveAndCatchesPeaks =>
       'Nagdaragdag ng pre-drive at nililimitahan ang mga peak sa huling output ceiling.';
 
@@ -238,6 +252,10 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get adjustMetadataTextSizeInImmersive =>
       'Ayusin ang laki ng teksto ng metadata sa immersive mode';
+
+  @override
+  String get adjustPlaybackSpeed05x =>
+      'Ayusin ang bilis ng pagtugtog (0.5x–2x) mula sa speed control. Nananatili ang pitch.';
 
   @override
   String get adjustSpacingBetweenButtons =>
@@ -315,6 +333,9 @@ class AppLocalizationsTl extends AppLocalizations {
   String get albumCount => 'Bilang ng album';
 
   @override
+  String get albumDetail => 'Detalye ng album';
+
+  @override
   String get albumLimit => 'LIMITASYON NG ALBUM';
 
   @override
@@ -335,6 +356,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String albums3(Object _totalAlbums) {
     return '$_totalAlbums album';
   }
+
+  @override
+  String get albumsAppearAsAGrid =>
+      'Lumilitaw ang mga album bilang grid ng cover art. Pindutin ang alinmang album upang buksan ang detalye nito kasama ang buong tracklist.';
 
   @override
   String get albumsShownPerPage => 'Mga album na ipinapakita bawat pahina';
@@ -365,6 +390,10 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get allDataIsStoredLocallyOn =>
       'Sa iyong aparato lamang nakaimbak ang lahat ng datos: metadata ng musika, kasaysayan ng pakikinig, mga talaan ng kanta, mga preset ng equalizer, at mga kagustuhan sa app. Ligtas na nakaimbak sa aparato ang mga kredensiyal sa Last.fm. Hindi umaalis sa iyong aparato ang datos na ito maliban kung kusa kang gumamit ng isang integrasyon.';
+
+  @override
+  String get allFavoritedTracksInOne =>
+      'Lahat ng paboritong kanta sa isang lugar. Puwedeng patugtugin, ihalo, o pamahalaan mula rito.';
 
   @override
   String get allFolders => 'Lahat ng folder';
@@ -477,6 +506,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String get animationsAndHapticFeedback => 'Mga galaw at tugong panginginig';
 
   @override
+  String get animationsAndHapticFeedbackToggles =>
+      'Mga toggle para sa animation at haptic feedback.';
+
+  @override
   String get apiKey => 'API Key';
 
   @override
@@ -564,8 +597,14 @@ class AppLocalizationsTl extends AppLocalizations {
   String get artist => 'Kumanta';
 
   @override
+  String get artistDetail => 'Detalye ng kumanta';
+
+  @override
   String get artistIsNotAvailableForThis =>
       'Walang impormasyon ng kumanta para sa kantang ito';
+
+  @override
+  String get artistList => 'Listahan ng mga kumanta';
 
   @override
   String get artistName => 'Pangalan ng kumanta';
@@ -1000,8 +1039,15 @@ class AppLocalizationsTl extends AppLocalizations {
   String get bouncy => 'Tumalbog';
 
   @override
+  String get browseAllArtistsInYour =>
+      'Tingnan ang lahat ng kumanta sa iyong aklatan. Pindutin ang isang kumanta upang makita ang kanyang mga album at kanta.';
+
+  @override
   String get browseByArtworkOpenAnyAlbum =>
       'Mag-browse ayon sa larawan, buksan ang alinmang album, at dumiretso sa mga kanta.';
+
+  @override
+  String get browseByFolder => 'Tingnan ayon sa folder';
 
   @override
   String get browseMore => 'Tumingin pa';
@@ -1017,6 +1063,9 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get browseYourArtistsExploreTheirDiscographies =>
       'Tingnan ang mga kumanta, tuklasin ang kanilang mga album, at patugtugin ang kanilang mga kanta.';
+
+  @override
+  String get browsingYourLibrary => 'Pag-browse sa iyong aklatan';
 
   @override
   String get buffer => 'Buffer';
@@ -1163,6 +1212,10 @@ class AppLocalizationsTl extends AppLocalizations {
       'Nasa gitna; lumalapad para magkasya ang mga kontrol';
 
   @override
+  String get centralTransportControlsPreviousRestarts =>
+      'Nasa gitna ang mga kontrol sa pagtugtog. Iuulit ng Previous ang kanta kung lampas 3 segundo na itong tumutugtog.';
+
+  @override
   String ch(Object channels) {
     return '$channels ch';
   }
@@ -1225,6 +1278,10 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get chooseAudioEngine => 'Pumili ng audio engine';
+
+  @override
+  String get chooseFromBuiltInPresets =>
+      'Pumili mula sa mga built-in na preset (Flat, Bass Boost, Treble Boost, Vocal, at iba pa) o mag-save ng sarili mo.';
 
   @override
   String get chooseLocationU2026 => 'Pumili ng lokasyon…';
@@ -1352,7 +1409,23 @@ class AppLocalizationsTl extends AppLocalizations {
   String get compressorOn => 'Naka-on ang compressor';
 
   @override
+  String get configureDefaultStyleAndSensitivity =>
+      'Isaayos ang default na estilo at sensitivity sa Settings → Visualizer.';
+
+  @override
+  String get configureLyricsSavingAndFetching =>
+      'Isaayos kung paano sine-save at kinukuha ang lirika.';
+
+  @override
+  String get configureSwipeBehaviorInSettings =>
+      'Isaayos ang swipe behavior sa Settings → Player Layout → Mini Player Swipe.';
+
+  @override
   String get configureUsbDacAmpDevices => 'Ayusin ang mga USB DAC/AMP';
+
+  @override
+  String get configureWidgetAppearanceAndShown =>
+      'Isaayos ang hitsura ng widget at mga kontrol na ipinapakita sa Settings → Widgets.';
 
   @override
   String get configureYourMusicExperience =>
@@ -1456,6 +1529,9 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get continueThroughYourEntireLibrary =>
       'Magpatuloy sa iyong buong aklatan';
+
+  @override
+  String get controls => 'Mga kontrol';
 
   @override
   String conversionFailed(Object error) {
@@ -1631,7 +1707,49 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
+  String get creatingPlaylists => 'Paggawa ng mga talaan ng kanta';
+
+  @override
   String get cropCoverHint => 'Kurutin upang mag-zoom, i-drag upang ipuwesto';
+
+  @override
+  String get customActionButtons => 'Mga pasadyang action button';
+
+  @override
+  String get customizeTheHomeScreenWidget =>
+      'Ipasadya ang hitsura ng widget sa home screen.';
+
+  @override
+  String get customizing => 'Pagpapasadya';
+
+  @override
+  String get dedicatedSearchTab => 'Dedikadong tab ng Search';
+
+  @override
+  String get drag => 'I-drag';
+
+  @override
+  String get dragAnywhereOnTheWaveform =>
+      'I-drag kahit saan sa waveform upang mag-scrub sa kanta. Ipinapakita ng waveform ang lakas ng tunog sa paglipas ng panahon.';
+
+  @override
+  String get dragEachFrequencyBandSlider =>
+      'I-drag ang slider ng bawat frequency band upang hubugin ang tunog. Naaapektuhan ng EQ ang buong output ng Flick.';
+
+  @override
+  String get dragScrollHandle => 'I-drag ang scroll handle';
+
+  @override
+  String get dragTheScrollHandleOn =>
+      'I-drag ang scroll handle sa kanang gilid upang lumipat sa mga letra. May bubble na nagpapakita ng kasalukuyang letra.';
+
+  @override
+  String get dragTracksByTheirHandle =>
+      'I-drag ang mga kanta gamit ang handle upang baguhin ang ayos. Agad na nalalapat ang mga pagbabago.';
+
+  @override
+  String get eachBrowseTabHasIts =>
+      'May sariling search bar sa itaas ang bawat browse tab na live na nagsasala ng nilalaman habang nagta-type ka.';
 
   @override
   String get editCover => 'Baguhin ang pabalat';
@@ -1643,6 +1761,25 @@ class AppLocalizationsTl extends AppLocalizations {
   String get adjust => 'Ayusin';
 
   @override
+  String get editing => 'Pag-edit';
+
+  @override
+  String get enableDisable => 'I-on / I-off';
+
+  @override
+  String get fastScroll => 'Mabilisang pag-scroll';
+
+  @override
+  String get fastScrollThroughLongLists =>
+      'Mabilisang pag-scroll sa mahahabang listahan (Songs tab).';
+
+  @override
+  String get favoritesTab => 'Tab ng mga paborito';
+
+  @override
+  String get fetchingLyrics => 'Pagkuha ng lirika';
+
+  @override
   String get filters => 'Mga filter';
 
   @override
@@ -1652,7 +1789,374 @@ class AppLocalizationsTl extends AppLocalizations {
   String get contrast => 'Contrast';
 
   @override
+  String get flickFetchesLyricsAutomaticallyWhen =>
+      'Awtomatikong kinukuha ng Flick ang lirika kapag mayroon. Puwede mo ring i-paste o i-edit nang manwal.';
+
+  @override
+  String get folderPlayback => 'Pagtugtog ayon sa folder';
+
+  @override
+  String get fromAnySongsLong =>
+      'Mula sa long-press menu ng alinmang kanta, piliin ang Play Next upang isingit ito agad pagkatapos ng kasalukuyang kanta.';
+
+  @override
+  String get gaplessPlaybackCrossfadeViewModes =>
+      'Gapless playback, crossfade, view modes, at hitsura ng theme.';
+
+  @override
+  String get generateAShareCardWith =>
+      'Gumawa ng share card na may album art at impormasyon ng kanta, o ibahagi nang direkta ang file.';
+
+  @override
+  String get gestures => 'Mga galaw';
+
+  @override
+  String get gridView => 'Grid view';
+
+  @override
+  String get homeScreenWidget => 'Widget sa home screen';
+
+  @override
+  String get ifSearchIsInYour =>
+      'Kung nasa nav bar mo ang Search, sabay nitong hinahanap ang mga kanta, album, at kumanta na may nakagrupong resulta.';
+
+  @override
+  String get immersiveView => 'Immersive view';
+
+  @override
+  String get inAppInfoU2192Interactive =>
+      'Sa App Info → Interactive Tutorial, ulitin ang spotlight tour. Ang View Onboarding ay nagpapatugtog muli ng welcome screens.';
+
+  @override
+  String get inTabSearch => 'Paghahanap sa loob ng tab';
+
+  @override
+  String get inTheFullPlayerTap =>
+      'Sa buong player, pindutin ang visualizer icon upang i-on o i-off ito.';
+
+  @override
+  String get interface => 'Interface';
+
+  @override
+  String get lastFmAndListenBrainzScrobbling =>
+      'Setup ng scrobbling sa Last.fm at ListenBrainz.';
+
+  @override
+  String get layoutModeSizingMiniPlayer =>
+      'Layout mode, sizing, swipe action ng mini player, at mga pasadyang quick action button.';
+
+  @override
+  String get library => 'Aklatan';
+
+  @override
+  String get longPressASong => 'Matagal na pindot sa kanta';
+
+  @override
+  String get longPressOrTapAgain =>
+      'Matagal na pindutin o pindutin muli upang lumipat sa mga visualizer style (bars, wave, radial, at iba pa).';
+
+  @override
+  String get longPressTheNavBar =>
+      'Matagal na pindutin ang nav bar, o buksan ang Settings → Bottom Bar, upang piliin kung aling mga tab ang lalabas at ang ayos nila.';
+
+  @override
+  String get longPressYourHomeScreen =>
+      'Matagal na pindutin ang home screen → Add widget → Flick. Pumili ng size at ilagay ito sa home screen.';
+
+  @override
+  String get manageScanFoldersTriggerRescans =>
+      'Pamahalaan ang mga scan folder, mag-trigger ng rescan, at patakbuhin ang duplicate cleaner.';
+
+  @override
+  String get manualBands => 'Manwal na bands';
+
+  @override
+  String get manualBitPerfectCapsule => 'Bit-perfect capsule';
+
+  @override
+  String get manualBottomBar => 'Bar sa ibaba';
+
+  @override
+  String get manualLongPress => 'Matagal na pindot';
+
+  @override
+  String get manualLyricsSyncStudio => 'Lirika at Sync Studio';
+
+  @override
+  String get manualPlayNext => 'Isunod sa pagtugtog';
+
+  @override
+  String get manualPlaybackSpeed => 'Bilis ng pagtugtog';
+
+  @override
+  String get manualQueue2 => 'Pila';
+
+  @override
+  String get manualRemoving => 'Pag-alis';
+
+  @override
+  String get manualSongs => 'Mga kanta';
+
+  @override
+  String get manualSwipeLeftRightOnThe =>
+      'Mag-swipe pakaliwa/pakanan sa pangunahing bahagi ng pahina upang lumipat sa mga tab ng nav bar.';
+
+  @override
+  String get manualTap => 'Pindutin';
+
+  @override
+  String get nextPreviousTrackOrToggle =>
+      'Susunod / nakaraang kanta (o i-toggle ang visualizer, depende sa settings).';
+
+  @override
+  String get openAPlaylistToReorder =>
+      'Buksan ang talaan ng kanta upang baguhin ang ayos (i-drag ang handle), alisin ang mga kanta (mag-swipe o matagal na pindot), o palitan ang pangalan/burahin ang talaan mula sa menu nito.';
+
+  @override
+  String get openFromTheLyricsEdit =>
+      'Buksan mula sa lyrics edit icon. Pindutin ang \"Set\" habang tumutugtog ang bawat linya upang i-sync ang lirika sa musika. I-save upang mapanatili ang sync.';
+
+  @override
+  String get openTheActionsSheetFor =>
+      'Buksan ang actions sheet ng kanta, o ipasadya ang nav bar.';
+
+  @override
+  String get openTheFullPlayer => 'Buksan ang buong player';
+
+  @override
+  String get openTheQueueFromThe =>
+      'Buksan ang pila mula sa buong player. Naka-highlight ang kasalukuyang tumutugtog; nakalista sa ibaba ang mga susunod.';
+
+  @override
+  String get openingTheFullPlayer => 'Pagbubukas ng buong player';
+
+  @override
+  String get opensTheActionsSheetPlay =>
+      'Binubuksan ang actions sheet: Play Next, Add to Queue, Add to Playlist, Go to Album, Go to Artist, Share, View Info, o Delete.';
+
+  @override
+  String get playASongOpenAn =>
+      'Patugtugin ang kanta, buksan ang album, i-toggle ang kontrol.';
+
+  @override
+  String get playPauseNextPrevious => 'Play / Pause / Next / Previous';
+
+  @override
+  String get playTheWholeAlbumShuffle =>
+      'Patugtugin ang buong album, ihalo ito, o pumili ng indibidwal na kanta. Ipinapakita sa itaas ang album art, taon, at kumanta.';
+
+  @override
+  String get playing => 'Pagtugtog';
+
+  @override
+  String get playingASong => 'Pagtugtog ng kanta';
+
+  @override
+  String get reSyncALineBy =>
+      'I-sync muli ang isang linya sa pamamagitan ng pagpindot dito muli sa tamang oras.';
+
+  @override
+  String get removeItFromTheQueue => 'Alisin ito sa pila.';
+
+  @override
+  String get reordering => 'Pagbabago ng ayos';
+
+  @override
+  String get replayTutorial => 'Ulitin ang tutorial';
+
+  @override
   String get saturation => 'Saturation';
+
+  @override
+  String get scrubTheWaveformSeekbarReorder =>
+      'I-scrub ang waveform seekbar, baguhin ang ayos ng mga nasa pila, baguhin ang ayos ng mga kanta sa talaan.';
+
+  @override
+  String get seeYourMusicOrganizedBy =>
+      'Tingnan ang musika mo ayon sa folder structure sa disk. Kapaki-pakinabang kung manwal kang nag-aayos ng mga file.';
+
+  @override
+  String get selectionMode => 'Selection mode';
+
+  @override
+  String get setACountdownAfterWhich =>
+      'Magtakda ng countdown pagkatapos tumigil ang pagtugtog. Mga opsiyon: 5, 10, 15, 30, 45, 60 minuto, o pagkatapos ng kanta.';
+
+  @override
+  String get showOrHideHomeScreen =>
+      'Ipakita o itago ang mga seksiyon at tab sa home screen.';
+
+  @override
+  String get showsTheArtistsAlbums =>
+      'Ipinapakita ang mga album at kumpletong listahan ng kanta ng kumanta. Patugtugin lahat, ihalo, o pumili ng simulang kanta.';
+
+  @override
+  String get shuffleFromTheHeaderPlays =>
+      'Ang shuffle mula sa header ay nagpapatugtog ng buong aklatan sa random na ayos.';
+
+  @override
+  String get shuffleRepeat => 'Shuffle at Repeat';
+
+  @override
+  String get sort => 'Ayusin';
+
+  @override
+  String get sortAlbumsByTitleArtist =>
+      'Ayusin ang mga album ayon sa pamagat, kumanta, taon, o petsa ng pagdagdag mula sa sort icon.';
+
+  @override
+  String get sortPersistsAcrossSessions =>
+      'Nananatili ang ayos sa mga susunod na session.';
+
+  @override
+  String get starRateTheCurrentTrack =>
+      'Bigyan ng star rating ang kasalukuyang kanta. Naka-save ang mga rating at puwedeng gamitin sa pag-aayos.';
+
+  @override
+  String get styles => 'Mga estilo';
+
+  @override
+  String get swipeATrackLeftOr =>
+      'I-swipe pakaliwa o pakanan ang kanta upang alisin ito sa pila.';
+
+  @override
+  String get swipeBetweenTabs => 'Mag-swipe sa pagitan ng mga tab';
+
+  @override
+  String get swipeHorizontallyOnMiniPlayer =>
+      'Mag-swipe pahalang sa mini player';
+
+  @override
+  String get swipeLeftRightOnThe =>
+      'Mag-swipe pakaliwa/pakanan sa mini player upang lumipat sa susunod/nakaraang kanta (kung naka-enable sa settings).';
+
+  @override
+  String get swipeOnAQueueItem => 'Mag-swipe sa item sa pila';
+
+  @override
+  String get swipeToSwitch => 'Mag-swipe upang lumipat';
+
+  @override
+  String get syncStudio => 'Sync Studio';
+
+  @override
+  String get tapAFolderToPlay =>
+      'Pindutin ang folder upang patugtugin ang lahat ng kanta sa loob nito, kasama ang mga subfolder.';
+
+  @override
+  String get tapAPlaylistToPlay =>
+      'Pindutin ang talaan ng kanta upang patugtugin ito nang sunod-sunod, o gamitin ang shuffle button para sa random na ayos.';
+
+  @override
+  String get tapAnySongToPlay =>
+      'Pindutin ang alinmang kanta upang patugtugin agad ito. Gagawin muli ang pila simula sa kantang iyon.';
+
+  @override
+  String get tapAnywhereOnTheMini =>
+      'Pindutin kahit saan sa mini player upang palawakin ito sa buong player.';
+
+  @override
+  String get tapShuffleToToggleRandom =>
+      'Pindutin ang shuffle upang i-toggle ang random na ayos. Pindutin ang repeat upang umikot: off → all → one. Matagal na pindutin ang alinman para sa advanced na opsiyon.';
+
+  @override
+  String get tapTheAlbumArtTo =>
+      'Pindutin ang album art upang mag-morph sa pagitan ng cover view at umiikot na vinyl record view.';
+
+  @override
+  String get tapTheButtonToCreate =>
+      'Pindutin ang + button upang gumawa ng bagong talaan ng kanta. Pangalanan ito, pagkatapos magdagdag ng kanta sa pamamagitan ng matagal na pindot sa alinmang kanta → Add to Playlist.';
+
+  @override
+  String get tapTheCheckIconIn =>
+      'Pindutin ang check icon sa header upang pumasok sa selection mode. Pumili ng maraming kanta upang ipila, idagdag sa talaan, o burahin nang maramihan.';
+
+  @override
+  String get tapTheEQIconTo =>
+      'Pindutin ang EQ icon upang buksan ang equalizer na may mga preset at manwal na band control.';
+
+  @override
+  String get tapTheEditIconIn =>
+      'Pindutin ang edit icon sa lirika upang buksan ang Lyrics Sync Studio.';
+
+  @override
+  String get tapTheHeartOnA =>
+      'Pindutin ang heart sa kanta (sa buong player o long-press menu) upang markahan itong paborito.';
+
+  @override
+  String get tapTheLyricsIconIn =>
+      'Pindutin ang lyrics icon sa buong player. Awtomatikong nag-i-scroll at nagha-highlight ang synced lyrics; ipinapakita bilang plain text ang unsynced lyrics.';
+
+  @override
+  String get tapTheLyricsIconTo =>
+      'Pindutin ang lyrics icon upang buksan ang lyrics view. Kung may synced lyrics, nagha-highlight ang mga ito kasabay ng musika.';
+
+  @override
+  String get tapTheMiniPlayerThe =>
+      'Pindutin ang mini player. Lumalawak ang buong player na may album art, waveform seekbar, at lahat ng kontrol sa pagtugtog.';
+
+  @override
+  String get tapTheQueueIconTo =>
+      'Pindutin ang queue icon upang tingnan at baguhin ang ayos ng mga susunod na kanta. I-drag upang baguhin ang ayos, mag-swipe upang alisin.';
+
+  @override
+  String get tapTheSortIconTop =>
+      'Pindutin ang sort icon (kanang tuktok ng header) upang buksan ang Sort & Filter sheet. Baguhin ang ayos ayon sa pamagat, kumanta, album, petsa ng pagdagdag, o huling pinatugtog. Salain ayon sa file type (FLAC, MP3, at iba pa).';
+
+  @override
+  String get tapToHideControlsFor =>
+      'Pindutin upang itago ang mga kontrol para sa malinis na album-art-only na tanaw. Pindutin muli upang ibalik ang mga ito.';
+
+  @override
+  String get theLeftAndRightAction =>
+      'Ang kaliwa at kanang action button sa itaas ng transport row ay maaaring ipasadya sa Settings → Player Layout → Quick Actions.';
+
+  @override
+  String get theMiniPlayerSitsAbove =>
+      'Nasa itaas ng nav bar ang mini player at ipinapakita ang art, pamagat, at kumanta ng kasalukuyang kanta kasama ang progress indicator.';
+
+  @override
+  String get theSongsTabListsEvery =>
+      'Inililista ng Songs tab ang bawat kanta na na-scan ng Flick. Mag-scroll upang mag-browse, o gamitin ang search bar upang salain ayon sa pamagat o kumanta.';
+
+  @override
+  String get theWidgetShowsCurrentTrack =>
+      'Ipinapakita ng widget ang art at pamagat ng kasalukuyang kanta kasama ang play/pause at skip controls. Binubuksan ng pagpindot sa art ang app.';
+
+  @override
+  String get thisScreenReopenAnytimeFrom =>
+      'Ito ang screen na ito. Buksan muli anumang oras mula sa Settings → Help & Manual.';
+
+  @override
+  String get toggleTheAudioVisualizerOn =>
+      'I-toggle ang audio visualizer at lumipat sa mga visualizer style mula sa visualizer icon.';
+
+  @override
+  String get toggleTheMasterSwitchAt =>
+      'I-toggle ang master switch sa itaas upang i-bypass ang EQ nang hindi nawawala ang mga setting mo.';
+
+  @override
+  String get toggling => 'Pag-toggle';
+
+  @override
+  String get uac2USBDACPreferencesAnd =>
+      'Mga preference ng UAC2 USB DAC at settings ng equalizer.';
+
+  @override
+  String get useTheWaveformScrubberTo =>
+      'Gamitin ang waveform scrubber upang lumipat sa linyang nalampasan mo.';
+
+  @override
+  String get viewingLyrics => 'Pagtingin sa lirika';
+
+  @override
+  String get viewingTheQueue => 'Pagtingin sa pila';
+
+  @override
+  String get vinylMorph => 'Vinyl morph';
+
+  @override
+  String get visualizerToggle => 'Toggle ng visualizer';
 
   @override
   String get warmth => 'Init ng kulay';
@@ -8247,6 +8751,9 @@ class AppLocalizationsTl extends AppLocalizations {
   String get waveform => 'Waveform';
 
   @override
+  String get waveformSeekbar => 'Waveform seekbar';
+
+  @override
   String weLlKeepTheBestQuality(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -8291,7 +8798,14 @@ class AppLocalizationsTl extends AppLocalizations {
   String get welcomeToFlick2 => 'Maligayang pagdating sa Flick';
 
   @override
+  String get whatItShows => 'Ano ang ipinapakita';
+
+  @override
   String get whatSNew => 'Ano\'ng bago';
+
+  @override
+  String get whenBitPerfectOutputIs =>
+      'Kapag aktibo ang bit-perfect output, may capsule na nagpapakita ng sample rate at bit depth na ipinapadala sa DAC mo.';
 
   @override
   String get whenYouPlayOverBluetoothAndroid =>

@@ -59,12 +59,15 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
   List<_SearchHit> _searchHits() {
     if (_query.isEmpty) return const [];
     final q = _query.toLowerCase();
+    final l10n = context.l10n;
     final hits = <_SearchHit>[];
     for (final section in kManualSections) {
       for (final entry in section.entries) {
-        final inTitle = entry.title.toLowerCase().contains(q);
-        final inBody = entry.body.toLowerCase().contains(q);
-        final inSection = section.title.toLowerCase().contains(q);
+        // The copy is resolved here, so search matches what is on screen in the
+        // active locale rather than the English source.
+        final inTitle = entry.title(l10n).toLowerCase().contains(q);
+        final inBody = entry.body(l10n).toLowerCase().contains(q);
+        final inSection = section.title(l10n).toLowerCase().contains(q);
         if (inTitle || inBody || inSection) {
           hits.add(_SearchHit(section: section, entry: entry));
         }
@@ -247,7 +250,7 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _ManualEntryContent(
-              sectionLabel: hit.section.title,
+              sectionLabel: hit.section.title(context.l10n),
               entry: hit.entry,
             ),
             if (i < hits.length - 1) ...[
@@ -311,7 +314,7 @@ class _ManualSectionCardState extends State<_ManualSectionCard> {
                   const SizedBox(width: AppConstants.spacingMd),
                   Expanded(
                     child: Text(
-                      widget.section.title,
+                      widget.section.title(context.l10n),
                       style: const TextStyle(
                         fontFamily: 'GoogleSansFlex',
                         fontSize: 16,
@@ -402,6 +405,8 @@ class _ManualEntryContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final tips = entry.tips(l10n);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -419,7 +424,7 @@ class _ManualEntryContent extends StatelessWidget {
           const SizedBox(height: 4),
         ],
         Text(
-          entry.title,
+          entry.title(l10n),
           style: const TextStyle(
             fontFamily: 'GoogleSansFlex',
             fontSize: 15,
@@ -429,7 +434,7 @@ class _ManualEntryContent extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          entry.body,
+          entry.body(l10n),
           style: const TextStyle(
             fontFamily: 'GoogleSansFlex',
             fontSize: 13.5,
@@ -437,9 +442,9 @@ class _ManualEntryContent extends StatelessWidget {
             height: 1.5,
           ),
         ),
-        if (entry.tips != null && entry.tips!.isNotEmpty) ...[
+        if (tips != null && tips.isNotEmpty) ...[
           const SizedBox(height: AppConstants.spacingSm),
-          for (final tip in entry.tips!) ...[
+          for (final tip in tips) ...[
             Text.rich(
               TextSpan(
                 children: [
