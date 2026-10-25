@@ -252,8 +252,8 @@ class _UsbBitPerfectPromptState extends ConsumerState<UsbBitPerfectPrompt> {
         SnackBar(
           content: Text(
             recovered
-                ? l10n.exclusiveUsbBitPerfectReEngaged
-                : l10n.exclusiveUsbIsStillUnavailableCheck,
+                ? l10n.englishForFilipino.exclusiveUsbBitPerfectReEngaged
+                : l10n.englishForFilipino.exclusiveUsbIsStillUnavailableCheck,
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -270,12 +270,12 @@ class _UsbBitPerfectPromptState extends ConsumerState<UsbBitPerfectPrompt> {
         SnackBar(
           content: Text(
             applied
-                ? l10n.bitPerfectUsbDacEnabledFor(status.device.productName)
-                : l10n.bitPerfectUsbDacCouldNot2(status.device.productName),
+                ? l10n.englishForFilipino.bitPerfectUsbDacEnabledFor(status.device.productName)
+                : l10n.englishForFilipino.bitPerfectUsbDacCouldNot2(status.device.productName),
           ),
           behavior: SnackBarBehavior.floating,
           action: SnackBarAction(
-            label: l10n.undo,
+            label: l10n.englishForFilipino.undo,
             onPressed: () => unawaited(_declineAutoEngage(promptKey)),
           ),
         ),
@@ -287,12 +287,12 @@ class _UsbBitPerfectPromptState extends ConsumerState<UsbBitPerfectPrompt> {
       .showFlickSnackBar(
         SnackBar(
           content: Text(
-            l10n.exclusiveUsbDroppedToTheAndroid,
+            l10n.englishForFilipino.exclusiveUsbDroppedToTheAndroid,
           ),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 8),
           action: SnackBarAction(
-            label: l10n.retry,
+            label: l10n.englishForFilipino.retry,
             onPressed: () => unawaited(_retryDirectUsb()),
           ),
         ),

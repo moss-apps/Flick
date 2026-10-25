@@ -39,6 +39,8 @@ import 'package:flick/widgets/common/engine_restart_notice.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/home_greeting.dart';
+import 'package:flick/widgets/common/baybayin_text.dart';
 
 /// Music-home menu screen inspired by streaming app landing pages.
 class MenuScreen extends ConsumerStatefulWidget {
@@ -64,6 +66,9 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   bool _showUpdateNotice = true;
   bool _pendingEngineRestart = false;
   Color? _heroDominantColor;
+  // The native review keeps general home copy English, with explicit Filipino
+  // exceptions for greetings, counts, update notice and engine descriptions.
+  AppLocalizations get l10n => context.l10n.englishForFilipino;
   String? _heroColorArtPath;
   late final AnimationController _welcomeCardController;
   late final Animation<double> _welcomeCardFade;
@@ -227,7 +232,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
       }
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showFlickSnackBar(
-          SnackBar(content: Text(l10n.couldNotOpenThePlayStore)),
+          SnackBar(content: Text(l10n.englishForFilipino.couldNotOpenThePlayStore)),
         );
       }
     } catch (error) {
@@ -235,7 +240,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
         return;
       }
       ScaffoldMessenger.of(context).showFlickSnackBar(
-        SnackBar(content: Text(l10n.couldNotOpenThePlayStore2(error))),
+        SnackBar(content: Text(l10n.englishForFilipino.couldNotOpenThePlayStore2(error))),
       );
     }
   }
@@ -270,12 +275,11 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
     );
   }
 
-  String _greetingForNow() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return l10n.goodMorning;
-    if (hour < 18) return l10n.goodAfternoon;
-    return l10n.goodEvening;
-  }
+  String _greetingForNow(BuildContext context) => homeGreetingFor(
+    now: DateTime.now(),
+    locale: Localizations.localeOf(context),
+    l10n: context.l10n,
+  );
 
   Widget _buildWelcomeCard(BuildContext context, WidgetRef ref) {
     return Container(
@@ -481,8 +485,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
             _buildEngineOption(
               context,
               title: l10n.standard,
-              subtitle:
-                  l10n.defaultAndroidPlayerPlaysEverything,
+              subtitle: l10n.defaultAndroidPlayerPlaysEverything,
               icon: LucideIcons.smartphone,
               selected: current == AudioEnginePreference.exoPlayer,
               onTap: () => _selectEngine(
@@ -496,8 +499,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
             _buildEngineOption(
               context,
               title: l10n.highQuality,
-              subtitle:
-                  l10n.ourRustPoweredEngineCleanerSound,
+              subtitle: l10n.ourRustPoweredEngineCleanerSound,
               icon: LucideIcons.audioLines,
               selected: current == AudioEnginePreference.rustOboe,
               onTap: () => _selectEngine(
@@ -511,8 +513,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
             _buildEngineOption(
               context,
               title: l10n.bitPerfectUsbDac,
-              subtitle:
-                  l10n.studioGradeOutputForExternalDacs,
+              subtitle: l10n.studioGradeOutputForExternalDacs,
               icon: LucideIcons.usb,
               selected: current == AudioEnginePreference.isochronousUsb,
               onTap: () => _selectEngine(
@@ -1052,8 +1053,11 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   }
 
   Widget _buildBrowseShortcuts(BuildContext context) {
+    final fontSize = Theme.of(context).textTheme.labelLarge?.fontSize ?? 14;
+    final extraTextHeight =
+        MediaQuery.textScalerOf(context).scale(fontSize) - fontSize;
     return SizedBox(
-      height: 52,
+      height: 52 + math.max(0, extraTextHeight) * 1.6,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(
           horizontal: AppConstants.spacingLg,
@@ -1068,6 +1072,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
             0 => _BrowseChip(
               icon: LucideIcons.library,
               label: l10n.libraryLabel,
+              scriptLabel: BaybayinLabel.library,
               onTap: () {
                 if (widget.onNavigateToTab != null) {
                   widget.onNavigateToTab!(1);
@@ -1079,16 +1084,19 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
             1 => _BrowseChip(
               icon: LucideIcons.disc,
               label: l10n.albums,
+              scriptLabel: BaybayinLabel.albums,
               onTap: () => _navigateTo(context, const AlbumsScreen()),
             ),
             2 => _BrowseChip(
               icon: LucideIcons.folder,
               label: l10n.folders,
+              scriptLabel: BaybayinLabel.folders,
               onTap: () => _navigateTo(context, const FoldersScreen()),
             ),
             3 => _BrowseChip(
               icon: LucideIcons.list,
               label: l10n.queue,
+              scriptLabel: BaybayinLabel.queue,
               onTap: () => _navigateTo(context, const QueueScreen()),
             ),
             4 => _BrowseChip(
@@ -1100,6 +1108,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
             _ => _BrowseChip(
               icon: LucideIcons.users,
               label: l10n.artists,
+              scriptLabel: BaybayinLabel.artists,
               onTap: () => _navigateTo(context, const ArtistsScreen()),
             ),
           };
@@ -1128,7 +1137,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _greetingForNow(),
+                  _greetingForNow(context),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: context.adaptiveTextPrimary,
@@ -1137,7 +1146,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                 ),
                 const SizedBox(height: AppConstants.spacingXs),
                 Text(
-                  l10n.tracksLikedSongsPlaylists(songCount, favoriteCount, playlistCount),
+                  context.l10n.tracksLikedSongsPlaylists(songCount, favoriteCount, playlistCount),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: context.adaptiveTextSecondary,
                     height: 1.45,
@@ -1207,7 +1216,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  l10n.updateAvailable,
+                  context.l10n.updateAvailable,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -1249,12 +1258,12 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                 .showFlickSnackBar(
                   SnackBar(
                     content: Text(
-                      l10n.updateNoticeHidden,
+                      l10n.englishForFilipino.updateNoticeHidden,
                     ),
                     behavior: SnackBarBehavior.floating,
                     duration: const Duration(seconds: 4),
                     action: SnackBarAction(
-                      label: l10n.undo,
+                      label: l10n.englishForFilipino.undo,
                       onPressed: () =>
                           setState(() => _showUpdateNotice = true),
                     ),
@@ -1369,6 +1378,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
       dominantColor: _heroDominantColor,
       featuredSong: featuredSong,
       title: title,
+      scriptLabel: hasNowPlaying ? BaybayinLabel.nowPlaying : null,
       subtitle: subtitle,
       featureTile: featureTile,
       primaryButton: primaryButton,
@@ -1925,6 +1935,7 @@ List<Color> _heroGradientColors(Color? dominant) {
 }
 
 class _HeroCardWithBlobs extends StatefulWidget {
+  final BaybayinLabel? scriptLabel;
   final Color? dominantColor;
   final Song? featuredSong;
   final String title;
@@ -1935,6 +1946,7 @@ class _HeroCardWithBlobs extends StatefulWidget {
   final VoidCallback onColorNeeded;
 
   const _HeroCardWithBlobs({
+    this.scriptLabel,
     required this.dominantColor,
     required this.featuredSong,
     required this.title,
@@ -2082,8 +2094,9 @@ class _HeroCardWithBlobsState extends State<_HeroCardWithBlobs>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.title,
+                        BaybayinText(
+                          label: widget.scriptLabel,
+                          fallback: widget.title,
                           style: Theme.of(context)
                               .textTheme
                               .headlineSmall
@@ -2214,6 +2227,7 @@ class _MenuLoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n.englishForFilipino;
     return Padding(
       padding: const EdgeInsets.all(AppConstants.spacingLg),
       child: Column(
@@ -2265,6 +2279,7 @@ class _HeroFeatureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n.englishForFilipino;
     return Container(
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       decoration: BoxDecoration(
@@ -2528,6 +2543,7 @@ class _SmartMixCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n.englishForFilipino;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -2631,6 +2647,7 @@ class _ArtistShelfCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n.englishForFilipino;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -2782,6 +2799,7 @@ class _PlaylistPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n.englishForFilipino;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -3026,12 +3044,14 @@ class _EmptyShelfCard extends StatelessWidget {
 }
 
 class _BrowseChip extends StatelessWidget {
+  final BaybayinLabel? scriptLabel;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final bool highlighted;
 
   const _BrowseChip({
+    this.scriptLabel,
     required this.icon,
     required this.label,
     required this.onTap,
@@ -3070,8 +3090,9 @@ class _BrowseChip extends StatelessWidget {
                     highlighted ? AppColors.accentLight : context.adaptiveTextSecondary,
               ),
               const SizedBox(width: AppConstants.spacingXs),
-              Text(
-                label,
+              BaybayinText(
+                label: scriptLabel,
+                fallback: label,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: highlighted
                       ? AppColors.accentLight
@@ -3176,21 +3197,21 @@ class _PlaylistPreview {
     final difference = now.difference(updatedAt);
 
     if (difference.inDays <= 0) {
-      return l10n.today;
+      return l10n.englishForFilipino.today;
     }
     if (difference.inDays == 1) {
-      return l10n.yesterday;
+      return l10n.englishForFilipino.yesterday;
     }
     if (difference.inDays < 7) {
-      return l10n.dAgo(difference.inDays);
+      return l10n.englishForFilipino.dAgo(difference.inDays);
     }
     if (difference.inDays < 30) {
-      return l10n.wAgo((difference.inDays / 7).floor());
+      return l10n.englishForFilipino.wAgo((difference.inDays / 7).floor());
     }
     if (difference.inDays < 365) {
-      return l10n.moAgo((difference.inDays / 30).floor());
+      return l10n.englishForFilipino.moAgo((difference.inDays / 30).floor());
     }
-    return l10n.yAgo((difference.inDays / 365).floor());
+    return l10n.englishForFilipino.yAgo((difference.inDays / 365).floor());
   }
 }
 

@@ -59,19 +59,19 @@ class MetadataEditorService {
     if (song.filePath == null) {
       return MetadataWriteResult(
         MetadataWriteOutcome.failed,
-        message: l10n.thisSongHasNoFilePath,
+        message: l10n.englishForFilipino.thisSongHasNoFilePath,
       );
     }
     if (song.startOffsetMs != null) {
       return MetadataWriteResult(
         MetadataWriteOutcome.failed,
-        message: l10n.cueSheetTracksCannotBeEdited,
+        message: l10n.englishForFilipino.cueSheetTracksCannotBeEdited,
       );
     }
     if (song.isExternal) {
       return MetadataWriteResult(
         MetadataWriteOutcome.failed,
-        message: l10n.externalSongsCannotBeEdited,
+        message: l10n.englishForFilipino.externalSongsCannotBeEdited,
       );
     }
 
@@ -93,12 +93,13 @@ class MetadataEditorService {
       // No SAF route available — surface the original failure.
       return MetadataWriteResult(
         MetadataWriteOutcome.failed,
-        message: direct.error ?? l10n.failedToWriteTagsToTheFile,
+        message:
+            direct.error ?? l10n.englishForFilipino.failedToWriteTagsToTheFile,
       );
     } catch (e) {
       return MetadataWriteResult(
         MetadataWriteOutcome.failed,
-        message: l10n.failedToSaveMetadata(e),
+        message: l10n.englishForFilipino.failedToSaveMetadata(e),
       );
     }
   }
@@ -129,7 +130,7 @@ class MetadataEditorService {
         ? const MetadataWriteResult(MetadataWriteOutcome.verified)
         : MetadataWriteResult(
             MetadataWriteOutcome.unverified,
-            message: l10n.tagsWereWrittenButCouldNot,
+            message: l10n.englishForFilipino.tagsWereWrittenButCouldNot,
           );
   }
 
@@ -164,8 +165,9 @@ class MetadataEditorService {
     if (!temp.success || temp.tempPath == null) {
       return MetadataWriteResult(
         MetadataWriteOutcome.failed,
-        message:
-            l10n.couldNotPrepareTheEditedFile(temp.error ?? l10n.unknown),
+        message: l10n.englishForFilipino.couldNotPrepareTheEditedFile(
+          temp.error ?? l10n.englishForFilipino.unknown,
+        ),
       );
     }
 
@@ -180,7 +182,7 @@ class MetadataEditorService {
     if (!copied) {
       return MetadataWriteResult(
         MetadataWriteOutcome.failed,
-        message: l10n.androidBlockedWritingToThisFile,
+        message: l10n.englishForFilipino.androidBlockedWritingToThisFile,
       );
     }
 

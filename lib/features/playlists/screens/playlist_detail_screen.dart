@@ -339,9 +339,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showFlickSnackBar(
       SnackBar(
-        content: Text(l10n.queuedSongs(_songs.length)),
+        content: Text(l10n.englishForFilipino.queuedSongs(_songs.length)),
         action: SnackBarAction(
-          label: l10n.viewQueue,
+          label: l10n.englishForFilipino.viewQueue,
           onPressed: () => NavigationHelper.navigateToQueue(context),
         ),
       ),
@@ -375,9 +375,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
     ScaffoldMessenger.of(context).showFlickSnackBar(
       SnackBar(
         content: Text(
-          isAll
-              ? l10n.removedSongsFromFavorites(_songs.length)
-              : l10n.addedSongsToFavorites(_songs.length),
+          isAll ? l10n.removedFromFavorites3 : l10n.addedToFavorites,
         ),
       ),
     );

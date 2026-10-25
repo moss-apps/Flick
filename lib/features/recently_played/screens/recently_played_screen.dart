@@ -206,7 +206,7 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showFlickSnackBar(SnackBar(content: Text(l10n.historyCleared)));
+        ).showFlickSnackBar(SnackBar(content: Text(l10n.englishForFilipino.historyCleared)));
       }
     }
   }

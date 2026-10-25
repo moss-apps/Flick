@@ -139,7 +139,7 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showFlickSnackBar(
-          SnackBar(content: Text(l10n.shareFailed(e))),
+          SnackBar(content: Text(l10n.englishForFilipino.shareFailed(e))),
         );
       }
     } finally {
@@ -163,7 +163,7 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showFlickSnackBar(
-          SnackBar(content: Text(l10n.savedToGallery)),
+          SnackBar(content: Text(l10n.englishForFilipino.savedToGallery)),
         );
       }
     } catch (e) {
@@ -171,7 +171,7 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
         ScaffoldMessenger.of(context).showFlickSnackBar(
           SnackBar(
             content: Text(
-              e is GallerySaveException ? e.message : l10n.failedToSave,
+              e is GallerySaveException ? e.message : l10n.englishForFilipino.failedToSave,
             ),
           ),
         );

@@ -38,6 +38,7 @@ import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/common/library_heading.dart';
 
 enum _AlbumGridSortOption { name, artist, tracks }
 
@@ -1322,7 +1323,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final index = await ref.read(playerProvider.notifier).addToQueue(song);
     if (!mounted) return;
     _showSongActionSnackBar(
-      l10n.queued(song.title),
+      l10n.englishForFilipino.queued(song.title),
       onUndo: () => ref.read(playerProvider.notifier).removeFromQueue(index),
     );
   }
@@ -1335,7 +1336,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         devLog('Failed to add favorite for ${song.id}: $error');
         debugPrintStack(stackTrace: stackTrace);
         if (!mounted) return;
-        _showSongActionSnackBar(l10n.failedToAddToFavorites(song.title));
+        _showSongActionSnackBar(
+          l10n.englishForFilipino.failedToAddToFavorites(song.title),
+        );
         return;
       }
 
@@ -1343,7 +1346,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       PlayerService().refreshNotificationState();
     }());
     _showSongActionSnackBar(
-      l10n.addedToFavorites2(song.title),
+      l10n.addedToFavorites,
       onUndo: () =>
           ref.read(favoritesServiceProvider).removeFavorite(song.id).then((_) {
             ref.invalidate(favoritesProvider);
@@ -1391,7 +1394,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       await ref.read(playerProvider.notifier).addToQueue(song);
     }
     if (mounted) {
-      _showSongActionSnackBar(l10n.queuedSongs3(toQueue.length));
+      _showSongActionSnackBar(
+        l10n.englishForFilipino.queuedSongs3(toQueue.length),
+      );
       _exitSelectionMode();
     }
   }
@@ -1409,7 +1414,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     PlayerService().refreshNotificationState();
     if (mounted) {
       _showSongActionSnackBar(
-        l10n.addedSongsToFavorites3(toFavorite.length),
+        l10n.addedToFavorites,
         onUndo: () async {
           for (final song in toFavorite) {
             await ref.read(favoritesServiceProvider).removeFavorite(song.id);
@@ -1535,7 +1540,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       await notifier.addSongToPlaylist(playlistId, song.id);
     }
     if (!mounted) return;
-    _showSongActionSnackBar(l10n.addedSongsTo2(songs.length, playlistName));
+    _showSongActionSnackBar(
+      l10n.englishForFilipino.addedSongsTo2(songs.length, playlistName),
+    );
     _exitSelectionMode();
   }
 
@@ -1557,7 +1564,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
 
     if (playlist == null) {
       if (!mounted) return;
-      _showSongActionSnackBar(l10n.aPlaylistWithThisNameAlready);
+      _showSongActionSnackBar(
+        l10n.englishForFilipino.aPlaylistWithThisNameAlready,
+      );
       return;
     }
 
@@ -1569,7 +1578,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
 
     if (mounted) {
       _showSongActionSnackBar(
-        l10n.createdAndAddedSongs(name, songs.length),
+        l10n.englishForFilipino.createdAndAddedSongs(name, songs.length),
       );
       _exitSelectionMode();
     }
@@ -1760,8 +1769,8 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       _exitSelectionMode();
       _showSongActionSnackBar(
         deleteFiles
-            ? l10n.deletedSongs(songs.length)
-            : l10n.removedSongsFromLibrary(songs.length),
+            ? l10n.englishForFilipino.deletedSongs(songs.length)
+            : l10n.englishForFilipino.removedSongsFromLibrary(songs.length),
       );
     }
   }
@@ -1846,7 +1855,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
           content: Text(message),
           action: onUndo == null
               ? null
-              : SnackBarAction(label: l10n.undo, onPressed: onUndo),
+              : SnackBarAction(label: l10n.englishForFilipino.undo, onPressed: onUndo),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -1910,8 +1919,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.yourLibrary,
+                LibraryHeading(
+                  section: LibrarySection.songs,
+                  defaultLabel: l10n.yourLibrary,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: context.adaptiveTextPrimary,

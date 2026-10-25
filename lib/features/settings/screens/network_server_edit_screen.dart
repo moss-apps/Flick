@@ -21,7 +21,7 @@ import '../../../services/sources/jellyfin_service.dart';
 import '../../../services/sources/network_source_service.dart';
 import '../../../services/sources/tidal_service.dart';
 import '../widgets/settings_widgets.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 /// Add or edit a network server. All registered protocols are selectable;
 /// each dispatches test/sync/stream through [networkSourceServiceFor].
@@ -55,7 +55,7 @@ class _ProtocolMeta {
 List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
   _ProtocolMeta(
     id: NetworkProtocol.subsonic,
-    label: l10n.subsonic,
+    label: l10n.englishForFilipino.subsonic,
     subtitle: l10n.navidromeAirsonicGonic,
     icon: LucideIcons.radio,
     urlHint: 'https://music.example.com/subsonic',
@@ -63,7 +63,7 @@ List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
   ),
   _ProtocolMeta(
     id: NetworkProtocol.jellyfin,
-    label: l10n.jellyfin,
+    label: l10n.englishForFilipino.jellyfin,
     subtitle: l10n.jellyfinEmby,
     icon: LucideIcons.clapperboard,
     urlHint: 'https://jf.example.com',
@@ -71,7 +71,7 @@ List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
   ),
   _ProtocolMeta(
     id: NetworkProtocol.webdav,
-    label: l10n.webdav,
+    label: l10n.englishForFilipino.webdav,
     subtitle: l10n.nextcloudOwncloudSabredav,
     icon: LucideIcons.cloud,
     urlHint: 'https://cloud.example.com/remote.php/dav/files/user',
@@ -79,7 +79,7 @@ List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
   ),
   _ProtocolMeta(
     id: NetworkProtocol.upnp,
-    label: l10n.upnpDlna,
+    label: l10n.englishForFilipino.upnpDlna,
     subtitle: l10n.minimserverServiioKodi,
     icon: LucideIcons.cast,
     urlHint: 'http://192.168.1.10:8200/rootDesc.xml',
@@ -95,7 +95,7 @@ List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
   ),
   _ProtocolMeta(
     id: NetworkProtocol.tidal,
-    label: l10n.tidal,
+    label: l10n.englishForFilipino.tidal,
     subtitle: l10n.signInWithYourAccountHifi,
     icon: LucideIcons.waves,
     urlHint: TidalService.tidalBaseUrl,
@@ -327,10 +327,10 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     AppHaptics.tap();
     final confirmed = await FlickDialogs.confirm(
       context,
-      title: l10n.removeServer,
+      title: l10n.englishForFilipino.removeServer,
       message:
           l10n.deleteAndAllSongsAndPlaylists(server.label),
-      confirmLabel: l10n.delete,
+      confirmLabel: l10n.englishForFilipino.delete,
       destructive: true,
     );
     if (!confirmed) return;
@@ -369,11 +369,11 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
   Widget build(BuildContext context) {
     final protocols = _protocolsFor(l10n);
     return SettingsScaffold(
-      title: _isNew ? l10n.addServer : l10n.editServer,
+      title: _isNew ? l10n.englishForFilipino.addServer : l10n.englishForFilipino.editServer,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.protocol),
+          SettingsSectionHeader(l10n.englishForFilipino.protocol),
           SettingsCard(
             children: [
               for (var i = 0; i < protocols.length; i++) ...[
@@ -426,13 +426,13 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
               ),
             ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.connection),
+          SettingsSectionHeader(l10n.englishForFilipino.connection),
           SettingsCard(
             children: [
               _TextFieldSetting(
                 controller: _labelController,
                 icon: LucideIcons.tag,
-                label: l10n.label,
+                label: l10n.englishForFilipino.label,
                 hint: l10n.my(_meta.label),
               ),
               if (!_isTidal) ...[
@@ -440,7 +440,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
                 _TextFieldSetting(
                   controller: _urlController,
                   icon: LucideIcons.link,
-                  label: l10n.serverUrl,
+                  label: l10n.englishForFilipino.serverUrl,
                   hint: _meta.urlHint,
                   keyboardType: TextInputType.url,
                 ),
@@ -448,13 +448,13 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
                 _TextFieldSetting(
                   controller: _usernameController,
                   icon: LucideIcons.user,
-                  label: l10n.username,
+                  label: l10n.englishForFilipino.username,
                 ),
                 const SettingsDivider(),
                 _TextFieldSetting(
                   controller: _passwordController,
                   icon: LucideIcons.lock,
-                  label: l10n.password,
+                  label: l10n.englishForFilipino.password,
                   obscureText: true,
                   helperText: _isNew
                       ? _meta.passwordHelper
@@ -509,7 +509,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(_isNew ? l10n.addServer : l10n.save),
+                  : Text(_isNew ? l10n.englishForFilipino.addServer : l10n.englishForFilipino.save),
             ),
           ),
           if (!_isNew) ...[
@@ -618,12 +618,12 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
             children: [
               _linkAction(
                 icon: LucideIcons.externalLink,
-                label: l10n.openInBrowser,
+                label: l10n.englishForFilipino.openInBrowser,
                 onTap: () => _openLink(uri),
               ),
               _linkAction(
                 icon: LucideIcons.copy,
-                label: l10n.copyLink,
+                label: l10n.englishForFilipino.copyLink,
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: uri));
                   AppHaptics.tap();

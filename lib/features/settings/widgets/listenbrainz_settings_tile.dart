@@ -9,7 +9,7 @@ import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/providers/listenbrainz_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 /// Self-contained ListenBrainz connect/disconnect tile.
 class ListenBrainzSettingsTile extends ConsumerStatefulWidget {
@@ -91,7 +91,7 @@ class _ListenBrainzSettingsTileState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l10n.disconnectListenbrainz,
+                          l10n.englishForFilipino.disconnectListenbrainz,
                           style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
                             color: context.adaptiveTextPrimary,
                             fontWeight: FontWeight.w600,
@@ -251,7 +251,7 @@ class _ListenBrainzSettingsTileState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l10n.listenbrainzConnected,
+                          l10n.englishForFilipino.listenbrainzConnected,
                           style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
                             color: context.adaptiveTextPrimary,
                             fontWeight: FontWeight.w600,
@@ -310,7 +310,7 @@ class _ListenBrainzSettingsTileState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                l10n.connectedAccount,
+                                l10n.englishForFilipino.connectedAccount,
                                 style: Theme.of(ctx).textTheme.bodySmall
                                     ?.copyWith(
                                       color: context.adaptiveTextSecondary,
@@ -442,7 +442,7 @@ class _ListenBrainzSettingsTileState
     return _buildTapTile(
       context,
       icon: Icons.error_outline,
-      title: l10n.listenbrainz,
+      title: l10n.englishForFilipino.listenbrainz,
       subtitle: l10n.couldNotLoadSession,
       onTap: _showTokenDialog,
       trailing: Icon(
@@ -457,7 +457,7 @@ class _ListenBrainzSettingsTileState
     return _buildTapTile(
       context,
       icon: Icons.radio_button_checked,
-      title: l10n.listenbrainz,
+      title: l10n.englishForFilipino.listenbrainz,
       subtitle: l10n.connectedAs(username),
       onTap: () => _showConnectedBottomSheet(username),
       trailing: Icon(
@@ -472,7 +472,7 @@ class _ListenBrainzSettingsTileState
     return _buildTapTile(
       context,
       icon: Icons.radio_button_unchecked,
-      title: l10n.listenbrainz,
+      title: l10n.englishForFilipino.listenbrainz,
       subtitle: l10n.connectToSubmitYourListeningHistory,
       onTap: _showTokenDialog,
       trailing: Icon(
@@ -639,7 +639,7 @@ class _TokenInputSheetState extends State<_TokenInputSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
               child: Text(
-                l10n.connectListenbrainz,
+                l10n.englishForFilipino.connectListenbrainz,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: context.adaptiveTextPrimary,
                   fontWeight: FontWeight.w600,
@@ -728,7 +728,7 @@ class _TokenInputSheetState extends State<_TokenInputSheet> {
                 autocorrect: false,
                 enableSuggestions: false,
                 decoration: InputDecoration(
-                  labelText: l10n.userToken,
+                  labelText: l10n.englishForFilipino.userToken,
                   hintText: l10n.pasteYourListenbrainzToken,
                   errorText: _errorMessage,
                   suffixIcon: IconButton(

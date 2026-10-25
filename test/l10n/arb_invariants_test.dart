@@ -78,10 +78,10 @@ Set<String> _allowlisted(String group) => (_loadAllowlist()[group] as Map<String
   return (names: names, typed: typed);
 }
 
-/// Keys the Dart code reads, via `l10n.key` or `AppLocalizations.of(context).key`.
+/// Keys read directly or through the explicit English-for-Filipino copy role.
 Set<String> _referencedKeys() {
   final pattern = RegExp(
-    r'(?:\bl10n\.|AppLocalizations\.of\([^)]*\)\.)([A-Za-z_]\w*)',
+    r'(?:\bl10n\.|AppLocalizations\.of\([^)]*\)\.)(?:englishForFilipino\.)?([A-Za-z_]\w*)',
   );
   final used = <String>{};
   for (final entity in Directory(_sourceDir).listSync(recursive: true)) {

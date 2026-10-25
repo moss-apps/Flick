@@ -62,7 +62,7 @@ class IdentifyAlbumSheet extends ConsumerStatefulWidget {
       .showFlickSnackBar(
         SnackBar(
           content: Text(
-            l10n.identified(result.updatedSongs, artworkNote),
+            l10n.englishForFilipino.identified(result.updatedSongs, artworkNote),
           ),
           behavior: SnackBarBehavior.floating,
         ),

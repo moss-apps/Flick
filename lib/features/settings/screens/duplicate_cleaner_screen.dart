@@ -12,7 +12,7 @@ import 'package:flick/core/utils/audio_metadata_utils.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/duplicate_cleaner_service.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -212,7 +212,7 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
             SizedBox(
               width: double.infinity,
               child: FlickDialogButton(
-                label: l10n.tryAgain,
+                label: l10n.englishForFilipino.tryAgain,
                 style: FlickDialogButtonStyle.primary,
                 onPressed: () => ref
                     .read(duplicateScanProvider.notifier)
@@ -284,7 +284,7 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
             ),
             const SizedBox(height: AppConstants.spacingLg),
             FlickDialogButton(
-              label: l10n.scanAgain,
+              label: l10n.englishForFilipino.scanAgain,
               style: FlickDialogButtonStyle.secondary,
               onPressed: () => ref
                   .read(duplicateScanProvider.notifier)
@@ -428,7 +428,7 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  l10n.duplicateCleaner,
+                  l10n.englishForFilipino.duplicateCleaner,
                   style: TextStyle(
                     fontFamily: 'GoogleSansFlex',
                     fontSize: 18,
@@ -544,7 +544,7 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l10n.reviewBeforeYouClean,
+                      l10n.englishForFilipino.reviewBeforeYouClean,
                       style: TextStyle(
                         fontFamily: 'GoogleSansFlex',
                         fontSize: 14.5,
@@ -625,7 +625,7 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
                               _SummaryStat(
-                                label: l10n.groups,
+                                label: l10n.englishForFilipino.groups,
                                 value: result.totalGroups.toString(),
                                 icon: LucideIcons.layers,
                               ),
@@ -635,7 +635,7 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                                 color: AppColors.glassBorder,
                               ),
                               _SummaryStat(
-                                label: l10n.toRemove,
+                                label: l10n.englishForFilipino.toRemove,
                                 value: toRemove.toString(),
                                 icon: LucideIcons.trash2,
                                 highlight: true,
@@ -646,7 +646,7 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                                 color: AppColors.glassBorder,
                               ),
                               _SummaryStat(
-                                label: l10n.willKeep,
+                                label: l10n.englishForFilipino.willKeep,
                                 value: scanState.selectedKeepCount
                                     .toString(),
                                 icon: LucideIcons.shieldCheck,
@@ -875,10 +875,10 @@ class _BottomActionBar extends ConsumerWidget {
     final kept = ref.read(duplicateScanProvider).selectedKeepCount;
     final confirmed = await FlickDialogs.confirm(
       context,
-      title: l10n.removeDuplicates2(toRemove),
+      title: l10n.englishForFilipino.removeDuplicates2(toRemove),
       message:
           l10n.weLlKeepYourCheckedVersion(kept, toRemove),
-      confirmLabel: l10n.remove,
+      confirmLabel: l10n.englishForFilipino.remove,
       destructive: true,
       icon: LucideIcons.trash2,
     );
@@ -923,10 +923,10 @@ class _BottomActionBar extends ConsumerWidget {
   ) async {
     final confirmed = await FlickDialogs.confirm(
       context,
-      title: l10n.removeAllWithBestPicks,
+      title: l10n.englishForFilipino.removeAllWithBestPicks,
       message:
           l10n.weLlKeepTheBestQuality(toRemove),
-      confirmLabel: l10n.removeAll,
+      confirmLabel: l10n.englishForFilipino.removeAll,
       destructive: true,
       icon: LucideIcons.sparkles,
     );
@@ -1177,7 +1177,7 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                           Row(
                             children: [
                               Text(
-                                l10n.chooseWhichToKeep,
+                                l10n.englishForFilipino.chooseWhichToKeep,
                                 style: TextStyle(
                                   fontFamily: 'GoogleSansFlex',
                                   fontSize: 12,

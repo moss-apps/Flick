@@ -9,6 +9,12 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get filipinoDonationNote => 'Thank you for supporting Flick.';
+
+  @override
+  String get playingLabel => 'Playing';
+
+  @override
   String get aDraggableOverlayShowsWhileUsing =>
       'A draggable overlay shows while using other apps';
 
@@ -835,8 +841,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get baybayinHeadings => 'Baybayin labels';
+
+  @override
+  String get baybayinHeadingsDescription =>
+      'Experimental: curated headings, browse shortcuts and navigation labels. Accessibility labels stay in Latin script.';
+
+  @override
   String get baybayinPilotDescription =>
-      'Experimental draft; untranslated text stays in English.';
+      'Tagalog + English mix. Draft copy for review.';
 
   @override
   String get beLsbBigEndianSubslotLsb =>
@@ -6062,6 +6075,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchTheManual => 'Search the manual...';
+
+  @override
+  String get searchSettings => 'Search settings…';
 
   @override
   String get searchYourLibrary => 'Search your library';

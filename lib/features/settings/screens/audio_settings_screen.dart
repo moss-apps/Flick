@@ -16,10 +16,12 @@ import 'package:flick/providers/player_provider.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/replaygain_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class AudioSettingsScreen extends ConsumerStatefulWidget {
-  const AudioSettingsScreen({super.key});
+  const AudioSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   ConsumerState<AudioSettingsScreen> createState() =>
@@ -38,16 +40,17 @@ class _AudioSettingsScreenState extends ConsumerState<AudioSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
-      title: l10n.audio,
+      title: l10n.englishForFilipino.audio,
+      initialSection: widget.initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.audio),
+          SettingsSectionHeader(l10n.englishForFilipino.audio, sectionId: 'audio'),
           SettingsCard(
             children: [
               NavigationSetting(
                 icon: LucideIcons.usb,
-                title: l10n.usbAudioUac2,
+                title: l10n.englishForFilipino.usbAudioUac2,
                 subtitle: l10n.configureUsbDacAmpDevices,
                 onTap: () {
                   Navigator.of(context).push(
@@ -60,7 +63,7 @@ class _AudioSettingsScreenState extends ConsumerState<AudioSettingsScreen> {
               const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.slidersHorizontal,
-                title: l10n.equalizer,
+                title: l10n.englishForFilipino.equalizer,
                 subtitle: l10n.adjustAudioFrequencies,
                 onTap: () {
                   Navigator.of(context).push(
@@ -113,12 +116,12 @@ class _ExtendedVolumeSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SettingsSectionHeader(l10n.volume),
+            SettingsSectionHeader(l10n.englishForFilipino.volume, sectionId: 'volume'),
             SettingsCard(
               children: [
                 ToggleSetting(
                   icon: LucideIcons.volume2,
-                  title: l10n.extendedVolume,
+                  title: l10n.englishForFilipino.extendedVolume,
                   subtitle: l10n.boostBeyond100UpTo200,
                   value: prefs.extendedVolumeEnabled,
                   onChanged: (v) => _setEnabled(ref, playerService, v),
@@ -182,12 +185,12 @@ class _ReplayGainSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.replaygain),
+        SettingsSectionHeader(l10n.englishForFilipino.replaygain, sectionId: 'replaygain'),
         SettingsCard(
           children: [
             SelectionSetting(
               icon: LucideIcons.volumeX,
-              title: l10n.off,
+              title: l10n.englishForFilipino.off,
               subtitle: l10n.playAtTheRecordedLevel,
               selected: prefs.replayGainMode == 'off',
               onTap: () => _setMode(ref, playerService, 'off'),
@@ -195,7 +198,7 @@ class _ReplayGainSection extends ConsumerWidget {
             const SettingsDivider(),
             SelectionSetting(
               icon: LucideIcons.music,
-              title: l10n.track,
+              title: l10n.englishForFilipino.track,
               subtitle: l10n.normalizeEachTrackToMatchLoudness,
               selected: prefs.replayGainMode == 'track',
               onTap: () => _setMode(ref, playerService, 'track'),
@@ -203,7 +206,7 @@ class _ReplayGainSection extends ConsumerWidget {
             const SettingsDivider(),
             SelectionSetting(
               icon: LucideIcons.disc3,
-              title: l10n.album,
+              title: l10n.englishForFilipino.album,
               subtitle: l10n.keepRelativeLevelsInsideEachAlbum,
               selected: prefs.replayGainMode == 'album',
               onTap: () => _setMode(ref, playerService, 'album'),
@@ -211,7 +214,7 @@ class _ReplayGainSection extends ConsumerWidget {
             const SettingsDivider(),
             SliderSetting(
               icon: LucideIcons.gauge,
-              title: l10n.preAmp,
+              title: l10n.englishForFilipino.preAmp,
               subtitle: l10n.fineTuneTheOverallGain,
               value: prefs.replayGainPreampDb.clamp(
                 replayGainPreampMinDb,
@@ -226,7 +229,7 @@ class _ReplayGainSection extends ConsumerWidget {
             const SettingsDivider(),
             ToggleSetting(
               icon: LucideIcons.shield,
-              title: l10n.preventClipping,
+              title: l10n.englishForFilipino.preventClipping,
               subtitle:
                   l10n.limitPositiveGainSoTheLevel,
               value: prefs.replayGainPreventClipping,
@@ -243,10 +246,10 @@ class _CrossfadeSection extends ConsumerWidget {
   const _CrossfadeSection();
 
   static List<String> _curveLabels(AppLocalizations l10n) => <String>[
-    l10n.equalPower,
-    l10n.linear,
-    l10n.squareRoot,
-    l10n.sCurve,
+    l10n.englishForFilipino.equalPower,
+    l10n.englishForFilipino.linear,
+    l10n.englishForFilipino.squareRoot,
+    l10n.englishForFilipino.sCurve,
   ];
   Future<void> _setEnabled(
     WidgetRef ref,
@@ -311,12 +314,12 @@ class _CrossfadeSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SettingsSectionHeader(l10n.crossfade, tag: l10n.experimental),
+            SettingsSectionHeader(l10n.englishForFilipino.crossfade, sectionId: 'crossfade', tag: l10n.englishForFilipino.experimental),
             SettingsCard(
               children: [
                 ToggleSetting(
                   icon: LucideIcons.shuffle,
-                  title: l10n.crossfade,
+                  title: l10n.englishForFilipino.crossfade,
                   subtitle: locked
                       ? disabledHint
                       : l10n.overlapTheEndOfATrack,
@@ -328,7 +331,7 @@ class _CrossfadeSection extends ConsumerWidget {
                 const SettingsDivider(),
                 SliderSetting(
                   icon: LucideIcons.timer,
-                  title: l10n.duration,
+                  title: l10n.englishForFilipino.duration,
                   subtitle: l10n.lengthOfTheOverlap,
                   value: prefs.crossfadeDurationSecs.clamp(0.5, 12.0),
                   displayValue:
@@ -389,10 +392,10 @@ class _CrossfeedSection extends ConsumerWidget {
   const _CrossfeedSection();
 
   static List<String> _levelLabels(AppLocalizations l10n) => <String>[
-    l10n.off,
-    l10n.defaultLabel,
-    l10n.crossfeed,
-    l10n.crossfeedEasy,
+    l10n.englishForFilipino.off,
+    l10n.englishForFilipino.defaultLabel,
+    l10n.englishForFilipino.crossfeed,
+    l10n.englishForFilipino.crossfeedEasy,
   ];
 
   Future<void> _setLevel(
@@ -424,8 +427,9 @@ class _CrossfeedSection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SettingsSectionHeader(
-              l10n.crossfeedBs2b,
-              tag: l10n.experimental,
+              l10n.englishForFilipino.crossfeedBs2b,
+              sectionId: 'crossfeedBs2b',
+              tag: l10n.englishForFilipino.experimental,
             ),
             SettingsCard(
               children: [
@@ -507,7 +511,7 @@ class _CrossfeedLevelPicker extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: AppConstants.spacingXs),
             child: Text(
-              l10n.level,
+              l10n.englishForFilipino.level,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: enabled
                         ? context.adaptiveTextPrimary
@@ -568,7 +572,7 @@ class _CrossfadeCurvePicker extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: AppConstants.spacingXs),
             child: Text(
-              l10n.curve,
+              l10n.englishForFilipino.curve,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: enabled
                     ? context.adaptiveTextPrimary
@@ -683,7 +687,7 @@ class _CrossfadePreview extends StatelessWidget {
           Row(
             children: [
               Text(
-                l10n.preview,
+                l10n.englishForFilipino.preview,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: enabled
                       ? context.adaptiveTextPrimary
@@ -816,4 +820,3 @@ class _CrossfadeCurvePainter extends CustomPainter {
         oldDelegate.trackBColor != trackBColor;
   }
 }
-

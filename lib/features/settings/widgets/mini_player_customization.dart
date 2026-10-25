@@ -11,7 +11,7 @@ import 'package:flick/providers/mini_player_config_provider.dart';
 import 'package:flick/widgets/common/mini_player_bar.dart';
 import 'package:flick/widgets/navigation/flick_nav_bar.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class MiniPlayerCustomization extends ConsumerWidget {
   const MiniPlayerCustomization({super.key});
@@ -60,15 +60,15 @@ class MiniPlayerCustomization extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.preview),
+        SettingsSectionHeader(l10n.englishForFilipino.preview, sectionId: 'preview'),
         const MiniPlayerPreview(),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.miniPlayerLayout),
+        SettingsSectionHeader(l10n.englishForFilipino.miniPlayerLayout, sectionId: 'miniPlayerLayout'),
         SettingsCard(
           children: [
             ToggleSetting(
               icon: LucideIcons.split,
-              title: l10n.separateFromNavBar,
+              title: l10n.englishForFilipino.separateFromNavBar,
               subtitle: l10n.showTheMiniPlayerAsIts,
               value: prefs.separateMiniPlayerFromNavBar,
               onChanged: (value) => ref
@@ -78,11 +78,11 @@ class MiniPlayerCustomization extends ConsumerWidget {
             const SettingsDivider(),
             if (prefs.separateMiniPlayerFromNavBar) ...[
               _Choices<MiniPlayerWidthMode>(
-                title: l10n.width,
+                title: l10n.englishForFilipino.width,
                 value: config.widthMode,
                 options: {
-                  MiniPlayerWidthMode.matchNavigation: l10n.matchNavigation,
-                  MiniPlayerWidthMode.custom: l10n.custom,
+                  MiniPlayerWidthMode.matchNavigation: l10n.englishForFilipino.matchNavigation,
+                  MiniPlayerWidthMode.custom: l10n.englishForFilipino.custom,
                 },
                 onChanged: (value) =>
                     notifier.update((c) => c.copyWith(widthMode: value)),
@@ -146,7 +146,7 @@ class MiniPlayerCustomization extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.contentControls),
+        SettingsSectionHeader(l10n.englishForFilipino.contentControls, sectionId: 'contentControls'),
         SettingsCard(
           children: [
             toggle(
@@ -191,7 +191,7 @@ class MiniPlayerCustomization extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.miniPlayerAppearance),
+        SettingsSectionHeader(l10n.englishForFilipino.miniPlayerAppearance, sectionId: 'miniPlayerAppearance'),
         SettingsCard(
           children: [
             slider(
@@ -214,11 +214,11 @@ class MiniPlayerCustomization extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _Choices<MiniPlayerShadow>(
-              title: l10n.shadow,
+              title: l10n.englishForFilipino.shadow,
               value: config.shadow,
               options: {
-                MiniPlayerShadow.off: l10n.off,
-                MiniPlayerShadow.subtle: l10n.subtle,
+                MiniPlayerShadow.off: l10n.englishForFilipino.off,
+                MiniPlayerShadow.subtle: l10n.englishForFilipino.subtle,
                 MiniPlayerShadow.strong: l10n.strong,
               },
               onChanged: (value) =>
@@ -227,7 +227,7 @@ class MiniPlayerCustomization extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.textGestures),
+        SettingsSectionHeader(l10n.englishForFilipino.textGestures, sectionId: 'textGestures'),
         SettingsCard(
           children: [
             slider(
@@ -242,11 +242,11 @@ class MiniPlayerCustomization extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _Choices<MiniPlayerTitleMode>(
-              title: l10n.longSongTitles,
+              title: l10n.englishForFilipino.longSongTitles,
               value: config.titleMode,
               options: {
-                MiniPlayerTitleMode.truncate: l10n.truncate,
-                MiniPlayerTitleMode.scroll: l10n.scroll,
+                MiniPlayerTitleMode.truncate: l10n.englishForFilipino.truncate,
+                MiniPlayerTitleMode.scroll: l10n.englishForFilipino.scroll,
               },
               subtitle: l10n.scrollingPausesWhenReducedMotionIs,
               onChanged: (value) =>
@@ -255,7 +255,7 @@ class MiniPlayerCustomization extends ConsumerWidget {
             const SettingsDivider(),
             SelectionSetting(
               icon: LucideIcons.audioLines,
-              title: l10n.visualizer,
+              title: l10n.englishForFilipino.visualizer,
               subtitle: l10n.swipeToShowOrHideThe,
               selected: prefs.miniPlayerSwipeAction == 'visualizer',
               onTap: () => ref
@@ -265,7 +265,7 @@ class MiniPlayerCustomization extends ConsumerWidget {
             const SettingsDivider(),
             SelectionSetting(
               icon: LucideIcons.skipForward,
-              title: l10n.switchSongs,
+              title: l10n.englishForFilipino.switchSongs,
               subtitle: l10n.swipeLeftRightToSkipTracks,
               selected: prefs.miniPlayerSwipeAction == 'switchSongs',
               onTap: () => ref
@@ -327,12 +327,12 @@ class _MiniPlayerPreviewState extends ConsumerState<MiniPlayerPreview> {
           spacing: 8,
           children: [
             ChoiceChip(
-              label: Text(l10n.expanded),
+              label: Text(l10n.englishForFilipino.expanded),
               selected: !_collapsed,
               onSelected: (_) => setState(() => _collapsed = false),
             ),
             ChoiceChip(
-              label: Text(l10n.collapsed),
+              label: Text(l10n.englishForFilipino.collapsed),
               selected: _collapsed,
               onSelected: (_) => setState(() => _collapsed = true),
             ),

@@ -8,10 +8,12 @@ import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/casting/cast_device.dart';
 import 'package:flick/services/casting/chromecast_backend.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class CastingSettingsScreen extends ConsumerStatefulWidget {
-  const CastingSettingsScreen({super.key});
+  const CastingSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   ConsumerState<CastingSettingsScreen> createState() =>
@@ -65,16 +67,17 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
     final castState = ref.watch(castProvider);
 
     return SettingsScaffold(
-      title: l10n.casting,
+      title: l10n.englishForFilipino.casting,
+      initialSection: widget.initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.availableDevices),
+          SettingsSectionHeader(l10n.englishForFilipino.availableDevices, sectionId: 'availableDevices'),
           SettingsCard(
             children: [
               ActionButton(
                 icon: LucideIcons.refreshCw,
-                title: castState.isDiscovering ? l10n.searching : l10n.scanForDevices,
+                title: castState.isDiscovering ? l10n.englishForFilipino.searching : l10n.englishForFilipino.scanForDevices,
                 subtitle: l10n.discoversDlnaUpnpAndChromecastReceivers,
                 onTap: castState.isDiscovering
                     ? null
@@ -106,12 +109,12 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
           ],
           if (castState.activeDevice != null) ...[
             const SizedBox(height: AppConstants.spacingLg),
-            SettingsSectionHeader(l10n.session),
+            SettingsSectionHeader(l10n.englishForFilipino.session, sectionId: 'session'),
             SettingsCard(
               children: [
                 ActionButton(
                   icon: LucideIcons.powerOff,
-                  title: l10n.stopCasting,
+                  title: l10n.englishForFilipino.stopCasting,
                   subtitle: l10n.disconnectFrom(castState.activeDevice!.name),
                   onTap: () => ref.read(castProvider.notifier).disconnect(),
                 ),
@@ -119,12 +122,12 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
             ),
           ],
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.outputDevice, tag: l10n.android),
+          SettingsSectionHeader(l10n.englishForFilipino.outputDevice, sectionId: 'outputDevice', tag: l10n.englishForFilipino.android),
           SettingsCard(
             children: [_OutputSection()],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.about, tag: l10n.info2),
+          SettingsSectionHeader(l10n.englishForFilipino.about, sectionId: 'about', tag: l10n.englishForFilipino.info2),
           SettingsCard(
             children: [
               _AboutBody(),
@@ -256,7 +259,7 @@ class _OutputSectionState extends State<_OutputSection> {
           children: [
             ActionButton(
               icon: LucideIcons.refreshCw,
-              title: l10n.refreshOutputs,
+              title: l10n.englishForFilipino.refreshOutputs,
               subtitle: l10n.listAvailableLocalAudioOutputDevices,
               onTap: _refresh,
             ),
@@ -280,7 +283,7 @@ class _OutputSectionState extends State<_OutputSection> {
     final selected = r['selected'] == true;
     return SelectionSetting(
       icon: _iconFor(r['type'] as String?),
-      title: r['name'] as String? ?? l10n.output,
+      title: r['name'] as String? ?? l10n.englishForFilipino.output,
       subtitle: r['type'] as String? ?? '',
       selected: selected,
       onTap: selected

@@ -262,9 +262,9 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showFlickSnackBar(
       SnackBar(
-        content: Text(l10n.queuedSongs(widget.songs.length)),
+        content: Text(l10n.englishForFilipino.queuedSongs(widget.songs.length)),
         action: SnackBarAction(
-          label: l10n.viewQueue,
+          label: l10n.englishForFilipino.viewQueue,
           onPressed: () => NavigationHelper.navigateToQueue(context),
         ),
       ),
@@ -297,9 +297,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
     ScaffoldMessenger.of(context).showFlickSnackBar(
       SnackBar(
         content: Text(
-          isAll
-              ? l10n.removedSongsFromFavorites(widget.songs.length)
-              : l10n.addedSongsToFavorites(widget.songs.length),
+          isAll ? l10n.removedFromFavorites3 : l10n.addedToFavorites,
         ),
       ),
     );
@@ -401,7 +399,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
   Future<void> _refreshAppleMusic() async {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showFlickSnackBar(
-      SnackBar(content: Text(l10n.refreshingAppleMusicData)),
+      SnackBar(content: Text(l10n.englishForFilipino.refreshingAppleMusicData)),
     );
     final updated = await ref
         .read(
@@ -414,8 +412,8 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
       SnackBar(
         content: Text(
           updated
-              ? l10n.appleMusicDataUpdated
-              : l10n.appleMusicDataUnavailable,
+              ? l10n.englishForFilipino.appleMusicDataUpdated
+              : l10n.englishForFilipino.appleMusicDataUnavailable,
         ),
       ),
     );

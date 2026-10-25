@@ -8,18 +8,17 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class SupportFlickScreen extends ConsumerStatefulWidget {
   const SupportFlickScreen({super.key});
 
   @override
-  ConsumerState<SupportFlickScreen> createState() =>
-      _SupportFlickScreenState();
+  ConsumerState<SupportFlickScreen> createState() => _SupportFlickScreenState();
 }
 
 class _SupportFlickScreenState extends ConsumerState<SupportFlickScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const _kofiUrl = 'https://ko-fi.com/ultraelectronica';
   static const _buyMeACoffeeUrl = 'https://buymeacoffee.com/heiminrei2q';
 
@@ -41,10 +40,7 @@ class _SupportFlickScreenState extends ConsumerState<SupportFlickScreen>
       vsync: this,
     );
     _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     _pulseController.repeat(reverse: true);
 
@@ -65,33 +61,27 @@ class _SupportFlickScreenState extends ConsumerState<SupportFlickScreen>
       parent: _revealController,
       curve: Interval(0.4, 0.9, curve: easeOut),
     );
-    _slide1 = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _revealController,
-        curve: Interval(0.0, 0.5, curve: easeOut),
-      ),
-    );
-    _slide2 = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _revealController,
-        curve: Interval(0.2, 0.7, curve: easeOut),
-      ),
-    );
-    _slide3 = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _revealController,
-        curve: Interval(0.4, 0.9, curve: easeOut),
-      ),
-    );
+    _slide1 = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _revealController,
+            curve: Interval(0.0, 0.5, curve: easeOut),
+          ),
+        );
+    _slide2 = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _revealController,
+            curve: Interval(0.2, 0.7, curve: easeOut),
+          ),
+        );
+    _slide3 = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _revealController,
+            curve: Interval(0.4, 0.9, curve: easeOut),
+          ),
+        );
     _revealController.forward();
   }
 
@@ -110,7 +100,7 @@ class _SupportFlickScreenState extends ConsumerState<SupportFlickScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
-          content: Text(l10n.couldNotOpenLink),
+          content: Text(l10n.englishForFilipino.couldNotOpenLink),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -119,6 +109,7 @@ class _SupportFlickScreenState extends ConsumerState<SupportFlickScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n.englishForFilipino;
     return SettingsScaffold(
       title: l10n.supportFlick,
       body: Column(
@@ -137,15 +128,13 @@ class _SupportFlickScreenState extends ConsumerState<SupportFlickScreen>
                       _InfoTile(
                         icon: LucideIcons.user,
                         title: l10n.soloDeveloper,
-                        subtitle:
-                            l10n.flickIsBuiltAndMaintainedBy,
+                        subtitle: l10n.flickIsBuiltAndMaintainedBy,
                       ),
                       const SettingsDivider(),
                       _InfoTile(
                         icon: LucideIcons.code,
                         title: l10n.freeOpenSource,
-                        subtitle:
-                            l10n.flickWillAlwaysBeFreeDonations,
+                        subtitle: l10n.flickWillAlwaysBeFreeDonations,
                       ),
                     ],
                   ),
@@ -167,15 +156,13 @@ class _SupportFlickScreenState extends ConsumerState<SupportFlickScreen>
                       _InfoTile(
                         icon: LucideIcons.headphones,
                         title: l10n.audioTestingEquipment,
-                        subtitle:
-                            l10n.usbDacsHeadphonesAndReferenceGear,
+                        subtitle: l10n.usbDacsHeadphonesAndReferenceGear,
                       ),
                       const SettingsDivider(),
                       _InfoTile(
                         icon: LucideIcons.music,
                         title: l10n.dsdDsfPlayback,
-                        subtitle:
-                            l10n.fundingNativeDsdDsfPlaybackDevelopment,
+                        subtitle: l10n.fundingNativeDsdDsfPlaybackDevelopment,
                       ),
                     ],
                   ),
@@ -192,6 +179,37 @@ class _SupportFlickScreenState extends ConsumerState<SupportFlickScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SettingsSectionHeader(l10n.donate),
+                  if (context.l10n.isFilipino) ...[
+                    SettingsCard(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(AppConstants.spacingMd),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                LucideIcons.heart,
+                                size: 18,
+                                color: context.adaptiveTextSecondary,
+                              ),
+                              const SizedBox(width: AppConstants.spacingSm),
+                              Expanded(
+                                child: Text(
+                                  context.l10n.filipinoDonationNote,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: context.adaptiveTextSecondary,
+                                        height: 1.45,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppConstants.spacingMd),
+                  ],
                   AnimatedBuilder(
                     animation: _pulseAnimation,
                     builder: (context, child) {

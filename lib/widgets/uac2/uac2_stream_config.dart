@@ -269,7 +269,7 @@ class _Uac2StreamConfigState extends ConsumerState<Uac2StreamConfig> {
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
-          content: Text(l10n.failedToStartStreaming),
+          content: Text(l10n.englishForFilipino.failedToStartStreaming),
           backgroundColor: Colors.red,
         ),
       );
@@ -282,7 +282,7 @@ class _Uac2StreamConfigState extends ConsumerState<Uac2StreamConfig> {
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
-          content: Text(l10n.failedToStopStreaming),
+          content: Text(l10n.englishForFilipino.failedToStopStreaming),
           backgroundColor: Colors.red,
         ),
       );

@@ -13,11 +13,9 @@
 // MaterialApp.builder on every build, and once from main() before the first
 // frame so that strings produced during startup already use the right locale.
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:flick/l10n/generated/app_localizations.dart';
-import 'package:flick/l10n/generated/app_localizations_tl.dart';
 import 'package:flick/services/app_preferences_service.dart';
 
 export 'package:flick/l10n/generated/app_localizations.dart';
@@ -29,13 +27,18 @@ export 'package:flick/l10n/generated/app_localizations.dart';
 // 调用方只要 import 本文件就能拿到，无需额外 import。
 export 'package:flick/l10n/model_labels.dart';
 
-/// The opt-in Tagalog-in-Baybayin pilot. `Tglg` is a script, not a language.
+/// Filipino uses the Tagalog locale supported by Flutter's built-in controls.
+/// `fil` device/stored tags are accepted as aliases below.
+const Locale kFilipinoLocale = Locale('tl');
+
+/// Resource-only locale for curated opt-in Baybayin labels, never the UI
+/// locale. Also retained to recognize preferences from the earlier pilot.
 const Locale kBaybayinLocale = Locale.fromSubtags(
   languageCode: 'tl',
   scriptCode: 'Tglg',
 );
 
-/// Locales the app ships translations for (including the partial pilot).
+/// Locales the app ships translations for. Script preference is independent.
 ///
 /// English is listed first so that a device locale we do not translate falls
 /// back to English rather than to Chinese. Chinese devices still resolve to
@@ -43,49 +46,16 @@ const Locale kBaybayinLocale = Locale.fromSubtags(
 const List<Locale> kSupportedLocales = <Locale>[
   Locale('en'),
   Locale('zh', 'CN'),
-  kBaybayinLocale,
+  kFilipinoLocale,
 ];
 
 /// Used when nothing else matches.
 const Locale kFallbackLocale = Locale('en');
 
-/// Override only the pilot; keep Flutter's stock delegates for everything else.
-/// The first supported delegate of each type wins.
-const List<LocalizationsDelegate<dynamic>> kAppLocalizationsDelegates = [
-  _BaybayinLocalizationsDelegate(),
-  ...AppLocalizations.localizationsDelegates,
-];
+const kAppLocalizationsDelegates = AppLocalizations.localizationsDelegates;
 
-/// The partial pilot needs English ICU rules for its inherited English text.
-/// Otherwise, Tagalog rules make e.g. an untranslated `songUnit(0)` say "song".
-/// `localeName` here is the formatting locale; Localizations.localeOf(context)
-/// still returns tl_Tglg and Flutter's built-in controls still use Tagalog.
-AppLocalizations lookupFlickLocalizations(Locale requested) {
-  final locale = resolveSupportedLocale(requested);
-  return locale == kBaybayinLocale
-      ? _BaybayinWithEnglishFallback()
-      : lookupAppLocalizations(locale);
-}
-
-class _BaybayinWithEnglishFallback extends AppLocalizationsTlTglg {
-  @override
-  String get localeName => 'en';
-}
-
-class _BaybayinLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
-  const _BaybayinLocalizationsDelegate();
-
-  @override
-  bool isSupported(Locale locale) => locale == kBaybayinLocale;
-
-  @override
-  Future<AppLocalizations> load(Locale locale) =>
-      SynchronousFuture(lookupFlickLocalizations(locale));
-
-  @override
-  bool shouldReload(_BaybayinLocalizationsDelegate old) => false;
-}
+AppLocalizations lookupFlickLocalizations(Locale requested) =>
+    lookupAppLocalizations(resolveSupportedLocale(requested));
 
 /// The current localizations. Initialized to English so that reads before the
 /// first frame cannot throw.
@@ -94,6 +64,20 @@ AppLocalizations _current = lookupAppLocalizations(kFallbackLocale);
 /// Global accessor. Prefer `context.l10n` inside widgets.
 AppLocalizations get l10n => _current;
 
+final _englishCopy = lookupAppLocalizations(kFallbackLocale);
+
+/// Explicit copy roles: Filipino titles/menu/support can be English without
+/// changing descriptions, search, global service messages or the UI locale.
+extension FilipinoCopyRoles on AppLocalizations {
+  bool get isFilipino =>
+      localeName == 'tl' ||
+      localeName.startsWith('tl_') ||
+      localeName == 'fil' ||
+      localeName.startsWith('fil_');
+
+  AppLocalizations get englishForFilipino => isFilipino ? _englishCopy : this;
+}
+
 /// Idiomatic widget-layer accessor.
 extension AppLocalizationsX on BuildContext {
   AppLocalizations get l10n => AppLocalizations.of(this);
@@ -101,11 +85,14 @@ extension AppLocalizationsX on BuildContext {
 
 /// Maps [requested] onto the closest locale we actually support.
 Locale resolveSupportedLocale(Locale requested) {
+  // A phone's language (even an explicit Tglg tag) never enables the visual
+  // script preference. Only the switch or migration of an old app choice does.
+  if (requested.languageCode == 'tl' || requested.languageCode == 'fil') {
+    return kFilipinoLocale;
+  }
   for (final supported in kSupportedLocales) {
     if (supported == requested) return supported;
   }
-  // A script-specific translation must never be selected by language alone.
-  // In particular, an ordinary tl/tl_PH device must not opt into Baybayin.
   if (requested.scriptCode != null) {
     for (final supported in kSupportedLocales) {
       if (supported.languageCode == requested.languageCode &&
@@ -124,7 +111,7 @@ Locale resolveSupportedLocale(Locale requested) {
 }
 
 /// MaterialApp must use the same script-aware resolution as startup/services.
-/// Flutter's default language-only fallback could otherwise select the pilot.
+/// Flutter's default resolver does not treat fil and tl as aliases.
 Locale resolveAppLocale(Locale? requested, Iterable<Locale> _) =>
     resolveSupportedLocale(requested ?? kFallbackLocale);
 
@@ -139,6 +126,18 @@ class LocaleController extends ValueNotifier<Locale?> {
   /// Persisted marker for "follow the system locale".
   static const String systemValue = 'system';
 
+  bool _baybayinHeadings = false;
+
+  /// Visual preference only: it never changes controls or service messages.
+  bool get baybayinHeadings => _baybayinHeadings;
+
+  Future<void> setBaybayinHeadings(bool enabled) async {
+    if (enabled == _baybayinHeadings) return;
+    _baybayinHeadings = enabled;
+    notifyListeners();
+    await AppPreferencesService().setBaybayinHeadings(enabled);
+  }
+
   /// True when the app follows the device locale.
   bool get followsSystem => value == null;
 
@@ -147,8 +146,22 @@ class LocaleController extends ValueNotifier<Locale?> {
 
   /// Restores the persisted choice. Await this before the first frame.
   Future<void> load() async {
-    final stored = await AppPreferencesService().getAppLocale();
+    final preferences = AppPreferencesService();
+    final stored = await preferences.getAppLocale();
+    _baybayinHeadings = await preferences.getBaybayinHeadings();
+    // The old opt-in script locale becomes Filipino plus the visual switch.
+    // Rewrite once so subsequently disabling the switch survives a restart.
+    if (RegExp(
+      r'^tl[_-]tglg(?:[_-](?:[a-z]{2}|[0-9]{3}))?$',
+      caseSensitive: false,
+    ).hasMatch(stored)) {
+      _baybayinHeadings = true;
+      await preferences.setBaybayinHeadings(true);
+      await preferences.setAppLocale(kFilipinoLocale.toString());
+    }
+    final previous = value;
     value = _localeFromStored(stored);
+    if (previous == value) notifyListeners();
   }
 
   /// Selects [locale], or `null` to follow the device locale.

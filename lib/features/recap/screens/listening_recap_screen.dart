@@ -12,7 +12,7 @@ import '../widgets/replay_reveal.dart';
 import '../widgets/replay_sections.dart';
 import '../widgets/replay_style.dart';
 import 'replay_studio_screen.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/replay_l10n.dart';
 
 /// An artwork-led retrospective; poster-making lives in Replay Studio.
 class ListeningRecapScreen extends ConsumerStatefulWidget {
@@ -291,7 +291,7 @@ class _ListeningRecapScreenState extends ConsumerState<ListeningRecapScreen>
               key: ValueKey(_period),
               child: _message(
                 title: l10n.yourNextFavoriteNisWaiting,
-                detail: _period.emptyMessage,
+                detail: _period.emptyMessageFor(l10n),
               ),
             ),
     );
@@ -574,7 +574,7 @@ class ReplayPeriodPicker extends StatelessWidget {
                                 ),
                                 onPressed: () => onSelected(period),
                                 child: Text(
-                                  period.label,
+                                  period.labelFor(l10n),
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 14,

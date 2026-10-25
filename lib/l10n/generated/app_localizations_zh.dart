@@ -9,6 +9,12 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get filipinoDonationNote => '感谢你支持 Flick。';
+
+  @override
+  String get playingLabel => '播放中';
+
+  @override
   String get aDraggableOverlayShowsWhileUsing => '使用其他应用时显示可拖动的悬浮窗';
 
   @override
@@ -788,7 +794,14 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get baybayinPilotDescription => '实验性草稿；未翻译的内容仍显示英文。';
+  String get baybayinHeadings => '贝贝因文标签';
+
+  @override
+  String get baybayinHeadingsDescription =>
+      '实验功能：将选定标题、浏览快捷方式和导航标签显示为贝贝因文。无障碍标签仍使用拉丁字母。';
+
+  @override
+  String get baybayinPilotDescription => '他加禄语与英语混合，翻译草稿待审核。';
 
   @override
   String get beLsbBigEndianSubslotLsb => 'BE-LSB — 大端子槽，LSB 在前';
@@ -5693,6 +5706,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchTheManual => '搜索使用手册…';
+
+  @override
+  String get searchSettings => '搜索设置…';
 
   @override
   String get searchYourLibrary => '搜索音乐库';

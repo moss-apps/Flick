@@ -138,7 +138,9 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
 
       final bytes = file.bytes ?? await _readFileBytes(file.path);
       if (bytes == null || bytes.isEmpty) {
-        throw AlbumArtImportException(l10n.couldNotReadTheSelectedImage);
+        throw AlbumArtImportException(
+          l10n.englishForFilipino.couldNotReadTheSelectedImage,
+        );
       }
 
       await _runMutation(
@@ -146,8 +148,8 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
             ? _service.applyImageBytes(song: widget.song, bytes: bytes)
             : _service.applyImageBytesToSong(song: widget.song, bytes: bytes),
         successMessage: (result) => _scope == AlbumArtScope.wholeAlbum
-            ? l10n.updatedAlbumArtFor(result.albumName)
-            : l10n.updatedAlbumArtFor2(widget.song.title),
+            ? l10n.englishForFilipino.updatedAlbumArtFor(result.albumName)
+            : l10n.englishForFilipino.updatedAlbumArtFor2(widget.song.title),
       );
     } catch (error) {
       if (!mounted) {
@@ -174,8 +176,8 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
               candidate: candidate,
             ),
       successMessage: (result) => _scope == AlbumArtScope.wholeAlbum
-          ? l10n.updatedAlbumArtFor(result.albumName)
-          : l10n.updatedAlbumArtFor2(widget.song.title),
+          ? l10n.englishForFilipino.updatedAlbumArtFor(result.albumName)
+          : l10n.englishForFilipino.updatedAlbumArtFor2(widget.song.title),
     );
   }
 
@@ -189,8 +191,10 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
           ? _service.removeCustomArtwork(widget.song)
           : _service.removeCustomArtworkForSong(widget.song),
       successMessage: (result) => _scope == AlbumArtScope.wholeAlbum
-          ? l10n.removedCustomAlbumArtFor(result.albumName)
-          : l10n.removedCustomAlbumArtFor2(widget.song.title),
+          ? l10n.englishForFilipino.removedCustomAlbumArtFor(result.albumName)
+          : l10n.englishForFilipino.removedCustomAlbumArtFor2(
+              widget.song.title,
+            ),
     );
   }
 
@@ -226,8 +230,8 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
           ? _service.resetArtwork(widget.song)
           : _service.resetArtworkForSong(widget.song),
       successMessage: (result) => _scope == AlbumArtScope.wholeAlbum
-          ? l10n.resetArtworkFor(result.albumName)
-          : l10n.resetArtworkFor2(widget.song.title),
+          ? l10n.englishForFilipino.resetArtworkFor(result.albumName)
+          : l10n.englishForFilipino.resetArtworkFor2(widget.song.title),
     );
   }
 

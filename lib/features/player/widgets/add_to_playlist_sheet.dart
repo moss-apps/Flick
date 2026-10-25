@@ -159,8 +159,8 @@ class AddToPlaylistSheet extends ConsumerWidget {
                                       SnackBar(
                                         content: Text(
                                           songs.length == 1
-                                              ? l10n.addedTo2(playlist.name)
-                                              : l10n.addedSongsTo(songs.length, playlist.name),
+                                              ? l10n.englishForFilipino.addedTo2(playlist.name)
+                                              : l10n.englishForFilipino.addedSongsTo(songs.length, playlist.name),
                                         ),
                                       ),
                                     );

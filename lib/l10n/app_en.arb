@@ -1,4 +1,12 @@
 {
+  "filipinoDonationNote": "Thank you for supporting Flick.",
+  "@filipinoDonationNote": {
+    "description": "Personal note shown only in the Taglish locale, above the donation cards."
+  },
+  "playingLabel": "Playing",
+  "@playingLabel": {
+    "description": "Compact player status heading; the Filipino Baybayin label says Tumutugtog."
+  },
   "aDraggableOverlayShowsWhileUsing": "A draggable overlay shows while using other apps",
   "@aDraggableOverlayShowsWhileUsing": {
     "description": "lib/features/settings/screens/playback_display_settings_screen.dart:85"
@@ -1127,9 +1135,17 @@
       }
     }
   },
-  "baybayinPilotDescription": "Experimental draft; untranslated text stays in English.",
+  "baybayinHeadings": "Baybayin labels",
+  "@baybayinHeadings": {
+    "description": "Optional visual script preference, shown only when the UI is Taglish."
+  },
+  "baybayinHeadingsDescription": "Experimental: curated headings, browse shortcuts and navigation labels. Accessibility labels stay in Latin script.",
+  "@baybayinHeadingsDescription": {
+    "description": "Explains the limited, opt-in scope of Baybayin headings."
+  },
+  "baybayinPilotDescription": "Tagalog + English mix. Draft copy for review.",
   "@baybayinPilotDescription": {
-    "description": "Language selector warning for the partial, opt-in Tagalog-in-Baybayin pilot."
+    "description": "Language selector notice that the Taglish copy is a draft for review."
   },
   "beLsbBigEndianSubslotLsb": "BE-LSB — big-endian subslot, LSB first",
   "@beLsbBigEndianSubslotLsb": {
@@ -8106,6 +8122,10 @@
   "searchTheManual": "Search the manual...",
   "@searchTheManual": {
     "description": "lib/features/manual/screens/manual_screen.dart:198"
+  },
+  "searchSettings": "Search settings…",
+  "@searchSettings": {
+    "description": "Search field on the main settings page"
   },
   "searchYourLibrary": "Search your library",
   "@searchYourLibrary": {

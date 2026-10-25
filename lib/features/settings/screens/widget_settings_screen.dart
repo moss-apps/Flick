@@ -8,10 +8,14 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/services/widget_sync_service.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class WidgetSettingsScreen extends ConsumerStatefulWidget {
-  const WidgetSettingsScreen({super.key});
+  const WidgetSettingsScreen({super.key, this.initialSection, this.initialTab = 0})
+      : assert(initialTab >= 0 && initialTab < 4);
+
+  final String? initialSection;
+  final int initialTab;
 
   @override
   ConsumerState<WidgetSettingsScreen> createState() =>
@@ -20,7 +24,7 @@ class WidgetSettingsScreen extends ConsumerStatefulWidget {
 
 class _WidgetSettingsScreenState extends ConsumerState<WidgetSettingsScreen> {
   static const _tabCount = 4;
-  int _tab = 0;
+  late int _tab = widget.initialTab;
   int _dir = 1;
 
   void _switchTo(int i) {
@@ -34,7 +38,8 @@ class _WidgetSettingsScreenState extends ConsumerState<WidgetSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
-      title: l10n.widgets,
+      title: l10n.englishForFilipino.widgets,
+      initialSection: widget.initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -155,39 +160,39 @@ class _MiniPlayerTab extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.background),
+        SettingsSectionHeader(l10n.englishForFilipino.background, sectionId: 'background'),
         SettingsCard(
           children: [
             _OpacityOption(
-              label: l10n.transparent,
+              label: l10n.englishForFilipino.transparent,
               value: 0,
               groupValue: prefs.widgetBgOpacity,
               onChanged: (v) => _updateOpacity(ref, v),
             ),
             const SettingsDivider(),
             _OpacityOption(
-              label: l10n.light,
+              label: l10n.englishForFilipino.light,
               value: 1,
               groupValue: prefs.widgetBgOpacity,
               onChanged: (v) => _updateOpacity(ref, v),
             ),
             const SettingsDivider(),
             _OpacityOption(
-              label: l10n.medium,
+              label: l10n.englishForFilipino.medium,
               value: 2,
               groupValue: prefs.widgetBgOpacity,
               onChanged: (v) => _updateOpacity(ref, v),
             ),
             const SettingsDivider(),
             _OpacityOption(
-              label: l10n.dark,
+              label: l10n.englishForFilipino.dark,
               value: 3,
               groupValue: prefs.widgetBgOpacity,
               onChanged: (v) => _updateOpacity(ref, v),
             ),
             const SettingsDivider(),
             _OpacityOption(
-              label: l10n.solid,
+              label: l10n.englishForFilipino.solid,
               value: 4,
               groupValue: prefs.widgetBgOpacity,
               onChanged: (v) => _updateOpacity(ref, v),
@@ -195,12 +200,12 @@ class _MiniPlayerTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.content),
+        SettingsSectionHeader(l10n.englishForFilipino.content, sectionId: 'content'),
         SettingsCard(
           children: [
             ToggleSetting(
               icon: LucideIcons.image,
-              title: l10n.albumArt,
+              title: l10n.englishForFilipino.albumArt,
               subtitle: l10n.showAlbumArtworkOnTheMini,
               value: prefs.widgetShowAlbumArt,
               onChanged: (v) {
@@ -215,7 +220,7 @@ class _MiniPlayerTab extends ConsumerWidget {
             const SettingsDivider(),
             ToggleSetting(
               icon: LucideIcons.mic,
-              title: l10n.artistName,
+              title: l10n.englishForFilipino.artistName,
               subtitle: l10n.showArtistBelowSongTitle,
               value: prefs.widgetShowArtist,
               onChanged: (v) {
@@ -230,12 +235,12 @@ class _MiniPlayerTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.textSize2),
+        SettingsSectionHeader(l10n.englishForFilipino.textSize2, sectionId: 'textSize2'),
         SettingsCard(
           children: [
             SliderSetting(
               icon: LucideIcons.type,
-              title: l10n.fontScale,
+              title: l10n.englishForFilipino.fontScale,
               subtitle: l10n.scalesWithWidgetSizeAutomatically,
               value: prefs.widgetTextScale,
               displayValue: '${(prefs.widgetTextScale * 100).round()}%',
@@ -263,11 +268,11 @@ class _MiniPlayerTab extends ConsumerWidget {
           centered: false,
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.accentColor),
+        SettingsSectionHeader(l10n.englishForFilipino.accentColor, sectionId: 'accentColor'),
         SettingsCard(
           children: [
             _AccentOption(
-              label: l10n.white,
+              label: l10n.englishForFilipino.white,
               color: Colors.white,
               value: 'white',
               groupValue: prefs.widgetAccentColor,
@@ -275,7 +280,7 @@ class _MiniPlayerTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.amber,
+              label: l10n.englishForFilipino.amber,
               color: const Color(0xFFFFB300),
               value: 'amber',
               groupValue: prefs.widgetAccentColor,
@@ -283,7 +288,7 @@ class _MiniPlayerTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.blue,
+              label: l10n.englishForFilipino.blue,
               color: const Color(0xFF64B5F6),
               value: 'blue',
               groupValue: prefs.widgetAccentColor,
@@ -291,7 +296,7 @@ class _MiniPlayerTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.green,
+              label: l10n.englishForFilipino.green,
               color: const Color(0xFF81C784),
               value: 'green',
               groupValue: prefs.widgetAccentColor,
@@ -299,7 +304,7 @@ class _MiniPlayerTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.purple,
+              label: l10n.englishForFilipino.purple,
               color: const Color(0xFFCE93D8),
               value: 'purple',
               groupValue: prefs.widgetAccentColor,
@@ -345,12 +350,12 @@ class _FlagshipTab extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.content),
+        SettingsSectionHeader(l10n.englishForFilipino.content, sectionId: 'content'),
         SettingsCard(
           children: [
             ToggleSetting(
               icon: LucideIcons.mic,
-              title: l10n.artistName,
+              title: l10n.englishForFilipino.artistName,
               subtitle: l10n.showArtistBelowSongTitle,
               value: prefs.widgetFlagshipShowArtist,
               onChanged: (v) {
@@ -365,12 +370,12 @@ class _FlagshipTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.textSize2),
+        SettingsSectionHeader(l10n.englishForFilipino.textSize2, sectionId: 'textSize2'),
         SettingsCard(
           children: [
             SliderSetting(
               icon: LucideIcons.type,
-              title: l10n.fontScale,
+              title: l10n.englishForFilipino.fontScale,
               subtitle: l10n.scalesWithWidgetSizeAutomatically,
               value: prefs.widgetFlagshipTextScale,
               displayValue:
@@ -399,11 +404,11 @@ class _FlagshipTab extends ConsumerWidget {
           centered: true,
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.accentColor),
+        SettingsSectionHeader(l10n.englishForFilipino.accentColor, sectionId: 'accentColor'),
         SettingsCard(
           children: [
             _AccentOption(
-              label: l10n.white,
+              label: l10n.englishForFilipino.white,
               color: Colors.white,
               value: 'white',
               groupValue: prefs.widgetFlagshipAccent,
@@ -411,7 +416,7 @@ class _FlagshipTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.amber,
+              label: l10n.englishForFilipino.amber,
               color: const Color(0xFFFFB300),
               value: 'amber',
               groupValue: prefs.widgetFlagshipAccent,
@@ -419,7 +424,7 @@ class _FlagshipTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.blue,
+              label: l10n.englishForFilipino.blue,
               color: const Color(0xFF64B5F6),
               value: 'blue',
               groupValue: prefs.widgetFlagshipAccent,
@@ -427,7 +432,7 @@ class _FlagshipTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.green,
+              label: l10n.englishForFilipino.green,
               color: const Color(0xFF81C784),
               value: 'green',
               groupValue: prefs.widgetFlagshipAccent,
@@ -435,7 +440,7 @@ class _FlagshipTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.purple,
+              label: l10n.englishForFilipino.purple,
               color: const Color(0xFFCE93D8),
               value: 'purple',
               groupValue: prefs.widgetFlagshipAccent,
@@ -473,39 +478,39 @@ class _CompactTab extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.background),
+        SettingsSectionHeader(l10n.englishForFilipino.background, sectionId: 'background'),
         SettingsCard(
           children: [
             _OpacityOption(
-              label: l10n.transparent,
+              label: l10n.englishForFilipino.transparent,
               value: 0,
               groupValue: prefs.widgetCompactBgOpacity,
               onChanged: (v) => _updateCompactOpacity(ref, v),
             ),
             const SettingsDivider(),
             _OpacityOption(
-              label: l10n.light,
+              label: l10n.englishForFilipino.light,
               value: 1,
               groupValue: prefs.widgetCompactBgOpacity,
               onChanged: (v) => _updateCompactOpacity(ref, v),
             ),
             const SettingsDivider(),
             _OpacityOption(
-              label: l10n.medium,
+              label: l10n.englishForFilipino.medium,
               value: 2,
               groupValue: prefs.widgetCompactBgOpacity,
               onChanged: (v) => _updateCompactOpacity(ref, v),
             ),
             const SettingsDivider(),
             _OpacityOption(
-              label: l10n.dark,
+              label: l10n.englishForFilipino.dark,
               value: 3,
               groupValue: prefs.widgetCompactBgOpacity,
               onChanged: (v) => _updateCompactOpacity(ref, v),
             ),
             const SettingsDivider(),
             _OpacityOption(
-              label: l10n.solid,
+              label: l10n.englishForFilipino.solid,
               value: 4,
               groupValue: prefs.widgetCompactBgOpacity,
               onChanged: (v) => _updateCompactOpacity(ref, v),
@@ -513,12 +518,12 @@ class _CompactTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.content),
+        SettingsSectionHeader(l10n.englishForFilipino.content, sectionId: 'content'),
         SettingsCard(
           children: [
             ToggleSetting(
               icon: LucideIcons.image,
-              title: l10n.albumArt,
+              title: l10n.englishForFilipino.albumArt,
               subtitle: l10n.useAlbumArtAsBackground,
               value: prefs.widgetCompactShowAlbumArt,
               onChanged: (v) {
@@ -533,7 +538,7 @@ class _CompactTab extends ConsumerWidget {
             const SettingsDivider(),
             ToggleSetting(
               icon: LucideIcons.mic,
-              title: l10n.artistName,
+              title: l10n.englishForFilipino.artistName,
               subtitle: l10n.showArtistBelowSongTitle,
               value: prefs.widgetCompactShowArtist,
               onChanged: (v) {
@@ -548,12 +553,12 @@ class _CompactTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.textSize2),
+        SettingsSectionHeader(l10n.englishForFilipino.textSize2, sectionId: 'textSize2'),
         SettingsCard(
           children: [
             SliderSetting(
               icon: LucideIcons.type,
-              title: l10n.fontScale,
+              title: l10n.englishForFilipino.fontScale,
               subtitle: l10n.scalesWithWidgetSizeAutomatically,
               value: prefs.widgetCompactTextScale,
               displayValue:
@@ -582,11 +587,11 @@ class _CompactTab extends ConsumerWidget {
           centered: true,
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.accentColor),
+        SettingsSectionHeader(l10n.englishForFilipino.accentColor, sectionId: 'accentColor'),
         SettingsCard(
           children: [
             _AccentOption(
-              label: l10n.white,
+              label: l10n.englishForFilipino.white,
               color: Colors.white,
               value: 'white',
               groupValue: prefs.widgetCompactAccent,
@@ -594,7 +599,7 @@ class _CompactTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.amber,
+              label: l10n.englishForFilipino.amber,
               color: const Color(0xFFFFB300),
               value: 'amber',
               groupValue: prefs.widgetCompactAccent,
@@ -602,7 +607,7 @@ class _CompactTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.blue,
+              label: l10n.englishForFilipino.blue,
               color: const Color(0xFF64B5F6),
               value: 'blue',
               groupValue: prefs.widgetCompactAccent,
@@ -610,7 +615,7 @@ class _CompactTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.green,
+              label: l10n.englishForFilipino.green,
               color: const Color(0xFF81C784),
               value: 'green',
               groupValue: prefs.widgetCompactAccent,
@@ -618,7 +623,7 @@ class _CompactTab extends ConsumerWidget {
             ),
             const SettingsDivider(),
             _AccentOption(
-              label: l10n.purple,
+              label: l10n.englishForFilipino.purple,
               color: const Color(0xFFCE93D8),
               value: 'purple',
               groupValue: prefs.widgetCompactAccent,
@@ -662,12 +667,12 @@ class _ReplayTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
+    final l10n = context.l10n.englishForFilipino;
     final prefs = ref.watch(appPreferencesProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.background),
+        SettingsSectionHeader(l10n.englishForFilipino.background, sectionId: 'background'),
         SettingsCard(
           children: [
             // The four look *names* (Acid / Night / Signal / Album) stay as they
@@ -888,11 +893,11 @@ Future<void> _showManualScaleDialog(
 }) async {
   final submitted = await FlickDialogs.input(
     context,
-    title: l10n.fontScale,
+    title: l10n.englishForFilipino.fontScale,
     message:
         l10n.enterAValueFromTo((min * 100).round(), (max * 100).round()),
     initialValue: (value * 100).round().toString(),
-    confirmLabel: l10n.apply,
+    confirmLabel: l10n.englishForFilipino.apply,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
   );
   final parsed = submitted == null ? null : double.tryParse(submitted);
@@ -951,7 +956,7 @@ class _WidgetTextPreviewState extends State<_WidgetTextPreview> {
           child: Row(
             children: [
               Text(
-                l10n.preview,
+                l10n.englishForFilipino.preview,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: context.adaptiveTextTertiary,
                     ),

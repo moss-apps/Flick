@@ -316,7 +316,7 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
-          content: Text(context.l10n.couldNotUpdatePlaylistCover),
+          content: Text(context.l10n.englishForFilipino.couldNotUpdatePlaylistCover),
           behavior: SnackBarBehavior.floating,
         ),
       );

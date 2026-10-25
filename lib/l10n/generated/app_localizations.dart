@@ -101,6 +101,18 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// Personal note shown only in the Taglish locale, above the donation cards.
+  ///
+  /// In en, this message translates to:
+  /// **'Thank you for supporting Flick.'**
+  String get filipinoDonationNote;
+
+  /// Compact player status heading; the Filipino Baybayin label says Tumutugtog.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing'**
+  String get playingLabel;
+
   /// lib/features/settings/screens/playback_display_settings_screen.dart:85
   ///
   /// In en, this message translates to:
@@ -1505,10 +1517,22 @@ abstract class AppLocalizations {
   /// **'{battery}% battery'**
   String battery(Object battery);
 
-  /// Language selector warning for the partial, opt-in Tagalog-in-Baybayin pilot.
+  /// Optional visual script preference, shown only when the UI is Taglish.
   ///
   /// In en, this message translates to:
-  /// **'Experimental draft; untranslated text stays in English.'**
+  /// **'Baybayin labels'**
+  String get baybayinHeadings;
+
+  /// Explains the limited, opt-in scope of Baybayin headings.
+  ///
+  /// In en, this message translates to:
+  /// **'Experimental: curated headings, browse shortcuts and navigation labels. Accessibility labels stay in Latin script.'**
+  String get baybayinHeadingsDescription;
+
+  /// Language selector notice that the Taglish copy is a draft for review.
+  ///
+  /// In en, this message translates to:
+  /// **'Tagalog + English mix. Draft copy for review.'**
   String get baybayinPilotDescription;
 
   /// lib/features/settings/screens/uac2_preferences_screen.dart:1722
@@ -10395,6 +10419,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search the manual...'**
   String get searchTheManual;
+
+  /// Search field on the main settings page
+  ///
+  /// In en, this message translates to:
+  /// **'Search settings…'**
+  String get searchSettings;
 
   /// lib/features/search/screens/search_screen.dart:240
   ///

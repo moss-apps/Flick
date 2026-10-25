@@ -12,7 +12,7 @@ import 'package:flick/features/settings/screens/uac2_preferences_screen.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/widgets/uac2/uac2_hotplug_monitor.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 
 class Uac2SettingsScreen extends ConsumerStatefulWidget {
@@ -62,7 +62,7 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
                         if (!isAvailable) _buildUnavailableCard(context),
                         if (isAvailable) ...[
                           const Uac2HotplugMonitor(),
-                          _buildSectionHeader(context, l10n.usbAudioDevices),
+                          _buildSectionHeader(context, l10n.englishForFilipino.usbAudioDevices),
                           devicesAsync.when(
                             data: (devices) => _buildDevicesList(
                               context,
@@ -75,22 +75,22 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
                           ),
                           if (selectedDevice != null) ...[
                             const SizedBox(height: AppConstants.spacingLg),
-                            _buildSectionHeader(context, l10n.deviceInformation),
+                            _buildSectionHeader(context, l10n.englishForFilipino.deviceInformation),
                             _buildDeviceInfoCard(context, selectedDevice),
                             const SizedBox(height: AppConstants.spacingLg),
-                            _buildSectionHeader(context, l10n.capabilities),
+                            _buildSectionHeader(context, l10n.englishForFilipino.capabilities),
                             _buildCapabilitiesCard(context, selectedDevice),
                           ],
                           if (deviceStatus != null) ...[
                             const SizedBox(height: AppConstants.spacingLg),
-                            _buildSectionHeader(context, l10n.status),
+                            _buildSectionHeader(context, l10n.englishForFilipino.status),
                             _buildStatusCard(context, deviceStatus),
                           ],
                           if (deviceStatus != null &&
                               deviceStatus.state != Uac2State.idle &&
                               appPreferences.showUsbVolumeOnSettings) ...[
                             const SizedBox(height: AppConstants.spacingLg),
-                            _buildSectionHeader(context, l10n.volumeControl),
+                            _buildSectionHeader(context, l10n.englishForFilipino.volumeControl),
                             const Uac2VolumeControl(),
                           ],
 
@@ -124,7 +124,7 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
           const SizedBox(width: AppConstants.spacingSm),
           Expanded(
             child: Text(
-              l10n.usbAudioUac2,
+              l10n.englishForFilipino.usbAudioUac2,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: context.adaptiveTextPrimary,

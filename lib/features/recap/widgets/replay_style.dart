@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../data/repositories/recently_played_repository.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/replay_l10n.dart';
 
 /// Two print-like color fields, grounded by Flick's ink surfaces.
 abstract final class ReplayStyle {
@@ -27,7 +27,8 @@ abstract final class ReplayStyle {
   }
 
   static String range(ListeningRecap recap) {
-    final locale = Intl.getCurrentLocale();
+    // Follow the replay copy role: Taglish uses English dates as well.
+    final locale = l10n.localeName;
     final end = recap.endExclusive.subtract(const Duration(days: 1));
     return switch (recap.period) {
       ListeningRecapPeriod.daily => DateFormat.yMMMd(

@@ -6,7 +6,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/services/autoeq_catalog_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 /// Opens the AutoEQ headphone picker. Returns the chosen entry, or null if
 /// dismissed. The caller applies the result to the equalizer.
@@ -186,7 +186,7 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
           const SizedBox(width: AppConstants.spacingSm),
           Expanded(
             child: Text(
-              l10n.autoeqHeadphones2,
+              l10n.englishForFilipino.autoeqHeadphones2,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: context.adaptiveTextPrimary,

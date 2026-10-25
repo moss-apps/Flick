@@ -5,10 +5,12 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class OrbitSettingsScreen extends ConsumerWidget {
-  const OrbitSettingsScreen({super.key});
+  const OrbitSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -16,16 +18,17 @@ class OrbitSettingsScreen extends ConsumerWidget {
     final notifier = ref.read(appPreferencesProvider.notifier);
 
     return SettingsScaffold(
-      title: l10n.customizeOrbital,
+      title: l10n.englishForFilipino.customizeOrbital,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.geometry),
+          SettingsSectionHeader(l10n.englishForFilipino.geometry, sectionId: 'geometry'),
           SettingsCard(
             children: [
               SliderSetting(
                 icon: LucideIcons.radius,
-                title: l10n.curvature,
+                title: l10n.englishForFilipino.curvature,
                 subtitle: l10n.curveOfTheOrbitArcHigher,
                 value: prefs.orbitRadiusRatio,
                 displayValue: prefs.orbitRadiusRatio.toStringAsFixed(2),
@@ -37,7 +40,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.moveVertical,
-                title: l10n.verticalPosition,
+                title: l10n.englishForFilipino.verticalPosition,
                 subtitle: l10n.whereTheFocalSongSitsVertically,
                 value: prefs.orbitCenterYRatio,
                 displayValue: '${(prefs.orbitCenterYRatio * 100).round()}%',
@@ -49,7 +52,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.moveHorizontal,
-                title: l10n.horizontalReach,
+                title: l10n.englishForFilipino.horizontalReach,
                 subtitle: l10n.howFarTheArcOpensFrom,
                 value: prefs.orbitCenterOffsetRatio,
                 displayValue: prefs.orbitCenterOffsetRatio.toStringAsFixed(2),
@@ -61,7 +64,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.ruler,
-                title: l10n.itemSpacing,
+                title: l10n.englishForFilipino.itemSpacing,
                 subtitle: l10n.distanceBetweenSongsAlongTheArc,
                 value: prefs.orbitItemSpacing,
                 displayValue: prefs.orbitItemSpacing.toStringAsFixed(2),
@@ -73,12 +76,12 @@ class OrbitSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.sizing),
+          SettingsSectionHeader(l10n.englishForFilipino.sizing, sectionId: 'sizing'),
           SettingsCard(
             children: [
               SliderSetting(
                 icon: LucideIcons.expand,
-                title: l10n.cardSize,
+                title: l10n.englishForFilipino.cardSize,
                 subtitle: l10n.baseAlbumArtSizeForEach,
                 value: prefs.orbitCardArtSize,
                 displayValue: '${prefs.orbitCardArtSize.round()}px',
@@ -90,7 +93,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.arrowLeftRight,
-                title: l10n.cardWidth,
+                title: l10n.englishForFilipino.cardWidth,
                 subtitle: l10n.howWideEachCardSpansAcross,
                 value: prefs.orbitCardWidthRatio,
                 displayValue: '${(prefs.orbitCardWidthRatio * 100).round()}%',
@@ -107,12 +110,12 @@ class OrbitSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.depth),
+          SettingsSectionHeader(l10n.englishForFilipino.depth, sectionId: 'depth'),
           SettingsCard(
             children: [
               SliderSetting(
                 icon: LucideIcons.maximize,
-                title: l10n.selectedSize,
+                title: l10n.englishForFilipino.selectedSize,
                 subtitle: l10n.scaleOfTheCenteredFocusedSong,
                 value: prefs.orbitSelectedScale,
                 displayValue: prefs.orbitSelectedScale.toStringAsFixed(2),
@@ -124,7 +127,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.chevronsDown,
-                title: l10n.depth,
+                title: l10n.englishForFilipino.depth,
                 subtitle: l10n.howMuchSideCardsShrinkAway,
                 value: prefs.orbitDepth,
                 displayValue: '${(prefs.orbitDepth * 100).round()}%',
@@ -136,12 +139,12 @@ class OrbitSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.artResolution),
+          SettingsSectionHeader(l10n.englishForFilipino.artResolution, sectionId: 'artResolution'),
           SettingsCard(
             children: [
               SelectionSetting(
                 icon: LucideIcons.imageMinus,
-                title: l10n.low,
+                title: l10n.englishForFilipino.low,
                 subtitle: l10n.pixelatedLightestOnMemory,
                 selected: prefs.orbitArtResolutionMultiplier == 1.0,
                 onTap: () => notifier.setOrbitArtResolutionMultiplier(1.0),
@@ -149,7 +152,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: LucideIcons.image,
-                title: l10n.medium,
+                title: l10n.englishForFilipino.medium,
                 subtitle: l10n.softDetailBalanced,
                 selected: prefs.orbitArtResolutionMultiplier == 1.5,
                 onTap: () => notifier.setOrbitArtResolutionMultiplier(1.5),
@@ -157,7 +160,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: LucideIcons.aperture,
-                title: l10n.high,
+                title: l10n.englishForFilipino.high,
                 subtitle: l10n.sharpRecommended,
                 selected: prefs.orbitArtResolutionMultiplier == 2.0,
                 onTap: () => notifier.setOrbitArtResolutionMultiplier(2.0),
@@ -165,7 +168,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: LucideIcons.sparkles,
-                title: l10n.ultra,
+                title: l10n.englishForFilipino.ultra,
                 subtitle: l10n.crispestHeavierDuringFastScrolling,
                 selected: prefs.orbitArtResolutionMultiplier == 3.0,
                 onTap: () => notifier.setOrbitArtResolutionMultiplier(3.0),
@@ -173,12 +176,12 @@ class OrbitSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.visuals),
+          SettingsSectionHeader(l10n.englishForFilipino.visuals, sectionId: 'visuals'),
           SettingsCard(
             children: [
               ToggleSetting(
                 icon: LucideIcons.spline,
-                title: l10n.showOrbitPath,
+                title: l10n.englishForFilipino.showOrbitPath,
                 subtitle: l10n.drawTheCurvedArcBehindThe,
                 value: prefs.orbitShowPath,
                 onChanged: notifier.setOrbitShowPath,
@@ -186,7 +189,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.circle,
-                title: l10n.showGlow,
+                title: l10n.englishForFilipino.showGlow,
                 subtitle: l10n.softHighlightBehindTheSelectedSong,
                 value: prefs.orbitShowGlow,
                 onChanged: notifier.setOrbitShowGlow,
@@ -198,7 +201,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
             children: [
               NavigationSetting(
                 icon: LucideIcons.refreshCw,
-                title: l10n.resetToDefaults,
+                title: l10n.englishForFilipino.resetToDefaults,
                 subtitle: l10n.restoreTheOriginalOrbitalLayout,
                 onTap: () {
                   notifier.resetOrbitSettings();

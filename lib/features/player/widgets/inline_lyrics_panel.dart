@@ -127,7 +127,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
 
       final content = await readTextFromPickedLyricsFile(pickedFile);
       if (content == null || content.trim().isEmpty) {
-        _showMessage(l10n.couldNotReadTheSelectedLyrics);
+        _showMessage(l10n.englishForFilipino.couldNotReadTheSelectedLyrics);
         return;
       }
 
@@ -138,9 +138,9 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
       );
       if (!mounted) return;
       await _loadLyricsForSong(widget.song);
-      _showMessage(l10n.linkedToThisSong(pickedFile.name));
+      _showMessage(l10n.englishForFilipino.linkedToThisSong(pickedFile.name));
     } catch (_) {
-      _showMessage(l10n.couldNotUseTheSelectedLyrics);
+      _showMessage(l10n.englishForFilipino.couldNotUseTheSelectedLyrics);
     }
   }
 
@@ -149,7 +149,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
     if (!mounted) return;
     await _loadLyricsForSong(widget.song);
     if (!mounted) return;
-    _showMessage(l10n.switchedBackToTheAutomaticLyrics);
+    _showMessage(l10n.englishForFilipino.switchedBackToTheAutomaticLyrics);
   }
 
   Future<void> _searchOnlineLyrics() async {
@@ -160,7 +160,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
     );
     if (result == true && mounted) {
       await _loadLyricsForSong(widget.song);
-      _showMessage(l10n.lyricsSavedFromLrclib);
+      _showMessage(l10n.englishForFilipino.lyricsSavedFromLrclib);
     }
   }
 

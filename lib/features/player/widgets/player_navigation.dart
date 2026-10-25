@@ -24,10 +24,10 @@ class PlayerNavigation {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showFlickSnackBar(
       SnackBar(
-        content: Text(l10n.queued(song.title)),
+        content: Text(l10n.englishForFilipino.queued(song.title)),
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
-          label: l10n.viewQueue,
+          label: l10n.englishForFilipino.viewQueue,
           onPressed: () {
             NavigationHelper.navigateToQueue(context);
           },
@@ -44,7 +44,7 @@ class PlayerNavigation {
     final artistName = song.artist.trim();
     if (artistName.isEmpty) {
       ScaffoldMessenger.of(context).showFlickSnackBar(
-        SnackBar(content: Text(l10n.artistIsNotAvailableForThis)),
+        SnackBar(content: Text(l10n.englishForFilipino.artistIsNotAvailableForThis)),
       );
       return;
     }
@@ -55,7 +55,7 @@ class PlayerNavigation {
 
     if (artistSongs == null || artistSongs.isEmpty) {
       ScaffoldMessenger.of(context).showFlickSnackBar(
-        SnackBar(content: Text(l10n.couldNotLoadArtistSongs)),
+        SnackBar(content: Text(l10n.englishForFilipino.couldNotLoadArtistSongs)),
       );
       return;
     }
@@ -84,7 +84,7 @@ class PlayerNavigation {
 
     if (albumGroup == null || albumGroup.songs.isEmpty) {
       ScaffoldMessenger.of(context).showFlickSnackBar(
-        SnackBar(content: Text(l10n.couldNotLoadAlbumSongs)),
+        SnackBar(content: Text(l10n.englishForFilipino.couldNotLoadAlbumSongs)),
       );
       return;
     }

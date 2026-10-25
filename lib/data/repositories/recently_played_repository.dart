@@ -10,7 +10,9 @@ import 'package:flick/l10n/l10n.dart';
 enum ListeningRecapPeriod { daily, weekly, monthly, yearly }
 
 extension ListeningRecapPeriodX on ListeningRecapPeriod {
-  String get label {
+  String get label => labelFor(l10n);
+
+  String labelFor(AppLocalizations l10n) {
     return switch (this) {
       ListeningRecapPeriod.daily => l10n.daily,
       ListeningRecapPeriod.weekly => l10n.weekly,
@@ -28,7 +30,9 @@ extension ListeningRecapPeriodX on ListeningRecapPeriod {
     };
   }
 
-  String get emptyMessage {
+  String get emptyMessage => emptyMessageFor(l10n);
+
+  String emptyMessageFor(AppLocalizations l10n) {
     return switch (this) {
       ListeningRecapPeriod.daily =>
         l10n.playAFewTracksTodayTo,

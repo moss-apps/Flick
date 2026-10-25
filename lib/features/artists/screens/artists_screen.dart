@@ -20,6 +20,7 @@ import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/common/library_heading.dart';
 
 enum ArtistSortOption { name, songs, albums }
 
@@ -254,8 +255,8 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      l10n.artists,
+                    LibraryHeading(
+                      section: LibrarySection.artists,
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             fontWeight: FontWeight.w700,

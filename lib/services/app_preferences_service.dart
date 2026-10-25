@@ -605,6 +605,7 @@ class AppPreferencesService {
   static const _lastSeenChangelogVersionKey = 'last_seen_changelog_version';
   /// UI language. A locale tag such as 'zh_CN', or 'system' to follow the device.
   static const _appLocaleKey = 'app_locale';
+  static const _baybayinHeadingsKey = 'baybayin_headings';
   static const _bottomBarAutoCollapseEnabledKey =
       'bottom_bar_auto_collapse_enabled';
   static const _bottomBarAutoCollapseSecondsKey =
@@ -1838,6 +1839,16 @@ class AppPreferencesService {
   Future<void> setAppLocale(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_appLocaleKey, value);
+  }
+
+  Future<bool> getBaybayinHeadings() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_baybayinHeadingsKey) ?? false;
+  }
+
+  Future<void> setBaybayinHeadings(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_baybayinHeadingsKey, value);
   }
 
   Future<bool> getVisualizerEnabled() async {

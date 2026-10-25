@@ -23,7 +23,12 @@ import 'package:flick/features/settings/widgets/donation_coffee_icon.dart';
 import 'package:flick/features/milestone/screens/milestones_screen.dart';
 import 'package:flick/features/manual/screens/manual_screen.dart';
 import 'package:flick/services/milestone_service.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
+import 'package:flick/widgets/common/baybayin_text.dart';
+import 'package:flick/widgets/common/glass_search_bar.dart';
+import '../data/settings_search.dart';
+import '../data/settings_search_catalog.dart';
+import '../widgets/settings_search_results.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -34,6 +39,14 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   int _milestonesUnlocked = 0;
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -66,223 +79,272 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(context),
-            const SizedBox(height: AppConstants.spacingMd),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.spacingMd,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader(context, l10n.media),
-                    SettingsCard(
-                      children: [
-                        _CategoryTile(
-                          icon: LucideIcons.library,
-                          iconBg: const Color(0xFF2D4A6F),
-                          iconFg: const Color(0xFF8BB8FF),
-                          title: l10n.libraryLabel,
-                          subtitle: l10n.foldersScanningAndDuplicates,
-                          onTap: () =>
-                              _navigate(context, const LibrarySettingsScreen()),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.cloud,
-                          iconBg: const Color(0xFF2D6F6F),
-                          iconFg: const Color(0xFF8BFFE0),
-                          title: l10n.networkSources,
-                          subtitle: l10n.subsonicServersSyncAndStreaming,
-                          onTap: () =>
-                              _navigate(context, const NetworkSourcesScreen()),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.play,
-                          iconBg: const Color(0xFF4A2D6F),
-                          iconFg: const Color(0xFFD19FFF),
-                          title: l10n.playbackDisplay,
-                          subtitle: l10n.gaplessViewModeAndAppearance,
-                          onTap: () => _navigate(
-                            context,
-                            const PlaybackDisplaySettingsScreen(),
-                          ),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.listOrdered,
-                          iconBg: const Color(0xFF2D6F4A),
-                          iconFg: const Color(0xFF8BFFC4),
-                          title: l10n.queue,
-                          subtitle: l10n.wrapAroundAndQueueBehavior,
-                          onTap: () =>
-                              _navigate(context, const QueueSettingsScreen()),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.layoutPanelTop,
-                          iconBg: const Color(0xFF4A2D6F),
-                          iconFg: const Color(0xFFC4A3FF),
-                          title: l10n.playerLayout,
-                          subtitle: l10n.layoutModeSizingAndQuickActions,
-                          onTap: () => _navigate(
-                            context,
-                            const PlayerLayoutSettingsScreen(),
-                          ),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.headphones,
-                          iconBg: const Color(0xFF6F4A2D),
-                          iconFg: const Color(0xFFFFC48B),
-                          title: l10n.audio,
-                          subtitle: l10n.uac2AndEqualizer,
-                          onTap: () =>
-                              _navigate(context, const AudioSettingsScreen()),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.bluetooth,
-                          iconBg: const Color(0xFF2D4A6F),
-                          iconFg: const Color(0xFF8BB8FF),
-                          title: l10n.bluetooth,
-                          subtitle: l10n.disconnectBehaviorAndCodecInfo,
-                          onTap: () => _navigate(
-                            context,
-                            const BluetoothSettingsScreen(),
-                          ),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.cast,
-                          iconBg: const Color(0xFF6F2D4A),
-                          iconFg: const Color(0xFFFF8BB8),
-                          title: l10n.casting,
-                          subtitle: l10n.dlnaUpnpAndChromecastReceivers,
-                          onTap: () => _navigate(
-                            context,
-                            const CastingSettingsScreen(),
-                          ),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.fileText,
-                          iconBg: const Color(0xFF4A6F2D),
-                          iconFg: const Color(0xFFC4FF8B),
-                          title: l10n.lyrics,
-                          subtitle: l10n.lyricsSavingBehavior,
-                          onTap: () =>
-                              _navigate(context, const LyricsSettingsScreen()),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppConstants.spacingLg),
-                    _buildSectionHeader(context, l10n.system),
-                    SettingsCard(
-                      children: [
-                        _CategoryTile(
-                          icon: LucideIcons.layoutDashboard,
-                          iconBg: const Color(0xFF2D6F4A),
-                          iconFg: const Color(0xFF8BFFC4),
-                          title: l10n.interfaceLabel,
-                          subtitle: l10n.animationsAndHapticFeedback,
-                          onTap: () => _navigate(
-                            context,
-                            const InterfaceSettingsScreen(),
-                          ),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.palette,
-                          iconBg: const Color(0xFF2D4A6F),
-                          iconFg: const Color(0xFF8BB8FF),
-                          title: l10n.uiCustomization,
-                          subtitle: l10n.showOrHideHomeScreenSections,
-                          onTap: () => _navigate(
-                            context,
-                            const UiCustomizationSettingsScreen(),
-                          ),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.plug,
-                          iconBg: const Color(0xFF6F2D4A),
-                          iconFg: const Color(0xFFFF8BB8),
-                          title: l10n.integrations,
-                          subtitle: l10n.lastFmListenbrainzScrobbling,
-                          onTap: () => _navigate(
-                            context,
-                            const IntegrationsSettingsScreen(),
-                          ),
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.layoutGrid,
-                          iconBg: const Color(0xFF2D4A6F),
-                          iconFg: const Color(0xFF8BB8FF),
-                          title: l10n.widgets,
-                          subtitle: l10n.customizeHomeScreenWidgets,
-                          onTap: () =>
-                              _navigate(context, const WidgetSettingsScreen()),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppConstants.spacingLg),
-                    _buildSectionHeader(context, l10n.help),
-                    SettingsCard(
-                      children: [
-                        _CategoryTile(
-                          icon: LucideIcons.bookOpen,
-                          iconBg: const Color(0xFF2D4A6F),
-                          iconFg: const Color(0xFF8BB8FF),
-                          title: l10n.helpManual,
-                          subtitle: l10n.browseTheFullControlsGuide,
-                          onTap: () =>
-                              _navigate(context, const ManualScreen()),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppConstants.spacingLg),
-                    _buildSectionHeader(context, l10n.about),
-                    SettingsCard(
-                      children: [
-                        _CategoryTile(
-                          icon: LucideIcons.trophy,
-                          iconBg: const Color(0xFF3A3320),
-                          iconFg: const Color(0xFFD4B265),
-                          title: l10n.milestones,
-                          subtitle: _milestonesUnlocked == 0
-                              ? l10n.noAchievementsYetKeepListening
-                              : l10n.unlocked3(_milestonesUnlocked, MilestoneType.values.length),
-                          onTap: () async {
-                            _navigate(context, const MilestonesScreen());
-                            await _refreshMilestoneCount();
-                          },
-                        ),
-                        const SettingsDivider(),
-                        _CategoryTile(
-                          icon: LucideIcons.info,
-                          iconBg: const Color(0xFF3A3A3A),
-                          iconFg: const Color(0xFFB0B0B0),
-                          title: l10n.appInfo,
-                          subtitle: l10n.updatesAboutAndSupport,
-                          onTap: () =>
-                              _navigate(context, const AppInfoSettingsScreen()),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppConstants.spacingLg),
-                    SizedBox(
-                      height:
-                          AppConstants.navBarHeight +
-                          MediaQuery.of(context).padding.bottom +
-                          AppConstants.spacingLg * 4,
-                    ),
-                  ],
-                ),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingMd,
+              ),
+              child: GlassSearchBar(
+                controller: _searchController,
+                hintText: l10n.searchSettings,
+                textInputAction: TextInputAction.search,
+                onChanged: (value) => setState(() => _query = value.trim()),
               ),
             ),
+            const SizedBox(height: AppConstants.spacingMd),
+            if (_query.isNotEmpty)
+              Expanded(
+                child: SettingsSearchResults(
+                  query: _query,
+                  results: searchSettings(_query, buildSettingsSearchCatalog()),
+                  onOpen: (page, sectionId) {
+                    FocusScope.of(context).unfocus();
+                    _navigate(context, page.buildPage(sectionId));
+                  },
+                ),
+              )
+            else
+              Expanded(
+                child: SingleChildScrollView(
+                  key: const PageStorageKey('settingsCategories'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.spacingMd,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader(
+                        context,
+                        l10n.englishForFilipino.media,
+                      ),
+                      SettingsCard(
+                        children: [
+                          _CategoryTile(
+                            icon: LucideIcons.library,
+                            iconBg: const Color(0xFF2D4A6F),
+                            iconFg: const Color(0xFF8BB8FF),
+                            title: l10n.englishForFilipino.libraryLabel,
+                            subtitle: l10n.foldersScanningAndDuplicates,
+                            onTap: () => _navigate(
+                              context,
+                              const LibrarySettingsScreen(),
+                            ),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.cloud,
+                            iconBg: const Color(0xFF2D6F6F),
+                            iconFg: const Color(0xFF8BFFE0),
+                            title: l10n.englishForFilipino.networkSources,
+                            subtitle: l10n.subsonicServersSyncAndStreaming,
+                            onTap: () => _navigate(
+                              context,
+                              const NetworkSourcesScreen(),
+                            ),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.play,
+                            iconBg: const Color(0xFF4A2D6F),
+                            iconFg: const Color(0xFFD19FFF),
+                            title: l10n.englishForFilipino.playbackDisplay,
+                            subtitle: l10n.gaplessViewModeAndAppearance,
+                            onTap: () => _navigate(
+                              context,
+                              const PlaybackDisplaySettingsScreen(),
+                            ),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.listOrdered,
+                            iconBg: const Color(0xFF2D6F4A),
+                            iconFg: const Color(0xFF8BFFC4),
+                            title: l10n.englishForFilipino.queue,
+                            subtitle: l10n.wrapAroundAndQueueBehavior,
+                            onTap: () =>
+                                _navigate(context, const QueueSettingsScreen()),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.layoutPanelTop,
+                            iconBg: const Color(0xFF4A2D6F),
+                            iconFg: const Color(0xFFC4A3FF),
+                            title: l10n.englishForFilipino.playerLayout,
+                            subtitle: l10n.layoutModeSizingAndQuickActions,
+                            onTap: () => _navigate(
+                              context,
+                              const PlayerLayoutSettingsScreen(),
+                            ),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.headphones,
+                            iconBg: const Color(0xFF6F4A2D),
+                            iconFg: const Color(0xFFFFC48B),
+                            title: l10n.englishForFilipino.audio,
+                            subtitle: l10n.uac2AndEqualizer,
+                            onTap: () =>
+                                _navigate(context, const AudioSettingsScreen()),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.bluetooth,
+                            iconBg: const Color(0xFF2D4A6F),
+                            iconFg: const Color(0xFF8BB8FF),
+                            title: l10n.englishForFilipino.bluetooth,
+                            subtitle: l10n.disconnectBehaviorAndCodecInfo,
+                            onTap: () => _navigate(
+                              context,
+                              const BluetoothSettingsScreen(),
+                            ),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.cast,
+                            iconBg: const Color(0xFF6F2D4A),
+                            iconFg: const Color(0xFFFF8BB8),
+                            title: l10n.englishForFilipino.casting,
+                            subtitle: l10n.dlnaUpnpAndChromecastReceivers,
+                            onTap: () => _navigate(
+                              context,
+                              const CastingSettingsScreen(),
+                            ),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.fileText,
+                            iconBg: const Color(0xFF4A6F2D),
+                            iconFg: const Color(0xFFC4FF8B),
+                            title: l10n.englishForFilipino.lyrics,
+                            subtitle: l10n.lyricsSavingBehavior,
+                            onTap: () => _navigate(
+                              context,
+                              const LyricsSettingsScreen(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppConstants.spacingLg),
+                      _buildSectionHeader(
+                        context,
+                        l10n.englishForFilipino.system,
+                      ),
+                      SettingsCard(
+                        children: [
+                          _CategoryTile(
+                            icon: LucideIcons.layoutDashboard,
+                            iconBg: const Color(0xFF2D6F4A),
+                            iconFg: const Color(0xFF8BFFC4),
+                            title: l10n.englishForFilipino.interfaceLabel,
+                            subtitle: l10n.animationsAndHapticFeedback,
+                            onTap: () => _navigate(
+                              context,
+                              const InterfaceSettingsScreen(),
+                            ),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.palette,
+                            iconBg: const Color(0xFF2D4A6F),
+                            iconFg: const Color(0xFF8BB8FF),
+                            title: l10n.englishForFilipino.uiCustomization,
+                            subtitle: l10n.showOrHideHomeScreenSections,
+                            onTap: () => _navigate(
+                              context,
+                              const UiCustomizationSettingsScreen(),
+                            ),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.plug,
+                            iconBg: const Color(0xFF6F2D4A),
+                            iconFg: const Color(0xFFFF8BB8),
+                            title: l10n.englishForFilipino.integrations,
+                            subtitle: l10n.lastFmListenbrainzScrobbling,
+                            onTap: () => _navigate(
+                              context,
+                              const IntegrationsSettingsScreen(),
+                            ),
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.layoutGrid,
+                            iconBg: const Color(0xFF2D4A6F),
+                            iconFg: const Color(0xFF8BB8FF),
+                            title: l10n.englishForFilipino.widgets,
+                            subtitle: l10n.customizeHomeScreenWidgets,
+                            onTap: () => _navigate(
+                              context,
+                              const WidgetSettingsScreen(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppConstants.spacingLg),
+                      _buildSectionHeader(
+                        context,
+                        l10n.englishForFilipino.help,
+                      ),
+                      SettingsCard(
+                        children: [
+                          _CategoryTile(
+                            icon: LucideIcons.bookOpen,
+                            iconBg: const Color(0xFF2D4A6F),
+                            iconFg: const Color(0xFF8BB8FF),
+                            title: l10n.englishForFilipino.helpManual,
+                            subtitle: l10n.browseTheFullControlsGuide,
+                            onTap: () =>
+                                _navigate(context, const ManualScreen()),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppConstants.spacingLg),
+                      _buildSectionHeader(
+                        context,
+                        l10n.englishForFilipino.about,
+                      ),
+                      SettingsCard(
+                        children: [
+                          _CategoryTile(
+                            icon: LucideIcons.trophy,
+                            iconBg: const Color(0xFF3A3320),
+                            iconFg: const Color(0xFFD4B265),
+                            title: l10n.englishForFilipino.milestones,
+                            subtitle: _milestonesUnlocked == 0
+                                ? l10n.noAchievementsYetKeepListening
+                                : l10n.unlocked3(
+                                    _milestonesUnlocked,
+                                    MilestoneType.values.length,
+                                  ),
+                            onTap: () async {
+                              _navigate(context, const MilestonesScreen());
+                              await _refreshMilestoneCount();
+                            },
+                          ),
+                          const SettingsDivider(),
+                          _CategoryTile(
+                            icon: LucideIcons.info,
+                            iconBg: const Color(0xFF3A3A3A),
+                            iconFg: const Color(0xFFB0B0B0),
+                            title: l10n.englishForFilipino.appInfo,
+                            subtitle: l10n.updatesAboutAndSupport,
+                            onTap: () => _navigate(
+                              context,
+                              const AppInfoSettingsScreen(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppConstants.spacingLg),
+                      SizedBox(
+                        height:
+                            AppConstants.navBarHeight +
+                            MediaQuery.of(context).padding.bottom +
+                            AppConstants.spacingLg * 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -302,8 +364,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settings,
+                BaybayinText(
+                  label: BaybayinLabel.settings,
+                  fallback: l10n.settings,
+                  header: true,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: context.adaptiveTextPrimary,
@@ -311,7 +375,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  l10n.configureYourMusicExperience,
+                  context.l10n.configureYourMusicExperience,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: context.adaptiveTextTertiary,
                   ),

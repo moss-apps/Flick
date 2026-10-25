@@ -217,7 +217,7 @@ class AlacConversionNotifications {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(width: 16),
-            Expanded(child: Text(l10n.convertingToWav(fileName))),
+            Expanded(child: Text(l10n.englishForFilipino.convertingToWav(fileName))),
           ],
         ),
         duration: const Duration(seconds: 2),
@@ -232,7 +232,7 @@ class AlacConversionNotifications {
           children: [
             const Icon(Icons.check_circle, color: Colors.green),
             const SizedBox(width: 16),
-            Expanded(child: Text(l10n.convertedSuccessfully(fileName))),
+            Expanded(child: Text(l10n.englishForFilipino.convertedSuccessfully(fileName))),
           ],
         ),
         backgroundColor: Colors.green.shade700,
@@ -248,7 +248,7 @@ class AlacConversionNotifications {
           children: [
             const Icon(Icons.error, color: Colors.white),
             const SizedBox(width: 16),
-            Expanded(child: Text(l10n.conversionFailed(error))),
+            Expanded(child: Text(l10n.englishForFilipino.conversionFailed(error))),
           ],
         ),
         backgroundColor: Colors.red.shade700,

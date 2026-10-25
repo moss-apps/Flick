@@ -118,7 +118,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showFlickSnackBar(
                   SnackBar(
-                    content: Text(l10n.queued(song.title)),
+                    content: Text(l10n.englishForFilipino.queued(song.title)),
                     duration: const Duration(seconds: 2),
                   ),
                 );
@@ -492,7 +492,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
                                     ScaffoldMessenger.of(context).showFlickSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          l10n.addedTo(playlist.name),
+                                          l10n.englishForFilipino.addedTo(playlist.name),
                                         ),
                                       ),
                                     );
@@ -534,7 +534,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
         if (playlist == null) {
           messenger.showFlickSnackBar(
             SnackBar(
-              content: Text(l10n.aPlaylistWithThisNameAlready),
+              content: Text(l10n.englishForFilipino.aPlaylistWithThisNameAlready),
             ),
           );
           return;
@@ -545,7 +545,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
             .addSongToPlaylist(playlist.id, song.id, song: song);
 
         messenger.showFlickSnackBar(
-          SnackBar(content: Text(l10n.createdAndAddedSong(playlist.name))),
+          SnackBar(content: Text(l10n.englishForFilipino.createdAndAddedSong(playlist.name))),
         );
       }),
     );
@@ -828,8 +828,8 @@ class SongActionsBottomSheet extends ConsumerWidget {
         SnackBar(
           content: Text(
             deleteFile
-                ? l10n.deleted(song.title)
-                : l10n.removedFromLibrary(song.title),
+                ? l10n.englishForFilipino.deleted(song.title)
+                : l10n.englishForFilipino.removedFromLibrary(song.title),
           ),
         ),
       );

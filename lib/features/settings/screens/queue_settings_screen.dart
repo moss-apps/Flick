@@ -5,21 +5,24 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class QueueSettingsScreen extends ConsumerWidget {
-  const QueueSettingsScreen({super.key});
+  const QueueSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playerService = ref.read(playerServiceProvider);
 
     return SettingsScaffold(
-      title: l10n.queue,
+      title: l10n.englishForFilipino.queue,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.queue),
+          SettingsSectionHeader(l10n.englishForFilipino.queue, sectionId: 'queue'),
           SettingsCard(
             children: [
               _WrapAroundQueueTile(playerService: playerService),
@@ -46,7 +49,7 @@ class _WrapAroundQueueTile extends StatelessWidget {
         final enabled = playerService.wrapAroundQueueNotifier.value;
         return ToggleSetting(
           icon: LucideIcons.refreshCw,
-          title: l10n.wrapAroundQueue,
+          title: l10n.englishForFilipino.wrapAroundQueue,
           subtitle: enabled
               ? l10n.songsBeforeTheTappedTrackQueue
               : l10n.stopAtTheEndOfThe,
@@ -71,7 +74,7 @@ class _AutoplayOnQueueEndTile extends StatelessWidget {
         final enabled = playerService.autoplayOnQueueEndNotifier.value;
         return ToggleSetting(
           icon: LucideIcons.shuffle,
-          title: l10n.autoplayOnQueueEnd,
+          title: l10n.englishForFilipino.autoplayOnQueueEnd,
           subtitle: enabled
               ? l10n.playARandomLibrarySongWhen
               : l10n.stopWhenTheQueueEnds,

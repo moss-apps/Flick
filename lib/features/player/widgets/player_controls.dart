@@ -110,7 +110,7 @@ class PlayerControls extends StatelessWidget {
                               ScaffoldMessenger.of(context)
                                 .showFlickSnackBar(
                                   SnackBar(
-                                    content: Text(l10n.shuffle2(next.label)),
+                                    content: Text(l10n.englishForFilipino.shuffle2(next.label)),
                                     behavior: SnackBarBehavior.floating,
                                     duration: const Duration(seconds: 1),
                                   ),
@@ -214,7 +214,7 @@ class PlayerControls extends StatelessWidget {
                               ScaffoldMessenger.of(context)
                                 .showFlickSnackBar(
                                   SnackBar(
-                                    content: Text(l10n.repeat(next.label)),
+                                    content: Text(l10n.englishForFilipino.repeat(next.label)),
                                     behavior: SnackBarBehavior.floating,
                                     duration: const Duration(seconds: 1),
                                   ),
