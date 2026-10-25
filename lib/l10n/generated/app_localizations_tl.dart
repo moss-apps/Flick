@@ -752,7 +752,7 @@ class AppLocalizationsTl extends AppLocalizations {
   String get back => 'Bumalik';
 
   @override
-  String get backOnline => 'May koneksiyon na muli';
+  String get backOnline => 'Okay, connected ka na ulit!';
 
   @override
   String get backToLocker => 'Bumalik sa Locker';
