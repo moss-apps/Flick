@@ -35,7 +35,10 @@ import 'package:flick/l10n/settings_l10n.dart';
 enum _PresetFileFormat { json, txt }
 
 class EqualizerScreen extends ConsumerStatefulWidget {
-  const EqualizerScreen({super.key});
+  const EqualizerScreen({super.key, this.initialPage = 0})
+      : assert(initialPage >= 0 && initialPage < 3);
+
+  final int initialPage;
 
   @override
   ConsumerState<EqualizerScreen> createState() => _EqualizerScreenState();
@@ -46,7 +49,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   final _scrollController = ScrollController();
   final _graphicGraphKey = GlobalKey();
   final _parametricGraphKey = GlobalKey();
-  int _currentPage = 0;
+  late int _currentPage = widget.initialPage;
   int _pageDirection = 1;
 
   @override

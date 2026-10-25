@@ -6148,6 +6148,9 @@ class AppLocalizationsTl extends AppLocalizations {
   String get searchTheManual => 'Hanapin sa gabay...';
 
   @override
+  String get searchSettings => 'Hanapin sa mga setting…';
+
+  @override
   String get searchYourLibrary => 'Hanapin sa iyong aklatan';
 
   @override

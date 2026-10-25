@@ -22,9 +22,12 @@ import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/features/settings/screens/logs_screen.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/l10n/settings_l10n.dart';
+import 'package:flick/features/settings/widgets/settings_scroll_target.dart';
 
 class Uac2PreferencesScreen extends ConsumerStatefulWidget {
-  const Uac2PreferencesScreen({super.key});
+  const Uac2PreferencesScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   ConsumerState<Uac2PreferencesScreen> createState() =>
@@ -73,65 +76,84 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                 _buildHeader(context),
                 const SizedBox(height: AppConstants.spacingMd),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppConstants.spacingMd,
-                    ),
+                  child: SettingsScrollTarget(
+                    initialSection: widget.initialSection,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppConstants.spacingMd,
+                      ),
                       child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_pendingEngineRestart) ...[
-                          const EngineRestartNotice(),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_pendingEngineRestart) ...[
+                            const EngineRestartNotice(),
+                            const SizedBox(height: AppConstants.spacingLg),
+                          ],
+                          _buildSectionHeader(
+                            context,
+                            l10n.englishForFilipino.audioFormat,
+                            'audioFormat',
+                          ),
+                          _buildFormatPreferences(
+                            context,
+                            preferencesService,
+                            formatPrefAsync,
+                            preferredFormatAsync,
+                            audioFormatAsync,
+                          ),
                           const SizedBox(height: AppConstants.spacingLg),
-                        ],
-                        _buildSectionHeader(context, l10n.englishForFilipino.audioFormat),
-                        _buildFormatPreferences(
-                          context,
-                          preferencesService,
-                          formatPrefAsync,
-                          preferredFormatAsync,
-                          audioFormatAsync,
-                        ),
-                        const SizedBox(height: AppConstants.spacingLg),
-                        _buildSectionHeader(context, l10n.englishForFilipino.experimental),
-                        _buildExperimentalWarning(context),
-                        _buildDsdOptions(
-                          context,
-                          preferencesService,
-                          dsdOutputModeAsync,
-                        ),
-                        const SizedBox(height: AppConstants.spacingSm),
-                        _build432HzTuningTile(
-                          context,
-                          preferencesService,
-                          tuning432HzAsync,
-                        ),
-                        const SizedBox(height: AppConstants.spacingLg),
-                        _buildSectionHeader(context, l10n.englishForFilipino.advanced),
-                        _buildAdvancedOptions(
-                          context,
-                          preferencesService,
-                          audioEngineAsync,
-                          androidAudioApiAsync,
-                          developerModeAsync,
-                          bitPerfectAsync,
-                          dapBitPerfectAsync,
-                          killIsochronousUsbOnQuitAsync,
-                          autoEngageUsbDacAsync,
-                          declinedUsbDevicesAsync,
-                          diagnostics,
-                        ),
-                        if (audioEngineAsync.when(
-                          data: (e) => e == AudioEnginePreference.isochronousUsb,
-                          loading: () => false,
-                          error: (_, _) => false,
-                        )) ...[
+                          _buildSectionHeader(
+                            context,
+                            l10n.englishForFilipino.experimental,
+                            'experimental',
+                          ),
+                          _buildExperimentalWarning(context),
+                          _buildDsdOptions(
+                            context,
+                            preferencesService,
+                            dsdOutputModeAsync,
+                          ),
+                          const SizedBox(height: AppConstants.spacingSm),
+                          _build432HzTuningTile(
+                            context,
+                            preferencesService,
+                            tuning432HzAsync,
+                          ),
                           const SizedBox(height: AppConstants.spacingLg),
-                          _buildSectionHeader(context, l10n.englishForFilipino.volume),
-                          const Uac2VolumeControl(),
+                          _buildSectionHeader(
+                            context,
+                            l10n.englishForFilipino.advanced,
+                            'advanced',
+                          ),
+                          _buildAdvancedOptions(
+                            context,
+                            preferencesService,
+                            audioEngineAsync,
+                            androidAudioApiAsync,
+                            developerModeAsync,
+                            bitPerfectAsync,
+                            dapBitPerfectAsync,
+                            killIsochronousUsbOnQuitAsync,
+                            autoEngageUsbDacAsync,
+                            declinedUsbDevicesAsync,
+                            diagnostics,
+                          ),
+                          if (audioEngineAsync.when(
+                            data: (e) => e == AudioEnginePreference.isochronousUsb,
+                            loading: () => false,
+                            error: (_, _) => false,
+                          )) ...[
+                            const SizedBox(height: AppConstants.spacingLg),
+                            _buildSectionHeader(
+                              context,
+                              l10n.englishForFilipino.volume,
+                              'volume',
+                            ),
+                            const Uac2VolumeControl(),
+                          ],
+                          const SizedBox(height: AppConstants.navBarHeight + 120),
                         ],
-                        const SizedBox(height: AppConstants.navBarHeight + 120),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -169,18 +191,25 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: AppConstants.spacingXs,
-        bottom: AppConstants.spacingSm,
-      ),
-      child: Text(
-        title.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: context.adaptiveTextTertiary,
-          letterSpacing: 1.2,
-          fontWeight: FontWeight.w600,
+  Widget _buildSectionHeader(
+    BuildContext context,
+    String title,
+    String sectionId,
+  ) {
+    return SettingsSectionAnchor(
+      id: sectionId,
+      child: Padding(
+        padding: const EdgeInsets.only(
+          left: AppConstants.spacingXs,
+          bottom: AppConstants.spacingSm,
+        ),
+        child: Text(
+          title.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: context.adaptiveTextTertiary,
+            letterSpacing: 1.2,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

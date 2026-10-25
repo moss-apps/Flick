@@ -24,7 +24,9 @@ import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class AppInfoSettingsScreen extends ConsumerStatefulWidget {
-  const AppInfoSettingsScreen({super.key});
+  const AppInfoSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   ConsumerState<AppInfoSettingsScreen> createState() =>
@@ -602,10 +604,11 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.appInfo,
+      initialSection: widget.initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.updates),
+          SettingsSectionHeader(l10n.englishForFilipino.updates, sectionId: 'updates'),
           SettingsCard(
             children: [
               ActionButton(
@@ -650,7 +653,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.about),
+          SettingsSectionHeader(l10n.englishForFilipino.about, sectionId: 'about'),
           SettingsCard(
             children: [
               NavigationSetting(
@@ -714,7 +717,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.support),
+          SettingsSectionHeader(l10n.englishForFilipino.support, sectionId: 'support'),
           AnimatedBuilder(
             animation: _donationPulseAnimation,
             builder: (context, child) {

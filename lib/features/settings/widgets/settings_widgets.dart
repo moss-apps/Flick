@@ -8,17 +8,19 @@ import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/providers/providers.dart';
+import 'settings_scroll_target.dart';
 
 /// Section header used in settings sub-screens.
 class SettingsSectionHeader extends StatelessWidget {
-  const SettingsSectionHeader(this.title, {super.key, this.tag});
+  const SettingsSectionHeader(this.title, {super.key, this.tag, this.sectionId});
 
   final String title;
   final String? tag;
+  final String? sectionId;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final header = Padding(
       padding: const EdgeInsets.only(
         left: AppConstants.spacingXs,
         bottom: AppConstants.spacingSm,
@@ -57,6 +59,9 @@ class SettingsSectionHeader extends StatelessWidget {
         ],
       ),
     );
+    return sectionId == null
+        ? header
+        : SettingsSectionAnchor(id: sectionId!, child: header);
   }
 }
 
@@ -655,10 +660,12 @@ class SettingsScaffold extends ConsumerWidget {
     super.key,
     required this.title,
     required this.body,
+    this.initialSection,
   });
 
   final String title;
   final Widget body;
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -684,15 +691,18 @@ class SettingsScaffold extends ConsumerWidget {
                 _SettingsBackHeader(title: title),
                 const SizedBox(height: AppConstants.spacingMd),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.fromLTRB(
-                      AppConstants.spacingMd,
-                      0,
-                      AppConstants.spacingMd,
-                      MediaQuery.paddingOf(context).bottom +
-                          AppConstants.spacingLg,
+                  child: SettingsScrollTarget(
+                    initialSection: initialSection,
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        AppConstants.spacingMd,
+                        0,
+                        AppConstants.spacingMd,
+                        MediaQuery.paddingOf(context).bottom +
+                            AppConstants.spacingLg,
+                      ),
+                      child: body,
                     ),
-                    child: body,
                   ),
                 ),
               ],

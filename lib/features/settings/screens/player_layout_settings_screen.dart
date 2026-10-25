@@ -22,7 +22,9 @@ String _percentLabel(double value) =>
     '${(value * 100).round()}%';
 
 class PlayerLayoutSettingsScreen extends ConsumerWidget {
-  const PlayerLayoutSettingsScreen({super.key});
+  const PlayerLayoutSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,6 +33,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.playerLayout,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -95,7 +98,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.layoutMode),
+          SettingsSectionHeader(l10n.englishForFilipino.layoutMode, sectionId: 'layoutMode'),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -124,7 +127,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.immersive),
+          SettingsSectionHeader(l10n.englishForFilipino.immersive, sectionId: 'immersive'),
           SettingsCard(
             children: [
               SliderSetting(
@@ -231,7 +234,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.artworkCard),
+          SettingsSectionHeader(l10n.englishForFilipino.artworkCard, sectionId: 'artworkCard'),
           SettingsCard(
             children: [
               SliderSetting(
@@ -376,7 +379,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.quickActions),
+          SettingsSectionHeader(l10n.englishForFilipino.quickActions, sectionId: 'quickActions'),
           SettingsCard(
             children: [
               NavigationSetting(

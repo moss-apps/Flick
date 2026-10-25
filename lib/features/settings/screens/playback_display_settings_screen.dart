@@ -13,7 +13,9 @@ import 'package:flick/features/settings/screens/orbit_settings_screen.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class PlaybackDisplaySettingsScreen extends ConsumerWidget {
-  const PlaybackDisplaySettingsScreen({super.key});
+  const PlaybackDisplaySettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,10 +26,11 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.playbackDisplay,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.playback),
+          SettingsSectionHeader(l10n.englishForFilipino.playback, sectionId: 'playback'),
           SettingsCard(
             children: [
               _GaplessPlaybackTile(playerService: playerService),
@@ -97,7 +100,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.display),
+          SettingsSectionHeader(l10n.englishForFilipino.display, sectionId: 'display'),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -186,7 +189,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.fastIndexScrolling),
+          SettingsSectionHeader(l10n.englishForFilipino.fastIndexScrolling, sectionId: 'fastIndexScrolling'),
           SettingsCard(
             children: [
               ToggleSetting(

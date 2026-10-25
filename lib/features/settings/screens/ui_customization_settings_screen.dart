@@ -10,7 +10,9 @@ import 'package:flick/features/settings/widgets/settings_widgets.dart';
 
 import 'package:flick/l10n/settings_l10n.dart';
 class UiCustomizationSettingsScreen extends ConsumerWidget {
-  const UiCustomizationSettingsScreen({super.key});
+  const UiCustomizationSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,10 +20,11 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.uiCustomization,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.homeScreenSections),
+          SettingsSectionHeader(l10n.englishForFilipino.homeScreenSections, sectionId: 'homeScreenSections'),
           SettingsCard(
             children: [
               ToggleSetting(
@@ -134,7 +137,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.detailScreens),
+          SettingsSectionHeader(l10n.englishForFilipino.detailScreens, sectionId: 'detailScreens'),
           SettingsCard(
             children: [
               ToggleSetting(
@@ -201,7 +204,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.trackThumbnails),
+          SettingsSectionHeader(l10n.englishForFilipino.trackThumbnails, sectionId: 'trackThumbnails'),
           SettingsCard(
             children: SongTileThumbnailMode.values.map((mode) {
               final isSelected =
@@ -231,7 +234,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
             }).toList(),
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.progressBar),
+          SettingsSectionHeader(l10n.englishForFilipino.progressBar, sectionId: 'progressBar'),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -262,7 +265,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.albumColors),
+          SettingsSectionHeader(l10n.englishForFilipino.albumColors, sectionId: 'albumColors'),
           SettingsCard(
             children: AlbumColorMode.values.map((mode) {
               final isSelected =

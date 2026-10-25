@@ -8123,6 +8123,10 @@
   "@searchTheManual": {
     "description": "lib/features/manual/screens/manual_screen.dart:198"
   },
+  "searchSettings": "Search settings…",
+  "@searchSettings": {
+    "description": "Search field on the main settings page"
+  },
   "searchYourLibrary": "Search your library",
   "@searchYourLibrary": {
     "description": "lib/features/search/screens/search_screen.dart:240"

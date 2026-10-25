@@ -5708,6 +5708,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchTheManual => '搜索使用手册…';
 
   @override
+  String get searchSettings => '搜索设置…';
+
+  @override
   String get searchYourLibrary => '搜索音乐库';
 
   @override

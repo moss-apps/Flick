@@ -8,7 +8,9 @@ import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class QueueSettingsScreen extends ConsumerWidget {
-  const QueueSettingsScreen({super.key});
+  const QueueSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -16,10 +18,11 @@ class QueueSettingsScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.queue,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.queue),
+          SettingsSectionHeader(l10n.englishForFilipino.queue, sectionId: 'queue'),
           SettingsCard(
             children: [
               _WrapAroundQueueTile(playerService: playerService),

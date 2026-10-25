@@ -11,7 +11,11 @@ import 'package:flick/services/widget_sync_service.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class WidgetSettingsScreen extends ConsumerStatefulWidget {
-  const WidgetSettingsScreen({super.key});
+  const WidgetSettingsScreen({super.key, this.initialSection, this.initialTab = 0})
+      : assert(initialTab >= 0 && initialTab < 4);
+
+  final String? initialSection;
+  final int initialTab;
 
   @override
   ConsumerState<WidgetSettingsScreen> createState() =>
@@ -20,7 +24,7 @@ class WidgetSettingsScreen extends ConsumerStatefulWidget {
 
 class _WidgetSettingsScreenState extends ConsumerState<WidgetSettingsScreen> {
   static const _tabCount = 4;
-  int _tab = 0;
+  late int _tab = widget.initialTab;
   int _dir = 1;
 
   void _switchTo(int i) {
@@ -35,6 +39,7 @@ class _WidgetSettingsScreenState extends ConsumerState<WidgetSettingsScreen> {
   Widget build(BuildContext context) {
     return SettingsScaffold(
       title: l10n.englishForFilipino.widgets,
+      initialSection: widget.initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -155,7 +160,7 @@ class _MiniPlayerTab extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.englishForFilipino.background),
+        SettingsSectionHeader(l10n.englishForFilipino.background, sectionId: 'background'),
         SettingsCard(
           children: [
             _OpacityOption(
@@ -195,7 +200,7 @@ class _MiniPlayerTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.content),
+        SettingsSectionHeader(l10n.englishForFilipino.content, sectionId: 'content'),
         SettingsCard(
           children: [
             ToggleSetting(
@@ -230,7 +235,7 @@ class _MiniPlayerTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.textSize2),
+        SettingsSectionHeader(l10n.englishForFilipino.textSize2, sectionId: 'textSize2'),
         SettingsCard(
           children: [
             SliderSetting(
@@ -263,7 +268,7 @@ class _MiniPlayerTab extends ConsumerWidget {
           centered: false,
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.accentColor),
+        SettingsSectionHeader(l10n.englishForFilipino.accentColor, sectionId: 'accentColor'),
         SettingsCard(
           children: [
             _AccentOption(
@@ -345,7 +350,7 @@ class _FlagshipTab extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.englishForFilipino.content),
+        SettingsSectionHeader(l10n.englishForFilipino.content, sectionId: 'content'),
         SettingsCard(
           children: [
             ToggleSetting(
@@ -365,7 +370,7 @@ class _FlagshipTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.textSize2),
+        SettingsSectionHeader(l10n.englishForFilipino.textSize2, sectionId: 'textSize2'),
         SettingsCard(
           children: [
             SliderSetting(
@@ -399,7 +404,7 @@ class _FlagshipTab extends ConsumerWidget {
           centered: true,
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.accentColor),
+        SettingsSectionHeader(l10n.englishForFilipino.accentColor, sectionId: 'accentColor'),
         SettingsCard(
           children: [
             _AccentOption(
@@ -473,7 +478,7 @@ class _CompactTab extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.englishForFilipino.background),
+        SettingsSectionHeader(l10n.englishForFilipino.background, sectionId: 'background'),
         SettingsCard(
           children: [
             _OpacityOption(
@@ -513,7 +518,7 @@ class _CompactTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.content),
+        SettingsSectionHeader(l10n.englishForFilipino.content, sectionId: 'content'),
         SettingsCard(
           children: [
             ToggleSetting(
@@ -548,7 +553,7 @@ class _CompactTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.textSize2),
+        SettingsSectionHeader(l10n.englishForFilipino.textSize2, sectionId: 'textSize2'),
         SettingsCard(
           children: [
             SliderSetting(
@@ -582,7 +587,7 @@ class _CompactTab extends ConsumerWidget {
           centered: true,
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.accentColor),
+        SettingsSectionHeader(l10n.englishForFilipino.accentColor, sectionId: 'accentColor'),
         SettingsCard(
           children: [
             _AccentOption(
@@ -667,7 +672,7 @@ class _ReplayTab extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.englishForFilipino.background),
+        SettingsSectionHeader(l10n.englishForFilipino.background, sectionId: 'background'),
         SettingsCard(
           children: [
             // The four look *names* (Acid / Night / Signal / Album) stay as they

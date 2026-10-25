@@ -10420,6 +10420,12 @@ abstract class AppLocalizations {
   /// **'Search the manual...'**
   String get searchTheManual;
 
+  /// Search field on the main settings page
+  ///
+  /// In en, this message translates to:
+  /// **'Search settings…'**
+  String get searchSettings;
+
   /// lib/features/search/screens/search_screen.dart:240
   ///
   /// In en, this message translates to:

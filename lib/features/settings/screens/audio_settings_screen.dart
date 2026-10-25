@@ -19,7 +19,9 @@ import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class AudioSettingsScreen extends ConsumerStatefulWidget {
-  const AudioSettingsScreen({super.key});
+  const AudioSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   ConsumerState<AudioSettingsScreen> createState() =>
@@ -39,10 +41,11 @@ class _AudioSettingsScreenState extends ConsumerState<AudioSettingsScreen> {
   Widget build(BuildContext context) {
     return SettingsScaffold(
       title: l10n.englishForFilipino.audio,
+      initialSection: widget.initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.audio),
+          SettingsSectionHeader(l10n.englishForFilipino.audio, sectionId: 'audio'),
           SettingsCard(
             children: [
               NavigationSetting(
@@ -113,7 +116,7 @@ class _ExtendedVolumeSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SettingsSectionHeader(l10n.englishForFilipino.volume),
+            SettingsSectionHeader(l10n.englishForFilipino.volume, sectionId: 'volume'),
             SettingsCard(
               children: [
                 ToggleSetting(
@@ -182,7 +185,7 @@ class _ReplayGainSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.englishForFilipino.replaygain),
+        SettingsSectionHeader(l10n.englishForFilipino.replaygain, sectionId: 'replaygain'),
         SettingsCard(
           children: [
             SelectionSetting(
@@ -311,7 +314,7 @@ class _CrossfadeSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SettingsSectionHeader(l10n.englishForFilipino.crossfade, tag: l10n.englishForFilipino.experimental),
+            SettingsSectionHeader(l10n.englishForFilipino.crossfade, sectionId: 'crossfade', tag: l10n.englishForFilipino.experimental),
             SettingsCard(
               children: [
                 ToggleSetting(
@@ -425,6 +428,7 @@ class _CrossfeedSection extends ConsumerWidget {
           children: [
             SettingsSectionHeader(
               l10n.englishForFilipino.crossfeedBs2b,
+              sectionId: 'crossfeedBs2b',
               tag: l10n.englishForFilipino.experimental,
             ),
             SettingsCard(

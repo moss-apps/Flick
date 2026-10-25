@@ -60,10 +60,10 @@ class MiniPlayerCustomization extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSectionHeader(l10n.englishForFilipino.preview),
+        SettingsSectionHeader(l10n.englishForFilipino.preview, sectionId: 'preview'),
         const MiniPlayerPreview(),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.miniPlayerLayout),
+        SettingsSectionHeader(l10n.englishForFilipino.miniPlayerLayout, sectionId: 'miniPlayerLayout'),
         SettingsCard(
           children: [
             ToggleSetting(
@@ -146,7 +146,7 @@ class MiniPlayerCustomization extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.contentControls),
+        SettingsSectionHeader(l10n.englishForFilipino.contentControls, sectionId: 'contentControls'),
         SettingsCard(
           children: [
             toggle(
@@ -191,7 +191,7 @@ class MiniPlayerCustomization extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.miniPlayerAppearance),
+        SettingsSectionHeader(l10n.englishForFilipino.miniPlayerAppearance, sectionId: 'miniPlayerAppearance'),
         SettingsCard(
           children: [
             slider(
@@ -227,7 +227,7 @@ class MiniPlayerCustomization extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.englishForFilipino.textGestures),
+        SettingsSectionHeader(l10n.englishForFilipino.textGestures, sectionId: 'textGestures'),
         SettingsCard(
           children: [
             slider(

@@ -11,7 +11,9 @@ import 'package:flick/services/casting/chromecast_backend.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class CastingSettingsScreen extends ConsumerStatefulWidget {
-  const CastingSettingsScreen({super.key});
+  const CastingSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   ConsumerState<CastingSettingsScreen> createState() =>
@@ -66,10 +68,11 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.casting,
+      initialSection: widget.initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.availableDevices),
+          SettingsSectionHeader(l10n.englishForFilipino.availableDevices, sectionId: 'availableDevices'),
           SettingsCard(
             children: [
               ActionButton(
@@ -106,7 +109,7 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
           ],
           if (castState.activeDevice != null) ...[
             const SizedBox(height: AppConstants.spacingLg),
-            SettingsSectionHeader(l10n.englishForFilipino.session),
+            SettingsSectionHeader(l10n.englishForFilipino.session, sectionId: 'session'),
             SettingsCard(
               children: [
                 ActionButton(
@@ -119,12 +122,12 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
             ),
           ],
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.outputDevice, tag: l10n.englishForFilipino.android),
+          SettingsSectionHeader(l10n.englishForFilipino.outputDevice, sectionId: 'outputDevice', tag: l10n.englishForFilipino.android),
           SettingsCard(
             children: [_OutputSection()],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.about, tag: l10n.englishForFilipino.info2),
+          SettingsSectionHeader(l10n.englishForFilipino.about, sectionId: 'about', tag: l10n.englishForFilipino.info2),
           SettingsCard(
             children: [
               _AboutBody(),

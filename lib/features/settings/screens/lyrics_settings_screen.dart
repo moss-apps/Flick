@@ -7,7 +7,9 @@ import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class LyricsSettingsScreen extends ConsumerWidget {
-  const LyricsSettingsScreen({super.key});
+  const LyricsSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -15,10 +17,11 @@ class LyricsSettingsScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.lyrics,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.saving2),
+          SettingsSectionHeader(l10n.englishForFilipino.saving2, sectionId: 'saving2'),
           SettingsCard(
             children: [
               ToggleSetting(
@@ -36,7 +39,7 @@ class LyricsSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.display),
+          SettingsSectionHeader(l10n.englishForFilipino.display, sectionId: 'display'),
           SettingsCard(
             children: [
               ToggleSetting(

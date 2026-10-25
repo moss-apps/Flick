@@ -16,7 +16,9 @@ import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class BluetoothSettingsScreen extends ConsumerStatefulWidget {
-  const BluetoothSettingsScreen({super.key});
+  const BluetoothSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   ConsumerState<BluetoothSettingsScreen> createState() =>
@@ -223,11 +225,12 @@ class _BluetoothSettingsScreenState
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.bluetooth,
+      initialSection: widget.initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!hasPermission) ...[
-            SettingsSectionHeader(l10n.englishForFilipino.permission),
+            SettingsSectionHeader(l10n.englishForFilipino.permission, sectionId: 'permission'),
             SettingsCard(
               children: [
                 ActionButton(
@@ -241,7 +244,7 @@ class _BluetoothSettingsScreenState
             ),
             const SizedBox(height: AppConstants.spacingLg),
           ],
-          SettingsSectionHeader(l10n.englishForFilipino.connectionBehavior),
+          SettingsSectionHeader(l10n.englishForFilipino.connectionBehavior, sectionId: 'connectionBehavior'),
           SettingsCard(
             children: _withDividers([
               ToggleSetting(
@@ -303,7 +306,7 @@ class _BluetoothSettingsScreenState
           ),
           const SizedBox(height: AppConstants.spacingLg),
           if (hasPermission && _devices.isNotEmpty) ...[
-            SettingsSectionHeader(l10n.englishForFilipino.devices),
+            SettingsSectionHeader(l10n.englishForFilipino.devices, sectionId: 'devices'),
             SettingsCard(
               children: _withDividers([
                 SelectionSetting(
@@ -333,7 +336,7 @@ class _BluetoothSettingsScreenState
             ),
             const SizedBox(height: AppConstants.spacingLg),
           ],
-          SettingsSectionHeader(l10n.englishForFilipino.codecU0026Audio, tag: l10n.englishForFilipino.experimental),
+          SettingsSectionHeader(l10n.englishForFilipino.codecU0026Audio, sectionId: 'codecU0026Audio', tag: l10n.englishForFilipino.experimental),
           SettingsCard(
             children: _withDividers([
               ToggleSetting(
@@ -403,7 +406,7 @@ class _BluetoothSettingsScreenState
             ]),
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.outputMode, tag: l10n.englishForFilipino.experimental),
+          SettingsSectionHeader(l10n.englishForFilipino.outputMode, sectionId: 'outputMode', tag: l10n.englishForFilipino.experimental),
           SettingsCard(
             children: _withDividers([
               ValueListenableBuilder<bool>(
@@ -439,7 +442,7 @@ class _BluetoothSettingsScreenState
             ]),
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.codecInfo),
+          SettingsSectionHeader(l10n.englishForFilipino.codecInfo, sectionId: 'codecInfo'),
           SettingsCard(
             children: [
               ValueListenableBuilder<AndroidPlaybackDeviceInfo>(

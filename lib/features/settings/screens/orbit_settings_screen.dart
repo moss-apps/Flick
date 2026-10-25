@@ -8,7 +8,9 @@ import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class OrbitSettingsScreen extends ConsumerWidget {
-  const OrbitSettingsScreen({super.key});
+  const OrbitSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,10 +19,11 @@ class OrbitSettingsScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.customizeOrbital,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.geometry),
+          SettingsSectionHeader(l10n.englishForFilipino.geometry, sectionId: 'geometry'),
           SettingsCard(
             children: [
               SliderSetting(
@@ -73,7 +76,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.sizing),
+          SettingsSectionHeader(l10n.englishForFilipino.sizing, sectionId: 'sizing'),
           SettingsCard(
             children: [
               SliderSetting(
@@ -107,7 +110,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.depth),
+          SettingsSectionHeader(l10n.englishForFilipino.depth, sectionId: 'depth'),
           SettingsCard(
             children: [
               SliderSetting(
@@ -136,7 +139,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.artResolution),
+          SettingsSectionHeader(l10n.englishForFilipino.artResolution, sectionId: 'artResolution'),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -173,7 +176,7 @@ class OrbitSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.visuals),
+          SettingsSectionHeader(l10n.englishForFilipino.visuals, sectionId: 'visuals'),
           SettingsCard(
             children: [
               ToggleSetting(

@@ -7,7 +7,9 @@ import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class VisualizerSettingsScreen extends ConsumerWidget {
-  const VisualizerSettingsScreen({super.key});
+  const VisualizerSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,10 +19,11 @@ class VisualizerSettingsScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.visualizer,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.visualizer),
+          SettingsSectionHeader(l10n.englishForFilipino.visualizer, sectionId: 'visualizer'),
           SettingsCard(
             children: [
               ToggleSetting(
@@ -33,7 +36,7 @@ class VisualizerSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.visualizerColors),
+          SettingsSectionHeader(l10n.englishForFilipino.visualizerColors, sectionId: 'visualizerColors'),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -62,7 +65,7 @@ class VisualizerSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.animationStyle),
+          SettingsSectionHeader(l10n.englishForFilipino.animationStyle, sectionId: 'animationStyle'),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -116,7 +119,7 @@ class VisualizerSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.frequencyFocus),
+          SettingsSectionHeader(l10n.englishForFilipino.frequencyFocus, sectionId: 'frequencyFocus'),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -161,7 +164,7 @@ class VisualizerSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.movement),
+          SettingsSectionHeader(l10n.englishForFilipino.movement, sectionId: 'movement'),
           SettingsCard(
             children: [
               SelectionSetting(

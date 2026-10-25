@@ -13,7 +13,9 @@ import 'package:flick/features/settings/screens/visualizer_settings_screen.dart'
 import 'package:flick/l10n/settings_l10n.dart';
 
 class InterfaceSettingsScreen extends ConsumerWidget {
-  const InterfaceSettingsScreen({super.key});
+  const InterfaceSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   Future<void> _confirmResetStreak(BuildContext context) async {
     final confirmed = await FlickDialogs.confirm(
@@ -35,13 +37,14 @@ class InterfaceSettingsScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.interfaceLabel,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(context.l10n.englishForFilipino.language),
+          SettingsSectionHeader(context.l10n.englishForFilipino.language, sectionId: 'language'),
           const LanguageSettingsCard(),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.interfaceLabel),
+          SettingsSectionHeader(l10n.englishForFilipino.interfaceLabel, sectionId: 'interfaceLabel'),
           SettingsCard(
             children: [
               ToggleSetting(
@@ -165,7 +168,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.refreshRate),
+          SettingsSectionHeader(l10n.englishForFilipino.refreshRate, sectionId: 'refreshRate'),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -206,7 +209,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.searchPlayback),
+          SettingsSectionHeader(l10n.englishForFilipino.searchPlayback, sectionId: 'searchPlayback'),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -247,7 +250,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.favoriteRemoval),
+          SettingsSectionHeader(l10n.englishForFilipino.favoriteRemoval, sectionId: 'favoriteRemoval'),
           SettingsCard(
             children: [
               SelectionSetting(

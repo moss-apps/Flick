@@ -14,7 +14,9 @@ import 'package:flick/features/settings/widgets/mini_player_customization.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class BottomBarSettingsScreen extends ConsumerWidget {
-  const BottomBarSettingsScreen({super.key});
+  const BottomBarSettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,12 +30,13 @@ class BottomBarSettingsScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.bottomBar,
+      initialSection: initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const MiniPlayerCustomization(),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.autoCollapse),
+          SettingsSectionHeader(l10n.englishForFilipino.autoCollapse, sectionId: 'autoCollapse'),
           SettingsCard(
             children: [
               ToggleSetting(
@@ -71,7 +74,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.buttons),
+          SettingsSectionHeader(l10n.englishForFilipino.buttons, sectionId: 'buttons'),
           Container(
             clipBehavior: Clip.none,
             decoration: BoxDecoration(
@@ -146,7 +149,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
           ),
           if (disabledVisible.isNotEmpty) ...[
             const SizedBox(height: AppConstants.spacingLg),
-            SettingsSectionHeader(l10n.englishForFilipino.disabled),
+            SettingsSectionHeader(l10n.englishForFilipino.disabled, sectionId: 'disabled'),
             SettingsCard(
               children: [
                 for (int i = 0; i < disabledVisible.length; i++) ...[
@@ -163,7 +166,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
           ],
           if (hiddenButtons.isNotEmpty) ...[
             const SizedBox(height: AppConstants.spacingLg),
-            SettingsSectionHeader(l10n.englishForFilipino.hidden),
+            SettingsSectionHeader(l10n.englishForFilipino.hidden, sectionId: 'hidden'),
             SettingsCard(
               children: [
                 for (int i = 0; i < hiddenButtons.length; i++) ...[
@@ -214,7 +217,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.navigationAppearance),
+          SettingsSectionHeader(l10n.englishForFilipino.navigationAppearance, sectionId: 'navigationAppearance'),
           SettingsCard(
             children: [
               SliderSetting(

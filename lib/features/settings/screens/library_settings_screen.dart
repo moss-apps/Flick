@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flick/widgets/common/flick_snackbar.dart';
 import 'package:flutter/material.dart';
+import 'package:flick/features/settings/widgets/settings_scroll_target.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
@@ -36,7 +37,9 @@ import 'package:flick/widgets/common/vinyl_record.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class LibrarySettingsScreen extends ConsumerStatefulWidget {
-  const LibrarySettingsScreen({super.key});
+  const LibrarySettingsScreen({super.key, this.initialSection});
+
+  final String? initialSection;
 
   @override
   ConsumerState<LibrarySettingsScreen> createState() =>
@@ -80,6 +83,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   @override
   void initState() {
     super.initState();
+    _scanSettingsExpanded = widget.initialSection == 'scanningSettings';
     WidgetsBinding.instance.addObserver(this);
     _vinylController = AnimationController(
       duration: const Duration(seconds: 3),
@@ -1734,7 +1738,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   Widget _buildExpandableScanSettings(LibraryScanPreferences prefs) {
-    return Column(
+    final content = Column(
       children: [
         Material(
           color: Colors.transparent,
@@ -1903,6 +1907,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         ),
       ],
     );
+    return SettingsSectionAnchor(id: 'scanningSettings', child: content);
   }
 
   @override
@@ -1912,10 +1917,11 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.libraryLabel,
+      initialSection: widget.initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.libraryLabel),
+          SettingsSectionHeader(l10n.englishForFilipino.libraryLabel, sectionId: 'libraryLabel'),
           SettingsCard(
             children: [
               _buildLibraryInfo(),
@@ -2144,7 +2150,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.storage),
+          SettingsSectionHeader(l10n.englishForFilipino.storage, sectionId: 'storage'),
           SettingsCard(
             children: [
               ActionButton(
@@ -2177,7 +2183,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.albumArtwork),
+          SettingsSectionHeader(l10n.englishForFilipino.albumArtwork, sectionId: 'albumArtwork'),
           SettingsCard(
             children: [
               ToggleSetting(
@@ -2195,7 +2201,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.metadata),
+          SettingsSectionHeader(l10n.englishForFilipino.metadata, sectionId: 'metadata'),
           SettingsCard(
             children: [
               NavigationSetting(

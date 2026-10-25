@@ -6077,6 +6077,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchTheManual => 'Search the manual...';
 
   @override
+  String get searchSettings => 'Search settings…';
+
+  @override
   String get searchYourLibrary => 'Search your library';
 
   @override
