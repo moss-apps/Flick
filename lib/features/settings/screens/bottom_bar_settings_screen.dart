@@ -11,7 +11,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/app_preferences_service.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/settings/widgets/mini_player_customization.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class BottomBarSettingsScreen extends ConsumerWidget {
   const BottomBarSettingsScreen({super.key});
@@ -27,18 +27,18 @@ class BottomBarSettingsScreen extends ConsumerWidget {
     final hiddenButtons = NavBarButton.values.where((b) => hidden.contains(b)).toList();
 
     return SettingsScaffold(
-      title: l10n.bottomBar,
+      title: l10n.englishForFilipino.bottomBar,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const MiniPlayerCustomization(),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.autoCollapse),
+          SettingsSectionHeader(l10n.englishForFilipino.autoCollapse),
           SettingsCard(
             children: [
               ToggleSetting(
                 icon: LucideIcons.timer,
-                title: l10n.autoCollapse,
+                title: l10n.englishForFilipino.autoCollapse,
                 subtitle:
                     l10n.hideNavigationButtonsAfterBeingIdle,
                 value: appPreferences.bottomBarAutoCollapseEnabled,
@@ -52,7 +52,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
                 const SettingsDivider(),
                 SliderSetting(
                   icon: LucideIcons.clock,
-                  title: l10n.collapseAfter,
+                  title: l10n.englishForFilipino.collapseAfter,
                   subtitle:
                       l10n.secondsOfInactivityBeforeCollapsing,
                   value: appPreferences.bottomBarAutoCollapseSeconds.toDouble(),
@@ -71,7 +71,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.buttons),
+          SettingsSectionHeader(l10n.englishForFilipino.buttons),
           Container(
             clipBehavior: Clip.none,
             decoration: BoxDecoration(
@@ -125,7 +125,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
                         Expanded(
                           child: ToggleSetting(
                             icon: button.icon,
-                            title: button.label,
+                            title: button.labelFor(l10n.englishForFilipino),
                             subtitle: l10n.showTheTabInTheBottom(button.label),
                             value: true,
                             onChanged: isOnly
@@ -146,7 +146,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
           ),
           if (disabledVisible.isNotEmpty) ...[
             const SizedBox(height: AppConstants.spacingLg),
-            SettingsSectionHeader(l10n.disabled),
+            SettingsSectionHeader(l10n.englishForFilipino.disabled),
             SettingsCard(
               children: [
                 for (int i = 0; i < disabledVisible.length; i++) ...[
@@ -163,7 +163,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
           ],
           if (hiddenButtons.isNotEmpty) ...[
             const SizedBox(height: AppConstants.spacingLg),
-            SettingsSectionHeader(l10n.hidden),
+            SettingsSectionHeader(l10n.englishForFilipino.hidden),
             SettingsCard(
               children: [
                 for (int i = 0; i < hiddenButtons.length; i++) ...[
@@ -214,12 +214,12 @@ class BottomBarSettingsScreen extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.navigationAppearance),
+          SettingsSectionHeader(l10n.englishForFilipino.navigationAppearance),
           SettingsCard(
             children: [
               SliderSetting(
                 icon: LucideIcons.ruler,
-                title: l10n.barHeight,
+                title: l10n.englishForFilipino.barHeight,
                 subtitle: l10n.adjustTheSizeOfTheBottom,
                 value: config.barSizeFactor,
                 displayValue: '${config.barSizeFactor.toStringAsFixed(1)}x',
@@ -235,7 +235,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.space,
-                title: l10n.buttonSpacing,
+                title: l10n.englishForFilipino.buttonSpacing,
                 subtitle: l10n.adjustSpacingBetweenButtons,
                 value: config.buttonSpacingFactor,
                 displayValue: '${config.buttonSpacingFactor.toStringAsFixed(1)}x',
@@ -251,7 +251,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.maximize,
-                title: l10n.iconSize,
+                title: l10n.englishForFilipino.iconSize,
                 subtitle: l10n.adjustTheSizeOfTheIcons,
                 value: config.iconSizeFactor,
                 displayValue: '${config.iconSizeFactor.toStringAsFixed(1)}x',
@@ -267,7 +267,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.type,
-                title: l10n.showLabels,
+                title: l10n.englishForFilipino.showLabels,
                 subtitle: l10n.displayTextLabelsBelowIcons,
                 value: config.showLabels,
                 onChanged: (value) {
@@ -281,7 +281,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppConstants.spacingSm),
           TextButton.icon(
             icon: const Icon(LucideIcons.rotateCcw, size: 18),
-            label: Text(l10n.resetNavigationToDefaults),
+            label: Text(l10n.englishForFilipino.resetNavigationToDefaults),
             onPressed: () async {
               const defaults = AppPreferences();
               final preferences = ref.read(appPreferencesProvider.notifier);
@@ -353,7 +353,7 @@ class _DisabledNavItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      button.label,
+                      button.labelFor(l10n.englishForFilipino),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: context.adaptiveTextPrimary,
                       ),

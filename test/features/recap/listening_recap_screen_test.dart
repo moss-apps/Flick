@@ -13,6 +13,7 @@ import 'package:flick/features/recap/widgets/replay_graphics.dart';
 import 'package:flick/features/recap/widgets/replay_poster.dart';
 import 'package:flick/features/recap/widgets/replay_sections.dart';
 import 'package:flick/features/recap/widgets/replay_style.dart';
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
@@ -157,6 +158,10 @@ Future<void> _pump(
     ProviderScope(
       child: MaterialApp(
         theme: AppTheme.darkTheme,
+        locale: kFallbackLocale,
+        supportedLocales: kSupportedLocales,
+        localizationsDelegates: kAppLocalizationsDelegates,
+        localeResolutionCallback: resolveAppLocale,
         builder: (context, child) {
           final media = MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(textScale),

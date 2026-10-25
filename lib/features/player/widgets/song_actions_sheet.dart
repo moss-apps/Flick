@@ -253,7 +253,7 @@ class SongActionsSheet extends ConsumerWidget {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showFlickSnackBar(
                                   SnackBar(
-                                    content: Text(l10n.motionArtRefreshed),
+                                    content: Text(l10n.englishForFilipino.motionArtRefreshed),
                                     duration: Duration(seconds: 2),
                                   ),
                                 );

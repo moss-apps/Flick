@@ -37,6 +37,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/common/baybayin_text.dart';
 
 class FullPlayerScreen extends ConsumerStatefulWidget {
   final Object heroTag;
@@ -602,8 +603,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   final nowPlayingContent = Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        l10n.nowPlaying,
+                      BaybayinText(
+                        label: BaybayinLabel.playing,
+                        fallback: context.l10n.isFilipino
+                            ? context.l10n.playingLabel : l10n.nowPlaying,
                         style: TextStyle(
                           fontFamily: 'GoogleSansFlex',
                           fontSize: context.responsive(12.0, 13.0, 14.0),

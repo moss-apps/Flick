@@ -13,7 +13,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/services/bluetooth_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class BluetoothSettingsScreen extends ConsumerStatefulWidget {
   const BluetoothSettingsScreen({super.key});
@@ -154,7 +154,7 @@ class _BluetoothSettingsScreenState
             l10n.codecForcingUnavailableOnThisDevice,
           ),
           action: SnackBarAction(
-            label: l10n.open,
+            label: l10n.englishForFilipino.open,
             onPressed: () => _bt.openBluetoothCodecSettings(),
           ),
           duration: const Duration(seconds: 5),
@@ -222,17 +222,17 @@ class _BluetoothSettingsScreenState
     final isLdac = appPrefs.btPreferredCodec == BluetoothCodecType.ldac;
 
     return SettingsScaffold(
-      title: l10n.bluetooth,
+      title: l10n.englishForFilipino.bluetooth,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!hasPermission) ...[
-            SettingsSectionHeader(l10n.permission),
+            SettingsSectionHeader(l10n.englishForFilipino.permission),
             SettingsCard(
               children: [
                 ActionButton(
                   icon: LucideIcons.shieldCheck,
-                  title: l10n.grantBluetoothAccess,
+                  title: l10n.englishForFilipino.grantBluetoothAccess,
                   subtitle:
                       l10n.requiredToDetectDevicesCodecsAnd,
                   onTap: _requestPermission,
@@ -241,12 +241,12 @@ class _BluetoothSettingsScreenState
             ),
             const SizedBox(height: AppConstants.spacingLg),
           ],
-          SettingsSectionHeader(l10n.connectionBehavior),
+          SettingsSectionHeader(l10n.englishForFilipino.connectionBehavior),
           SettingsCard(
             children: _withDividers([
               ToggleSetting(
                 icon: LucideIcons.bluetooth,
-                title: l10n.pauseOnDisconnect,
+                title: l10n.englishForFilipino.pauseOnDisconnect,
                 subtitle: appPrefs.pauseOnBluetoothDisconnect
                     ? l10n.playbackPausesWhenBluetoothOrHeadphones
                     : l10n.playbackContinuesWhenAudioOutput,
@@ -257,7 +257,7 @@ class _BluetoothSettingsScreenState
               ),
               ToggleSetting(
                 icon: LucideIcons.bluetoothConnected,
-                title: l10n.pauseOnBluetoothConnect,
+                title: l10n.englishForFilipino.pauseOnBluetoothConnect,
                 subtitle: appPrefs.pauseOnBluetoothConnect
                     ? l10n.playbackPausesWhenABluetoothAudio
                     : l10n.playbackContinuesWhenABluetoothDevice,
@@ -268,7 +268,7 @@ class _BluetoothSettingsScreenState
               ),
               ToggleSetting(
                 icon: LucideIcons.play,
-                title: l10n.resumeOnReconnect,
+                title: l10n.englishForFilipino.resumeOnReconnect,
                 subtitle: appPrefs.resumeOnBluetoothReconnect
                     ? l10n.playbackResumesWhenADeviceReconnects
                     : l10n.keepPlaybackPausedWhenADevice,
@@ -279,7 +279,7 @@ class _BluetoothSettingsScreenState
               ),
               ToggleSetting(
                 icon: LucideIcons.usb,
-                title: l10n.pauseOnUsbDacAttach,
+                title: l10n.englishForFilipino.pauseOnUsbDacAttach,
                 subtitle: appPrefs.pauseOnUsbDacConnect
                     ? l10n.playbackPausesWhenAUsbDac
                     : l10n.playbackContinuesWhenAUsbDac,
@@ -290,7 +290,7 @@ class _BluetoothSettingsScreenState
               ),
               ToggleSetting(
                 icon: LucideIcons.usb,
-                title: l10n.pauseOnUsbDacDetach,
+                title: l10n.englishForFilipino.pauseOnUsbDacDetach,
                 subtitle: appPrefs.pauseOnUsbDacDisconnect
                     ? l10n.playbackPausesWhenAUsbDac2
                     : l10n.playbackContinuesWhenAUsbDac2,
@@ -303,12 +303,12 @@ class _BluetoothSettingsScreenState
           ),
           const SizedBox(height: AppConstants.spacingLg),
           if (hasPermission && _devices.isNotEmpty) ...[
-            SettingsSectionHeader(l10n.devices),
+            SettingsSectionHeader(l10n.englishForFilipino.devices),
             SettingsCard(
               children: _withDividers([
                 SelectionSetting(
                   icon: LucideIcons.bluetooth,
-                  title: l10n.automatic,
+                  title: l10n.englishForFilipino.automatic,
                   subtitle: l10n.letAndroidChooseTheOutputDevice,
                   selected: appPrefs.preferredBluetoothDevice.isEmpty,
                   onTap: () => ref
@@ -333,12 +333,12 @@ class _BluetoothSettingsScreenState
             ),
             const SizedBox(height: AppConstants.spacingLg),
           ],
-          SettingsSectionHeader(l10n.codecU0026Audio, tag: l10n.experimental),
+          SettingsSectionHeader(l10n.englishForFilipino.codecU0026Audio, tag: l10n.englishForFilipino.experimental),
           SettingsCard(
             children: _withDividers([
               ToggleSetting(
                 icon: LucideIcons.slidersHorizontal,
-                title: l10n.codecControl,
+                title: l10n.englishForFilipino.codecControl,
                 subtitle: codecControlOn
                     ? l10n.flickWillForceYourChosenCodec
                     : l10n.letAndroidNegotiateTheCodecAutomatically,
@@ -348,7 +348,7 @@ class _BluetoothSettingsScreenState
               if (codecControlOn) ...[
                 ActionButton(
                   icon: LucideIcons.externalLink,
-                  title: l10n.openBluetoothCodecSettings,
+                  title: l10n.englishForFilipino.openBluetoothCodecSettings,
                   subtitle: l10n.androidDeveloperOptionsTheReliableWay,
                   onTap: _openBluetoothCodecSettings,
                 ),
@@ -393,7 +393,7 @@ class _BluetoothSettingsScreenState
               ],
               ToggleSetting(
                 icon: LucideIcons.volume2,
-                title: l10n.absoluteVolumeSync,
+                title: l10n.englishForFilipino.absoluteVolumeSync,
                 subtitle: appPrefs.btAbsoluteVolumeSync
                     ? l10n.phoneAndHeadsetVolumeAreLinked
                     : l10n.phoneAndHeadsetVolumeAreIndependent,
@@ -403,7 +403,7 @@ class _BluetoothSettingsScreenState
             ]),
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.outputMode, tag: l10n.experimental),
+          SettingsSectionHeader(l10n.englishForFilipino.outputMode, tag: l10n.englishForFilipino.experimental),
           SettingsCard(
             children: _withDividers([
               ValueListenableBuilder<bool>(
@@ -412,7 +412,7 @@ class _BluetoothSettingsScreenState
                 builder: (context, hiRes, _) {
                   return ToggleSetting(
                     icon: LucideIcons.gem,
-                    title: l10n.hiResDirect,
+                    title: l10n.englishForFilipino.hiResDirect,
                     subtitle: hiRes
                         ? l10n.routesBluetoothThroughTheHiRes
                         : l10n.standardBluetoothRoutingViaAndroid,
@@ -427,7 +427,7 @@ class _BluetoothSettingsScreenState
                 builder: (context, lowLatency, _) {
                   return ToggleSetting(
                     icon: LucideIcons.zap,
-                    title: l10n.lowLatencyMode,
+                    title: l10n.englishForFilipino.lowLatencyMode,
                     subtitle: lowLatency
                         ? l10n.routesBluetoothThroughTheRustEngine
                         : l10n.standardBluetoothRoutingViaAndroid,
@@ -439,7 +439,7 @@ class _BluetoothSettingsScreenState
             ]),
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.codecInfo),
+          SettingsSectionHeader(l10n.englishForFilipino.codecInfo),
           SettingsCard(
             children: [
               ValueListenableBuilder<AndroidPlaybackDeviceInfo>(
@@ -477,7 +477,7 @@ const _codecOptions = <int>[
 ];
 
 String _codecLabel(int ct) =>
-    ct < 0 ? l10n.automatic : BluetoothCodecType.label(ct);
+    ct < 0 ? l10n.englishForFilipino.automatic : BluetoothCodecType.label(ct);
 
 String _codecDescription(int ct) => switch (ct) {
       -1 => l10n.letAndroidChooseTheBestCodec,
@@ -553,7 +553,7 @@ class _BluetoothCodecInfo extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l10n.bluetoothCodecInfo,
+                      l10n.englishForFilipino.bluetoothCodecInfo,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: context.adaptiveTextPrimary,
                           ),

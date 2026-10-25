@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/features/songs/screens/songs_screen.dart';
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flutter/material.dart';
@@ -79,6 +80,10 @@ Future<void> _pumpGrid(
       ],
       child: MaterialApp(
         theme: AppTheme.darkTheme,
+        locale: kFallbackLocale,
+        supportedLocales: kSupportedLocales,
+        localizationsDelegates: kAppLocalizationsDelegates,
+        localeResolutionCallback: resolveAppLocale,
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(
             context,

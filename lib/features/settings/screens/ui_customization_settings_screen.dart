@@ -8,7 +8,7 @@ import 'package:flick/models/song_tile_thumbnail_mode.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 class UiCustomizationSettingsScreen extends ConsumerWidget {
   const UiCustomizationSettingsScreen({super.key});
 
@@ -17,16 +17,16 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
     final appPreferences = ref.watch(appPreferencesProvider);
 
     return SettingsScaffold(
-      title: l10n.uiCustomization,
+      title: l10n.englishForFilipino.uiCustomization,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.homeScreenSections),
+          SettingsSectionHeader(l10n.englishForFilipino.homeScreenSections),
           SettingsCard(
             children: [
               ToggleSetting(
                 icon: LucideIcons.zap,
-                title: l10n.quickAccess,
+                title: l10n.englishForFilipino.quickAccess,
                 subtitle: l10n.showTheGridOfShortcutCards,
                 value: appPreferences.showQuickAccess,
                 onChanged: (value) {
@@ -38,7 +38,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.sparkles,
-                title: l10n.madeForYou,
+                title: l10n.englishForFilipino.madeForYou,
                 subtitle: l10n.showSmartMixesGeneratedFromYour,
                 value: appPreferences.showSmartMixes,
                 onChanged: (value) {
@@ -50,7 +50,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.users,
-                title: l10n.artistsInRotation,
+                title: l10n.englishForFilipino.artistsInRotation,
                 subtitle: l10n.showRecentlyPlayedArtistsOnThe,
                 value: appPreferences.showRecentArtists,
                 onChanged: (value) {
@@ -62,7 +62,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.clock3,
-                title: l10n.recentlyPlayed,
+                title: l10n.englishForFilipino.recentlyPlayed,
                 subtitle: l10n.showYourRecentListeningHistoryOn,
                 value: appPreferences.showRecentTracks,
                 onChanged: (value) {
@@ -74,7 +74,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.listMusic,
-                title: l10n.yourPlaylists,
+                title: l10n.englishForFilipino.yourPlaylists,
                 subtitle: l10n.showPlaylistPreviewsOnTheHome,
                 value: appPreferences.showPlaylistPreviews,
                 onChanged: (value) {
@@ -86,7 +86,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.compass,
-                title: l10n.browseMore,
+                title: l10n.englishForFilipino.browseMore,
                 subtitle: l10n.showTheBrowseChipsForLibrary,
                 value: appPreferences.showBrowseMore,
                 onChanged: (value) {
@@ -98,7 +98,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.audioLines,
-                title: l10n.engineSelector,
+                title: l10n.englishForFilipino.engineSelector,
                 subtitle: l10n.showTheAudioEnginePickerCard,
                 value: appPreferences.showEngineSelector,
                 onChanged: (value) {
@@ -110,7 +110,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.volume2,
-                title: l10n.usbVolumeOnHome,
+                title: l10n.englishForFilipino.usbVolumeOnHome,
                 subtitle: l10n.showTheUsbVolumeBarOn,
                 value: appPreferences.showUsbVolumeOnMenu,
                 onChanged: (value) {
@@ -122,7 +122,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.slidersHorizontal,
-                title: l10n.usbVolumeInSettings,
+                title: l10n.englishForFilipino.usbVolumeInSettings,
                 subtitle: l10n.showTheUsbVolumeBarOn2,
                 value: appPreferences.showUsbVolumeOnSettings,
                 onChanged: (value) {
@@ -134,12 +134,12 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.detailScreens),
+          SettingsSectionHeader(l10n.englishForFilipino.detailScreens),
           SettingsCard(
             children: [
               ToggleSetting(
                 icon: LucideIcons.disc3,
-                title: l10n.moreFromArtist2,
+                title: l10n.englishForFilipino.moreFromArtist2,
                 subtitle: l10n.showRelatedAlbumsOnAlbumPages,
                 value: appPreferences.showMoreFromArtist,
                 onChanged: (value) {
@@ -151,7 +151,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.users,
-                title: l10n.moreArtists2,
+                title: l10n.englishForFilipino.moreArtists2,
                 subtitle: l10n.showOtherArtistsOnAlbumPages,
                 value: appPreferences.showMoreArtists,
                 onChanged: (value) {
@@ -163,7 +163,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.sparkles,
-                title: l10n.animatedAlbumArt,
+                title: l10n.englishForFilipino.animatedAlbumArt,
                 subtitle:
                     l10n.appleMusicMotionArtOnAlbums,
                 value: appPreferences.animatedAlbumArt,
@@ -176,7 +176,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.image,
-                title: l10n.expandedHeaderArt,
+                title: l10n.englishForFilipino.expandedHeaderArt,
                 subtitle:
                     l10n.showMoreArtByFadingOnly,
                 value: appPreferences.detailHeaderArtExpanded,
@@ -189,7 +189,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.alignCenter,
-                title: l10n.centeredHeaderTitle,
+                title: l10n.englishForFilipino.centeredHeaderTitle,
                 subtitle: l10n.centerTheTitleAndInfoIn,
                 value: appPreferences.detailHeaderCenteredTitle,
                 onChanged: (value) {
@@ -201,7 +201,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.trackThumbnails),
+          SettingsSectionHeader(l10n.englishForFilipino.trackThumbnails),
           SettingsCard(
             children: SongTileThumbnailMode.values.map((mode) {
               final isSelected =
@@ -217,7 +217,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                     const SettingsDivider(),
                   SelectionSetting(
                     icon: icon,
-                    title: mode.label,
+                    title: mode.labelFor(l10n.englishForFilipino),
                     subtitle: mode.description,
                     selected: isSelected,
                     onTap: () {
@@ -231,12 +231,12 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
             }).toList(),
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.progressBar),
+          SettingsSectionHeader(l10n.englishForFilipino.progressBar),
           SettingsCard(
             children: [
               SelectionSetting(
                 icon: LucideIcons.audioWaveform,
-                title: ProgressBarStyle.waveform.label,
+                title: ProgressBarStyle.waveform.labelFor(l10n.englishForFilipino),
                 subtitle: ProgressBarStyle.waveform.description,
                 selected: ref.watch(progressBarStyleProvider) ==
                     ProgressBarStyle.waveform,
@@ -249,7 +249,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: LucideIcons.minus,
-                title: ProgressBarStyle.line.label,
+                title: ProgressBarStyle.line.labelFor(l10n.englishForFilipino),
                 subtitle: ProgressBarStyle.line.description,
                 selected: ref.watch(progressBarStyleProvider) ==
                     ProgressBarStyle.line,
@@ -262,7 +262,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.albumColors),
+          SettingsSectionHeader(l10n.englishForFilipino.albumColors),
           SettingsCard(
             children: AlbumColorMode.values.map((mode) {
               final isSelected =
@@ -273,7 +273,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                     const SettingsDivider(),
                   SelectionSetting(
                     icon: LucideIcons.palette,
-                    title: mode.label,
+                    title: mode.labelFor(l10n.englishForFilipino),
                     subtitle: mode.description,
                     selected: isSelected,
                     onTap: () {

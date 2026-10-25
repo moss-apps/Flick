@@ -1,4 +1,7 @@
 {
+  "filipinoDonationNote": "感谢你支持 Flick。",
+  "playingLabel": "播放中",
+  "replayShortcutLabel": "聆听回顾",
   "aDraggableOverlayShowsWhileUsing": "使用其他应用时显示可拖动的悬浮窗",
   "aLittleRecordOfWhatStayed": "记录下那些被你反复播放的旋律。",
   "aNewerFlickBuildIsOn": "Play Store 上有更新的 Flick 版本。",
@@ -233,9 +236,17 @@
   "bassMidTreble": "低音、中音与高音",
   "bassTreble": "低频 + 高频",
   "battery": "电量 {battery}%",
-  "baybayinPilotDescription": "实验性草稿；未翻译的内容仍显示英文。",
+  "baybayinHeadings": "贝贝因文标签",
+  "@baybayinHeadings": {
+    "description": "仅在菲律宾语界面显示的可选文字偏好。"
+  },
+  "baybayinHeadingsDescription": "实验功能：将选定标题、浏览快捷方式和导航标签显示为贝贝因文。无障碍标签仍使用拉丁字母。",
+  "@baybayinHeadingsDescription": {
+    "description": "说明贝贝因文标题的有限、可选范围。"
+  },
+  "baybayinPilotDescription": "他加禄语与英语混合，翻译草稿待审核。",
   "@baybayinPilotDescription": {
-    "description": "Language selector warning for the partial, opt-in Tagalog-in-Baybayin pilot."
+    "description": "Language selector notice that the Taglish copy is a draft for review."
   },
   "beLsbBigEndianSubslotLsb": "BE-LSB — 大端子槽，LSB 在前",
   "beMsbBigEndianSubslotMsb": "BE-MSB —— 大端子槽，MSB 优先（默认）",

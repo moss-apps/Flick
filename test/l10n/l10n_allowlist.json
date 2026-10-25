@@ -82,6 +82,9 @@
     "x3": "speed suffix ('{currentSpeed}x')"
   },
   "unreferenced": {
+    "addedSongsToFavorites": "superseded by the exact Taglish favorite toast",
+    "addedSongsToFavorites3": "superseded by the exact Taglish favorite toast",
+    "addedToFavorites2": "superseded by the exact Taglish favorite toast",
     "alt": "unused in lib/ before this guard was added",
     "appearance": "unused in lib/ before this guard was added",
     "buffer": "unused in lib/ before this guard was added",
@@ -101,6 +104,9 @@
     "notVerified": "unused in lib/ before this guard was added",
     "pcmFrames": "unused in lib/ before this guard was added",
     "rawPcm": "unused in lib/ before this guard was added",
+    "removedFromFavorites": "superseded by the exact Taglish favorite toast",
+    "removedFromFavorites2": "superseded by the exact Taglish favorite toast",
+    "removedSongsFromFavorites": "superseded by the exact Taglish favorite toast",
     "ripSource": "unused in lib/ before this guard was added",
     "stream": "unused in lib/ before this guard was added",
     "targetMs": "unused in lib/ before this guard was added",

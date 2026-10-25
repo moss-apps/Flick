@@ -61,8 +61,8 @@ class MetadataEditorBottomSheet extends ConsumerStatefulWidget {
         SnackBar(
           content: Text(
             result.verified
-                ? l10n.savedAndVerified
-                : (result.message ?? l10n.savedVerificationPending),
+                ? l10n.englishForFilipino.savedAndVerified
+                : (result.message ?? l10n.englishForFilipino.savedVerificationPending),
           ),
           behavior: SnackBarBehavior.floating,
           duration: Duration(seconds: result.verified ? 2 : 4),

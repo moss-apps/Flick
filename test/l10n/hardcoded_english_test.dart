@@ -41,15 +41,15 @@ const String _sourceDir = 'lib';
 const Map<String, String> _allowedPaths = <String, String>{
   'lib/features/whats_new/data/changelog_data.dart':
       'release notes are historical product copy, one entry per shipped '
-          'version; they are not UI strings and are translated as documents',
+      'version; they are not UI strings and are translated as documents',
   'lib/features/manual/data/manual_data.dart':
       'the user manual is a document rendered by manual_screen.dart, not a '
-          'set of UI labels',
+      'set of UI labels',
   'lib/features/settings/widgets/lastfm_settings_tile.dart':
       'the literal is the URL last.fm/api/account/create, shown as link text',
   'lib/features/settings/widgets/language_settings_card.dart':
-      'the language names ("English", "Tagalog (Baybayin)") are endonyms, shown '
-          'verbatim in every locale the way a language picker always does',
+      'the language names ("English", "Taglish") are endonyms, shown '
+      'verbatim in every locale the way a language picker always does',
 };
 
 /// Where a literal actually gets rendered.
@@ -147,10 +147,16 @@ bool _isEnglishProse(String literal) {
   if (s.isEmpty) return false;
   // A URL, a path, a MIME type, a bare identifier or a version is not copy.
   if (RegExp(r'^(?:https?://|/|\\)').hasMatch(s)) return false;
-  if (RegExp(r'^[\w./-]+\.(?:dart|png|jpg|json|arb|xml|txt)$').hasMatch(s)) return false;
-  if (RegExp(r'^[a-z]+/[a-z0-9.+-]+$').hasMatch(s)) return false; // application/json
-  if (RegExp(r'^[\w.-]+$').hasMatch(s)) return false;            // single token
-  if (RegExp(r'^v?\d+\.\d+(?:\.\d+)*(?:[-+][\w.]+)?$').hasMatch(s)) return false;
+  if (RegExp(r'^[\w./-]+\.(?:dart|png|jpg|json|arb|xml|txt)$').hasMatch(s)) {
+    return false;
+  }
+  if (RegExp(r'^[a-z]+/[a-z0-9.+-]+$').hasMatch(s)) {
+    return false; // application/json
+  }
+  if (RegExp(r'^[\w.-]+$').hasMatch(s)) return false; // single token
+  if (RegExp(r'^v?\d+\.\d+(?:\.\d+)*(?:[-+][\w.]+)?$').hasMatch(s)) {
+    return false;
+  }
   return _word.allMatches(literal).length >= 2;
 }
 
@@ -186,11 +192,9 @@ bool _messageIsRendered(String src) {
 const Map<String, String> _internalAssertionPaths = <String, String>{
   'lib/services/alac_converter_service.dart':
       'native session state assertions; failures are logged, the UI shows its '
-          'own l10n string',
-  'lib/services/android_audio_engine.dart':
-      'platform-channel state assertions',
-  'lib/services/audio_engine_manager.dart':
-      'engine-not-attached assertion',
+      'own l10n string',
+  'lib/services/android_audio_engine.dart': 'platform-channel state assertions',
+  'lib/services/audio_engine_manager.dart': 'engine-not-attached assertion',
   'lib/services/apple_music/apple_music_metadata_service.dart':
       'transient retry reasons, consumed by the retry loop and logged',
   'lib/services/database_error.dart': 'database assertion',
@@ -219,8 +223,7 @@ const Map<String, String> _internalAssertionPaths = <String, String>{
 bool _isFalsePositive(String literal) {
   // Interpolated format strings and pure diagnostics are handled by ICU keys
   // or are not copy at all.
-  return literal.trimLeft().startsWith('HTTP ')
-      || literal.contains(r'${');
+  return literal.trimLeft().startsWith('HTTP ') || literal.contains(r'${');
 }
 
 class _Finding {
@@ -258,9 +261,11 @@ List<_Finding> _scan() {
   // caught message somewhere. Without that evidence the whole class is skipped,
   // which is what keeps engine assertions out of the report.
   final anyWidgetPrintsMessage = files.entries
-      .where((e) =>
-          !_allowedPaths.containsKey(e.key) &&
-          !_internalAssertionPaths.containsKey(e.key))
+      .where(
+        (e) =>
+            !_allowedPaths.containsKey(e.key) &&
+            !_internalAssertionPaths.containsKey(e.key),
+      )
       .any((e) => _messageIsRendered(e.value));
 
   for (final entry in files.entries) {
@@ -271,11 +276,13 @@ List<_Finding> _scan() {
     for (final sink in _sink.allMatches(src)) {
       final literal = _literalAt(src, sink.end - 1);
       if (literal == null || !_isEnglishProse(literal)) continue;
-      findings.add(_Finding(
-        path,
-        '\n'.allMatches(src.substring(0, sink.end)).length + 1,
-        literal,
-      ));
+      findings.add(
+        _Finding(
+          path,
+          '\n'.allMatches(src.substring(0, sink.end)).length + 1,
+          literal,
+        ),
+      );
     }
 
     if (_internalAssertionPaths.containsKey(path)) continue;
@@ -286,11 +293,13 @@ List<_Finding> _scan() {
         final literal = _literalAt(src, m.end - 1);
         if (literal == null || !_isEnglishProse(literal)) continue;
         if (_isFalsePositive(literal)) continue;
-        findings.add(_Finding(
-          path,
-          '\n'.allMatches(src.substring(0, m.end)).length + 1,
-          literal,
-        ));
+        findings.add(
+          _Finding(
+            path,
+            '\n'.allMatches(src.substring(0, m.end)).length + 1,
+            literal,
+          ),
+        );
       }
     }
   }
@@ -304,7 +313,8 @@ void main() {
     expect(
       findings,
       isEmpty,
-      reason: 'These strings are shown to the user exactly as written, so every '
+      reason:
+          'These strings are shown to the user exactly as written, so every '
           'locale shows English:\n${findings.join('\n')}\n\n'
           'Move each one into lib/l10n/app_en.arb + app_zh.arb and read it through '
           '`context.l10n`. A `const` widget cannot call `l10n` -- drop the `const` '

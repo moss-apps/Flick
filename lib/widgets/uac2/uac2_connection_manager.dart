@@ -71,7 +71,7 @@ class _Uac2ConnectionManagerState extends ConsumerState<Uac2ConnectionManager> {
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
           content: Text(
-            success ? l10n.reconnectionSuccessful : l10n.reconnectionFailed,
+            success ? l10n.englishForFilipino.reconnectionSuccessful : l10n.englishForFilipino.reconnectionFailed,
           ),
           backgroundColor: success ? Colors.green : Colors.red,
         ),
@@ -87,7 +87,10 @@ class _Uac2ConnectionManagerState extends ConsumerState<Uac2ConnectionManager> {
     final isStreaming = next.state == Uac2State.streaming;
     final format = next.currentFormat;
     final formatSuffix = format != null
-        ? l10n.atKhzBit((format.sampleRate ~/ 1000), format.bitDepth)
+        ? l10n.englishForFilipino.atKhzBit(
+            (format.sampleRate ~/ 1000),
+            format.bitDepth,
+          )
         : '';
     ScaffoldMessenger.of(context).showFlickSnackBar(
       SnackBar(

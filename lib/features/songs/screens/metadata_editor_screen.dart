@@ -186,7 +186,7 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
       if (result.verified) {
         messenger.showFlickSnackBar(
           SnackBar(
-            content: Text(l10n.savedAndVerified),
+            content: Text(l10n.englishForFilipino.savedAndVerified),
             behavior: SnackBarBehavior.floating,
             duration: Duration(seconds: 2),
           ),
@@ -194,7 +194,7 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
       } else {
         messenger.showFlickSnackBar(
           SnackBar(
-            content: Text(result.message ?? l10n.savedVerificationPending),
+            content: Text(result.message ?? l10n.englishForFilipino.savedVerificationPending),
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 4),
           ),

@@ -12,7 +12,7 @@ import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 String _placementLabel(double value) {
   if (value == 0) return l10n.center;
   return value < 0 ? l10n.up(value.abs().round()) : l10n.down(value.round());
@@ -30,7 +30,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
     final playerScreenMode = ref.watch(playerScreenModeProvider);
 
     return SettingsScaffold(
-      title: l10n.playerLayout,
+      title: l10n.englishForFilipino.playerLayout,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -79,7 +79,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          l10n.fullscreen,
+                          l10n.englishForFilipino.fullscreen,
                           style: TextStyle(
                             fontFamily: 'GoogleSansFlex',
                             fontSize: 11,
@@ -95,12 +95,12 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.layoutMode),
+          SettingsSectionHeader(l10n.englishForFilipino.layoutMode),
           SettingsCard(
             children: [
               SelectionSetting(
                 icon: Icons.fit_screen_rounded,
-                title: PlayerScreenMode.immersive.label,
+                title: PlayerScreenMode.immersive.labelFor(l10n.englishForFilipino),
                 subtitle: PlayerScreenMode.immersive.description,
                 selected: playerScreenMode == PlayerScreenMode.immersive,
                 onTap: () {
@@ -112,7 +112,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: Icons.rounded_corner_rounded,
-                title: PlayerScreenMode.artworkCard.label,
+                title: PlayerScreenMode.artworkCard.labelFor(l10n.englishForFilipino),
                 subtitle: PlayerScreenMode.artworkCard.description,
                 selected: playerScreenMode == PlayerScreenMode.artworkCard,
                 onTap: () {
@@ -124,12 +124,12 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.immersive),
+          SettingsSectionHeader(l10n.englishForFilipino.immersive),
           SettingsCard(
             children: [
               SliderSetting(
                 icon: LucideIcons.type,
-                title: l10n.textSize2,
+                title: l10n.englishForFilipino.textSize2,
                 subtitle: l10n.adjustMetadataTextSizeInImmersive,
                 value: appPrefs.immersiveTextScale,
                 displayValue: _percentLabel(appPrefs.immersiveTextScale),
@@ -145,7 +145,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.arrowUpDown,
-                title: l10n.textPlacement2,
+                title: l10n.englishForFilipino.textPlacement2,
                 subtitle: l10n.shiftMetadataTextUpOrDown,
                 value: appPrefs.immersiveVerticalOffset,
                 displayValue: _placementLabel(appPrefs.immersiveVerticalOffset),
@@ -161,7 +161,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.maximize,
-                title: l10n.fullViewCardSize2,
+                title: l10n.englishForFilipino.fullViewCardSize2,
                 subtitle: l10n.scaleTheFullViewAlbumArt,
                 value: appPrefs.immersiveFullViewScale,
                 displayValue: _percentLabel(appPrefs.immersiveFullViewScale),
@@ -177,7 +177,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.fileText,
-                title: l10n.showTitle2,
+                title: l10n.englishForFilipino.showTitle2,
                 subtitle: l10n.displayTheTrackTitleInImmersive,
                 value: appPrefs.immersiveShowTitle,
                 onChanged: (value) {
@@ -189,7 +189,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.mic,
-                title: l10n.showArtist2,
+                title: l10n.englishForFilipino.showArtist2,
                 subtitle: l10n.displayTheArtistNameInImmersive,
                 value: appPrefs.immersiveShowArtist,
                 onChanged: (value) {
@@ -201,7 +201,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.info,
-                title: l10n.showFileInfo2,
+                title: l10n.englishForFilipino.showFileInfo2,
                 subtitle: l10n.displayFileFormatAndBitrateIn,
                 value: appPrefs.immersiveShowFileInfo,
                 onChanged: (value) {
@@ -213,7 +213,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.clock,
-                title: l10n.autoFullView,
+                title: l10n.englishForFilipino.autoFullView,
                 subtitle: l10n.autoShowFullViewAfterInactivity,
                 value: appPrefs.immersiveAutoFullViewSeconds.toDouble(),
                 displayValue: appPrefs.immersiveAutoFullViewSeconds == 0
@@ -231,12 +231,12 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.artworkCard),
+          SettingsSectionHeader(l10n.englishForFilipino.artworkCard),
           SettingsCard(
             children: [
               SliderSetting(
                 icon: LucideIcons.rectangleHorizontal,
-                title: l10n.artworkSize2,
+                title: l10n.englishForFilipino.artworkSize2,
                 subtitle: l10n.scaleTheAlbumArtCard,
                 value: appPrefs.artworkCardArtworkScale,
                 displayValue: _percentLabel(appPrefs.artworkCardArtworkScale),
@@ -252,7 +252,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.type,
-                title: l10n.textSize2,
+                title: l10n.englishForFilipino.textSize2,
                 subtitle: l10n.adjustMetadataTextSizeInArtwork,
                 value: appPrefs.artworkCardTextScale,
                 displayValue: _percentLabel(appPrefs.artworkCardTextScale),
@@ -268,7 +268,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.arrowUpDown,
-                title: l10n.contentPlacement2,
+                title: l10n.englishForFilipino.contentPlacement2,
                 subtitle: l10n.shiftOnlyTheSongDetailsUp,
                 value: appPrefs.artworkCardVerticalOffset,
                 displayValue:
@@ -285,7 +285,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.moveVertical,
-                title: l10n.artworkPlacement2,
+                title: l10n.englishForFilipino.artworkPlacement2,
                 subtitle: l10n.shiftOnlyTheAlbumArtUp,
                 value: appPrefs.artworkCardArtworkOffset,
                 displayValue:
@@ -302,7 +302,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.fileText,
-                title: l10n.showTitle2,
+                title: l10n.englishForFilipino.showTitle2,
                 subtitle: l10n.displayTheTrackTitleInArtwork,
                 value: appPrefs.artworkCardShowTitle,
                 onChanged: (value) {
@@ -314,7 +314,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.mic,
-                title: l10n.showArtist2,
+                title: l10n.englishForFilipino.showArtist2,
                 subtitle: l10n.displayTheArtistNameInArtwork,
                 value: appPrefs.artworkCardShowArtist,
                 onChanged: (value) {
@@ -326,7 +326,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.disc,
-                title: l10n.showAlbum2,
+                title: l10n.englishForFilipino.showAlbum2,
                 subtitle: l10n.displayTheAlbumNameInArtwork,
                 value: appPrefs.artworkCardShowAlbum,
                 onChanged: (value) {
@@ -338,7 +338,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.info,
-                title: l10n.showFileInfo2,
+                title: l10n.englishForFilipino.showFileInfo2,
                 subtitle:
                     l10n.displayFileFormatAndBitrateIn2,
                 value: appPrefs.artworkCardShowFileInfo,
@@ -351,7 +351,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.frame,
-                title: l10n.showFrame2,
+                title: l10n.englishForFilipino.showFrame2,
                 subtitle: l10n.showTheGlassFrameAroundAlbum,
                 value: appPrefs.artworkCardShowFrame,
                 onChanged: (value) {
@@ -363,7 +363,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.shieldCheck,
-                title: l10n.bitPerfectCapsule,
+                title: l10n.englishForFilipino.bitPerfectCapsule,
                 subtitle:
                     l10n.replaceAlbumNameWithAVerified,
                 value: appPrefs.replaceAlbumWithBitPerfectCapsule,
@@ -376,20 +376,20 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.quickActions),
+          SettingsSectionHeader(l10n.englishForFilipino.quickActions),
           SettingsCard(
             children: [
               NavigationSetting(
                 icon: Icons.arrow_upward_rounded,
-                title: l10n.leftTopButton,
+                title: l10n.englishForFilipino.leftTopButton,
                 subtitle: PlayerActionButtonX.fromStorageValue(
                   appPrefs.leftTopActionButton,
-                ).label,
+                ).labelFor(l10n.englishForFilipino),
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => _ActionButtonPickerScreen(
-                        title: l10n.leftTopButton,
+                        title: l10n.englishForFilipino.leftTopButton,
                         currentValue: PlayerActionButtonX.fromStorageValue(
                           appPrefs.leftTopActionButton,
                         ),
@@ -406,15 +406,15 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               NavigationSetting(
                 icon: Icons.arrow_back_rounded,
-                title: l10n.leftBottomButton,
+                title: l10n.englishForFilipino.leftBottomButton,
                 subtitle: PlayerActionButtonX.fromStorageValue(
                   appPrefs.leftActionButton,
-                ).label,
+                ).labelFor(l10n.englishForFilipino),
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => _ActionButtonPickerScreen(
-                        title: l10n.leftBottomButton,
+                        title: l10n.englishForFilipino.leftBottomButton,
                         currentValue: PlayerActionButtonX.fromStorageValue(
                           appPrefs.leftActionButton,
                         ),
@@ -431,15 +431,15 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               NavigationSetting(
                 icon: Icons.arrow_upward_rounded,
-                title: l10n.rightTopButton,
+                title: l10n.englishForFilipino.rightTopButton,
                 subtitle: PlayerActionButtonX.fromStorageValue(
                   appPrefs.rightTopActionButton,
-                ).label,
+                ).labelFor(l10n.englishForFilipino),
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => _ActionButtonPickerScreen(
-                        title: l10n.rightTopButton,
+                        title: l10n.englishForFilipino.rightTopButton,
                         currentValue: PlayerActionButtonX.fromStorageValue(
                           appPrefs.rightTopActionButton,
                         ),
@@ -456,15 +456,15 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               NavigationSetting(
                 icon: Icons.arrow_forward_rounded,
-                title: l10n.rightBottomButton,
+                title: l10n.englishForFilipino.rightBottomButton,
                 subtitle: PlayerActionButtonX.fromStorageValue(
                   appPrefs.rightActionButton,
-                ).label,
+                ).labelFor(l10n.englishForFilipino),
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => _ActionButtonPickerScreen(
-                        title: l10n.rightBottomButton,
+                        title: l10n.englishForFilipino.rightBottomButton,
                         currentValue: PlayerActionButtonX.fromStorageValue(
                           appPrefs.rightActionButton,
                         ),
@@ -552,7 +552,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    mode.label,
+                                    mode.labelFor(l10n.englishForFilipino),
                                     style: TextStyle(
                                       fontFamily: 'GoogleSansFlex',
                                       fontSize: 15,
@@ -665,7 +665,7 @@ class _LayoutPreview extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  l10n.livePreview,
+                  l10n.englishForFilipino.livePreview,
                   style: TextStyle(
                     fontFamily: 'GoogleSansFlex',
                     fontSize: 12,
@@ -964,7 +964,7 @@ class _ActionButtonPickerScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.chooseAction),
+          SettingsSectionHeader(l10n.englishForFilipino.chooseAction),
           SettingsCard(
             children: PlayerActionButton.values.fold<List<Widget>>(
               [],
@@ -975,7 +975,7 @@ class _ActionButtonPickerScreen extends ConsumerWidget {
                 list.add(
                   SelectionSetting(
                     icon: action.icon,
-                    title: action.label,
+                    title: action.labelFor(l10n.englishForFilipino),
                     subtitle: '',
                     selected: action == currentValue,
                     onTap: () {

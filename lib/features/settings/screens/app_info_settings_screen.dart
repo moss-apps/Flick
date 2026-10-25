@@ -21,7 +21,7 @@ import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/build_info_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class AppInfoSettingsScreen extends ConsumerStatefulWidget {
   const AppInfoSettingsScreen({super.key});
@@ -148,7 +148,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     if (updateState.isChecking) {
       return (
         icon: LucideIcons.refreshCw,
-        title: l10n.checkingForUpdates,
+        title: l10n.englishForFilipino.checkingForUpdates,
         subtitle: isPlay
             ? l10n.lookingForTheLatestPlayStore
             : l10n.lookingForTheLatestFlickRelease,
@@ -157,7 +157,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     if (updateState.updateAvailable) {
       return (
         icon: LucideIcons.badgeAlert,
-        title: l10n.updateAvailable,
+        title: l10n.englishForFilipino.updateAvailable,
         subtitle: isPlay
             ? l10n.openThePlayStoreToInstall
             : l10n.downloadTheLatestApkFromFlick,
@@ -166,21 +166,21 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     if (updateState.errorMessage != null) {
       return (
         icon: LucideIcons.info,
-        title: l10n.couldNotCheckForUpdates,
+        title: l10n.englishForFilipino.couldNotCheckForUpdates,
         subtitle: updateState.errorMessage!,
       );
     }
     if (!updateState.isOnline) {
       return (
         icon: LucideIcons.wifiOff,
-        title: l10n.offline,
+        title: l10n.englishForFilipino.offline,
         subtitle: l10n.reconnectToWiFiOrMobile,
       );
     }
     if (updateState.hasChecked) {
       return (
         icon: LucideIcons.badgeCheck,
-        title: l10n.noUpdateAvailable,
+        title: l10n.englishForFilipino.noUpdateAvailable,
         subtitle: isPlay
             ? l10n.youAlreadyHaveTheLatestPlay
             : l10n.youAlreadyHaveTheLatestFlick,
@@ -188,7 +188,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     }
     return (
       icon: LucideIcons.info,
-      title: l10n.automaticUpdateChecks,
+      title: l10n.englishForFilipino.automaticUpdateChecks,
       subtitle: isPlay
           ? l10n.flickScansForPlayStoreUpdates
           : l10n.flickChecksFlickPlayerSiteFor,
@@ -274,7 +274,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
   void _showPatchNotesBottomSheet() {
     GlassBottomSheet.show(
       context: context,
-      title: l10n.patchNotes,
+      title: l10n.englishForFilipino.patchNotes,
       maxHeightRatio: 0.7,
       content: FutureBuilder<_PatchNotes>(
         future: _fetchPatchNotes(),
@@ -434,7 +434,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
   void _showAboutBottomSheet() {
     GlassBottomSheet.show(
       context: context,
-      title: l10n.aboutFlickPlayer,
+      title: l10n.englishForFilipino.aboutFlickPlayer,
       maxHeightRatio: 0.5,
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -601,18 +601,18 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     final updateState = ref.watch(updateCheckProvider);
 
     return SettingsScaffold(
-      title: l10n.appInfo,
+      title: l10n.englishForFilipino.appInfo,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.updates),
+          SettingsSectionHeader(l10n.englishForFilipino.updates),
           SettingsCard(
             children: [
               ActionButton(
                 icon: LucideIcons.refreshCw,
                 title: updateState.isChecking
-                    ? l10n.checkingForUpdates2
-                    : l10n.checkAgain,
+                    ? l10n.englishForFilipino.checkingForUpdates2
+                    : l10n.englishForFilipino.checkAgain,
                 subtitle: updateState.isOnline
                     ? updateState.isPlayStoreBuild
                           ? l10n.runAnotherPlayStoreUpdateScan
@@ -626,7 +626,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
                 const SettingsDivider(),
                 NavigationSetting(
                   icon: LucideIcons.fileText,
-                  title: l10n.patchNotes,
+                  title: l10n.englishForFilipino.patchNotes,
                   subtitle: l10n.seeWhatIsNewInThis,
                   onTap: _showPatchNotesBottomSheet,
                 ),
@@ -634,14 +634,14 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
                 if (updateState.isPlayStoreBuild)
                   ActionButton(
                     icon: LucideIcons.externalLink,
-                    title: l10n.openInPlayStore,
+                    title: l10n.englishForFilipino.openInPlayStore,
                     subtitle: l10n.jumpToTheFlickListingAnd,
                     onTap: _openPlayStoreListing,
                   )
                 else
                   ActionButton(
                     icon: LucideIcons.download,
-                    title: l10n.downloadUpdate,
+                    title: l10n.englishForFilipino.downloadUpdate,
                     subtitle: l10n.getTheLatestApkFromFlick,
                     onTap: () =>
                         _launchUrl(UpdateCheckNotifier.flickWebsiteDownloadUrl),
@@ -650,12 +650,12 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.about),
+          SettingsSectionHeader(l10n.englishForFilipino.about),
           SettingsCard(
             children: [
               NavigationSetting(
                 icon: LucideIcons.info,
-                title: l10n.aboutFlickPlayer,
+                title: l10n.englishForFilipino.aboutFlickPlayer,
                 subtitle: l10n.version(kAppVersion),
                 onTap: _showAboutBottomSheet,
               ),
@@ -663,21 +663,21 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
                 const SettingsDivider(),
                 InfoSetting(
                   icon: LucideIcons.package,
-                  title: l10n.buildFlavor,
+                  title: l10n.englishForFilipino.buildFlavor,
                   subtitle: _buildFlavorSubtitle(_buildFlavor!),
                 ),
               ],
               const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.fileText,
-                title: l10n.licenses,
+                title: l10n.englishForFilipino.licenses,
                 subtitle: l10n.openSourceLicenses,
                 onTap: _openLicensesScreen,
               ),
               const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.shieldCheck,
-                title: l10n.privacyPolicy,
+                title: l10n.englishForFilipino.privacyPolicy,
                 subtitle: l10n.howWeHandleYourData,
                 onTap: () {
                   Navigator.of(context).push(
@@ -690,7 +690,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
               const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.sparkles,
-                title: l10n.viewOnboarding,
+                title: l10n.englishForFilipino.viewOnboarding,
                 subtitle: l10n.replayTheTutorialAndFeatureGuide,
                 onTap: () {
                   ref.read(onboardingCompletedProvider.notifier).reset();
@@ -704,7 +704,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
               const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.graduationCap,
-                title: l10n.interactiveTutorial,
+                title: l10n.englishForFilipino.interactiveTutorial,
                 subtitle: l10n.stepByStepWalkthroughOfThe,
                 onTap: () {
                   ref.read(tutorialProvider.notifier).start();
@@ -714,7 +714,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.support),
+          SettingsSectionHeader(l10n.englishForFilipino.support),
           AnimatedBuilder(
             animation: _donationPulseAnimation,
             builder: (context, child) {
@@ -728,7 +728,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
                 children: [
                   NavigationSetting(
                     icon: LucideIcons.heart,
-                    title: l10n.supportFlick,
+                    title: l10n.englishForFilipino.supportFlick,
                     subtitle: l10n.donateFundFeaturesAndKeepThe,
                     onTap: () {
                       Navigator.of(context).push(

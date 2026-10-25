@@ -30,7 +30,7 @@ import 'package:flick/widgets/common/rotary_knob.dart';
 import 'package:flick/widgets/equalizer/parametric_eq_graph.dart';
 import 'package:flick/widgets/equalizer/graphic_eq_graph.dart';
 import 'package:flick/widgets/equalizer/interactive_eq_graph.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 enum _PresetFileFormat { json, txt }
 
@@ -66,7 +66,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   void _showPresetsBottomSheet() {
     GlassBottomSheet.show<void>(
       context: context,
-      title: l10n.presets,
+      title: l10n.englishForFilipino.presets,
       maxHeightRatio: 0.6,
       content: _PresetsSheet(),
     );
@@ -88,7 +88,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _Header(
-                  title: l10n.eqDynamics,
+                  title: l10n.englishForFilipino.eqDynamics,
                   subtitle: activePresetName != null
                       ? l10n.preset(activePresetName)
                       : null,
@@ -437,10 +437,10 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
   Future<String?> _askForName(BuildContext context, {String? initial}) {
     final result = FlickDialogs.input(
       context,
-      title: initial == null ? l10n.savePreset : l10n.renamePreset,
+      title: initial == null ? l10n.englishForFilipino.savePreset : l10n.englishForFilipino.renamePreset,
       hintText: l10n.presetName,
       initialValue: initial,
-      confirmLabel: l10n.save,
+      confirmLabel: l10n.englishForFilipino.save,
     );
     return result;
   }
@@ -652,7 +652,7 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
       context: context,
       barrierLabel: l10n.exportFormat,
       builder: (dialogContext) => FlickDialog(
-        title: l10n.format,
+        title: l10n.englishForFilipino.format,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -702,9 +702,9 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
   Future<void> _deletePreset(EqPreset preset) async {
     final confirmed = await FlickDialogs.confirm(
       context,
-      title: l10n.deletePreset,
+      title: l10n.englishForFilipino.deletePreset,
       message: l10n.deleteThisCannotBeUndone(preset.name),
-      confirmLabel: l10n.delete,
+      confirmLabel: l10n.englishForFilipino.delete,
       destructive: true,
     );
     if (!confirmed) return;
@@ -735,28 +735,28 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
             children: [
               _PresetActionRow(
                 icon: LucideIcons.plus,
-                title: l10n.saveCurrentAsPreset,
+                title: l10n.englishForFilipino.saveCurrentAsPreset,
                 subtitle: l10n.createACustomPreset,
                 onTap: _saveNewPreset,
               ),
               _Divider(),
               _PresetActionRow(
                 icon: LucideIcons.fileUp,
-                title: l10n.importPresetFile,
+                title: l10n.englishForFilipino.importPresetFile,
                 subtitle: l10n.loadAJsonOrTxtPreset,
                 onTap: _importPresetFile,
               ),
               _Divider(),
               _PresetActionRow(
                 icon: LucideIcons.fileDown,
-                title: l10n.exportCurrentPreset,
+                title: l10n.englishForFilipino.exportCurrentPreset,
                 subtitle: l10n.saveTheCurrentEqAsJson,
                 onTap: _exportCurrentPreset,
               ),
               _Divider(),
               _PresetActionRow(
                 icon: LucideIcons.headphones,
-                title: l10n.autoeqHeadphones,
+                title: l10n.englishForFilipino.autoeqHeadphones,
                 subtitle: l10n.matchEqToYourHeadphoneModel,
                 onTap: _openAutoEqSheet,
               ),
@@ -764,7 +764,7 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
           ),
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        _SectionHeader(title: l10n.builtIn),
+        _SectionHeader(title: l10n.englishForFilipino.builtIn),
         _GlassCard(
           child: Column(
             children: [
@@ -780,7 +780,7 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
           ),
         ),
         const SizedBox(height: AppConstants.spacingLg),
-        _SectionHeader(title: l10n.custom),
+        _SectionHeader(title: l10n.englishForFilipino.custom),
         _GlassCard(
           child: _custom.isEmpty
               ? Padding(
@@ -1191,7 +1191,7 @@ class _TopControlsRow extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.equalizer,
+                    l10n.englishForFilipino.equalizer,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: context.adaptiveTextPrimary,
                     ),
@@ -1260,7 +1260,7 @@ class _PreampRow extends ConsumerWidget {
                   Row(
                     children: [
                       Text(
-                        l10n.preamp,
+                        l10n.englishForFilipino.preamp,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           color: context.adaptiveTextPrimary,
                         ),
@@ -1580,7 +1580,7 @@ class _ModeAndActionsRow extends ConsumerWidget {
             const SizedBox(width: AppConstants.spacingMd),
             _ActionButton(
               icon: LucideIcons.rotateCcw,
-              label: l10n.reset,
+              label: l10n.englishForFilipino.reset,
               onTap: () {
                 final notifier = ref.read(equalizerProvider.notifier);
                 if (mode == EqMode.graphic) {
@@ -1630,7 +1630,7 @@ class _BmtKnobsRow extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l10n.toneControls,
+                          l10n.englishForFilipino.toneControls,
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             color: context.adaptiveTextPrimary,
                           ),
@@ -1663,7 +1663,7 @@ class _BmtKnobsRow extends ConsumerWidget {
               children: [
                 _LabeledKnob(
                   icon: LucideIcons.arrowDown,
-                  label: l10n.bass,
+                  label: l10n.englishForFilipino.bass,
                   valueLabel:
                       '${bassDb >= 0 ? '+' : ''}${bassDb.toStringAsFixed(1)} dB',
                   value: bassDb,
@@ -1678,7 +1678,7 @@ class _BmtKnobsRow extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.minus,
-                  label: l10n.mid,
+                  label: l10n.englishForFilipino.mid,
                   valueLabel:
                       '${midDb >= 0 ? '+' : ''}${midDb.toStringAsFixed(1)} dB',
                   value: midDb,
@@ -1693,7 +1693,7 @@ class _BmtKnobsRow extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.arrowUp,
-                  label: l10n.treble,
+                  label: l10n.englishForFilipino.treble,
                   valueLabel:
                       '${trebleDb >= 0 ? '+' : ''}${trebleDb.toStringAsFixed(1)} dB',
                   value: trebleDb,
@@ -1733,13 +1733,13 @@ class _GraphicEqView extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: l10n.graphicEq),
+        _SectionHeader(title: l10n.englishForFilipino.graphicEq),
         const SizedBox(height: AppConstants.spacingSm),
         _ModeSummaryRow(
           children: [
             _StatPill(
               icon: LucideIcons.slidersVertical,
-              label: l10n.fixedBands,
+              label: l10n.englishForFilipino.fixedBands,
             ),
             _StatPill(
               icon: adjustedBands == 0
@@ -1751,7 +1751,7 @@ class _GraphicEqView extends ConsumerWidget {
             ),
             _StatPill(
               icon: LucideIcons.refreshCcw,
-              label: l10n.doubleTapABandToReset,
+              label: l10n.englishForFilipino.doubleTapABandToReset,
             ),
           ],
         ),
@@ -1776,7 +1776,7 @@ class _GraphicEqView extends ConsumerWidget {
                 children: [
                   _CardHeader(
                     icon: LucideIcons.audioLines,
-                    title: l10n.curvePreview,
+                    title: l10n.englishForFilipino.curvePreview,
                     subtitle:
                         l10n.fixedCenterFrequenciesWithADb(EqualizerNotifier.gainMaxDb.toStringAsFixed(0)),
                     trailing: Row(
@@ -1820,7 +1820,7 @@ class _GraphicEqView extends ConsumerWidget {
               children: [
                 _CardHeader(
                   icon: LucideIcons.slidersVertical,
-                  title: l10n.bandControls,
+                  title: l10n.englishForFilipino.bandControls,
                   subtitle: l10n.swipeHorizontallyToFineTuneEach,
                 ),
                 const SizedBox(height: AppConstants.spacingMd),
@@ -2158,25 +2158,25 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: l10n.parametricEq),
+        _SectionHeader(title: l10n.englishForFilipino.parametricEq),
         const SizedBox(height: AppConstants.spacingSm),
         _ModeSummaryRow(
           children: [
             _StatPill(
               icon: LucideIcons.circleDot,
-              label: l10n.activeBands(activeCount),
+              label: l10n.englishForFilipino.activeBands(activeCount),
             ),
             _StatPill(
               icon: LucideIcons.scanSearch,
-              label: l10n.logFrequencyControl,
+              label: l10n.englishForFilipino.logFrequencyControl,
             ),
             _StatPill(
               icon: LucideIcons.funnel,
-              label: l10n.multiFilterBands,
+              label: l10n.englishForFilipino.multiFilterBands,
             ),
             _StatPill(
               icon: LucideIcons.slidersHorizontal,
-              label: l10n.bands(bands.length),
+              label: l10n.englishForFilipino.bands(bands.length),
             ),
           ],
         ),
@@ -2201,7 +2201,7 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                 children: [
                   _CardHeader(
                     icon: LucideIcons.gitBranchPlus,
-                    title: l10n.curvePreview,
+                    title: l10n.englishForFilipino.curvePreview,
                     subtitle:
                         l10n.parametricBandsWithIndependentFrequency(bands.length),
                     trailing: Icon(
@@ -2238,7 +2238,7 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                 children: [
                   _CardHeader(
                     icon: LucideIcons.slidersHorizontal,
-                    title: l10n.bandEditors,
+                    title: l10n.englishForFilipino.bandEditors,
                     subtitle:
                         l10n.tapABandToExpandDrag,
                   ),
@@ -2609,7 +2609,7 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _DetailKnob(
-                label: l10n.frequency,
+                label: l10n.englishForFilipino.frequency,
                 value: _hzLabel(band.frequencyHz),
                 knob: RotaryKnob(
                   value: _hzToT(band.frequencyHz),
@@ -2621,14 +2621,14 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                           .read(equalizerProvider.notifier)
                           .setParamBandFreqHz(widget.index, _tToHz(t))
                       : null,
-                  label: l10n.freq,
+                  label: l10n.englishForFilipino.freq,
                 ),
                 onTapValue: editable
                     ? () => _showEditor(
                           context: context,
                           value: band.frequencyHz,
                           unit: l10n.hz5,
-                          label: l10n.frequency,
+                          label: l10n.englishForFilipino.frequency,
                           min: 20.0,
                           max: 20000.0,
                           onSubmitted: (v) => ref
@@ -2664,7 +2664,7 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                                   : v,
                             )
                         : null,
-                    label: l10n.gain,
+                    label: l10n.englishForFilipino.gain,
                     accentColor: toneColor,
                   ),
                   onTapValue: editable
@@ -3182,7 +3182,7 @@ class _ParametricBandEditor extends ConsumerWidget {
                                   : v,
                             )
                         : null,
-                    label: l10n.gain,
+                    label: l10n.englishForFilipino.gain,
                     accentColor: toneColor,
                   ),
                   Container(
@@ -3253,7 +3253,7 @@ class _DynamicsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: l10n.dynamics),
+        _SectionHeader(title: l10n.englishForFilipino.dynamics),
         const SizedBox(height: AppConstants.spacingSm),
         _ModeSummaryRow(
           children: [
@@ -3301,7 +3301,7 @@ class _DynamicsSection extends ConsumerWidget {
         const SizedBox(height: AppConstants.spacingMd),
         _DynamicsCard(
           icon: LucideIcons.activity,
-          title: l10n.compressor,
+          title: l10n.englishForFilipino.compressor,
           subtitle:
               l10n.smoothsPeaksAndRaisesBodyBefore,
           active: enabled && compressor.enabled,
@@ -3316,7 +3316,7 @@ class _DynamicsSection extends ConsumerWidget {
               children: [
                 _LabeledKnob(
                   icon: LucideIcons.arrowDownWideNarrow,
-                  label: l10n.threshold,
+                  label: l10n.englishForFilipino.threshold,
                   valueLabel:
                       l10n.db10(compressor.thresholdDb.toStringAsFixed(1)),
                   value: compressor.thresholdDb,
@@ -3330,7 +3330,7 @@ class _DynamicsSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.ratio,
-                  label: l10n.ratio,
+                  label: l10n.englishForFilipino.ratio,
                   valueLabel: '${compressor.ratio.toStringAsFixed(1)}:1',
                   value: compressor.ratio,
                   min: EqualizerNotifier.compressorRatioMin,
@@ -3343,7 +3343,7 @@ class _DynamicsSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.timer,
-                  label: l10n.attack,
+                  label: l10n.englishForFilipino.attack,
                   valueLabel: l10n.ms2(compressor.attackMs.toStringAsFixed(0)),
                   value: compressor.attackMs,
                   min: EqualizerNotifier.compressorAttackMinMs,
@@ -3356,7 +3356,7 @@ class _DynamicsSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.timerReset,
-                  label: l10n.release,
+                  label: l10n.englishForFilipino.release,
                   valueLabel:
                       l10n.ms3(compressor.releaseMs.toStringAsFixed(0)),
                   value: compressor.releaseMs,
@@ -3370,7 +3370,7 @@ class _DynamicsSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.volume2,
-                  label: l10n.makeup,
+                  label: l10n.englishForFilipino.makeup,
                   valueLabel:
                       '${compressor.makeupGainDb >= 0 ? '+' : ''}${compressor.makeupGainDb.toStringAsFixed(1)} dB',
                   value: compressor.makeupGainDb,
@@ -3389,7 +3389,7 @@ class _DynamicsSection extends ConsumerWidget {
         const SizedBox(height: AppConstants.spacingMd),
         _DynamicsCard(
           icon: LucideIcons.shieldCheck,
-          title: l10n.limiter,
+          title: l10n.englishForFilipino.limiter,
           subtitle:
               l10n.addsPreDriveAndCatchesPeaks,
           active: enabled && limiter.enabled,
@@ -3404,7 +3404,7 @@ class _DynamicsSection extends ConsumerWidget {
               children: [
                 _LabeledKnob(
                   icon: LucideIcons.gauge,
-                  label: l10n.inputGain,
+                  label: l10n.englishForFilipino.inputGain,
                   valueLabel:
                       '${limiter.inputGainDb >= 0 ? '+' : ''}${limiter.inputGainDb.toStringAsFixed(1)} dB',
                   value: limiter.inputGainDb,
@@ -3418,7 +3418,7 @@ class _DynamicsSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.alignEndVertical,
-                  label: l10n.ceiling,
+                  label: l10n.englishForFilipino.ceiling,
                   valueLabel: l10n.db13(limiter.ceilingDb.toStringAsFixed(1)),
                   value: limiter.ceilingDb,
                   min: EqualizerNotifier.limiterCeilingMinDb,
@@ -3431,7 +3431,7 @@ class _DynamicsSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.timerReset,
-                  label: l10n.release,
+                  label: l10n.englishForFilipino.release,
                   valueLabel: l10n.ms4(limiter.releaseMs.toStringAsFixed(0)),
                   value: limiter.releaseMs,
                   min: EqualizerNotifier.limiterReleaseMinMs,
@@ -3503,7 +3503,7 @@ class _CreativeFxSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: l10n.creativeFx),
+        _SectionHeader(title: l10n.englishForFilipino.creativeFx),
         const SizedBox(height: AppConstants.spacingSm),
         _ModeSummaryRow(
           children: [
@@ -3513,15 +3513,15 @@ class _CreativeFxSection extends ConsumerWidget {
             ),
             _StatPill(
               icon: LucideIcons.slidersHorizontal,
-              label: l10n.balance2(_balanceLabel(fx.balance)),
+              label: l10n.englishForFilipino.balance2(_balanceLabel(fx.balance)),
             ),
             _StatPill(
               icon: LucideIcons.timer,
-              label: l10n.tempoX(fx.tempo.toStringAsFixed(2)),
+              label: l10n.englishForFilipino.tempoX(fx.tempo.toStringAsFixed(2)),
             ),
             _StatPill(
               icon: LucideIcons.audioLines,
-              label: l10n.mix2(_percentLabel(fx.mix)),
+              label: l10n.englishForFilipino.mix2(_percentLabel(fx.mix)),
             ),
           ],
         ),
@@ -3546,7 +3546,7 @@ class _CreativeFxSection extends ConsumerWidget {
         const SizedBox(height: AppConstants.spacingMd),
         _DynamicsCard(
           icon: LucideIcons.sparkles,
-          title: l10n.spatialTime,
+          title: l10n.englishForFilipino.spatialTime,
           subtitle:
               l10n.balanceTempoDampFilterDelaysSize,
           active: enabled && fx.enabled,
@@ -3561,7 +3561,7 @@ class _CreativeFxSection extends ConsumerWidget {
               children: [
                 _LabeledKnob(
                   icon: LucideIcons.slidersHorizontal,
-                  label: l10n.balance,
+                  label: l10n.englishForFilipino.balance,
                   valueLabel: _balanceLabel(fx.balance),
                   value: fx.balance,
                   min: EqualizerNotifier.fxBalanceMin,
@@ -3574,7 +3574,7 @@ class _CreativeFxSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.timer,
-                  label: l10n.tempo,
+                  label: l10n.englishForFilipino.tempo,
                   valueLabel: '${fx.tempo.toStringAsFixed(2)}x',
                   value: fx.tempo,
                   min: EqualizerNotifier.fxTempoMin,
@@ -3587,7 +3587,7 @@ class _CreativeFxSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.activity,
-                  label: l10n.damp,
+                  label: l10n.englishForFilipino.damp,
                   valueLabel: _percentLabel(fx.damp),
                   value: fx.damp,
                   min: EqualizerNotifier.fxDampMin,
@@ -3600,7 +3600,7 @@ class _CreativeFxSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.funnel,
-                  label: l10n.filter,
+                  label: l10n.englishForFilipino.filter,
                   valueLabel: _hzLabel(fx.filterHz),
                   value: _hzToT(fx.filterHz),
                   min: 0.0,
@@ -3613,7 +3613,7 @@ class _CreativeFxSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.timerReset,
-                  label: l10n.delays,
+                  label: l10n.englishForFilipino.delays,
                   valueLabel: l10n.ms5(fx.delayMs.toStringAsFixed(0)),
                   value: fx.delayMs,
                   min: EqualizerNotifier.fxDelayMinMs,
@@ -3626,7 +3626,7 @@ class _CreativeFxSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.scanSearch,
-                  label: l10n.size,
+                  label: l10n.englishForFilipino.size,
                   valueLabel: _percentLabel(fx.size),
                   value: fx.size,
                   min: EqualizerNotifier.fxSizeMin,
@@ -3639,7 +3639,7 @@ class _CreativeFxSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.audioLines,
-                  label: l10n.mix,
+                  label: l10n.englishForFilipino.mix,
                   valueLabel: _percentLabel(fx.mix),
                   value: fx.mix,
                   min: EqualizerNotifier.fxMixMin,
@@ -3652,7 +3652,7 @@ class _CreativeFxSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.rotateCcw,
-                  label: l10n.feedback,
+                  label: l10n.englishForFilipino.feedback,
                   valueLabel: _percentLabel(fx.feedback),
                   value: fx.feedback,
                   min: EqualizerNotifier.fxFeedbackMin,
@@ -3665,7 +3665,7 @@ class _CreativeFxSection extends ConsumerWidget {
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.gitBranchPlus,
-                  label: l10n.width,
+                  label: l10n.englishForFilipino.width,
                   valueLabel: _widthLabel(fx.width),
                   value: fx.width,
                   min: EqualizerNotifier.fxWidthMin,
@@ -3745,7 +3745,7 @@ class _ConvolverSection extends ConsumerWidget {
 
     return _DynamicsCard(
       icon: LucideIcons.audioWaveform,
-      title: l10n.convolverImpulseResponse,
+      title: l10n.englishForFilipino.convolverImpulseResponse,
       subtitle:
           l10n.loadAnImpulseResponseForRoom,
       active: editable,
@@ -3760,7 +3760,7 @@ class _ConvolverSection extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.impulseResponse,
+                    l10n.englishForFilipino.impulseResponse,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: context.adaptiveTextTertiary,
                     ),
@@ -3805,7 +3805,7 @@ class _ConvolverSection extends ConsumerWidget {
         Center(
           child: _LabeledKnob(
             icon: LucideIcons.audioLines,
-            label: l10n.mix,
+            label: l10n.englishForFilipino.mix,
             valueLabel: _percentLabel(convolver.mix),
             value: convolver.mix,
             min: EqualizerNotifier.convolverMixMin,
@@ -4160,14 +4160,14 @@ class _ModeToggle extends StatelessWidget {
             children: [
               Expanded(
                 child: _ModeToggleButton(
-                  label: l10n.graphic,
+                  label: l10n.englishForFilipino.graphic,
                   selected: mode == EqMode.graphic,
                   onTap: () => onChanged(EqMode.graphic),
                 ),
               ),
               Expanded(
                 child: _ModeToggleButton(
-                  label: l10n.parametric,
+                  label: l10n.englishForFilipino.parametric,
                   selected: mode == EqMode.parametric,
                   onTap: () => onChanged(EqMode.parametric),
                 ),

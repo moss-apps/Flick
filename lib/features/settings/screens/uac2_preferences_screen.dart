@@ -21,7 +21,7 @@ import 'package:flick/widgets/common/engine_restart_notice.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/features/settings/screens/logs_screen.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class Uac2PreferencesScreen extends ConsumerStatefulWidget {
   const Uac2PreferencesScreen({super.key});
@@ -84,7 +84,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                           const EngineRestartNotice(),
                           const SizedBox(height: AppConstants.spacingLg),
                         ],
-                        _buildSectionHeader(context, l10n.audioFormat),
+                        _buildSectionHeader(context, l10n.englishForFilipino.audioFormat),
                         _buildFormatPreferences(
                           context,
                           preferencesService,
@@ -93,7 +93,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                           audioFormatAsync,
                         ),
                         const SizedBox(height: AppConstants.spacingLg),
-                        _buildSectionHeader(context, l10n.experimental),
+                        _buildSectionHeader(context, l10n.englishForFilipino.experimental),
                         _buildExperimentalWarning(context),
                         _buildDsdOptions(
                           context,
@@ -107,7 +107,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                           tuning432HzAsync,
                         ),
                         const SizedBox(height: AppConstants.spacingLg),
-                        _buildSectionHeader(context, l10n.advanced),
+                        _buildSectionHeader(context, l10n.englishForFilipino.advanced),
                         _buildAdvancedOptions(
                           context,
                           preferencesService,
@@ -127,7 +127,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                           error: (_, _) => false,
                         )) ...[
                           const SizedBox(height: AppConstants.spacingLg),
-                          _buildSectionHeader(context, l10n.volume),
+                          _buildSectionHeader(context, l10n.englishForFilipino.volume),
                           const Uac2VolumeControl(),
                         ],
                         const SizedBox(height: AppConstants.navBarHeight + 120),
@@ -158,7 +158,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
           ),
           const SizedBox(width: AppConstants.spacingSm),
           Text(
-            l10n.uac2Preferences,
+            l10n.englishForFilipino.uac2Preferences,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: context.adaptiveTextPrimary,
@@ -211,7 +211,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
             data: (enabled) => _buildSwitchTile(
               context,
               icon: LucideIcons.settings,
-              title: l10n.audioFormat,
+              title: l10n.englishForFilipino.audioFormat,
               subtitle: enabled
                   ? l10n.formatStrategyAndCustomFormatControls
                   : l10n.formatControlsAreDisabledTheEngine,
@@ -229,7 +229,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
             data: (formatPref) => _buildNavigationTile(
               context,
               icon: LucideIcons.slidersHorizontal,
-              title: l10n.formatStrategy,
+              title: l10n.englishForFilipino.formatStrategy,
               subtitle: formatBlocked
                   ? l10n.disabledInBitPerfectUsbDac
                   : !isAudioFormatEnabled
@@ -262,7 +262,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
             data: (format) => _buildNavigationTile(
               context,
               icon: LucideIcons.music,
-              title: l10n.customFormat,
+              title: l10n.englishForFilipino.customFormat,
               subtitle: formatBlocked
                   ? isBitPerfectEnabled
                       ? l10n.disabledInBitPerfectUsbDac
@@ -320,7 +320,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
             data: (engine) => _buildNavigationTile(
               context,
               icon: LucideIcons.audioLines,
-              title: l10n.playbackEngine,
+              title: l10n.englishForFilipino.playbackEngine,
               subtitle: _audioEnginePreferenceSubtitle(engine),
                onTap: () => _showAudioEngineDialog(
                  context,
@@ -342,7 +342,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
               data: (pref) => _buildNavigationTile(
                 context,
                 icon: LucideIcons.circuitBoard,
-                title: l10n.androidAudioApi,
+                title: l10n.englishForFilipino.androidAudioApi,
                 subtitle: _androidAudioApiSubtitle(pref),
                 onTap: () => _showAndroidAudioApiDialog(context, service, pref),
               ),
@@ -355,7 +355,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
             data: (enabled) => _buildSwitchTile(
               context,
               icon: LucideIcons.badgeInfo,
-              title: l10n.developerMode,
+              title: l10n.englishForFilipino.developerMode,
               subtitle:
                   l10n.showVerboseAudioDiagnosticsAndEngine,
               value: enabled,
@@ -374,7 +374,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
                     _buildNavigationTile(
                       context,
                       icon: LucideIcons.terminal,
-                      title: l10n.logs,
+                      title: l10n.englishForFilipino.logs,
                       subtitle: l10n.verboseDartRustAndCrashLogs,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
@@ -393,7 +393,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
             data: (enabled) => _buildSwitchTile(
               context,
               icon: LucideIcons.lock,
-              title: l10n.bitPerfectUsbDac,
+              title: l10n.englishForFilipino.bitPerfectUsbDac,
               subtitle:
                   l10n.useTheVerifiedDirectUsbPath,
               value: enabled,
@@ -453,7 +453,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               data: (enabled) => _buildSwitchTile(
                 context,
                 icon: LucideIcons.headphones,
-                title: l10n.bitPerfectDapInternal,
+                title: l10n.englishForFilipino.bitPerfectDapInternal,
                 subtitle:
                     l10n.bypassAllDspEqDynamicsCrossfade,
                 value: enabled,
@@ -484,7 +484,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             data: (enabled) => _buildSwitchTile(
               context,
               icon: LucideIcons.zap,
-              title: l10n.autoBitPerfectForUsbDacs,
+              title: l10n.englishForFilipino.autoBitPerfectForUsbDacs,
               subtitle:
                   l10n.switchToTheExclusiveUsbPath,
               value: enabled,
@@ -505,7 +505,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                       _buildNavigationTile(
                         context,
                         icon: LucideIcons.rotateCcw,
-                        title: l10n.resetDeclinedUsbDacs,
+                        title: l10n.englishForFilipino.resetDeclinedUsbDacs,
                         subtitle:
                             l10n.dacWillBeOfferedAgain(declined.length),
                         onTap: () async {
@@ -532,7 +532,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             data: (killOnQuit) => _buildSwitchTile(
               context,
               icon: LucideIcons.power,
-              title: l10n.stopUsbOnQuit,
+              title: l10n.englishForFilipino.stopUsbOnQuit,
               subtitle: killOnQuit
                   ? l10n.theIsochronousUsbEngineWillBe
                   : l10n.theIsochronousUsbEngineWillStay,
@@ -550,7 +550,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
           _buildNavigationTile(
             context,
             icon: LucideIcons.trash2,
-            title: l10n.resetPreferences,
+            title: l10n.englishForFilipino.resetPreferences,
             subtitle: l10n.clearAllUac2Settings,
             onTap: () => _showResetConfirmation(context, service),
             isDestructive: true,
@@ -646,14 +646,14 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       barrierLabel: l10n.androidAudioApi,
       builder: (dialogContext) {
         return FlickDialog(
-          title: l10n.androidAudioApi,
+          title: l10n.englishForFilipino.androidAudioApi,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildAudioEngineOption(
                 dialogContext,
-                title: l10n.auto,
+                title: l10n.englishForFilipino.auto,
                 subtitle:
                     l10n.letOboePickTheBestApi,
                 selected: current == AudioApiPreference.auto,
@@ -673,7 +673,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               const SizedBox(height: AppConstants.spacingSm),
               _buildAudioEngineOption(
                 dialogContext,
-                title: l10n.aaudio,
+                title: l10n.englishForFilipino.aaudio,
                 subtitle:
                     l10n.useAaudioDirectlyLowestLatencyOn,
                 selected: current == AudioApiPreference.aAudio,
@@ -693,7 +693,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               const SizedBox(height: AppConstants.spacingSm),
               _buildAudioEngineOption(
                 dialogContext,
-                title: l10n.openslEs,
+                title: l10n.englishForFilipino.openslEs,
                 subtitle:
                     l10n.useTheLegacyOpenslEsBackend,
                 selected: current == AudioApiPreference.openSles,
@@ -740,7 +740,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       barrierLabel: l10n.playbackEngine,
       builder: (dialogContext) {
         return FlickDialog(
-          title: l10n.playbackEngine,
+          title: l10n.englishForFilipino.playbackEngine,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -751,7 +751,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               ],
               _buildAudioEngineOption(
                 dialogContext,
-                title: l10n.justAudioExoplayer,
+                title: l10n.englishForFilipino.justAudioExoplayer,
                 subtitle: dapBothOff
                     ? l10n.disabledWhileBothBitPerfectOptions
                     : l10n.defaultAndroidPlaybackEngineUsedBy,
@@ -787,7 +787,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               const SizedBox(height: AppConstants.spacingSm),
               _buildAudioEngineOption(
                 dialogContext,
-                title: l10n.rustViaOboe,
+                title: l10n.englishForFilipino.rustViaOboe,
                 subtitle: dapBothOff
                     ? l10n.keepsSoftwareVolumeAndDspActive
                     : l10n.androidManagedRustPlaybackPathUsing,
@@ -821,7 +821,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               const SizedBox(height: AppConstants.spacingSm),
               _buildAudioEngineOption(
                 dialogContext,
-                title: l10n.isochronousUsb,
+                title: l10n.englishForFilipino.isochronousUsb,
                 subtitle:
                     l10n.directLibusbIsochronousUsbEngineBest,
                 selected: effective == AudioEnginePreference.isochronousUsb,
@@ -1071,7 +1071,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  l10n.currentPlaybackMode,
+                  l10n.englishForFilipino.currentPlaybackMode,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: context.adaptiveTextPrimary,
                     fontWeight: FontWeight.w500,
@@ -1219,7 +1219,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       context: context,
       barrierLabel: l10n.formatStrategy,
       builder: (context) => FlickDialog(
-        title: l10n.formatStrategy,
+        title: l10n.englishForFilipino.formatStrategy,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1299,7 +1299,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       barrierLabel: l10n.customFormat,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => FlickDialog(
-          title: l10n.customFormat,
+          title: l10n.englishForFilipino.customFormat,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1310,7 +1310,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               ),
               const SizedBox(height: AppConstants.spacingMd),
               Text(
-                l10n.sampleRate2,
+                l10n.englishForFilipino.sampleRate2,
                 style: TextStyle(
                   color: context.adaptiveTextSecondary,
                   fontWeight: FontWeight.w600,
@@ -1341,7 +1341,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               ),
               const SizedBox(height: AppConstants.spacingMd),
               Text(
-                l10n.bitDepth2,
+                l10n.englishForFilipino.bitDepth2,
                 style: TextStyle(
                   color: context.adaptiveTextSecondary,
                   fontWeight: FontWeight.w600,
@@ -1362,7 +1362,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
               ),
               const SizedBox(height: AppConstants.spacingMd),
               Text(
-                l10n.channels,
+                l10n.englishForFilipino.channels,
                 style: TextStyle(
                   color: context.adaptiveTextSecondary,
                   fontWeight: FontWeight.w600,
@@ -1373,7 +1373,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
                 spacing: 8,
                 children: [1, 2].map((ch) {
                   return ChoiceChip(
-                    label: Text(ch == 1 ? l10n.mono : l10n.stereo),
+                    label: Text(ch == 1 ? l10n.englishForFilipino.mono : l10n.englishForFilipino.stereo),
                     selected: channels == ch,
                     onSelected: (selected) {
                       if (selected) setState(() => channels = ch);
@@ -1385,11 +1385,11 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
           ),
           actions: [
             FlickDialogButton(
-              label: l10n.cancel,
+              label: l10n.englishForFilipino.cancel,
               onPressed: () => Navigator.of(dialogContext).pop(),
             ),
             FlickDialogButton(
-              label: l10n.save,
+              label: l10n.englishForFilipino.save,
               style: FlickDialogButtonStyle.primary,
               onPressed: () async {
                 final formatChanged =
@@ -1429,10 +1429,10 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     unawaited(
       FlickDialogs.confirm(
         context,
-        title: l10n.resetPreferences,
+        title: l10n.englishForFilipino.resetPreferences,
         message:
             l10n.areYouSureYouWantTo3,
-        confirmLabel: l10n.reset,
+        confirmLabel: l10n.englishForFilipino.reset,
         destructive: true,
       ).then((confirmed) async {
         if (!confirmed) return;
@@ -1464,7 +1464,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       context: context,
       barrierLabel: l10n.unavailable(featureName),
       builder: (dialogContext) => FlickDialog(
-        title: l10n.unavailable(featureName),
+        title: l10n.englishForFilipino.unavailable(featureName),
         icon: Icons.warning_amber_rounded,
         iconColor: Colors.amber.shade300,
         content: Text(
@@ -1499,7 +1499,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             data: (mode) => _buildNavigationTile(
               context,
               icon: LucideIcons.radio,
-              title: l10n.dsdOutputMode,
+              title: l10n.englishForFilipino.dsdOutputMode,
               subtitle: _dsdOutputModeSubtitle(mode),
               onTap: () => _showDsdOutputModeDialog(context, service, mode),
             ),
@@ -1512,7 +1512,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             builder: (context, variant, _) => _buildNavigationTile(
               context,
               icon: LucideIcons.binary,
-              title: l10n.dapNativeBitOrder,
+              title: l10n.englishForFilipino.dapNativeBitOrder,
               subtitle: _dsdWireVariantSubtitle(variant),
               onTap: () => _showDsdWireVariantDialog(context, service, variant),
             ),
@@ -1523,7 +1523,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             builder: (context, grouping, _) => _buildNavigationTile(
               context,
               icon: LucideIcons.columns2,
-              title: l10n.dapNativeByteGrouping,
+              title: l10n.englishForFilipino.dapNativeByteGrouping,
               subtitle: _dsdWireGroupingSubtitle(grouping),
               onTap: () => _showDsdWireGroupingDialog(context, service, grouping),
             ),
@@ -1548,7 +1548,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
         data: (enabled) => _buildSwitchTile(
           context,
           icon: LucideIcons.music2,
-          title: l10n.hzTuning,
+          title: l10n.englishForFilipino.hzTuning,
           subtitle:
               l10n.experimentalDownTunePlaybackBy432,
           value: enabled,
@@ -1575,10 +1575,10 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
     _awaiting432HzConfirm = true;
     return FlickDialogs.confirm(
       context,
-      title: l10n.enable432HzTuning,
+      title: l10n.englishForFilipino.enable432HzTuning,
       message:
           l10n.thisSlowsPlaybackTo432440,
-      confirmLabel: l10n.enable,
+      confirmLabel: l10n.englishForFilipino.enable,
       icon: Icons.warning_amber_rounded,
       iconColor: Colors.amber,
     ).then((result) {
@@ -1646,13 +1646,13 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       context: context,
       barrierLabel: l10n.dsdOutputMode,
       builder: (dialogContext) => FlickDialog(
-        title: l10n.dsdOutputMode,
+        title: l10n.englishForFilipino.dsdOutputMode,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildDsdOptionTile(
               dialogContext,
-              title: l10n.auto,
+              title: l10n.englishForFilipino.auto,
               subtitle: l10n.comingSoon,
               enabled: false,
               selected: false,
@@ -1661,7 +1661,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             const SizedBox(height: AppConstants.spacingSm),
             _buildDsdOptionTile(
               dialogContext,
-              title: l10n.forcePcm,
+              title: l10n.englishForFilipino.forcePcm,
               subtitle: l10n.comingSoon,
               enabled: false,
               selected: false,
@@ -1670,7 +1670,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             const SizedBox(height: AppConstants.spacingSm),
             _buildDsdOptionTile(
               dialogContext,
-              title: l10n.forceDop,
+              title: l10n.englishForFilipino.forceDop,
               subtitle: l10n.comingSoon,
               enabled: false,
               selected: false,
@@ -1679,7 +1679,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
             const SizedBox(height: AppConstants.spacingSm),
             _buildDsdOptionTile(
               dialogContext,
-              title: l10n.nativeDsdExperimental,
+              title: l10n.englishForFilipino.nativeDsdExperimental,
               subtitle:
                   l10n.rawDsdStreamToDacRequires,
               selected: current == DsdOutputMode.native,
@@ -1693,7 +1693,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
         ),
         actions: [
           FlickDialogButton(
-            label: l10n.cancel,
+            label: l10n.englishForFilipino.cancel,
             onPressed: () => Navigator.of(dialogContext).pop(),
           ),
         ],
@@ -1738,7 +1738,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       context: context,
       barrierLabel: l10n.dapNativeByteGrouping,
       builder: (dialogContext) => FlickDialog(
-        title: l10n.dapNativeByteGrouping,
+        title: l10n.englishForFilipino.dapNativeByteGrouping,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1790,7 +1790,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
         ),
         actions: [
           FlickDialogButton(
-            label: l10n.cancel,
+            label: l10n.englishForFilipino.cancel,
             onPressed: () => Navigator.of(dialogContext).pop(),
           ),
         ],
@@ -1807,7 +1807,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
       context: context,
       barrierLabel: l10n.dapNativeBitOrder,
       builder: (dialogContext) => FlickDialog(
-        title: l10n.dapNativeBitOrder,
+        title: l10n.englishForFilipino.dapNativeBitOrder,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1865,7 +1865,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
         ),
         actions: [
           FlickDialogButton(
-            label: l10n.cancel,
+            label: l10n.englishForFilipino.cancel,
             onPressed: () => Navigator.of(dialogContext).pop(),
           ),
         ],

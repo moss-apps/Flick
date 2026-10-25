@@ -59,8 +59,8 @@ class _Uac2FallbackManagerState extends ConsumerState<Uac2FallbackManager> {
         SnackBar(
           content: Text(
             success
-                ? l10n.fallbackAudioActivated
-                : l10n.failedToActivateFallback,
+                ? l10n.englishForFilipino.fallbackAudioActivated
+                : l10n.englishForFilipino.failedToActivateFallback,
           ),
           backgroundColor: success ? Colors.green : Colors.red,
         ),
@@ -79,8 +79,8 @@ class _Uac2FallbackManagerState extends ConsumerState<Uac2FallbackManager> {
         SnackBar(
           content: Text(
             success
-                ? l10n.fallbackAudioDeactivated
-                : l10n.failedToDeactivateFallback,
+                ? l10n.englishForFilipino.fallbackAudioDeactivated
+                : l10n.englishForFilipino.failedToDeactivateFallback,
           ),
           backgroundColor: success ? Colors.green : Colors.red,
         ),

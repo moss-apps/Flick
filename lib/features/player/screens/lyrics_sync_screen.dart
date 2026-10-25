@@ -417,7 +417,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
     final normalized = value.replaceAll('[', '').replaceAll(']', '').trim();
     final parsed = widget.lyricsService.parseTimestamp(normalized);
     if (parsed == null) {
-      _showMessage(l10n.useMmSsCcEG);
+      _showMessage(l10n.englishForFilipino.useMmSsCcEG);
       return;
     }
     setState(() {
@@ -474,7 +474,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
   Future<void> _save() async {
     final normalizedLines = _model.normalizeForSave();
     if (normalizedLines.isEmpty) {
-      _showMessage(l10n.addAtLeastOneLyricLine);
+      _showMessage(l10n.englishForFilipino.addAtLeastOneLyricLine);
       return;
     }
 
@@ -553,10 +553,10 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
 
       if (!mounted) return;
       final message = choice == 'custom'
-          ? l10n.savedLyricsToTheChosenLocation
+          ? l10n.englishForFilipino.savedLyricsToTheChosenLocation
           : result.savedBesideSong
-              ? l10n.savedLyricsBesideTheSongAs
-              : l10n.savedLyricsAndLinkedThemTo;
+              ? l10n.englishForFilipino.savedLyricsBesideTheSongAs
+              : l10n.englishForFilipino.savedLyricsAndLinkedThemTo;
       Navigator.of(context).pop(
         LyricsEditorResult(
           message: message,
@@ -564,7 +564,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
         ),
       );
     } catch (_) {
-      _showMessage(l10n.couldNotSaveTheLyricsFile);
+      _showMessage(l10n.englishForFilipino.couldNotSaveTheLyricsFile);
     } finally {
       if (mounted) {
         setState(() {

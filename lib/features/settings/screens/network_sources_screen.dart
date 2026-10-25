@@ -13,7 +13,7 @@ import '../../../services/library_scanner_service.dart' show ScanProgress;
 import '../../../services/sources/network_source_service.dart';
 import '../widgets/settings_widgets.dart';
 import 'network_server_edit_screen.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 /// Manage configured network music servers (Subsonic, Jellyfin, WebDAV,
 /// UPnP/DLNA, SMB, Tidal).
@@ -114,7 +114,7 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
             ),
             action: authFailure
                 ? SnackBarAction(
-                    label: l10n.fix,
+                    label: l10n.englishForFilipino.fix,
                     onPressed: () => _openEditor(server: server),
                   )
                 : null,
@@ -134,7 +134,7 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
-      title: l10n.networkSources,
+      title: l10n.englishForFilipino.networkSources,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -152,7 +152,7 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
             const SizedBox(height: AppConstants.spacingMd),
             ActionButton(
               icon: LucideIcons.plus,
-              title: l10n.addServer,
+              title: l10n.englishForFilipino.addServer,
               subtitle: l10n.connectAMusicServer,
               onTap: () => _openEditor(),
             ),

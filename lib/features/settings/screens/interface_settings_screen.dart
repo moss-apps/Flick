@@ -10,7 +10,7 @@ import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/settings/widgets/language_settings_card.dart';
 import 'package:flick/features/settings/screens/bottom_bar_settings_screen.dart';
 import 'package:flick/features/settings/screens/visualizer_settings_screen.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class InterfaceSettingsScreen extends ConsumerWidget {
   const InterfaceSettingsScreen({super.key});
@@ -18,10 +18,10 @@ class InterfaceSettingsScreen extends ConsumerWidget {
   Future<void> _confirmResetStreak(BuildContext context) async {
     final confirmed = await FlickDialogs.confirm(
       context,
-      title: l10n.resetStreakData,
+      title: l10n.englishForFilipino.resetStreakData,
       message:
           l10n.thisClearsYourCurrentDayStreak,
-      confirmLabel: l10n.reset,
+      confirmLabel: l10n.englishForFilipino.reset,
       destructive: true,
     );
     if (confirmed) {
@@ -34,19 +34,19 @@ class InterfaceSettingsScreen extends ConsumerWidget {
     final appPreferences = ref.watch(appPreferencesProvider);
 
     return SettingsScaffold(
-      title: l10n.interfaceLabel,
+      title: l10n.englishForFilipino.interfaceLabel,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(context.l10n.language),
+          SettingsSectionHeader(context.l10n.englishForFilipino.language),
           const LanguageSettingsCard(),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.interfaceLabel),
+          SettingsSectionHeader(l10n.englishForFilipino.interfaceLabel),
           SettingsCard(
             children: [
               ToggleSetting(
                 icon: LucideIcons.activity,
-                title: l10n.animations,
+                title: l10n.englishForFilipino.animations,
                 subtitle: l10n.enableAnimatedTransitionsAndEffects,
                 value: appPreferences.animationsEnabled,
                 onChanged: (value) {
@@ -59,7 +59,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.vibrate,
-                title: l10n.hapticFeedback,
+                title: l10n.englishForFilipino.hapticFeedback,
                 subtitle: l10n.enableVibrationOnInteractions,
                 value: appPreferences.hapticsEnabled,
                 onChanged: (value) {
@@ -72,8 +72,8 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.wifiOff,
-                title: context.l10n.connectionNotices,
-                subtitle: context.l10n.connectionNoticesDescription,
+                title: context.l10n.englishForFilipino.connectionNotices,
+                subtitle: l10n.connectionNoticesDescription,
                 value: appPreferences.connectionNoticesEnabled,
                 onChanged: (value) {
                   ref
@@ -84,7 +84,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.arrowLeftRight,
-                title: l10n.swipeActions,
+                title: l10n.englishForFilipino.swipeActions,
                 subtitle: l10n.swipeSongsLeftToQueueOr,
                 value: appPreferences.swipeActionsEnabled,
                 onChanged: (value) {
@@ -96,7 +96,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.keyboard,
-                title: l10n.autoFocusSearch,
+                title: l10n.englishForFilipino.autoFocusSearch,
                 subtitle: l10n.automaticallyOpenKeyboardWhenSwitchingTo,
                 value: appPreferences.autoFocusSearch,
                 onChanged: (value) {
@@ -108,7 +108,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.layoutGrid,
-                title: l10n.libraryGlanceCard,
+                title: l10n.englishForFilipino.libraryGlanceCard,
                 subtitle: l10n.showTheAtAGlanceSummary,
                 value: !appPreferences.glanceCardHidden,
                 onChanged: (value) {
@@ -120,7 +120,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.flame,
-                title: l10n.dayStreaks,
+                title: l10n.englishForFilipino.dayStreaks,
                 subtitle: l10n.trackConsecutiveListeningDaysAndShow,
                 value: appPreferences.streaksEnabled,
                 onChanged: (value) {
@@ -132,14 +132,14 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ActionButton(
                 icon: LucideIcons.trash2,
-                title: l10n.resetStreakData2,
+                title: l10n.englishForFilipino.resetStreakData2,
                 subtitle: l10n.clearTheCounterAndAnyUnlocked,
                 onTap: () => _confirmResetStreak(context),
               ),
               const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.navigation,
-                title: l10n.bottomBar,
+                title: l10n.englishForFilipino.bottomBar,
                 subtitle: l10n.customizeWhichTabsAppearAndTheir,
                 onTap: () {
                   Navigator.of(context).push(
@@ -152,7 +152,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.audioLines,
-                title: l10n.visualizer,
+                title: l10n.englishForFilipino.visualizer,
                 subtitle: l10n.animationStyleAndFrequencyFocus,
                 onTap: () {
                   Navigator.of(context).push(
@@ -165,12 +165,12 @@ class InterfaceSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.refreshRate),
+          SettingsSectionHeader(l10n.englishForFilipino.refreshRate),
           SettingsCard(
             children: [
               SelectionSetting(
                 icon: LucideIcons.smartphone,
-                title: l10n.adaptive,
+                title: l10n.englishForFilipino.adaptive,
                 subtitle: l10n.letTheSystemDecideBestBattery,
                 selected: appPreferences.refreshRateMode == 'adaptive',
                 onTap: () {
@@ -182,7 +182,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: LucideIcons.gauge,
-                title: l10n.standard60hz,
+                title: l10n.englishForFilipino.standard60hz,
                 subtitle: l10n.capAt60hzBalancedSmoothnessAnd,
                 selected: appPreferences.refreshRateMode == 'standard',
                 onTap: () {
@@ -194,7 +194,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: LucideIcons.zap,
-                title: l10n.high120hz,
+                title: l10n.englishForFilipino.high120hz,
                 subtitle: l10n.maximumSmoothnessUsesMoreBattery,
                 selected: appPreferences.refreshRateMode == 'high',
                 onTap: () {
@@ -206,12 +206,12 @@ class InterfaceSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.searchPlayback),
+          SettingsSectionHeader(l10n.englishForFilipino.searchPlayback),
           SettingsCard(
             children: [
               SelectionSetting(
                 icon: LucideIcons.listMusic,
-                title: l10n.searchResults,
+                title: l10n.englishForFilipino.searchResults,
                 subtitle: l10n.continueThroughTheSearchResults,
                 selected: appPreferences.searchPlaybackMode == 'results',
                 onTap: () {
@@ -223,7 +223,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: LucideIcons.library,
-                title: l10n.fullLibrary,
+                title: l10n.englishForFilipino.fullLibrary,
                 subtitle: l10n.continueThroughYourEntireLibrary,
                 selected: appPreferences.searchPlaybackMode == 'library',
                 onTap: () {
@@ -235,7 +235,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: LucideIcons.listPlus,
-                title: l10n.activeQueue,
+                title: l10n.englishForFilipino.activeQueue,
                 subtitle: l10n.insertIntoTheCurrentQueueFallBackToResults,
                 selected: appPreferences.searchPlaybackMode == 'queue',
                 onTap: () {
@@ -247,12 +247,12 @@ class InterfaceSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.favoriteRemoval),
+          SettingsSectionHeader(l10n.englishForFilipino.favoriteRemoval),
           SettingsCard(
             children: [
               SelectionSetting(
                 icon: LucideIcons.arrowLeftRight,
-                title: l10n.swipe,
+                title: l10n.englishForFilipino.swipe,
                 subtitle: l10n.swipeLeftToUnfavoriteASong,
                 selected: appPreferences.favoriteRemovalMode == 'swipe',
                 onTap: () {
@@ -264,7 +264,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: LucideIcons.mousePointerClick,
-                title: l10n.longPress,
+                title: l10n.englishForFilipino.longPress,
                 subtitle: l10n.holdASongToUnfavorite,
                 selected: appPreferences.favoriteRemovalMode == 'longpress',
                 onTap: () {

@@ -21,6 +21,7 @@ import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/common/library_heading.dart';
 
 class PlaylistsScreen extends ConsumerWidget {
   const PlaylistsScreen({super.key});
@@ -83,8 +84,8 @@ class PlaylistsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.playlists,
+                LibraryHeading(
+                  section: LibrarySection.playlists,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: context.adaptiveTextPrimary,
@@ -436,7 +437,7 @@ class PlaylistsScreen extends ConsumerWidget {
   }) async {
     if (name.trim().isEmpty) {
       ScaffoldMessenger.of(context).showFlickSnackBar(
-        SnackBar(content: Text(l10n.pleaseEnterAPlaylistName)),
+        SnackBar(content: Text(l10n.englishForFilipino.pleaseEnterAPlaylistName)),
       );
       return;
     }
@@ -450,7 +451,7 @@ class PlaylistsScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showFlickSnackBar(
           SnackBar(
-            content: Text(l10n.aPlaylistWithThisNameAlready),
+            content: Text(l10n.englishForFilipino.aPlaylistWithThisNameAlready),
           ),
         );
       }
@@ -463,7 +464,7 @@ class PlaylistsScreen extends ConsumerWidget {
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showFlickSnackBar(
-        SnackBar(content: Text(l10n.playlistCreated(playlist.name))),
+        SnackBar(content: Text(l10n.englishForFilipino.playlistCreated(playlist.name))),
       );
     }
   }
@@ -478,8 +479,8 @@ class PlaylistsScreen extends ConsumerWidget {
         SnackBar(
           content: Text(
             synced == 0
-                ? l10n.noServerPlaylistsFound
-                : l10n.syncedPlaylistFromServers(synced),
+                ? l10n.englishForFilipino.noServerPlaylistsFound
+                : l10n.englishForFilipino.syncedPlaylistFromServers(synced),
           ),
         ),
       );
@@ -487,7 +488,7 @@ class PlaylistsScreen extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showFlickSnackBar(SnackBar(content: Text(l10n.serverPlaylistSyncFailed(e))));
+      ).showFlickSnackBar(SnackBar(content: Text(l10n.englishForFilipino.serverPlaylistSyncFailed(e))));
     }
   }
 
@@ -499,12 +500,14 @@ class PlaylistsScreen extends ConsumerWidget {
       if (result == null || !context.mounted) return;
 
       final unmatchedText = result.unmatchedEntries > 0
-          ? l10n.skippedUnmatchedEntr(result.unmatchedEntries)
+          ? l10n.englishForFilipino.skippedUnmatchedEntr(
+              result.unmatchedEntries,
+            )
           : '';
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
           content: Text(
-            l10n.importedWithSongs(result.playlist.name, result.importedSongs, unmatchedText),
+            l10n.englishForFilipino.importedWithSongs(result.playlist.name, result.importedSongs, unmatchedText),
           ),
         ),
       );
@@ -512,7 +515,7 @@ class PlaylistsScreen extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showFlickSnackBar(SnackBar(content: Text(l10n.importFailed(e))));
+      ).showFlickSnackBar(SnackBar(content: Text(l10n.englishForFilipino.importFailed(e))));
     }
   }
 
@@ -531,7 +534,7 @@ class PlaylistsScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
           content: Text(
-            l10n.exportedSongsTo(result.exportedSongs, result.fileName),
+            l10n.englishForFilipino.exportedSongsTo(result.exportedSongs, result.fileName),
           ),
         ),
       );
@@ -539,7 +542,7 @@ class PlaylistsScreen extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showFlickSnackBar(SnackBar(content: Text(l10n.exportFailed(e))));
+      ).showFlickSnackBar(SnackBar(content: Text(l10n.englishForFilipino.exportFailed(e))));
     }
   }
 }

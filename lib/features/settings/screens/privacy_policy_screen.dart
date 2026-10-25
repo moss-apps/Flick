@@ -3,7 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -32,52 +32,52 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _Section(
-                          title: l10n.dataCollection,
+                          title: l10n.englishForFilipino.dataCollection,
                           content:
                               l10n.flickPlayerDoesNotCollectStore,
                         ),
                         _Section(
-                          title: l10n.localData,
+                          title: l10n.englishForFilipino.localData,
                           content:
                               l10n.allDataIsStoredLocallyOn,
                         ),
                         _Section(
-                          title: l10n.cameraAndPhotos,
+                          title: l10n.englishForFilipino.cameraAndPhotos,
                           content:
                               l10n.cameraAndPhotoLibraryAccessIs,
                         ),
                         _Section(
-                          title: l10n.storagePermissions,
+                          title: l10n.englishForFilipino.storagePermissions,
                           content:
                               l10n.storageAccessIsRequiredToScan,
                         ),
                         _Section(
-                          title: l10n.usbDeviceAccess,
+                          title: l10n.englishForFilipino.usbDeviceAccess,
                           content:
                               l10n.usbAudioClass20Devices,
                         ),
                         _Section(
-                          title: l10n.lastFmScrobbling,
+                          title: l10n.englishForFilipino.lastFmScrobbling,
                           content:
                               l10n.ifYouConnectYourLastFm,
                         ),
                         _Section(
-                          title: l10n.albumArtImport,
+                          title: l10n.englishForFilipino.albumArtImport,
                           content:
                               l10n.theAppQueriesPublicApisMusicbrainz,
                         ),
                         _Section(
-                          title: l10n.mossEcosystem,
+                          title: l10n.englishForFilipino.mossEcosystem,
                           content:
                               l10n.flickCanReceivePlaybackHandoffsFrom,
                         ),
                         _Section(
-                          title: l10n.inAppUpdates,
+                          title: l10n.englishForFilipino.inAppUpdates,
                           content:
                               l10n.playStoreUpdatesUseGooglePlay,
                         ),
                         _Section(
-                          title: l10n.childrenSPrivacy,
+                          title: l10n.englishForFilipino.childrenSPrivacy,
                           content:
                               l10n.theAppDoesNotKnowinglyCollect,
                         ),
@@ -149,7 +149,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           ),
           const SizedBox(width: AppConstants.spacingSm),
           Text(
-            l10n.privacyPolicy,
+            l10n.englishForFilipino.privacyPolicy,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: context.adaptiveTextPrimary,

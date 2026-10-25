@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/mini_player_config.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/providers/providers.dart';
@@ -22,6 +23,10 @@ Widget _host(
   bool reducedMotion = true,
   EdgeInsets padding = EdgeInsets.zero,
 }) => MaterialApp(
+  locale: kFallbackLocale,
+  supportedLocales: kSupportedLocales,
+  localizationsDelegates: kAppLocalizationsDelegates,
+  localeResolutionCallback: resolveAppLocale,
   home: MediaQuery(
     data: MediaQueryData(
       size: Size(width, 800),

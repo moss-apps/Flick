@@ -55,7 +55,9 @@ extension AdvanceListOrderL10n on AdvanceListOrder {
 // 专辑取色模式
 // ---------------------------------------------------------------------------
 extension AlbumColorModeL10n on AlbumColorMode {
-  String get label => switch (this) {
+  String get label => labelFor(l10n);
+
+  String labelFor(AppLocalizations l10n) => switch (this) {
     AlbumColorMode.off => l10n.off,
     AlbumColorMode.subtle => l10n.subtle,
     AlbumColorMode.moderate => l10n.moderate,
@@ -86,7 +88,9 @@ extension AudioEngineTypeL10n on AudioEngineType {
 // 底部导航按钮
 // ---------------------------------------------------------------------------
 extension NavBarButtonL10n on NavBarButton {
-  String get label => switch (this) {
+  String get label => labelFor(l10n);
+
+  String labelFor(AppLocalizations l10n) => switch (this) {
     NavBarButton.menu => l10n.menu,
     NavBarButton.songs => l10n.songs14,
     NavBarButton.settings => l10n.settings,
@@ -118,7 +122,9 @@ extension PlaybackSourceL10n on PlaybackSource {
 // 播放器快捷按钮
 // ---------------------------------------------------------------------------
 extension PlayerActionButtonL10n on PlayerActionButton {
-  String get label => switch (this) {
+  String get label => labelFor(l10n);
+
+  String labelFor(AppLocalizations l10n) => switch (this) {
     PlayerActionButton.none => l10n.none,
     PlayerActionButton.lyrics => l10n.lyrics,
     PlayerActionButton.favorites => l10n.favorites,
@@ -138,7 +144,9 @@ extension PlayerActionButtonL10n on PlayerActionButton {
 // 播放器布局模式
 // ---------------------------------------------------------------------------
 extension PlayerScreenModeL10n on PlayerScreenMode {
-  String get label => switch (this) {
+  String get label => labelFor(l10n);
+
+  String labelFor(AppLocalizations l10n) => switch (this) {
     PlayerScreenMode.immersive => l10n.immersive,
     PlayerScreenMode.artworkCard => l10n.artworkCard,
   };
@@ -153,7 +161,9 @@ extension PlayerScreenModeL10n on PlayerScreenMode {
 // 进度条样式
 // ---------------------------------------------------------------------------
 extension ProgressBarStyleL10n on ProgressBarStyle {
-  String get label => switch (this) {
+  String get label => labelFor(l10n);
+
+  String labelFor(AppLocalizations l10n) => switch (this) {
     ProgressBarStyle.waveform => l10n.waveform,
     ProgressBarStyle.line => l10n.line,
   };
@@ -189,7 +199,9 @@ extension ShuffleModeL10n on ShuffleMode {
 // 歌曲缩略图模式
 // ---------------------------------------------------------------------------
 extension SongTileThumbnailModeL10n on SongTileThumbnailMode {
-  String get label => switch (this) {
+  String get label => labelFor(l10n);
+
+  String labelFor(AppLocalizations l10n) => switch (this) {
     SongTileThumbnailMode.artwork => l10n.albumArt,
     SongTileThumbnailMode.trackNumber => l10n.trackNumber,
     SongTileThumbnailMode.trackNumberOnArt => l10n.numberOnArt,

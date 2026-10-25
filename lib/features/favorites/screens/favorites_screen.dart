@@ -17,6 +17,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/common/baybayin_text.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
   const FavoritesScreen({super.key});
@@ -60,9 +61,9 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
-          content: Text(l10n.removedFromFavorites(song.title)),
+          content: Text(l10n.removedFromFavorites3),
           action: SnackBarAction(
-            label: l10n.undo,
+            label: l10n.englishForFilipino.undo,
             onPressed: () async {
               await _favoritesService.addFavorite(song.id);
               setState(() {
@@ -125,9 +126,9 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
-          content: Text(l10n.removedFromFavorites2(removedSongs.length)),
+          content: Text(l10n.removedFromFavorites3),
           action: SnackBarAction(
-            label: l10n.undo,
+            label: l10n.englishForFilipino.undo,
             onPressed: () async {
               for (final song in removedSongs) {
                 await _favoritesService.addFavorite(song.id);
@@ -292,8 +293,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.favorites,
+                BaybayinText(
+                  label: BaybayinLabel.favorites,
+                  fallback: l10n.favorites,
+                  header: true,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: context.adaptiveTextPrimary,

@@ -8,7 +8,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/services/apple_music/album_identification_service.dart';
 import 'package:flick/services/apple_music/auto_metadata_enricher.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 /// Lists album folders still missing artist or album tags and opens the
 /// identification sheet for each. Backed by the same grouping the background
@@ -61,7 +61,7 @@ class _MissingMetadataScreenState extends State<MissingMetadataScreen> {
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
-      title: l10n.fixMissingMetadata,
+      title: l10n.englishForFilipino.fixMissingMetadata,
       body: FutureBuilder<List<_UntaggedAlbum>>(
         future: _future,
         builder: (context, snapshot) {
@@ -85,7 +85,7 @@ class _MissingMetadataScreenState extends State<MissingMetadataScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SettingsSectionHeader(l10n.needsMetadata),
+              SettingsSectionHeader(l10n.englishForFilipino.needsMetadata),
               SettingsCard(
                 children: [
                   for (var index = 0; index < albums.length; index++) ...[

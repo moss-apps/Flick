@@ -18,7 +18,7 @@ import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/app_log.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class LogsScreen extends ConsumerStatefulWidget {
   const LogsScreen({super.key});
@@ -127,10 +127,10 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
     if (entries.isEmpty) return;
     final ok = await FlickDialogs.confirm(
       context,
-      title: l10n.uploadLogsAsALink,
+      title: l10n.englishForFilipino.uploadLogsAsALink,
       message:
           l10n.yourLogsAreUploadedToDpaste,
-      confirmLabel: l10n.upload,
+      confirmLabel: l10n.englishForFilipino.upload,
       icon: Icons.warning_amber_rounded,
     );
     if (!ok) return;
@@ -168,7 +168,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
       context: context,
       barrierLabel: l10n.linkReady,
       builder: (ctx) => FlickDialog(
-        title: l10n.linkReady,
+        title: l10n.englishForFilipino.linkReady,
         content: SelectableText(
           url,
           style: TextStyle(
@@ -178,21 +178,21 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
         ),
         actions: [
           FlickDialogButton(
-            label: l10n.copy,
+            label: l10n.englishForFilipino.copy,
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: url));
               if (ctx.mounted) Navigator.pop(ctx);
             },
           ),
           FlickDialogButton(
-            label: l10n.share,
+            label: l10n.englishForFilipino.share,
             onPressed: () {
               Navigator.pop(ctx);
               Share.share(url, subject: l10n.flickLogs);
             },
           ),
           FlickDialogButton(
-            label: l10n.done,
+            label: l10n.englishForFilipino.done,
             style: FlickDialogButtonStyle.primary,
             onPressed: () => Navigator.pop(ctx),
           ),
@@ -215,10 +215,10 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
 
     final share = await FlickDialogs.confirm(
       context,
-      title: l10n.saved,
+      title: l10n.englishForFilipino.saved,
       message: l10n.savedToNNNshareIt(path),
-      confirmLabel: l10n.share,
-      cancelLabel: l10n.no,
+      confirmLabel: l10n.englishForFilipino.share,
+      cancelLabel: l10n.englishForFilipino.no,
     );
     if (share && mounted) {
       await Share.shareXFiles([XFile(path)], subject: l10n.flickLogs);
@@ -228,10 +228,10 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   Future<void> _confirmClear() async {
     final ok = await FlickDialogs.confirm(
       context,
-      title: l10n.clearLogs,
+      title: l10n.englishForFilipino.clearLogs,
       message:
           l10n.thisRemovesAllEntriesFromMemory(AppLog.instance.entries.length),
-      confirmLabel: l10n.clear,
+      confirmLabel: l10n.englishForFilipino.clear,
       destructive: true,
     );
     if (ok) {
@@ -273,7 +273,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
             icon: Icon(LucideIcons.chevronLeft, color: context.adaptiveTextPrimary),
           ),
           Text(
-            l10n.logs,
+            l10n.englishForFilipino.logs,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: context.adaptiveTextPrimary,

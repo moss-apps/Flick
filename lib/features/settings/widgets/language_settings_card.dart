@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
-/// Language choices keep their autonyms readable even in the draft pilot.
+/// Language and script are independent. Autonyms always remain recognizable.
 class LanguageSettingsCard extends StatelessWidget {
   const LanguageSettingsCard({super.key});
 
@@ -17,8 +17,8 @@ class LanguageSettingsCard extends StatelessWidget {
           children: [
             SelectionSetting(
               icon: LucideIcons.smartphone,
-              title: context.l10n.languageSystemDefault,
-              subtitle: context.l10n.languageSectionDescription,
+              title: context.l10n.englishForFilipino.languageSystemDefault,
+              subtitle: l10n.languageSectionDescription,
               selected: selectedLocale == null,
               onTap: () => LocaleController.instance.select(null),
             ),
@@ -26,7 +26,7 @@ class LanguageSettingsCard extends StatelessWidget {
             SelectionSetting(
               icon: LucideIcons.languages,
               title: '简体中文',
-              subtitle: context.l10n.simplifiedChinese,
+              subtitle: l10n.simplifiedChinese,
               selected: selectedLocale?.languageCode == 'zh',
               onTap: () =>
                   LocaleController.instance.select(const Locale('zh', 'CN')),
@@ -35,18 +35,28 @@ class LanguageSettingsCard extends StatelessWidget {
             SelectionSetting(
               icon: LucideIcons.globe,
               title: 'English',
-              subtitle: context.l10n.english,
+              subtitle: l10n.english,
               selected: selectedLocale?.languageCode == 'en',
               onTap: () => LocaleController.instance.select(const Locale('en')),
             ),
             const SettingsDivider(),
             SelectionSetting(
               icon: LucideIcons.languages,
-              title: 'Tagalog (Baybayin)',
-              subtitle: context.l10n.baybayinPilotDescription,
-              selected: selectedLocale == kBaybayinLocale,
-              onTap: () => LocaleController.instance.select(kBaybayinLocale),
+              title: 'Taglish',
+              subtitle: l10n.baybayinPilotDescription,
+              selected: selectedLocale == kFilipinoLocale,
+              onTap: () => LocaleController.instance.select(kFilipinoLocale),
             ),
+            if (Localizations.localeOf(context).languageCode == 'tl') ...[
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.type,
+                title: l10n.baybayinHeadings,
+                subtitle: l10n.baybayinHeadingsDescription,
+                value: LocaleController.instance.baybayinHeadings,
+                onChanged: LocaleController.instance.setBaybayinHeadings,
+              ),
+            ],
           ],
         );
       },

@@ -4,7 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class LyricsSettingsScreen extends ConsumerWidget {
   const LyricsSettingsScreen({super.key});
@@ -14,16 +14,16 @@ class LyricsSettingsScreen extends ConsumerWidget {
     final appPrefs = ref.watch(appPreferencesProvider);
 
     return SettingsScaffold(
-      title: l10n.lyrics,
+      title: l10n.englishForFilipino.lyrics,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.saving2),
+          SettingsSectionHeader(l10n.englishForFilipino.saving2),
           SettingsCard(
             children: [
               ToggleSetting(
                 icon: LucideIcons.fileText,
-                title: l10n.matchAudioFilename,
+                title: l10n.englishForFilipino.matchAudioFilename,
                 subtitle:
                     l10n.useTheCurrentAudioFileS,
                 value: appPrefs.lyricsMatchAudioFilename,
@@ -36,12 +36,12 @@ class LyricsSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.display),
+          SettingsSectionHeader(l10n.englishForFilipino.display),
           SettingsCard(
             children: [
               ToggleSetting(
                 icon: LucideIcons.music,
-                title: l10n.karaokeEffect,
+                title: l10n.englishForFilipino.karaokeEffect,
                 subtitle:
                     l10n.sweepAHighlightThroughWordsAs,
                 value: appPrefs.karaokeEnabled,
@@ -54,7 +54,7 @@ class LyricsSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: Icons.format_align_left_rounded,
-                title: l10n.left,
+                title: l10n.englishForFilipino.left,
                 subtitle: l10n.alignLyricTextToTheLeft,
                 selected: appPrefs.lyricsTextAlign == 'left',
                 onTap: () {
@@ -66,7 +66,7 @@ class LyricsSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: Icons.format_align_center_rounded,
-                title: l10n.center,
+                title: l10n.englishForFilipino.center,
                 subtitle: l10n.alignLyricTextToTheCenter,
                 selected: appPrefs.lyricsTextAlign == 'center',
                 onTap: () {
@@ -78,7 +78,7 @@ class LyricsSettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: Icons.format_align_right_rounded,
-                title: l10n.right,
+                title: l10n.englishForFilipino.right,
                 subtitle: l10n.alignLyricTextToTheRight,
                 selected: appPrefs.lyricsTextAlign == 'right',
                 onTap: () {

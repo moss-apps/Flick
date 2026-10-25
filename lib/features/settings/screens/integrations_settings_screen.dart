@@ -4,7 +4,7 @@ import 'package:flick/features/settings/widgets/apple_music_settings_tile.dart';
 import 'package:flick/features/settings/widgets/lastfm_settings_tile.dart';
 import 'package:flick/features/settings/widgets/listenbrainz_settings_tile.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class IntegrationsSettingsScreen extends StatelessWidget {
   const IntegrationsSettingsScreen({super.key});
@@ -12,16 +12,16 @@ class IntegrationsSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
-      title: l10n.integrations,
+      title: l10n.englishForFilipino.integrations,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.integrations),
+          SettingsSectionHeader(l10n.englishForFilipino.integrations),
           const SettingsCard(
             children: [LastFmSettingsTile(), ListenBrainzSettingsTile()],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.metadata),
+          SettingsSectionHeader(l10n.englishForFilipino.metadata),
           const SettingsCard(
             children: [
               AppleMusicSettingsTile(),

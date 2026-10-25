@@ -1,304 +1,76 @@
 {
   "@@locale": "tl_Tglg",
-  "@@comment": "Experimental draft, not linguistically verified. Modern virama U+1714; shared da/ra; shared e/i and o/u. Review x-latin alongside the Baybayin. Missing messages deliberately fall back to English through the empty tl base.",
-  "addToQueue": "ᜁᜇᜄ᜔ᜇᜄ᜔ ᜐ ᜉᜒᜎ",
-  "@addToQueue": {
-    "description": "Song action: append to the playback queue.",
-    "x-latin": "Idagdag sa pila",
-    "x-review-status": "draft"
-  },
-  "album": "ᜀᜎ᜔ᜊᜓᜋ᜔",
-  "@album": {
-    "description": "Playback source label, not an album's name.",
-    "x-latin": "Album",
-    "x-review-status": "draft"
-  },
+  "@@comment": "Resource-only curated Baybayin labels, rendered only by BaybayinText when opted in. Never use as the app locale or convert metadata. Modern U+1714 virama; shared da/ra, e/i and o/u. All spellings remain drafts.",
   "albums": "ᜋᜅ ᜀᜎ᜔ᜊᜓᜋ᜔",
   "@albums": {
-    "description": "Album navigation tab and screen title.",
+    "description": "Albums library heading and menu browse shortcut.",
     "x-latin": "Mga album",
-    "x-review-status": "draft"
-  },
-  "allSongs": "ᜎᜑᜆ᜔ ᜈᜅ᜔ ᜃᜈ᜔ᜆ",
-  "@allSongs": {
-    "description": "Playback source for the entire song library.",
-    "x-latin": "Lahat ng kanta",
-    "x-review-status": "draft"
-  },
-  "artist": "ᜃᜓᜋᜈ᜔ᜆ",
-  "@artist": {
-    "description": "Playback source label, not a performer's name. Review the term for musical artists.",
-    "x-latin": "Kumanta",
     "x-review-status": "draft"
   },
   "artists": "ᜋᜅ ᜃᜓᜋᜈ᜔ᜆ",
   "@artists": {
-    "description": "Artist navigation tab and screen title. Review the term for musical artists.",
+    "description": "Artists heading, menu shortcut and navigation; quick-access card and artist metadata stay English.",
     "x-latin": "Mga kumanta",
-    "x-review-status": "draft"
-  },
-  "back": "ᜊᜓᜋᜎᜒᜃ᜔",
-  "@back": {
-    "description": "Return to the previous step or page.",
-    "x-latin": "Bumalik",
-    "x-review-status": "draft"
-  },
-  "cancel": "ᜃᜈ᜔ᜐᜒᜎᜑᜒᜈ᜔",
-  "@cancel": {
-    "description": "Cancel a dialog or action without applying it.",
-    "x-latin": "Kanselahin",
-    "x-review-status": "draft"
-  },
-  "close": "ᜁᜐᜇ",
-  "@close": {
-    "description": "Dismiss the current surface.",
-    "x-latin": "Isara",
-    "x-review-status": "draft"
-  },
-  "delete": "ᜊᜓᜇᜑᜒᜈ᜔",
-  "@delete": {
-    "description": "Destructive delete action. Check against the separate Remove action.",
-    "x-latin": "Burahin",
-    "x-review-status": "draft"
-  },
-  "deselectAll": "ᜀᜎᜒᜐᜒᜈ᜔ ᜎᜑᜆ᜔ ᜈᜅ᜔ ᜉᜒᜈᜒᜎᜒ",
-  "@deselectAll": {
-    "description": "Clear the selection, not the songs themselves.",
-    "x-latin": "Alisin lahat ng pinili",
-    "x-review-status": "draft"
-  },
-  "done": "ᜆᜉᜓᜐ᜔",
-  "@done": {
-    "description": "Finish the current task.",
-    "x-latin": "Tapos",
     "x-review-status": "draft"
   },
   "favorites": "ᜋᜅ ᜉᜊᜓᜇᜒᜆᜓ",
   "@favorites": {
-    "description": "Favorites navigation tab, screen title and player action.",
+    "description": "Favorites heading, menu shortcut and navigation label; quick-access card stays English.",
     "x-latin": "Mga paborito",
-    "x-review-status": "draft"
-  },
-  "folder": "ᜉᜓᜎ᜔ᜇᜒᜇ᜔",
-  "@folder": {
-    "description": "Playback source label, not a directory name. Draft adapts folder to polder.",
-    "x-latin": "Polder",
     "x-review-status": "draft"
   },
   "folders": "ᜋᜅ ᜉᜓᜎ᜔ᜇᜒᜇ᜔",
   "@folders": {
-    "description": "Folder navigation tab and screen title. Review the adapted loanword.",
+    "description": "Folders heading, browse shortcut and navigation; proposed polder spelling.",
     "x-latin": "Mga polder",
-    "x-review-status": "draft"
-  },
-  "interfaceLabel": "ᜁᜆ᜔ᜐᜓᜇ",
-  "@interfaceLabel": {
-    "description": "Interface settings page title; contains the language selector.",
-    "x-latin": "Itsura",
-    "x-review-status": "draft"
-  },
-  "language": "ᜏᜒᜃ",
-  "@language": {
-    "description": "Language section heading in interface settings.",
-    "x-latin": "Wika",
-    "x-review-status": "draft"
-  },
-  "languageSectionDescription": "ᜉᜒᜎᜒᜁᜈ᜔ ᜀᜅ᜔ ᜏᜒᜃᜅ᜔ ᜄᜄᜋᜒᜆᜒᜈ᜔ ᜐ ᜀᜉ᜔ᜎᜒᜃᜐ᜔ᜌᜓᜈ᜔.",
-  "@languageSectionDescription": {
-    "description": "Language selector helper text. Review length at enlarged text sizes.",
-    "x-latin": "Piliin ang wikang gagamitin sa aplikasyon.",
-    "x-review-status": "draft"
-  },
-  "languageSystemDefault": "ᜏᜒᜃ ᜈᜅ᜔ ᜀᜉᜇᜆᜓ",
-  "@languageSystemDefault": {
-    "description": "Follow the device's language rather than an explicit app language.",
-    "x-latin": "Wika ng aparato",
-    "x-review-status": "draft"
-  },
-  "lyrics": "ᜎᜒᜇᜒᜃ",
-  "@lyrics": {
-    "description": "Lyrics action label only; never transliterate the lyrics themselves.",
-    "x-latin": "Lirika",
-    "x-review-status": "draft"
-  },
-  "menu": "ᜆᜎᜀᜈ᜔",
-  "@menu": {
-    "description": "Menu navigation tab.",
-    "x-latin": "Talaan",
-    "x-review-status": "draft"
-  },
-  "next": "ᜐᜓᜐᜓᜈᜓᜇ᜔",
-  "@next": {
-    "description": "Advance to the next onboarding or tutorial step, not a song.",
-    "x-latin": "Susunod",
-    "x-review-status": "draft"
-  },
-  "nextSong": "ᜐᜓᜐᜓᜈᜓᜇ᜔ ᜈ ᜃᜈ᜔ᜆ",
-  "@nextSong": {
-    "description": "Next-song playback control tooltip.",
-    "x-latin": "Susunod na kanta",
-    "x-review-status": "draft"
-  },
-  "noSongsFound": "ᜏᜎᜅ᜔ ᜈᜑᜈᜉ᜔ ᜈ ᜃᜈ᜔ᜆ",
-  "@noSongsFound": {
-    "description": "Empty song list message.",
-    "x-latin": "Walang nahanap na kanta",
-    "x-review-status": "draft"
-  },
-  "nowPlaying": "ᜃᜐᜎᜓᜃᜓᜌᜅ᜔ ᜆᜓᜋᜓᜆᜓᜄ᜔ᜆᜓᜄ᜔",
-  "@nowPlaying": {
-    "description": "Now-playing screen heading.",
-    "x-latin": "Kasalukuyang tumutugtog",
-    "x-review-status": "draft"
-  },
-  "off": "ᜉᜆᜌ᜔",
-  "@off": {
-    "description": "Disabled/off mode label, including shuffle and repeat.",
-    "x-latin": "Patay",
-    "x-review-status": "draft"
-  },
-  "pause": "ᜁᜑᜒᜈ᜔ᜆᜓ ᜋᜓᜈ",
-  "@pause": {
-    "description": "Temporarily pause playback; distinct from Stop.",
-    "x-latin": "Ihinto muna",
-    "x-review-status": "draft"
-  },
-  "play": "ᜉᜆᜓᜄ᜔ᜆᜓᜄᜒᜈ᜔",
-  "@play": {
-    "description": "Start or resume playback.",
-    "x-latin": "Patugtugin",
-    "x-review-status": "draft"
-  },
-  "playNext": "ᜁᜐᜓᜈᜓᜇ᜔",
-  "@playNext": {
-    "description": "Song action: insert immediately after the current song.",
-    "x-latin": "Isunod",
-    "x-review-status": "draft"
-  },
-  "playlist2": "ᜆᜎᜀᜈ᜔ ᜈᜅ᜔ ᜃᜈ᜔ᜆ",
-  "@playlist2": {
-    "description": "Playback source label, not a user-created playlist name.",
-    "x-latin": "Talaan ng kanta",
-    "x-review-status": "draft"
-  },
-  "playlists": "ᜋᜅ ᜆᜎᜀᜈ᜔ ᜈᜅ᜔ ᜃᜈ᜔ᜆ",
-  "@playlists": {
-    "description": "Playlist navigation tab and screen title.",
-    "x-latin": "Mga talaan ng kanta",
-    "x-review-status": "draft"
-  },
-  "previousSong": "ᜈᜃᜇᜀᜅ᜔ ᜃᜈ᜔ᜆ",
-  "@previousSong": {
-    "description": "Previous-song playback control tooltip.",
-    "x-latin": "Nakaraang kanta",
-    "x-review-status": "draft"
-  },
-  "previousSong2": "ᜈᜃᜇᜀᜅ᜔ ᜃᜈ᜔ᜆ",
-  "@previousSong2": {
-    "description": "Previous-song label in mini-player customization; match the playback control.",
-    "x-latin": "Nakaraang kanta",
     "x-review-status": "draft"
   },
   "queue": "ᜉᜒᜎ",
   "@queue": {
-    "description": "Playback queue title and player action label.",
+    "description": "Queue screen heading and menu browse shortcut, not settings titles.",
     "x-latin": "Pila",
-    "x-review-status": "draft"
-  },
-  "remove": "ᜀᜎᜒᜐᜒᜈ᜔",
-  "@remove": {
-    "description": "Remove from a queue/list; distinct from deleting a file.",
-    "x-latin": "Alisin",
-    "x-review-status": "draft"
-  },
-  "repeat": "ᜂᜎᜒᜆ᜔: {arg1}",
-  "@repeat": {
-    "description": "Repeat-mode feedback. arg1 is the already-localized mode label.",
-    "x-latin": "Ulit: {arg1}",
-    "x-review-status": "draft"
-  },
-  "repeatMode": "ᜉᜇᜀᜈ᜔ ᜈᜅ᜔ ᜉᜄ᜔-ᜂᜎᜒᜆ᜔",
-  "@repeatMode": {
-    "description": "Repeat-mode picker title.",
-    "x-latin": "Paraan ng pag-ulit",
-    "x-review-status": "draft"
-  },
-  "search": "ᜑᜈᜉᜒᜈ᜔",
-  "@search": {
-    "description": "Search navigation tab and action.",
-    "x-latin": "Hanapin",
-    "x-review-status": "draft"
-  },
-  "selectAll": "ᜉᜒᜎᜒᜁᜈ᜔ ᜎᜑᜆ᜔",
-  "@selectAll": {
-    "description": "Select every item without modifying its metadata.",
-    "x-latin": "Piliin lahat",
     "x-review-status": "draft"
   },
   "settings": "ᜋᜅ ᜉᜄ᜔ᜐᜐᜀᜌᜓᜐ᜔",
   "@settings": {
-    "description": "Settings navigation tab and screen title. Review this terminology.",
+    "description": "Main Settings heading and navigation, not individual setting titles.",
     "x-latin": "Mga pagsasaayos",
     "x-review-status": "draft"
   },
-  "share": "ᜁᜊᜑᜄᜒ",
-  "@share": {
-    "description": "Share action.",
-    "x-latin": "Ibahagi",
+  "libraryLabel": "ᜀᜃ᜔ᜎᜆᜈ᜔",
+  "@libraryLabel": {
+    "description": "Menu Library browse shortcut only.",
+    "x-latin": "Aklatan",
     "x-review-status": "draft"
   },
-  "shuffle": "ᜁᜑᜎᜓ",
-  "@shuffle": {
-    "description": "Shuffle-play action.",
-    "x-latin": "Ihalo",
+  "replayShortcutLabel": "ᜊᜎᜒᜃ᜔-ᜆᜓᜄ᜔ᜆᜓᜄ᜔",
+  "@replayShortcutLabel": {
+    "description": "Menu listening-recap browse shortcut only; Flick branding elsewhere is unchanged.",
+    "x-latin": "Balik-tugtog",
     "x-review-status": "draft"
   },
-  "shuffle2": "ᜉᜄ᜔ᜑᜎᜓ: {arg1}",
-  "@shuffle2": {
-    "description": "Shuffle-mode feedback. arg1 is the already-localized mode label.",
-    "x-latin": "Paghalo: {arg1}",
+  "nowPlaying": "ᜃᜐᜎᜓᜃᜓᜌᜅ᜔ ᜆᜓᜋᜓᜆᜓᜄ᜔ᜆᜓᜄ᜔",
+  "@nowPlaying": {
+    "description": "Menu current-playback heading; player uses the separate compact Tumutugtog label.",
+    "x-latin": "Kasalukuyang tumutugtog",
     "x-review-status": "draft"
   },
-  "shuffleMode": "ᜉᜇᜀᜈ᜔ ᜈᜅ᜔ ᜉᜄ᜔ᜑᜎᜓ",
-  "@shuffleMode": {
-    "description": "Shuffle-mode picker title.",
-    "x-latin": "Paraan ng paghalo",
+  "playingLabel": "ᜆᜓᜋᜓᜆᜓᜄ᜔ᜆᜓᜄ᜔",
+  "@playingLabel": {
+    "description": "Player status heading only, with no visible Latin caption.",
+    "x-latin": "Tumutugtog",
     "x-review-status": "draft"
   },
-  "songs": "{arg1} • {arg2} ᜃᜈ᜔ᜆ",
-  "@songs": {
-    "description": "Album detail subtitle: arg1 is duration, arg2 is song count. Do not change either placeholder.",
-    "x-latin": "{arg1} • {arg2} kanta",
+  "playlists": "ᜋᜅ ᜆᜎᜀᜈ᜔ ᜈᜅ᜔ ᜃᜈ᜔ᜆ",
+  "@playlists": {
+    "description": "Main Playlists library heading only; not navigation or user-created names.",
+    "x-latin": "Mga talaan ng kanta",
     "x-review-status": "draft"
   },
   "songs14": "ᜋᜅ ᜃᜈ᜔ᜆ",
   "@songs14": {
-    "description": "Songs navigation tab and screen title.",
+    "description": "Main Songs library heading only; not navigation, counts or nested sections.",
     "x-latin": "Mga kanta",
-    "x-review-status": "draft"
-  },
-  "songsCount": "{count, plural, =1{{count} ᜃᜈ᜔ᜆ} other{{count} ᜃᜈ᜔ᜆ}}",
-  "@songsCount": {
-    "description": "Recap song count. Tagalog counted nouns do not take English's plural suffix; both ICU branches intentionally use kanta.",
-    "x-latin": "{count, plural, =1{{count} kanta} other{{count} kanta}}",
-    "x-review-status": "draft"
-  },
-  "stop": "ᜁᜑᜒᜈ᜔ᜆᜓ",
-  "@stop": {
-    "description": "Stop an operation, such as library scanning; distinct from Pause.",
-    "x-latin": "Ihinto",
-    "x-review-status": "draft"
-  },
-  "tracks": "{_totalTracks} ᜃᜈ᜔ᜆ",
-  "@tracks": {
-    "description": "Album track count. Keep the underscore-prefixed placeholder unchanged.",
-    "x-latin": "{_totalTracks} kanta",
-    "x-review-status": "draft"
-  },
-  "volume": "ᜎᜃᜐ᜔ ᜈᜅ᜔ ᜆᜓᜈᜓᜄ᜔",
-  "@volume": {
-    "description": "Playback volume label and player action.",
-    "x-latin": "Lakas ng tunog",
     "x-review-status": "draft"
   }
 }

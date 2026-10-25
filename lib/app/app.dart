@@ -487,10 +487,10 @@ class _MainShellState extends ConsumerState<MainShell>
       SnackBar(
         // The global accessor, not `context.l10n`: this listener runs outside
         // build, and it is what the rest of `_FlickAppState` already reads.
-        content: Text(l10n.playbackDesynced),
+        content: Text(l10n.englishForFilipino.playbackDesynced),
         duration: const Duration(days: 1),
         action: SnackBarAction(
-          label: l10n.sync,
+          label: l10n.englishForFilipino.sync,
           onPressed: () {
             _playerService.syncNow();
           },
@@ -517,11 +517,11 @@ class _MainShellState extends ConsumerState<MainShell>
     messenger.showFlickSnackBar(
       SnackBar(
         content: Text(
-          l10n.finishingMetadataForSongs(count),
+          l10n.englishForFilipino.finishingMetadataForSongs(count),
         ),
         duration: const Duration(days: 1),
         action: SnackBarAction(
-          label: l10n.speedUp,
+          label: l10n.englishForFilipino.speedUp,
           onPressed: () {
             final bg = ref.read(backgroundMetadataServiceProvider);
             unawaited(bg?.extractPendingMetadata());
@@ -737,7 +737,7 @@ class _MainShellState extends ConsumerState<MainShell>
       _lastBackPressTime = now;
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
-          content: Text(l10n.pressBackAgainToExit),
+          content: Text(l10n.englishForFilipino.pressBackAgainToExit),
           duration: const Duration(seconds: 2),
         ),
       );

@@ -222,9 +222,9 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showFlickSnackBar(
       SnackBar(
-        content: Text(l10n.queuedSongs(widget.songs.length)),
+        content: Text(l10n.englishForFilipino.queuedSongs(widget.songs.length)),
         action: SnackBarAction(
-          label: l10n.viewQueue,
+          label: l10n.englishForFilipino.viewQueue,
           onPressed: () => NavigationHelper.navigateToQueue(context),
         ),
       ),
@@ -257,9 +257,7 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
     ScaffoldMessenger.of(context).showFlickSnackBar(
       SnackBar(
         content: Text(
-          isAll
-              ? l10n.removedSongsFromFavorites(widget.songs.length)
-              : l10n.addedSongsToFavorites(widget.songs.length),
+          isAll ? l10n.removedFromFavorites3 : l10n.addedToFavorites,
         ),
       ),
     );

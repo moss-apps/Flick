@@ -21,6 +21,7 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/common/baybayin_text.dart';
 
 /// Groups songs by immediate subfolder relative to [prefix] within [folderUri].
 ({List<FolderGroup> subfolders, List<Song> songs}) groupByImmediateFolder({
@@ -314,8 +315,10 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.folders,
+                BaybayinText(
+                  label: BaybayinLabel.folders,
+                  fallback: l10n.folders,
+                  header: true,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: context.adaptiveTextPrimary,

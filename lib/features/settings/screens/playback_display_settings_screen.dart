@@ -10,7 +10,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/settings/screens/orbit_settings_screen.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class PlaybackDisplaySettingsScreen extends ConsumerWidget {
   const PlaybackDisplaySettingsScreen({super.key});
@@ -23,18 +23,18 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
     final playerService = ref.read(playerServiceProvider);
 
     return SettingsScaffold(
-      title: l10n.playbackDisplay,
+      title: l10n.englishForFilipino.playbackDisplay,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.playback),
+          SettingsSectionHeader(l10n.englishForFilipino.playback),
           SettingsCard(
             children: [
               _GaplessPlaybackTile(playerService: playerService),
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.music,
-                title: l10n.keepPlayingOnQuit,
+                title: l10n.englishForFilipino.keepPlayingOnQuit,
                 subtitle: appPrefs.keepPlayingOnQuit
                     ? l10n.playbackContinuesWhenTheAppIs
                     : l10n.playbackStopsWhenTheAppIs,
@@ -48,7 +48,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.shieldCheck,
-                title: l10n.backgroundPlaybackAnchor,
+                title: l10n.englishForFilipino.backgroundPlaybackAnchor,
                 subtitle: appPrefs.priorityAnchorEnabled
                     ? l10n.keepsBitPerfectAudioAliveIn
                     : l10n.mayStopInTheBackgroundOn,
@@ -63,7 +63,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.clapperboard,
-                title: l10n.motionArtInBitPerfect,
+                title: l10n.englishForFilipino.motionArtInBitPerfect,
                 subtitle: appPrefs.motionArtDuringBitPerfect
                     ? l10n.motionArtPlaysDuringBitPerfect
                     : l10n.motionArtIsReplacedWhileBit,
@@ -82,7 +82,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
               ],
               ToggleSetting(
                 icon: LucideIcons.pictureInPicture2,
-                title: l10n.floatingMiniPlayer,
+                title: l10n.englishForFilipino.floatingMiniPlayer,
                 subtitle: appPrefs.floatingPlayerEnabled
                     ? l10n.aDraggableOverlayShowsWhileUsing
                     : l10n.showASystemOverlayMiniPlayer,
@@ -97,12 +97,12 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.display),
+          SettingsSectionHeader(l10n.englishForFilipino.display),
           SettingsCard(
             children: [
               SelectionSetting(
                 icon: LucideIcons.disc,
-                title: l10n.songViewOrbital,
+                title: l10n.englishForFilipino.songViewOrbital,
                 subtitle: l10n.useTheOrbitalSongsBrowser,
                 selected: songsViewMode == SongViewMode.orbit,
                 onTap: () {
@@ -114,7 +114,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SelectionSetting(
                 icon: LucideIcons.list,
-                title: l10n.songViewList,
+                title: l10n.englishForFilipino.songViewList,
                 subtitle: l10n.useTheListSongsBrowser,
                 selected: songsViewMode == SongViewMode.list,
                 onTap: () {
@@ -127,7 +127,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
                 const SettingsDivider(),
                 NavigationSetting(
                   icon: LucideIcons.slidersHorizontal,
-                  title: l10n.customizeOrbital,
+                  title: l10n.englishForFilipino.customizeOrbital,
                   subtitle: l10n.curvatureSizingDepthAndVisuals,
                   onTap: () {
                     Navigator.of(context).push(
@@ -141,7 +141,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.panelBottom,
-                title: l10n.bottomBarAlwaysVisible,
+                title: l10n.englishForFilipino.bottomBarAlwaysVisible,
                 subtitle: l10n.keepMiniPlayerAndNavVisible,
                 value: navBarAlwaysVisible,
                 onChanged: (value) {
@@ -153,7 +153,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               ToggleSetting(
                 icon: LucideIcons.circleDot,
-                title: l10n.floatingIsland,
+                title: l10n.englishForFilipino.floatingIsland,
                 subtitle: appPrefs.floatingIslandEnabled
                     ? l10n.showTheFloatingMiniPlayerPill
                     : l10n.hideTheFloatingMiniPlayerPill,
@@ -167,7 +167,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
               const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.maximize,
-                title: l10n.immersiveFullViewTimer,
+                title: l10n.englishForFilipino.immersiveFullViewTimer,
                 subtitle:
                     l10n.autoShowTheSpotifyStyleImmersive,
                 value: appPrefs.immersiveAutoFullViewSeconds.toDouble(),
@@ -186,12 +186,12 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.fastIndexScrolling),
+          SettingsSectionHeader(l10n.englishForFilipino.fastIndexScrolling),
           SettingsCard(
             children: [
               ToggleSetting(
                 icon: LucideIcons.arrowUpDown,
-                title: l10n.fastIndexScrolling,
+                title: l10n.englishForFilipino.fastIndexScrolling,
                 subtitle: l10n.alphabeticalIndexRailOnTheSongs,
                 value: appPrefs.fastIndexEnabled,
                 onChanged: (value) {
@@ -204,7 +204,7 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
                 const SettingsDivider(),
                 SliderSetting(
                   icon: LucideIcons.clock,
-                  title: l10n.autoHideTimeout,
+                  title: l10n.englishForFilipino.autoHideTimeout,
                   subtitle: l10n.hideTheIndexRailAfterInactivity,
                   value: appPrefs.fastIndexTimeoutSeconds.toDouble(),
                   displayValue: '${appPrefs.fastIndexTimeoutSeconds}s',
@@ -242,7 +242,7 @@ class _DuckOnInterruptionTile extends StatelessWidget {
         final duck = playerService.duckOnInterruptionNotifier.value;
         return ToggleSetting(
           icon: LucideIcons.bellOff,
-          title: l10n.duckOnNotifications,
+          title: l10n.englishForFilipino.duckOnNotifications,
           subtitle: duck
               ? l10n.volumeDipsWhileNotificationSoundsPlay
               : l10n.playbackPausesWhileNotificationSoundsPlay,
@@ -271,7 +271,7 @@ class _GaplessPlaybackTile extends StatelessWidget {
         final isBitPerfect = playerService.isBitPerfectModeEnabled;
         return ToggleSetting(
           icon: LucideIcons.repeat,
-          title: l10n.gaplessPlayback,
+          title: l10n.englishForFilipino.gaplessPlayback,
           subtitle: isBitPerfect
               ? l10n.disabledInBitPerfectMode
               : l10n.seamlessTransitionBetweenTracks,

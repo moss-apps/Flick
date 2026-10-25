@@ -35,7 +35,7 @@ class PlaylistCoverActions {
     } catch (_) {
       messenger?.showFlickSnackBar(
         SnackBar(
-          content: Text(l10n.couldNotUpdatePlaylistCover),
+          content: Text(l10n.englishForFilipino.couldNotUpdatePlaylistCover),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -87,8 +87,8 @@ class PlaylistCoverActions {
         SnackBar(
           content: Text(
             success
-                ? l10n.playlistCoverUpdated
-                : l10n.couldNotUpdatePlaylistCover,
+                ? l10n.englishForFilipino.playlistCoverUpdated
+                : l10n.englishForFilipino.couldNotUpdatePlaylistCover,
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -96,7 +96,7 @@ class PlaylistCoverActions {
     } catch (_) {
       messenger?.showFlickSnackBar(
         SnackBar(
-          content: Text(l10n.couldNotUpdatePlaylistCover),
+          content: Text(l10n.englishForFilipino.couldNotUpdatePlaylistCover),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -131,8 +131,8 @@ class PlaylistCoverActions {
       SnackBar(
         content: Text(
           success
-              ? l10n.playlistCoverRemoved
-              : l10n.couldNotUpdatePlaylistCover,
+              ? l10n.englishForFilipino.playlistCoverRemoved
+              : l10n.englishForFilipino.couldNotUpdatePlaylistCover,
         ),
         behavior: SnackBarBehavior.floating,
       ),

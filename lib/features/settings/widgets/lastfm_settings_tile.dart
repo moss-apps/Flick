@@ -10,7 +10,7 @@ import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 /// Self-contained Last.fm connect/disconnect tile.
 class LastFmSettingsTile extends ConsumerStatefulWidget {
@@ -152,7 +152,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l10n.disconnectLastFm,
+                          l10n.englishForFilipino.disconnectLastFm,
                           style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
                             color: context.adaptiveTextPrimary,
                             fontWeight: FontWeight.w600,
@@ -341,7 +341,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              l10n.lastFmConfiguration,
+                              l10n.englishForFilipino.lastFmConfiguration,
                               style: Theme.of(ctx).textTheme.titleLarge
                                   ?.copyWith(
                                     color: context.adaptiveTextPrimary,
@@ -398,7 +398,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    l10n.getYourApiCredentials,
+                                    l10n.englishForFilipino.getYourApiCredentials,
                                     style: Theme.of(ctx).textTheme.bodyMedium
                                         ?.copyWith(
                                           color: context.adaptiveTextPrimary,
@@ -441,7 +441,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
 
                       // API Key field
                       Text(
-                        l10n.apiKey,
+                        l10n.englishForFilipino.apiKey,
                         style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
                           color: context.adaptiveTextPrimary,
                           fontWeight: FontWeight.w600,
@@ -494,7 +494,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
 
                       // Shared Secret field
                       Text(
-                        l10n.sharedSecret,
+                        l10n.englishForFilipino.sharedSecret,
                         style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
                           color: context.adaptiveTextPrimary,
                           fontWeight: FontWeight.w600,
@@ -748,7 +748,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
     return _buildTapTile(
       context,
       icon: Icons.error_outline,
-      title: l10n.lastFm,
+      title: l10n.englishForFilipino.lastFm,
       subtitle: l10n.couldNotLoadSession,
       onTap: _startAuth,
       trailing: Icon(
@@ -763,7 +763,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
     return _buildTapTile(
       context,
       icon: Icons.radio_button_checked,
-      title: l10n.lastFm,
+      title: l10n.englishForFilipino.lastFm,
       subtitle: l10n.connectedAs(username),
       onTap: () => _showConnectedBottomSheet(username),
       trailing: Icon(
@@ -819,7 +819,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l10n.lastFmConnected,
+                          l10n.englishForFilipino.lastFmConnected,
                           style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
                             color: context.adaptiveTextPrimary,
                             fontWeight: FontWeight.w600,
@@ -878,7 +878,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                l10n.connectedAccount,
+                                l10n.englishForFilipino.connectedAccount,
                                 style: Theme.of(ctx).textTheme.bodySmall
                                     ?.copyWith(
                                       color: context.adaptiveTextSecondary,
@@ -966,7 +966,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
     return _buildTapTile(
       context,
       icon: Icons.radio_button_unchecked,
-      title: l10n.lastFm,
+      title: l10n.englishForFilipino.lastFm,
       subtitle: _awaitingCallback
           ? l10n.waitingForBrowserAuthorization
           : l10n.connectToScrobbleYourListeningHistory,

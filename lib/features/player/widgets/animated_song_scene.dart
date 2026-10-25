@@ -29,6 +29,7 @@ import 'package:flick/features/player/widgets/compact_player_info_layout.dart';
 import 'package:flick/features/player/widgets/inline_lyrics_panel.dart';
 import 'package:flick/features/player/widgets/lyrics_mode_waveform_strip.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/common/baybayin_text.dart';
 
 class AnimatedSongScene extends ConsumerWidget {
   static const double _shortHeightThreshold = 620.0;
@@ -475,8 +476,10 @@ class AnimatedSongScene extends ConsumerWidget {
                   final nowPlayingContent = Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        l10n.nowPlaying,
+                      BaybayinText(
+                        label: BaybayinLabel.playing,
+                        fallback: context.l10n.isFilipino
+                            ? context.l10n.playingLabel : l10n.nowPlaying,
                         style: TextStyle(
                           fontFamily: 'GoogleSansFlex',
                           fontSize: context.responsive(12.0, 13.0, 14.0),

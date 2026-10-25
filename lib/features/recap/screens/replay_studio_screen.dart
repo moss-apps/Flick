@@ -246,8 +246,8 @@ class _ReplayStudioScreenState extends ConsumerState<ReplayStudioScreen> {
         SnackBar(
           content: Text(
             format == null
-                ? l10n.savedToYourGallery(_type.label)
-                : l10n.recapSavedAs(format),
+                ? l10n.englishForFilipino.savedToYourGallery(_type.label)
+                : l10n.englishForFilipino.recapSavedAs(format),
           ),
         ),
       );
@@ -797,7 +797,7 @@ class _ReplayStudioScreenState extends ConsumerState<ReplayStudioScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showFlickSnackBar(
           SnackBar(
-            content: Text(l10n.couldNotOpenKoFiPlease),
+            content: Text(l10n.englishForFilipino.couldNotOpenKoFiPlease),
           ),
         );
       }

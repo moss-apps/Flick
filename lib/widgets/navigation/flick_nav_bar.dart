@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/widgets/navigation/bottom_bar_geometry.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/common/baybayin_text.dart';
 
 class FlickNavBar extends StatefulWidget {
   final int currentIndex;
@@ -426,8 +427,9 @@ class _OverflowMenuPopupState extends State<_OverflowMenuPopup>
                                 Icon(button.icon, size: 20, color: AppColors.textSecondary),
                                 const SizedBox(width: 12),
                                 Flexible(
-                                  child: Text(
-                                    button.label,
+                                  child: BaybayinText(
+                                    label: baybayinNavigationLabel(button),
+                                    fallback: button.label,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -633,8 +635,9 @@ class _FlickNavItemState extends State<_FlickNavItem>
                     Flexible(
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(
-                          widget.button.label,
+                        child: BaybayinText(
+                          label: baybayinNavigationLabel(widget.button),
+                          fallback: widget.button.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

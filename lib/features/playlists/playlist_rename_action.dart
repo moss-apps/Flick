@@ -36,7 +36,7 @@ class PlaylistRenameAction {
     messenger?.showFlickSnackBar(
       SnackBar(
         content: Text(
-          success ? l10n.playlistRenamed(name) : l10n.couldNotRenamePlaylist,
+          success ? l10n.englishForFilipino.playlistRenamed(name) : l10n.englishForFilipino.couldNotRenamePlaylist,
         ),
         behavior: SnackBarBehavior.floating,
       ),

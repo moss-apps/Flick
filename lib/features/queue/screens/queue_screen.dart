@@ -11,6 +11,7 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/common/baybayin_text.dart';
 
 class QueueScreen extends ConsumerStatefulWidget {
   const QueueScreen({super.key});
@@ -339,8 +340,10 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.queue,
+                BaybayinText(
+                  label: BaybayinLabel.queue,
+                  fallback: l10n.queue,
+                  header: true,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: context.adaptiveTextPrimary,
@@ -409,8 +412,10 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.queue,
+                BaybayinText(
+                  label: BaybayinLabel.queue,
+                  fallback: l10n.queue,
+                  header: true,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: context.adaptiveTextPrimary,

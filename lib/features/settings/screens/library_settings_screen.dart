@@ -33,7 +33,7 @@ import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/services/permission_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/widgets/common/vinyl_record.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/settings_l10n.dart';
 
 class LibrarySettingsScreen extends ConsumerStatefulWidget {
   const LibrarySettingsScreen({super.key});
@@ -268,10 +268,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     unawaited(
       FlickDialogs.confirm(
         context,
-        title: l10n.clearArtworkCache,
+        title: l10n.englishForFilipino.clearArtworkCache,
         message:
             l10n.cachedAlbumArtWillBeRemoved(_formatBytes(_artworkCacheBytes)),
-        confirmLabel: l10n.clear,
+        confirmLabel: l10n.englishForFilipino.clear,
       ).then((confirmed) {
         if (confirmed) _clearArtworkCache();
       }),
@@ -333,7 +333,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   void _showCacheCapSheet() {
     GlassBottomSheet.show(
       context: context,
-      title: l10n.playbackCacheLimit,
+      title: l10n.englishForFilipino.playbackCacheLimit,
       isDismissible: true,
       enableDrag: true,
       maxHeightRatio: 0.5,
@@ -397,10 +397,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     unawaited(
       FlickDialogs.confirm(
         context,
-        title: l10n.clearConvertedAudioCache,
+        title: l10n.englishForFilipino.clearConvertedAudioCache,
         message:
             l10n.cachedWavConversionsWillBeRemoved(_formatBytes(_wavCacheBytes < 0 ? 0 : _wavCacheBytes)),
-        confirmLabel: l10n.clear,
+        confirmLabel: l10n.englishForFilipino.clear,
       ).then((confirmed) {
         if (confirmed) _clearWavCache();
       }),
@@ -424,10 +424,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     unawaited(
       FlickDialogs.confirm(
         context,
-        title: l10n.removeAllSongs,
+        title: l10n.englishForFilipino.removeAllSongs,
         message:
             l10n.everySongIsRemovedFromYour,
-        confirmLabel: l10n.remove,
+        confirmLabel: l10n.englishForFilipino.remove,
         destructive: true,
       ).then((confirmed) {
         if (confirmed) _removeAllSongs();
@@ -677,7 +677,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
 
   Future<void> _rescanAllFolders({ScanMode mode = ScanMode.quick}) {
     return _runScanSession(
-      title: l10n.allFolders,
+      title: l10n.englishForFilipino.allFolders,
       kind: ScanSessionKind.scan,
       onCancel: _scannerService.cancelScan,
       run: () => _scannerService.scanAllFolders(mode: mode),
@@ -688,7 +688,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   Future<void> _showRescanModeChooser() async {
     final mode = await GlassBottomSheet.show<ScanMode>(
       context: context,
-      title: l10n.rescanLibrary,
+      title: l10n.englishForFilipino.rescanLibrary,
       maxHeightRatio: 0.4,
       content: Builder(
         builder: (sheetContext) => Column(
@@ -696,14 +696,14 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
           children: [
             _buildRescanModeTile(
               icon: LucideIcons.zap,
-              title: l10n.quickScan,
+              title: l10n.englishForFilipino.quickScan,
               subtitle: l10n.onlyReReadFilesThatAre,
               onTap: () => Navigator.of(sheetContext).pop(ScanMode.quick),
             ),
             const SettingsDivider(),
             _buildRescanModeTile(
               icon: LucideIcons.refreshCw,
-              title: l10n.fullScan,
+              title: l10n.englishForFilipino.fullScan,
               subtitle:
                   l10n.reReadMetadataForEveryFile,
               onTap: () => Navigator.of(sheetContext).pop(ScanMode.full),
@@ -780,7 +780,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
 
     final service = AudioPreloadService.instance;
     await _runScanSession(
-      title: l10n.preloadingAudio,
+      title: l10n.englishForFilipino.preloadingAudio,
       kind: ScanSessionKind.preload,
       onCancel: service.cancel,
       includeProgressInSummary: false,
@@ -807,7 +807,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
 
     final service = ReplayGainScanService();
     await _runScanSession(
-      title: l10n.replaygainScan,
+      title: l10n.englishForFilipino.replaygainScan,
       kind: ScanSessionKind.replayGain,
       onCancel: service.cancel,
       includeProgressInSummary: false,
@@ -831,10 +831,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     unawaited(
       FlickDialogs.confirm(
         context,
-        title: l10n.removeFolder,
+        title: l10n.englishForFilipino.removeFolder,
         message:
             l10n.removeAndAllOfItsSongs(folder.displayName),
-        confirmLabel: l10n.remove,
+        confirmLabel: l10n.englishForFilipino.remove,
         destructive: true,
       ).then((confirmed) {
         if (confirmed) _removeFolder(folder);
@@ -1293,7 +1293,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
 
     GlassBottomSheet.show(
       context: context,
-      title: l10n.scanComplete,
+      title: l10n.englishForFilipino.scanComplete,
       isDismissible: true,
       enableDrag: true,
       maxHeightRatio: 0.42,
@@ -1584,7 +1584,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l10n.libraryLabel,
+                      l10n.englishForFilipino.libraryLabel,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: context.adaptiveTextPrimary,
                       ),
@@ -1766,7 +1766,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l10n.scanningSettings,
+                          l10n.englishForFilipino.scanningSettings,
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(color: context.adaptiveTextPrimary),
                         ),
@@ -1806,7 +1806,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       const SettingsDivider(),
                       ToggleSetting(
                         icon: LucideIcons.scanSearch,
-                        title: l10n.filterNonMusicFilesFolders,
+                        title: l10n.englishForFilipino.filterNonMusicFilesFolders,
                         subtitle:
                             l10n.skipUnsupportedFilesAndHiddenNomedia,
                         value: prefs.filterNonMusicFilesAndFolders,
@@ -1819,7 +1819,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       const SettingsDivider(),
                       ToggleSetting(
                         icon: LucideIcons.fileMinus,
-                        title: l10n.ignoreTracksUnder500Kb,
+                        title: l10n.englishForFilipino.ignoreTracksUnder500Kb,
                         subtitle:
                             l10n.excludeTinyClipsPreviewsAndAccidental,
                         value: prefs.ignoreTracksSmallerThan500Kb,
@@ -1832,7 +1832,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       const SettingsDivider(),
                       ToggleSetting(
                         icon: LucideIcons.timerOff,
-                        title: l10n.ignoreTracksUnder60Seconds,
+                        title: l10n.englishForFilipino.ignoreTracksUnder60Seconds,
                         subtitle:
                             l10n.hideShortStingersRingtonesAndVoice,
                         value: prefs.ignoreTracksShorterThan60Seconds,
@@ -1845,7 +1845,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       const SettingsDivider(),
                       ToggleSetting(
                         icon: LucideIcons.listMusic,
-                        title: l10n.importM3uM3u8Playlists,
+                        title: l10n.englishForFilipino.importM3uM3u8Playlists,
                         subtitle:
                             l10n.createOrRefreshPlaylistsFoundInside,
                         value: prefs.createPlaylistsFromM3uFiles,
@@ -1859,7 +1859,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                         const SettingsDivider(),
                         ToggleSetting(
                           icon: LucideIcons.hardDrive,
-                          title: l10n.deepScan,
+                          title: l10n.englishForFilipino.deepScan,
                           subtitle:
                               l10n.useFilesystemLevelScanningInsteadOf,
                           value: prefs.useDeepScan,
@@ -1875,7 +1875,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                             icon: _allFilesAccessGranted
                                 ? LucideIcons.shieldCheck
                                 : LucideIcons.folderSearch,
-                            title: l10n.fullLibraryAccess,
+                            title: l10n.englishForFilipino.fullLibraryAccess,
                             subtitle: _allFilesAccessGranted
                                 ? l10n.grantedScansReadEveryVolumeDirectly
                                 : l10n.notGrantedEnableSoScansCover,
@@ -1886,7 +1886,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       const SettingsDivider(),
                       ToggleSetting(
                         icon: LucideIcons.audioWaveform,
-                        title: l10n.preloadAudioData,
+                        title: l10n.englishForFilipino.preloadAudioData,
                         subtitle:
                             l10n.decodeSongsAfterScanningToCache,
                         value: prefs.preloadAudioData,
@@ -1911,11 +1911,11 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     final appPreferences = ref.watch(appPreferencesProvider);
 
     return SettingsScaffold(
-      title: l10n.libraryLabel,
+      title: l10n.englishForFilipino.libraryLabel,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.libraryLabel),
+          SettingsSectionHeader(l10n.englishForFilipino.libraryLabel),
           SettingsCard(
             children: [
               _buildLibraryInfo(),
@@ -1960,7 +1960,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                               children: [
                                 Text(
                                   _isXiaomiDevice
-                                      ? l10n.disableBatteryOptimizationRecommended
+                                      ? l10n.englishForFilipino.disableBatteryOptimizationRecommended
                                       : l10n.disableBatteryOptimization,
                                   style: Theme.of(context).textTheme.titleMedium
                                       ?.copyWith(
@@ -2038,7 +2038,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  l10n.enableFullLibraryAccess,
+                                  l10n.englishForFilipino.enableFullLibraryAccess,
                                   style: Theme.of(context).textTheme.titleMedium
                                       ?.copyWith(
                                         color: context.adaptiveTextPrimary,
@@ -2104,7 +2104,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
               ),
               ActionButton(
                 icon: LucideIcons.folderPlus,
-                title: l10n.addMusicFolder,
+                title: l10n.englishForFilipino.addMusicFolder,
                 subtitle: l10n.selectAFolderToScan,
                 onTap: _isScanning ? null : _addFolder,
               ),
@@ -2112,21 +2112,21 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 const SettingsDivider(),
                 ActionButton(
                   icon: LucideIcons.refreshCw,
-                  title: l10n.rescanLibrary,
+                  title: l10n.englishForFilipino.rescanLibrary,
                   subtitle: l10n.quickOrFullReIndexOf,
                   onTap: _isScanning ? null : _showRescanModeChooser,
                 ),
                 const SettingsDivider(),
                 ActionButton(
                   icon: LucideIcons.audioWaveform,
-                  title: l10n.preloadLibraryAudio,
+                  title: l10n.englishForFilipino.preloadLibraryAudio,
                   subtitle: l10n.cacheWaveformsAndLoudnessForAll,
                   onTap: _isScanning ? null : _preloadLibraryAudio,
                 ),
                 const SettingsDivider(),
                 ActionButton(
                   icon: LucideIcons.gauge,
-                  title: l10n.scanReplaygain,
+                  title: l10n.englishForFilipino.scanReplaygain,
                   subtitle:
                       l10n.analyzeLoudnessAndWriteReplaygainTags,
                   onTap: _isScanning ? null : _scanReplayGain,
@@ -2134,7 +2134,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 const SettingsDivider(),
                 ActionButton(
                   icon: LucideIcons.copy,
-                  title: l10n.removeDuplicates,
+                  title: l10n.englishForFilipino.removeDuplicates,
                   subtitle: l10n.findAndRemoveDuplicateSongs,
                   onTap: _isScanning ? null : _openDuplicateCleaner,
                 ),
@@ -2144,45 +2144,45 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.storage),
+          SettingsSectionHeader(l10n.englishForFilipino.storage),
           SettingsCard(
             children: [
               ActionButton(
                 icon: LucideIcons.image,
-                title: l10n.clearArtworkCache2,
+                title: l10n.englishForFilipino.clearArtworkCache2,
                 subtitle: _cacheSizeLabel,
                 onTap: _isClearingCache ? null : _confirmClearArtworkCache,
               ),
               const SettingsDivider(),
               ActionButton(
                 icon: LucideIcons.database,
-                title: l10n.playbackCacheLimit,
+                title: l10n.englishForFilipino.playbackCacheLimit,
                 subtitle: _cacheCapLabel,
                 onTap: _showCacheCapSheet,
               ),
               const SettingsDivider(),
               ActionButton(
                 icon: LucideIcons.fileAudio,
-                title: l10n.clearConvertedAudio,
+                title: l10n.englishForFilipino.clearConvertedAudio,
                 subtitle: _wavCacheSizeLabel,
                 onTap: _isClearingWavCache ? null : _confirmClearWavCache,
               ),
               const SettingsDivider(),
               ActionButton(
                 icon: LucideIcons.trash2,
-                title: l10n.removeAllSongs2,
+                title: l10n.englishForFilipino.removeAllSongs2,
                 subtitle: l10n.emptyTheLibraryFilesOnDisk,
                 onTap: _confirmRemoveAllSongs,
               ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.albumArtwork),
+          SettingsSectionHeader(l10n.englishForFilipino.albumArtwork),
           SettingsCard(
             children: [
               ToggleSetting(
                 icon: LucideIcons.crop,
-                title: l10n.stretchNonSquareArt,
+                title: l10n.englishForFilipino.stretchNonSquareArt,
                 subtitle:
                     l10n.offCropsToFillTheSquare,
                 value: appPreferences.albumsStretchArtwork,
@@ -2195,12 +2195,12 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.metadata),
+          SettingsSectionHeader(l10n.englishForFilipino.metadata),
           SettingsCard(
             children: [
               NavigationSetting(
                 icon: LucideIcons.sparkles,
-                title: l10n.fixMissingMetadata,
+                title: l10n.englishForFilipino.fixMissingMetadata,
                 subtitle: l10n.identifyAlbumsWithUnknownArtistOr,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(

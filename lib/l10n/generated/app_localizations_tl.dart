@@ -9,39 +9,50 @@ class AppLocalizationsTl extends AppLocalizations {
   AppLocalizationsTl([String locale = 'tl']) : super(locale);
 
   @override
+  String get filipinoDonationNote =>
+      'Donations will help me a lot! Hehehe. Sana masarap ulam mo lagi!';
+
+  @override
+  String get playingLabel => 'Tumutugtog';
+
+  @override
+  String get replayShortcutLabel => 'Balik-tugtog';
+
+  @override
   String get aDraggableOverlayShowsWhileUsing =>
-      'A draggable overlay shows while using other apps';
+      'May naigagalaw na overlay habang gumagamit ng ibang app';
 
   @override
   String get aLittleRecordOfWhatStayed =>
-      'A little record of what stayed on repeat.';
+      'Munting tala ng mga paulit-ulit mong pinakinggan.';
 
   @override
   String get aNewerFlickBuildIsOn =>
-      'A newer Flick build is on the Play Store.';
+      'May mas bagong bersiyon ng Flick sa Play Store.';
 
   @override
   String get aPlaylistWithThisNameAlready =>
-      'A playlist with this name already exists';
+      'May talaan ng kanta na may ganitong pangalan';
 
   @override
   String get aPremiumMusicPlayerWithCustom =>
-      'A premium music player with custom UAC 2.0 powered by Rust for the best audio experience.';
+      'De-kalidad na music player na may pasadyang UAC 2.0 at Rust para sa napakagandang tunog.';
 
   @override
   String get aSmoothContinuousWaveAcrossFrequencies =>
-      'A smooth continuous wave across frequencies';
+      'Makinis at tuloy-tuloy na alon sa iba\'t ibang frequency';
 
   @override
-  String get aSongWithALongTitle => 'A song with a long title to preview';
+  String get aSongWithALongTitle =>
+      'Kantang may mahabang pamagat para sa paunang tingin';
 
   @override
   String get aTighterMixOfFavoritesAnd =>
-      'A tighter mix of favorites and the songs you keep circling back to.';
+      'Mas piling halo ng mga paborito at kantang lagi mong binabalikan.';
 
   @override
   String get aWeekAndCountingYourDedication =>
-      'A week and counting — your dedication shows.';
+      'Isang linggo na at tuloy pa — kitang-kita ang iyong tiyaga.';
 
   @override
   String get aaudio => 'AAudio';
@@ -51,215 +62,222 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get aaudioWithOpenslEsFallbackDefault =>
-      'AAudio with OpenSL ES fallback (default)';
+      'AAudio na may OpenSL ES bilang pamalit (default)';
 
   @override
-  String get about => 'About';
+  String get about => 'Tungkol';
 
   @override
-  String get aboutFlickPlayer => 'About Flick Player';
+  String get aboutFlickPlayer => 'Tungkol sa Flick Player';
 
   @override
-  String get aboutThisAlbum => 'About this album';
+  String get aboutThisAlbum => 'Tungkol sa album na ito';
 
   @override
-  String get absoluteVolumeSync => 'Absolute Volume Sync';
+  String get absoluteVolumeSync => 'Pagsabay ng absolute volume';
 
   @override
-  String get accentColor => 'Accent Color';
+  String get accentColor => 'Kulay ng diin';
 
   @override
   String get accuraterip => 'AccurateRip';
 
   @override
   String achieved(Object arg1) {
-    return 'Achieved $arg1';
+    return 'Nakamit noong $arg1';
   }
 
   @override
-  String get achievementUnlocked => 'ACHIEVEMENT UNLOCKED';
+  String get achievementUnlocked => 'NAKAMIT NA TAGUMPAY';
 
   @override
-  String get activateFallback => 'Activate Fallback';
+  String get activateFallback => 'Gamitin ang pamalit';
 
   @override
-  String get active => 'Active';
+  String get active => 'Aktibo';
 
   @override
   String activeBands(Object activeCount) {
-    return '$activeCount active bands';
+    return '$activeCount aktibong band';
   }
 
   @override
-  String get activeDays => 'Active days';
+  String get activeDays => 'Mga araw na aktibo';
 
   @override
-  String get activeQueue => 'Active Queue';
+  String get activeQueue => 'Aktibong pila';
 
   @override
-  String get adaptive => 'Adaptive';
+  String get adaptive => 'Umaangkop';
 
   @override
-  String get add => 'Add';
+  String get add => 'Idagdag';
 
   @override
-  String get addAMusicFolderInSettings => 'Add a music folder in Settings';
+  String get addAMusicFolderInSettings =>
+      'Magdagdag ng folder ng musika sa Mga pagsasaayos';
 
   @override
-  String get addANextTrackButton => 'Add a next-track button';
+  String get addANextTrackButton =>
+      'Magdagdag ng pindutan para sa susunod na kanta';
 
   @override
-  String get addAPreviousTrackButton => 'Add a previous-track button';
+  String get addAPreviousTrackButton =>
+      'Magdagdag ng pindutan para sa nakaraang kanta';
 
   @override
-  String get addAtLeastOneLyricLine => 'Add at least one lyric line first.';
+  String get addAtLeastOneLyricLine =>
+      'Magdagdag muna ng kahit isang linya ng lirika.';
 
   @override
-  String get addDescription => 'Add Description';
+  String get addDescription => 'Magdagdag ng paglalarawan';
 
   @override
-  String get addDescription2 => 'Add description';
+  String get addDescription2 => 'Magdagdag ng paglalarawan';
 
   @override
-  String get addMusicFolder => 'Add Music Folder';
+  String get addMusicFolder => 'Magdagdag ng folder ng musika';
 
   @override
-  String get addMusicFoldersInSettings => 'Add music folders in Settings';
+  String get addMusicFoldersInSettings =>
+      'Magdagdag ng mga folder ng musika sa Mga pagsasaayos';
 
   @override
   String get addMusicWithAlbumTagsTo =>
-      'Add music with album tags to see them here';
+      'Magdagdag ng musikang may album tag para makita rito';
 
   @override
   String get addMusicWithArtistTagsTo =>
-      'Add music with artist tags to see them here';
+      'Magdagdag ng musikang may tag ng kumanta para makita rito';
 
   @override
-  String get addServer => 'Add Server';
+  String get addServer => 'Magdagdag ng server';
 
   @override
-  String get addSongsFromThePlayerMenu => 'Add songs from the player menu';
+  String get addSongsFromThePlayerMenu =>
+      'Magdagdag ng mga kanta mula sa menu ng player';
 
   @override
   String get addSongsFromThePlayerOr =>
-      'Add songs from the player or song actions menu.';
+      'Magdagdag ng mga kanta mula sa player o menu ng mga aksiyon sa kanta.';
 
   @override
   String addSongsToPlaylist(Object arg1) {
-    return 'Add $arg1 songs to playlist';
+    return 'Idagdag ang $arg1 kanta sa talaan';
   }
 
   @override
   String addSongsToPlaylist2(Object arg1) {
-    return 'Add $arg1 Songs to Playlist';
+    return 'Idagdag ang $arg1 kanta sa talaan';
   }
 
   @override
-  String get addToFavorites => 'Add to favorites';
+  String get addToFavorites => 'Idagdag sa mga paborito';
 
   @override
-  String get addToFavorites2 => 'Add to Favorites';
+  String get addToFavorites2 => 'Idagdag sa mga paborito';
 
   @override
-  String get addToPlaylist => 'Add to playlist';
+  String get addToPlaylist => 'Idagdag sa talaan ng kanta';
 
   @override
-  String get addToPlaylist2 => 'Add to Playlist';
+  String get addToPlaylist2 => 'Idagdag sa talaan ng kanta';
 
   @override
-  String get addToQueue => 'Add to Queue';
+  String get addToQueue => 'Idagdag sa pila';
 
   @override
-  String get addToQueue2 => 'Add to queue';
+  String get addToQueue2 => 'Idagdag sa pila';
 
   @override
   String addedSongsTo(Object arg1, Object arg2) {
-    return 'Added $arg1 songs to \"$arg2\"';
+    return 'Naidagdag ang $arg1 kanta sa \"$arg2\"';
   }
 
   @override
   String addedSongsTo2(Object arg1, Object playlistName) {
-    return 'Added $arg1 songs to $playlistName';
+    return 'Naidagdag ang $arg1 kanta sa $playlistName';
   }
 
   @override
   String addedSongsToFavorites(Object arg1) {
-    return 'Added $arg1 songs to favorites';
+    return 'Naidagdag ang $arg1 kanta sa mga paborito';
   }
 
   @override
   String addedSongsToFavorites3(Object arg1) {
-    return 'Added $arg1 songs to favorites';
+    return 'Naidagdag ang $arg1 kanta sa mga paborito';
   }
 
   @override
   String addedTo(Object arg1) {
-    return 'Added to $arg1';
+    return 'Naidagdag sa $arg1';
   }
 
   @override
   String addedTo2(Object arg1) {
-    return 'Added to \"$arg1\"';
+    return 'Naidagdag sa \"$arg1\"';
   }
 
   @override
-  String get addedToFavorites => 'Added to favorites';
+  String get addedToFavorites => 'Goods, na sa favorites mo na.';
 
   @override
   String addedToFavorites2(Object arg1) {
-    return 'Added \"$arg1\" to favorites';
+    return 'Naidagdag ang \"$arg1\" sa mga paborito';
   }
 
   @override
   String get addsPreDriveAndCatchesPeaks =>
-      'Adds pre-drive and catches peaks against a final output ceiling.';
+      'Nagdaragdag ng pre-drive at nililimitahan ang mga peak sa huling output ceiling.';
 
   @override
-  String get adjustAudioFrequencies => 'Adjust audio frequencies';
+  String get adjustAudioFrequencies => 'Ayusin ang mga frequency ng tunog';
 
   @override
   String get adjustMetadataTextSizeInArtwork =>
-      'Adjust metadata text size in artwork card mode';
+      'Ayusin ang laki ng teksto ng metadata sa artwork card mode';
 
   @override
   String get adjustMetadataTextSizeInImmersive =>
-      'Adjust metadata text size in immersive mode';
+      'Ayusin ang laki ng teksto ng metadata sa immersive mode';
 
   @override
-  String get adjustSpacingBetweenButtons => 'Adjust spacing between buttons';
+  String get adjustSpacingBetweenButtons =>
+      'Ayusin ang pagitan ng mga pindutan';
 
   @override
-  String get adjustTheMiniPlayerSurface => 'Adjust the mini player surface';
+  String get adjustTheMiniPlayerSurface => 'Ayusin ang hitsura ng mini player';
 
   @override
-  String get adjustTheSizeOfTheBottom => 'Adjust the size of the bottom bar';
+  String get adjustTheSizeOfTheBottom => 'Ayusin ang laki ng bar sa ibaba';
 
   @override
-  String get adjustTheSizeOfTheIcons => 'Adjust the size of the icons';
+  String get adjustTheSizeOfTheIcons => 'Ayusin ang laki ng mga icon';
 
   @override
-  String get advanceToARandomCategory => 'Advance to a random category';
+  String get advanceToARandomCategory => 'Lumipat sa sapalarang kategorya';
 
   @override
   String get advanceToTheNextCategoryAlphabetically =>
-      'Advance to the next category alphabetically';
+      'Lumipat sa susunod na kategorya ayon sa alpabeto';
 
   @override
   String get advanceToTheNextMostRecently =>
-      'Advance to the next most recently added category';
+      'Lumipat sa susunod na pinakabagong idinagdag na kategorya';
 
   @override
-  String get advanced => 'Advanced';
+  String get advanced => 'Mas masinsin';
 
   @override
-  String get advancedMode => 'Advanced mode';
+  String get advancedMode => 'Mas masinsing mode';
 
   @override
-  String get afterHours => 'After Hours';
+  String get afterHours => 'Pagkatapos ng oras';
 
   @override
   String get afterScanningMatchFilesWithMissing =>
-      'After scanning, match files with missing tags against Apple Music. Only confident matches apply automatically.';
+      'Pagkatapos mag-scan, itugma sa Apple Music ang mga file na kulang sa tag. Tanging mga tiyak na tugma ang awtomatikong ilalapat.';
 
   @override
   String get air => 'Air';
@@ -276,120 +294,120 @@ class AppLocalizationsTl extends AppLocalizations {
   String get album => 'Album';
 
   @override
-  String get albumArt => 'Album Art';
+  String get albumArt => 'Larawan ng album';
 
   @override
-  String get albumArt2 => 'Album art';
+  String get albumArt2 => 'Larawan ng album';
 
   @override
-  String get albumArtImport => 'Album Art Import';
+  String get albumArtImport => 'Pag-import ng larawan ng album';
 
   @override
-  String get albumArtist => 'Album Artist';
+  String get albumArtist => 'Kumanta sa album';
 
   @override
-  String get albumArtists => 'Album Artists';
+  String get albumArtists => 'Mga kumanta sa album';
 
   @override
-  String get albumArtwork => 'Album Artwork';
+  String get albumArtwork => 'Larawan ng album';
 
   @override
-  String get albumColors => 'Album Colors';
+  String get albumColors => 'Mga kulay ng album';
 
   @override
-  String get albumCount => 'Album Count';
+  String get albumCount => 'Bilang ng album';
 
   @override
-  String get albumLimit => 'ALBUM LIMIT';
+  String get albumLimit => 'LIMITASYON NG ALBUM';
 
   @override
-  String get albumName => 'Album Name';
+  String get albumName => 'Pangalan ng album';
 
   @override
-  String get albumOptions => 'Album options';
+  String get albumOptions => 'Mga opsiyon sa album';
 
   @override
-  String get albums => 'Albums';
+  String get albums => 'Mga album';
 
   @override
   String albums2(Object arg1) {
-    return '$arg1 albums';
+    return '$arg1 album';
   }
 
   @override
   String albums3(Object _totalAlbums) {
-    return '$_totalAlbums albums';
+    return '$_totalAlbums album';
   }
 
   @override
-  String get albumsShownPerPage => 'Albums shown per page';
+  String get albumsShownPerPage => 'Mga album na ipinapakita bawat pahina';
 
   @override
   String albumsSongs(Object arg1, Object arg2) {
-    return '$arg1 albums • $arg2 songs';
+    return '$arg1 album • $arg2 kanta';
   }
 
   @override
-  String get alignLyricTextToTheCenter => 'Align lyric text to the center';
+  String get alignLyricTextToTheCenter => 'Ihanay sa gitna ang lirika';
 
   @override
-  String get alignLyricTextToTheLeft => 'Align lyric text to the left edge';
+  String get alignLyricTextToTheLeft => 'Ihanay sa kaliwa ang lirika';
 
   @override
-  String get alignLyricTextToTheRight => 'Align lyric text to the right edge';
+  String get alignLyricTextToTheRight => 'Ihanay sa kanan ang lirika';
 
   @override
-  String get all => 'All';
+  String get all => 'Lahat';
 
   @override
-  String get allArtists => 'All Artists';
+  String get allArtists => 'Lahat ng kumanta';
 
   @override
-  String get allClearNoDuplicates => 'All clear — no duplicates';
+  String get allClearNoDuplicates => 'Ayos na — walang magkakapareho';
 
   @override
   String get allDataIsStoredLocallyOn =>
-      'All data is stored locally on your device only: music library metadata, play history, playlists, equalizer presets, and app preferences. Last.fm credentials are stored securely on-device. This data never leaves your device unless you explicitly use an integration.';
+      'Sa iyong aparato lamang nakaimbak ang lahat ng datos: metadata ng musika, kasaysayan ng pakikinig, mga talaan ng kanta, mga preset ng equalizer, at mga kagustuhan sa app. Ligtas na nakaimbak sa aparato ang mga kredensiyal sa Last.fm. Hindi umaalis sa iyong aparato ang datos na ito maliban kung kusa kang gumamit ng isang integrasyon.';
 
   @override
-  String get allFolders => 'All Folders';
+  String get allFolders => 'Lahat ng folder';
 
   @override
-  String get allFormats => 'All Formats';
+  String get allFormats => 'Lahat ng format';
 
   @override
-  String get allFrequenciesEqually => 'All frequencies equally';
+  String get allFrequenciesEqually => 'Pantay sa lahat ng frequency';
 
   @override
   String get allPass => 'All Pass';
 
   @override
   String get allResultsAreHiddenByActive =>
-      'All results are hidden by active filters.';
+      'Nakatago ang lahat ng resulta dahil sa mga aktibong filter.';
 
   @override
-  String get allSongs => 'All Songs';
+  String get allSongs => 'Lahat ng kanta';
 
   @override
-  String get allWordsStamped => 'All words stamped';
+  String get allWordsStamped => 'Nalagyan na ng oras ang lahat ng salita';
 
   @override
   String get allowFlickToRunWithoutAggressive =>
-      'Allow Flick to run without aggressive background limits so rescans and background features keep working';
+      'Payagang gumana ang Flick nang walang mahigpit na limitasyon sa background para magpatuloy ang pag-scan at iba pang tampok';
 
   @override
-  String get allowed => 'Allowed';
+  String get allowed => 'Pinapayagan';
 
   @override
-  String get alphabetical => 'Alphabetical';
+  String get alphabetical => 'Ayon sa alpabeto';
 
   @override
   String get alphabeticalIndexRailOnTheSongs =>
-      'Alphabetical index rail on the songs screen';
+      'Indeks ng alpabeto sa gilid ng pahina ng mga kanta';
 
   @override
   String get alsoRespectsYourSystemTextSize =>
-      'Also respects your system text size';
+      'Sinusunod din ang laki ng teksto ng sistema';
 
   @override
   String alt(Object arg1) {
@@ -401,20 +419,20 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get analyzeLoudnessAndWriteReplaygainTags =>
-      'Analyze loudness and write ReplayGain tags for all songs';
+      'Suriin ang lakas at isulat ang mga ReplayGain tag para sa lahat ng kanta';
 
   @override
-  String get analyzingAudio => 'Analyzing audio';
+  String get analyzingAudio => 'Sinusuri ang tunog';
 
   @override
-  String get analyzingLoudness => 'Analyzing loudness';
+  String get analyzingLoudness => 'Sinusuri ang lakas ng tunog';
 
   @override
-  String get andArtwork => ' and artwork';
+  String get andArtwork => ' at larawan';
 
   @override
   String andMoreInRotation(Object arg1) {
-    return '$arg1 and more in rotation';
+    return '$arg1 at iba pang pinakikinggan';
   }
 
   @override
@@ -425,103 +443,104 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get androidBlockedWritingToThisFile =>
-      'Android blocked writing to this file. Remove and re-add the folder in Settings to grant edit access, then try again.';
+      'Hinarang ng Android ang pagsulat sa file na ito. Alisin at idagdag muli ang folder sa Mga pagsasaayos upang payagang baguhin ito, saka subukan muli.';
 
   @override
   String get androidDeveloperOptionsTheReliableWay =>
-      'Android Developer Options — the reliable way to switch codec (in-app forcing uses a hidden system API that is blocked on stock Android)';
+      'Android Developer Options — ang maaasahang paraan ng pagpapalit ng codec (gumagamit ang pagpilit sa app ng nakatagong system API na hinaharang sa stock Android)';
 
   @override
   String get androidDidNotReturnGalleryPath =>
-      'Android did not return a gallery path for the saved image.';
+      'Walang ibinalik na gallery path ang Android para sa na-save na larawan.';
 
   @override
-  String get androidDockRoute => 'Android dock route';
+  String get androidDockRoute => 'Ruta ng Android dock';
 
   @override
   String get androidManagedRustPlaybackPathUsing =>
-      'Android-managed Rust playback path using the native Oboe backend.';
+      'Ruta ng pagpapatugtog sa Rust na pinamamahalaan ng Android gamit ang native na Oboe backend.';
 
   @override
-  String get androidUsbRoute => 'Android USB route';
+  String get androidUsbRoute => 'Ruta ng Android USB';
 
   @override
-  String get animatedAlbumArt => 'Animated Album Art';
+  String get animatedAlbumArt => 'Gumagalaw na larawan ng album';
 
   @override
-  String get animationStyle => 'Animation Style';
+  String get animationStyle => 'Estilo ng galaw';
 
   @override
   String get animationStyleAndFrequencyFocus =>
-      'Animation style and frequency focus';
+      'Estilo ng galaw at pokus ng frequency';
 
   @override
-  String get animations => 'Animations';
+  String get animations => 'Mga galaw';
 
   @override
-  String get animationsAndHapticFeedback => 'Animations and haptic feedback';
+  String get animationsAndHapticFeedback => 'Mga galaw at tugong panginginig';
 
   @override
   String get apiKey => 'API Key';
 
   @override
-  String get appInfo => 'App Info';
+  String get appInfo => 'Impormasyon ng app';
 
   @override
   String get appTitle => 'Flick Player';
 
   @override
-  String get appearance => 'Appearance';
+  String get appearance => 'Hitsura';
 
   @override
-  String get appearsInTheOverflowMenu => 'Appears in the overflow menu';
+  String get appearsInTheOverflowMenu => 'Makikita sa menu ng iba pang opsiyon';
 
   @override
-  String get appleMusicDataUnavailable => 'Apple Music data unavailable';
+  String get appleMusicDataUnavailable =>
+      'Hindi makuha ang datos ng Apple Music';
 
   @override
-  String get appleMusicDataUpdated => 'Apple Music data updated';
+  String get appleMusicDataUpdated => 'Na-update ang datos ng Apple Music';
 
   @override
   String get appleMusicLookupFailedCheckYour =>
-      'Apple Music lookup failed. Check your connection.';
+      'Hindi matagumpay ang paghahanap sa Apple Music. Suriin ang iyong koneksiyon.';
 
   @override
   String get appleMusicMotionArtOnAlbums =>
-      'Apple Music Motion Art on albums plus pan/zoom, ambient glow and smooth fade on heroes';
+      'Apple Music Motion Art sa mga album, kasama ang paggalaw, pag-zoom, banayad na liwanag at makinis na paglipat sa malalaking larawan';
 
   @override
   String appliedAutoeqFor(Object arg1) {
-    return 'Applied AutoEQ for $arg1';
+    return 'Nailapat ang AutoEQ para sa $arg1';
   }
 
   @override
-  String get apply => 'Apply';
+  String get apply => 'Ilapat';
 
   @override
   String apply2(Object arg1) {
-    return 'Apply $arg1';
+    return 'Ilapat ang $arg1';
   }
 
   @override
-  String get applySelected => 'Apply Selected';
+  String get applySelected => 'Ilapat ang pinili';
 
   @override
   String applyTo(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count songs',
-      one: '$count song',
+      other: '$count kanta',
+      one: '$count kanta',
     );
-    return 'Apply to $_temp0';
+    return 'Ilapat sa $_temp0';
   }
 
   @override
-  String get applyingNewAudioEngine => 'Applying new audio engine…';
+  String get applyingNewAudioEngine => 'Inilalapat ang bagong audio engine…';
 
   @override
-  String get apr => 'Apr';
+  String get apr => 'Abr';
 
   @override
   String get aptxAdaptive => 'aptX Adaptive';
@@ -531,198 +550,201 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get areYouSureYouWantTo =>
-      'Are you sure you want to delete this playlist?';
+      'Sigurado ka bang buburahin ang talaan ng kantang ito?';
 
   @override
   String get areYouSureYouWantTo2 =>
-      'Are you sure you want to clear your entire listening history? This cannot be undone.';
+      'Sigurado ka bang buburahin ang buong kasaysayan ng pakikinig? Hindi ito maibabalik.';
 
   @override
   String get areYouSureYouWantTo3 =>
-      'Are you sure you want to reset all UAC2 preferences? This action cannot be undone.';
+      'Sigurado ka bang ire-reset ang lahat ng kagustuhan sa UAC2? Hindi ito maibabalik.';
 
   @override
-  String get artResolution => 'Art Resolution';
+  String get artResolution => 'Resolusyon ng larawan';
 
   @override
-  String get artist => 'Artist';
+  String get artist => 'Kumanta';
 
   @override
   String get artistIsNotAvailableForThis =>
-      'Artist is not available for this song';
+      'Walang impormasyon ng kumanta para sa kantang ito';
 
   @override
-  String get artistName => 'Artist Name';
+  String get artistName => 'Pangalan ng kumanta';
 
   @override
   String artistUnit(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'artists',
-      one: 'artist',
+      other: 'kumanta',
+      one: 'kumanta',
     );
     return '$_temp0';
   }
 
   @override
-  String get artists => 'Artists';
+  String get artists => 'Mga kumanta';
 
   @override
   String artists2(Object arg1) {
-    return '$arg1 artists';
+    return '$arg1 kumanta';
   }
 
   @override
-  String get artistsInRotation => 'Artists In Rotation';
+  String get artistsInRotation => 'Mga kumantang pinakikinggan';
 
   @override
-  String get artwork => 'Artwork';
+  String get artwork => 'Larawan';
 
   @override
-  String get artworkCacheCleared => 'Artwork cache cleared';
+  String get artworkCacheCleared => 'Nabura ang cache ng larawan';
 
   @override
-  String get artworkCard => 'Artwork Card';
+  String get artworkCard => 'Card ng larawan';
 
   @override
   String artworkLookupFailed(int status) {
-    return 'Artwork lookup failed (HTTP $status).';
+    return 'Hindi mahanap ang larawan (HTTP $status).';
   }
 
   @override
   String get artworkLookupInvalidData =>
-      'Artwork lookup returned invalid data.';
+      'Hindi wastong datos ang ibinalik ng paghahanap ng larawan.';
 
   @override
   String get artworkLookupTemporarilyUnavailable =>
-      'Artwork lookup is temporarily unavailable.';
+      'Pansamantalang hindi magamit ang paghahanap ng larawan.';
 
   @override
-  String get artworkPlacement => 'Artwork placement';
+  String get artworkPlacement => 'Puwesto ng larawan';
 
   @override
-  String get artworkPlacement2 => 'Artwork Placement';
+  String get artworkPlacement2 => 'Puwesto ng larawan';
 
   @override
-  String get artworkSize => 'Artwork size';
+  String get artworkSize => 'Laki ng larawan';
 
   @override
-  String get artworkSize2 => 'Artwork Size';
+  String get artworkSize2 => 'Laki ng larawan';
 
   @override
-  String get asmrDreams => 'ASMR Dreams';
+  String get asmrDreams => 'Mga panaginip ng ASMR';
 
   @override
   String atKhzBit(Object arg1, Object arg2) {
-    return ' at ${arg1}kHz/${arg2}bit';
+    return ' sa ${arg1}kHz/${arg2}bit';
   }
 
   @override
-  String get atLeastOneVersionMustStay => 'At least one version must stay.';
+  String get atLeastOneVersionMustStay =>
+      'Dapat may matirang kahit isang bersiyon.';
 
   @override
   String get attack => 'Attack';
 
   @override
-  String get audio => 'Audio';
+  String get audio => 'Tunog';
 
   @override
-  String get audioFocus => 'Audio Focus';
+  String get audioFocus => 'Pokus ng tunog';
 
   @override
-  String get audioFormat => 'Audio Format';
+  String get audioFormat => 'Format ng tunog';
 
   @override
-  String get audioFormatIsDisabled => 'Audio Format is disabled';
+  String get audioFormatIsDisabled => 'Naka-off ang format ng tunog';
 
   @override
-  String get audioSignalPath => 'Audio Signal Path';
+  String get audioSignalPath => 'Daan ng signal ng tunog';
 
   @override
-  String get audioTestingEquipment => 'Audio Testing Equipment';
+  String get audioTestingEquipment => 'Kagamitan sa pagsubok ng tunog';
 
   @override
-  String get aug => 'Aug';
+  String get aug => 'Ago';
 
   @override
-  String get auroraSounds => 'Aurora Sounds';
+  String get auroraSounds => 'Mga tunog ng aurora';
 
   @override
   String get authenticationResponseMissingToken =>
-      'Authentication response missing token';
+      'Walang token sa tugon ng pagpapatunay';
 
   @override
-  String get auto => 'Auto';
+  String get auto => 'Awtomatiko';
 
   @override
-  String get autoAdvance => 'Auto Advance';
+  String get autoAdvance => 'Awtomatikong paglipat';
 
   @override
   String get autoBeMsbDefaultOnlyChange =>
-      'Auto — BE-MSB default; only change if native DSD hisses';
+      'Awtomatiko — BE-MSB ang default; baguhin lamang kung sumasagitsit ang native DSD';
 
   @override
-  String get autoBitPerfectForUsbDacs => 'Auto Bit-perfect for USB DACs';
+  String get autoBitPerfectForUsbDacs =>
+      'Awtomatikong bit-perfect para sa mga USB DAC';
 
   @override
-  String get autoCollapse => 'Auto Collapse';
+  String get autoCollapse => 'Awtomatikong pagtiklop';
 
   @override
-  String get autoFill => 'Auto-fill';
+  String get autoFill => 'Awtomatikong punan';
 
   @override
-  String get autoFocusSearch => 'Auto-Focus Search';
+  String get autoFocusSearch => 'Awtomatikong ituon sa paghahanap';
 
   @override
-  String get autoFullView => 'Auto Full View';
+  String get autoFullView => 'Awtomatikong buong tanaw';
 
   @override
-  String get autoHideTimeout => 'Auto-hide Timeout';
+  String get autoHideTimeout => 'Oras bago awtomatikong itago';
 
   @override
-  String get autoIdentifyUntaggedAlbums => 'Auto-identify untagged albums';
+  String get autoIdentifyUntaggedAlbums =>
+      'Awtomatikong kilalanin ang mga album na walang tag';
 
   @override
   String get autoNativeDsdOnDapsDop =>
-      'Auto — Native DSD on DAPs, DoP for USB DACs, PCM otherwise';
+      'Awtomatiko — native DSD sa mga DAP, DoP para sa mga USB DAC, PCM sa iba';
 
   @override
-  String get autoReconnect => 'Auto-Reconnect';
+  String get autoReconnect => 'Awtomatikong muling kumonekta';
 
   @override
   String get autoShowFullViewAfterInactivity =>
-      'Auto-show full view after inactivity';
+      'Awtomatikong buong tanaw kapag walang ginagawa';
 
   @override
   String get autoShowTheSpotifyStyleImmersive =>
-      'Auto-show the Spotify-style immersive full view after inactivity';
+      'Awtomatikong ipakita ang buong tanaw na istilong Spotify kapag walang ginagawa';
 
   @override
   String get autoU8ByteInterleavedRecommended =>
-      'Auto — U8 byte-interleaved (recommended)';
+      'Awtomatiko — U8 byte-interleaved (inirerekomenda)';
 
   @override
-  String get autoeqHeadphones => 'AutoEQ headphones';
+  String get autoeqHeadphones => 'Mga headphone ng AutoEQ';
 
   @override
-  String get autoeqHeadphones2 => 'AutoEQ Headphones';
+  String get autoeqHeadphones2 => 'Mga headphone ng AutoEQ';
 
   @override
-  String get automatic => 'Automatic';
+  String get automatic => 'Awtomatiko';
 
   @override
-  String get automaticUpdateChecks => 'Automatic Update Checks';
+  String get automaticUpdateChecks => 'Awtomatikong pagsuri ng update';
 
   @override
   String get automaticallyOpenKeyboardWhenSwitchingTo =>
-      'Automatically open keyboard when switching to search';
+      'Awtomatikong buksan ang keyboard kapag lumipat sa paghahanap';
 
   @override
-  String get autoplayOnQueueEnd => 'Autoplay on Queue End';
+  String get autoplayOnQueueEnd => 'Awtomatikong patugtugin sa dulo ng pila';
 
   @override
-  String get availableDevices => 'Available Devices';
+  String get availableDevices => 'Mga magagamit na aparato';
 
   @override
   String b(Object arg1) {
@@ -730,52 +752,53 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get back => 'Back';
+  String get back => 'Bumalik';
 
   @override
-  String get backOnline => 'Back online';
+  String get backOnline => 'May koneksiyon na muli';
 
   @override
-  String get backToLocker => 'Back to Locker';
+  String get backToLocker => 'Bumalik sa Locker';
 
   @override
-  String get backToReplay => 'Back to Replay';
+  String get backToReplay => 'Bumalik sa Replay';
 
   @override
   String get backend => 'Backend';
 
   @override
-  String get background => 'Background';
+  String get background => 'Likuran';
 
   @override
-  String get backgroundOpacity => 'Background Opacity';
+  String get backgroundOpacity => 'Pagkalabo ng likuran';
 
   @override
-  String get backgroundPlaybackAnchor => 'Background Playback Anchor';
+  String get backgroundPlaybackAnchor =>
+      'Pangpanatili ng pagtugtog sa background';
 
   @override
-  String get balance => 'Balance';
+  String get balance => 'Balanse';
 
   @override
   String balance2(Object arg1) {
-    return 'Balance $arg1';
+    return 'Balanse $arg1';
   }
 
   @override
   String get balanceTempoDampFilterDelaysSize =>
-      'Balance, tempo, damp, filter, delays, size, mix, and extra spread controls.';
+      'Mga kontrol sa balanse, tempo, damp, filter, delay, laki, halo, at dagdag na lawak.';
 
   @override
-  String get balancedQualityAndStability => 'Balanced quality and stability';
+  String get balancedQualityAndStability => 'Balanseng kalidad at katatagan';
 
   @override
   String get band => 'Band';
 
   @override
-  String get bandControls => 'Band Controls';
+  String get bandControls => 'Mga kontrol ng band';
 
   @override
-  String get bandEditors => 'Band Editors';
+  String get bandEditors => 'Mga pang-edit ng band';
 
   @override
   String get bandPass => 'Band Pass';
@@ -787,79 +810,86 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String bands(Object arg1) {
-    return '$arg1/31 bands';
+    return '$arg1/31 band';
   }
 
   @override
   String bandsActive(Object activeCount, Object arg1) {
-    return '$activeCount/$arg1 bands active';
+    return '$activeCount/$arg1 aktibong band';
   }
 
   @override
   String bandsAdjusted(Object adjustedBands) {
-    return '$adjustedBands bands adjusted';
+    return '$adjustedBands band ang naayos';
   }
 
   @override
   String bandsAdjusted2(Object adjustedCount, Object arg1) {
-    return '$adjustedCount/$arg1 bands adjusted';
+    return '$adjustedCount/$arg1 band ang naayos';
   }
 
   @override
   String bandsPreampDb(Object arg1, Object arg2, Object arg3) {
-    return '$arg1 bands · preamp $arg2 dB · $arg3';
+    return '$arg1 band · preamp $arg2 dB · $arg3';
   }
 
   @override
-  String get barHeight => 'Bar Height';
+  String get barHeight => 'Taas ng bar';
 
   @override
-  String get bars => 'Bars';
+  String get bars => 'Mga bar';
 
   @override
   String get baseAlbumArtSizeForEach =>
-      'Base album-art size for each song card';
+      'Batayang laki ng larawan ng album sa bawat card ng kanta';
 
   @override
   String get bass => 'Bass';
 
   @override
-  String get bassMidTreble => 'Bass, Mid & Treble';
+  String get bassMidTreble => 'Bass, Mid at Treble';
 
   @override
   String get bassTreble => 'Bass + Treble';
 
   @override
   String battery(Object battery) {
-    return '$battery% battery';
+    return '$battery% baterya';
   }
 
   @override
+  String get baybayinHeadings => 'Mga label sa Baybayin';
+
+  @override
+  String get baybayinHeadingsDescription =>
+      'Eksperimento: piling pamagat, browse shortcut at navigation label lang ang nasa Baybayin. Latin pa rin ang babasahin ng screen reader.';
+
+  @override
   String get baybayinPilotDescription =>
-      'Experimental draft; untranslated text stays in English.';
+      'Halo ng Tagalog at English. Burador ng salin para sa pagsusuri.';
 
   @override
   String get beLsbBigEndianSubslotLsb =>
-      'BE-LSB — big-endian subslot, LSB first';
+      'BE-LSB — big-endian subslot, LSB muna';
 
   @override
   String get beMsbBigEndianSubslotMsb =>
-      'BE-MSB — big-endian subslot, MSB first (default)';
+      'BE-MSB — big-endian subslot, MSB muna (default)';
 
   @override
   String get beMsbPackingTheDefaultWire =>
-      'BE-MSB packing — the default wire convention';
+      'BE-MSB packing — ang default na ayos sa wire';
 
   @override
-  String get besideTheSong => 'Beside the song';
+  String get besideTheSong => 'Katabi ng kanta';
 
   @override
   String get bigEndian32BitSubslotMsb =>
-      'Big-endian 32-bit subslot, MSB-first bits';
+      'Big-endian 32-bit subslot, MSB-first na mga bit';
 
   @override
   String get bigEndianSubslotLsbFirstBit =>
-      'Big-endian subslot, LSB-first (bit-reversed) bits';
+      'Big-endian subslot, LSB-first (baligtad na bit)';
 
   @override
   String bit(Object depth) {
@@ -870,10 +900,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String get bitDepth => 'Bit depth';
 
   @override
-  String get bitDepth2 => 'Bit Depth';
+  String get bitDepth2 => 'Bit depth';
 
   @override
-  String get bitDepths => 'Bit Depths';
+  String get bitDepths => 'Mga bit depth';
 
   @override
   String get bitPerfect => 'BIT-PERFECT';
@@ -885,108 +915,111 @@ class AppLocalizationsTl extends AppLocalizations {
   String get bitPerfectCapsule => 'Bit-Perfect Capsule';
 
   @override
-  String get bitPerfectDapInternal => 'Bit-perfect (DAP Internal)';
+  String get bitPerfectDapInternal => 'Bit-perfect (loob ng DAP)';
 
   @override
   String get bitPerfectDapInternalDisabledSoftware =>
-      'Bit-perfect (DAP Internal) disabled — software effects active.';
+      'Naka-off ang bit-perfect (loob ng DAP) — aktibo ang mga software effect.';
 
   @override
   String get bitPerfectDapInternalEnabledAll =>
-      'Bit-perfect (DAP Internal) enabled — all DSP bypassed.';
+      'Naka-on ang bit-perfect (loob ng DAP) — nilalaktawan ang lahat ng DSP.';
 
   @override
   String get bitPerfectEnabledParametricEqIs =>
-      'Bit-perfect enabled — parametric EQ is bypassed on the direct USB path. Restart the app to apply playback changes.';
+      'Naka-on ang bit-perfect — nilalaktawan ang parametric EQ sa direktang USB path. I-restart ang app upang ilapat ang mga pagbabago sa pagtugtog.';
 
   @override
   String get bitPerfectUsbDac => 'Bit-perfect (USB DAC)';
 
   @override
   String get bitPerfectUsbDacCouldNot =>
-      'Bit-perfect (USB DAC) could not be enabled. Check the USB diagnostics for the failure reason.';
+      'Hindi ma-on ang bit-perfect (USB DAC). Suriin ang USB diagnostics para sa dahilan.';
 
   @override
   String bitPerfectUsbDacCouldNot2(Object arg1) {
-    return 'Bit-perfect (USB DAC) could not be enabled for $arg1. Check the USB diagnostics.';
+    return 'Hindi ma-on ang bit-perfect (USB DAC) para sa $arg1. Suriin ang USB diagnostics.';
   }
 
   @override
   String bitPerfectUsbDacEnabledFor(Object arg1) {
-    return 'Bit-perfect (USB DAC) enabled for $arg1.';
+    return 'Naka-on ang bit-perfect (USB DAC) para sa $arg1.';
   }
 
   @override
-  String get bitPerfectVerified => 'Bit-perfect verified';
+  String get bitPerfectVerified => 'Napatunayang bit-perfect';
 
   @override
-  String get bitSubslotsLlRrPer => '16-bit subslots: LL|RR per frame';
+  String get bitSubslotsLlRrPer => '16-bit subslot: LL|RR bawat frame';
 
   @override
   String get bitSubslotsLlllRrrrPer =>
-      '32-bit subslots: LLLL|RRRR per frame (legacy)';
+      '32-bit subslot: LLLL|RRRR bawat frame (luma)';
 
   @override
   String get bitrateAdjustsToSignalQuality =>
-      'Bitrate adjusts to signal quality';
+      'Umaangkop ang bitrate sa kalidad ng signal';
 
   @override
-  String get blocked => 'Blocked';
+  String get blocked => 'Hinarang';
 
   @override
-  String get blue => 'Blue';
+  String get blue => 'Asul';
 
   @override
   String get bluetooth => 'Bluetooth';
 
   @override
-  String get bluetoothCodecInfo => 'Bluetooth codec info';
+  String get bluetoothCodecInfo => 'Impormasyon ng Bluetooth codec';
 
   @override
   String get bluetoothOutput => 'Bluetooth output';
 
   @override
   String get boldSaturatedColorsFromAlbumArt =>
-      'Bold, saturated colors from album art.';
+      'Matitingkad na kulay mula sa larawan ng album.';
 
   @override
-  String get boostBeyond100UpTo200 => 'Boost beyond 100% (up to 200%)';
+  String get boostBeyond100UpTo200 =>
+      'Palakasin nang lampas 100% (hanggang 200%)';
 
   @override
-  String get border => 'Border';
+  String get border => 'Gilid';
 
   @override
   String get bothBitPerfectOptionsAreOff =>
-      'Both bit-perfect options are off on this DAP, so the standard engine is unavailable. You can still use Rust via Oboe or Isochronous USB.';
+      'Parehong naka-off ang dalawang bit-perfect na opsiyon sa DAP na ito, kaya hindi magamit ang Standard engine. Maaari pa ring gamitin ang Rust sa Oboe o Isochronous USB.';
 
   @override
-  String get bottom => 'Bottom';
+  String get bottom => 'Ibaba';
 
   @override
-  String get bottomBar => 'Bottom Bar';
+  String get bottomBar => 'Bar sa ibaba';
 
   @override
-  String get bottomBarAlwaysVisible => 'Bottom Bar Always Visible';
+  String get bottomBarAlwaysVisible => 'Laging ipakita ang bar sa ibaba';
 
   @override
-  String get bouncy => 'Bouncy';
+  String get bouncy => 'Tumalbog';
 
   @override
   String get browseByArtworkOpenAnyAlbum =>
-      'Browse by artwork, open any album, and jump straight into the tracklist.';
+      'Mag-browse ayon sa larawan, buksan ang alinmang album, at dumiretso sa mga kanta.';
 
   @override
-  String get browseMore => 'Browse More';
+  String get browseMore => 'Tumingin pa';
 
   @override
-  String get browseTheFullControlsGuide => 'Browse the full controls guide';
+  String get browseTheFullControlsGuide =>
+      'Tingnan ang buong gabay sa mga kontrol';
 
   @override
-  String get browseYourArtistLibrary => 'Browse your artist library';
+  String get browseYourArtistLibrary =>
+      'Tingnan ang iyong aklatan ng mga kumanta';
 
   @override
   String get browseYourArtistsExploreTheirDiscographies =>
-      'Browse your artists, explore their discographies, and play their tracks.';
+      'Tingnan ang mga kumanta, tuklasin ang kanilang mga album, at patugtugin ang kanilang mga kanta.';
 
   @override
   String get buffer => 'Buffer';
@@ -997,140 +1030,140 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get buildFlavor => 'Build Flavor';
+  String get buildFlavor => 'Uri ng build';
 
   @override
-  String get buildFlavorFull => 'full — direct download build';
+  String get buildFlavorFull => 'full — build para sa direktang pag-download';
 
   @override
-  String get buildFlavorPlay => 'play — Google Play build';
+  String get buildFlavorPlay => 'play — build para sa Google Play';
 
   @override
-  String get buildingYourMusicHome => 'Building your music home';
+  String get buildingYourMusicHome => 'Inihahanda ang tahanan ng iyong musika';
 
   @override
-  String get builtIn => 'Built-in';
+  String get builtIn => 'Nakapaloob';
 
   @override
-  String get buttonSpacing => 'Button Spacing';
+  String get buttonSpacing => 'Pagitan ng mga pindutan';
 
   @override
-  String get buttons => 'Buttons';
+  String get buttons => 'Mga pindutan';
 
   @override
   String get buyMeACoffee => 'Buy Me a Coffee';
 
   @override
   String by(Object arg1, Object arg2) {
-    return '\"$arg1\" by $arg2';
+    return '\"$arg1\" ni $arg2';
   }
 
   @override
   String get bypassAllDspEqDynamicsCrossfade =>
-      'Bypass all DSP (EQ, dynamics, crossfade, speed) on the native DAP internal high-res path. Disable to use software effects. Turning off Bit-perfect (USB DAC) also disables this.';
+      'Laktawan ang lahat ng DSP (EQ, dynamics, crossfade, bilis) sa native na high-res path sa loob ng DAP. I-off upang gamitin ang mga software effect. Nadi-disable rin ito kapag ini-off ang Bit-perfect (USB DAC).';
 
   @override
   String get byteInterleavedLrlrStream => 'Byte-interleaved: LRLR stream';
 
   @override
   String get cacheWaveformsAndLoudnessForAll =>
-      'Cache waveforms and loudness for all songs';
+      'I-cache ang waveform at lakas ng lahat ng kanta';
 
   @override
   String cachedAlbumArtWillBeRemoved(Object arg1) {
-    return 'Cached album art ($arg1) will be removed. Artwork reloads automatically as you browse.';
+    return 'Buburahin ang naka-cache na larawan ng album ($arg1). Awtomatikong ilo-load muli ang mga larawan habang nagba-browse.';
   }
 
   @override
   String cachedWavConversionsWillBeRemoved(Object size) {
-    return 'Cached WAV conversions ($size) will be removed. Files convert again on next playback.';
+    return 'Buburahin ang mga naka-cache na WAV conversion ($size). Iko-convert muli ang mga file sa susunod na pagtugtog.';
   }
 
   @override
-  String get calculatingSize => 'Calculating size...';
+  String get calculatingSize => 'Kinakalkula ang laki...';
 
   @override
-  String get calmFrequencies => 'Calm Frequencies';
+  String get calmFrequencies => 'Mga payapang frequency';
 
   @override
-  String get camera => 'Camera';
+  String get camera => 'Kamera';
 
   @override
   String get cameraAccessIsNeededYouCan =>
-      'Camera access is needed. You can enable it in Android settings.';
+      'Kailangan ng pahintulot sa kamera. Maaari itong i-on sa mga setting ng Android.';
 
   @override
   String get cameraAndPhotoLibraryAccessIs =>
-      'Camera and photo library access is used solely for the Flick Replay feature to create custom poster backgrounds for listening recap posters. Photos are only used at your explicit request and remain entirely on your device. No images are uploaded or transmitted.';
+      'Ginagamit lamang ang kamera at mga larawan para sa Flick Replay upang gumawa ng pasadyang likuran ng mga poster ng buod ng pakikinig. Gagamitin lamang ang mga larawan kapag hiniling mo at mananatili ang mga ito sa iyong aparato. Walang larawang ina-upload o ipinapadala.';
 
   @override
-  String get cameraAndPhotos => 'Camera and Photos';
+  String get cameraAndPhotos => 'Kamera at mga larawan';
 
   @override
-  String get cancel => 'Cancel';
+  String get cancel => 'Kanselahin';
 
   @override
   String get capAt60hzBalancedSmoothnessAnd =>
-      'Cap at 60Hz — balanced smoothness and battery';
+      'Limitahan sa 60Hz — balanse sa kinis at baterya';
 
   @override
   String capMs(Object arg1) {
-    return 'cap $arg1 ms';
+    return 'hanggang $arg1 ms';
   }
 
   @override
-  String get capabilities => 'Capabilities';
+  String get capabilities => 'Mga kakayahan';
 
   @override
-  String get capabilitiesNotAvailable => 'Capabilities not available';
+  String get capabilitiesNotAvailable => 'Hindi makuha ang mga kakayahan';
 
   @override
-  String get capabilityState => 'Capability State';
+  String get capabilityState => 'Kalagayan ng kakayahan';
 
   @override
-  String get cardSize => 'Card Size';
+  String get cardSize => 'Laki ng card';
 
   @override
-  String get cardWidth => 'Card Width';
+  String get cardWidth => 'Lapad ng card';
 
   @override
-  String get cast => 'Cast';
+  String get cast => 'I-cast';
 
   @override
-  String get casting => 'Casting';
+  String get casting => 'Nagka-cast';
 
   @override
-  String get castingTapToManage => 'Casting — tap to manage';
+  String get castingTapToManage => 'Nagka-cast — pindutin upang pamahalaan';
 
   @override
   String castingTo(Object deviceName) {
-    return 'Casting to $deviceName';
+    return 'Nagka-cast sa $deviceName';
   }
 
   @override
   String castingTo2(Object arg1) {
-    return 'Casting to $arg1';
+    return 'Nagka-cast sa $arg1';
   }
 
   @override
-  String get categories => 'Categories';
+  String get categories => 'Mga kategorya';
 
   @override
   String get ceiling => 'Ceiling';
 
   @override
-  String get center => 'Center';
+  String get center => 'Gitna';
 
   @override
   String get centerTheTitleAndInfoIn =>
-      'Center the title and info in the detail header';
+      'Igitna ang pamagat at impormasyon sa ulunan ng detalye';
 
   @override
-  String get centeredHeaderTitle => 'Centered Header Title';
+  String get centeredHeaderTitle => 'Nakasentrong pamagat';
 
   @override
   String get centeredWidensToFitYourControls =>
-      'Centered; widens to fit your controls';
+      'Nasa gitna; lumalapad para magkasya ang mga kontrol';
 
   @override
   String ch(Object channels) {
@@ -1148,301 +1181,305 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get changeCover => 'Change cover';
+  String get changeCover => 'Palitan ang pabalat';
 
   @override
   String get changingSampleRateBitDepthOr =>
-      'Changing sample rate, bit depth, or channel handling can resample songs and may affect playback quality, pitch, speed, or stability on some devices.';
+      'Ang pagpapalit ng sample rate, bit depth, o paghawak sa mga channel ay maaaring mag-resample ng mga kanta at makaapekto sa kalidad, tono, bilis, o katatagan ng pagtugtog sa ilang aparato.';
 
   @override
-  String get channels => 'Channels';
+  String get channels => 'Mga channel';
 
   @override
   String channels2(Object arg1) {
-    return '$arg1 channels';
+    return '$arg1 channel';
   }
 
   @override
   String channels3(Object ch) {
-    return '$ch channels';
+    return '$ch channel';
   }
 
   @override
-  String get checkAgain => 'Check Again';
+  String get checkAgain => 'Suriin muli';
 
   @override
   String get checkTheVersionsYouWantTo =>
-      'Check the versions you want to keep — unchecked ones will be removed from your library. At least one must stay.';
+      'Lagyan ng tsek ang mga bersiyong ititira — aalisin sa iyong aklatan ang hindi napili. Dapat may matirang kahit isa.';
 
   @override
   String get checkVersionsToKeepUncheckedWill =>
-      'Check versions to keep — unchecked will be removed';
+      'Piliin ang mga bersiyong ititira — aalisin ang hindi napili';
 
   @override
-  String get checking => 'Checking…';
+  String get checking => 'Sinusuri…';
 
   @override
-  String get checkingForUpdates => 'Checking for Updates';
+  String get checkingForUpdates => 'Sinusuri kung may update';
 
   @override
-  String get checkingForUpdates2 => 'Checking for Updates...';
+  String get checkingForUpdates2 => 'Sinusuri kung may update...';
 
   @override
-  String get childrenSPrivacy => 'Children\'s Privacy';
+  String get childrenSPrivacy => 'Pagkapribado ng mga bata';
 
   @override
-  String get chooseAction => 'Choose Action';
+  String get chooseAction => 'Pumili ng aksiyon';
 
   @override
-  String get chooseAudioEngine => 'Choose Audio Engine';
+  String get chooseAudioEngine => 'Pumili ng audio engine';
 
   @override
-  String get chooseLocationU2026 => 'Choose location…';
+  String get chooseLocationU2026 => 'Pumili ng lokasyon…';
 
   @override
-  String get chooseWhichToKeep => 'Choose which to keep';
+  String get chooseWhichToKeep => 'Piliin ang ititira';
 
   @override
   String get chromecast => 'Chromecast';
 
   @override
   String get circularDotsRadiusFollowsAmplitude =>
-      'Circular dots — radius follows amplitude';
+      'Mga bilog na tuldok — sumusunod ang laki sa amplitude';
 
   @override
-  String get cityBeats => 'City Beats';
+  String get cityBeats => 'Mga ritmo ng lungsod';
 
   @override
-  String get claimedByFlick => 'Claimed by Flick';
+  String get claimedByFlick => 'Hawak ng Flick';
 
   @override
   String get cleanStraightLineWithPrecisionScrubbing =>
-      'Clean straight line with precision scrubbing.';
+      'Malinis na tuwid na linya na may eksaktong paglilipat ng puwesto.';
 
   @override
-  String get clear => 'Clear';
+  String get clear => 'Burahin';
 
   @override
-  String get clearAll => 'Clear All';
+  String get clearAll => 'Burahin lahat';
 
   @override
-  String get clearAllUac2Settings => 'Clear all UAC2 settings';
+  String get clearAllUac2Settings => 'Burahin ang lahat ng pagsasaayos sa UAC2';
 
   @override
-  String get clearArtworkCache => 'Clear Artwork Cache?';
+  String get clearArtworkCache => 'Burahin ang cache ng larawan?';
 
   @override
-  String get clearArtworkCache2 => 'Clear Artwork Cache';
+  String get clearArtworkCache2 => 'Burahin ang cache ng larawan';
 
   @override
-  String get clearConvertedAudio => 'Clear Converted Audio';
+  String get clearConvertedAudio => 'Burahin ang na-convert na tunog';
 
   @override
-  String get clearConvertedAudioCache => 'Clear Converted Audio Cache?';
+  String get clearConvertedAudioCache =>
+      'Burahin ang cache ng na-convert na tunog?';
 
   @override
-  String get clearFilters => 'Clear filters';
+  String get clearFilters => 'Alisin ang mga filter';
 
   @override
-  String get clearHistory => 'Clear History';
+  String get clearHistory => 'Burahin ang kasaysayan';
 
   @override
-  String get clearLogs => 'Clear logs?';
+  String get clearLogs => 'Burahin ang mga log?';
 
   @override
   String get clearTheCounterAndAnyUnlocked =>
-      'Clear the counter and any unlocked streak milestones';
+      'I-reset ang bilang at mga nakamit na sunod-sunod na araw ng pakikinig';
 
   @override
-  String get clearWord => 'Clear Word';
+  String get clearWord => 'Burahin ang oras ng salita';
 
   @override
-  String get clearWords => 'Clear Words';
+  String get clearWords => 'Burahin ang mga oras ng salita';
 
   @override
-  String get clearing => 'Clearing...';
+  String get clearing => 'Binubura...';
 
   @override
-  String get close => 'Close';
+  String get close => 'Isara';
 
   @override
-  String get closePreview => 'Close preview';
+  String get closePreview => 'Isara ang paunang tingin';
 
   @override
   String codecApplied(Object arg1) {
-    return 'Codec applied: $arg1';
+    return 'Nailapat na codec: $arg1';
   }
 
   @override
-  String get codecControl => 'Codec Control';
+  String get codecControl => 'Kontrol ng codec';
 
   @override
   String get codecForcingUnavailableOnThisDevice =>
-      'Codec forcing unavailable on this device — set it via Developer Options → Bluetooth Audio Codec.';
+      'Hindi maaaring ipilit ang codec sa aparatong ito — itakda ito sa Developer Options → Bluetooth Audio Codec.';
 
   @override
-  String get codecInfo => 'Codec Info';
+  String get codecInfo => 'Impormasyon ng codec';
 
   @override
-  String get codecU0026Audio => 'Codec & Audio';
+  String get codecU0026Audio => 'Codec at tunog';
 
   @override
-  String get collapseAfter => 'Collapse After';
+  String get collapseAfter => 'Tiklopin pagkalipas ng';
 
   @override
-  String get collapsed => 'Collapsed';
+  String get collapsed => 'Nakatiklop';
 
   @override
-  String get collection => 'Collection';
+  String get collection => 'Koleksiyon';
 
   @override
-  String get color => 'Color';
+  String get color => 'Kulay';
 
   @override
-  String get comingSoon => 'Coming Soon';
+  String get comingSoon => 'Malapit na';
 
   @override
-  String get compatibility => 'Compatibility';
+  String get compatibility => 'Pagkakatugma';
 
   @override
-  String get compatibleWithPowerampEq => 'Compatible with Poweramp EQ';
+  String get compatibleWithPowerampEq => 'Katugma sa Poweramp EQ';
 
   @override
   String get completelyHiddenFromTheBottomBar =>
-      'Completely hidden from the bottom bar';
+      'Ganap na nakatago sa bar sa ibaba';
 
   @override
   String get compressor => 'Compressor';
 
   @override
-  String get compressorOff => 'Compressor off';
+  String get compressorOff => 'Naka-off ang compressor';
 
   @override
-  String get compressorOn => 'Compressor on';
+  String get compressorOn => 'Naka-on ang compressor';
 
   @override
-  String get configureUsbDacAmpDevices => 'Configure USB DAC/AMP devices';
+  String get configureUsbDacAmpDevices => 'Ayusin ang mga USB DAC/AMP';
 
   @override
-  String get configureYourMusicExperience => 'Configure your music experience';
+  String get configureYourMusicExperience =>
+      'Dito mo ayusin mga configuration ng settings mo.';
 
   @override
-  String get connect => 'Connect';
+  String get connect => 'Kumonekta';
 
   @override
-  String get connectAMusicServer => 'Connect a music server';
+  String get connectAMusicServer => 'Kumonekta sa server ng musika';
 
   @override
   String get connectASubsonicJellyfinWebdavUpnp =>
-      'Connect a Subsonic, Jellyfin, WebDAV, UPnP, or Tidal server to stream your remote library.';
+      'Kumonekta sa Subsonic, Jellyfin, WebDAV, UPnP, o Tidal server upang i-stream ang iyong malayuang aklatan.';
 
   @override
-  String get connectAUsbDacOrAudio => 'Connect a USB DAC or audio interface';
+  String get connectAUsbDacOrAudio => 'Ikonekta ang USB DAC o audio interface';
 
   @override
-  String get connectListenbrainz => 'Connect ListenBrainz';
+  String get connectListenbrainz => 'Ikonekta ang ListenBrainz';
 
   @override
   String get connectToScrobbleYourListeningHistory =>
-      'Connect to scrobble your listening history';
+      'Kumonekta upang i-scrobble ang iyong kasaysayan ng pakikinig';
 
   @override
-  String get connectToScrobbleYourMusic => 'Connect to scrobble your music';
+  String get connectToScrobbleYourMusic =>
+      'Kumonekta upang i-scrobble ang iyong musika';
 
   @override
   String get connectToSubmitYourListeningHistory =>
-      'Connect to submit your listening history';
+      'Kumonekta upang isumite ang iyong kasaysayan ng pakikinig';
 
   @override
   String get connectToTheInternetToCheck =>
-      'Connect to the internet to check for updates.';
+      'Kumonekta sa internet upang tingnan kung may update.';
 
   @override
-  String get connected => 'Connected';
+  String get connected => 'Nakakonekta';
 
   @override
-  String get connectedAccount => 'Connected Account';
+  String get connectedAccount => 'Nakakonektang account';
 
   @override
   String connectedAs(Object username) {
-    return 'Connected as $username';
+    return 'Nakakonekta bilang $username';
   }
 
   @override
-  String get connecting => 'Connecting';
+  String get connecting => 'Kumokonekta';
 
   @override
-  String get connection => 'Connection';
+  String get connection => 'Koneksiyon';
 
   @override
-  String get connectionBehavior => 'Connection Behavior';
+  String get connectionBehavior => 'Kilos ng koneksiyon';
 
   @override
-  String get connectionFailedRetry => 'Connection Failed — Retry';
+  String get connectionFailedRetry => 'Hindi makakonekta — subukan muli';
 
   @override
-  String get connectionManagement => 'Connection Management';
+  String get connectionManagement => 'Pamamahala ng koneksiyon';
 
   @override
-  String get connectionNotices => 'Connection notices';
+  String get connectionNotices => 'Mga abiso sa koneksiyon';
 
   @override
   String get connectionNoticesDescription =>
-      'Show offline and back-online notices';
+      'Ipakita ang mga abiso kapag nawala o bumalik ang koneksiyon';
 
   @override
-  String get connectionOk => 'Connection OK';
+  String get connectionOk => 'Maayos ang koneksiyon';
 
   @override
-  String get connectionStatus => 'Connection Status';
+  String get connectionStatus => 'Kalagayan ng koneksiyon';
 
   @override
   String containsValuesOutsideTheSupportedRanges(Object presetName) {
-    return '\"$presetName\" contains values outside the supported ranges; these were adjusted:';
+    return 'May mga halaga sa \"$presetName\" na lampas sa suportadong saklaw; inayos ang mga ito:';
   }
 
   @override
-  String get content => 'Content';
+  String get content => 'Nilalaman';
 
   @override
-  String get contentControls => 'Content & Controls';
+  String get contentControls => 'Nilalaman at mga kontrol';
 
   @override
-  String get contentPlacement => 'Content placement';
+  String get contentPlacement => 'Puwesto ng nilalaman';
 
   @override
-  String get contentPlacement2 => 'Content Placement';
+  String get contentPlacement2 => 'Puwesto ng nilalaman';
 
   @override
-  String get continueLabel => 'Continue';
+  String get continueLabel => 'Magpatuloy';
 
   @override
   String get continueThroughTheSearchResults =>
-      'Continue through the search results';
+      'Magpatuloy sa mga resulta ng paghahanap';
 
   @override
   String get continueThroughYourEntireLibrary =>
-      'Continue through your entire library';
+      'Magpatuloy sa iyong buong aklatan';
 
   @override
   String conversionFailed(Object error) {
-    return 'Conversion failed: $error';
+    return 'Hindi matagumpay ang conversion: $error';
   }
 
   @override
-  String get convertedAudioCacheCleared => 'Converted audio cache cleared';
+  String get convertedAudioCacheCleared =>
+      'Nabura ang cache ng na-convert na tunog';
 
   @override
   String convertedSuccessfully(Object fileName) {
-    return '$fileName converted successfully';
+    return 'Matagumpay na na-convert ang $fileName';
   }
 
   @override
-  String get convertingAudio => 'Converting audio...';
+  String get convertingAudio => 'Kino-convert ang tunog...';
 
   @override
   String convertingToWav(Object fileName) {
-    return 'Converting $fileName to WAV...';
+    return 'Kino-convert ang $fileName sa WAV...';
   }
 
   @override
@@ -1450,167 +1487,169 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String copies(Object arg1, Object arg2) {
-    return '$arg1 • $arg2 copies';
+    return '$arg1 • $arg2 kopya';
   }
 
   @override
-  String get copy => 'Copy';
+  String get copy => 'Kopyahin';
 
   @override
-  String get copyLink => 'Copy link';
+  String get copyLink => 'Kopyahin ang link';
 
   @override
   String get copyYourUserTokenFromListenbrainz =>
-      'Copy your user token from ListenBrainz settings and paste it below.';
+      'Kopyahin ang iyong user token mula sa mga setting ng ListenBrainz at idikit sa ibaba.';
 
   @override
-  String get copyright => 'Copyright';
+  String get copyright => 'Karapatang-ari';
 
   @override
-  String get cornerRadius => 'Corner Radius';
+  String get cornerRadius => 'Pagkabilog ng sulok';
 
   @override
-  String get cosmicOrchestra => 'Cosmic Orchestra';
+  String get cosmicOrchestra => 'Orkestra ng kalawakan';
 
   @override
-  String get couldNotCheckForUpdates => 'Could Not Check for Updates';
+  String get couldNotCheckForUpdates => 'Hindi masuri kung may update';
 
   @override
   String get couldNotConnectToLastFm =>
-      'Could not connect to Last.fm. Check your API credentials and try again.';
+      'Hindi makakonekta sa Last.fm. Suriin ang iyong API credentials at subukan muli.';
 
   @override
   String get couldNotConnectToListenbrainzCheck =>
-      'Could not connect to ListenBrainz. Check your token and try again.';
+      'Hindi makakonekta sa ListenBrainz. Suriin ang iyong token at subukan muli.';
 
   @override
-  String get couldNotLoadAlbumSongs => 'Could not load album songs';
+  String get couldNotLoadAlbumSongs => 'Hindi ma-load ang mga kanta ng album';
 
   @override
   String get couldNotCreateThePosterImage =>
-      'Could not create the poster image.';
+      'Hindi magawa ang larawan ng poster.';
 
   @override
-  String get couldNotLoadArtistSongs => 'Could not load artist songs';
+  String get couldNotLoadArtistSongs =>
+      'Hindi ma-load ang mga kanta ng kumanta';
 
   @override
   String couldNotLoadIr(Object e) {
-    return 'Could not load IR: $e';
+    return 'Hindi ma-load ang IR: $e';
   }
 
   @override
-  String get couldNotLoadSession => 'Could not load session';
+  String get couldNotLoadSession => 'Hindi ma-load ang sesyon';
 
   @override
-  String get couldNotOpenBrowser => 'Could not open browser.';
+  String get couldNotOpenBrowser => 'Hindi mabuksan ang browser.';
 
   @override
   String get couldNotOpenKoFiPlease =>
-      'Could not open Ko-fi. Please try again.';
+      'Hindi mabuksan ang Ko-fi. Subukan muli.';
 
   @override
-  String get couldNotOpenLink => 'Could not open link';
+  String get couldNotOpenLink => 'Hindi mabuksan ang link';
 
   @override
   String couldNotOpenLink2(Object e) {
-    return 'Could not open link: $e';
+    return 'Hindi mabuksan ang link: $e';
   }
 
   @override
   String get couldNotOpenThatPhotoTry =>
-      'Could not open that photo. Try another image.';
+      'Hindi mabuksan ang larawang iyon. Sumubok ng ibang larawan.';
 
   @override
-  String get couldNotOpenTheLink => 'Could not open the link';
+  String get couldNotOpenTheLink => 'Hindi mabuksan ang link';
 
   @override
   String couldNotOpenTheLink2(Object e) {
-    return 'Could not open the link: $e';
+    return 'Hindi mabuksan ang link: $e';
   }
 
   @override
-  String get couldNotOpenThePlayStore => 'Could not open the Play Store.';
+  String get couldNotOpenThePlayStore => 'Hindi mabuksan ang Play Store.';
 
   @override
   String couldNotOpenThePlayStore2(Object error) {
-    return 'Could not open the Play Store: $error';
+    return 'Hindi mabuksan ang Play Store: $error';
   }
 
   @override
-  String get couldNotOpenThePlayStore3 => 'Could not open the Play Store';
+  String get couldNotOpenThePlayStore3 => 'Hindi mabuksan ang Play Store';
 
   @override
   String couldNotPrepareTheEditedFile(String error) {
-    return 'Could not prepare the edited file: $error';
+    return 'Hindi maihanda ang binagong file: $error';
   }
 
   @override
   String get couldNotReachTheServer =>
-      'Could not reach the server. Check the URL and credentials, then try again.';
+      'Hindi maabot ang server. Suriin ang URL at mga kredensiyal, saka subukan muli.';
 
   @override
   String get couldNotReadTheCoverColors =>
-      'Could not read the cover colors. Signal is still available.';
+      'Hindi mabasa ang mga kulay ng pabalat. Magagamit pa rin ang Signal.';
 
   @override
   String get couldNotReadTheSelectedImage =>
-      'Could not read the selected image.';
+      'Hindi mabasa ang napiling larawan.';
 
   @override
   String get couldNotReadTheSelectedLyrics =>
-      'Could not read the selected lyrics file.';
+      'Hindi mabasa ang napiling file ng lirika.';
 
   @override
   String get couldNotResolveTheAlbum =>
-      'Could not resolve the album for this song.';
+      'Hindi matukoy ang album ng kantang ito.';
 
   @override
-  String get couldNotRenamePlaylist => 'Could not rename the playlist.';
+  String get couldNotRenamePlaylist =>
+      'Hindi mapalitan ang pangalan ng talaan ng kanta.';
 
   @override
-  String get couldNotSaveTheLyricsFile => 'Could not save the lyrics file.';
+  String get couldNotSaveTheLyricsFile => 'Hindi ma-save ang file ng lirika.';
 
   @override
   String get couldNotSaveYourRecapPlease =>
-      'Could not save your recap. Please try again.';
+      'Hindi ma-save ang iyong buod. Subukan muli.';
 
   @override
   String get couldNotUpdatePlaylistCover =>
-      'Could not update the playlist cover. Try another image.';
+      'Hindi ma-update ang pabalat ng talaan ng kanta. Sumubok ng ibang larawan.';
 
   @override
   String get couldNotUseTheSelectedLyrics =>
-      'Could not use the selected lyrics file.';
+      'Hindi magamit ang napiling file ng lirika.';
 
   @override
   String get couldnTOpenTheBrowserAutomatically =>
-      'Couldn\'t open the browser automatically. Authorize on any device with this link — we\'ll finish signing in once you do:';
+      'Hindi awtomatikong mabuksan ang browser. Pahintulutan sa alinmang aparato gamit ang link na ito — tatapusin namin ang pag-sign in kapag nagawa mo na:';
 
   @override
-  String get countingFiles => 'Counting files…';
+  String get countingFiles => 'Binibilang ang mga file…';
 
   @override
   String covers(Object done, Object total) {
-    return '$done / $total covers';
+    return '$done / $total pabalat';
   }
 
   @override
-  String get cropCoverHint => 'Pinch to zoom, drag to reposition';
+  String get cropCoverHint => 'Kurutin upang mag-zoom, i-drag upang ipuwesto';
 
   @override
-  String get editCover => 'Edit cover';
+  String get editCover => 'Baguhin ang pabalat';
 
   @override
-  String get crop => 'Crop';
+  String get crop => 'I-crop';
 
   @override
-  String get adjust => 'Adjust';
+  String get adjust => 'Ayusin';
 
   @override
-  String get filters => 'Filters';
+  String get filters => 'Mga filter';
 
   @override
-  String get brightness => 'Brightness';
+  String get brightness => 'Liwanag';
 
   @override
   String get contrast => 'Contrast';
@@ -1619,120 +1658,122 @@ class AppLocalizationsTl extends AppLocalizations {
   String get saturation => 'Saturation';
 
   @override
-  String get warmth => 'Warmth';
+  String get warmth => 'Init ng kulay';
 
   @override
   String get vignette => 'Vignette';
 
   @override
-  String get rotateLeft => 'Rotate left';
+  String get rotateLeft => 'Ikutin pakaliwa';
 
   @override
-  String get rotateRight => 'Rotate right';
+  String get rotateRight => 'Ikutin pakanan';
 
   @override
-  String get flipHorizontal => 'Flip horizontal';
+  String get flipHorizontal => 'Baligtarin nang pahalang';
 
   @override
-  String get flipVertical => 'Flip vertical';
+  String get flipVertical => 'Baligtarin nang patayo';
 
   @override
-  String get filterOriginal => 'Original';
+  String get filterOriginal => 'Orihinal';
 
   @override
   String get filterMono => 'Mono';
 
   @override
-  String get filterWarm => 'Warm';
+  String get filterWarm => 'Mainit';
 
   @override
-  String get filterCool => 'Cool';
+  String get filterCool => 'Malamig';
 
   @override
-  String get filterFade => 'Fade';
+  String get filterFade => 'Kupas';
 
   @override
-  String get filterPunch => 'Punch';
+  String get filterPunch => 'Matingkad';
 
   @override
   String get filterNoir => 'Noir';
 
   @override
-  String get create => 'Create';
+  String get create => 'Gumawa';
 
   @override
-  String get createACollection => 'Create a collection';
+  String get createACollection => 'Gumawa ng koleksiyon';
 
   @override
-  String get createACustomPreset => 'Create a custom preset';
+  String get createACustomPreset => 'Gumawa ng pasadyang preset';
 
   @override
   String get createAPlaylistImportAnM3u =>
-      'Create a playlist, import an M3U, or let the mixes above carry the session.';
+      'Gumawa ng talaan ng kanta, mag-import ng M3U, o gamitin ang mga halo sa itaas para sa sesyon.';
 
   @override
-  String get createLyrics => 'Create Lyrics';
+  String get createLyrics => 'Gumawa ng lirika';
 
   @override
-  String get createNewPlaylist => 'Create new playlist';
+  String get createNewPlaylist => 'Gumawa ng bagong talaan ng kanta';
 
   @override
-  String get createNewPlaylist2 => 'Create New Playlist';
+  String get createNewPlaylist2 => 'Gumawa ng bagong talaan ng kanta';
 
   @override
   String get createOrRefreshPlaylistsFoundInside =>
-      'Create or refresh playlists found inside scanned folders';
+      'Gumawa o i-refresh ang mga talaan ng kanta sa mga na-scan na folder';
 
   @override
-  String get createPlaylist => 'Create Playlist';
+  String get createPlaylist => 'Gumawa ng talaan ng kanta';
 
   @override
-  String get createPlaylistFromSelected => 'Create playlist from selected';
+  String get createPlaylistFromSelected =>
+      'Gumawa ng talaan mula sa mga pinili';
 
   @override
   String get createYourFirstPlaylistOrJump =>
-      'Create your first playlist or jump into your saved collections.';
+      'Gumawa ng unang talaan ng kanta o buksan ang iyong mga naka-save na koleksiyon.';
 
   @override
   String get createYourFirstPlaylistToOrganize =>
-      'Create your first playlist to organize\nyour favorite songs';
+      'Gumawa ng unang talaan upang ayusin\nang iyong mga paboritong kanta';
 
   @override
   String created(Object arg1) {
-    return 'Created $arg1';
+    return 'Nagawa ang $arg1';
   }
 
   @override
   String createdAndAddedSong(Object arg1) {
-    return 'Created $arg1 and added song';
+    return 'Nagawa ang $arg1 at naidagdag ang kanta';
   }
 
   @override
   String createdAndAddedSongs(Object name, Object arg1) {
-    return 'Created $name and added $arg1 songs';
+    return 'Nagawa ang $name at naidagdag ang $arg1 kanta';
   }
 
   @override
-  String get creativeFx => 'Creative FX';
+  String get creativeFx => 'Malikhaing FX';
 
   @override
   String credentialsRejectedByReEnterThe(Object arg1) {
-    return 'Credentials rejected by $arg1. Re-enter the password.';
+    return 'Tinanggihan ng $arg1 ang mga kredensiyal. Ilagay muli ang password.';
   }
 
   @override
-  String get credentialsSavedSuccessfully => 'Credentials saved successfully!';
+  String get credentialsSavedSuccessfully =>
+      'Matagumpay na na-save ang mga kredensiyal!';
 
   @override
   String get crispestHeavierDuringFastScrolling =>
-      'Crispest — heavier during fast scrolling';
+      'Pinakamalinaw — mas mabigat sa mabilis na pag-scroll';
 
   @override
   String get crossfade => 'Crossfade';
 
   @override
   String get crossfadeIsMostReliableOnThe =>
-      'Crossfade is most reliable on the Standard engine. On the high-quality (Rust) engine it can be unstable — switch to Standard for consistent crossfades.';
+      'Pinakamaaasahan ang crossfade sa Standard engine. Maaaring hindi ito matatag sa high-quality (Rust) engine — lumipat sa Standard para sa tuloy-tuloy na crossfade.';
 
   @override
   String get crossfeed => 'Crossfeed';
@@ -1741,174 +1782,176 @@ class AppLocalizationsTl extends AppLocalizations {
   String get crossfeedBs2b => 'Crossfeed (BS2B)';
 
   @override
-  String get crossfeedEasy => 'Crossfeed easy';
+  String get crossfeedEasy => 'Madaling crossfeed';
 
   @override
   String get crossfeedRunsOnTheHighQuality =>
-      'Crossfeed runs on the high-quality (Rust) engine only. The Standard engine plays without it.';
+      'Sa high-quality (Rust) engine lamang gumagana ang crossfeed. Walang crossfeed ang pagtugtog sa Standard engine.';
 
   @override
-  String get crystalCaverns => 'Crystal Caverns';
+  String get crystalCaverns => 'Mga yungib na kristal';
 
   @override
   String get cueSheetTracksCannotBeEdited =>
-      'CUE sheet tracks cannot be edited.';
+      'Hindi maaaring baguhin ang mga kanta sa CUE sheet.';
 
   @override
   String get cueSheetTracksCannotBeEdited2 =>
-      'CUE sheet tracks cannot be edited';
+      'Hindi maaaring baguhin ang mga kanta sa CUE sheet';
 
   @override
-  String get currentArtwork => 'Current artwork';
+  String get currentArtwork => 'Kasalukuyang larawan';
 
   @override
-  String get currentCustomArt => 'Current custom art';
+  String get currentCustomArt => 'Kasalukuyang pasadyang larawan';
 
   @override
-  String get currentPlaybackMode => 'Current Playback Mode';
+  String get currentPlaybackMode => 'Kasalukuyang mode ng pagtugtog';
 
   @override
   String currentRoute(Object arg1) {
-    return 'Current route: $arg1.';
+    return 'Kasalukuyang ruta: $arg1.';
   }
 
   @override
-  String get currentSongPreviewOnly => 'Current song · preview only';
+  String get currentSongPreviewOnly =>
+      'Kasalukuyang kanta · paunang tingin lamang';
 
   @override
-  String get currentStreak => 'Current Streak';
+  String get currentStreak => 'Kasalukuyang sunod-sunod na araw';
 
   @override
-  String get curvature => 'Curvature';
+  String get curvature => 'Pagkakurba';
 
   @override
   String get curvatureSizingDepthAndVisuals =>
-      'Curvature, sizing, depth, and visuals';
+      'Pagkakurba, laki, lalim, at hitsura';
 
   @override
-  String get curve => 'Curve';
+  String get curve => 'Kurba';
 
   @override
   String get curveOfTheOrbitArcHigher =>
-      'Curve of the orbit arc — higher is gentler';
+      'Kurba ng orbit — mas banayad kapag mas mataas';
 
   @override
-  String get curvePreview => 'Curve Preview';
+  String get curvePreview => 'Paunang tingin ng kurba';
 
   @override
-  String get curvedWave => 'Curved Wave';
+  String get curvedWave => 'Nakakurbang alon';
 
   @override
-  String get custom => 'Custom';
+  String get custom => 'Pasadya';
 
   @override
-  String get customFormat => 'Custom Format';
+  String get customFormat => 'Pasadyang format';
 
   @override
   String get customFormatForcesPlaybackToThe =>
-      'Custom format forces playback to the selected output format. If the chosen sample rate, bit depth, or channels do not suit the song or device, you may hear altered sound, pitch, speed, or instability.';
+      'Ipinipilit ng pasadyang format ang napiling output format. Kapag hindi angkop sa kanta o aparato ang sample rate, bit depth, o mga channel, maaaring magbago ang tunog, tono, bilis, o katatagan.';
 
   @override
   String get customFormatIsDisabledInBit =>
-      'Custom format is disabled in Bit-perfect (USB DAC) mode because exact sample rate matching is required. Disable Bit-perfect (USB DAC) to set custom formats.';
+      'Naka-off ang pasadyang format sa Bit-perfect (USB DAC) mode dahil kailangang eksaktong tumugma ang sample rate. I-off ang Bit-perfect (USB DAC) upang magtakda ng pasadyang format.';
 
   @override
   String get customFormatIsUnavailableBecauseAudio =>
-      'Custom format is unavailable because Audio Format is disabled in Settings.';
+      'Hindi magamit ang pasadyang format dahil naka-off ang Format ng tunog sa Mga pagsasaayos.';
 
   @override
-  String get customWidth => 'Custom Width';
+  String get customWidth => 'Pasadyang lapad';
 
   @override
   String get customizeAudioDisplayNavigationAnd =>
-      'Customize audio, display, navigation, and integrations.';
+      'Ipasadya ang tunog, pagpapakita, nabigasyon, at mga integrasyon.';
 
   @override
-  String get customizeBottomBar => 'Customize Bottom Bar';
+  String get customizeBottomBar => 'Ipasadya ang bar sa ibaba';
 
   @override
-  String get customizeHomeScreenWidgets => 'Customize home screen widgets';
+  String get customizeHomeScreenWidgets =>
+      'Ipasadya ang mga widget sa home screen';
 
   @override
-  String get customizeOrbital => 'Customize Orbital';
+  String get customizeOrbital => 'Ipasadya ang Orbital';
 
   @override
   String get customizeWhichTabsAppearAndTheir =>
-      'Customize which tabs appear and their size';
+      'Piliin ang mga tab na ipapakita at ang laki ng mga ito';
 
   @override
   String dAgo(Object arg1) {
-    return '${arg1}d ago';
+    return '$arg1 araw ang nakalipas';
   }
 
   @override
   String dAgo2(Object arg1) {
-    return '${arg1}d ago';
+    return '$arg1 araw ang nakalipas';
   }
 
   @override
-  String get dacClaim => 'DAC Claim';
+  String get dacClaim => 'Pagkuha sa DAC';
 
   @override
   String dacWillBeOfferedAgain(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count DACs',
+      other: '$count DAC',
       one: '$count DAC',
     );
-    return '$_temp0 will be offered again.';
+    return 'Iaalok muli ang $_temp0.';
   }
 
   @override
-  String get daily => 'Daily';
+  String get daily => 'Araw-araw';
 
   @override
   String get damp => 'Damp';
 
   @override
-  String get dapNativeBitOrder => 'DAP Native Bit Order';
+  String get dapNativeBitOrder => 'Native na pagkakasunod ng bit sa DAP';
 
   @override
-  String get dapNativeByteGrouping => 'DAP Native Byte Grouping';
+  String get dapNativeByteGrouping => 'Native na pagpapangkat ng byte sa DAP';
 
   @override
-  String get dark => 'Dark';
+  String get dark => 'Madilim';
 
   @override
-  String get dataCollection => 'Data Collection';
+  String get dataCollection => 'Pangangalap ng datos';
 
   @override
-  String get date => 'Date';
+  String get date => 'Petsa';
 
   @override
-  String get dateAdded => 'Date Added';
+  String get dateAdded => 'Petsa ng pagdagdag';
 
   @override
-  String get dateAddedNewest => 'Date Added (Newest)';
+  String get dateAddedNewest => 'Petsa ng pagdagdag (pinakabago)';
 
   @override
-  String get dateAddedOldest => 'Date Added (Oldest)';
+  String get dateAddedOldest => 'Petsa ng pagdagdag (pinakaluma)';
 
   @override
-  String get dayStreak => 'day streak';
+  String get dayStreak => 'sunod-sunod na araw';
 
   @override
-  String get dayStreak2 => 'Day streak';
+  String get dayStreak2 => 'Sunod-sunod na araw';
 
   @override
-  String get dayStreak3 => 'Day Streak';
+  String get dayStreak3 => 'Sunod-sunod na araw';
 
   @override
-  String get dayStreaks => 'Day Streaks';
+  String get dayStreaks => 'Mga sunod-sunod na araw';
 
   @override
   String dayUnit(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'days',
-      one: 'day',
+      other: 'araw',
+      one: 'araw',
     );
     return '$_temp0';
   }
@@ -1940,200 +1983,201 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String dbCut(Object arg1) {
-    return '$arg1 dB cut';
+    return 'bawas na $arg1 dB';
   }
 
   @override
   String dbMax(Object arg1) {
-    return '$arg1 dB max';
+    return 'hanggang $arg1 dB';
   }
 
   @override
-  String get deactivateFallback => 'Deactivate Fallback';
+  String get deactivateFallback => 'I-off ang pamalit';
 
   @override
-  String get dec => 'Dec';
+  String get dec => 'Dis';
 
   @override
-  String get decode => 'Decode';
+  String get decode => 'I-decode';
 
   @override
   String get decodeSongsAfterScanningToCache =>
-      'Decode songs after scanning to cache waveform peaks and loudness metrics';
+      'I-decode ang mga kanta pagkatapos mag-scan upang i-cache ang waveform peaks at sukat ng lakas';
 
   @override
-  String get deepEarth => 'Deep Earth';
+  String get deepEarth => 'Kalaliman ng lupa';
 
   @override
-  String get deepScan => 'Deep Scan';
+  String get deepScan => 'Masusing pag-scan';
 
   @override
-  String get deepScanOff => 'Deep scan off';
+  String get deepScanOff => 'Naka-off ang masusing pag-scan';
 
   @override
-  String get deepScanOn => 'Deep scan on';
+  String get deepScanOn => 'Naka-on ang masusing pag-scan';
 
   @override
   String get defaultAndroidPlaybackEngineUsedBy =>
-      'Default Android playback engine used by Flick right now.';
+      'Default na audio engine ng Android na kasalukuyang ginagamit ng Flick.';
 
   @override
   String get defaultAndroidPlayerPlaysEverything =>
-      'Default Android player — plays everything reliably. The safest choice for most listeners.';
+      'Default na player ng Android — maaasahang pinatutugtog ang lahat. Pinakaligtas na piliin para sa karamihan.';
 
   @override
   String get defaultLabel => 'Default';
 
   @override
-  String get del => 'Del';
+  String get del => 'Burahin';
 
   @override
-  String get delays => 'Delays';
+  String get delays => 'Mga delay';
 
   @override
-  String get delete => 'Delete';
+  String get delete => 'Burahin';
 
   @override
   String deleteAndAllSongsAndPlaylists(Object arg1) {
-    return 'Delete \"$arg1\" and all songs and playlists synced from it? Cached downloads are kept.';
+    return 'Burahin ang \"$arg1\" at lahat ng kanta at talaang na-sync mula rito? Ititira ang mga naka-cache na download.';
   }
 
   @override
-  String get deleteFile => 'Delete File';
+  String get deleteFile => 'Burahin ang file';
 
   @override
-  String get deleteFiles => 'Delete Files';
+  String get deleteFiles => 'Burahin ang mga file';
 
   @override
-  String get deletePlaylist => 'Delete Playlist';
+  String get deletePlaylist => 'Burahin ang talaan ng kanta';
 
   @override
-  String get deletePreset => 'Delete Preset?';
+  String get deletePreset => 'Burahin ang preset?';
 
   @override
-  String get deleteSelected => 'Delete selected';
+  String get deleteSelected => 'Burahin ang pinili';
 
   @override
-  String get deleteSong => 'Delete Song';
+  String get deleteSong => 'Burahin ang kanta';
 
   @override
-  String get deleteSong2 => 'Delete Song?';
+  String get deleteSong2 => 'Burahin ang kanta?';
 
   @override
-  String get deleteSong3 => 'Delete song';
+  String get deleteSong3 => 'Burahin ang kanta';
 
   @override
   String deleteSongs(Object arg1) {
-    return 'Delete $arg1 songs?';
+    return 'Burahin ang $arg1 kanta?';
   }
 
   @override
-  String get deleteSongs2 => 'Delete songs';
+  String get deleteSongs2 => 'Burahin ang mga kanta';
 
   @override
   String deleteThisCannotBeUndone(Object arg1) {
-    return 'Delete \"$arg1\"? This cannot be undone.';
+    return 'Burahin ang \"$arg1\"? Hindi ito maibabalik.';
   }
 
   @override
   String deleted(Object arg1) {
-    return 'Deleted \"$arg1\"';
+    return 'Nabura ang \"$arg1\"';
   }
 
   @override
   String deletedSongs(Object arg1) {
-    return 'Deleted $arg1 songs';
+    return 'Nabura ang $arg1 kanta';
   }
 
   @override
-  String get depth => 'Depth';
+  String get depth => 'Lalim';
 
   @override
-  String get deselectAll => 'Deselect all';
+  String get deselectAll => 'Alisin lahat ng pinili';
 
   @override
-  String get designed => 'Designed';
+  String get designed => 'Dinisenyo';
 
   @override
-  String get detailScreens => 'Detail Screens';
+  String get detailScreens => 'Mga pahina ng detalye';
 
   @override
-  String get details => 'Details';
+  String get details => 'Mga detalye';
 
   @override
-  String get developerMode => 'Developer Mode';
+  String get developerMode => 'Mode ng developer';
 
   @override
   String get developerOptionsIsDisabledEnableIt =>
-      'Developer Options is disabled. Enable it via Settings → About phone (tap Build number 7 times), then retry.';
+      'Naka-off ang Developer Options. I-on ito sa Settings → About phone (pindutin ang Build number nang 7 beses), saka subukan muli.';
 
   @override
-  String get device => 'Device';
+  String get device => 'Aparato';
 
   @override
-  String get deviceCapabilities => 'Device Capabilities';
+  String get deviceCapabilities => 'Mga kakayahan ng aparato';
 
   @override
-  String get deviceConnected => 'Device connected';
+  String get deviceConnected => 'Nakakonekta ang aparato';
 
   @override
-  String get deviceDac => 'Device DAC';
+  String get deviceDac => 'DAC ng aparato';
 
   @override
-  String get deviceDacVolume => 'Device DAC Volume';
+  String get deviceDacVolume => 'Lakas ng DAC ng aparato';
 
   @override
-  String get deviceDisconnected => 'Device disconnected';
+  String get deviceDisconnected => 'Nadiskonekta ang aparato';
 
   @override
-  String get deviceInformation => 'Device Information';
+  String get deviceInformation => 'Impormasyon ng aparato';
 
   @override
-  String get deviceType => 'Device Type';
+  String get deviceType => 'Uri ng aparato';
 
   @override
-  String get devices => 'Devices';
+  String get devices => 'Mga aparato';
 
   @override
-  String get direct => 'Direct';
+  String get direct => 'Direkta';
 
   @override
   String get directAlsaOutputIsActiveAnd =>
-      'Direct ALSA output is active and bypassing the Android audio server.';
+      'Aktibo ang direktang ALSA output at nilalaktawan nito ang audio server ng Android.';
 
   @override
   String get directLibusbIsochronousUsbEngineBest =>
-      'Direct libusb isochronous USB engine. Best paired with Bit-perfect (USB DAC) for verified external DAC playback.';
+      'Direktang libusb isochronous USB engine. Mainam kasama ng Bit-perfect (USB DAC) para sa napatunayang pagtugtog sa panlabas na DAC.';
 
   @override
-  String get directUsb => 'Direct USB';
+  String get directUsb => 'Direktang USB';
 
   @override
-  String get directUsbDeviceManaged => 'Direct USB device-managed';
+  String get directUsbDeviceManaged =>
+      'Direktang USB na pinamamahalaan ng aparato';
 
   @override
-  String get directUsbExperimental => 'Direct USB experimental';
+  String get directUsbExperimental => 'Eksperimental na direktang USB';
 
   @override
-  String get disableBatteryOptimization => 'Disable Battery Optimization';
+  String get disableBatteryOptimization => 'I-off ang pag-optimize ng baterya';
 
   @override
   String get disableBatteryOptimizationRecommended =>
-      'Disable Battery Optimization (Recommended)';
+      'I-off ang pag-optimize ng baterya (inirerekomenda)';
 
   @override
-  String get disabled => 'Disabled';
+  String get disabled => 'Naka-off';
 
   @override
-  String get disabledInBitPerfectMode => 'Disabled in bit-perfect mode';
+  String get disabledInBitPerfectMode => 'Naka-off sa bit-perfect mode';
 
   @override
   String get disabledInBitPerfectUsbDac =>
-      'Disabled in Bit-perfect (USB DAC) mode (exact rate required)';
+      'Naka-off sa Bit-perfect (USB DAC) mode (kailangan ang eksaktong rate)';
 
   @override
   String get disabledWhileBothBitPerfectOptions =>
-      'Disabled while both bit-perfect options are off on this DAP.';
+      'Hindi magagamit habang parehong naka-off ang bit-perfect sa DAP na ito.';
 
   @override
   String get disc => 'Disc';
@@ -2142,130 +2186,132 @@ class AppLocalizationsTl extends AppLocalizations {
   String get disc2 => 'Disc #';
 
   @override
-  String get discard => 'Discard';
+  String get discard => 'Huwag ituloy';
 
   @override
-  String get discardChanges => 'Discard changes?';
+  String get discardChanges => 'Huwag ituloy ang mga pagbabago?';
 
   @override
-  String get discardChanges2 => 'Discard Changes?';
+  String get discardChanges2 => 'Huwag ituloy ang mga pagbabago?';
 
   @override
-  String get disconnect => 'Disconnect';
+  String get disconnect => 'Idiskonekta';
 
   @override
   String get disconnectBehaviorAndCodecInfo =>
-      'Disconnect behavior and codec info';
+      'Kilos kapag nadiskonekta at impormasyon ng codec';
 
   @override
   String disconnectFrom(Object arg1) {
-    return 'Disconnect from $arg1';
+    return 'Idiskonekta mula sa $arg1';
   }
 
   @override
-  String get disconnectLastFm => 'Disconnect Last.fm?';
+  String get disconnectLastFm => 'Idiskonekta ang Last.fm?';
 
   @override
-  String get disconnectListenbrainz => 'Disconnect ListenBrainz?';
+  String get disconnectListenbrainz => 'Idiskonekta ang ListenBrainz?';
 
   @override
   String get discord => 'Discord';
 
   @override
   String get discoversDlnaUpnpAndChromecastReceivers =>
-      'Discovers DLNA, UPnP and Chromecast receivers on your network';
+      'Hinahanap ang mga DLNA, UPnP at Chromecast receiver sa iyong network';
 
   @override
-  String get dismiss => 'Dismiss';
+  String get dismiss => 'Isara';
 
   @override
-  String get display => 'Display';
+  String get display => 'Pagpapakita';
 
   @override
   String get displayFileFormatAndBitrateIn =>
-      'Display file format and bitrate in immersive mode';
+      'Ipakita ang file format at bitrate sa immersive mode';
 
   @override
   String get displayFileFormatAndBitrateIn2 =>
-      'Display file format and bitrate in artwork card mode';
+      'Ipakita ang file format at bitrate sa artwork card mode';
 
   @override
-  String get displayTextLabelsBelowIcons => 'Display text labels below icons';
+  String get displayTextLabelsBelowIcons =>
+      'Ipakita ang mga label sa ilalim ng mga icon';
 
   @override
   String get displayTheAlbumNameInArtwork =>
-      'Display the album name in artwork card mode';
+      'Ipakita ang pangalan ng album sa artwork card mode';
 
   @override
   String get displayTheArtistNameInArtwork =>
-      'Display the artist name in artwork card mode';
+      'Ipakita ang pangalan ng kumanta sa artwork card mode';
 
   @override
   String get displayTheArtistNameInImmersive =>
-      'Display the artist name in immersive mode';
+      'Ipakita ang pangalan ng kumanta sa immersive mode';
 
   @override
   String get displayTheTrackTitleInArtwork =>
-      'Display the track title in artwork card mode';
+      'Ipakita ang pamagat ng kanta sa artwork card mode';
 
   @override
   String get displayTheTrackTitleInImmersive =>
-      'Display the track title in immersive mode';
+      'Ipakita ang pamagat ng kanta sa immersive mode';
 
   @override
-  String get distanceBetweenSongsAlongTheArc =>
-      'Distance between songs along the arc';
+  String get distanceBetweenSongsAlongTheArc => 'Pagitan ng mga kanta sa kurba';
 
   @override
   String get dlnaAndUpnpReceiversAreControlled =>
-      'DLNA and UPnP receivers are controlled directly in pure Dart — no extra dependencies. Chromecast support uses the native Cast SDK. Network sources (Subsonic, WebDAV, Jellyfin, UPnP), local files, and cached songs can all be cast — locals are served straight from this phone. While casting, volume keys and the system volume panel control the connected device.';
+      'Direktang kinokontrol sa Dart ang mga DLNA at UPnP receiver — walang dagdag na dependency. Native Cast SDK naman ang gamit sa Chromecast. Maaaring i-cast ang mga network source (Subsonic, WebDAV, Jellyfin, UPnP), lokal na file, at naka-cache na kanta — direktang ibinabahagi mula sa teleponong ito ang mga lokal na file. Habang nagka-cast, ang mga volume key at system volume panel ay kumokontrol sa nakakonektang aparato.';
 
   @override
   String get dlnaUpnp => 'DLNA / UPnP';
 
   @override
   String get dlnaUpnpAndChromecastReceivers =>
-      'DLNA, UPnP and Chromecast receivers';
+      'Mga DLNA, UPnP at Chromecast receiver';
 
   @override
-  String get donTShowAgainToday => 'Don\'t show again today';
+  String get donTShowAgainToday => 'Huwag nang ipakita ngayong araw';
 
   @override
-  String get donate => 'Donate';
+  String get donate => 'Mag-donate';
 
   @override
   String get donateFundFeaturesAndKeepThe =>
-      'Donate, fund features, and keep the app alive';
+      'Mag-donate, suportahan ang mga tampok, at panatilihing buhay ang app';
 
   @override
-  String get done => 'Done';
+  String get done => 'Tapos';
 
   @override
   String get dop => 'DoP';
 
   @override
-  String get dots => 'Dots';
+  String get dots => 'Mga tuldok';
 
   @override
-  String get doubleTapABandToReset => 'Double-tap a band to reset';
+  String get doubleTapABandToReset =>
+      'Pindutin nang dalawang beses ang band upang i-reset';
 
   @override
-  String get doubleTapToReset => 'Double-tap to reset';
+  String get doubleTapToReset => 'Pindutin nang dalawang beses upang i-reset';
 
   @override
-  String get doubleTapToResetThisBand => 'Double-tap to reset this band';
+  String get doubleTapToResetThisBand =>
+      'Pindutin nang dalawang beses upang i-reset ang band na ito';
 
   @override
   String down(Object arg1) {
-    return '$arg1 down';
+    return '$arg1 pababa';
   }
 
   @override
   String get downloadTheLatestApkFromFlick =>
-      'Download the latest APK from flick-player.site';
+      'I-download ang pinakabagong APK mula sa flick-player.site';
 
   @override
-  String get downloadUpdate => 'Download Update';
+  String get downloadUpdate => 'I-download ang update';
 
   @override
   String dp(Object arg1) {
@@ -2284,126 +2330,130 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get dragABoundaryToStretchOr =>
-      'Drag a boundary to stretch or shrink the word before it. The last boundary moves the next line.';
+      'I-drag ang hangganan upang pahabain o paikliin ang salitang nauuna rito. Ginagalaw ng huling hangganan ang susunod na linya.';
 
   @override
-  String get dragBandsUpOrDown => 'Drag bands up or down';
+  String get dragBandsUpOrDown => 'I-drag ang mga band pataas o pababa';
 
   @override
-  String get dragToChangeFrequencyGain => 'Drag to change frequency & gain';
+  String get dragToChangeFrequencyGain =>
+      'I-drag upang baguhin ang frequency at gain';
 
   @override
-  String get dragToMovePinchToWiden => 'Drag to move • Pinch to widen/narrow';
+  String get dragToMovePinchToWiden =>
+      'I-drag upang igalaw • Kurutin upang palaparin/pakitirin';
 
   @override
-  String get dragVerticallyToChangeGain => 'Drag vertically to change gain';
+  String get dragVerticallyToChangeGain =>
+      'I-drag nang patayo upang baguhin ang gain';
 
   @override
   String get drawTheCurvedArcBehindThe =>
-      'Draw the curved arc behind the songs';
+      'Iguhit ang kurba sa likod ng mga kanta';
 
   @override
   String driftMs(Object arg1) {
-    return 'Drift $arg1 ms';
+    return 'Paglihis $arg1 ms';
   }
 
   @override
-  String get dsdDsfPlayback => 'DSD / DSF Playback';
+  String get dsdDsfPlayback => 'Pagtugtog ng DSD / DSF';
 
   @override
-  String get dsdMode => 'DSD mode';
+  String get dsdMode => 'Mode ng DSD';
 
   @override
-  String get dsdOutputMode => 'DSD Output Mode';
+  String get dsdOutputMode => 'Mode ng DSD output';
 
   @override
   String get dsdStream => 'DSD stream';
 
   @override
-  String get duckOnNotifications => 'Duck on Notifications';
+  String get duckOnNotifications => 'Hinaan kapag may abiso';
 
   @override
-  String get duplicateCleaner => 'Duplicate Cleaner';
+  String get duplicateCleaner => 'Panglinis ng magkakapareho';
 
   @override
   String get duplicatesRemovedUsingRecommendedPicks =>
-      'Duplicates removed using recommended picks.';
+      'Naalis ang mga magkakapareho gamit ang mga inirekomendang piliin.';
 
   @override
-  String get duration => 'Duration';
+  String get duration => 'Tagal';
 
   @override
-  String get durationMatch => 'Duration Match';
+  String get durationMatch => 'Pagtugma ng tagal';
 
   @override
   String get dynamics => 'Dynamics';
 
   @override
-  String get earlier => 'Earlier';
+  String get earlier => 'Mas maaga';
 
   @override
   String get earlierStandoutsPulledBackIntoView =>
-      'Earlier standouts pulled back into view from your listening history.';
+      'Mga dating paboritong muling inilahad mula sa iyong kasaysayan ng pakikinig.';
 
   @override
-  String get editCredentials => 'Edit Credentials';
+  String get editCredentials => 'Baguhin ang mga kredensiyal';
 
   @override
-  String get editDescription => 'Edit Description';
+  String get editDescription => 'Baguhin ang paglalarawan';
 
   @override
-  String get editDescription2 => 'Edit description';
+  String get editDescription2 => 'Baguhin ang paglalarawan';
 
   @override
-  String get editMetadata => 'Edit Metadata';
+  String get editMetadata => 'Baguhin ang metadata';
 
   @override
-  String get editServer => 'Edit Server';
+  String get editServer => 'Baguhin ang server';
 
   @override
-  String get editSync => 'Edit & Sync';
+  String get editSync => 'Baguhin at i-sync';
 
   @override
-  String get editText => 'Edit Text';
+  String get editText => 'Baguhin ang teksto';
 
   @override
-  String get editToken => 'Edit Token';
+  String get editToken => 'Baguhin ang token';
 
   @override
-  String get electricSunset => 'Electric Sunset';
+  String get electricSunset => 'Elektrikong dapithapon';
 
   @override
-  String get empty => 'Empty';
+  String get empty => 'Walang laman';
 
   @override
-  String get emptyLine => '(Empty line)';
+  String get emptyLine => '(Walang laman na linya)';
 
   @override
   String get emptyTheLibraryFilesOnDisk =>
-      'Empty the library; files on disk are kept';
+      'Alisan ng laman ang aklatan; ititira ang mga file sa imbakan';
 
   @override
-  String get enable => 'Enable';
+  String get enable => 'I-on';
 
   @override
-  String get enable432HzTuning => 'Enable 432 Hz Tuning?';
+  String get enable432HzTuning => 'I-on ang 432 Hz tuning?';
 
   @override
   String get enableAnimatedTransitionsAndEffects =>
-      'Enable animated transitions and effects';
+      'I-on ang mga gumagalaw na paglipat at effect';
 
   @override
-  String get enableEqToEdit => 'Enable EQ to edit';
+  String get enableEqToEdit => 'I-on ang EQ upang baguhin';
 
   @override
-  String get enableFullLibraryAccess => 'Enable Full Library Access';
+  String get enableFullLibraryAccess =>
+      'Payagan ang buong pag-access sa aklatan';
 
   @override
   String get enableVibrationOnInteractions =>
-      'Enable vibration on interactions';
+      'I-on ang panginginig kapag may pinindot';
 
   @override
-  String get enabled => 'Enabled';
+  String get enabled => 'Naka-on';
 
   @override
   String get endpoint => 'Endpoint';
@@ -2412,29 +2462,29 @@ class AppLocalizationsTl extends AppLocalizations {
   String get engine => 'Engine';
 
   @override
-  String get engineSelector => 'Engine Selector';
+  String get engineSelector => 'Pagpili ng engine';
 
   @override
-  String get english => 'English';
+  String get english => 'Ingles';
 
   @override
   String enterAValidNumber(Object label) {
-    return 'Enter a valid $label number';
+    return 'Maglagay ng wastong numero para sa $label';
   }
 
   @override
   String enterAValueFromTo(Object arg1, Object arg2) {
-    return 'Enter a value from $arg1% to $arg2%';
+    return 'Maglagay ng halaga mula $arg1% hanggang $arg2%';
   }
 
   @override
-  String get enterAYear19999 => 'Enter a year (1–9999)';
+  String get enterAYear19999 => 'Maglagay ng taon (1–9999)';
 
   @override
-  String get enterYourApiKey => 'Enter your API key';
+  String get enterYourApiKey => 'Ilagay ang iyong API key';
 
   @override
-  String get enterYourSharedSecret => 'Enter your shared secret';
+  String get enterYourSharedSecret => 'Ilagay ang iyong shared secret';
 
   @override
   String ep(Object arg1) {
@@ -2442,329 +2492,335 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get eqDynamics => 'EQ & Dynamics';
+  String get eqDynamics => 'EQ at Dynamics';
 
   @override
-  String get equalPower => 'Equal Power';
+  String get equalPower => 'Pantay na power';
 
   @override
   String get equalizer => 'Equalizer';
 
   @override
   String error(Object error) {
-    return 'Error: $error';
+    return 'May error: $error';
   }
 
   @override
   String error2(Object arg1) {
-    return 'Error: $arg1';
+    return 'May error: $arg1';
   }
 
   @override
-  String get error3 => 'Error';
+  String get error3 => 'May error';
 
   @override
   String errorLoadingCapabilities(Object error) {
-    return 'Error loading capabilities: $error';
+    return 'Hindi ma-load ang mga kakayahan: $error';
   }
 
   @override
-  String get errorLoadingPlaylists => 'Error loading playlists';
+  String get errorLoadingPlaylists => 'Hindi ma-load ang mga talaan ng kanta';
 
   @override
   String errorLoadingPlaylists2(Object error) {
-    return 'Error loading playlists: $error';
+    return 'Hindi ma-load ang mga talaan ng kanta: $error';
   }
 
   @override
-  String get errorLoadingPreference => 'Error loading preference';
+  String get errorLoadingPreference => 'Hindi ma-load ang kagustuhan';
 
   @override
-  String get errorLoadingSongs => 'Error loading songs';
+  String get errorLoadingSongs => 'Hindi ma-load ang mga kanta';
 
   @override
-  String get etherealTones => 'Ethereal Tones';
+  String get etherealTones => 'Mga himig na tila panaginip';
 
   @override
   String get everyAlbumHasArtistAndAlbum =>
-      'Every album has artist and album tags.';
+      'May tag ng kumanta at album ang bawat album.';
 
   @override
   String get everySongIsRemovedFromYour =>
-      'Every song is removed from your library. Files on disk are kept; rescan your folders to add them again.';
+      'Aalisin ang bawat kanta sa iyong aklatan. Ititira ang mga file sa imbakan; i-scan muli ang mga folder upang idagdag ang mga ito.';
 
   @override
-  String get exactMatch => 'Exact Match';
+  String get exactMatch => 'Eksaktong tugma';
 
   @override
   String get excludeTinyClipsPreviewsAndAccidental =>
-      'Exclude tiny clips, previews, and accidental scraps';
+      'Huwag isama ang maiikling clip, preview, at di-sinasadyang piraso';
 
   @override
   String get exclusiveDirectPcmIsActiveAnd =>
-      'Exclusive direct PCM is active and bypassing the Android mixer at the track\'s native rate.';
+      'Aktibo ang eksklusibong direktang PCM at nilalaktawan ang mixer ng Android sa native rate ng kanta.';
 
   @override
   String get exclusiveUsbBitPerfectReEngaged =>
-      'Exclusive USB bit-perfect re-engaged.';
+      'Naibalik ang eksklusibong USB bit-perfect.';
 
   @override
   String get exclusiveUsbDroppedToTheAndroid =>
-      'Exclusive USB dropped to the Android mixer. Bit-perfect is paused.';
+      'Lumipat ang eksklusibong USB sa mixer ng Android. Pansamantalang naka-pause ang bit-perfect.';
 
   @override
   String get exclusiveUsbIsActiveAndBypassing =>
-      'Exclusive USB is active and bypassing the Android mixer.';
+      'Aktibo ang eksklusibong USB at nilalaktawan ang mixer ng Android.';
 
   @override
   String get exclusiveUsbIsStillUnavailableCheck =>
-      'Exclusive USB is still unavailable. Check the USB diagnostics.';
+      'Hindi pa rin magamit ang eksklusibong USB. Suriin ang USB diagnostics.';
 
   @override
-  String get expanded => 'Expanded';
+  String get expanded => 'Pinalawak';
 
   @override
-  String get expandedHeaderArt => 'Expanded Header Art';
+  String get expandedHeaderArt => 'Pinalawak na larawan sa ulunan';
 
   @override
-  String get expectedAJsonObject => 'Expected a JSON object.';
+  String get expectedAJsonObject => 'JSON object ang inaasahan.';
 
   @override
-  String get experimental => 'Experimental';
+  String get experimental => 'Eksperimental';
 
   @override
   String get experimentalDownTunePlaybackBy432 =>
-      'Experimental — down-tune playback by 432/440. This disables bit-perfect passthrough and runs the DSP path.';
+      'Eksperimental — ibaba ang tono ng pagtugtog sa 432/440. Ini-off nito ang bit-perfect passthrough at ginagamit ang DSP path.';
 
   @override
-  String get exportAsM3u => 'Export as .m3u';
+  String get exportAsM3u => 'I-export bilang .m3u';
 
   @override
-  String get exportAsM3u8 => 'Export as .m3u8';
+  String get exportAsM3u8 => 'I-export bilang .m3u8';
 
   @override
-  String get exportCsv => 'Export CSV';
+  String get exportCsv => 'I-export ang CSV';
 
   @override
-  String get exportCurrentPreset => 'Export current preset';
+  String get exportCurrentPreset => 'I-export ang kasalukuyang preset';
 
   @override
-  String get exportEqualizerPreset => 'Export equalizer preset';
+  String get exportEqualizerPreset => 'I-export ang preset ng equalizer';
 
   @override
   String exportFailed(Object e) {
-    return 'Export failed: $e';
+    return 'Hindi ma-export: $e';
   }
 
   @override
-  String get exportFormat => 'Export format';
+  String get exportFormat => 'Format ng pag-export';
 
   @override
-  String get exportTxt => 'Export TXT';
+  String get exportTxt => 'I-export ang TXT';
 
   @override
   String exportedPresetTo(Object savePath) {
-    return 'Exported preset to $savePath';
+    return 'Na-export ang preset sa $savePath';
   }
 
   @override
   String exportedPresetTo2(Object fallbackPath) {
-    return 'Exported preset to $fallbackPath';
+    return 'Na-export ang preset sa $fallbackPath';
   }
 
   @override
   String exportedSongsTo(Object arg1, Object arg2) {
-    return 'Exported $arg1 songs to \"$arg2\".';
+    return 'Na-export ang $arg1 kanta sa \"$arg2\".';
   }
 
   @override
-  String get extendedVolume => 'Extended Volume';
+  String get extendedVolume => 'Pinalawak na lakas ng tunog';
 
   @override
-  String get externalLabel => 'External';
+  String get externalLabel => 'Panlabas';
 
   @override
-  String get externalSongsCannotBeEdited => 'External songs cannot be edited.';
+  String get externalSongsCannotBeEdited =>
+      'Hindi maaaring baguhin ang mga panlabas na kanta.';
 
   @override
-  String get externalSongsCannotBeEdited2 => 'External songs cannot be edited';
+  String get externalSongsCannotBeEdited2 =>
+      'Hindi maaaring baguhin ang mga panlabas na kanta';
 
   @override
-  String get extraCovers => 'Extra covers';
+  String get extraCovers => 'Mga dagdag na pabalat';
 
   @override
-  String get failedToActivateFallback => 'Failed to activate fallback';
+  String get failedToActivateFallback => 'Hindi ma-on ang pamalit';
 
   @override
   String failedToAddFolder(Object e) {
-    return 'Failed to add folder: $e';
+    return 'Hindi maidagdag ang folder: $e';
   }
 
   @override
   String failedToAddToFavorites(Object arg1) {
-    return 'Failed to add \"$arg1\" to favorites';
+    return 'Hindi maidagdag ang \"$arg1\" sa mga paborito';
   }
 
   @override
   String failedToClearCache(Object e) {
-    return 'Failed to clear cache: $e';
+    return 'Hindi mabura ang cache: $e';
   }
 
   @override
-  String get failedToDeactivateFallback => 'Failed to deactivate fallback';
+  String get failedToDeactivateFallback => 'Hindi ma-off ang pamalit';
 
   @override
   String failedToDownloadAlbumArt(int status) {
-    return 'Failed to download album art (HTTP $status).';
+    return 'Hindi ma-download ang larawan ng album (HTTP $status).';
   }
 
   @override
   String failedToGetPersistedUris(String? error) {
-    return 'Failed to get persisted URIs: $error';
+    return 'Hindi makuha ang mga naka-save na URI: $error';
   }
 
   @override
-  String get failedToImportPresetFile => 'Failed to import preset file.';
+  String get failedToImportPresetFile => 'Hindi ma-import ang file ng preset.';
 
   @override
   String failedToOpenAllFilesAccess(Object e) {
-    return 'Failed to open All Files Access settings: $e';
+    return 'Hindi mabuksan ang mga setting ng All Files Access: $e';
   }
 
   @override
   String failedToOpenBatteryOptimizationSettings(Object e) {
-    return 'Failed to open battery optimization settings: $e';
+    return 'Hindi mabuksan ang mga setting ng pag-optimize ng baterya: $e';
   }
 
   @override
   String failedToOpenFolderPicker(String? error) {
-    return 'Failed to open folder picker: $error';
+    return 'Hindi mabuksan ang pagpili ng folder: $error';
   }
 
   @override
-  String get failedToPersistFolderAccess => 'Failed to persist folder access';
+  String get failedToPersistFolderAccess =>
+      'Hindi ma-save ang pag-access sa folder';
 
   @override
   String failedToPersistPermission(String? error) {
-    return 'Failed to persist permission: $error';
+    return 'Hindi ma-save ang pahintulot: $error';
   }
 
   @override
   String failedToReadBatteryOptimizationStatus(String? error) {
-    return 'Failed to read battery optimization status: $error';
+    return 'Hindi mabasa ang kalagayan ng pag-optimize ng baterya: $error';
   }
 
   @override
   String failedToReleasePermission(String? error) {
-    return 'Failed to release permission: $error';
+    return 'Hindi mabawi ang pahintulot: $error';
   }
 
   @override
   String failedToRemoveFolder(Object e) {
-    return 'Failed to remove folder: $e';
+    return 'Hindi maalis ang folder: $e';
   }
 
   @override
   String failedToRemoveSongs(Object e) {
-    return 'Failed to remove songs: $e';
+    return 'Hindi maalis ang mga kanta: $e';
   }
 
   @override
   String failedToRequestBatteryOptimizationBypass(String? error) {
-    return 'Failed to request battery optimization bypass: $error';
+    return 'Hindi mahiling ang paglaktaw sa pag-optimize ng baterya: $error';
   }
 
   @override
-  String get failedToSave => 'Failed to save';
+  String get failedToSave => 'Hindi ma-save';
 
   @override
   String failedToSaveMetadata(Object e) {
-    return 'Failed to save metadata: $e';
+    return 'Hindi ma-save ang metadata: $e';
   }
 
   @override
-  String get failedToSaveMetadata2 => 'Failed to save metadata.';
+  String get failedToSaveMetadata2 => 'Hindi ma-save ang metadata.';
 
   @override
   String get failedToSaveTheRecapImage =>
-      'Failed to save the recap image to your gallery.';
+      'Hindi ma-save ang larawan ng buod sa iyong gallery.';
 
   @override
   String get failedToSearchAlbumArtOnline =>
-      'Failed to search album art online.';
+      'Hindi mahanap online ang larawan ng album.';
 
   @override
-  String get failedToStartStreaming => 'Failed to start streaming';
+  String get failedToStartStreaming => 'Hindi masimulan ang streaming';
 
   @override
-  String get failedToStopStreaming => 'Failed to stop streaming';
+  String get failedToStopStreaming => 'Hindi maihinto ang streaming';
 
   @override
-  String get failedToWritePlaylistFile => 'Failed to write playlist file';
+  String get failedToWritePlaylistFile =>
+      'Hindi maisulat ang file ng talaan ng kanta';
 
   @override
-  String get failedToWriteTagsToTheFile => 'Failed to write tags to the file.';
+  String get failedToWriteTagsToTheFile =>
+      'Hindi maisulat ang mga tag sa file.';
 
   @override
-  String get faintHueShiftFromAlbumArt => 'Faint hue shift from album art.';
+  String get faintHueShiftFromAlbumArt =>
+      'Banayad na pagbabago ng kulay mula sa larawan ng album.';
 
   @override
-  String get fallback => 'Fallback';
+  String get fallback => 'Pamalit';
 
   @override
-  String get fallbackAudio => 'Fallback Audio';
+  String get fallbackAudio => 'Pamalit na tunog';
 
   @override
-  String get fallbackAudioActivated => 'Fallback audio activated';
+  String get fallbackAudioActivated => 'Naka-on ang pamalit na tunog';
 
   @override
-  String get fallbackAudioDeactivated => 'Fallback audio deactivated';
+  String get fallbackAudioDeactivated => 'Naka-off ang pamalit na tunog';
 
   @override
   String get fallbackAudioWillBeUsedIf =>
-      'Fallback audio will be used if UAC2 device fails';
+      'Gagamitin ang pamalit na tunog kapag pumalya ang UAC2 device';
 
   @override
   String get fastDirectTrackingImmediateResponse =>
-      'Fast direct tracking — immediate response';
+      'Mabilis at direktang pagsunod — agarang tugon';
 
   @override
-  String get fastIndexScrolling => 'Fast Index Scrolling';
+  String get fastIndexScrolling => 'Mabilis na pag-scroll sa indeks';
 
   @override
-  String get favoriteAll => 'Favorite all';
+  String get favoriteAll => 'Ipaborito lahat';
 
   @override
-  String get favoriteRemoval => 'Favorite Removal';
+  String get favoriteRemoval => 'Pag-alis sa mga paborito';
 
   @override
-  String get favoriteSongs => 'Favorite Songs';
+  String get favoriteSongs => 'Mga paboritong kanta';
 
   @override
-  String get favorites => 'Favorites';
+  String get favorites => 'Mga paborito';
 
   @override
   String get favoritesYouHaveNotRevisitedLately =>
-      'Favorites you have not revisited lately';
+      'Mga paboritong hindi mo pa nababalikan kamakailan';
 
   @override
-  String get feb => 'Feb';
+  String get feb => 'Peb';
 
   @override
-  String get feedback => 'Feedback';
+  String get feedback => 'Puna';
 
   @override
   String get file => 'File';
 
   @override
-  String get fileInformation => 'File Information';
+  String get fileInformation => 'Impormasyon ng file';
 
   @override
-  String get filePath => 'File Path';
+  String get filePath => 'Path ng file';
 
   @override
   String files(Object done, Object total) {
-    return '$done / $total files';
+    return '$done / $total file';
   }
 
   @override
@@ -2772,7 +2828,7 @@ class AppLocalizationsTl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count files',
+      other: '$count file',
       one: '$count file',
     );
     return '$_temp0';
@@ -2780,217 +2836,220 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String filesChecked(Object arg1) {
-    return '$arg1 files checked…';
+    return '$arg1 file na ang nasuri…';
   }
 
   @override
   String get filter => 'Filter';
 
   @override
-  String get filterByFormat => 'FILTER BY FORMAT';
+  String get filterByFormat => 'SALAIN AYON SA FORMAT';
 
   @override
   String get filterFilesSizeLimitsAndPlaylist =>
-      'Filter files, size limits, and playlist import options';
+      'Mga filter ng file, limitasyon ng laki, at opsiyon sa pag-import ng talaan';
 
   @override
-  String get filterLogs => 'Filter logs…';
+  String get filterLogs => 'Salain ang mga log…';
 
   @override
-  String get filterNonMusicFilesFolders => 'Filter Non-Music Files & Folders';
+  String get filterNonMusicFilesFolders =>
+      'Salain ang mga file at folder na hindi musika';
 
   @override
   String get findAndCleanUpDuplicateSongs =>
-      'Find and clean up duplicate songs';
+      'Hanapin at linisin ang magkakaparehong kanta';
 
   @override
-  String get findAndRemoveDuplicateSongs => 'Find and remove duplicate songs';
+  String get findAndRemoveDuplicateSongs =>
+      'Hanapin at alisin ang magkakaparehong kanta';
 
   @override
   String get findSongsArtistsAlbumsFolders =>
-      'Find songs, artists, albums, folders…';
+      'Maghanap ng kanta, kumanta, album, folder…';
 
   @override
-  String get fineTuneTheOverallGain => 'Fine-tune the overall gain';
+  String get fineTuneTheOverallGain => 'Pinuhin ang kabuuang gain';
 
   @override
-  String get finishingMetadataEnrichment => 'Finishing metadata enrichment…';
+  String get finishingMetadataEnrichment =>
+      'Tinatapos ang pagdagdag ng metadata…';
 
   @override
   String finishingMetadataForSongs(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Finishing metadata for $count songs…',
-      one: 'Finishing metadata for $count song…',
+      other: 'Tinatapos ang metadata para sa $count kanta…',
+      one: 'Tinatapos ang metadata para sa $count kanta…',
     );
     return '$_temp0';
   }
 
   @override
-  String get finishingUp => 'Finishing up…';
+  String get finishingUp => 'Tinatapos…';
 
   @override
-  String get fix => 'Fix';
+  String get fix => 'Ayusin';
 
   @override
-  String get fixMissingMetadata => 'Fix Missing Metadata';
+  String get fixMissingMetadata => 'Ayusin ang kulang na metadata';
 
   @override
-  String get fixedBands => '31 fixed bands';
+  String get fixedBands => '31 nakapirming band';
 
   @override
   String fixedCenterFrequenciesWithADb(Object arg1) {
-    return 'Fixed center frequencies with a $arg1 dB range. Tap to interact.';
+    return 'Nakapirming center frequency na may saklaw na $arg1 dB. Pindutin upang baguhin.';
   }
 
   @override
   String get flac24Bit96Khz => 'FLAC · 24-bit / 96 kHz';
 
   @override
-  String get flat => 'Flat';
+  String get flat => 'Pantay';
 
   @override
-  String get flatResponse => 'Flat response';
+  String get flatResponse => 'Pantay na tugon';
 
   @override
   String get flick => 'Flick';
 
   @override
   String get flickCanAttemptToPreferA =>
-      'Flick can attempt to prefer a specific codec above, but success depends on your device, headset, and Android version. Codec forcing uses a hidden system API and may not work on non-rooted devices.';
+      'Maaaring subukan ng Flick na unahin ang napiling codec sa itaas, ngunit nakasalalay ang tagumpay sa iyong aparato, headset, at bersiyon ng Android. Gumagamit ng nakatagong system API ang pagpilit sa codec at maaaring hindi gumana sa mga aparatong hindi naka-root.';
 
   @override
   String get flickCanReceivePlaybackHandoffsFrom =>
-      'Flick can receive playback handoffs from Locker (another Moss app). Playback intents contain only song file paths/metadata. No personal data is exchanged. The integration is entirely local.';
+      'Maaaring tumanggap ang Flick ng paglilipat ng pagtugtog mula sa Locker (isa pang Moss app). Mga file path at metadata lamang ng kanta ang laman ng playback intents. Walang personal na datos na ipinagpapalitan. Ganap na lokal ang integrasyon.';
 
   @override
   String get flickChecksFlickPlayerSiteFor =>
-      'Flick checks flick-player.site for updates whenever you are online';
+      'Sinusuri ng Flick ang flick-player.site para sa update kapag may koneksiyon ka';
 
   @override
   String get flickIsBuiltAndMaintainedBy =>
-      'Flick is built and maintained by one person with zero budget. No team, no funding, no ads.';
+      'Iisang tao ang gumagawa at nagpapanatili ng Flick nang walang badyet. Walang koponan, pondo, o patalastas.';
 
   @override
-  String get flickLogs => 'Flick logs';
+  String get flickLogs => 'Mga log ng Flick';
 
   @override
   String get flickPlayer => 'Flick Player';
 
   @override
   String get flickPlayerDoesNotCollectStore =>
-      'Flick Player does not collect, store, or transmit any personal data. No personal information, usage analytics, crash reports, or advertising identifiers are gathered. No data is shared with third parties.';
+      'Hindi nangongolekta, nag-iimbak, o nagpapadala ng personal na datos ang Flick Player. Walang kinukuhang personal na impormasyon, analytics ng paggamit, ulat ng pag-crash, o advertising identifier. Walang datos na ibinabahagi sa mga ikatlong partido.';
 
   @override
-  String get flickPreview => 'Flick Preview';
+  String get flickPreview => 'Paunang tingin ng Flick';
 
   @override
   String get flickReplay => 'Flick Replay';
 
   @override
   String get flickScansForPlayStoreUpdates =>
-      'Flick scans for Play Store updates whenever you are online';
+      'Sinusuri ng Flick ang mga update sa Play Store kapag may koneksiyon ka';
 
   @override
   String get flickWillAlwaysBeFreeDonations =>
-      'Flick will always be free. Donations keep the project alive without paywalls or subscriptions.';
+      'Laging libre ang Flick. Pinananatiling buhay ng mga donasyon ang proyekto nang walang bayad na harang o subscription.';
 
   @override
   String get flickWillForceYourChosenCodec =>
-      'Flick will force your chosen codec on connect';
+      'Ipipilit ng Flick ang napiling codec kapag kumonekta';
 
   @override
   String get flickplayer => 'FlickPlayer';
 
   @override
-  String get floatingIsland => 'Floating Island';
+  String get floatingIsland => 'Lumulutang na isla';
 
   @override
-  String get floatingMiniPlayer => 'Floating Mini-Player';
+  String get floatingMiniPlayer => 'Lumulutang na mini player';
 
   @override
   String get folder => 'Folder';
 
   @override
-  String get folderLimit => 'FOLDER LIMIT';
+  String get folderLimit => 'LIMITASYON NG FOLDER';
 
   @override
-  String get folderName => 'Folder Name';
+  String get folderName => 'Pangalan ng folder';
 
   @override
   String folderOf(Object current, Object total) {
-    return 'Folder $current of $total';
+    return 'Folder $current sa $total';
   }
 
   @override
   String folderOf2(Object current, Object total) {
-    return 'Folder $current of $total';
+    return 'Folder $current sa $total';
   }
 
   @override
-  String get folderSongCount => 'Folder Song Count';
+  String get folderSongCount => 'Bilang ng kanta sa folder';
 
   @override
-  String get folders => 'Folders';
+  String get folders => 'Mga folder';
 
   @override
   String folders2(Object arg1) {
-    return '$arg1 folders';
+    return '$arg1 folder';
   }
 
   @override
   String get foldersScanningAndDuplicates =>
-      'Folders, scanning, and duplicates';
+      'Mga folder, pag-scan, at magkakapareho';
 
   @override
-  String get foldersShownPerPage => 'Folders shown per page';
+  String get foldersShownPerPage => 'Mga folder na ipinapakita bawat pahina';
 
   @override
-  String get fontScale => 'Font Scale';
+  String get fontScale => 'Sukat ng teksto';
 
   @override
-  String get footerLine => 'Footer line';
+  String get footerLine => 'Linya sa ibaba';
 
   @override
-  String get forceDop => 'Force DoP';
+  String get forceDop => 'Ipilit ang DoP';
 
   @override
   String get forceDopAlwaysUseDsdOver =>
-      'Force DoP — Always use DSD over PCM (USB DAC)';
+      'Ipilit ang DoP — laging gamitin ang DSD over PCM (USB DAC)';
 
   @override
-  String get forcePcm => 'Force PCM';
+  String get forcePcm => 'Ipilit ang PCM';
 
   @override
   String get forcePcmAlwaysConvertDsdTo =>
-      'Force PCM — Always convert DSD to PCM';
+      'Ipilit ang PCM — laging i-convert ang DSD sa PCM';
 
   @override
   String get format => 'Format';
 
   @override
   String get formatControlsAreDisabledTheEngine =>
-      'Format controls are disabled. The engine uses its default format.';
+      'Naka-off ang mga kontrol sa format. Ginagamit ng engine ang default nitong format.';
 
   @override
-  String get formatStrategy => 'Format Strategy';
+  String get formatStrategy => 'Paraan ng pagpili ng format';
 
   @override
   String get formatStrategyAndCustomFormatControls =>
-      'Format strategy and custom format controls are active.';
+      'Aktibo ang pagpili ng format at mga kontrol sa pasadyang format.';
 
   @override
   String get formatStrategyIsDisabledInBit =>
-      'Format strategy is disabled in Bit-perfect (USB DAC) mode because exact sample rate matching is required. Disable Bit-perfect (USB DAC) to change format preferences.';
+      'Naka-off ang pagpili ng format sa Bit-perfect (USB DAC) mode dahil kailangang eksaktong tumugma ang sample rate. I-off ang Bit-perfect (USB DAC) upang baguhin ang mga kagustuhan sa format.';
 
   @override
   String get formatStrategyIsUnavailableBecauseAudio =>
-      'Format strategy is unavailable because Audio Format is disabled in Settings.';
+      'Hindi magamit ang pagpili ng format dahil naka-off ang Format ng tunog sa Mga pagsasaayos.';
 
   @override
   String foundOnline(Object arg1) {
-    return 'Found \"$arg1\" online.';
+    return 'Nahanap online ang \"$arg1\".';
   }
 
   @override
@@ -2999,7 +3058,7 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get freeOpenSource => 'Free & Open Source';
+  String get freeOpenSource => 'Libre at open source';
 
   @override
   String get freq => 'Freq';
@@ -3008,57 +3067,57 @@ class AppLocalizationsTl extends AppLocalizations {
   String get frequency => 'Frequency';
 
   @override
-  String get frequencyFocus => 'Frequency Focus';
+  String get frequencyFocus => 'Pokus ng frequency';
 
   @override
-  String get freshAdditions => 'Fresh Additions';
+  String get freshAdditions => 'Mga bagong dagdag';
 
   @override
   String from(Object sourceLabel) {
-    return 'From $sourceLabel';
+    return 'Mula sa $sourceLabel';
   }
 
   @override
   String get fromSquareCornersToARounded =>
-      'From square corners to a rounded bar';
+      'Mula sa parisukat na sulok hanggang sa bilugang bar';
 
   @override
   String get fullBleedAlbumArtWithThe =>
-      'Full-bleed album art with the current cinematic look.';
+      'Sagad-sa-gilid na larawan ng album na may kasalukuyang mala-pelikulang hitsura.';
 
   @override
-  String get fullLibrary => 'Full Library';
+  String get fullLibrary => 'Buong aklatan';
 
   @override
-  String get fullLibraryAccess => 'Full Library Access';
+  String get fullLibraryAccess => 'Buong pag-access sa aklatan';
 
   @override
-  String get fullPlayer => 'Full Player';
+  String get fullPlayer => 'Buong player';
 
   @override
-  String get fullScan => 'Full scan';
+  String get fullScan => 'Buong pag-scan';
 
   @override
-  String get fullSpectrum => 'Full Spectrum';
+  String get fullSpectrum => 'Buong spectrum';
 
   @override
-  String get fullViewCardSize => 'Full-view card size';
+  String get fullViewCardSize => 'Laki ng card sa buong tanaw';
 
   @override
-  String get fullViewCardSize2 => 'Full-view Card Size';
+  String get fullViewCardSize2 => 'Laki ng card sa buong tanaw';
 
   @override
-  String get fullscreen => 'Fullscreen';
+  String get fullscreen => 'Buong screen';
 
   @override
   String get fundingNativeDsdDsfPlaybackDevelopment =>
-      'Funding native DSD/DSF playback development — a highly requested feature for audiophiles.';
+      'Pagpopondo sa pagbuo ng native DSD/DSF playback — tampok na madalas hilingin ng mga audiophile.';
 
   @override
-  String get fxOff => 'FX off';
+  String get fxOff => 'Naka-off ang FX';
 
   @override
-  String get fxOn => 'FX on';
+  String get fxOn => 'Naka-on ang FX';
 
   @override
   String get gain => 'Gain';
@@ -3067,14 +3126,14 @@ class AppLocalizationsTl extends AppLocalizations {
   String get gallery => 'Gallery';
 
   @override
-  String get gapAboveNavigation => 'Gap Above Navigation';
+  String get gapAboveNavigation => 'Pagitan sa ibabaw ng nabigasyon';
 
   @override
-  String get gaplessPlayback => 'Gapless Playback';
+  String get gaplessPlayback => 'Tuloy-tuloy na pagtugtog';
 
   @override
   String get gaplessViewModeAndAppearance =>
-      'Gapless, view mode, and appearance';
+      'Tuloy-tuloy na pagtugtog, mode ng tanaw, at hitsura';
 
   @override
   String gb(Object arg1) {
@@ -3083,51 +3142,51 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get generatedFromYourListeningHabitsFavorites =>
-      'Generated from your listening habits, favorites, and newest additions.';
+      'Binuo mula sa iyong gawi sa pakikinig, mga paborito, at pinakabagong dagdag.';
 
   @override
-  String get genre => 'Genre';
+  String get genre => 'Uri ng musika';
 
   @override
-  String get geometry => 'Geometry';
+  String get geometry => 'Heometriya';
 
   @override
-  String get getStarted => 'Get Started';
+  String get getStarted => 'Magsimula';
 
   @override
   String get getTheLatestApkFromFlick =>
-      'Get the latest APK from flick-player.site';
+      'Kunin ang pinakabagong APK mula sa flick-player.site';
 
   @override
-  String get getYourApiCredentials => 'Get your API credentials';
+  String get getYourApiCredentials => 'Kunin ang iyong API credentials';
 
   @override
   String get github => 'GitHub';
 
   @override
-  String get goToAlbum => 'Go to Album';
+  String get goToAlbum => 'Pumunta sa album';
 
   @override
-  String get goToArtist => 'Go to Artist';
+  String get goToArtist => 'Pumunta sa kumanta';
 
   @override
-  String get goodAfternoon => 'Good afternoon';
+  String get goodAfternoon => 'Magandang hapon';
 
   @override
-  String get goodEvening => 'Good evening';
+  String get goodEvening => 'Magandang gabi';
 
   @override
-  String get goodMorning => 'Good morning';
+  String get goodMorning => 'Magandang umaga';
 
   @override
-  String get gotIt => 'Got it';
+  String get gotIt => 'Naintindihan ko';
 
   @override
-  String get grantBluetoothAccess => 'Grant Bluetooth access';
+  String get grantBluetoothAccess => 'Payagan ang pag-access sa Bluetooth';
 
   @override
   String get grantedScansReadEveryVolumeDirectly =>
-      'Granted — scans read every volume directly, including DSD/DSF/WavPack';
+      'Pinayagan — direktang binabasa ng pag-scan ang bawat imbakan, kabilang ang DSD/DSF/WavPack';
 
   @override
   String get graphic => 'Graphic';
@@ -3136,117 +3195,118 @@ class AppLocalizationsTl extends AppLocalizations {
   String get graphicEq => 'Graphic EQ';
 
   @override
-  String get green => 'Green';
+  String get green => 'Berde';
 
   @override
   String get groupingByTitleArtistThisIs =>
-      'Grouping by title & artist — this is usually quick.';
+      'Pinapangkat ayon sa pamagat at kumanta — karaniwang mabilis ito.';
 
   @override
-  String get groups => 'Groups';
+  String get groups => 'Mga pangkat';
 
   @override
   String groupsToRemove(Object arg1, Object arg2) {
-    return '$arg1 groups • $arg2 to remove';
+    return '$arg1 pangkat • $arg2 aalisin';
   }
 
   @override
   String groupsToRemove2(Object arg1, Object toRemove) {
-    return '$arg1 groups • $toRemove to remove';
+    return '$arg1 pangkat • $toRemove aalisin';
   }
 
   @override
   String get growsFurtherIfLargerSystemText =>
-      'Grows further if larger system text needs room';
+      'Lumalaki pa kung kailangan ng puwang ang mas malaking teksto ng sistema';
 
   @override
   String hAgo(Object arg1) {
-    return '${arg1}h ago';
+    return '$arg1 oras ang nakalipas';
   }
 
   @override
-  String get hapticFeedback => 'Haptic Feedback';
+  String get hapticFeedback => 'Tugong panginginig';
 
   @override
   String get hardwareUsbDac => 'Hardware (USB DAC)';
 
   @override
   String get hardwareVolumeIsDetectedButWrites =>
-      'Hardware volume is detected, but writes stay blocked while live direct USB playback is active.';
+      'Natukoy ang hardware volume, ngunit nakaharang ang pagsulat habang aktibo ang direktang USB playback.';
 
   @override
-  String get hasArtwork => 'Has artwork';
+  String get hasArtwork => 'May larawan';
 
   @override
   String get havingMoreThan4ButtonsMay =>
-      'Having more than 4 buttons may cause text labels to compress. Consider reducing the button spacing below.';
+      'Maaaring sumikip ang mga label kapag higit sa 4 ang pindutan. Subukang bawasan ang pagitan ng mga pindutan sa ibaba.';
 
   @override
-  String get heavyRotation => 'Heavy Rotation';
+  String get heavyRotation => 'Madalas na pinakikinggan';
 
   @override
-  String get held => 'Held';
+  String get held => 'Hinawakan';
 
   @override
-  String get help => 'Help';
+  String get help => 'Tulong';
 
   @override
-  String get helpManual => 'Help & Manual';
+  String get helpManual => 'Tulong at gabay';
 
   @override
-  String get hiResDirect => 'Hi-Res Direct';
+  String get hiResDirect => 'Direktang Hi-Res';
 
   @override
-  String get hidden => 'Hidden';
+  String get hidden => 'Nakatago';
 
   @override
-  String get hideLyrics => 'Hide lyrics';
+  String get hideLyrics => 'Itago ang lirika';
 
   @override
   String get hideNavigationButtonsAfterBeingIdle =>
-      'Hide navigation buttons after being idle';
+      'Itago ang mga pindutan ng nabigasyon kapag walang ginagawa';
 
   @override
-  String get hidePassword => 'Hide password';
+  String get hidePassword => 'Itago ang password';
 
   @override
   String get hideShortStingersRingtonesAndVoice =>
-      'Hide short stingers, ringtones, and voice fragments';
+      'Itago ang maiikling tunog, ringtone, at piraso ng boses';
 
   @override
   String get hideTheFloatingMiniPlayerPill =>
-      'Hide the floating mini-player pill';
+      'Itago ang lumulutang na mini player';
 
   @override
   String get hideTheIndexRailAfterInactivity =>
-      'Hide the index rail after inactivity';
+      'Itago ang indeks sa gilid kapag walang ginagawa';
 
   @override
-  String get hideVisualizer => 'Hide visualizer';
+  String get hideVisualizer => 'Itago ang visualizer';
 
   @override
-  String get hideVisualizer2 => 'Hide Visualizer';
+  String get hideVisualizer2 => 'Itago ang visualizer';
 
   @override
-  String get high => 'High';
+  String get high => 'Mataas';
 
   @override
-  String get high120hz => 'High (120Hz)';
+  String get high120hz => 'Mataas (120Hz)';
 
   @override
-  String get highFrequenciesOnly => 'High frequencies only';
+  String get highFrequenciesOnly => 'Matataas na frequency lamang';
 
   @override
   String get highPass => 'High Pass';
 
   @override
-  String get highQuality => 'High Quality';
+  String get highQuality => 'Mataas na kalidad';
 
   @override
-  String get highQualityEngine => 'High Quality Engine';
+  String get highQualityEngine => 'Engine na mataas ang kalidad';
 
   @override
-  String get highQualityWidelySupported => 'High quality, widely supported';
+  String get highQualityWidelySupported =>
+      'Mataas na kalidad, malawak ang suporta';
 
   @override
   String get highResolutionAptx => 'High-resolution aptX';
@@ -3255,52 +3315,54 @@ class AppLocalizationsTl extends AppLocalizations {
   String get highShelf => 'High Shelf';
 
   @override
-  String get highestBitrateUpTo990Kbps => 'Highest bitrate (up to 990 kbps)';
+  String get highestBitrateUpTo990Kbps =>
+      'Pinakamataas na bitrate (hanggang 990 kbps)';
 
   @override
-  String get highestQuality => 'Highest Quality';
+  String get highestQuality => 'Pinakamataas na kalidad';
 
   @override
-  String get historyCleared => 'History cleared';
+  String get historyCleared => 'Nabura ang kasaysayan';
 
   @override
-  String get holdASongToUnfavorite => 'Hold a song to unfavorite';
+  String get holdASongToUnfavorite =>
+      'Diinan ang kanta upang alisin sa mga paborito';
 
   @override
-  String get homeScreenSections => 'Home Screen Sections';
+  String get homeScreenSections => 'Mga seksiyon ng pangunahing pahina';
 
   @override
-  String get horizontalReach => 'Horizontal Reach';
+  String get horizontalReach => 'Pahalang na abot';
 
   @override
   String hourUnit(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'hours',
-      one: 'hour',
+      other: 'oras',
+      one: 'oras',
     );
     return '$_temp0';
   }
 
   @override
   String get howFarTheArcOpensFrom =>
-      'How far the arc opens from the left edge';
+      'Layo ng pagbukas ng kurba mula sa kaliwang gilid';
 
   @override
   String get howMuchSideCardsShrinkAway =>
-      'How much side cards shrink away from center';
+      'Pagliit ng mga card habang lumalayo sa gitna';
 
   @override
-  String get howWeHandleYourData => 'How we handle your data';
+  String get howWeHandleYourData =>
+      'Paano namin pinangangasiwaan ang iyong datos';
 
   @override
-  String get howWideEachCardSpansAcross =>
-      'How wide each card spans across the screen';
+  String get howWideEachCardSpansAcross => 'Lapad ng bawat card sa screen';
 
   @override
   String get httpBasicNeedsItRecoverableStored =>
-      'HTTP Basic needs it recoverable; stored encoded';
+      'Kailangang mabawi ito para sa HTTP Basic; naka-encode na nakaimbak';
 
   @override
   String hz(Object rate) {
@@ -3321,95 +3383,97 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get hzTuning => '432 Hz Tuning';
+  String get hzTuning => '432 Hz tuning';
 
   @override
-  String get iconSize => 'Icon Size';
+  String get iconSize => 'Laki ng icon';
 
   @override
   String identified(int count, Object note) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count songs',
-      one: '$count song',
+      other: '$count kanta',
+      one: '$count kanta',
     );
-    return 'Identified $_temp0$note.';
+    return 'Natukoy ang $_temp0$note.';
   }
 
   @override
-  String get identifyAlbum => 'Identify album';
+  String get identifyAlbum => 'Kilalanin ang album';
 
   @override
-  String get identifyAlbum2 => 'Identify Album';
+  String get identifyAlbum2 => 'Kilalanin ang album';
 
   @override
   String get identifyAlbumsWithUnknownArtistOr =>
-      'Identify albums with unknown artist or title tags';
+      'Kilalanin ang mga album na walang kilalang kumanta o pamagat';
 
   @override
-  String get idle => 'Idle';
+  String get idle => 'Walang ginagawa';
 
   @override
   String get ifYouConnectYourLastFm =>
-      'If you connect your Last.fm account, credentials are stored securely on-device. Play data is sent only to Last.fm. We do not receive or process this data.';
+      'Kung ikokonekta mo ang iyong Last.fm account, ligtas na iimbakin sa aparato ang mga kredensiyal. Sa Last.fm lamang ipinapadala ang datos ng pagtugtog. Hindi namin natatanggap o pinoproseso ang datos na ito.';
 
   @override
-  String get ignoreTracksUnder500Kb => 'Ignore Tracks Under 500 KB';
+  String get ignoreTracksUnder500Kb =>
+      'Huwag isama ang mga kantang wala pang 500 KB';
 
   @override
-  String get ignoreTracksUnder60Seconds => 'Ignore Tracks Under 60 Seconds';
+  String get ignoreTracksUnder60Seconds =>
+      'Huwag isama ang mga kantang wala pang 60 segundo';
 
   @override
   String get immersive => 'Immersive';
 
   @override
-  String get immersiveFullViewTimer => 'Immersive Full View Timer';
+  String get immersiveFullViewTimer => 'Timer ng buong immersive na tanaw';
 
   @override
   String importFailed(Object e) {
-    return 'Import failed: $e';
+    return 'Hindi ma-import: $e';
   }
 
   @override
-  String get importM3uM3u8 => 'Import M3U/M3U8';
+  String get importM3uM3u8 => 'Mag-import ng M3U/M3U8';
 
   @override
-  String get importM3uM3u8Playlists => 'Import M3U/M3U8 Playlists';
+  String get importM3uM3u8Playlists => 'Mag-import ng mga talaang M3U/M3U8';
 
   @override
-  String get importPresetFile => 'Import preset file';
+  String get importPresetFile => 'Mag-import ng file ng preset';
 
   @override
   String imported(Object arg1) {
-    return 'Imported \"$arg1\"';
+    return 'Na-import ang \"$arg1\"';
   }
 
   @override
   String get importedArtIsSavedInsideThe =>
-      'Imported art is saved inside the app and synced to every song in this album.';
+      'Naka-save sa app ang na-import na larawan at isinabay sa bawat kanta sa album na ito.';
 
   @override
   String get importedArtIsSavedInsideThe2 =>
-      'Imported art is saved inside the app for this song only.';
+      'Naka-save sa app ang na-import na larawan para lamang sa kantang ito.';
 
   @override
-  String get importedPreset => 'Imported Preset';
+  String get importedPreset => 'Na-import na preset';
 
   @override
   String importedWithSongs(Object arg1, Object arg2, Object unmatchedText) {
-    return 'Imported \"$arg1\" with $arg2 songs.$unmatchedText';
+    return 'Na-import ang \"$arg1\" na may $arg2 kanta.$unmatchedText';
   }
 
   @override
   String get impulseResponse => 'Impulse response';
 
   @override
-  String get inAppUpdates => 'In-App Updates';
+  String get inAppUpdates => 'Mga update sa loob ng app';
 
   @override
   String inLabel(Object folder) {
-    return 'in $folder';
+    return 'sa $folder';
   }
 
   @override
@@ -3417,81 +3481,81 @@ class AppLocalizationsTl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count songs',
-      one: '$count song',
+      other: '$count kanta',
+      one: '$count kanta',
     );
-    return '$_temp0 in your library';
+    return '$_temp0 sa iyong aklatan';
   }
 
   @override
-  String get inactive => 'Inactive';
+  String get inactive => 'Hindi aktibo';
 
   @override
   String get incredibleOverAMonthOfDaily =>
-      'Incredible — over a month of daily listening.';
+      'Kahanga-hanga — mahigit isang buwang araw-araw na pakikinig.';
 
   @override
-  String get info2 => 'Info';
+  String get info2 => 'Impormasyon';
 
   @override
-  String get initializing => 'Initializing…';
+  String get initializing => 'Inihahanda…';
 
   @override
   String get inkCardWithTheReplaySignature =>
-      'Ink card with the Replay signature accents';
+      'Card na tila tinta, may natatanging diin ng Replay';
 
   @override
-  String get inputGain => 'Input Gain';
+  String get inputGain => 'Input gain';
 
   @override
   String get insertIntoTheCurrentQueueFallBackToResults =>
-      'Insert into the current queue, fall back to results';
+      'Isingit sa kasalukuyang pila, gamitin ang mga resulta kung hindi maaari';
 
   @override
   String get inst => 'Inst';
 
   @override
-  String get instructions => 'Instructions';
+  String get instructions => 'Mga tagubilin';
 
   @override
   String get instrumental => 'Instrumental';
 
   @override
-  String get integrations => 'Integrations';
+  String get integrations => 'Mga integrasyon';
 
   @override
-  String get interactiveEq => 'Interactive EQ';
+  String get interactiveEq => 'Interaktibong EQ';
 
   @override
-  String get interactiveTutorial => 'Interactive Tutorial';
+  String get interactiveTutorial => 'Interaktibong gabay';
 
   @override
-  String get interfaceClaimed => 'Interface claimed';
+  String get interfaceClaimed => 'Nakuha ang interface';
 
   @override
-  String get interfaceLabel => 'Interface';
+  String get interfaceLabel => 'Itsura';
 
   @override
-  String get invalidToken => 'Invalid token';
+  String get invalidToken => 'Hindi wastong token';
 
   @override
   String isOfflineRetainedSongsStillListed(Object folder) {
-    return '$folder is offline — retained songs still listed';
+    return 'Walang koneksiyon ang $folder — nakalista pa rin ang mga napanatiling kanta';
   }
 
   @override
   String get isochronousUsb => 'Isochronous USB';
 
   @override
-  String get itemSpacing => 'Item Spacing';
+  String get itemSpacing => 'Pagitan ng mga item';
 
   @override
   String items(Object count) {
-    return '$count items';
+    return '$count item';
   }
 
   @override
-  String get jan => 'Jan';
+  String get jan => 'Ene';
 
   @override
   String get jellyfin => 'Jellyfin';
@@ -3500,17 +3564,17 @@ class AppLocalizationsTl extends AppLocalizations {
   String get jellyfinEmby => 'Jellyfin · Emby';
 
   @override
-  String get jul => 'Jul';
+  String get jul => 'Hul';
 
   @override
-  String get jumpBackIn => 'Jump Back In';
+  String get jumpBackIn => 'Balikan ang pakikinig';
 
   @override
   String get jumpToTheFlickListingAnd =>
-      'Jump to the Flick listing and update from there';
+      'Pumunta sa pahina ng Flick at mag-update mula roon';
 
   @override
-  String get jun => 'Jun';
+  String get jun => 'Hun';
 
   @override
   String get justAudioExoplayer => 'just_audio / ExoPlayer';
@@ -3519,13 +3583,13 @@ class AppLocalizationsTl extends AppLocalizations {
   String get justAudioExoplayerDefault => 'just_audio / ExoPlayer (default)';
 
   @override
-  String get justNow => 'Just now';
+  String get justNow => 'Ngayon lang';
 
   @override
   String get karaokeEffect => 'Karaoke effect';
 
   @override
-  String get karaokePreview => 'Karaoke Preview';
+  String get karaokePreview => 'Paunang tingin ng karaoke';
 
   @override
   String kb(Object arg1) {
@@ -3533,67 +3597,68 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get keepAll => 'Keep all';
+  String get keepAll => 'Itira lahat';
 
   @override
-  String get keepEditing => 'Keep Editing';
+  String get keepEditing => 'Magpatuloy sa pag-edit';
 
   @override
   String get keepItGoingOpenTomorrowTo =>
-      'Keep it going. Open tomorrow to add another day.';
+      'Ituloy mo lang. Buksan bukas para madagdagan ng isang araw.';
 
   @override
-  String get keepListeningWithFlick => 'Keep listening with Flick';
+  String get keepListeningWithFlick => 'Patuloy na makinig sa Flick';
 
   @override
-  String get keepMiniPlayerAndNavVisible => 'Keep mini player and nav visible';
+  String get keepMiniPlayerAndNavVisible =>
+      'Panatilihing nakikita ang mini player at nabigasyon';
 
   @override
   String get keepPlaybackPausedWhenADevice =>
-      'Keep playback paused when a device reconnects';
+      'Panatilihing naka-pause kapag muling kumonekta ang aparato';
 
   @override
-  String get keepPlayingOnQuit => 'Keep Playing on Quit';
+  String get keepPlayingOnQuit => 'Ituloy ang pagtugtog kapag lumabas';
 
   @override
   String get keepRelativeLevelsInsideEachAlbum =>
-      'Keep relative levels inside each album';
+      'Panatilihin ang kaugnay na antas sa loob ng bawat album';
 
   @override
   String get keepTheSessionMovingOrHead =>
-      'Keep the session moving or head straight back to the player.';
+      'Ituloy ang pakikinig o bumalik agad sa player.';
 
   @override
-  String get keepYourReplay => 'Keep your Replay.';
+  String get keepYourReplay => 'Itabi ang iyong Replay.';
 
   @override
   String keeping(Object type, Object br) {
-    return 'Keeping • $type • $br';
+    return 'Ititira • $type • $br';
   }
 
   @override
   String keepingOfToRemove(Object keptCount, Object arg1, Object removeCount) {
-    return 'Keeping $keptCount of $arg1 • $removeCount to remove';
+    return 'Ititira ang $keptCount sa $arg1 • $removeCount aalisin';
   }
 
   @override
-  String get keepingThisVersion => 'Keeping this version';
+  String get keepingThisVersion => 'Ititira ang bersiyong ito';
 
   @override
   String get keepsBitPerfectAudioAliveIn =>
-      'Keeps bit-perfect audio alive in the background';
+      'Pinananatiling tumutugtog ang bit-perfect sa background';
 
   @override
   String get keepsSoftwareVolumeAndDspActive =>
-      'Keeps software volume and DSP active on the DAP shared path.';
+      'Pinananatiling aktibo ang software volume at DSP sa shared path ng DAP.';
 
   @override
   String get keptInSecureStorageToRe =>
-      'Kept in secure storage to re-sign in when the token expires';
+      'Ligtas na nakaimbak upang makapag-sign in muli kapag nag-expire ang token';
 
   @override
   String keptWillBeRemoved(Object keptCount, Object removeCount) {
-    return '$keptCount kept • $removeCount will be removed';
+    return '$keptCount ititira • $removeCount aalisin';
   }
 
   @override
@@ -3628,65 +3693,65 @@ class AppLocalizationsTl extends AppLocalizations {
   String get label => 'Label';
 
   @override
-  String get labelOrganization => 'Label / Organization';
+  String get labelOrganization => 'Label / Organisasyon';
 
   @override
-  String get language => 'Language';
+  String get language => 'Wika';
 
   @override
   String get languageSectionDescription =>
-      'Choose the language used across the app.';
+      'Piliin ang wikang gagamitin sa aplikasyon.';
 
   @override
-  String get languageSystemDefault => 'System default';
+  String get languageSystemDefault => 'Wika ng aparato';
 
   @override
   String get lastFm => 'Last.fm';
 
   @override
-  String get lastFmConfiguration => 'Last.fm Configuration';
+  String get lastFmConfiguration => 'Pagsasaayos ng Last.fm';
 
   @override
-  String get lastFmConnected => 'Last.fm Connected';
+  String get lastFmConnected => 'Nakakonekta ang Last.fm';
 
   @override
-  String get lastFmConnected2 => 'Last.fm connected!';
+  String get lastFmConnected2 => 'Nakakonekta na ang Last.fm!';
 
   @override
   String get lastFmListenbrainzScrobbling =>
-      'Last.fm & ListenBrainz scrobbling';
+      'Pag-scrobble sa Last.fm at ListenBrainz';
 
   @override
-  String get lastFmScrobbling => 'Last.fm Scrobbling';
+  String get lastFmScrobbling => 'Pag-scrobble sa Last.fm';
 
   @override
-  String get lastPick => 'Last pick';
+  String get lastPick => 'Huling pili';
 
   @override
-  String get lastUpdated => 'Last Updated';
+  String get lastUpdated => 'Huling na-update';
 
   @override
-  String get lastWeek => 'Last Week';
+  String get lastWeek => 'Nakaraang linggo';
 
   @override
-  String get lateNightSessions => 'Late Night Sessions';
+  String get lateNightSessions => 'Pakikinig sa hatinggabi';
 
   @override
   String get latestArrivalsFromYourLibrary =>
-      'Latest arrivals from your library';
+      'Mga pinakabagong dagdag sa iyong aklatan';
 
   @override
-  String get latestUpdate => 'Latest Update';
+  String get latestUpdate => 'Pinakabagong update';
 
   @override
-  String get layered => 'Layered';
+  String get layered => 'Patong-patong';
 
   @override
-  String get layoutMode => 'Layout Mode';
+  String get layoutMode => 'Mode ng ayos';
 
   @override
   String get layoutModeSizingAndQuickActions =>
-      'Layout mode, sizing, and quick actions';
+      'Mode ng ayos, laki, at mabilisang aksiyon';
 
   @override
   String get ldac330Kbps => 'LDAC 330 kbps';
@@ -3701,126 +3766,126 @@ class AppLocalizationsTl extends AppLocalizations {
   String get ldacAdaptive => 'LDAC Adaptive';
 
   @override
-  String get ldacBitsPerSample => 'LDAC bits per sample';
+  String get ldacBitsPerSample => 'LDAC bits bawat sample';
 
   @override
   String get leLsbLittleEndianSubslotLsb =>
-      'LE-LSB — little-endian subslot, LSB first';
+      'LE-LSB — little-endian subslot, LSB muna';
 
   @override
   String get leMsbLittleEndianSubslotMsb =>
-      'LE-MSB — little-endian subslot, MSB first';
+      'LE-MSB — little-endian subslot, MSB muna';
 
   @override
   String get leaveEmptyToKeepTheCurrent =>
-      'Leave empty to keep the current credentials';
+      'Iwang walang laman upang panatilihin ang kasalukuyang mga kredensiyal';
 
   @override
-  String get left => 'Left';
+  String get left => 'Kaliwa';
 
   @override
-  String get leftBottom => 'Left (bottom)';
+  String get leftBottom => 'Kaliwa (ibaba)';
 
   @override
-  String get leftBottomButton => 'Left (Bottom) Button';
+  String get leftBottomButton => 'Kaliwang pindutan (ibaba)';
 
   @override
-  String get leftTop => 'Left (top)';
+  String get leftTop => 'Kaliwa (itaas)';
 
   @override
-  String get leftTopButton => 'Left (Top) Button';
+  String get leftTopButton => 'Kaliwang pindutan (itaas)';
 
   @override
-  String get length => 'Length:';
+  String get length => 'Tagal:';
 
   @override
-  String get lengthOfTheOverlap => 'Length of the overlap';
+  String get lengthOfTheOverlap => 'Tagal ng pagsasapaw';
 
   @override
   String lengthS(Object arg1) {
-    return 'Length ${arg1}s';
+    return 'Tagal ${arg1}s';
   }
 
   @override
   String get letAndroidChooseTheBestCodec =>
-      'Let Android choose the best codec';
+      'Hayaang piliin ng Android ang pinakamahusay na codec';
 
   @override
   String get letAndroidChooseTheOutputDevice =>
-      'Let Android choose the output device';
+      'Hayaang piliin ng Android ang output device';
 
   @override
   String get letAndroidNegotiateTheCodecAutomatically =>
-      'Let Android negotiate the codec automatically';
+      'Hayaang awtomatikong pagkasunduan ng Android ang codec';
 
   @override
   String get letOboePickTheBestApi =>
-      'Let Oboe pick the best API. AAudio first, then OpenSL ES fallback.';
+      'Hayaang piliin ng Oboe ang pinakamahusay na API. AAudio muna, saka OpenSL ES bilang pamalit.';
 
   @override
   String get letSTakeAQuickTour =>
-      'Let\'s take a quick tour of your new music player.';
+      'Tingnan natin sandali ang bago mong music player.';
 
   @override
   String get letTheSystemDecideBestBattery =>
-      'Let the system decide — best battery life';
+      'Hayaang magpasya ang sistema — pinakamatipid sa baterya';
 
   @override
   String get letsFlickScanYourEntireLibrary =>
-      'Lets Flick scan your entire library directly, including DSD/DSF/WavPack files some devices hide from the system media index';
+      'Pinapayagan ang Flick na direktang i-scan ang buong aklatan, kabilang ang DSD/DSF/WavPack na itinatago ng ilang aparato sa media index ng sistema';
 
   @override
-  String get level => 'Level';
+  String get level => 'Antas';
 
   @override
-  String get libraryEmptied => 'Library emptied';
+  String get libraryEmptied => 'Naalis ang laman ng aklatan';
 
   @override
-  String get libraryGlanceCard => 'Library Glance Card';
+  String get libraryGlanceCard => 'Sulyap sa aklatan';
 
   @override
-  String get libraryLabel => 'Library';
+  String get libraryLabel => 'Aklatan';
 
   @override
-  String get licenses => 'Licenses';
+  String get licenses => 'Mga lisensiya';
 
   @override
-  String get light => 'Light';
+  String get light => 'Maliwanag';
 
   @override
   String likedSongs(Object arg1) {
-    return '$arg1 liked songs';
+    return '$arg1 nagustuhang kanta';
   }
 
   @override
-  String get likedSongsLiveHere => 'Liked songs live here';
+  String get likedSongsLiveHere => 'Narito ang mga nagustuhan mong kanta';
 
   @override
   String get likesAndReplaysBlendedTogether =>
-      'Likes and replays blended together';
+      'Halo ng mga gusto mo at paulit-ulit mong pinakikinggan';
 
   @override
-  String get limit => 'Limit';
+  String get limit => 'Limitasyon';
 
   @override
   String get limitPositiveGainSoTheLevel =>
-      'Limit positive gain so the level never exceeds full scale';
+      'Limitahan ang positibong gain upang hindi lumampas sa full scale';
 
   @override
   String get limiter => 'Limiter';
 
   @override
-  String get limiterOff => 'Limiter off';
+  String get limiterOff => 'Naka-off ang limiter';
 
   @override
-  String get limiterOn => 'Limiter on';
+  String get limiterOn => 'Naka-on ang limiter';
 
   @override
-  String get line => 'Line';
+  String get line => 'Linya';
 
   @override
   String lineOf(Object arg1, Object arg2) {
-    return 'Line $arg1 of $arg2';
+    return 'Linya $arg1 sa $arg2';
   }
 
   @override
@@ -3830,158 +3895,158 @@ class AppLocalizationsTl extends AppLocalizations {
     Object captured,
     Object segmentCount,
   ) {
-    return 'Line $arg1 of $arg2  ·  $captured/$segmentCount words';
+    return 'Linya $arg1 sa $arg2  ·  $captured/$segmentCount salita';
   }
 
   @override
   String get linear => 'Linear';
 
   @override
-  String get lines => 'Lines';
+  String get lines => 'Mga linya';
 
   @override
   String lines2(Object arg1) {
-    return '$arg1 lines';
+    return '$arg1 linya';
   }
 
   @override
-  String get linkReady => 'Link ready';
+  String get linkReady => 'Handa na ang link';
 
   @override
   String linkedToThisSong(Object arg1) {
-    return 'Linked \"$arg1\" to this song.';
+    return 'Naiugnay ang \"$arg1\" sa kantang ito.';
   }
 
   @override
-  String get list => 'List';
+  String get list => 'Listahan';
 
   @override
   String get listAvailableLocalAudioOutputDevices =>
-      'List available local audio output devices';
+      'Ilista ang mga lokal na audio output device na magagamit';
 
   @override
   String get listenbrainz => 'ListenBrainz';
 
   @override
-  String get listenbrainzConnected => 'ListenBrainz Connected';
+  String get listenbrainzConnected => 'Nakakonekta ang ListenBrainz';
 
   @override
-  String get listenbrainzConnected2 => 'ListenBrainz connected!';
+  String get listenbrainzConnected2 => 'Nakakonekta na ang ListenBrainz!';
 
   @override
-  String get listeningHours => 'Listening Hours';
+  String get listeningHours => 'Mga oras ng pakikinig';
 
   @override
   String listeningToByOnFlick(Object arg1, Object arg2) {
-    return 'Listening to $arg1 by $arg2 on Flick';
+    return 'Pinakikinggan ang $arg1 ni $arg2 sa Flick';
   }
 
   @override
   String get littleEndianSubslotLsbFirstBits =>
-      'Little-endian subslot, LSB-first bits';
+      'Little-endian subslot, LSB-first na mga bit';
 
   @override
   String get littleEndianSubslotMsbFirstBits =>
-      'Little-endian subslot, MSB-first bits';
+      'Little-endian subslot, MSB-first na mga bit';
 
   @override
-  String get livePreview => 'Live Preview';
+  String get livePreview => 'Live na paunang tingin';
 
   @override
-  String get livingOrnament => 'Living ornament';
+  String get livingOrnament => 'Gumagalaw na palamuti';
 
   @override
-  String get loadAJsonOrTxtPreset => 'Load a JSON or TXT preset';
+  String get loadAJsonOrTxtPreset => 'Mag-load ng JSON o TXT preset';
 
   @override
   String get loadAnImpulseResponseForRoom =>
-      'Load an impulse response for room reverb, crossfeed, cabinet, or correction.';
+      'Mag-load ng impulse response para sa room reverb, crossfeed, cabinet, o correction.';
 
   @override
-  String get loadIr => 'Load IR';
+  String get loadIr => 'Mag-load ng IR';
 
   @override
   String loadedIr(Object displayName) {
-    return 'Loaded IR: $displayName';
+    return 'Na-load na IR: $displayName';
   }
 
   @override
-  String get loadingArtwork => 'Loading artwork';
+  String get loadingArtwork => 'Nilo-load ang larawan';
 
   @override
-  String get loadingArtwork2 => 'Loading artwork…';
+  String get loadingArtwork2 => 'Nilo-load ang larawan…';
 
   @override
   String get loadingFavoritesRecentSessionsGenerated =>
-      'Loading favorites, recent sessions, generated mixes, and playlists.';
+      'Nilo-load ang mga paborito, kamakailang sesyon, mga binuong halo, at mga talaan ng kanta.';
 
   @override
-  String get loadingPatchNotes => 'Loading patch notes...';
+  String get loadingPatchNotes => 'Nilo-load ang mga tala ng pagbabago...';
 
   @override
-  String get loadingReplay => 'Loading Replay';
+  String get loadingReplay => 'Nilo-load ang Replay';
 
   @override
-  String get loadingSession => 'Loading session...';
+  String get loadingSession => 'Nilo-load ang sesyon...';
 
   @override
-  String get localData => 'Local Data';
+  String get localData => 'Lokal na datos';
 
   @override
-  String get locked => 'Locked';
+  String get locked => 'Naka-lock';
 
   @override
-  String get logFrequencyControl => 'Log-frequency control';
+  String get logFrequencyControl => 'Kontrol ng log-frequency';
 
   @override
-  String get logs => 'Logs';
+  String get logs => 'Mga log';
 
   @override
-  String get logsCopied => 'Logs copied';
+  String get logsCopied => 'Nakopya ang mga log';
 
   @override
-  String get longPress => 'Long Press';
+  String get longPress => 'Matagal na pindot';
 
   @override
-  String get longSongTitles => 'Long Song Titles';
+  String get longSongTitles => 'Mahahabang pamagat ng kanta';
 
   @override
-  String get look => 'Look';
+  String get look => 'Hitsura';
 
   @override
   String get lookingForCoverArtFromMusicbrainz =>
-      'Looking for cover art from MusicBrainz and Cover Art Archive.';
+      'Naghahanap ng pabalat sa MusicBrainz at Cover Art Archive.';
 
   @override
   String get lookingForTheLatestFlickRelease =>
-      'Looking for the latest Flick release right now';
+      'Kasalukuyang hinahanap ang pinakabagong release ng Flick';
 
   @override
   String get lookingForTheLatestPlayStore =>
-      'Looking for the latest Play Store update right now';
+      'Kasalukuyang hinahanap ang pinakabagong update sa Play Store';
 
   @override
   String get lossless => ' Lossless';
 
   @override
   String get losslessQualityPreservedDuringConversion =>
-      'Lossless quality preserved during conversion';
+      'Napanatili ang lossless na kalidad sa conversion';
 
   @override
-  String get low => 'Low';
+  String get low => 'Mababa';
 
   @override
   String get lowAndHighFrequenciesScoopedMids =>
-      'Low and high frequencies, scooped mids';
+      'Mababa at mataas na frequency, binawasang mid';
 
   @override
-  String get lowFrequenciesOnly => 'Low frequencies only';
+  String get lowFrequenciesOnly => 'Mabababang frequency lamang';
 
   @override
-  String get lowLatencyGoodQuality => 'Low latency, good quality';
+  String get lowLatencyGoodQuality => 'Mababang latency, magandang kalidad';
 
   @override
-  String get lowLatencyMode => 'Low-latency Mode';
+  String get lowLatencyMode => 'Mode na mababa ang latency';
 
   @override
   String get lowPass => 'Low Pass';
@@ -3993,28 +4058,28 @@ class AppLocalizationsTl extends AppLocalizations {
   String get lrclib => 'LRCLib';
 
   @override
-  String get lyric => 'Lyric';
+  String get lyric => 'Lirika';
 
   @override
-  String get lyrics => 'Lyrics';
+  String get lyrics => 'Lirika';
 
   @override
-  String get lyricsPreview => 'Lyrics Preview';
+  String get lyricsPreview => 'Paunang tingin ng lirika';
 
   @override
-  String get lyricsSavedFromLrclib => 'Lyrics saved from LRCLib.';
+  String get lyricsSavedFromLrclib => 'Na-save ang lirika mula sa LRCLib.';
 
   @override
-  String get lyricsSavingBehavior => 'Lyrics saving behavior';
+  String get lyricsSavingBehavior => 'Paraan ng pag-save ng lirika';
 
   @override
-  String get lyricsSyncHelp => 'Lyrics Sync Help';
+  String get lyricsSyncHelp => 'Tulong sa pagsabay ng lirika';
 
   @override
-  String get lyricsSyncStudio => 'Lyrics Sync Studio';
+  String get lyricsSyncStudio => 'Studio ng pagsabay ng lirika';
 
   @override
-  String get lyricsText => 'Lyrics Text';
+  String get lyricsText => 'Teksto ng lirika';
 
   @override
   String m(Object arg1) {
@@ -4028,77 +4093,78 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String mAgo(Object arg1) {
-    return '${arg1}m ago';
+    return '$arg1 minuto ang nakalipas';
   }
 
   @override
-  String get madeForYou => 'Made For You';
+  String get madeForYou => 'Para sa iyo';
 
   @override
   String get makeup => 'Makeup';
 
   @override
-  String get manual => 'Manual';
+  String get manual => 'Manwal';
 
   @override
-  String get manualOrder => 'Manual Order';
+  String get manualOrder => 'Manwal na ayos';
 
   @override
-  String get manualQueue => 'Manual queue';
+  String get manualQueue => 'Manwal na pila';
 
   @override
-  String get manufacturer => 'Manufacturer';
+  String get manufacturer => 'Tagagawa';
 
   @override
   String get mar => 'Mar';
 
   @override
-  String get masterBypassed => 'Master bypassed';
+  String get masterBypassed => 'Nilalaktawan ang master';
 
   @override
-  String get matchAudioFilename => 'Match Audio Filename';
+  String get matchAudioFilename => 'Itugma ang pangalan ng audio file';
 
   @override
   String matchByArtistAlbumAndTrack(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count files',
+      other: '$count file',
       one: '$count file',
     );
-    return 'Match $_temp0 by artist, album and track length';
+    return 'Itugma ang $_temp0 ayon sa kumanta, album at tagal ng kanta';
   }
 
   @override
-  String get matchEqToYourHeadphoneModel => 'Match EQ to your headphone model';
+  String get matchEqToYourHeadphoneModel =>
+      'Itugma ang EQ sa modelo ng iyong headphone';
 
   @override
-  String get matchNavigation => 'Match navigation';
+  String get matchNavigation => 'Itugma sa nabigasyon';
 
   @override
-  String get matches => 'Matches';
+  String get matches => 'Mga tugma';
 
   @override
   String maxB(Object arg1) {
-    return 'Max $arg1 B';
+    return 'Hanggang $arg1 B';
   }
 
   @override
-  String get maximumAudioQuality => 'Maximum audio quality';
+  String get maximumAudioQuality => 'Pinakamataas na kalidad ng tunog';
 
   @override
   String get maximumSmoothnessUsesMoreBattery =>
-      'Maximum smoothness — uses more battery';
+      'Pinakamakinis — mas malakas sa baterya';
 
   @override
   String get may => 'May';
 
   @override
-  String get may42026 => 'May 4, 2026';
+  String get may42026 => 'Mayo 4, 2026';
 
   @override
   String get mayStopInTheBackgroundOn =>
-      'May stop in the background on some devices';
+      'Maaaring huminto sa background sa ilang aparato';
 
   @override
   String mb(Object arg1) {
@@ -4109,16 +4175,16 @@ class AppLocalizationsTl extends AppLocalizations {
   String get media => 'Media';
 
   @override
-  String get medium => 'Medium';
+  String get medium => 'Katamtaman';
 
   @override
-  String get menu => 'Menu';
+  String get menu => 'Talaan';
 
   @override
   String get metadata => 'Metadata';
 
   @override
-  String get metropolitan => 'Metropolitan';
+  String get metropolitan => 'Kalungsuran';
 
   @override
   String mhz(Object arg1) {
@@ -4129,22 +4195,22 @@ class AppLocalizationsTl extends AppLocalizations {
   String get mid => 'Mid';
 
   @override
-  String get midFrequenciesOnly => 'Mid frequencies only';
+  String get midFrequenciesOnly => 'Mga mid frequency lamang';
 
   @override
-  String get midnightCityDreams => 'Midnight City Dreams';
+  String get midnightCityDreams => 'Panaginip ng lungsod sa hatinggabi';
 
   @override
-  String get midnightDreams => 'Midnight Dreams';
+  String get midnightDreams => 'Mga panaginip sa hatinggabi';
 
   @override
-  String get midnightSignal => 'Midnight Signal';
+  String get midnightSignal => 'Signal ng hatinggabi';
 
   @override
-  String get milestone => 'Milestone';
+  String get milestone => 'Yugto ng tagumpay';
 
   @override
-  String get milestones => 'Milestones';
+  String get milestones => 'Mga yugto ng tagumpay';
 
   @override
   String min(Object arg1) {
@@ -4152,146 +4218,147 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get miniPlayer => 'Mini Player';
+  String get miniPlayer => 'Mini player';
 
   @override
-  String get miniPlayerAppearance => 'Mini Player Appearance';
+  String get miniPlayerAppearance => 'Hitsura ng mini player';
 
   @override
-  String get miniPlayerDefaultsRestored => 'Mini player defaults restored';
+  String get miniPlayerDefaultsRestored =>
+      'Naibalik ang default ng mini player';
 
   @override
-  String get miniPlayerHeight => 'Mini Player Height';
+  String get miniPlayerHeight => 'Taas ng mini player';
 
   @override
-  String get miniPlayerLayout => 'Mini Player Layout';
+  String get miniPlayerLayout => 'Ayos ng mini player';
 
   @override
-  String get minimal => 'Minimal';
+  String get minimal => 'Payak';
 
   @override
-  String get minimize => 'Minimize';
+  String get minimize => 'Paliitin';
 
   @override
   String get minimserverServiioKodi => 'MinimServer · Serviio · Kodi';
 
   @override
-  String get mirrorTest => 'Mirror Test';
+  String get mirrorTest => 'Pagsubok ng salamin';
 
   @override
-  String get mirrored => 'Mirrored';
+  String get mirrored => 'Nakasalamin';
 
   @override
   String get mitLicenseCopyrightC2026Flick =>
       '\nMIT License\n\nCopyright (c) 2026 Flick Player Contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n';
 
   @override
-  String get mix => 'Mix';
+  String get mix => 'Halo';
 
   @override
   String mix2(Object arg1) {
-    return 'Mix $arg1';
+    return 'Halo $arg1';
   }
 
   @override
   String get mixer => 'Mixer';
 
   @override
-  String get mixerManagement => 'Mixer Management';
+  String get mixerManagement => 'Pamamahala ng mixer';
 
   @override
   String moAgo(Object arg1) {
-    return '${arg1}mo ago';
+    return '$arg1 buwan ang nakalipas';
   }
 
   @override
   String get mod => 'Mod';
 
   @override
-  String get moderate => 'Moderate';
+  String get moderate => 'Katamtaman';
 
   @override
   String get mono => 'Mono';
 
   @override
-  String get monthly => 'Monthly';
+  String get monthly => 'Buwanan';
 
   @override
-  String get more => 'More';
+  String get more => 'Higit pa';
 
   @override
   String more2(Object arg1, Object arg2) {
-    return '$arg1 + $arg2 more';
+    return '$arg1 + $arg2 pa';
   }
 
   @override
-  String get moreActions => 'More actions';
+  String get moreActions => 'Iba pang aksiyon';
 
   @override
-  String get moreArtists => 'More artists';
+  String get moreArtists => 'Iba pang kumanta';
 
   @override
-  String get moreArtists2 => 'More Artists';
+  String get moreArtists2 => 'Iba pang kumanta';
 
   @override
-  String get moreExportOptions => 'More export options';
+  String get moreExportOptions => 'Iba pang opsiyon sa pag-export';
 
   @override
   String moreFrom(Object arg1) {
-    return 'More from $arg1';
+    return 'Higit pa mula sa $arg1';
   }
 
   @override
-  String get moreFromArtist => 'More from artist';
+  String get moreFromArtist => 'Iba pa mula sa kumanta';
 
   @override
-  String get moreFromArtist2 => 'More from Artist';
+  String get moreFromArtist2 => 'Iba pa mula sa kumanta';
 
   @override
   String moreTo(Object arg1, Object arg2) {
-    return '$arg1 more to $arg2';
+    return '$arg1 pa upang maabot ang $arg2';
   }
 
   @override
   String moreToUnlock(Object remaining, Object unit) {
-    return '$remaining more $unit to unlock.';
+    return '$remaining $unit pa upang makamit.';
   }
 
   @override
-  String get mossEcosystem => 'Moss Ecosystem';
+  String get mossEcosystem => 'Ekosistema ng Moss';
 
   @override
   String get mostDlnaServersNeedNoPassword =>
-      'Most DLNA servers need no password';
+      'Hindi kailangan ng password ang karamihan sa mga DLNA server';
 
   @override
-  String get mostPlayed => 'Most Played';
+  String get mostPlayed => 'Pinakamadalas patugtugin';
 
   @override
   String mostReplayed(Object arg1) {
-    return 'Most replayed · $arg1';
+    return 'Pinakamadalas ulitin · $arg1';
   }
 
   @override
-  String get motionArtInBitPerfect => 'Motion Art in Bit-Perfect';
+  String get motionArtInBitPerfect => 'Motion Art sa bit-perfect';
 
   @override
   String get motionArtIsReplacedWhileBit =>
-      'Motion art is replaced while bit-perfect output is active';
+      'Pinapalitan ang motion art habang aktibo ang bit-perfect output';
 
   @override
   String get motionArtPlaysDuringBitPerfect =>
-      'Motion art plays during bit-perfect audio (may interrupt playback on some DAPs)';
+      'Gumagana ang motion art habang bit-perfect ang tunog (maaaring makagambala sa pagtugtog sa ilang DAP)';
 
   @override
-  String get motionArtRefreshed => 'Motion art refreshed';
+  String get motionArtRefreshed => 'Na-refresh ang motion art';
 
   @override
   String get moveEveryStampedLyricForwardOr =>
-      'Move every stamped lyric forward or backward together.';
+      'Sabay-sabay na iusog pasulong o paatras ang lahat ng lirikang may oras.';
 
   @override
-  String get movement => 'Movement';
+  String get movement => 'Paggalaw';
 
   @override
   String ms(Object arg1) {
@@ -4319,19 +4386,19 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get multiFilterBands => 'Multi-filter bands';
+  String get multiFilterBands => 'Mga band na may maraming filter';
 
   @override
   String musicFolders(Object arg1) {
-    return '$arg1 music folders';
+    return '$arg1 folder ng musika';
   }
 
   @override
-  String get mute => 'Mute';
+  String get mute => 'Patahimikin';
 
   @override
   String my(Object arg1) {
-    return 'My $arg1';
+    return 'Aking $arg1';
   }
 
   @override
@@ -4340,71 +4407,71 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get nameAZ => 'Name (A-Z)';
+  String get nameAZ => 'Pangalan (A-Z)';
 
   @override
   String narrow(Object amount) {
-    return '$amount% narrow';
+    return '$amount% makitid';
   }
 
   @override
   String get nativeDsd => 'Native DSD';
 
   @override
-  String get nativeDsdExperimental => 'Native DSD (Experimental)';
+  String get nativeDsdExperimental => 'Native DSD (eksperimental)';
 
   @override
   String get nativeDsdExperimentalMayBeBuggy =>
-      'Native DSD — Experimental (may be buggy)';
+      'Native DSD — eksperimental (maaaring may mga depekto)';
 
   @override
-  String get nativeFlickPresetFormat => 'Native Flick preset format';
+  String get nativeFlickPresetFormat => 'Native na format ng preset ng Flick';
 
   @override
   String get naturalEqualizerFeelResponsiveYetSmooth =>
-      'Natural equalizer feel — responsive yet smooth';
+      'Natural na pakiramdam ng equalizer — mabilis tumugon ngunit makinis';
 
   @override
-  String get natureAmbient => 'Nature Ambient';
+  String get natureAmbient => 'Himig ng kalikasan';
 
   @override
   String get navidromeAirsonicGonic => 'Navidrome · Airsonic · Gonic';
 
   @override
-  String get navigationAppearance => 'Navigation Appearance';
+  String get navigationAppearance => 'Hitsura ng nabigasyon';
 
   @override
-  String get navigationBar => 'Navigation Bar';
+  String get navigationBar => 'Bar ng nabigasyon';
 
   @override
-  String get navigationDefaultsRestored => 'Navigation defaults restored';
+  String get navigationDefaultsRestored => 'Naibalik ang default ng nabigasyon';
 
   @override
-  String get needsMetadata => 'Needs metadata';
+  String get needsMetadata => 'Kailangan ng metadata';
 
   @override
   String negotiated(Object arg1) {
-    return 'Negotiated: $arg1';
+    return 'Napagkasunduan: $arg1';
   }
 
   @override
   String get neonLimeWithSignalOrangeReplay =>
-      'Neon lime with signal-orange Replay accents';
+      'Neon na dayap na may signal-orange na diin ng Replay';
 
   @override
-  String get neonNights => 'Neon Nights';
+  String get neonNights => 'Mga gabing neon';
 
   @override
-  String get neonPulse => 'Neon Pulse';
+  String get neonPulse => 'Tibok ng neon';
 
   @override
-  String get neonSkyline => 'Neon Skyline';
+  String get neonSkyline => 'Abot-tanaw na neon';
 
   @override
   String get network => 'Network';
 
   @override
-  String get networkSources => 'Network Sources';
+  String get networkSources => 'Mga source sa network';
 
   @override
   String neutral(Object amount) {
@@ -4412,458 +4479,464 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get neverSynced => 'Never synced';
+  String get neverSynced => 'Hindi pa nai-sync';
 
   @override
-  String get newLabel => 'New';
+  String get newLabel => 'Bago';
 
   @override
-  String get next => 'Next';
+  String get next => 'Susunod';
 
   @override
-  String get nextSong => 'Next song';
+  String get nextSong => 'Susunod na kanta';
 
   @override
-  String get nextSong2 => 'Next Song';
+  String get nextSong2 => 'Susunod na kanta';
 
   @override
   String nextToGo(Object arg1, Object remaining, Object unit) {
-    return 'Next: $arg1 — $remaining $unit to go';
+    return 'Susunod: $arg1 — $remaining $unit na lang';
   }
 
   @override
   String get nextcloudOwncloudSabredav => 'Nextcloud · ownCloud · SabreDAV';
 
   @override
-  String get night => 'Night';
+  String get night => 'Gabi';
 
   @override
-  String get no => 'No';
+  String get no => 'Hindi';
 
   @override
   String get noAchievementsYetKeepListening =>
-      'No achievements yet — keep listening';
+      'Wala pang nakamit — patuloy na makinig';
 
   @override
-  String get noAlbumDataYet => 'No album data yet';
+  String get noAlbumDataYet => 'Wala pang datos ng album';
 
   @override
-  String get noAlbumsFound => 'No Albums Found';
+  String get noAlbumsFound => 'Walang nahanap na album';
 
   @override
   String get noAppleMusicReleaseFoundTry =>
-      'No Apple Music release found. Try editing the artist or album name and searching again.';
+      'Walang nahanap na release sa Apple Music. Subukang baguhin ang pangalan ng kumanta o album at maghanap muli.';
 
   @override
-  String get noArtistsFound => 'No Artists Found';
+  String get noArtistsFound => 'Walang nahanap na kumanta';
 
   @override
   String noArtistsMatch(Object _searchQuery) {
-    return 'No artists match \"$_searchQuery\"';
+    return 'Walang kumantang tugma sa \"$_searchQuery\"';
   }
 
   @override
   String get noAudioWasFoundIfThis =>
-      'No audio was found. If this folder contains music, a .nomedia file may be hiding it, or Android hasn\'t indexed it yet. Try enabling deep scan, or remove any .nomedia file and re-scan.';
+      'Walang nahanap na tunog. Kung may musika ang folder na ito, maaaring nakatago ito dahil sa .nomedia file, o hindi pa na-index ng Android. Subukang i-on ang masusing pag-scan, o alisin ang .nomedia file at mag-scan muli.';
 
   @override
   String get noCastingDevicesFoundMakeSure =>
-      'No casting devices found. Make sure your phone and the receiver are on the same network.';
+      'Walang nahanap na aparato para sa pag-cast. Tiyaking nasa iisang network ang telepono at receiver.';
 
   @override
-  String get noCategoriesSelected => 'No categories selected';
+  String get noCategoriesSelected => 'Walang napiling kategorya';
 
   @override
   String get noChangelogNotesForThisVersion =>
-      'No changelog notes for this version yet.';
+      'Wala pang tala ng pagbabago para sa bersiyong ito.';
 
   @override
-  String get noCustomAlbumArtIsSet => 'No custom album art is set yet.';
+  String get noCustomAlbumArtIsSet =>
+      'Wala pang itinakdang pasadyang larawan ng album.';
 
   @override
-  String get noCustomPresetsYet => 'No custom presets yet.';
+  String get noCustomPresetsYet => 'Wala pang pasadyang preset.';
 
   @override
-  String get noDuplicatesFound => 'No duplicates found';
+  String get noDuplicatesFound => 'Walang nahanap na magkakapareho';
 
   @override
-  String get noFavoritesYet => 'No Favorites Yet';
+  String get noFavoritesYet => 'Wala pang mga paborito';
 
   @override
-  String get noFeaturedTrackYet => 'No featured track yet';
+  String get noFeaturedTrackYet => 'Wala pang tampok na kanta';
 
   @override
-  String get noFiltersFoundInPresetFile => 'No filters found in preset file.';
+  String get noFiltersFoundInPresetFile =>
+      'Walang nahanap na filter sa file ng preset.';
 
   @override
-  String get noFoldersAdded => 'No Folders Added';
+  String get noFoldersAdded => 'Wala pang naidagdag na folder';
 
   @override
-  String get noHistoryYet => 'No History Yet';
+  String get noHistoryYet => 'Wala pang kasaysayan';
 
   @override
   String get noInternetConnectionPleaseCheckYour =>
-      'No internet connection. Please check your network and try again.';
+      'Walang koneksiyon sa internet. Suriin ang iyong network at subukan muli.';
 
   @override
   String get noLibraryFilesForThisAlbum =>
-      'No library files were found for this album.';
+      'Walang nahanap na file sa aklatan para sa album na ito.';
 
   @override
-  String get noLogsYet => 'No logs yet.';
+  String get noLogsYet => 'Wala pang mga log.';
 
   @override
   String get noLyricsFoundOnlineForThis =>
-      'No lyrics found online for this song.';
+      'Walang nahanap na lirika online para sa kantang ito.';
 
   @override
-  String get noLyricsYet => 'No lyrics yet';
+  String get noLyricsYet => 'Wala pang lirika';
 
   @override
-  String get noMatchFound => 'No match found';
+  String get noMatchFound => 'Walang nahanap na tugma';
 
   @override
-  String get noMatches => 'No matches.';
+  String get noMatches => 'Walang tugma.';
 
   @override
   String noMatchesFor(Object _query) {
-    return 'No matches for \"$_query\"';
+    return 'Walang tugma sa \"$_query\"';
   }
 
   @override
-  String get noMatchesFound => 'No matches found';
+  String get noMatchesFound => 'Walang nahanap na tugma';
 
   @override
   String get noMatchesTryFewerWordsOr =>
-      'No matches. Try fewer words or search online.';
+      'Walang tugma. Bawasan ang mga salita o maghanap online.';
 
   @override
-  String get noMusicYet => 'No Music Yet';
+  String get noMusicYet => 'Wala pang musika';
 
   @override
-  String get noNewAdditionsYet => 'No New Additions Yet';
+  String get noNewAdditionsYet => 'Wala pang bagong dagdag';
 
   @override
-  String get noNewUpdateFound => 'No new update found.';
+  String get noNewUpdateFound => 'Walang nahanap na bagong update.';
 
   @override
-  String get noOnlineArtworkFound => 'No online artwork found';
+  String get noOnlineArtworkFound => 'Walang nahanap na larawan online';
 
   @override
-  String get noOutputDevicesAvailable => 'No output devices available.';
+  String get noOutputDevicesAvailable => 'Walang magagamit na output device.';
 
   @override
-  String get noPatchNotesAvailableYet => 'No patch notes available yet.';
+  String get noPatchNotesAvailableYet => 'Wala pang mga tala ng pagbabago.';
 
   @override
-  String get noPlaybackYet => 'No playback yet';
+  String get noPlaybackYet => 'Wala pang pagtugtog';
 
   @override
-  String get noPlaylistsYet => 'No playlists yet';
+  String get noPlaylistsYet => 'Wala pang talaan ng kanta';
 
   @override
-  String get noPlaylistsYet2 => 'No Playlists Yet';
+  String get noPlaylistsYet2 => 'Wala pang talaan ng kanta';
 
   @override
   String get noPlaylistsYetNcreateOneIn =>
-      'No playlists yet.\nCreate one in the Playlists tab.';
+      'Wala pang talaan ng kanta.\nGumawa sa tab ng Mga talaan ng kanta.';
 
   @override
-  String get noRankingDataYet => 'No ranking data yet';
+  String get noRankingDataYet => 'Wala pang datos ng pagraranggo';
 
   @override
   String noResultsFor(Object query) {
-    return 'No results for \"$query\"';
+    return 'Walang resulta para sa \"$query\"';
   }
 
   @override
   String noResultsFoundFor(Object query) {
-    return 'No results found for \"$query\".';
+    return 'Walang nahanap na resulta para sa \"$query\".';
   }
 
   @override
-  String get noRipData => 'No rip data';
+  String get noRipData => 'Walang datos ng rip';
 
   @override
-  String get noScanResultsYet => 'No scan results yet';
+  String get noScanResultsYet => 'Wala pang resulta ng pag-scan';
 
   @override
-  String get noServerPlaylistsFound => 'No server playlists found';
+  String get noServerPlaylistsFound =>
+      'Walang nahanap na talaan ng kanta sa server';
 
   @override
-  String get noServersConnected => 'No servers connected';
+  String get noServersConnected => 'Walang nakakonektang server';
 
   @override
-  String get noSongPlaying => 'No song playing';
+  String get noSongPlaying => 'Walang tumutugtog na kanta';
 
   @override
-  String get noSongsFound => 'No Songs Found';
+  String get noSongsFound => 'Walang nahanap na kanta';
 
   @override
-  String get noSongsInThisPlaylist => 'No songs in this playlist';
+  String get noSongsInThisPlaylist => 'Walang kanta sa talaang ito';
 
   @override
-  String get noUpcomingQueueItemsYet => 'No upcoming queue items yet.';
+  String get noUpcomingQueueItemsYet => 'Wala pang susunod na item sa pila.';
 
   @override
-  String get noUpdateAvailable => 'No Update Available';
+  String get noUpdateAvailable => 'Walang bagong update';
 
   @override
-  String get noUrbData => 'No URB data';
+  String get noUrbData => 'Walang datos ng URB';
 
   @override
-  String get noUsbAudioDevicesFound => 'No USB audio devices found';
+  String get noUsbAudioDevicesFound => 'Walang nahanap na USB audio device';
 
   @override
   String get noWordTimingYetAutoFill =>
-      'No word timing yet. Auto-fill spreads the words evenly as a starting point — or capture them in Word Sync mode.';
+      'Wala pang oras ng bawat salita. Pantay na inilalatag ng awtomatikong pagpuno ang mga salita bilang panimula — o itala ang mga ito sa Word Sync mode.';
 
   @override
-  String get nocturnal => 'Nocturnal';
+  String get nocturnal => 'Panggabi';
 
   @override
-  String get none => 'None';
+  String get none => 'Wala';
 
   @override
   String get normalizeEachTrackToMatchLoudness =>
-      'Normalize each track to match loudness';
+      'Ipantay ang lakas ng bawat kanta';
 
   @override
-  String get notAnAlacFile => 'Not an ALAC file';
+  String get notAnAlacFile => 'Hindi ito ALAC file';
 
   @override
   String get notAvailableInBitPerfectMode =>
-      'Not available in bit-perfect mode';
+      'Hindi magagamit sa bit-perfect mode';
 
   @override
   String get notFoundOnlineTryADifferent =>
-      'Not found online. Try a different spelling.';
+      'Hindi nahanap online. Subukan ang ibang baybay.';
 
   @override
   String get notGrantedEnableSoScansCover =>
-      'Not granted — enable so scans cover DSD/DSF/WavPack files the system index may skip';
+      'Hindi pa pinapayagan — i-on upang maisama sa pag-scan ang DSD/DSF/WavPack na maaaring malaktawan ng system index';
 
   @override
-  String get notHeld => 'Not held';
+  String get notHeld => 'Hindi hawak';
 
   @override
   String get notRecommendedForNormalUsageDsd =>
-      'Not recommended for normal usage. DSD playback is unstable and may cause audio glitches.';
+      'Hindi inirerekomenda sa karaniwang paggamit. Hindi matatag ang DSD playback at maaaring magdulot ng mga putol sa tunog.';
 
   @override
-  String get notRegistered => 'Not registered';
+  String get notRegistered => 'Hindi nakarehistro';
 
   @override
-  String get notSet => 'Not set';
+  String get notSet => 'Hindi nakatakda';
 
   @override
-  String get notStampedYet => 'Not stamped yet';
+  String get notStampedYet => 'Wala pang oras';
 
   @override
-  String get notVerified => 'Not verified';
+  String get notVerified => 'Hindi pa napatunayan';
 
   @override
   String get notch => 'Notch';
 
   @override
-  String get notchDepth => 'Notch Depth';
+  String get notchDepth => 'Lalim ng notch';
 
   @override
   String get noticeableTintingFromAlbumArt =>
-      'Noticeable tinting from album art.';
+      'Kapansin-pansing tint mula sa larawan ng album.';
 
   @override
-  String get nov => 'Nov';
+  String get nov => 'Nob';
 
   @override
-  String get now => 'Now';
+  String get now => 'Ngayon';
 
   @override
-  String get nowPlaying => 'Now Playing';
+  String get nowPlaying => 'Kasalukuyang tumutugtog';
 
   @override
-  String get nowPlaying2 => 'Now playing';
+  String get nowPlaying2 => 'Kasalukuyang tumutugtog';
 
   @override
-  String get numberOnArt => 'Number on Art';
+  String get numberOnArt => 'Numero sa larawan';
 
   @override
   String get oauthSignInNoPasswordStored =>
-      'OAuth sign-in; no password stored here';
+      'Pag-sign in sa OAuth; walang password na nakaimbak dito';
 
   @override
-  String get oceanWaves => 'Ocean Waves';
+  String get oceanWaves => 'Mga alon ng dagat';
 
   @override
-  String get oct => 'Oct';
+  String get oct => 'Okt';
 
   @override
-  String get off => 'Off';
+  String get off => 'Naka-off';
 
   @override
   String get offCropsToFillTheSquare =>
-      'Off crops to fill the square; on stretches the artwork edge-to-edge';
+      'Kapag naka-off, kino-crop upang punan ang parisukat; kapag naka-on, ini-stretch ang larawan hanggang sa mga gilid';
 
   @override
-  String get offline => 'Offline';
+  String get offline => 'Walang koneksiyon';
 
   @override
   String get onAndroidTheStandardJustAudio =>
-      'On Android, the standard just_audio playback path now applies native counterparts for EQ, dynamics, balance, and spatial FX on supported devices. The Rust engine still delivers the most exact version of these controls, so some Android results are approximate.';
+      'Sa Android, inilalapat na ng karaniwang just_audio playback path ang mga native na katumbas ng EQ, dynamics, balanse, at spatial FX sa mga suportadong aparato. Rust engine pa rin ang nagbibigay ng pinakatumpak na bersiyon ng mga kontrol na ito, kaya tantiyang katumbas lamang ang ilang resulta sa Android.';
 
   @override
-  String get onRepeat => 'On Repeat';
+  String get onRepeat => 'Paulit-ulit';
 
   @override
   String get onboardingBrowseBody =>
-      'Swipe between tabs to explore\nSongs, Artists, Albums, and\nPlaylists. Sort and search\nyour entire collection.';
+      'Mag-swipe sa mga tab para tuklasin\nang mga kanta, kumanta, album,\nat talaan ng kanta. Ayusin at\nhanapin ang iyong buong koleksiyon.';
 
   @override
-  String get onboardingBrowseTitle => 'Browse\nYour Music';
+  String get onboardingBrowseTitle => 'Tuklasin\nang musika mo';
 
   @override
   String get onboardingLibraryBody =>
-      'Head to Settings and tap\nMusic Folders to scan your\ndevice. Supports MP3, FLAC,\nAAC, WAV, and more.';
+      'Pumunta sa Mga pagsasaayos at\npindutin ang Mga folder ng musika\npara mag-scan. Suportado ang MP3,\nFLAC, AAC, WAV, at iba pa.';
 
   @override
-  String get onboardingLibraryTitle => 'Build Your\nLibrary';
+  String get onboardingLibraryTitle => 'Buuin ang\niyong aklatan';
 
   @override
   String get onboardingPlaybackBody =>
-      'Tap any song for the full player\nwith waveform seek bar,\nequalizer, lyrics, and ambient\nalbum art visuals.';
+      'Pindutin ang kanta para sa buong\nplayer na may waveform seek bar,\nequalizer, lirika, at mga larawang\nmula sa album.';
 
   @override
-  String get onboardingPlaybackTitle => 'Rich\nPlayback';
+  String get onboardingPlaybackTitle => 'Mas mayamang\npakikinig';
 
   @override
   String get onboardingReadyBody =>
-      'Start exploring your music.\nSit back, relax, and enjoy\nthe sound of Flick Player.';
+      'Simulan nang tuklasin ang musika mo.\nUmupo, magpahinga, at namnamin\nang tunog ng Flick Player.';
 
   @override
-  String get onboardingReadyTitle => 'You\'re\nAll Set';
+  String get onboardingReadyTitle => 'Handa\nka na';
 
   @override
   String get onboardingWelcomeBody =>
-      'A beautiful, fast music player\nbuilt for your local library.\nNo ads. No tracking. Just music.';
+      'Maganda at mabilis na music player\npara sa lokal mong aklatan.\nWalang ads. Walang tracking. Musika lang.';
 
   @override
-  String get onboardingWelcomeTitle => 'Welcome to\nFlick Player';
+  String get onboardingWelcomeTitle => 'Maligayang pagdating\nsa Flick Player';
 
   @override
-  String get onlineResults => 'Online Results';
+  String get onlineResults => 'Mga resulta online';
 
   @override
   String get onlyLibraryEntriesAreRemovedYour =>
-      'Only library entries are removed — your audio files stay on disk.';
+      'Mga tala lamang sa aklatan ang aalisin — mananatili sa imbakan ang iyong mga audio file.';
 
   @override
   String get onlyReReadFilesThatAre =>
-      'Only re-read files that are new or changed.';
+      'Basahin lamang muli ang mga bago o nabagong file.';
 
   @override
-  String get open => 'Open';
+  String get open => 'Buksan';
 
   @override
-  String get openAndroidSettings => 'Open Android settings';
+  String get openAndroidSettings => 'Buksan ang mga setting ng Android';
 
   @override
-  String get openBluetoothCodecSettings => 'Open Bluetooth Codec Settings';
+  String get openBluetoothCodecSettings =>
+      'Buksan ang mga setting ng Bluetooth codec';
 
   @override
-  String get openFullNotes => 'Open Full Notes';
+  String get openFullNotes => 'Buksan ang buong tala';
 
   @override
-  String get openInAppleMusic => 'Open in Apple Music';
+  String get openInAppleMusic => 'Buksan sa Apple Music';
 
   @override
-  String get openInBrowser => 'Open in browser';
+  String get openInBrowser => 'Buksan sa browser';
 
   @override
-  String get openInPlayStore => 'Open in Play Store';
+  String get openInPlayStore => 'Buksan sa Play Store';
 
   @override
-  String get openLibrary => 'Open Library';
+  String get openLibrary => 'Buksan ang aklatan';
 
   @override
-  String get openListenbrainzOrgSettings => 'Open listenbrainz.org/settings';
+  String get openListenbrainzOrgSettings =>
+      'Buksan ang listenbrainz.org/settings';
 
   @override
-  String get openManual => 'Open Manual';
+  String get openManual => 'Buksan ang gabay';
 
   @override
-  String get openPlayer => 'Open Player';
+  String get openPlayer => 'Buksan ang player';
 
   @override
-  String get openReleaseNotes => 'Open Release Notes';
+  String get openReleaseNotes => 'Buksan ang mga tala ng release';
 
   @override
-  String get openSourceLicenses => 'Open source licenses';
+  String get openSourceLicenses => 'Mga lisensiya ng open source';
 
   @override
   String get openThePlayStoreToInstall =>
-      'Open the Play Store to install the latest Flick build';
+      'Buksan ang Play Store upang i-install ang pinakabagong build ng Flick';
 
   @override
-  String get openedFromLocker => 'Opened from Locker';
+  String get openedFromLocker => 'Binuksan mula sa Locker';
 
   @override
   String get openslEs => 'OpenSL ES';
 
   @override
-  String get openslEsLegacy => 'OpenSL ES (legacy)';
+  String get openslEsLegacy => 'OpenSL ES (luma)';
 
   @override
   String get orRemoveAllUsingRecommendedPicks =>
-      'Or remove all using recommended picks';
+      'O alisin lahat gamit ang mga inirekomendang piliin';
 
   @override
   String get orbital => 'Orbital';
 
   @override
-  String get orbitalSettingsReset => 'Orbital settings reset';
+  String get orbitalSettingsReset => 'Na-reset ang mga pagsasaayos ng Orbital';
 
   @override
-  String get otherPlaylists => 'Other Playlists';
+  String get otherPlaylists => 'Iba pang talaan ng kanta';
 
   @override
   String get ourRustPoweredEngineCleanerSound =>
-      'Our Rust-powered engine. Cleaner sound and smoother playback — recommended for daily listening.';
+      'Ang aming engine na pinapagana ng Rust. Mas malinaw na tunog at mas makinis na pagtugtog — inirerekomenda sa araw-araw na pakikinig.';
 
   @override
-  String get outlineTheMiniPlayer => 'Outline the mini player';
+  String get outlineTheMiniPlayer => 'Lagyan ng guhit sa gilid ang mini player';
 
   @override
   String get output => 'Output';
 
   @override
-  String get outputDevice => 'Output Device';
+  String get outputDevice => 'Output device';
 
   @override
-  String get outputMode => 'Output Mode';
+  String get outputMode => 'Mode ng output';
 
   @override
   String get outputRate => 'Output rate';
 
   @override
   String get overlapTheEndOfATrack =>
-      'Overlap the end of a track with the next';
+      'Isabay ang dulo ng kanta sa simula ng susunod';
 
   @override
   String get overlayPermissionIsRequiredToShow =>
-      'Overlay permission is required to show the floating player';
+      'Kailangan ang pahintulot sa overlay upang ipakita ang lumulutang na player';
 
   @override
-  String get overviewMetricsChooseUpTo3 => 'Overview metrics · choose up to 3';
+  String get overviewMetricsChooseUpTo3 =>
+      'Mga sukat ng buod · pumili ng hanggang 3';
 
   @override
-  String get paired => 'Paired';
+  String get paired => 'Naka-pair';
 
   @override
   String get parametric => 'Parametric';
 
   @override
   String parametricBandsWithIndependentFrequency(Object arg1) {
-    return '$arg1 parametric bands with independent frequency, gain, and Q shaping. Tap to interact.';
+    return '$arg1 parametric band na may magkahiwalay na frequency, gain, at Q. Pindutin upang gamitin.';
   }
 
   @override
@@ -4877,75 +4950,76 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get pasteOrTypeTheSongLyrics =>
-      'Paste or type the song lyrics here — one line per row';
+      'Idikit o isulat dito ang lirika — isang linya sa bawat hanay';
 
   @override
-  String get pasteYourListenbrainzToken => 'Paste your ListenBrainz token';
+  String get pasteYourListenbrainzToken =>
+      'Idikit ang iyong ListenBrainz token';
 
   @override
-  String get patchNotes => 'Patch Notes';
+  String get patchNotes => 'Mga tala ng pagbabago';
 
   @override
-  String get pause => 'Pause';
+  String get pause => 'I-pause';
 
   @override
-  String get pauseOnBluetoothConnect => 'Pause on Bluetooth Connect';
+  String get pauseOnBluetoothConnect => 'I-pause kapag kumonekta ang Bluetooth';
 
   @override
-  String get pauseOnDisconnect => 'Pause on Disconnect';
+  String get pauseOnDisconnect => 'I-pause kapag nadiskonekta';
 
   @override
-  String get pauseOnUsbDacAttach => 'Pause on USB DAC Attach';
+  String get pauseOnUsbDacAttach => 'I-pause kapag ikinabit ang USB DAC';
 
   @override
-  String get pauseOnUsbDacDetach => 'Pause on USB DAC Detach';
+  String get pauseOnUsbDacDetach => 'I-pause kapag inalis ang USB DAC';
 
   @override
-  String get pcmFrames => 'PCM Frames';
+  String get pcmFrames => 'Mga PCM frame';
 
   @override
-  String get peakHour => 'Peak hour';
+  String get peakHour => 'Pinakaaktibong oras';
 
   @override
   String get peaking => 'Peaking';
 
   @override
-  String get permission => 'Permission';
+  String get permission => 'Pahintulot';
 
   @override
-  String get personalPlaylist => 'Personal playlist';
+  String get personalPlaylist => 'Sariling talaan ng kanta';
 
   @override
   String get phoneAndHeadsetVolumeAreIndependent =>
-      'Phone and headset volume are independent';
+      'Magkahiwalay ang volume ng telepono at headset';
 
   @override
   String get phoneAndHeadsetVolumeAreLinked =>
-      'Phone and headset volume are linked';
+      'Magkaugnay ang volume ng telepono at headset';
 
   @override
-  String get photoFraming => 'Photo framing';
+  String get photoFraming => 'Pagkaka-frame ng larawan';
 
   @override
-  String get pickALineWithLyrics => 'Pick a line with lyrics';
+  String get pickALineWithLyrics => 'Pumili ng linyang may lirika';
 
   @override
   String get pickALyricLineIn =>
-      '1. Pick a lyric line in Lines, then switch to Tools.\n2. Press play and tap the big \"Tap Word\" button as you hear each word — the first tap also stamps the line.\n3. Tap a word chip to nudge, re-time, or clear it.\n4. Lines with every word stamped save with per-word karaoke timing.';
+      '1. Pumili ng linya ng lirika sa Mga linya, saka lumipat sa Mga kasangkapan.\n2. Patugtugin at pindutin ang malaking \"Pindutin sa salita\" sa bawat salitang maririnig — lalagyan din ng oras ng unang pindot ang linya.\n3. Pindutin ang salita upang iusog, baguhin ang oras, o alisin ang oras nito.\n4. Ise-save na may oras ng bawat salita ang mga linyang kumpleto para sa karaoke.';
 
   @override
-  String get pickAgain => 'Pick again';
+  String get pickAgain => 'Pumili muli';
 
   @override
-  String get pickImage => 'Pick Image';
+  String get pickImage => 'Pumili ng larawan';
 
   @override
   String get pickUpExactlyWhereYourLast =>
-      'Pick up exactly where your last sessions left off.';
+      'Magpatuloy kung saan ka huling huminto sa pakikinig.';
 
   @override
   String get pinchApartNarrowerHigherQNpinch =>
-      'Pinch apart = narrower (higher Q)\nPinch together = wider (lower Q)';
+      'Ilayo ang dalawang daliri = mas makitid (mas mataas na Q)\nIlapit ang dalawang daliri = mas malapad (mas mababang Q)';
 
   @override
   String get pitch => 'Pitch';
@@ -4955,212 +5029,213 @@ class AppLocalizationsTl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       semitones,
       locale: localeName,
-      other: '$semitones semitones',
+      other: '$semitones semitone',
       one: '$semitones semitone',
     );
     return '$_temp0';
   }
 
   @override
-  String get pixelatedLightestOnMemory => 'Pixelated — lightest on memory';
+  String get pixelatedLightestOnMemory => 'Pixelated — pinakamatipid sa memory';
 
   @override
-  String get plain => 'Plain';
+  String get plain => 'Payak';
 
   @override
-  String get plainText => 'Plain Text';
+  String get plainText => 'Payak na teksto';
 
   @override
-  String get play => 'Play';
+  String get play => 'Patugtugin';
 
   @override
   String get playAFewSongsAndThis =>
-      'Play a few songs and this page will start filling with mixes, artists, and shortcuts.';
+      'Magpatugtog ng ilang kanta at mapupuno ang pahinang ito ng mga halo, kumanta, at shortcut.';
 
   @override
   String get playAFewTracksTodayTo =>
-      'Play a few tracks today to build your daily recap.';
+      'Magpatugtog ng ilang kanta ngayong araw para mabuo ang iyong arawang buod.';
 
   @override
   String get playARandomLibrarySongWhen =>
-      'Play a random library song when the queue ends';
+      'Magpatugtog ng sapalarang kanta mula sa aklatan kapag naubos ang pila';
 
   @override
-  String get playAgain => 'Play Again';
+  String get playAgain => 'Patugtugin muli';
 
   @override
-  String get playAtTheRecordedLevel => 'Play at the recorded level';
+  String get playAtTheRecordedLevel => 'Patugtugin sa antas ng pagkaka-record';
 
   @override
-  String get playBadges => 'Play badges';
+  String get playBadges => 'Mga badge ng pagtugtog';
 
   @override
   String get playCategoriesInRandomOrderTracks =>
-      'Play categories in random order, tracks in sequence';
+      'Ihalo ang ayos ng mga kategorya, sunod-sunod ang mga kanta';
 
   @override
-  String get playInOrder => 'Play in order';
+  String get playInOrder => 'Patugtugin nang sunod-sunod';
 
   @override
-  String get playNext => 'Play next';
+  String get playNext => 'Isunod sa pagtugtog';
 
   @override
   String get playStoreUpdatesUseGooglePlay =>
-      'Play Store updates use Google Play In-App Update API (governed by Google\'s privacy policies). Patch notes are fetched from GitHub Releases API without sending personal data.';
+      'Gumagamit ang mga update sa Play Store ng Google Play In-App Update API (saklaw ng mga patakaran sa pagkapribado ng Google). Kinukuha ang mga tala ng pagbabago sa GitHub Releases API nang walang ipinapadalang personal na datos.';
 
   @override
-  String get playback => 'Playback';
+  String get playback => 'Pagtugtog';
 
   @override
-  String get playbackCacheLimit => 'Playback Cache Limit';
+  String get playbackCacheLimit => 'Limitasyon ng cache ng pagtugtog';
 
   @override
   String playbackCacheLimit2(Object arg1) {
-    return 'Playback cache limit: $arg1';
+    return 'Limitasyon ng cache ng pagtugtog: $arg1';
   }
 
   @override
-  String get playbackCacheUnlimited => 'Playback cache unlimited';
+  String get playbackCacheUnlimited =>
+      'Walang limitasyon ang cache ng pagtugtog';
 
   @override
   String get playbackContinuesWhenABluetoothDevice =>
-      'Playback continues when a Bluetooth device connects';
+      'Tuloy ang pagtugtog kapag kumonekta ang Bluetooth device';
 
   @override
   String get playbackContinuesWhenAUsbDac =>
-      'Playback continues when a USB DAC is plugged in';
+      'Tuloy ang pagtugtog kapag ikinabit ang USB DAC';
 
   @override
   String get playbackContinuesWhenAUsbDac2 =>
-      'Playback continues when a USB DAC is unplugged';
+      'Tuloy ang pagtugtog kapag inalis ang USB DAC';
 
   @override
   String get playbackContinuesWhenAudioOutput =>
-      'Playback continues when audio output disconnects';
+      'Tuloy ang pagtugtog kapag nadiskonekta ang audio output';
 
   @override
   String get playbackContinuesWhenTheAppIs =>
-      'Playback continues when the app is swiped away';
+      'Tuloy ang pagtugtog kapag inalis ang app sa mga kamakailang app';
 
   @override
-  String get playbackDesynced => 'Playback desynced';
+  String get playbackDesynced => 'Hindi magkasabay ang pagtugtog';
 
   @override
-  String get playbackDisplay => 'Playback & Display';
+  String get playbackDisplay => 'Pagtugtog at pagpapakita';
 
   @override
-  String get playbackEngine => 'Playback Engine';
+  String get playbackEngine => 'Engine ng pagtugtog';
 
   @override
   String get playbackIsUsingAndroidManagedOutput =>
-      'Playback is using Android-managed output and may be resampled.';
+      'Gumagamit ang pagtugtog ng output na pinamamahalaan ng Android at maaaring ma-resample.';
 
   @override
   String get playbackIsUsingTheStandardAndroid =>
-      'Playback is using the standard Android output path.';
+      'Gumagamit ang pagtugtog ng karaniwang output path ng Android.';
 
   @override
   String get playbackModeWillUpdateAfterThe =>
-      'Playback mode will update after the next route or playback refresh.';
+      'Maa-update ang mode pagkatapos ng susunod na pag-refresh ng ruta o pagtugtog.';
 
   @override
-  String get playbackPath => 'Playback Path';
+  String get playbackPath => 'Path ng pagtugtog';
 
   @override
   String get playbackPausesWhenABluetoothAudio =>
-      'Playback pauses when a Bluetooth audio device connects';
+      'Naka-pause ang pagtugtog kapag kumonekta ang Bluetooth audio device';
 
   @override
   String get playbackPausesWhenAUsbDac =>
-      'Playback pauses when a USB DAC is plugged in';
+      'Naka-pause ang pagtugtog kapag ikinabit ang USB DAC';
 
   @override
   String get playbackPausesWhenAUsbDac2 =>
-      'Playback pauses when a USB DAC is physically unplugged';
+      'Naka-pause ang pagtugtog kapag pisikal na inalis ang USB DAC';
 
   @override
   String get playbackPausesWhenBluetoothOrHeadphones =>
-      'Playback pauses when Bluetooth or headphones disconnect';
+      'Naka-pause ang pagtugtog kapag nadiskonekta ang Bluetooth o headphone';
 
   @override
   String get playbackPausesWhileNotificationSoundsPlay =>
-      'Playback pauses while notification sounds play';
+      'Naka-pause ang pagtugtog habang tumutunog ang mga abiso';
 
   @override
   String get playbackResumesWhenADeviceReconnects =>
-      'Playback resumes when a device reconnects within 30 seconds';
+      'Nagpapatuloy ang pagtugtog kapag muling kumonekta ang aparato sa loob ng 30 segundo';
 
   @override
-  String get playbackSpeed => 'Playback Speed';
+  String get playbackSpeed => 'Bilis ng pagtugtog';
 
   @override
   String get playbackStopsWhenTheAppIs =>
-      'Playback stops when the app is swiped away';
+      'Humihinto ang pagtugtog kapag inalis ang app sa mga kamakailang app';
 
   @override
   String played(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count songs',
-      one: '$count song',
+      other: '$count kanta',
+      one: '$count kanta',
     );
-    return '$_temp0 played';
+    return '$_temp0 ang pinatugtog';
   }
 
   @override
-  String get playerLayout => 'Player Layout';
+  String get playerLayout => 'Ayos ng player';
 
   @override
   String playlist(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count playlists',
-      one: '$count playlist',
+      other: '$count talaan ng kanta',
+      one: '$count talaan ng kanta',
     );
     return '$_temp0';
   }
 
   @override
-  String get playlist2 => 'Playlist';
+  String get playlist2 => 'Talaan ng kanta';
 
   @override
-  String get playlistCoverRemoved => 'Playlist cover removed';
+  String get playlistCoverRemoved => 'Naalis ang pabalat ng talaan';
 
   @override
-  String get playlistCoverUpdated => 'Playlist cover updated';
+  String get playlistCoverUpdated => 'Na-update ang pabalat ng talaan';
 
   @override
   String playlistCreated(Object arg1) {
-    return 'Playlist \"$arg1\" created';
+    return 'Nagawa ang talaan ng kanta na \"$arg1\"';
   }
 
   @override
   String get playlistExportAndroidOnly =>
-      'Playlist export is currently supported on Android only.';
+      'Sa Android lamang kasalukuyang suportado ang pag-export ng talaan ng kanta.';
 
   @override
   String get playlistImportAndroidOnly =>
-      'Playlist import is currently supported on Android only.';
+      'Sa Android lamang kasalukuyang suportado ang pag-import ng talaan ng kanta.';
 
   @override
-  String get playlistName => 'Playlist name';
+  String get playlistName => 'Pangalan ng talaan ng kanta';
 
   @override
-  String get playlistNotFound => 'Playlist not found';
+  String get playlistNotFound => 'Hindi nahanap ang talaan ng kanta';
 
   @override
   String playlistRenamed(Object arg1) {
-    return 'Playlist renamed to \"$arg1\"';
+    return 'Pinalitan ang pangalan ng talaan sa \"$arg1\"';
   }
 
   @override
-  String get playlists => 'Playlists';
+  String get playlists => 'Mga talaan ng kanta';
 
   @override
   String plays(Object arg1) {
-    return '$arg1 plays';
+    return '$arg1 pagtugtog';
   }
 
   @override
@@ -5168,25 +5243,26 @@ class AppLocalizationsTl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count plays',
-      one: '1 play',
+      other: '$count pagtugtog',
+      one: '1 pagtugtog',
     );
     return '$_temp0';
   }
 
   @override
-  String get playsInRotation => 'plays in rotation';
+  String get playsInRotation => 'pagtugtog sa pag-ikot';
 
   @override
-  String get pleaseEnterAPlaylistName => 'Please enter a playlist name';
+  String get pleaseEnterAPlaylistName =>
+      'Maglagay ng pangalan ng talaan ng kanta';
 
   @override
   String get pleaseEnterYourListenbrainzUserToken =>
-      'Please enter your ListenBrainz user token.';
+      'Ilagay ang iyong ListenBrainz user token.';
 
   @override
   String posterPreviewPlays(Object arg1, Object arg2) {
-    return '$arg1 poster preview. $arg2 plays.';
+    return 'Paunang tingin ng poster ng $arg1. $arg2 pagtugtog.';
   }
 
   @override
@@ -5196,27 +5272,27 @@ class AppLocalizationsTl extends AppLocalizations {
   String get preamp => 'Preamp';
 
   @override
-  String get preferences => 'Preferences';
+  String get preferences => 'Mga kagustuhan';
 
   @override
-  String get preloadAudioData => 'Preload audio data';
+  String get preloadAudioData => 'Paunang i-load ang datos ng tunog';
 
   @override
-  String get preloadLibraryAudio => 'Preload Library Audio';
+  String get preloadLibraryAudio => 'Paunang i-load ang tunog ng aklatan';
 
   @override
-  String get preloadingAudio => 'Preloading Audio';
+  String get preloadingAudio => 'Paunang pag-load ng tunog';
 
   @override
   String preloadingAudio2(Object arg1, Object arg2) {
-    return 'Preloading audio $arg1/$arg2';
+    return 'Paunang nilo-load ang tunog $arg1/$arg2';
   }
 
   @override
-  String get preloadingAudio3 => 'Preloading audio';
+  String get preloadingAudio3 => 'Paunang nilo-load ang tunog';
 
   @override
-  String get preparing => 'Preparing…';
+  String get preparing => 'Inihahanda…';
 
   @override
   String get presence => 'Presence';
@@ -5227,571 +5303,576 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get presetFileIsEmpty => 'Preset file is empty.';
+  String get presetFileIsEmpty => 'Walang laman ang file ng preset.';
 
   @override
   String get presetImportedWithAdjustments =>
-      'Preset imported with adjustments';
+      'Na-import ang preset na may mga pag-aangkop';
 
   @override
-  String get presetName => 'Preset name';
+  String get presetName => 'Pangalan ng preset';
 
   @override
-  String get presets => 'Presets';
+  String get presets => 'Mga preset';
 
   @override
-  String get pressBackAgainToExit => 'Press back again to exit';
+  String get pressBackAgainToExit => 'Pindutin muli ang bumalik upang lumabas';
 
   @override
-  String get preventClipping => 'Prevent Clipping';
+  String get preventClipping => 'Pigilan ang clipping';
 
   @override
-  String get preview => 'Preview';
+  String get preview => 'Paunang tingin';
 
   @override
-  String get previewUse => 'Preview & Use';
+  String get previewUse => 'Tingnan at gamitin';
 
   @override
-  String get previousSong => 'Previous song';
+  String get previousSong => 'Nakaraang kanta';
 
   @override
-  String get previousSong2 => 'Previous Song';
+  String get previousSong2 => 'Nakaraang kanta';
 
   @override
-  String get prewarming => 'Prewarming';
+  String get prewarming => 'Paunang paghahanda';
 
   @override
-  String get prioritiseConnectionStability => 'Prioritise connection stability';
+  String get prioritiseConnectionStability =>
+      'Unahin ang katatagan ng koneksiyon';
 
   @override
-  String get privacyPolicy => 'Privacy Policy';
+  String get privacyPolicy => 'Patakaran sa pagkapribado';
 
   @override
-  String get processingLive => 'Processing live';
+  String get processingLive => 'Kasalukuyang pinoproseso';
 
   @override
-  String get product => 'Product';
+  String get product => 'Produkto';
 
   @override
-  String get productId => 'Product ID';
+  String get productId => 'ID ng produkto';
 
   @override
-  String get progress => 'Progress';
+  String get progress => 'Progreso';
 
   @override
-  String get progressBar => 'Progress Bar';
+  String get progressBar => 'Bar ng progreso';
 
   @override
   String get protocol => 'Protocol';
 
   @override
   String get pulledFromYourLateSessionPlays =>
-      'Pulled from your late-session plays';
+      'Mula sa iyong pakikinig sa dis-oras';
 
   @override
-  String get purple => 'Purple';
+  String get purple => 'Lila';
 
   @override
-  String get queue => 'Queue';
+  String get queue => 'Pila';
 
   @override
   String queue2(Object count) {
-    return 'Queue $count';
+    return 'Pila $count';
   }
 
   @override
-  String get queueIsEmpty => 'Queue is empty';
+  String get queueIsEmpty => 'Walang laman ang pila';
 
   @override
   String queued(Object arg1) {
-    return 'Queued \"$arg1\"';
+    return 'Naisama sa pila ang \"$arg1\"';
   }
 
   @override
   String queuedSongs(Object arg1) {
-    return 'Queued $arg1 songs';
+    return 'Naisama sa pila ang $arg1 kanta';
   }
 
   @override
   String queuedSongs3(Object arg1) {
-    return 'Queued $arg1 songs';
+    return 'Naisama sa pila ang $arg1 kanta';
   }
 
   @override
-  String get quickAccess => 'Quick Access';
+  String get quickAccess => 'Mabilisang puntahan';
 
   @override
-  String get quickActions => 'Quick Actions';
+  String get quickActions => 'Mabilisang aksiyon';
 
   @override
-  String get quickOrFullReIndexOf => 'Quick or full re-index of all folders';
+  String get quickOrFullReIndexOf =>
+      'Mabilis o buong muling pag-index ng lahat ng folder';
 
   @override
-  String get quickScan => 'Quick scan';
+  String get quickScan => 'Mabilis na pag-scan';
 
   @override
-  String get random => 'Random';
+  String get random => 'Sapalaran';
 
   @override
   String get rate => 'Rate';
 
   @override
-  String get rating => 'Rating';
+  String get rating => 'Marka';
 
   @override
   String get ratio => 'Ratio';
 
   @override
   String get rawDsdStreamToDacRequires =>
-      'Raw DSD stream to DAC. Requires ENCODING_DSD hardware support; otherwise falls back to DoP or PCM automatically.';
+      'Raw DSD stream sa DAC. Kailangan ang suportang ENCODING_DSD ng hardware; kung wala, awtomatikong gagamit ng DoP o PCM.';
 
   @override
   String get rawPcm => '→ Raw PCM';
 
   @override
   String get reReadMetadataForEveryFile =>
-      'Re-read metadata for every file. Slower; use when tags look stale.';
+      'Basahin muli ang metadata ng bawat file. Mas mabagal; gamitin kung luma na ang mga tag.';
 
   @override
-  String get readMode => 'Read Mode';
+  String get readMode => 'Mode ng pagbasa';
 
   @override
-  String get readingTheCoverColors => 'Reading the cover colors…';
+  String get readingTheCoverColors => 'Binabasa ang mga kulay ng pabalat…';
 
   @override
   String readyToRemoveSongKeepingIn(int count, Object kept) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count songs',
-      one: '$count song',
+      other: '$count kanta',
+      one: '$count kanta',
     );
-    return 'Ready to remove $_temp0 — keeping $kept in total.';
+    return 'Handang alisin ang $_temp0 — $kept ang kabuuang ititira.';
   }
 
   @override
   String recapSavedAs(Object format) {
-    return 'Recap saved as $format';
+    return 'Na-save ang buod bilang $format';
   }
 
   @override
   String recentPicksOnHand(Object arg1) {
-    return '$arg1 recent picks on hand';
+    return '$arg1 kamakailang pinili na handa';
   }
 
   @override
-  String get recentlyAdded => 'Recently Added';
+  String get recentlyAdded => 'Kamakailang idinagdag';
 
   @override
   String get recentlyAddedTracksWaitingForMore =>
-      'Recently added tracks waiting for more play time.';
+      'Mga bagong kantang naghihintay ng mas mahabang pakikinig.';
 
   @override
-  String get recentlyPlayed => 'Recently Played';
+  String get recentlyPlayed => 'Kamakailang pinatugtog';
 
   @override
-  String get recommended => 'Recommended';
+  String get recommended => 'Inirerekomenda';
 
   @override
-  String get recommendedOnly => 'Recommended only';
+  String get recommendedOnly => 'Inirerekomenda lamang';
 
   @override
-  String get reconnectAttempts => 'Reconnect Attempts';
+  String get reconnectAttempts => 'Mga pagtatangkang kumonekta muli';
 
   @override
-  String get reconnectNow => 'Reconnect Now';
+  String get reconnectNow => 'Kumonekta muli ngayon';
 
   @override
   String get reconnectToTheInternetToScan =>
-      'Reconnect to the internet to scan for updates';
+      'Kumonekta muli sa internet upang maghanap ng update';
 
   @override
   String get reconnectToWiFiOrMobile =>
-      'Reconnect to Wi-Fi or mobile data so Flick can scan again';
+      'Kumonekta muli sa Wi-Fi o mobile data upang makapag-scan muli ang Flick';
 
   @override
-  String get reconnectionFailed => 'Reconnection failed';
+  String get reconnectionFailed => 'Hindi muling nakakonekta';
 
   @override
-  String get reconnectionSuccessful => 'Reconnection successful';
+  String get reconnectionSuccessful => 'Matagumpay na muling nakakonekta';
 
   @override
-  String get recorded => 'Recorded';
+  String get recorded => 'Naitala';
 
   @override
-  String get refreshAppleMusic => 'Refresh Apple Music';
+  String get refreshAppleMusic => 'I-refresh ang Apple Music';
 
   @override
-  String get refreshDevices => 'Refresh Devices';
+  String get refreshDevices => 'I-refresh ang mga aparato';
 
   @override
-  String get refreshDevices2 => 'Refresh devices';
+  String get refreshDevices2 => 'I-refresh ang mga aparato';
 
   @override
-  String get refreshMotionArt => 'Refresh Motion Art';
+  String get refreshMotionArt => 'I-refresh ang Motion Art';
 
   @override
-  String get refreshOutputs => 'Refresh outputs';
+  String get refreshOutputs => 'I-refresh ang mga output';
 
   @override
-  String get refreshRate => 'Refresh Rate';
+  String get refreshRate => 'Refresh rate';
 
   @override
-  String get refreshingAppleMusicData => 'Refreshing Apple Music data';
+  String get refreshingAppleMusicData =>
+      'Nire-refresh ang datos ng Apple Music';
 
   @override
-  String get registeredNotClaimed => 'Registered, not claimed';
+  String get registeredNotClaimed => 'Nakarehistro, hindi nakuha';
 
   @override
-  String get reinitializingPlayback => 'Reinitializing playback…';
+  String get reinitializingPlayback => 'Muling inihahanda ang pagtugtog…';
 
   @override
   String get release => 'Release';
 
   @override
-  String get remove => 'Remove';
+  String get remove => 'Alisin';
 
   @override
-  String get removeAll => 'Remove all';
+  String get removeAll => 'Alisin lahat';
 
   @override
-  String get removeAllSongs => 'Remove All Songs?';
+  String get removeAllSongs => 'Alisin ang lahat ng kanta?';
 
   @override
-  String get removeAllSongs2 => 'Remove All Songs';
+  String get removeAllSongs2 => 'Alisin ang lahat ng kanta';
 
   @override
-  String get removeAllWithBestPicks => 'Remove all with best picks?';
+  String get removeAllWithBestPicks =>
+      'Alisin lahat gamit ang pinakamahusay na pili?';
 
   @override
   String removeAndAllOfItsSongs(Object arg1) {
-    return 'Remove \"$arg1\" and all of its songs from your library? Files on disk are not deleted.';
+    return 'Alisin ang \"$arg1\" at lahat ng kanta nito sa iyong aklatan? Hindi mabubura ang mga file sa imbakan.';
   }
 
   @override
-  String get removeCustomArt => 'Remove Custom Art';
+  String get removeCustomArt => 'Alisin ang pasadyang larawan';
 
   @override
-  String get removeCover => 'Remove cover';
+  String get removeCover => 'Alisin ang pabalat';
 
   @override
-  String get removeDuplicates => 'Remove Duplicates';
+  String get removeDuplicates => 'Alisin ang magkakapareho';
 
   @override
   String removeDuplicates2(Object toRemove) {
-    return 'Remove $toRemove duplicates?';
+    return 'Alisin ang $toRemove magkakapareho?';
   }
 
   @override
   String removeDuplicates3(Object toRemove) {
-    return 'Remove $toRemove duplicates';
+    return 'Alisin ang $toRemove magkakapareho';
   }
 
   @override
-  String get removeFolder => 'Remove Folder?';
+  String get removeFolder => 'Alisin ang folder?';
 
   @override
-  String get removeFromFavorites => 'Remove from Favorites';
+  String get removeFromFavorites => 'Alisin sa mga paborito';
 
   @override
-  String get removeFromFavorites2 => 'Remove from favorites';
+  String get removeFromFavorites2 => 'Alisin sa mga paborito';
 
   @override
-  String get removeFromLibrary => 'Remove from Library';
+  String get removeFromLibrary => 'Alisin sa aklatan';
 
   @override
-  String get removeFromPlaylist => 'Remove from Playlist';
+  String get removeFromPlaylist => 'Alisin sa talaan ng kanta';
 
   @override
-  String get removeSelected => 'Remove selected';
+  String get removeSelected => 'Alisin ang napili';
 
   @override
-  String get removeServer => 'Remove server?';
+  String get removeServer => 'Alisin ang server?';
 
   @override
-  String get removeServer2 => 'Remove server';
+  String get removeServer2 => 'Alisin ang server';
 
   @override
   String get removeTheDatabaseEntriesOrDelete =>
-      'Remove the database entries or delete the files from your device. This cannot be undone.';
+      'Alisin ang mga tala sa database o burahin ang mga file sa iyong aparato. Hindi ito maibabalik.';
 
   @override
   String get removeTheDatabaseEntryOrDelete =>
-      'Remove the database entry or delete the file from your device. This cannot be undone.';
+      'Alisin ang tala sa database o burahin ang file sa iyong aparato. Hindi ito maibabalik.';
 
   @override
   String get removeTheseSongsFromYourLibrary =>
-      'Remove these songs from your library. The files on your device will not be affected.';
+      'Alisin ang mga kantang ito sa iyong aklatan. Hindi maaapektuhan ang mga file sa iyong aparato.';
 
   @override
   String get removeThisSongFromYourLibrary =>
-      'Remove this song from your library. The file on your device will not be affected.';
+      'Alisin ang kantang ito sa iyong aklatan. Hindi maaapektuhan ang file sa iyong aparato.';
 
   @override
   String removedCustomAlbumArtFor(Object arg1) {
-    return 'Removed custom album art for \"$arg1\".';
+    return 'Naalis ang pasadyang larawan ng album para sa \"$arg1\".';
   }
 
   @override
   String removedCustomAlbumArtFor2(Object arg1) {
-    return 'Removed custom album art for \"$arg1\".';
+    return 'Naalis ang pasadyang larawan ng album para sa \"$arg1\".';
   }
 
   @override
   String removedDuplicatesKept(Object arg1, Object arg2) {
-    return 'Removed $arg1 duplicates — kept $arg2.';
+    return 'Naalis ang $arg1 magkakapareho — itinira ang $arg2.';
   }
 
   @override
   String removedFromFavorites(Object arg1) {
-    return 'Removed \"$arg1\" from favorites';
+    return 'Naalis ang \"$arg1\" sa mga paborito';
   }
 
   @override
   String removedFromFavorites2(Object arg1) {
-    return 'Removed $arg1 from favorites';
+    return 'Naalis ang $arg1 sa mga paborito';
   }
 
   @override
-  String get removedFromFavorites3 => 'Removed from favorites';
+  String get removedFromFavorites3 => 'Okay, naalis na po.';
 
   @override
   String removedFromLibrary(Object arg1) {
-    return 'Removed \"$arg1\" from library';
+    return 'Naalis ang \"$arg1\" sa aklatan';
   }
 
   @override
   String removedSongsFromFavorites(Object arg1) {
-    return 'Removed $arg1 songs from favorites';
+    return 'Naalis ang $arg1 kanta sa mga paborito';
   }
 
   @override
   String removedSongsFromLibrary(Object arg1) {
-    return 'Removed $arg1 songs from library';
+    return 'Naalis ang $arg1 kanta sa aklatan';
   }
 
   @override
-  String get removing => 'Removing…';
+  String get removing => 'Inaalis…';
 
   @override
-  String get removingDuplicates => 'Removing duplicates…';
+  String get removingDuplicates => 'Inaalis ang magkakapareho…';
 
   @override
-  String get rename => 'Rename';
+  String get rename => 'Palitan ang pangalan';
 
   @override
-  String get renamePreset => 'Rename Preset';
+  String get renamePreset => 'Palitan ang pangalan ng preset';
 
   @override
   String get reorderFilterAndShuffleFromThis =>
-      'Reorder, filter, and shuffle from this header.';
+      'Baguhin ang ayos, salain, at ihalo mula sa pamagat na ito.';
 
   @override
   String repeat(Object arg1) {
-    return 'Repeat: $arg1';
+    return 'Ulit: $arg1';
   }
 
   @override
-  String get repeatMode => 'Repeat Mode';
+  String get repeatMode => 'Mode ng pag-ulit';
 
   @override
-  String get repeatRewind => 'Repeat Rewind';
+  String get repeatRewind => 'Balik-ulit';
 
   @override
   String get replaceAlbumNameWithAVerified =>
-      'Replace album name with a verified bit-perfect capsule when streaming bit-perfect';
+      'Palitan ang pangalan ng album ng napatunayang bit-perfect na palatandaan kapag bit-perfect ang stream';
 
   @override
   String get replay => 'Replay';
 
   @override
-  String get replayCouldnTLoad => 'Replay couldn’t load.';
+  String get replayCouldnTLoad => 'Hindi ma-load ang Replay.';
 
   @override
   String get replayStudio => 'Replay Studio';
 
   @override
   String get replayTheTutorialAndFeatureGuide =>
-      'Replay the tutorial and feature guide';
+      'Ulitin ang tutorial at gabay sa mga tampok';
 
   @override
   String get replaygain => 'ReplayGain';
 
   @override
-  String get replaygainScan => 'ReplayGain Scan';
+  String get replaygainScan => 'Pag-scan ng ReplayGain';
 
   @override
-  String get reportedOutputRate => 'Reported Output Rate';
+  String get reportedOutputRate => 'Iniulat na output rate';
 
   @override
-  String get requestedOutputRate => 'Requested Output Rate';
+  String get requestedOutputRate => 'Hinihinging output rate';
 
   @override
   String get requiredToDetectDevicesCodecsAnd =>
-      'Required to detect devices, codecs, and battery levels';
+      'Kailangan upang matukoy ang mga aparato, codec, at antas ng baterya';
 
   @override
   String get resampler => 'Resampler';
 
   @override
-  String get rescanLibrary => 'Rescan Library';
+  String get rescanLibrary => 'I-scan muli ang aklatan';
 
   @override
-  String get reset => 'Reset';
+  String get reset => 'I-reset';
 
   @override
-  String get resetArtwork => 'Reset artwork';
+  String get resetArtwork => 'I-reset ang larawan';
 
   @override
   String get resetArtworkDescription =>
-      'Re-detect artwork from this album\'s files? Auto-detected covers are replaced with artwork read from the files; custom artwork is kept.';
+      'Tukuyin muli ang larawan mula sa mga file ng album? Papalitan ang mga awtomatikong natukoy na pabalat ng mga larawan mula sa mga file; pananatilihin ang pasadyang larawan.';
 
   @override
   String resetArtworkFor(Object arg1) {
-    return 'Reset artwork for \"$arg1\".';
+    return 'Na-reset ang larawan para sa \"$arg1\".';
   }
 
   @override
   String resetArtworkFor2(Object arg1) {
-    return 'Reset artwork for \"$arg1\".';
+    return 'Na-reset ang larawan para sa \"$arg1\".';
   }
 
   @override
-  String get resetCardDesign => 'Reset card design';
+  String get resetCardDesign => 'I-reset ang disenyo ng card';
 
   @override
-  String get resetDeclinedUsbDacs => 'Reset Declined USB DACs';
+  String get resetDeclinedUsbDacs => 'I-reset ang mga tinanggihang USB DAC';
 
   @override
-  String get resetDynamics => 'Reset Dynamics';
+  String get resetDynamics => 'I-reset ang dynamics';
 
   @override
-  String get resetFx => 'Reset FX';
+  String get resetFx => 'I-reset ang FX';
 
   @override
-  String get resetMiniPlayerToDefaults => 'Reset Mini Player to Defaults';
+  String get resetMiniPlayerToDefaults => 'Ibalik sa default ang mini player';
 
   @override
-  String get resetNavigationToDefaults => 'Reset Navigation to Defaults';
+  String get resetNavigationToDefaults => 'Ibalik sa default ang nabigasyon';
 
   @override
-  String get resetPreferences => 'Reset Preferences';
+  String get resetPreferences => 'I-reset ang mga kagustuhan';
 
   @override
-  String get resetStreakData => 'Reset streak data?';
+  String get resetStreakData =>
+      'I-reset ang datos ng sunod-sunod na pakikinig?';
 
   @override
-  String get resetStreakData2 => 'Reset Streak Data';
+  String get resetStreakData2 =>
+      'I-reset ang datos ng sunod-sunod na pakikinig';
 
   @override
-  String get resetTo0Db => 'Reset to 0 dB';
+  String get resetTo0Db => 'Ibalik sa 0 dB';
 
   @override
-  String get resetToDefaults => 'Reset to Defaults';
+  String get resetToDefaults => 'Ibalik sa default';
 
   @override
-  String get resolution => 'Resolution';
+  String get resolution => 'Resolusyon';
 
   @override
   String get resonance => 'Resonance';
 
   @override
-  String get restart => 'Restart';
+  String get restart => 'Simulan muli';
 
   @override
-  String get restartRequired => 'Restart required';
+  String get restartRequired => 'Kailangang simulan muli';
 
   @override
   String get restartTheAppToApplyPlayback =>
-      'Restart the app to apply playback changes.';
+      'Simulan muli ang app upang mailapat ang mga pagbabago sa pagtugtog.';
 
   @override
   String get restartYourDeviceToApplyOutput =>
-      'Restart your device to apply output format changes.';
+      'Simulan muli ang aparato upang mailapat ang mga pagbabago sa format ng output.';
 
   @override
-  String get restartingFlick => 'Restarting Flick';
+  String get restartingFlick => 'Muling sinisimulan ang Flick';
 
   @override
   String get restoreTheOriginalOrbitalLayout =>
-      'Restore the original orbital layout';
+      'Ibalik ang orihinal na ayos ng Orbital';
 
   @override
   String results(Object arg1) {
-    return 'Results ($arg1)';
+    return 'Mga resulta ($arg1)';
   }
 
   @override
   String get resumeAFamiliarFavoriteOrShuffle =>
-      'Resume a familiar favorite or shuffle one of the mixes made from your listening.';
+      'Balikan ang pamilyar na paborito o ihalo ang isa sa mga halong binuo mula sa iyong pakikinig.';
 
   @override
-  String get resumeOnReconnect => 'Resume on Reconnect';
+  String get resumeOnReconnect => 'Ituloy kapag muling nakakonekta';
 
   @override
-  String get retakePhoto => 'Retake photo';
+  String get retakePhoto => 'Kunan muli ng larawan';
 
   @override
-  String get retroFuture => 'Retro Future';
+  String get retroFuture => 'Retro na kinabukasan';
 
   @override
-  String get retry => 'Retry';
+  String get retry => 'Subukan muli';
 
   @override
-  String get reviewBeforeYouClean => 'Review before you clean';
+  String get reviewBeforeYouClean => 'Suriin bago maglinis';
 
   @override
-  String get right => 'Right';
+  String get right => 'Kanan';
 
   @override
-  String get rightBottom => 'Right (bottom)';
+  String get rightBottom => 'Kanan (ibaba)';
 
   @override
-  String get rightBottomButton => 'Right (Bottom) Button';
+  String get rightBottomButton => 'Kanang pindutan (ibaba)';
 
   @override
-  String get rightTop => 'Right (top)';
+  String get rightTop => 'Kanan (itaas)';
 
   @override
-  String get rightTopButton => 'Right (Top) Button';
+  String get rightTopButton => 'Kanang pindutan (itaas)';
 
   @override
-  String get ripSource => 'Rip Source';
+  String get ripSource => 'Pinagmulan ng rip';
 
   @override
   String get root => 'Root';
 
   @override
-  String get rotationSeek => 'rotation seek';
+  String get rotationSeek => 'paghanap sa pamamagitan ng pag-ikot';
 
   @override
   String get roundedAlbumArtCardWithA =>
-      'Rounded album art card with a blurred album-art background.';
+      'Bilugang card ng larawan ng album na may malabong larawan ng album sa likuran.';
 
   @override
-  String get route => 'Route';
+  String get route => 'Ruta';
 
   @override
   String get routesBluetoothThroughTheHiRes =>
-      'Routes Bluetooth through the hi-res Rust engine';
+      'Idinadaan ang Bluetooth sa hi-res na Rust engine';
 
   @override
   String get routesBluetoothThroughTheRustEngine =>
-      'Routes Bluetooth through the Rust engine';
+      'Idinadaan ang Bluetooth sa Rust engine';
 
   @override
   String get runAnotherPlayStoreUpdateScan =>
-      'Run another Play Store update scan right now';
+      'Maghanap muli ngayon ng update sa Play Store';
 
   @override
-  String get runAnotherUpdateScanRightNow =>
-      'Run another update scan right now';
+  String get runAnotherUpdateScanRightNow => 'Maghanap muli ngayon ng update';
 
   @override
-  String get rustViaOboe => 'Rust via Oboe';
+  String get rustViaOboe => 'Rust sa pamamagitan ng Oboe';
 
   @override
-  String get rustViaOboeHighRes => 'Rust via Oboe (high-res)';
+  String get rustViaOboeHighRes => 'Rust sa pamamagitan ng Oboe (high-res)';
 
   @override
   String s(Object arg1) {
@@ -5805,7 +5886,7 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String sAgo(Object arg1) {
-    return '${arg1}s ago';
+    return '$arg1 segundo ang nakalipas';
   }
 
   @override
@@ -5815,691 +5896,704 @@ class AppLocalizationsTl extends AppLocalizations {
   String get sambaWindowsShareTransportPending => 'Samba · Windows share';
 
   @override
-  String get sampleArtist => 'Sample artist';
+  String get sampleArtist => 'Halimbawang kumanta';
 
   @override
-  String get samplePreview => 'Sample preview';
+  String get samplePreview => 'Halimbawang paunang tingin';
 
   @override
   String get sampleRate => 'Sample rate';
 
   @override
-  String get sampleRate2 => 'Sample Rate';
+  String get sampleRate2 => 'Sample rate';
 
   @override
-  String get sampleRates => 'Sample Rates';
+  String get sampleRates => 'Mga sample rate';
 
   @override
-  String get sampleSongPreviewOnly => 'Sample song · preview only';
+  String get sampleSongPreviewOnly =>
+      'Halimbawang kanta · paunang tingin lamang';
 
   @override
-  String get samples => 'Samples';
+  String get samples => 'Mga sample';
 
   @override
-  String get save => 'Save';
+  String get save => 'I-save';
 
   @override
-  String get saveAsText => 'Save as text';
+  String get saveAsText => 'I-save bilang teksto';
 
   @override
-  String get saveChanges => 'Save Changes';
+  String get saveChanges => 'I-save ang mga pagbabago';
 
   @override
-  String get saveConnect => 'Save & Connect';
+  String get saveConnect => 'I-save at kumonekta';
 
   @override
   String get saveCreatesAnLrcFileIf =>
-      'Save creates an `.lrc` file. If some lines are not stamped yet, Flick fills their times automatically so the file stays usable. Lines with fully stamped words export with per-word karaoke timing.';
+      'Gumagawa ang pag-save ng `.lrc` file. Kung may mga linya pang walang oras, awtomatikong pupunan ng Flick ang mga ito upang magamit pa rin ang file. Ang mga linyang kumpleto ang oras ng bawat salita ay ilalabas na may karaoke timing.';
 
   @override
-  String get saveCurrentAsPreset => 'Save current as preset';
+  String get saveCurrentAsPreset => 'I-save ang kasalukuyan bilang preset';
 
   @override
-  String get saveCustomizeReplay => 'Save / customize Replay';
+  String get saveCustomizeReplay => 'I-save / baguhin ang Replay';
 
   @override
-  String get saveInFlick => 'Save in Flick';
+  String get saveInFlick => 'I-save sa Flick';
 
   @override
-  String get saveLogs => 'Save logs';
+  String get saveLogs => 'I-save ang mga log';
 
   @override
-  String get saveLrcFile => 'Save LRC File';
+  String get saveLrcFile => 'I-save ang LRC file';
 
   @override
-  String get saveLrcFile2 => 'Save LRC file';
+  String get saveLrcFile2 => 'I-save ang LRC file';
 
   @override
-  String get saveLyrics => 'Save Lyrics';
+  String get saveLyrics => 'I-save ang lirika';
 
   @override
-  String get savePng => 'Save PNG';
+  String get savePng => 'I-save ang PNG';
 
   @override
-  String get savePreset => 'Save Preset';
+  String get savePreset => 'I-save ang preset';
 
   @override
-  String get saveTheCurrentEqAsJson => 'Save the current EQ as JSON or TXT';
+  String get saveTheCurrentEqAsJson =>
+      'I-save ang kasalukuyang EQ bilang JSON o TXT';
 
   @override
-  String get saved => 'Saved';
+  String get saved => 'Na-save';
 
   @override
-  String get savedAgain => 'Saved · again';
+  String get savedAgain => 'Na-save · muli';
 
   @override
-  String get savedAndVerified => 'Saved and verified';
+  String get savedAndVerified => 'Na-save at napatunayan';
 
   @override
   String savedCollections(Object playlistCount) {
-    return '$playlistCount saved collections';
+    return '$playlistCount naka-save na koleksiyon';
   }
 
   @override
   String get savedLyricsAndLinkedThemTo =>
-      'Saved lyrics and linked them to this song.';
+      'Na-save ang lirika at naiugnay sa kantang ito.';
 
   @override
   String get savedLyricsBesideTheSongAs =>
-      'Saved lyrics beside the song as an `.lrc` file.';
+      'Na-save ang lirika katabi ng kanta bilang `.lrc` file.';
 
   @override
   String get savedLyricsToTheChosenLocation =>
-      'Saved lyrics to the chosen location.';
+      'Na-save ang lirika sa napiling lokasyon.';
 
   @override
   String get savedPlaylistsAndQuickJumpsInto =>
-      'Saved playlists and quick jumps into your library organization.';
+      'Mga naka-save na talaan ng kanta at mabilisang puntahan sa ayos ng iyong aklatan.';
 
   @override
-  String get savedToGallery => 'Saved to gallery';
+  String get savedToGallery => 'Na-save sa gallery';
 
   @override
   String savedToNNNshareIt(Object path) {
-    return 'Saved to:\n$path\n\nShare it now?';
+    return 'Na-save sa:\n$path\n\nIbahagi na?';
   }
 
   @override
   String savedToYourGallery(Object arg1) {
-    return '$arg1 saved to your gallery';
+    return 'Na-save ang $arg1 sa iyong gallery';
   }
 
   @override
-  String get savedVerificationPending => 'Saved (verification pending)';
+  String get savedVerificationPending =>
+      'Na-save (hinihintay ang pagpapatunay)';
 
   @override
-  String get saving => 'Saving...';
+  String get saving => 'Sine-save...';
 
   @override
-  String get saving2 => 'Saving';
+  String get saving2 => 'Sine-save';
 
   @override
   String get savingRecapAndroidOnly =>
-      'Saving recap images is currently supported on Android only.';
+      'Sa Android lamang kasalukuyang suportado ang pag-save ng mga larawan ng buod.';
 
   @override
   String get scaleOfTheCenteredFocusedSong =>
-      'Scale of the centered, focused song card';
+      'Sukat ng nakagitna at nakatutok na card ng kanta';
 
   @override
-  String get scaleTheAlbumArtCard => 'Scale the album art card';
+  String get scaleTheAlbumArtCard =>
+      'Baguhin ang sukat ng card ng larawan ng album';
 
   @override
-  String get scaleTheFullViewAlbumArt => 'Scale the full-view album art card';
+  String get scaleTheFullViewAlbumArt =>
+      'Baguhin ang sukat ng card ng album sa buong tanaw';
 
   @override
   String get scalesWithWidgetSizeAutomatically =>
-      'Scales with widget size automatically';
+      'Awtomatikong umaayon sa laki ng widget';
 
   @override
-  String get scanAgain => 'Scan again';
+  String get scanAgain => 'Mag-scan muli';
 
   @override
-  String get scanComplete => 'Scan Complete';
+  String get scanComplete => 'Tapos na ang pag-scan';
 
   @override
-  String get scanFailedPleaseTryAgain => 'Scan failed. Please try again.';
+  String get scanFailedPleaseTryAgain => 'Hindi na-scan. Subukan muli.';
 
   @override
-  String get scanForDevices => 'Scan for devices';
+  String get scanForDevices => 'Maghanap ng mga aparato';
 
   @override
-  String get scanProgress => 'Scan progress';
+  String get scanProgress => 'Progreso ng pag-scan';
 
   @override
-  String get scanReplaygain => 'Scan ReplayGain';
+  String get scanReplaygain => 'I-scan ang ReplayGain';
 
   @override
-  String get scanningForDuplicates => 'Scanning for duplicates…';
+  String get scanningForDuplicates => 'Naghahanap ng magkakapareho…';
 
   @override
-  String get scanningSettings => 'Scanning Settings';
+  String get scanningSettings => 'Mga pagsasaayos ng pag-scan';
 
   @override
   String scanningSongsFound(Object count) {
-    return 'Scanning... $count songs found';
+    return 'Nagsa-scan... $count kanta ang nahanap';
   }
 
   @override
-  String get scanningYourLibrary => 'Scanning your library…';
+  String get scanningYourLibrary => 'Ini-scan ang iyong aklatan…';
 
   @override
-  String get scroll => 'Scroll';
+  String get scroll => 'Mag-scroll';
 
   @override
-  String get scrollForMore => 'Scroll for more';
+  String get scrollForMore => 'Mag-scroll para sa iba pa';
 
   @override
   String get scrollingPausesWhenReducedMotionIs =>
-      'Scrolling pauses when reduced motion is enabled';
+      'Humihinto ang pag-scroll kapag naka-on ang pinababang galaw';
 
   @override
   String get seamlessTransitionBetweenTracks =>
-      'Seamless transition between tracks';
+      'Tuloy-tuloy na paglipat sa pagitan ng mga kanta';
 
   @override
-  String get search => 'Search';
+  String get search => 'Hanapin';
 
   @override
   String get searchAcrossSongsArtistsAndAlbums =>
-      'Search across songs, artists, and albums instantly.';
+      'Agad na maghanap sa mga kanta, kumanta, at album.';
 
   @override
-  String get searchAgain => 'Search Again';
+  String get searchAgain => 'Maghanap muli';
 
   @override
-  String get searchArtistTitle => 'Search artist + title...';
+  String get searchArtistTitle => 'Hanapin ang kumanta + pamagat...';
 
   @override
-  String get searchArtists => 'Search artists...';
+  String get searchArtists => 'Hanapin ang mga kumanta...';
 
   @override
-  String get searchFailed => 'Search failed';
+  String get searchFailed => 'Hindi nakapaghanap';
 
   @override
   String searchFailed2(Object e) {
-    return 'Search failed: $e';
+    return 'Hindi nakapaghanap: $e';
   }
 
   @override
-  String get searchHeadphones => 'Search headphones…';
+  String get searchHeadphones => 'Hanapin ang headphone…';
 
   @override
   String searchModelCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count models',
-      one: '$count model',
+      other: '$count modelo',
+      one: '$count modelo',
     );
-    return 'Search $_temp0…';
+    return 'Hanapin sa $_temp0…';
   }
 
   @override
-  String get searchOnline => 'Search Online';
+  String get searchOnline => 'Maghanap online';
 
   @override
-  String get searchOnline2 => 'Search online';
+  String get searchOnline2 => 'Maghanap online';
 
   @override
   String get searchOnlineCreateYourOwnSynced =>
-      'Search online, create your own synced lyrics, or import an existing file.';
+      'Maghanap online, gumawa ng sariling lirika na may oras, o mag-import ng file.';
 
   @override
-  String get searchOnlineLyrics => 'Search Online Lyrics';
+  String get searchOnlineLyrics => 'Maghanap ng lirika online';
 
   @override
-  String get searchPlayback => 'Search Playback';
+  String get searchPlayback => 'Hanapin sa pagtugtog';
 
   @override
-  String get searchResults => 'Search Results';
+  String get searchResults => 'Mga resulta ng paghahanap';
 
   @override
-  String get searchSongsArtists => 'Search songs, artists...';
+  String get searchSongsArtists => 'Hanapin ang mga kanta, kumanta...';
 
   @override
-  String get searchSongsArtistsAlbums => 'Search songs, artists, albums...';
+  String get searchSongsArtistsAlbums =>
+      'Hanapin ang mga kanta, kumanta, album...';
 
   @override
-  String get searchTheManual => 'Search the manual...';
+  String get searchTheManual => 'Hanapin sa gabay...';
 
   @override
-  String get searchYourLibrary => 'Search your library';
+  String get searchYourLibrary => 'Hanapin sa iyong aklatan';
 
   @override
-  String get searching => 'Searching…';
+  String get searching => 'Naghahanap…';
 
   @override
-  String get searchingOnline => 'Searching online';
+  String get searchingOnline => 'Naghahanap online';
 
   @override
-  String get searchingTheLocalNetwork => 'Searching the local network…';
+  String get searchingTheLocalNetwork => 'Naghahanap sa lokal na network…';
 
   @override
   String get secondsOfInactivityBeforeCollapsing =>
-      'Seconds of inactivity before collapsing';
+      'Segundong walang ginagawa bago lumiit';
 
   @override
-  String get seeAll => 'See all';
+  String get seeAll => 'Tingnan lahat';
 
   @override
   String seeAll2(Object count) {
-    return 'See all $count';
+    return 'Tingnan ang lahat ng $count';
   }
 
   @override
-  String get seeWhatIsNewInThis => 'See what is new in this update';
+  String get seeWhatIsNewInThis => 'Tingnan ang bago sa update na ito';
 
   @override
-  String get select => 'Select';
+  String get select => 'Piliin';
 
   @override
-  String get selectAFolderToScan => 'Select a folder to scan';
+  String get selectAFolderToScan => 'Pumili ng folder na i-scan';
 
   @override
   String get selectALineAndEdit =>
-      '1. Select a line and edit its timestamp directly, or use \"Use Current Time\".\n2. In the word timeline, drag a boundary to stretch or shrink the segment before it — edits snap to 10ms.\n3. Tap letters in the inspector to split a word into separately timed syllables (slow-then-fast pacing), then drag their boundaries.\n4. Drag the last boundary (or use Length ±) to retime the next line. Use Auto-fill to seed evenly spaced words.\n5. Use the shift controls to move all stamped lyrics together.\n6. Save to generate the final `.lrc` file.';
+      '1. Pumili ng linya at direktang baguhin ang oras nito, o gamitin ang \"Gamitin ang kasalukuyang oras\".\n2. Sa timeline ng mga salita, hilahin ang hangganan upang pahabain o paikliin ang naunang bahagi — tig-10ms ang hakbang.\n3. Pindutin ang mga titik sa inspector upang hatiin ang salita sa mga pantig na may hiwalay na oras, saka hilahin ang mga hangganan.\n4. Hilahin ang huling hangganan (o gamitin ang Tagal ±) upang baguhin ang oras ng susunod na linya. Gamitin ang awtomatikong pagpuno para sa pantay na pagitan.\n5. Gamitin ang mga kontrol ng pag-usog upang sabay-sabay na ilipat ang lahat ng lirikang may oras.\n6. I-save upang mabuo ang pinal na `.lrc` file.';
 
   @override
-  String get selectARelease => 'Select a release';
+  String get selectARelease => 'Pumili ng release';
 
   @override
-  String get selectAll => 'Select All';
+  String get selectAll => 'Piliin lahat';
 
   @override
-  String get selectAll2 => 'Select all';
+  String get selectAll2 => 'Piliin lahat';
 
   @override
-  String get selectDevice => 'Select Device';
+  String get selectDevice => 'Pumili ng aparato';
 
   @override
   String selected(Object count) {
-    return '$count selected';
+    return '$count napili';
   }
 
   @override
   String get selectedFileIsNotASupported =>
-      'Selected file is not a supported image.';
+      'Hindi suportadong larawan ang napiling file.';
 
   @override
   String selectedOfSong(Object selected, int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count songs',
-      one: '$count song',
+      other: '$count kanta',
+      one: '$count kanta',
     );
-    return '$selected selected of $_temp0';
+    return '$selected napili sa $_temp0';
   }
 
   @override
-  String get selectedPlaylistFileIsEmpty => 'Selected playlist file is empty';
+  String get selectedPlaylistFileIsEmpty =>
+      'Walang laman ang napiling file ng talaan ng kanta';
 
   @override
-  String get selectedSize => 'Selected Size';
+  String get selectedSize => 'Napiling laki';
 
   @override
-  String get sep => 'Sep';
+  String get sep => 'Set';
 
   @override
-  String get separateFromNavBar => 'Separate from Nav Bar';
+  String get separateFromNavBar => 'Ihiwalay sa bar ng nabigasyon';
 
   @override
   String get separateTheMiniPlayerToCustomize =>
-      'Separate the mini player to customize its width and gap. Your custom values are saved while joined.';
+      'Ihiwalay ang mini player upang baguhin ang lapad at pagitan nito. Naka-save ang mga pasadyang halaga habang magkadugtong.';
 
   @override
-  String get serialNumber => 'Serial Number';
+  String get serialNumber => 'Serial number';
 
   @override
   String serverPlaylistSyncFailed(Object e) {
-    return 'Server playlist sync failed: $e';
+    return 'Hindi naisabay ang talaan ng kanta ng server: $e';
   }
 
   @override
-  String get serverUrl => 'Server URL';
+  String get serverUrl => 'URL ng server';
 
   @override
-  String get session => 'Session';
+  String get session => 'Sesyon';
 
   @override
-  String get setAlbumArt => 'Set Album Art';
+  String get setAlbumArt => 'Itakda ang larawan ng album';
 
   @override
-  String get setCover => 'Set cover';
+  String get setCover => 'Itakda ang pabalat';
 
   @override
-  String get setToNow => 'Set to Now';
+  String get setToNow => 'Itakda sa ngayon';
 
   @override
-  String get settings => 'Settings';
+  String get settings => 'Mga pagsasaayos';
 
   @override
-  String get shadow => 'Shadow';
+  String get shadow => 'Anino';
 
   @override
-  String get shadowJazz => 'Shadow Jazz';
+  String get shadowJazz => 'Jazz sa lilim';
 
   @override
-  String get share => 'Share';
+  String get share => 'Ibahagi';
 
   @override
   String shareFailed(Object e) {
-    return 'Share failed: $e';
+    return 'Hindi naibahagi: $e';
   }
 
   @override
-  String get sharedSecret => 'Shared Secret';
+  String get sharedSecret => 'Shared secret';
 
   @override
-  String get sharpRecommended => 'Sharp (recommended)';
+  String get sharpRecommended => 'Matalas (inirerekomenda)';
 
   @override
-  String get shiftMetadataTextUpOrDown => 'Shift metadata text up or down';
+  String get shiftMetadataTextUpOrDown =>
+      'Iusog pataas o pababa ang teksto ng metadata';
 
   @override
-  String get shiftOnlyTheAlbumArtUp => 'Shift only the album art up or down';
+  String get shiftOnlyTheAlbumArtUp =>
+      'Larawan lamang ng album ang iusog pataas o pababa';
 
   @override
   String get shiftOnlyTheSongDetailsUp =>
-      'Shift only the song details up or down';
+      'Detalye lamang ng kanta ang iusog pataas o pababa';
 
   @override
   String get showASystemOverlayMiniPlayer =>
-      'Show a system overlay mini-player over other apps';
+      'Ipakita ang mini player bilang system overlay sa ibabaw ng ibang app';
 
   @override
   String get showAThinPlaybackProgressLine =>
-      'Show a thin playback progress line';
+      'Ipakita ang manipis na linya ng progreso ng pagtugtog';
 
   @override
-  String get showAlbum => 'Show album';
+  String get showAlbum => 'Ipakita ang album';
 
   @override
-  String get showAlbum2 => 'Show Album';
+  String get showAlbum2 => 'Ipakita ang album';
 
   @override
-  String get showAlbumArtwork => 'Show album artwork.';
+  String get showAlbumArtwork => 'Ipakita ang larawan ng album.';
 
   @override
   String get showAlbumArtworkOnTheMini =>
-      'Show album artwork on the mini player';
+      'Ipakita ang larawan ng album sa mini player';
 
   @override
-  String get showArtist => 'Show artist';
+  String get showArtist => 'Ipakita ang kumanta';
 
   @override
-  String get showArtist2 => 'Show Artist';
+  String get showArtist2 => 'Ipakita ang kumanta';
 
   @override
-  String get showArtistBelowSongTitle => 'Show artist below song title';
+  String get showArtistBelowSongTitle =>
+      'Ipakita ang kumanta sa ilalim ng pamagat ng kanta';
 
   @override
-  String get showFileInfo => 'Show file info';
+  String get showFileInfo => 'Ipakita ang impormasyon ng file';
 
   @override
-  String get showFileInfo2 => 'Show File Info';
+  String get showFileInfo2 => 'Ipakita ang impormasyon ng file';
 
   @override
-  String get showFrame => 'Show frame';
+  String get showFrame => 'Ipakita ang frame';
 
   @override
-  String get showFrame2 => 'Show Frame';
+  String get showFrame2 => 'Ipakita ang frame';
 
   @override
-  String get showGlow => 'Show Glow';
+  String get showGlow => 'Ipakita ang ningning';
 
   @override
-  String get showLabels => 'Show Labels';
+  String get showLabels => 'Ipakita ang mga label';
 
   @override
-  String get showLess => 'Show less';
+  String get showLess => 'Bawasan ang ipinapakita';
 
   @override
-  String get showLyrics => 'Show lyrics';
+  String get showLyrics => 'Ipakita ang lirika';
 
   @override
-  String get showMore => 'Show more';
+  String get showMore => 'Ipakita ang iba pa';
 
   @override
   String get showMoreArtByFadingOnly =>
-      'Show more art by fading only the bottom of the header and lowering body content';
+      'Magpakita ng mas maraming larawan sa pag-fade lamang ng ibabang bahagi ng pamagat at pagbaba ng nilalaman';
 
   @override
   String get showOrHideHomeScreenSections =>
-      'Show or hide home screen sections';
+      'Ipakita o itago ang mga seksiyon sa pangunahing pahina';
 
   @override
-  String get showOrbitPath => 'Show Orbit Path';
+  String get showOrbitPath => 'Ipakita ang landas ng orbit';
 
   @override
   String get showOtherArtistsOnAlbumPages =>
-      'Show other artists on album pages';
+      'Ipakita ang ibang kumanta sa mga pahina ng album';
 
   @override
-  String get showPassword => 'Show password';
+  String get showPassword => 'Ipakita ang password';
 
   @override
   String get showPlaylistPreviewsOnTheHome =>
-      'Show playlist previews on the home screen';
+      'Ipakita ang mga paunang tingin ng talaan ng kanta sa pangunahing pahina';
 
   @override
   String get showRecentlyPlayedArtistsOnThe =>
-      'Show recently played artists on the home screen';
+      'Ipakita ang mga kamakailang pinakinggang kumanta sa pangunahing pahina';
 
   @override
   String get showRelatedAlbumsOnAlbumPages =>
-      'Show related albums on album pages';
+      'Ipakita ang mga kaugnay na album sa mga pahina ng album';
 
   @override
   String get showSmartMixesGeneratedFromYour =>
-      'Show smart mixes generated from your listening habits';
+      'Ipakita ang mga matalinong halong mula sa iyong paraan ng pakikinig';
 
   @override
   String get showTheArtistBelowTheSong =>
-      'Show the artist below the song title';
+      'Ipakita ang kumanta sa ilalim ng pamagat ng kanta';
 
   @override
   String get showTheAtAGlanceSummary =>
-      'Show the \"at a glance\" summary on Artists/Albums';
+      'Ipakita ang buod na \"sa isang sulyap\" sa Mga kumanta/Mga album';
 
   @override
   String get showTheAudioEnginePickerCard =>
-      'Show the audio engine picker card on the home screen';
+      'Ipakita ang card ng pagpili ng audio engine sa pangunahing pahina';
 
   @override
   String get showTheAudioVisualizerOffSaves =>
-      'Show the audio visualizer (off saves battery)';
+      'Ipakita ang audio visualizer (mas matipid sa baterya kapag naka-off)';
 
   @override
   String get showTheBrowseChipsForLibrary =>
-      'Show the browse chips for library sections on the home screen';
+      'Ipakita ang mga shortcut ng mga seksiyon ng aklatan sa pangunahing pahina';
 
   @override
   String get showTheFloatingMiniPlayerPill =>
-      'Show the floating mini-player pill on screens';
+      'Ipakita ang lumulutang na mini player sa mga pahina';
 
   @override
   String get showTheGlassFrameAroundAlbum =>
-      'Show the glass frame around album art';
+      'Ipakita ang mala-salaming frame sa paligid ng larawan ng album';
 
   @override
   String get showTheGridOfShortcutCards =>
-      'Show the grid of shortcut cards on the home screen';
+      'Ipakita ang grid ng mga shortcut card sa pangunahing pahina';
 
   @override
   String get showTheMiniPlayerAsIts =>
-      'Show the mini player as its own bar above the buttons';
+      'Ipakita ang mini player bilang sariling bar sa ibabaw ng mga pindutan';
 
   @override
-  String get showTheNumberOverBlurredArt => 'Show the number over blurred art.';
+  String get showTheNumberOverBlurredArt =>
+      'Ipakita ang numero sa ibabaw ng malabong larawan.';
 
   @override
   String showTheTabInTheBottom(Object arg1) {
-    return 'Show the $arg1 tab in the bottom bar';
+    return 'Ipakita ang tab na $arg1 sa bar sa ibaba';
   }
 
   @override
-  String get showTheTrackNumber => 'Show the track number.';
+  String get showTheTrackNumber => 'Ipakita ang numero ng kanta.';
 
   @override
   String get showTheUsbVolumeBarOn =>
-      'Show the USB volume bar on the home screen';
+      'Ipakita ang USB volume bar sa pangunahing pahina';
 
   @override
   String get showTheUsbVolumeBarOn2 =>
-      'Show the USB volume bar on the UAC2 settings screen';
+      'Ipakita ang USB volume bar sa pahina ng UAC2';
 
   @override
-  String get showTitle => 'Show title';
+  String get showTitle => 'Ipakita ang pamagat';
 
   @override
-  String get showTitle2 => 'Show Title';
+  String get showTitle2 => 'Ipakita ang pamagat';
 
   @override
   String get showVerboseAudioDiagnosticsAndEngine =>
-      'Show verbose audio diagnostics and engine/session trace logs.';
+      'Ipakita ang detalyadong pagsusuri ng tunog at mga trace log ng engine/sesyon.';
 
   @override
-  String get showVisualizer => 'Show visualizer';
+  String get showVisualizer => 'Ipakita ang visualizer';
 
   @override
   String get showYourRecentListeningHistoryOn =>
-      'Show your recent listening history on the home screen';
+      'Ipakita ang iyong kamakailang kasaysayan ng pakikinig sa pangunahing pahina';
 
   @override
   String showingAllAlbums(Object totalCount) {
-    return 'Showing all $totalCount albums';
+    return 'Ipinapakita ang lahat ng $totalCount album';
   }
 
   @override
   String showingOfAlbums(Object visibleCount, Object totalCount) {
-    return 'Showing $visibleCount of $totalCount albums';
+    return 'Ipinapakita ang $visibleCount sa $totalCount album';
   }
 
   @override
-  String get showingYourLastLoadedReplay => 'Showing your last loaded Replay.';
+  String get showingYourLastLoadedReplay =>
+      'Ipinapakita ang huling na-load mong Replay.';
 
   @override
   String get shownWhenThereIsRoomBeside =>
-      'Shown when there is room beside the controls';
+      'Ipinapakita kung may puwang sa tabi ng mga kontrol';
 
   @override
   String get showsWhatSPlayingTapTo =>
-      'Shows what\'s playing. Tap to open the full player.';
+      'Ipinapakita ang tumutugtog. Pindutin upang buksan ang buong player.';
 
   @override
-  String get shuffle => 'Shuffle';
+  String get shuffle => 'Ihalo';
 
   @override
   String shuffle2(Object arg1) {
-    return 'Shuffle: $arg1';
+    return 'Paghalo: $arg1';
   }
 
   @override
-  String get shuffleFavorites => 'Shuffle Favorites';
+  String get shuffleFavorites => 'Ihalo ang mga paborito';
 
   @override
-  String get shuffleMode => 'Shuffle Mode';
+  String get shuffleMode => 'Mode ng paghalo';
 
   @override
   String get shuffleSongsAndJumpBetweenCategories =>
-      'Shuffle songs and jump between categories';
+      'Ihalo ang mga kanta at lumipat sa mga kategorya';
 
   @override
-  String get shuffleSongsInCurrentList => 'Shuffle songs in current list';
+  String get shuffleSongsInCurrentList =>
+      'Ihalo ang mga kanta sa kasalukuyang listahan';
 
   @override
-  String get signInFailedRetry => 'Sign-in Failed — Retry';
+  String get signInFailedRetry => 'Hindi naka-sign in — subukan muli';
 
   @override
-  String get signInWithTidal => 'Sign in with Tidal';
+  String get signInWithTidal => 'Mag-sign in sa Tidal';
 
   @override
   String get signInWithYourAccountHifi =>
-      'Sign in with your account · HiFi lossless';
+      'Mag-sign in sa iyong account · HiFi lossless';
 
   @override
   String get signInWithYourOwnTidal =>
-      'Sign in with your own Tidal account. HiFi lossless (FLAC/ALAC) plays through the bit-perfect engine; HiRes/MQA and Atmos are gated by Tidal and will show an error instead of playing.';
+      'Mag-sign in gamit ang sarili mong Tidal account. Tinutugtog ang HiFi lossless (FLAC/ALAC) sa bit-perfect engine; kontrolado ng Tidal ang HiRes/MQA at Atmos at magpapakita ang mga ito ng error sa halip na tumugtog.';
 
   @override
   String get signal => 'Signal';
 
   @override
-  String get signalAccurateUnverified => 'AccurateRip not verified';
+  String get signalAccurateUnverified => 'Hindi napatunayan sa AccurateRip';
 
   @override
-  String get signalAccurateVerified => 'AccurateRip verified in log';
+  String get signalAccurateVerified => 'Napatunayan sa AccurateRip sa log';
 
   @override
   String get signalAltSetting => 'Alt setting';
 
   @override
-  String get signalBufferCapacity => 'Buffer capacity';
+  String get signalBufferCapacity => 'Kapasidad ng buffer';
 
   @override
-  String get signalBufferFill => 'Buffer fill';
+  String get signalBufferFill => 'Laman ng buffer';
 
   @override
-  String get signalBufferOccupancy => 'Buffer occupancy at open';
+  String get signalBufferOccupancy => 'Laman ng buffer noong buksan';
 
   @override
-  String get signalBufferTarget => 'Buffer target';
+  String get signalBufferTarget => 'Target ng buffer';
 
   @override
   String get signalCopyCrc => 'Copy CRC';
 
   @override
-  String get signalCrcCannotCompare => 'Cannot compare';
+  String get signalCrcCannotCompare => 'Hindi maihambing';
 
   @override
-  String get signalCrcComparison => 'CRC comparison';
+  String get signalCrcComparison => 'Paghahambing ng CRC';
 
   @override
-  String get signalCrcMatch => 'Match';
+  String get signalCrcMatch => 'Tugma';
 
   @override
-  String get signalCrcMismatch => 'Mismatch';
+  String get signalCrcMismatch => 'Hindi tugma';
 
   @override
-  String get signalDriftFromTarget => 'Drift from target';
+  String get signalDriftFromTarget => 'Paglihis sa target';
 
   @override
   String get signalDsdBitRate => 'DSD bit rate';
 
   @override
-  String get signalFileFormat => 'File format';
+  String get signalFileFormat => 'Format ng file';
 
   @override
-  String get signalFramesPerPacket => 'Frames / packet';
+  String get signalFramesPerPacket => 'Mga frame / packet';
 
   @override
-  String get signalMaxPacket => 'Max packet';
+  String get signalMaxPacket => 'Pinakamalaking packet';
 
   @override
   String get signalNoRipDescription =>
-      'No ripping or verification information was found for this track.';
+      'Walang nahanap na impormasyon ng pag-rip o pagpapatunay para sa kantang ito.';
 
   @override
-  String get signalNotReported => 'Not reported';
+  String get signalNotReported => 'Hindi iniulat';
 
   @override
-  String get signalNotVerified => 'Not verified';
+  String get signalNotVerified => 'Hindi napatunayan';
 
   @override
   String get signalOrangeSurfaceFromTheReplay =>
-      'Signal orange surface from the Replay cover';
+      'Signal-orange na ibabaw mula sa pabalat ng Replay';
 
   @override
-  String get signalRecordingUnavailable => 'Rip history unavailable';
+  String get signalRecordingUnavailable => 'Walang kasaysayan ng pag-rip';
 
   @override
   String get signalRipDescription =>
-      'Information from the rip log, not a stage of the current playback path.';
+      'Impormasyon mula sa rip log, hindi yugto ng kasalukuyang path ng pagtugtog.';
 
   @override
-  String get signalRipProvenance => 'Rip provenance';
+  String get signalRipProvenance => 'Pinagmulan ng rip';
 
   @override
   String get signalRipper => 'Ripper';
@@ -6511,20 +6605,20 @@ class AppLocalizationsTl extends AppLocalizations {
   String get signalSnapshot => 'Snapshot';
 
   @override
-  String get signalSnapshotAtOpen => 'Snapshot at open';
+  String get signalSnapshotAtOpen => 'Snapshot noong buksan';
 
   @override
   String get signalSourceDescription =>
-      'Properties of the source file, not the output sent to the device.';
+      'Mga katangian ng pinagmulang file, hindi ang output na ipinapadala sa aparato.';
 
   @override
-  String get signalSourceDetails => 'Source format details';
+  String get signalSourceDetails => 'Mga detalye ng pinagmulang format';
 
   @override
   String get signalSubslot => 'Subslot';
 
   @override
-  String get signalSyncType => 'Sync type';
+  String get signalSyncType => 'Uri ng sync';
 
   @override
   String get signalTarget => 'target';
@@ -6536,177 +6630,177 @@ class AppLocalizationsTl extends AppLocalizations {
   String get signalTransportFormat => 'Transport';
 
   @override
-  String get signalUnderruns => 'Underruns';
+  String get signalUnderruns => 'Mga underrun';
 
   @override
-  String get signalUsageType => 'Usage type';
+  String get signalUsageType => 'Uri ng paggamit';
 
   @override
   String get signalUsbDescription =>
-      'Transport values available when this sheet opened. This is not a live packet trace.';
+      'Mga halaga ng transport noong buksan ang pahinang ito. Hindi ito live na packet trace.';
 
   @override
   String get signalUsbMissingDescription =>
-      'URB details are only reported for the direct USB path. No transfer activity is inferred.';
+      'Sa direktang USB path lamang iniulat ang mga detalye ng URB. Walang hinuhulaang aktibidad ng transfer.';
 
   @override
   String get signalUsbTransport => 'USB transport';
 
   @override
-  String get signalUsbUnavailable => 'USB transport details unavailable';
+  String get signalUsbUnavailable => 'Walang detalye ng USB transport';
 
   @override
-  String get signalVerificationMissing => 'Verification not reported';
+  String get signalVerificationMissing => 'Hindi iniulat ang pagpapatunay';
 
   @override
-  String get signalVerifiedInLog => 'Verified in log';
+  String get signalVerifiedInLog => 'Napatunayan sa log';
 
   @override
-  String get signedIn => 'Signed in';
+  String get signedIn => 'Naka-sign in';
 
   @override
   String get silkySmoothBZierCurvesFluid =>
-      'Silky smooth Bézier curves — fluid and organic';
+      'Napakakinis na mga kurbang Bézier — dumadaloy at natural';
 
   @override
-  String get similarArtists => 'Similar Artists';
+  String get similarArtists => 'Mga katulad na kumanta';
 
   @override
   String get simple => 'Simple';
 
   @override
-  String get simpleMode => 'Simple mode';
+  String get simpleMode => 'Simpleng mode';
 
   @override
-  String get simplifiedChinese => 'Simplified Chinese';
+  String get simplifiedChinese => 'Pinasimpleng Tsino';
 
   @override
-  String get single => 'Single';
+  String get single => 'Isa';
 
   @override
-  String get size => 'Size';
+  String get size => 'Laki';
 
   @override
-  String get sizing => 'Sizing';
+  String get sizing => 'Pagsukat';
 
   @override
-  String get skip => 'Skip';
+  String get skip => 'Laktawan';
 
   @override
   String get skipUnsupportedFilesAndHiddenNomedia =>
-      'Skip unsupported files and hidden .nomedia directories';
+      'Laktawan ang mga hindi suportadong file at nakatagong direktoryong .nomedia';
 
   @override
   String skippedUnmatchedEntr(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count unmatched entries',
-      one: '$count unmatched entry',
+      other: '$count hindi tugmang tala',
+      one: '$count hindi tugmang tala',
     );
-    return ' Skipped $_temp0.';
+    return ' Nilaktawan ang $_temp0.';
   }
 
   @override
-  String get sleepTimer => 'Sleep timer';
+  String get sleepTimer => 'Timer ng pagtulog';
 
   @override
-  String get sleepTimer2 => 'Sleep Timer';
+  String get sleepTimer2 => 'Timer ng pagtulog';
 
   @override
-  String get sleeves => 'Sleeves';
+  String get sleeves => 'Mga pabalat';
 
   @override
   String get slope => 'Slope';
 
   @override
   String get smbAccessDenied =>
-      'Access denied. Check that the account can read this share.';
+      'Hindi pinapayagan ang pag-access. Suriing nababasa ng account ang share na ito.';
 
   @override
   String get smbAuthFailed =>
-      'The server rejected the username or password. Check the account — Samba may map unknown users to guest.';
+      'Tinanggihan ng server ang username o password. Suriin ang account — maaaring ituring ng Samba na guest ang mga hindi kilalang user.';
 
   @override
   String get smbConnectionRefused =>
-      'Connection refused. Check that file sharing is enabled and port 445 is reachable.';
+      'Tinanggihan ang koneksiyon. Suriing naka-on ang file sharing at naaabot ang port 445.';
 
   @override
   String get smbCouldNotReach =>
-      'Could not reach the server. Check the IP address, then that the phone is on the same network.';
+      'Hindi maabot ang server. Suriin ang IP address at tiyaking nasa iisang network ang telepono.';
 
   @override
   String get smbHostNotResolved =>
-      'Could not resolve the server name. Try the IP address instead — Android cannot resolve NetBIOS/.local names.';
+      'Hindi matukoy ang pangalan ng server. Gamitin ang IP address — hindi matukoy ng Android ang mga pangalang NetBIOS/.local.';
 
   @override
   String get smbMissingServerAddress =>
-      'Missing server address — use smb://host/share (e.g. smb://nas/music).';
+      'Walang address ng server — gamitin ang smb://host/share (hal. smb://nas/music).';
 
   @override
   String get smbMissingShareName =>
-      'Missing share name — use smb://host/share (e.g. smb://nas/music).';
+      'Walang pangalan ng share — gamitin ang smb://host/share (hal. smb://nas/music).';
 
   @override
   String get smbServerUnresponsive =>
-      'The server stopped answering. Check the server, then retry.';
+      'Hindi na tumutugon ang server. Suriin ang server at subukan muli.';
 
   @override
   String get smbShareNotFound =>
-      'The server answered but the share was not found. Check the share name in the URL.';
+      'Tumugon ang server ngunit hindi nahanap ang share. Suriin ang pangalan ng share sa URL.';
 
   @override
   String get smbSharesCanBeAddedNow =>
-      'SMB2/3 shares connect through the built-in client. Enter the share URL (smb://host/share) and sign in if the server asks for it.';
+      'Kumokonekta ang mga SMB2/3 share sa pamamagitan ng nakapaloob na client. Ilagay ang share URL (smb://host/share) at mag-sign in kung hihingin ng server.';
 
   @override
   String get smbTimedOut =>
-      'Timed out. Use the server IP (not a NetBIOS/.local name), check port 445, and that the phone is on the same network.';
+      'Naubos ang oras. Gamitin ang IP ng server (hindi pangalang NetBIOS/.local), suriin ang port 445, at tiyaking nasa iisang network ang telepono.';
 
   @override
-  String get smooth => 'Smooth';
+  String get smooth => 'Makinis';
 
   @override
   String get smoothsPeaksAndRaisesBodyBefore =>
-      'Smooths peaks and raises body before the limiter catches transients.';
+      'Pinapakinis ang mga peak at pinapalakas ang katawan ng tunog bago saluhin ng limiter ang mga transient.';
 
   @override
-  String get snappy => 'Snappy';
+  String get snappy => 'Mabilis tumugon';
 
   @override
-  String get softDetailBalanced => 'Soft detail, balanced';
+  String get softDetailBalanced => 'Banayad na detalye, balanse';
 
   @override
   String get softHighlightBehindTheSelectedSong =>
-      'Soft highlight behind the selected song';
+      'Banayad na diin sa likod ng napiling kanta';
 
   @override
-  String get softwareAppControlled => 'Software (App-controlled)';
+  String get softwareAppControlled => 'Software (kontrolado ng app)';
 
   @override
-  String get solid => 'Solid';
+  String get solid => 'Buo';
 
   @override
-  String get soloDeveloper => 'Solo Developer';
+  String get soloDeveloper => 'Nag-iisang developer';
 
   @override
   String get someOnlineFeaturesMayNotWork =>
-      '  ·  Some online features may not work';
+      '  ·  Maaaring hindi gumana ang ilang tampok online';
 
   @override
   String get someWordsAreStillUntimedFinish =>
-      'Some words are still untimed. Finish capturing in Word Sync mode.';
+      'May mga salita pang walang oras. Tapusin ang pagkuha sa Word Sync mode.';
 
   @override
-  String get somethingWentWrong => 'Something went wrong';
+  String get somethingWentWrong => 'May nagkaproblema';
 
   @override
   String song2(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count songs',
-      one: '$count song',
+      other: '$count kanta',
+      one: '$count kanta',
     );
     return '$_temp0';
   }
@@ -6716,129 +6810,129 @@ class AppLocalizationsTl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count songs',
-      one: '$count song',
+      other: '$count kanta',
+      one: '$count kanta',
     );
     return '$_temp0 · $server';
   }
 
   @override
-  String get songActions => 'Song actions';
+  String get songActions => 'Mga aksiyon sa kanta';
 
   @override
-  String get songArtist => 'Song Artist';
+  String get songArtist => 'Kumanta';
 
   @override
-  String get songCount => 'Song Count';
+  String get songCount => 'Bilang ng kanta';
 
   @override
-  String get songGestures => 'Song Gestures';
+  String get songGestures => 'Mga galaw sa kanta';
 
   @override
-  String get songHasNoFilePath => 'Song has no file path.';
+  String get songHasNoFilePath => 'Walang file path ang kanta.';
 
   @override
-  String get songMetadata => 'Song Metadata';
+  String get songMetadata => 'Metadata ng kanta';
 
   @override
-  String get songTitle => 'Song Title';
+  String get songTitle => 'Pamagat ng kanta';
 
   @override
   String songUnit(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'songs',
-      one: 'song',
+      other: 'kanta',
+      one: 'kanta',
     );
     return '$_temp0';
   }
 
   @override
-  String get songViewList => 'Song View: List';
+  String get songViewList => 'Tanaw ng kanta: Listahan';
 
   @override
-  String get songViewOrbital => 'Song View: Orbital';
+  String get songViewOrbital => 'Tanaw ng kanta: Orbital';
 
   @override
   String songs(Object arg1, Object arg2) {
-    return '$arg1 • $arg2 songs';
+    return '$arg1 • $arg2 kanta';
   }
 
   @override
   String songs12(Object arg1) {
-    return '$arg1 songs';
+    return '$arg1 kanta';
   }
 
   @override
   String songs13(Object count) {
-    return '$count songs';
+    return '$count kanta';
   }
 
   @override
-  String get songs14 => 'Songs';
+  String get songs14 => 'Mga kanta';
 
   @override
   String songs15(Object arg1) {
-    return '$arg1 songs';
+    return '$arg1 kanta';
   }
 
   @override
   String songs2(Object songCount) {
-    return '$songCount songs';
+    return '$songCount kanta';
   }
 
   @override
   String songs3(Object arg1) {
-    return '$arg1 songs';
+    return '$arg1 kanta';
   }
 
   @override
   String songs4(Object _totalSongs) {
-    return '$_totalSongs songs';
+    return '$_totalSongs kanta';
   }
 
   @override
   String songs5(Object arg1) {
-    return '$arg1 songs';
+    return '$arg1 kanta';
   }
 
   @override
   String songs9(Object arg1) {
-    return '$arg1 songs';
+    return '$arg1 kanta';
   }
 
   @override
   String songsAlbums(Object arg1, Object uniqueAlbums) {
-    return '$arg1 songs • $uniqueAlbums albums';
+    return '$arg1 kanta • $uniqueAlbums album';
   }
 
   @override
   String songsAlbums2(Object arg1, Object albumCount) {
-    return '$arg1 songs · $albumCount albums';
+    return '$arg1 kanta · $albumCount album';
   }
 
   @override
   String get songsBeforeTheTappedTrackQueue =>
-      'Songs before the tapped track queue at the end';
+      'Ilalagay sa dulo ng pila ang mga kantang nauuna sa pinindot na kanta';
 
   @override
-  String get songsCategories => 'Songs & Categories';
+  String get songsCategories => 'Mga kanta at kategorya';
 
   @override
   String songsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count songs',
-      one: '$count song',
+      other: '$count kanta',
+      one: '$count kanta',
     );
     return '$_temp0';
   }
 
   @override
   String songsFound(Object arg1) {
-    return '$arg1 songs found';
+    return '$arg1 kanta ang nahanap';
   }
 
   @override
@@ -6846,16 +6940,16 @@ class AppLocalizationsTl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       songs,
       locale: localeName,
-      other: '$songs songs',
-      one: '$songs song',
+      other: '$songs kanta',
+      one: '$songs kanta',
     );
     String _temp1 = intl.Intl.pluralLogic(
       folders,
       locale: localeName,
-      other: '$folders folders',
+      other: '$folders folder',
       one: '$folders folder',
     );
-    return '$_temp0 in $_temp1';
+    return '$_temp0 sa $_temp1';
   }
 
   @override
@@ -6863,202 +6957,203 @@ class AppLocalizationsTl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count songs in your rotation',
-      one: '$count song in your rotation',
+      other: '$count kanta sa iyong pag-ikot',
+      one: '$count kanta sa iyong pag-ikot',
     );
     return '$_temp0';
   }
 
   @override
-  String get songsTab => 'Songs Tab';
+  String get songsTab => 'Tab ng mga kanta';
 
   @override
   String songsU2022Albums(Object arg1, Object uniqueAlbums) {
-    return '$arg1 songs • $uniqueAlbums albums';
+    return '$arg1 kanta • $uniqueAlbums album';
   }
 
   @override
-  String get songsYouPlayWillAppearHere => 'Songs you play will appear here';
+  String get songsYouPlayWillAppearHere =>
+      'Dito lilitaw ang mga kantang patutugtugin mo';
 
   @override
   String get songsYouScanIntoYourLibrary =>
-      'Songs you scan into your library will show up here';
+      'Dito lilitaw ang mga kantang na-scan sa iyong aklatan';
 
   @override
-  String get sortBy => 'SORT BY';
+  String get sortBy => 'AYUSIN AYON SA';
 
   @override
-  String get sortFilter => 'Sort & Filter';
+  String get sortFilter => 'Ayusin at salain';
 
   @override
-  String get sortSongs => 'Sort songs';
+  String get sortSongs => 'Ayusin ang mga kanta';
 
   @override
-  String get source => 'Source';
+  String get source => 'Pinagmulan';
 
   @override
   String get sourceRate => 'Source rate';
 
   @override
-  String get spaceBetweenTheTwoBars => 'Space between the two bars';
+  String get spaceBetweenTheTwoBars => 'Pagitan ng dalawang bar';
 
   @override
-  String get spaceOdyssey => 'Space Odyssey';
+  String get spaceOdyssey => 'Paglalakbay sa kalawakan';
 
   @override
-  String get spatialTime => 'Spatial & Time';
+  String get spatialTime => 'Espasyo at oras';
 
   @override
-  String get speedUp => 'Speed up';
+  String get speedUp => 'Pabilisin';
 
   @override
   String get springPhysicsEnergeticAndReactive =>
-      'Spring physics — energetic and reactive';
+      'Galaw na parang spring — masigla at tumutugon';
 
   @override
   String get squareRoot => 'Square Root';
 
   @override
-  String get stampNext => 'Stamp & Next';
+  String get stampNext => 'Itala at sumunod';
 
   @override
-  String get stampNow => 'Stamp Now';
+  String get stampNow => 'Itala ang oras ngayon';
 
   @override
   String get stampThisLineFirstToEdit =>
-      'Stamp this line first to edit its word timeline.';
+      'Itala muna ang oras ng linyang ito upang mabago ang timeline ng mga salita nito.';
 
   @override
-  String get standard => 'Standard';
+  String get standard => 'Karaniwan';
 
   @override
-  String get standard60hz => 'Standard (60Hz)';
+  String get standard60hz => 'Karaniwan (60Hz)';
 
   @override
   String get standardBluetoothRoutingViaAndroid =>
-      'Standard Bluetooth routing via Android';
+      'Karaniwang ruta ng Bluetooth sa pamamagitan ng Android';
 
   @override
-  String get standardEngine => 'Standard Engine';
+  String get standardEngine => 'Karaniwang engine';
 
   @override
-  String get starlightSerenade => 'Starlight Serenade';
+  String get starlightSerenade => 'Harana sa ilalim ng mga bituin';
 
   @override
-  String get start => 'Start';
+  String get start => 'Simulan';
 
   @override
-  String get startAtNow => 'Start at Now';
+  String get startAtNow => 'Magsimula sa ngayon';
 
   @override
-  String get startBuildingYourHome => 'Start Building Your Home';
+  String get startBuildingYourHome =>
+      'Simulang buuin ang iyong pangunahing pahina';
 
   @override
   String get startPlayingToPopulateThisSpace =>
-      'Start playing to populate this space';
+      'Magpatugtog upang mapunan ang bahaging ito';
 
   @override
-  String get startStreaming => 'Start Streaming';
+  String get startStreaming => 'Simulan ang pag-stream';
 
   @override
-  String get startedPresetDownload => 'Started preset download.';
+  String get startedPresetDownload => 'Nagsimula ang pag-download ng preset.';
 
   @override
-  String get state => 'State';
+  String get state => 'Kalagayan';
 
   @override
-  String get status => 'Status';
+  String get status => 'Katayuan';
 
   @override
-  String get stepByStepWalkthroughOfThe =>
-      'Step-by-step walkthrough of the app';
+  String get stepByStepWalkthroughOfThe => 'Hakbang-hakbang na gabay sa app';
 
   @override
   String get stereo => 'Stereo';
 
   @override
-  String get stop => 'Stop';
+  String get stop => 'Ihinto';
 
   @override
-  String get stopAtTheEndOfThe => 'Stop at the end of the current list';
+  String get stopAtTheEndOfThe => 'Huminto sa dulo ng kasalukuyang listahan';
 
   @override
-  String get stopCasting => 'Stop Casting';
+  String get stopCasting => 'Ihinto ang pag-cast';
 
   @override
-  String get stopStreaming => 'Stop Streaming';
+  String get stopStreaming => 'Ihinto ang pag-stream';
 
   @override
-  String get stopUsbOnQuit => 'Stop USB on Quit';
+  String get stopUsbOnQuit => 'Ihinto ang USB kapag lumabas';
 
   @override
-  String get stopWhenTheQueueEnds => 'Stop when the queue ends';
+  String get stopWhenTheQueueEnds => 'Huminto kapag naubos ang pila';
 
   @override
   String stoppingIn(Object arg1) {
-    return 'Stopping in $arg1';
+    return 'Hihinto sa loob ng $arg1';
   }
 
   @override
-  String get storage => 'Storage';
+  String get storage => 'Imbakan';
 
   @override
   String get storageAccessIsRequiredToScan =>
-      'Storage access is required to scan and read music files, extract metadata, import/export EQ presets, and save recap images. All processing happens on-device.';
+      'Kailangan ang access sa imbakan upang i-scan at basahin ang mga file ng musika, kunin ang metadata, mag-import/mag-export ng mga preset ng EQ, at i-save ang mga larawan ng buod. Lahat ng pagproseso ay ginagawa sa aparato.';
 
   @override
   String get storagePermissionIsRequiredToAdd =>
-      'Storage permission is required to add music folders';
+      'Kailangan ang pahintulot sa imbakan upang magdagdag ng mga folder ng musika';
 
   @override
   String get storagePermissionRequiredForRecap =>
-      'Storage permission is required to save recap images on this Android version.';
+      'Kailangan ang pahintulot sa imbakan upang i-save ang mga larawan ng buod sa bersiyong ito ng Android.';
 
   @override
-  String get storagePermissions => 'Storage Permissions';
+  String get storagePermissions => 'Mga pahintulot sa imbakan';
 
   @override
-  String get storeOn => 'Store on';
+  String get storeOn => 'Iimbak sa';
 
   @override
   String get storedAsASaltedHashNever =>
-      'Stored as a salted hash, never in plaintext';
+      'Nakaimbak bilang salted hash, hindi kailanman bilang payak na teksto';
 
   @override
   String get storedEncodedPlaybackUnavailableInThis =>
-      'Stored base64-encoded — required for NTLM sign-in';
+      'Nakaimbak na base64-encoded — kailangan sa NTLM sign-in';
 
   @override
-  String get stormChasers => 'Storm Chasers';
+  String get stormChasers => 'Mga humahabol sa bagyo';
 
   @override
-  String get strategy => 'Strategy';
+  String get strategy => 'Paraan';
 
   @override
   String get stream => 'Stream';
 
   @override
   String get streamConfigurationNotAvailable =>
-      'Stream configuration not available';
+      'Walang makuhang pagsasaayos ng stream';
 
   @override
-  String get streamStable => 'Stream stable';
+  String get streamStable => 'Matatag ang stream';
 
   @override
-  String get streaming => 'Streaming';
+  String get streaming => 'Nag-i-stream';
 
   @override
-  String get streamingFromQueue => 'Streaming from queue';
+  String get streamingFromQueue => 'Nag-i-stream mula sa pila';
 
   @override
-  String get stretchNonSquareArt => 'Stretch Non-Square Art';
+  String get stretchNonSquareArt => 'I-stretch ang hindi parisukat na larawan';
 
   @override
-  String get strong => 'Strong';
+  String get strong => 'Malakas';
 
   @override
   String get studioGradeOutputForExternalDacs =>
-      'Studio-grade output for external DACs and headphone amps. Bypasses Android\'s audio processing for pure sound.';
+      'Output na pang-studio para sa mga panlabas na DAC at headphone amp. Nilalaktawan ang pagproseso ng tunog ng Android para sa dalisay na tunog.';
 
   @override
   String get sub => 'Sub';
@@ -7068,7 +7163,7 @@ class AppLocalizationsTl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count subfolders',
+      other: '$count subfolder',
       one: '$count subfolder',
     );
     return '$_temp0';
@@ -7079,168 +7174,174 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get subsonicServersSyncAndStreaming =>
-      'Subsonic servers, sync, and streaming';
+      'Mga Subsonic server, pagsabay, at pag-stream';
 
   @override
-  String get subtle => 'Subtle';
+  String get subtle => 'Banayad';
 
   @override
-  String get support => 'Support';
+  String get support => 'Suporta';
 
   @override
   String get supportDevelopmentOnBuyMeACoffee =>
-      'Support development on Buy Me a Coffee';
+      'Suportahan ang pagbuo sa Buy Me a Coffee';
 
   @override
-  String get supportDevelopmentOnKoFi => 'Support development on Ko-fi';
+  String get supportDevelopmentOnKoFi => 'Suportahan ang pagbuo sa Ko-fi';
 
   @override
-  String get supportFlick => 'Support Flick';
+  String get supportFlick => 'Suportahan ang Flick';
 
   @override
-  String get supportFlickOnKoFi => 'Support Flick on Ko-fi';
+  String get supportFlickOnKoFi => 'Suportahan ang Flick sa Ko-fi';
 
   @override
-  String get surfaceShading => 'Surface shading';
+  String get surfaceShading => 'Paglililim ng ibabaw';
 
   @override
   String get sweepAHighlightThroughWordsAs =>
-      'Sweep a highlight through words as they are sung';
+      'Idaan ang diin sa mga salita habang kinakanta ang mga ito';
 
   @override
-  String get swipe => 'Swipe';
+  String get swipe => 'Mag-swipe';
 
   @override
-  String get swipeActions => 'Swipe Actions';
+  String get swipeActions => 'Mga aksiyon ng pag-swipe';
 
   @override
   String get swipeHorizontallyToFineTuneEach =>
-      'Swipe horizontally to fine-tune each center band.';
+      'Mag-swipe pahalang upang pinuhin ang bawat gitnang band.';
 
   @override
-  String get swipeLeftRightToSkipTracks => 'Swipe left/right to skip tracks';
+  String get swipeLeftRightToSkipTracks =>
+      'Mag-swipe pakaliwa/pakanan upang lumipat ng kanta';
 
   @override
-  String get swipeLeftToUnfavoriteASong => 'Swipe left to unfavorite a song';
+  String get swipeLeftToUnfavoriteASong =>
+      'Mag-swipe pakaliwa upang alisin ang kanta sa mga paborito';
 
   @override
   String get swipeSongsLeftToQueueOr =>
-      'Swipe songs left to queue or right to favorite';
+      'I-swipe pakaliwa ang kanta para ipila o pakanan para gawing paborito';
 
   @override
-  String get swipeToShowOrHideThe => 'Swipe to show or hide the visualizer';
+  String get swipeToShowOrHideThe =>
+      'Mag-swipe upang ipakita o itago ang visualizer';
 
   @override
-  String get switchSongs => 'Switch Songs';
+  String get switchSongs => 'Lumipat ng kanta';
 
   @override
   String get switchToTheExclusiveUsbPath =>
-      'Switch to the exclusive USB path automatically when a DAC is attached. Declined DACs are remembered.';
+      'Awtomatikong lumipat sa eksklusibong USB path kapag may ikinabit na DAC. Tinatandaan ang mga tinanggihang DAC.';
 
   @override
   String get switchedBackToTheAutomaticLyrics =>
-      'Switched back to the automatic lyrics source.';
+      'Bumalik sa awtomatikong pinagmulan ng lirika.';
 
   @override
   String get syllablesTapALetterToSplit =>
-      'Syllables — tap a letter to split or merge:';
+      'Mga pantig — pindutin ang titik upang hatiin o pagsamahin:';
 
   @override
   String get symmetricalBarsMirroredFromTheCenter =>
-      'Symmetrical bars mirrored from the center';
+      'Magkabilang bar na magkatulad mula sa gitna';
 
   @override
-  String get sync => 'Sync';
+  String get sync => 'Isabay';
 
   @override
   String syncFailed(Object e) {
-    return 'Sync failed: $e';
+    return 'Hindi naisabay: $e';
   }
 
   @override
-  String get syncNow => 'Sync now';
+  String get syncNow => 'Isabay ngayon';
 
   @override
-  String get syncServerPlaylists => 'Sync Server Playlists';
+  String get syncServerPlaylists => 'Isabay ang mga talaan ng kanta ng server';
 
   @override
-  String get synced => 'Synced';
+  String get synced => 'Naisabay';
 
   @override
   String synced2(Object arg1) {
-    return 'Synced $arg1';
+    return 'Naisabay ang $arg1';
   }
 
   @override
-  String get syncedLrc => 'Synced LRC';
+  String get syncedLrc => 'LRC na may oras';
 
   @override
   String syncedPlaylistFromServers(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count playlists',
-      one: '$count playlist',
+      other: '$count talaan ng kanta',
+      one: '$count talaan ng kanta',
     );
-    return 'Synced $_temp0 from servers';
+    return 'Naisabay ang $_temp0 mula sa mga server';
   }
 
   @override
-  String get syncing => 'Syncing…';
+  String get syncing => 'Isinasabay…';
 
   @override
-  String get synthwaveCity => 'Synthwave City';
+  String get synthwaveCity => 'Lungsod ng Synthwave';
 
   @override
-  String get system => 'System';
+  String get system => 'Sistema';
 
   @override
-  String get systemAndroidMixer => 'System (Android mixer)';
+  String get systemAndroidMixer => 'Sistema (Android mixer)';
 
   @override
   String get tagsWereWrittenButCouldNot =>
-      'Tags were written but could not be confirmed by re-reading the file. A library rescan will reconcile any difference.';
+      'Naisulat ang mga tag ngunit hindi nakumpirma sa muling pagbasa ng file. Itutugma ng muling pag-scan ang anumang pagkakaiba.';
 
   @override
   String tap(Object label) {
-    return 'Tap: \"$label\"';
+    return 'Pindutin: \"$label\"';
   }
 
   @override
   String get tapABandToExpandDrag =>
-      'Tap a band to expand. Drag a knob to adjust. Tap a value to type directly.';
+      'Pindutin ang band upang palawakin. Hilahin ang knob upang baguhin. Pindutin ang halaga upang direktang mag-type.';
 
   @override
-  String get tapAllOrEnableAChip => 'Tap All or enable a chip to see results';
+  String get tapAllOrEnableAChip =>
+      'Pindutin ang Lahat o pumili ng kategorya upang makita ang mga resulta';
 
   @override
-  String get tapChipsToFilterCategories => 'Tap chips to filter categories';
+  String get tapChipsToFilterCategories =>
+      'Pindutin ang mga chip upang salain ang mga kategorya';
 
   @override
   String get tapEditTextTopRight =>
-      '1. Tap \"Edit Text\" (top right) and paste the lyrics — one line per row.\n2. Play the song.\n3. Pick the current line in the Lines list.\n4. Tap \"Stamp & Next\" when you hear that line.\n5. Save when done.';
+      '1. Pindutin ang \"Baguhin ang teksto\" (kanang itaas) at idikit ang lirika — isang linya sa bawat hanay.\n2. Patugtugin ang kanta.\n3. Piliin ang kasalukuyang linya sa listahan ng Mga linya.\n4. Pindutin ang \"Itala at sumunod\" kapag narinig mo ang linyang iyon.\n5. I-save kapag tapos na.';
 
   @override
   String get tapIconsToSwitchTabsLong =>
-      'Tap icons to switch tabs. Long-press to customize the bar.';
+      'Pindutin ang mga icon upang lumipat ng tab. Pindutin nang matagal upang baguhin ang bar.';
 
   @override
   String get tapTheHeartIconOnAny =>
-      'Tap the heart icon on any song\nto add it to your favorites';
+      'Pindutin ang puso sa alinmang kanta\nupang idagdag sa iyong mga paborito';
 
   @override
   String get tapTheMiniPlayerForWaveform =>
-      'Tap the mini player for waveform seekbar, EQ, lyrics, and visualizer.';
+      'Pindutin ang mini player para sa waveform seekbar, EQ, lirika, at visualizer.';
 
   @override
-  String get tapToInspect12602280Png => 'Tap to inspect · 1260 × 2280 PNG';
+  String get tapToInspect12602280Png =>
+      'Pindutin upang suriin · 1260 × 2280 PNG';
 
   @override
   String get tapToPlayLongPressFor =>
-      'Tap to play, long-press for options (queue, play next, info).';
+      'Pindutin upang patugtugin, pindutin nang matagal para sa mga opsiyon (pila, isunod sa pagtugtog, impormasyon).';
 
   @override
-  String get tapToPreview => 'Tap to preview';
+  String get tapToPreview => 'Pindutin para sa paunang tingin';
 
   @override
   String targetMs(Object arg1) {
@@ -7257,330 +7358,335 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String test(Object arg1) {
-    return 'Test: $arg1';
+    return 'Pagsubok: $arg1';
   }
 
   @override
-  String get testConnection => 'Test Connection';
+  String get testConnection => 'Subukan ang koneksiyon';
 
   @override
-  String get textGestures => 'Text & Gestures';
+  String get textGestures => 'Teksto at mga galaw';
 
   @override
-  String get textPlacement => 'Text placement';
+  String get textPlacement => 'Puwesto ng teksto';
 
   @override
-  String get textPlacement2 => 'Text Placement';
+  String get textPlacement2 => 'Puwesto ng teksto';
 
   @override
-  String get textSize => 'Text size';
+  String get textSize => 'Laki ng teksto';
 
   @override
-  String get textSize2 => 'Text Size';
+  String get textSize2 => 'Laki ng teksto';
 
   @override
-  String get thatSTheTour => 'That\'s the tour!';
+  String get thatSTheTour => 'Iyan ang ating maikling paglilibot!';
 
   @override
   String get theAppDoesNotKnowinglyCollect =>
-      'The app does not knowingly collect any information from anyone, regardless of age.';
+      'Hindi sadyang nangongolekta ang app ng anumang impormasyon mula sa sinuman, anuman ang edad.';
 
   @override
   String get theAppQueriesPublicApisMusicbrainz =>
-      'The app queries public APIs (MusicBrainz/Cover Art Archive, iTunes, Deezer) to find matching album art. Search queries use local music metadata. Downloaded images are cached locally.';
+      'Naghahanap ang app sa mga pampublikong API (MusicBrainz/Cover Art Archive, iTunes, Deezer) ng tugmang larawan ng album. Metadata ng lokal na musika ang gamit sa paghahanap. Lokal na naka-cache ang mga na-download na larawan.';
 
   @override
   String get theAudioEngineDeterminesHowYour =>
-      'The audio engine determines how your music is played back. Each option balances reliability, quality, and compatibility differently.';
+      'Ang audio engine ang nagtatakda kung paano tutugtugin ang iyong musika. Magkakaiba ang balanse ng pagiging maaasahan, kalidad, at compatibility ng bawat opsiyon.';
 
   @override
   String get theIsochronousUsbEngineWillBe =>
-      'The Isochronous USB engine will be stopped when the app quits.';
+      'Ihihinto ang Isochronous USB engine kapag lumabas sa app.';
 
   @override
   String get theIsochronousUsbEngineWillStay =>
-      'The Isochronous USB engine will stay alive when the app quits.';
+      'Mananatiling gumagana ang Isochronous USB engine kapag lumabas sa app.';
 
   @override
   String get theNamesShowingUpAgainAnd =>
-      'The names showing up again and again in your recent queue.';
+      'Mga pangalang paulit-ulit na lumilitaw sa iyong kamakailang pila.';
 
   @override
   String get thePosterIsNotReadyYet =>
-      'The poster is not ready yet. Try saving again.';
+      'Hindi pa handa ang poster. Subukang i-save muli.';
 
   @override
   String get theTracksDominatingYourWeeklyAnd =>
-      'The tracks dominating your weekly and monthly recap.';
+      'Mga kantang nangingibabaw sa iyong lingguhan at buwanang buod.';
 
   @override
   String get thisAppIsBuiltByA =>
-      'This app is built by a solo developer with zero budget. If you love high-fidelity audio, consider supporting its development on Ko-fi.';
+      'Binuo ang app na ito ng nag-iisang developer na walang badyet. Kung mahal mo ang tapat na tunog, pag-isipang suportahan ang pagbuo nito sa Ko-fi.';
 
   @override
   String get thisClearsYourCurrentDayStreak =>
-      'This clears your current day streak and any unlocked streak milestones. This cannot be undone.';
+      'Aalisin nito ang kasalukuyang sunod-sunod na araw at lahat ng nakamit na yugto nito. Hindi ito maibabalik.';
 
   @override
-  String get thisDevice => 'This device';
+  String get thisDevice => 'Ang aparatong ito';
 
   @override
-  String get thisFolderAppearsToBeEmpty => 'This folder appears to be empty';
+  String get thisFolderAppearsToBeEmpty =>
+      'Mukhang walang laman ang folder na ito';
 
   @override
-  String get thisFolderHasAlreadyBeenAdded =>
-      'This folder has already been added';
+  String get thisFolderHasAlreadyBeenAdded => 'Naidagdag na ang folder na ito';
 
   @override
-  String get thisMonth => 'This Month';
+  String get thisMonth => 'Ngayong buwan';
 
   @override
-  String get thisMonthSRecap => 'This Month\'s Recap';
+  String get thisMonthSRecap => 'Buod ng buwang ito';
 
   @override
   String thisRemovesAllEntriesFromMemory(Object arg1) {
-    return 'This removes all $arg1 entries from memory.';
+    return 'Aalisin nito ang lahat ng $arg1 tala sa memory.';
   }
 
   @override
   String get thisSlowsPlaybackTo432440 =>
-      'This slows playback to 432/440 (~1.8% lower pitch and tempo) and disables bit-perfect passthrough. Music will sound slightly lower in tone. Only enable this if you intentionally want A=432 tuning.';
+      'Pinababagal nito ang pagtugtog sa 432/440 (humigit-kumulang 1.8% na mas mababang pitch at tempo) at pinapatay ang bit-perfect passthrough. Bahagyang bababa ang tono ng musika. I-on lamang kung sadyang nais mo ang A=432 tuning.';
 
   @override
   String get thisSongHasNoFilePath =>
-      'This song has no file path and cannot be edited.';
+      'Walang file path ang kantang ito at hindi ito mababago.';
 
   @override
   String get thisSongIsMissingAlbumMetadata =>
-      'This song is missing album metadata, so online matching is limited.';
+      'Walang metadata ng album ang kantang ito, kaya limitado ang pagtutugma online.';
 
   @override
-  String get thisSongOnly => 'This song only';
+  String get thisSongOnly => 'Kantang ito lamang';
 
   @override
-  String get thisWeek => 'This Week';
+  String get thisWeek => 'Ngayong linggo';
 
   @override
-  String get thisWeekSRecap => 'This Week\'s Recap';
+  String get thisWeekSRecap => 'Buod ng linggong ito';
 
   @override
-  String get thisYearSRecap => 'This Year\'s Recap';
+  String get thisYearSRecap => 'Buod ng taong ito';
 
   @override
   String get threshold => 'Threshold';
 
   @override
-  String get thunderRoad => 'Thunder Road';
+  String get thunderRoad => 'Daan ng kulog';
 
   @override
   String get tidal => 'Tidal';
 
   @override
   String get tidalAppKeyRejected =>
-      'Tidal rejected the app sign-in key. It rotates these — the built-in key may be out of date (a known limitation of the unofficial path).';
+      'Tinanggihan ng Tidal ang sign-in key ng app. Pinapalitan nila ang mga ito — maaaring luma na ang nakapaloob na key (kilalang limitasyon ng hindi opisyal na paraan).';
 
   @override
   String tidalCouldNotReach(int status) {
-    return 'Could not reach Tidal (HTTP $status). Check your connection.';
+    return 'Hindi maabot ang Tidal (HTTP $status). Suriin ang iyong koneksiyon.';
   }
 
   @override
   String tidalEncryptedTrack(String trackId) {
-    return 'Track $trackId is encrypted (HiRes/MQA). Only unencrypted HiFi lossless is supported.';
+    return 'Naka-encrypt ang kantang $trackId (HiRes/MQA). Hindi naka-encrypt na HiFi lossless lamang ang suportado.';
   }
 
   @override
   String tidalManifestDecodeFailed(String trackId, String error) {
-    return 'Could not decode the Tidal manifest for track $trackId: $error';
+    return 'Hindi mabasa ang Tidal manifest para sa kantang $trackId: $error';
   }
 
   @override
   String tidalManifestNoStream(String trackId) {
-    return 'Track $trackId has no stream URL in its manifest.';
+    return 'Walang stream URL sa manifest ng kantang $trackId.';
   }
 
   @override
-  String get tidalNoPlayableStream => 'No playable stream for this track.';
+  String get tidalNoPlayableStream =>
+      'Walang mapatutugtog na stream para sa kantang ito.';
 
   @override
-  String get tidalNoSignInCode => 'Tidal did not return a sign-in code.';
+  String get tidalNoSignInCode => 'Walang ibinalik na sign-in code ang Tidal.';
 
   @override
   String get tidalNotSignedIn =>
-      'No Tidal sign-in. Tap \"Sign in with Tidal\".';
+      'Hindi naka-sign in sa Tidal. Pindutin ang \"Mag-sign in sa Tidal\".';
 
   @override
   String tidalOpenLinkManually(String uri) {
-    return 'Couldn\'t open the browser automatically. Open this link on any device to finish signing in, then tap Sign in again:\n\n$uri';
+    return 'Hindi awtomatikong mabuksan ang browser. Buksan ang link na ito sa anumang aparato upang tapusin ang pag-sign in, saka pindutin muli ang Mag-sign in:\n\n$uri';
   }
 
   @override
   String get tidalSessionExpired =>
-      'Tidal session expired. Please sign in again.';
+      'Nag-expire ang sesyon ng Tidal. Mag-sign in muli.';
 
   @override
-  String get tidalSignInDenied => 'Tidal sign-in was denied.';
+  String get tidalSignInDenied => 'Hindi pinayagan ang pag-sign in sa Tidal.';
 
   @override
-  String get tidalSignInExpired => 'The Tidal sign-in code expired. Try again.';
+  String get tidalSignInExpired =>
+      'Nag-expire ang sign-in code ng Tidal. Subukan muli.';
 
   @override
-  String get tidalSignInRefused => 'Tidal refused the sign-in. Try again.';
+  String get tidalSignInRefused =>
+      'Tinanggihan ng Tidal ang pag-sign in. Subukan muli.';
 
   @override
-  String get tidalSignInTimedOut => 'Timed out waiting for Tidal sign-in.';
+  String get tidalSignInTimedOut =>
+      'Naubos ang oras sa paghihintay ng pag-sign in sa Tidal.';
 
   @override
-  String get tidalTokenRefreshFailed => 'Tidal token refresh failed.';
+  String get tidalTokenRefreshFailed => 'Hindi na-refresh ang token ng Tidal.';
 
   @override
   String get tidalTooManyRequests =>
-      'Too many Tidal requests. Wait a moment and try again.';
+      'Masyadong maraming kahilingan sa Tidal. Maghintay sandali at subukan muli.';
 
   @override
   String get tidalUnavailable =>
-      'Tidal is unavailable right now. Try again shortly.';
+      'Hindi magamit ang Tidal ngayon. Subukan muli mamaya.';
 
   @override
   String tidalUnsupportedFormat(String trackId) {
-    return 'Track $trackId uses an unsupported Tidal format (HiRes/MQA/Atmos). Only unencrypted HiFi lossless is supported.';
+    return 'Gumagamit ang kantang $trackId ng hindi suportadong format ng Tidal (HiRes/MQA/Atmos). Hindi naka-encrypt na HiFi lossless lamang ang suportado.';
   }
 
   @override
-  String get time => 'Time';
+  String get time => 'Oras';
 
   @override
-  String get timeShift => 'Time Shift';
+  String get timeShift => 'Pag-usog ng oras';
 
   @override
-  String get timestamp => 'Timestamp';
+  String get timestamp => 'Tatak ng oras';
 
   @override
-  String get tintedFromTodaySTopCover => 'Tinted from today\'s top cover';
+  String get tintedFromTodaySTopCover =>
+      'May tint mula sa nangungunang pabalat ngayong araw';
 
   @override
-  String get tips => 'Tips';
+  String get tips => 'Mga payo';
 
   @override
-  String get title => 'Title';
+  String get title => 'Pamagat';
 
   @override
-  String get toRemove => 'To remove';
+  String get toRemove => 'Aalisin';
 
   @override
-  String get today => 'Today';
+  String get today => 'Ngayon';
 
   @override
-  String get todaySRecap => 'Today\'s Recap';
+  String get todaySRecap => 'Buod ngayong araw';
 
   @override
-  String get toneControls => 'Tone Controls';
+  String get toneControls => 'Mga kontrol ng tono';
 
   @override
-  String get tools => 'Tools';
+  String get tools => 'Mga kasangkapan';
 
   @override
-  String get top => 'Top';
+  String get top => 'Itaas';
 
   @override
-  String get topAlbum => 'Top album';
+  String get topAlbum => 'Nangungunang album';
 
   @override
-  String get topArtist => 'Top artist';
+  String get topArtist => 'Nangungunang kumanta';
 
   @override
-  String get topArtists => 'Top artists';
+  String get topArtists => 'Mga nangungunang kumanta';
 
   @override
-  String get topSongs => 'Top Songs';
+  String get topSongs => 'Mga nangungunang kanta';
 
   @override
-  String get topSongs2 => 'Top songs';
+  String get topSongs2 => 'Mga nangungunang kanta';
 
   @override
-  String get total => 'Total';
+  String get total => 'Kabuuan';
 
   @override
-  String get track => 'Track';
+  String get track => 'Kanta';
 
   @override
   String track2(Object arg1) {
-    return 'Track $arg1';
+    return 'Kanta $arg1';
   }
 
   @override
-  String get track3 => 'Track #';
+  String get track3 => 'Kanta #';
 
   @override
-  String get trackBitDepth => 'Track Bit Depth';
+  String get trackBitDepth => 'Bit depth ng kanta';
 
   @override
-  String get trackChannels => 'Track Channels';
+  String get trackChannels => 'Mga channel ng kanta';
 
   @override
   String get trackConsecutiveListeningDaysAndShow =>
-      'Track consecutive listening days and show the popup';
+      'Itala ang sunod-sunod na araw ng pakikinig at ipakita ang abiso';
 
   @override
-  String get trackCount => 'Track Count';
+  String get trackCount => 'Bilang ng kanta';
 
   @override
-  String get trackDsdRate => 'Track DSD Rate';
+  String get trackDsdRate => 'DSD rate ng kanta';
 
   @override
-  String get trackNumber => 'Track Number';
+  String get trackNumber => 'Numero ng kanta';
 
   @override
-  String get trackSampleRate => 'Track Sample Rate';
+  String get trackSampleRate => 'Sample rate ng kanta';
 
   @override
-  String get trackThumbnails => 'Track Thumbnails';
+  String get trackThumbnails => 'Maliliit na larawan ng kanta';
 
   @override
-  String get trackTime => 'Track time';
+  String get trackTime => 'Oras ng kanta';
 
   @override
   String get trackTimeSumsTheFullDuration =>
-      'Track time sums the full duration of logged plays.';
+      'Binibilang ng oras ng kanta ang buong tagal ng mga naitalang pagtugtog.';
 
   @override
   String tracks(Object _totalTracks) {
-    return '$_totalTracks tracks';
+    return '$_totalTracks kanta';
   }
 
   @override
   String tracks2(Object arg1) {
-    return '$arg1 tracks';
+    return '$arg1 kanta';
   }
 
   @override
   String tracks3(Object arg1) {
-    return '$arg1 tracks';
+    return '$arg1 kanta';
   }
 
   @override
   String tracks4(Object arg1) {
-    return '$arg1 tracks';
+    return '$arg1 kanta';
   }
 
   @override
   String tracks5(Object arg1, Object arg2) {
-    return '$arg1 · $arg2 tracks';
+    return '$arg1 · $arg2 kanta';
   }
 
   @override
   String tracks6(Object arg1) {
-    return '$arg1 tracks';
+    return '$arg1 kanta';
   }
 
   @override
   String tracks7(Object trackCount, Object arg1) {
-    return '$trackCount tracks • $arg1';
+    return '$trackCount kanta • $arg1';
   }
 
   @override
   String tracks8(Object arg1) {
-    return '$arg1 tracks';
+    return '$arg1 kanta';
   }
 
   @override
@@ -7589,59 +7695,63 @@ class AppLocalizationsTl extends AppLocalizations {
     Object favoriteCount,
     Object playlistCount,
   ) {
-    return '$songCount tracks, $favoriteCount liked songs, $playlistCount playlists';
+    return '$songCount na kanta\n$favoriteCount mga paborito mo\n$playlistCount playlist';
   }
 
   @override
   String tracksReadyToRevisit(Object favoritesCount) {
-    return '$favoritesCount tracks ready to revisit';
+    return '$favoritesCount kantang handang balikan';
   }
 
   @override
   String get tracksThatFitTheQuieterSide =>
-      'Tracks that fit the quieter side of your listening habits.';
+      'Mga kantang tugma sa mas tahimik mong pakikinig.';
 
   @override
-  String get transparent => 'Transparent';
+  String get transparent => 'Aninag';
 
   @override
   String get treble => 'Treble';
 
   @override
   String get trueRandomMayRepeatBeforeList =>
-      'True random (may repeat before list ends)';
+      'Tunay na sapalaran (maaaring maulit bago matapos ang listahan)';
 
   @override
-  String get truncate => 'Truncate';
+  String get truncate => 'Putulin';
 
   @override
-  String get tryAdjustingYourSearchQuery => 'Try adjusting your search query';
+  String get tryAdjustingYourSearchQuery =>
+      'Subukang baguhin ang iyong hinahanap';
 
   @override
-  String get tryAgain => 'Try again';
+  String get tryAgain => 'Subukan muli';
 
   @override
   String get tryAnotherKeywordOrEnableMore =>
-      'Try another keyword or enable more categories';
+      'Subukan ang ibang salita o magdagdag ng mga kategorya';
 
   @override
-  String get tryOriginalSearch => 'Try original search';
+  String get tryOriginalSearch => 'Subukan ang orihinal na paghahanap';
 
   @override
   String get tryPickingALocalImageIf =>
-      'Try picking a local image if the release metadata is uncommon.';
+      'Subukang pumili ng lokal na larawan kung hindi karaniwan ang metadata ng release.';
 
   @override
-  String get turnOff432HzTuningTo => 'Turn off 432 Hz tuning to use crossfade';
+  String get turnOff432HzTuningTo =>
+      'I-off ang 432 Hz tuning upang magamit ang crossfade';
 
   @override
-  String get turnOff432HzTuningTo2 => 'Turn off 432 Hz tuning to use crossfeed';
+  String get turnOff432HzTuningTo2 =>
+      'I-off ang 432 Hz tuning upang magamit ang crossfeed';
 
   @override
-  String get typeABrandAndModelTo => 'Type a brand and model to search online.';
+  String get typeABrandAndModelTo =>
+      'I-type ang tatak at modelo upang maghanap online.';
 
   @override
-  String get u162ByteSubslotsLlRr => 'U16 — 2-byte subslots, LL|RR';
+  String get u162ByteSubslotsLlRr => 'U16 — 2-byte subslot, LL|RR';
 
   @override
   String u2022(Object arg1, Object valueLabel) {
@@ -7660,446 +7770,449 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get u324ByteSubslotsLlllRrrr =>
-      'U32 — 4-byte subslots, LLLL|RRRR (legacy)';
+      'U32 — 4-byte subslot, LLLL|RRRR (luma)';
 
   @override
   String get u8ByteInterleavedLrlr => 'U8 — byte-interleaved LRLR';
 
   @override
   String get u8ByteInterleavedRecommendedDefault =>
-      'U8 — byte-interleaved, recommended default';
+      'U8 — byte-interleaved, inirerekomendang default';
 
   @override
-  String get uac2AndEqualizer => 'UAC2 and equalizer';
+  String get uac2AndEqualizer => 'UAC2 at equalizer';
 
   @override
   String get uac2IsNotAvailableOnThis =>
-      'UAC2 is not available on this platform';
+      'Hindi magagamit ang UAC2 sa platform na ito';
 
   @override
-  String get uac2NotAvailableOnThisPlatform =>
-      'UAC2 not available on this platform';
+  String get uac2NotAvailableOnThisPlatform => 'Walang UAC2 sa platform na ito';
 
   @override
-  String get uac2Preferences => 'UAC2 Preferences';
+  String get uac2Preferences => 'Mga kagustuhan sa UAC2';
 
   @override
   String get uac2PreferencesResetSuccessfully =>
-      'UAC2 preferences reset successfully';
+      'Matagumpay na na-reset ang mga kagustuhan sa UAC2';
 
   @override
-  String get uiCustomization => 'UI Customization';
+  String get uiCustomization => 'Pagpapasadya ng UI';
 
   @override
   String get ultra => 'Ultra';
 
   @override
   String get unableToCheckForUpdatesRight =>
-      'Unable to check for updates right now.';
+      'Hindi makapaghanap ng update ngayon.';
 
   @override
   String get unableToLoadPatchNotesRight =>
-      'Unable to load patch notes right now.';
+      'Hindi ma-load ang mga tala ng pagbabago ngayon.';
 
   @override
   String get unableToOpenAllFilesAccess =>
-      'Unable to open All Files Access settings';
+      'Hindi mabuksan ang mga setting ng All Files Access';
 
   @override
   String get unableToOpenBatteryOptimizationSettings =>
-      'Unable to open battery optimization settings';
+      'Hindi mabuksan ang mga setting ng pagtitipid sa baterya';
 
   @override
   String unavailable(Object featureName) {
-    return '$featureName Unavailable';
+    return 'Hindi magagamit ang $featureName';
   }
 
   @override
-  String get unavailable2 => 'Unavailable';
+  String get unavailable2 => 'Hindi magagamit';
 
   @override
   String underruns(Object arg1) {
-    return '$arg1 underruns';
+    return '$arg1 underrun';
   }
 
   @override
-  String get undo => 'Undo';
+  String get undo => 'Ibalik';
 
   @override
-  String get unfavorite => 'Unfavorite';
+  String get unfavorite => 'Alisin sa mga paborito';
 
   @override
-  String get unfavoriteSelected => 'Unfavorite selected';
+  String get unfavoriteSelected => 'Alisin ang napili sa mga paborito';
 
   @override
-  String get uniqueArtists => 'Unique Artists';
+  String get uniqueArtists => 'Mga natatanging kumanta';
 
   @override
-  String get universalCompatibility => 'Universal compatibility';
+  String get universalCompatibility => 'Pangkalahatang compatibility';
 
   @override
-  String get unknown => 'Unknown';
+  String get unknown => 'Hindi kilala';
 
   @override
-  String get unknownAlbum => 'Unknown Album';
+  String get unknownAlbum => 'Hindi kilalang album';
 
   @override
-  String get unknownArtist => 'Unknown Artist';
+  String get unknownArtist => 'Hindi kilalang kumanta';
 
   @override
-  String get unknownBitrate => 'Unknown bitrate';
+  String get unknownBitrate => 'Hindi kilalang bitrate';
 
   @override
-  String get unknownFolder => 'Unknown Folder';
+  String get unknownFolder => 'Hindi kilalang folder';
 
   @override
-  String get unknownLastFmError => 'Unknown Last.fm error';
+  String get unknownLastFmError => 'Hindi kilalang error sa Last.fm';
 
   @override
-  String get unknownTitle => 'Unknown Title';
+  String get unknownTitle => 'Hindi kilalang pamagat';
 
   @override
-  String get unknownTrack => 'Unknown Track';
+  String get unknownTrack => 'Hindi kilalang kanta';
 
   @override
   String unlocked(Object unlocked, Object arg1) {
-    return '$unlocked / $arg1 unlocked';
+    return '$unlocked / $arg1 nakamit';
   }
 
   @override
   String unlocked3(Object _milestonesUnlocked, Object arg1) {
-    return '$_milestonesUnlocked / $arg1 unlocked';
+    return '$_milestonesUnlocked / $arg1 nakamit';
   }
 
   @override
-  String get unmute => 'Unmute';
+  String get unmute => 'Ibalik ang tunog';
 
   @override
-  String get unreported => 'Unreported';
+  String get unreported => 'Hindi iniulat';
 
   @override
-  String get unsavedChanges => 'Unsaved Changes';
+  String get unsavedChanges => 'Mga pagbabagong hindi pa na-save';
 
   @override
   String up(Object arg1) {
-    return '$arg1 up';
+    return '$arg1 pagtaas';
   }
 
   @override
-  String get upNext => 'Up next';
+  String get upNext => 'Susunod';
 
   @override
   String upcomingSong(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count upcoming songs',
-      one: '$count upcoming song',
+      other: '$count susunod na kanta',
+      one: '$count susunod na kanta',
     );
     return '$_temp0';
   }
 
   @override
-  String get update => 'Update';
+  String get update => 'I-update';
 
   @override
-  String get updateAvailable => 'Update Available';
+  String get updateAvailable => 'Yun oh! May bagong update na naman!';
 
   @override
   String get updateAvailableDownloadFromFlickPlayer =>
-      'Update available — download from flick-player.site';
+      'May bagong update — i-download sa flick-player.site';
 
   @override
   String get updateAvailableOnThePlayStore =>
-      'Update available on the Play Store.';
+      'May bagong update sa Play Store.';
 
   @override
-  String get updateNoticeHidden => 'Update notice hidden.';
+  String get updateNoticeHidden => 'Naitago ang abiso ng update.';
 
   @override
   String updated(Object arg1) {
-    return 'Updated $arg1';
+    return 'Na-update ang $arg1';
   }
 
   @override
   String updatedAlbumArtFor(Object arg1) {
-    return 'Updated album art for \"$arg1\".';
+    return 'Na-update ang larawan ng album para sa \"$arg1\".';
   }
 
   @override
   String updatedAlbumArtFor2(Object arg1) {
-    return 'Updated album art for \"$arg1\".';
+    return 'Na-update ang larawan ng album para sa \"$arg1\".';
   }
 
   @override
-  String get updates => 'Updates';
+  String get updates => 'Mga update';
 
   @override
-  String get updatesAboutAndSupport => 'Updates, about, and support';
+  String get updatesAboutAndSupport => 'Mga update, tungkol, at suporta';
 
   @override
-  String get upload => 'Upload';
+  String get upload => 'I-upload';
 
   @override
   String uploadFailed(Object arg1) {
-    return 'Upload failed ($arg1).';
+    return 'Hindi na-upload ($arg1).';
   }
 
   @override
   String uploadFailed2(Object e) {
-    return 'Upload failed: $e';
+    return 'Hindi na-upload: $e';
   }
 
   @override
-  String get uploadLogsAsALink => 'Upload logs as a link?';
+  String get uploadLogsAsALink => 'I-upload ang mga log bilang link?';
 
   @override
   String get upnpDlna => 'UPnP / DLNA';
 
   @override
-  String get urbPacket => 'URB Packet';
+  String get urbPacket => 'URB packet';
 
   @override
-  String get urbTransfer => 'URB Transfer';
+  String get urbTransfer => 'URB transfer';
 
   @override
-  String get urbanEchoes => 'Urban Echoes';
+  String get urbanEchoes => 'Mga alingawngaw ng lungsod';
 
   @override
   String get usbAudioClass20Devices =>
-      'USB Audio Class 2.0 devices (external DACs/AMPs) are accessed locally for bit-perfect audio playback. No USB device information is transmitted externally.';
+      'Lokal na ina-access ang mga USB Audio Class 2.0 device (panlabas na DAC/AMP) para sa bit-perfect na pagtugtog. Walang impormasyon ng USB device na ipinapadala sa labas.';
 
   @override
-  String get usbAudioDevice => 'USB Audio Device';
+  String get usbAudioDevice => 'USB audio device';
 
   @override
-  String get usbAudioDevices => 'USB Audio Devices';
+  String get usbAudioDevices => 'Mga USB audio device';
 
   @override
-  String get usbAudioError => 'USB Audio Error';
+  String get usbAudioError => 'Error sa USB audio';
 
   @override
   String get usbAudioUac2 => 'USB Audio (UAC2)';
 
   @override
   String get usbDacAutoBitPerfectOffers =>
-      'USB DAC auto bit-perfect offers reset.';
+      'Na-reset ang mga awtomatikong alok na bit-perfect sa USB DAC.';
 
   @override
   String get usbDacsHeadphonesAndReferenceGear =>
-      'USB DACs, headphones, and reference gear to test and improve playback quality.';
+      'Mga USB DAC, headphone, at sangguniang kagamitan upang subukan at paghusayin ang kalidad ng pagtugtog.';
 
   @override
-  String get usbDeviceAccess => 'USB Device Access';
+  String get usbDeviceAccess => 'Access sa USB device';
 
   @override
-  String get usbNotConnected => 'USB not connected';
+  String get usbNotConnected => 'Hindi nakakonekta ang USB';
 
   @override
-  String get usbRouteVolume => 'USB Route Volume';
+  String get usbRouteVolume => 'Volume ng USB route';
 
   @override
-  String get usbStorageNotConnected => 'USB storage not connected';
+  String get usbStorageNotConnected => 'Hindi nakakonekta ang USB storage';
 
   @override
-  String get usbVolume => 'USB Volume';
+  String get usbVolume => 'Volume ng USB';
 
   @override
-  String get usbVolumeInSettings => 'USB Volume in Settings';
+  String get usbVolumeInSettings => 'Volume ng USB sa Mga pagsasaayos';
 
   @override
-  String get usbVolumeOnHome => 'USB Volume on Home';
+  String get usbVolumeOnHome => 'Volume ng USB sa pangunahing pahina';
 
   @override
   String get useAFixed48khz16bitOutput =>
-      'Use a fixed 48kHz/16bit output for better compatibility';
+      'Gumamit ng nakapirming 48kHz/16bit output para sa mas malawak na compatibility';
 
   @override
   String get useAaudioDirectlyLowestLatencyOn =>
-      'Use AAudio directly. Lowest latency on Android 8.1 and newer.';
+      'Direktang gamitin ang AAudio. Pinakamababang latency sa Android 8.1 at mas bago.';
 
   @override
-  String get useAlbumArtAsBackground => 'Use album art as background';
+  String get useAlbumArtAsBackground =>
+      'Gamitin ang larawan ng album bilang likuran';
 
   @override
-  String get useAutoSource => 'Use Auto Source';
+  String get useAutoSource => 'Gamitin ang awtomatikong pinagmulan';
 
   @override
-  String get useCurrentTime => 'Use Current Time';
+  String get useCurrentTime => 'Gamitin ang kasalukuyang oras';
 
   @override
-  String get useExistingFile => 'Use Existing File';
+  String get useExistingFile => 'Gamitin ang umiiral na file';
 
   @override
   String get useExistingFileInTheLyrics =>
-      '- \"Use Existing File\" in the lyrics panel links an `.lrc`, `.txt`, or `.xml` file.\n- If some lines are not stamped, Flick fills their times automatically.\n- Save writes beside the song when possible, otherwise Flick stores a linked copy.';
+      '- Iniuugnay ng \"Gamitin ang umiiral na file\" sa panel ng lirika ang `.lrc`, `.txt`, o `.xml` file.\n- Kung may mga linya pang walang oras, awtomatikong pupunan ng Flick ang mga ito.\n- Isinusulat ang na-save katabi ng kanta kung maaari; kung hindi, nag-iimbak ang Flick ng naka-link na kopya.';
 
   @override
   String get useFilesystemLevelScanningInsteadOf =>
-      'Use filesystem-level scanning instead of MediaStore for full tag accuracy';
+      'Gumamit ng pag-scan sa filesystem sa halip na MediaStore para sa buong katumpakan ng mga tag';
 
   @override
-  String get useMmSsCcEG => 'Use mm:ss.cc, e.g. 01:23.45';
+  String get useMmSsCcEG => 'Gamitin ang mm:ss.cc, hal. 01:23.45';
 
   @override
   String get useTheCurrentAudioFileS =>
-      'Use the current audio file\'s name when saving lyrics internally';
+      'Gamitin ang pangalan ng kasalukuyang audio file kapag sine-save ang lirika sa loob ng app';
 
   @override
   String get useTheDefaultMonochromeTheme =>
-      'Use the default monochrome theme.';
+      'Gamitin ang default na monochrome na tema.';
 
   @override
   String get useTheHighestFixedOutputRate =>
-      'Use the highest fixed output rate and bit depth available';
+      'Gamitin ang pinakamataas na magagamit na nakapirming output rate at bit depth';
 
   @override
   String get useTheLegacyOpenslEsBackend =>
-      'Use the legacy OpenSL ES backend. Troubleshooting fallback for older or problematic devices.';
+      'Gamitin ang lumang OpenSL ES backend. Pamalit para sa pag-troubleshoot ng mas luma o problemadong aparato.';
 
   @override
-  String get useTheListSongsBrowser => 'Use the list songs browser';
+  String get useTheListSongsBrowser =>
+      'Gamitin ang listahang tanaw ng mga kanta';
 
   @override
-  String get useTheOrbitalSongsBrowser => 'Use the orbital songs browser';
+  String get useTheOrbitalSongsBrowser =>
+      'Gamitin ang orbital na tanaw ng mga kanta';
 
   @override
   String get useTheVerifiedDirectUsbPath =>
-      'Use the verified direct USB path and disable software DSP controls that would break bit-perfect playback on an external USB DAC.';
+      'Gamitin ang napatunayang direktang USB path at patayin ang mga kontrol ng software DSP na sisira sa bit-perfect na pagtugtog sa panlabas na USB DAC.';
 
   @override
-  String get userToken => 'User Token';
+  String get userToken => 'User token';
 
   @override
   String get username => 'Username';
 
   @override
   String using(Object arg1) {
-    return 'Using $arg1';
+    return 'Ginagamit ang $arg1';
   }
 
   @override
   String using2(Object arg1) {
-    return 'Using $arg1';
+    return 'Ginagamit ang $arg1';
   }
 
   @override
-  String get variableBitrateLowLatency => 'Variable bitrate, low latency';
+  String get variableBitrateLowLatency =>
+      'Pabago-bagong bitrate, mababang latency';
 
   @override
-  String get variousArtists2 => 'Various Artists';
+  String get variousArtists2 => 'Iba\'t ibang kumanta';
 
   @override
-  String get velvetNoir => 'Velvet Noir';
+  String get velvetNoir => 'Itim na pelus';
 
   @override
   String get vendorId => 'Vendor ID';
 
   @override
   String get verboseDartRustAndCrashLogs =>
-      'Verbose Dart, Rust, and crash logs';
+      'Detalyadong mga log ng Dart, Rust, at pag-crash';
 
   @override
-  String get verified => 'Verified';
+  String get verified => 'Napatunayan';
 
   @override
   String version(Object kAppVersion) {
-    return 'Version $kAppVersion';
+    return 'Bersiyon $kAppVersion';
   }
 
   @override
   String version2(Object arg1) {
-    return 'Version $arg1';
+    return 'Bersiyon $arg1';
   }
 
   @override
   String get verticalBarsClassicSpectrumAnalyzer =>
-      'Vertical bars — classic spectrum analyzer';
+      'Mga patayong bar — klasikong spectrum analyzer';
 
   @override
   String get verticalBarsThatAnimateAcrossThe =>
-      'Vertical bars that animate across the screen.';
+      'Mga patayong bar na gumagalaw sa buong screen.';
 
   @override
-  String get verticalPosition => 'Vertical Position';
+  String get verticalPosition => 'Patayong puwesto';
 
   @override
-  String get vibrant => 'Vibrant';
+  String get vibrant => 'Matingkad';
 
   @override
-  String get viewAsGrid => 'View as grid';
+  String get viewAsGrid => 'Tingnan bilang grid';
 
   @override
-  String get viewAsList => 'View as list';
+  String get viewAsList => 'Tingnan bilang listahan';
 
   @override
-  String get viewMetadata => 'View Metadata';
+  String get viewMetadata => 'Tingnan ang metadata';
 
   @override
-  String get viewOnboarding => 'View Onboarding';
+  String get viewOnboarding => 'Tingnan ang panimulang gabay';
 
   @override
-  String get viewQueue => 'View queue';
+  String get viewQueue => 'Tingnan ang pila';
 
   @override
   String get visualizer => 'Visualizer';
 
   @override
   String get visualizerAlbumColorsDescription =>
-      'Follow the album cover colors; monochrome when unavailable';
+      'Sundin ang mga kulay ng pabalat; monochrome kapag walang magagamit';
 
   @override
-  String get visualizerBlocks => 'Fading Blocks';
+  String get visualizerBlocks => 'Kumukupas na mga bloke';
 
   @override
   String get visualizerBlocksDescription =>
-      'Segmented bars with softly fading trails';
+      'Hinati-hating bar na may banayad na kumukupas na bakas';
 
   @override
-  String get visualizerColors => 'Colors';
+  String get visualizerColors => 'Mga kulay';
 
   @override
   String get visualizerMonochrome => 'Monochrome';
 
   @override
   String get visualizerMonochromeDescription =>
-      'White and gray, independent of the album cover';
+      'Puti at abo, hiwalay sa pabalat ng album';
 
   @override
-  String get visualizerRainbow => 'Rainbow';
+  String get visualizerRainbow => 'Bahaghari';
 
   @override
   String get visualizerRainbowDescription =>
-      'A spectrum of colors across the visualizer';
+      'Hanay ng mga kulay sa buong visualizer';
 
   @override
-  String get visuals => 'Visuals';
+  String get visuals => 'Mga biswal';
 
   @override
   String get volume => 'Volume';
 
   @override
-  String get volumeControl => 'Volume Control';
+  String get volumeControl => 'Kontrol ng volume';
 
   @override
   String get volumeDipsWhileNotificationSoundsPlay =>
-      'Volume dips while notification sounds play';
+      'Humihina ang volume habang tumutunog ang mga abiso';
 
   @override
   String get volumeIsFixedWhileBitPerfect =>
-      'Volume is fixed during bit-perfect passthrough because USB hardware volume is unavailable in Flick. Use the device controls, or play PCM with bit-perfect disabled for software volume.';
+      'Nakapirmi ang volume habang bit-perfect passthrough dahil walang USB hardware volume sa Flick. Gamitin ang mga kontrol ng aparato, o magpatugtog ng PCM na naka-off ang bit-perfect para sa software volume.';
 
   @override
   String get volumeIsFixedWhileBitPerfect2 =>
-      'Volume is fixed during bit-perfect passthrough because USB hardware volume is unavailable in Flick. Use the device controls, or play PCM with bit-perfect disabled for software volume.';
+      'Nakapirmi ang volume habang bit-perfect passthrough dahil walang USB hardware volume sa Flick. Gamitin ang mga kontrol ng aparato, o magpatugtog ng PCM na naka-off ang bit-perfect para sa software volume.';
 
   @override
   String get directUsbFormatNotice =>
-      'A direct USB DAC is registered. Direct USB bypasses Android\'s mixer and system volume. The format shown is requested content format, not a measured DAC output rate.';
+      'May nakarehistrong direktang USB DAC. Nilalaktawan ng direktang USB ang mixer at system volume ng Android. Ang ipinapakitang format ay ang hinihinging format ng nilalaman, hindi ang nasukat na output rate ng DAC.';
 
   @override
   String get usbHardwareVolumeUnavailable =>
-      'USB hardware volume is unavailable in Flick. During bit-perfect passthrough, use the device\'s physical controls. For software volume, play PCM with bit-perfect disabled.';
+      'Walang USB hardware volume sa Flick. Habang bit-perfect passthrough, gamitin ang pisikal na mga kontrol ng aparato. Para sa software volume, magpatugtog ng PCM na naka-off ang bit-perfect.';
 
   @override
   String usbHardwareVolumeError(String reason) {
@@ -8108,27 +8221,27 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String wAgo(Object arg1) {
-    return '${arg1}w ago';
+    return '$arg1 linggo ang nakalipas';
   }
 
   @override
   String get waitingForBrowserAuthorization =>
-      'Waiting for browser authorization...';
+      'Hinihintay ang pahintulot sa browser...';
 
   @override
-  String get waitingForPlayback => 'Waiting for playback';
+  String get waitingForPlayback => 'Naghihintay ng pagtugtog';
 
   @override
   String get wantEveryControlDocumentedOpenThe =>
-      'Want every control documented? Open the in-app Manual anytime from Settings → Help & Manual.';
+      'Nais malaman ang bawat kontrol? Buksan anumang oras ang Gabay sa app mula sa Mga pagsasaayos → Tulong at gabay.';
 
   @override
   String was(Object arg1) {
-    return 'was: $arg1';
+    return 'dati: $arg1';
   }
 
   @override
-  String get wave => 'Wave';
+  String get wave => 'Alon';
 
   @override
   String get waveform => 'Waveform';
@@ -8138,10 +8251,10 @@ class AppLocalizationsTl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count copies',
-      one: '$count copy',
+      other: '$count kopya',
+      one: '$count kopya',
     );
-    return 'We’ll keep the best-quality version in each group (prefers album art, then highest bitrate) and remove $_temp0. Files on disk are not deleted.';
+    return 'Ititira namin ang pinakamagandang bersiyon sa bawat pangkat (inuuna ang larawan ng album, saka ang pinakamataas na bitrate) at aalisin ang $_temp0. Hindi mabubura ang mga file sa imbakan.';
   }
 
   @override
@@ -8149,96 +8262,97 @@ class AppLocalizationsTl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       kept,
       locale: localeName,
-      other: '$kept checked versions',
-      one: '$kept checked version',
+      other: '$kept bersiyong nilagyan mo ng tsek',
+      one: '$kept bersiyong nilagyan mo ng tsek',
     );
     String _temp1 = intl.Intl.pluralLogic(
       removed,
       locale: localeName,
-      other: '$removed copies',
-      one: '$removed copy',
+      other: '$removed iba pang kopya',
+      one: '$removed iba pang kopya',
     );
-    return 'We’ll keep your $_temp0 and remove the other $_temp1 from your library. Audio files on disk are not deleted.';
+    return 'Ititira namin ang $_temp0 at aalisin ang $_temp1 sa iyong aklatan. Hindi mabubura ang mga audio file sa imbakan.';
   }
 
   @override
   String get webdav => 'WebDAV';
 
   @override
-  String get weekly => 'Weekly';
+  String get weekly => 'Lingguhan';
 
   @override
-  String get welcomeBackLetSStartA => 'Welcome back — let\'s start a streak.';
+  String get welcomeBackLetSStartA =>
+      'Maligayang pagbabalik — simulan natin ang sunod-sunod na pakikinig.';
 
   @override
-  String get welcomeToFlick => 'Welcome to Flick!';
+  String get welcomeToFlick => 'Maligayang pagdating sa Flick!';
 
   @override
-  String get welcomeToFlick2 => 'Welcome to Flick';
+  String get welcomeToFlick2 => 'Maligayang pagdating sa Flick';
 
   @override
-  String get whatSNew => 'What\'s New';
+  String get whatSNew => 'Ano\'ng bago';
 
   @override
   String get whenYouPlayOverBluetoothAndroid =>
-      'When you play over Bluetooth, Android negotiates the codec with your headphones or speaker.';
+      'Kapag tumutugtog sa Bluetooth, nakikipagkasundo ang Android sa iyong headphone o speaker para sa codec.';
 
   @override
-  String get whereShouldTheLrcFileBe => 'Where should the .lrc file be saved?';
+  String get whereShouldTheLrcFileBe => 'Saan ise-save ang .lrc file?';
 
   @override
   String get whereTheFocalSongSitsVertically =>
-      'Where the focal song sits vertically';
+      'Patayong puwesto ng nakatutok na kanta';
 
   @override
-  String get whereYourMoneyGoes => 'Where Your Money Goes';
+  String get whereYourMoneyGoes => 'Saan napupunta ang iyong ambag';
 
   @override
-  String get whisperWorld => 'Whisper World';
+  String get whisperWorld => 'Mundo ng bulong';
 
   @override
-  String get whisperedSecrets => 'Whispered Secrets';
+  String get whisperedSecrets => 'Mga lihim na ibinulong';
 
   @override
-  String get white => 'White';
+  String get white => 'Puti';
 
   @override
-  String get wholeAlbum => 'Whole album';
+  String get wholeAlbum => 'Buong album';
 
   @override
-  String get whyDonate => 'Why Donate';
+  String get whyDonate => 'Bakit mag-ambag';
 
   @override
   String wide(Object amount) {
-    return '$amount% wide';
+    return '$amount% malapad';
   }
 
   @override
-  String get widgets => 'Widgets';
+  String get widgets => 'Mga widget';
 
   @override
-  String get width => 'Width';
+  String get width => 'Lapad';
 
   @override
-  String get wildWeather => 'Wild Weather';
+  String get wildWeather => 'Maligalig na panahon';
 
   @override
-  String get willBeRemoved => 'Will be removed';
+  String get willBeRemoved => 'Aalisin';
 
   @override
-  String get willKeep => 'Will keep';
+  String get willKeep => 'Ititira';
 
   @override
-  String get wiredOutput => 'Wired output';
+  String get wiredOutput => 'Output na may kable';
 
   @override
   String word(Object arg1, Object arg2) {
-    return 'Word $arg1 · \"$arg2\"';
+    return 'Salita $arg1 · \"$arg2\"';
   }
 
   @override
   String word2(Object arg1, Object token) {
-    return 'Word $arg1 · \"$token\"';
+    return 'Salita $arg1 · \"$token\"';
   }
 
   @override
@@ -8249,17 +8363,17 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String wordTimelineLine(Object arg1) {
-    return 'Word Timeline · Line $arg1';
+    return 'Timeline ng mga salita · Linya $arg1';
   }
 
   @override
-  String get wrapAroundAndQueueBehavior => 'Wrap-around and queue behavior';
+  String get wrapAroundAndQueueBehavior => 'Pag-ikot pabalik at kilos ng pila';
 
   @override
-  String get wrapAroundQueue => 'Wrap-around Queue';
+  String get wrapAroundQueue => 'Paikot na pila';
 
   @override
-  String get writeADescription => 'Write a description';
+  String get writeADescription => 'Sumulat ng paglalarawan';
 
   @override
   String x(Object min) {
@@ -8278,134 +8392,138 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String yAgo(Object arg1) {
-    return '${arg1}y ago';
+    return '$arg1 taon ang nakalipas';
   }
 
   @override
-  String get year => 'Year';
+  String get year => 'Taon';
 
   @override
-  String get yearly => 'Yearly';
+  String get yearly => 'Taunan';
 
   @override
-  String get yesterday => 'Yesterday';
+  String get yesterday => 'Kahapon';
 
   @override
   String get youAlreadyHaveTheLatestFlick =>
-      'You already have the latest Flick release';
+      'Nasa iyo na ang pinakabagong release ng Flick';
 
   @override
   String get youAlreadyHaveTheLatestPlay =>
-      'You already have the latest Play Store release';
+      'Nasa iyo na ang pinakabagong release sa Play Store';
 
   @override
   String get youCanAlsoChangeTheCodec =>
-      'You can also change the codec in Android Developer Options under \"Bluetooth Audio Codec\".';
+      'Maaari mo ring baguhin ang codec sa Android Developer Options sa ilalim ng \"Bluetooth Audio Codec\".';
 
   @override
   String get youCustomizedWhichVersionsToKeep =>
-      'You customized which versions to keep. Nice — you\'re in control.';
+      'Pinili mo kung aling mga bersiyon ang ititira. Ayos — ikaw ang may kontrol.';
 
   @override
   String get youHaveUnsavedChangesAreYou =>
-      'You have unsaved changes. Are you sure you want to discard them?';
+      'Mayroon kang mga pagbabagong hindi pa na-save. Sigurado ka bang nais mong balewalain ang mga ito?';
 
   @override
   String get youHaveUnsavedLyricEditsLeave =>
-      'You have unsaved lyric edits. Leave the Sync Studio without saving?';
+      'Mayroon kang mga pagbabago sa lirika na hindi pa na-save. Lalabas sa Sync Studio nang hindi sine-save?';
 
   @override
-  String get youReOffline => 'You\'re offline';
+  String get youReOffline => 'Wala kang koneksiyon';
 
   @override
   String get youReOfflineSomeOnlineFeatures =>
-      'You\'re offline. Some online features may not work.';
+      'Wala kang koneksiyon. Maaaring hindi gumana ang ilang tampok online.';
 
   @override
   String get youVeHitTheThresholdKeep =>
-      'You\'ve hit the threshold — keep it up!';
+      'Naabot mo ang kailangan — ituloy mo lang!';
 
   @override
-  String get yourCollectionAtAGlance => 'Your collection at a glance';
+  String get yourCollectionAtAGlance => 'Sulyap sa iyong koleksiyon';
 
   @override
-  String get yourCustomCollections => 'Your custom collections';
+  String get yourCustomCollections => 'Mga koleksiyong binuo mo';
 
   @override
-  String get yourHeaviestRotationRightNow => 'Your heaviest rotation right now';
+  String get yourHeaviestRotationRightNow =>
+      'Mga pinakamadalas mong ulitin ngayon';
 
   @override
-  String get yourLatestLibraryScans => 'Your latest library scans';
+  String get yourLatestLibraryScans =>
+      'Mga pinakahuli mong pag-scan ng aklatan';
 
   @override
-  String get yourLibrary => 'Your Library';
+  String get yourLibrary => 'Iyong aklatan';
 
   @override
-  String get yourLibraryAtAGlance => 'Your library at a glance';
+  String get yourLibraryAtAGlance => 'Sulyap sa iyong aklatan';
 
   @override
   String get yourLibraryIsTidyWeLl =>
-      'Your library is tidy. We’ll let you know if new duplicates appear after the next scan.';
+      'Maayos ang iyong aklatan. Aabisuhan ka namin kung may bagong magkakapareho pagkatapos ng susunod na pag-scan.';
 
   @override
   String get yourListeningHistoryIsStillYours =>
-      'Your listening history is still yours. Try loading it again.';
+      'Nasa iyo pa rin ang kasaysayan ng pakikinig mo. Subukang i-load itong muli.';
 
   @override
   String get yourListensWillRemainOnListenbrainz =>
-      'Your listens will remain on ListenBrainz, but Flick will stop submitting them.';
+      'Mananatili sa ListenBrainz ang iyong mga pakikinig, ngunit hindi na magpapadala ang Flick.';
 
   @override
   String get yourLogsAreUploadedToDpaste =>
-      'Your logs are uploaded to dpaste.com as an unlisted link that expires in 30 days. Anyone you share the link with can read them — logs may contain file paths and device details.';
+      'Ina-upload ang iyong mga log sa dpaste.com bilang hindi nakalistang link na nag-e-expire sa loob ng 30 araw. Mababasa ito ng sinumang pagbabahagian mo ng link — maaaring may mga file path at detalye ng aparato ang mga log.';
 
   @override
   String get yourMonthlyRecapNeedsABit =>
-      'Your monthly recap needs a bit more listening time this month.';
+      'Kailangan pa ng kaunting pakikinig ngayong buwan upang mabuo ang iyong buwanang buod.';
 
   @override
-  String get yourMostReplayedTrack => 'Your most replayed track';
+  String get yourMostReplayedTrack => 'Ang pinakamadalas mong uliting kanta';
 
   @override
-  String get yourMusicIsBeingScrobbled => 'Your music is being scrobbled';
+  String get yourMusicIsBeingScrobbled => 'Isini-scrobble ang iyong musika';
 
   @override
-  String get yourMusicIsBeingSubmitted => 'Your music is being submitted';
+  String get yourMusicIsBeingSubmitted => 'Ipinapadala ang iyong musika';
 
   @override
-  String get yourMusicOnRepeat => 'Your music. On repeat.';
+  String get yourMusicOnRepeat => 'Musika mo. Paulit-ulit.';
 
   @override
   String get yourNewAudioEngineIsReady =>
-      'Your new audio engine is ready. Restart Flick to apply it.';
+      'Handa na ang bago mong audio engine. Simulan muli ang Flick upang mailapat ito.';
 
   @override
-  String get yourNextFavoriteIsWaiting => 'Your next favorite is waiting.';
+  String get yourNextFavoriteIsWaiting =>
+      'Naghihintay ang susunod mong paborito.';
 
   @override
-  String get yourNextFavoriteNisWaiting => 'Your next favorite\nis waiting.';
+  String get yourNextFavoriteNisWaiting =>
+      'Naghihintay ang susunod\nmong paborito.';
 
   @override
-  String get yourPlaylists => 'Your Playlists';
+  String get yourPlaylists => 'Iyong mga talaan ng kanta';
 
   @override
   String get yourScrobblingHistoryWillRemainOn =>
-      'Your scrobbling history will remain on Last.fm, but Flick will stop sending scrobbles.';
+      'Mananatili sa Last.fm ang iyong kasaysayan ng scrobbling, ngunit hindi na magpapadala ang Flick.';
 
   @override
-  String get yourSessionHistory => 'Your session history';
+  String get yourSessionHistory => 'Kasaysayan ng iyong mga sesyon';
 
   @override
   String get yourWeeklyRecapAppearsOnceYou =>
-      'Your weekly recap appears once you start listening this week.';
+      'Lilitaw ang iyong lingguhang buod kapag nagsimula kang makinig ngayong linggo.';
 
   @override
   String get yourWholeLibraryLivesHereTap =>
-      'Your whole library lives here. Tap any song to play it.';
+      'Narito ang buong aklatan mo. Pindutin ang alinmang kanta upang patugtugin.';
 
   @override
   String get yourYearlyRecapFillsInAs =>
-      'Your yearly recap fills in as you keep listening throughout the year.';
+      'Unti-unting nabubuo ang iyong taunang buod habang patuloy kang nakikinig sa buong taon.';
 }
 
 /// The translations for Tagalog, using the Tagalog Baybayin Alibata script (`tl_Tglg`).
@@ -8413,169 +8531,38 @@ class AppLocalizationsTlTglg extends AppLocalizationsTl {
   AppLocalizationsTlTglg() : super('tl_Tglg');
 
   @override
-  String get addToQueue => 'ᜁᜇᜄ᜔ᜇᜄ᜔ ᜐ ᜉᜒᜎ';
+  String get playingLabel => 'ᜆᜓᜋᜓᜆᜓᜄ᜔ᜆᜓᜄ᜔';
 
   @override
-  String get album => 'ᜀᜎ᜔ᜊᜓᜋ᜔';
+  String get replayShortcutLabel => 'ᜊᜎᜒᜃ᜔-ᜆᜓᜄ᜔ᜆᜓᜄ᜔';
 
   @override
   String get albums => 'ᜋᜅ ᜀᜎ᜔ᜊᜓᜋ᜔';
 
   @override
-  String get allSongs => 'ᜎᜑᜆ᜔ ᜈᜅ᜔ ᜃᜈ᜔ᜆ';
-
-  @override
-  String get artist => 'ᜃᜓᜋᜈ᜔ᜆ';
-
-  @override
   String get artists => 'ᜋᜅ ᜃᜓᜋᜈ᜔ᜆ';
-
-  @override
-  String get back => 'ᜊᜓᜋᜎᜒᜃ᜔';
-
-  @override
-  String get cancel => 'ᜃᜈ᜔ᜐᜒᜎᜑᜒᜈ᜔';
-
-  @override
-  String get close => 'ᜁᜐᜇ';
-
-  @override
-  String get delete => 'ᜊᜓᜇᜑᜒᜈ᜔';
-
-  @override
-  String get deselectAll => 'ᜀᜎᜒᜐᜒᜈ᜔ ᜎᜑᜆ᜔ ᜈᜅ᜔ ᜉᜒᜈᜒᜎᜒ';
-
-  @override
-  String get done => 'ᜆᜉᜓᜐ᜔';
 
   @override
   String get favorites => 'ᜋᜅ ᜉᜊᜓᜇᜒᜆᜓ';
 
   @override
-  String get folder => 'ᜉᜓᜎ᜔ᜇᜒᜇ᜔';
-
-  @override
   String get folders => 'ᜋᜅ ᜉᜓᜎ᜔ᜇᜒᜇ᜔';
 
   @override
-  String get interfaceLabel => 'ᜁᜆ᜔ᜐᜓᜇ';
-
-  @override
-  String get language => 'ᜏᜒᜃ';
-
-  @override
-  String get languageSectionDescription =>
-      'ᜉᜒᜎᜒᜁᜈ᜔ ᜀᜅ᜔ ᜏᜒᜃᜅ᜔ ᜄᜄᜋᜒᜆᜒᜈ᜔ ᜐ ᜀᜉ᜔ᜎᜒᜃᜐ᜔ᜌᜓᜈ᜔.';
-
-  @override
-  String get languageSystemDefault => 'ᜏᜒᜃ ᜈᜅ᜔ ᜀᜉᜇᜆᜓ';
-
-  @override
-  String get lyrics => 'ᜎᜒᜇᜒᜃ';
-
-  @override
-  String get menu => 'ᜆᜎᜀᜈ᜔';
-
-  @override
-  String get next => 'ᜐᜓᜐᜓᜈᜓᜇ᜔';
-
-  @override
-  String get nextSong => 'ᜐᜓᜐᜓᜈᜓᜇ᜔ ᜈ ᜃᜈ᜔ᜆ';
-
-  @override
-  String get noSongsFound => 'ᜏᜎᜅ᜔ ᜈᜑᜈᜉ᜔ ᜈ ᜃᜈ᜔ᜆ';
+  String get libraryLabel => 'ᜀᜃ᜔ᜎᜆᜈ᜔';
 
   @override
   String get nowPlaying => 'ᜃᜐᜎᜓᜃᜓᜌᜅ᜔ ᜆᜓᜋᜓᜆᜓᜄ᜔ᜆᜓᜄ᜔';
 
   @override
-  String get off => 'ᜉᜆᜌ᜔';
-
-  @override
-  String get pause => 'ᜁᜑᜒᜈ᜔ᜆᜓ ᜋᜓᜈ';
-
-  @override
-  String get play => 'ᜉᜆᜓᜄ᜔ᜆᜓᜄᜒᜈ᜔';
-
-  @override
-  String get playNext => 'ᜁᜐᜓᜈᜓᜇ᜔';
-
-  @override
-  String get playlist2 => 'ᜆᜎᜀᜈ᜔ ᜈᜅ᜔ ᜃᜈ᜔ᜆ';
-
-  @override
   String get playlists => 'ᜋᜅ ᜆᜎᜀᜈ᜔ ᜈᜅ᜔ ᜃᜈ᜔ᜆ';
-
-  @override
-  String get previousSong => 'ᜈᜃᜇᜀᜅ᜔ ᜃᜈ᜔ᜆ';
-
-  @override
-  String get previousSong2 => 'ᜈᜃᜇᜀᜅ᜔ ᜃᜈ᜔ᜆ';
 
   @override
   String get queue => 'ᜉᜒᜎ';
 
   @override
-  String get remove => 'ᜀᜎᜒᜐᜒᜈ᜔';
-
-  @override
-  String repeat(Object arg1) {
-    return 'ᜂᜎᜒᜆ᜔: $arg1';
-  }
-
-  @override
-  String get repeatMode => 'ᜉᜇᜀᜈ᜔ ᜈᜅ᜔ ᜉᜄ᜔-ᜂᜎᜒᜆ᜔';
-
-  @override
-  String get search => 'ᜑᜈᜉᜒᜈ᜔';
-
-  @override
-  String get selectAll => 'ᜉᜒᜎᜒᜁᜈ᜔ ᜎᜑᜆ᜔';
-
-  @override
   String get settings => 'ᜋᜅ ᜉᜄ᜔ᜐᜐᜀᜌᜓᜐ᜔';
 
   @override
-  String get share => 'ᜁᜊᜑᜄᜒ';
-
-  @override
-  String get shuffle => 'ᜁᜑᜎᜓ';
-
-  @override
-  String shuffle2(Object arg1) {
-    return 'ᜉᜄ᜔ᜑᜎᜓ: $arg1';
-  }
-
-  @override
-  String get shuffleMode => 'ᜉᜇᜀᜈ᜔ ᜈᜅ᜔ ᜉᜄ᜔ᜑᜎᜓ';
-
-  @override
-  String songs(Object arg1, Object arg2) {
-    return '$arg1 • $arg2 ᜃᜈ᜔ᜆ';
-  }
-
-  @override
   String get songs14 => 'ᜋᜅ ᜃᜈ᜔ᜆ';
-
-  @override
-  String songsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count ᜃᜈ᜔ᜆ',
-      one: '$count ᜃᜈ᜔ᜆ',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get stop => 'ᜁᜑᜒᜈ᜔ᜆᜓ';
-
-  @override
-  String tracks(Object _totalTracks) {
-    return '$_totalTracks ᜃᜈ᜔ᜆ';
-  }
-
-  @override
-  String get volume => 'ᜎᜃᜐ᜔ ᜈᜅ᜔ ᜆᜓᜈᜓᜄ᜔';
 }
