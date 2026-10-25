@@ -16,9 +16,6 @@ class AppLocalizationsTl extends AppLocalizations {
   String get playingLabel => 'Tumutugtog';
 
   @override
-  String get replayShortcutLabel => 'Balik-tugtog';
-
-  @override
   String get aDraggableOverlayShowsWhileUsing =>
       'May naigagalaw na overlay habang gumagamit ng ibang app';
 
@@ -8532,9 +8529,6 @@ class AppLocalizationsTlTglg extends AppLocalizationsTl {
 
   @override
   String get playingLabel => 'ᜆᜓᜋᜓᜆᜓᜄ᜔ᜆᜓᜄ᜔';
-
-  @override
-  String get replayShortcutLabel => 'ᜊᜎᜒᜃ᜔-ᜆᜓᜄ᜔ᜆᜓᜄ᜔';
 
   @override
   String get albums => 'ᜋᜅ ᜀᜎ᜔ᜊᜓᜋ᜔';

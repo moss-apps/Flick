@@ -1,11 +1,16 @@
 import 'dart:io';
 
+import 'package:flick/l10n/l10n.dart';
 import 'package:flutter/services.dart';
 
 import '../data/repositories/recently_played_repository.dart';
 
 class CsvExportService {
   static const _channel = MethodChannel('com.mossapps.flick/storage');
+
+  // Exported files are English regardless of UI language.
+  String _periodLabel(ListeningRecap recap) =>
+      recap.period.labelFor(lookupFlickLocalizations(kFallbackLocale));
 
   Future<String?> saveCsv(ListeningRecap recap) async {
     if (!Platform.isAndroid) {
@@ -60,7 +65,7 @@ class CsvExportService {
     final ts =
         '${now.year}-${_pad(now.month)}-${_pad(now.day)}_'
         '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}';
-    return 'flick_${recap.period.label.toLowerCase()}_replay_$ts.$extension';
+    return 'flick_${_periodLabel(recap).toLowerCase()}_replay_$ts.$extension';
   }
 
   String _pad(int n) => n.toString().padLeft(2, '0');
@@ -89,7 +94,7 @@ class CsvExportService {
   String _buildCsv(ListeningRecap recap) {
     final buf = StringBuffer();
 
-    buf.writeln('Flick Replay — ${recap.period.label} Recap');
+    buf.writeln('Flick Replay — ${_periodLabel(recap)} Recap');
     buf.writeln();
     buf.writeln('Period: ${_formatDateTime(recap.start)} → ${_formatDateTime(recap.endExclusive)}');
     buf.writeln('Total Plays: ${recap.totalPlays}');
@@ -154,7 +159,7 @@ class CsvExportService {
   String _buildTxt(ListeningRecap recap) {
     final buf = StringBuffer();
 
-    buf.writeln('=== FLICK REPLAY: ${recap.period.label.toUpperCase()} RECAP ===');
+    buf.writeln('=== FLICK REPLAY: ${_periodLabel(recap).toUpperCase()} RECAP ===');
     buf.writeln();
     buf.writeln('Period:       ${_formatDateTime(recap.start)} → ${_formatDateTime(recap.endExclusive)}');
     buf.writeln('Total Plays:  ${recap.totalPlays}');

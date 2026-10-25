@@ -7,10 +7,6 @@
   "@playingLabel": {
     "description": "Compact player status heading; the Filipino Baybayin label says Tumutugtog."
   },
-  "replayShortcutLabel": "Listening recap",
-  "@replayShortcutLabel": {
-    "description": "Menu browse shortcut for the listening recap; not a user playlist name."
-  },
   "aDraggableOverlayShowsWhileUsing": "A draggable overlay shows while using other apps",
   "@aDraggableOverlayShowsWhileUsing": {
     "description": "lib/features/settings/screens/playback_display_settings_screen.dart:85"

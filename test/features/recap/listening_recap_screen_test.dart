@@ -148,6 +148,7 @@ Future<void> _pump(
   double textScale = 1,
   bool reducedMotion = true,
   bool floatingNav = false,
+  Locale locale = kFallbackLocale,
 }) async {
   SharedPreferences.setMockInitialValues({});
   tester.view.devicePixelRatio = 1;
@@ -158,11 +159,12 @@ Future<void> _pump(
     ProviderScope(
       child: MaterialApp(
         theme: AppTheme.darkTheme,
-        locale: kFallbackLocale,
+        locale: locale,
         supportedLocales: kSupportedLocales,
         localizationsDelegates: kAppLocalizationsDelegates,
         localeResolutionCallback: resolveAppLocale,
         builder: (context, child) {
+          LocaleController.instance.bind(AppLocalizations.of(context));
           final media = MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(textScale),
             disableAnimations: reducedMotion,
@@ -326,6 +328,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Taglish replay is fully English, including dates and studio', (
+    tester,
+  ) async {
+    final repository = _Repository(_all());
+    addTearDown(repository.changes.close);
+    addTearDown(() => LocaleController.instance.bindLocale(kFallbackLocale));
+    await _pump(tester, repository, locale: kFilipinoLocale);
+
+    final english = lookupFlickLocalizations(kFallbackLocale);
+    expect(find.text('Flick Replay'), findsNWidgets(2));
+    expect(find.text('Your most replayed track'), findsOneWidget);
+    expect(find.text('Daily'), findsWidgets);
+    expect(find.textContaining('Oct 9, 2026'), findsWidgets);
+    expect(find.textContaining('Okt 9, 2026'), findsNothing);
+    expect(find.byTooltip(english.saveCustomizeReplay), findsOneWidget);
+    await _snapshot(tester, 'replay-taglish-overview');
+
+    await tester.tap(find.byTooltip(english.saveCustomizeReplay));
+    await tester.pumpAndSettle();
+    expect(find.byType(ReplayStudioScreen), findsOneWidget);
+    await _snapshot(tester, 'replay-taglish-studio');
+    expect(find.text(english.replayStudio), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, english.topSongs2), findsOneWidget);
+    expect(find.text(english.look), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('rapid period changes never share scroll positions', (
     tester,
   ) async {
@@ -375,7 +404,13 @@ void main() {
       await _snapshot(tester, 'replay-large-text');
       await tester.tap(find.text('Save / customize Replay'));
       await tester.pumpAndSettle();
-      for (final type in ['Top songs', 'Top artists', 'Top album', 'Replay']) {
+      for (final type in [
+        'Top songs',
+        'Top artist',
+        'Top artists',
+        'Top album',
+        'Replay',
+      ]) {
         final choice = find.widgetWithText(ChoiceChip, type);
         await tester.ensureVisible(choice);
         await tester.pumpAndSettle();
@@ -553,8 +588,16 @@ void main() {
     await tester.tap(find.byTooltip('Save / customize Replay'));
     await tester.pumpAndSettle();
     await _snapshot(tester, 'replay-export');
-    for (final type in ['Top songs', 'Top artists', 'Top album']) {
-      await tester.tap(find.widgetWithText(ChoiceChip, type));
+    for (final type in [
+      'Top songs',
+      'Top artist',
+      'Top artists',
+      'Top album',
+    ]) {
+      final choice = find.widgetWithText(ChoiceChip, type);
+      await tester.ensureVisible(choice);
+      await tester.pumpAndSettle();
+      await tester.tap(choice);
       await tester.pumpAndSettle();
       await _snapshot(tester, 'replay-export-$type');
     }

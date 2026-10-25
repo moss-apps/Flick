@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../data/repositories/recently_played_repository.dart';
 import 'replay_style.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/replay_l10n.dart';
 
 enum ReplayLook { signal, night, artwork }
 

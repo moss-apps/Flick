@@ -1102,7 +1102,6 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
             4 => _BrowseChip(
               icon: Icons.auto_graph_rounded,
               label: l10n.flickReplay,
-              scriptLabel: BaybayinLabel.replay,
               highlighted: true,
               onTap: () => _navigateTo(context, const ListeningRecapScreen()),
             ),
@@ -3045,14 +3044,14 @@ class _EmptyShelfCard extends StatelessWidget {
 }
 
 class _BrowseChip extends StatelessWidget {
-  final BaybayinLabel scriptLabel;
+  final BaybayinLabel? scriptLabel;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final bool highlighted;
 
   const _BrowseChip({
-    required this.scriptLabel,
+    this.scriptLabel,
     required this.icon,
     required this.label,
     required this.onTap,

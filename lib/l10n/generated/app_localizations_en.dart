@@ -15,9 +15,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playingLabel => 'Playing';
 
   @override
-  String get replayShortcutLabel => 'Listening recap';
-
-  @override
   String get aDraggableOverlayShowsWhileUsing =>
       'A draggable overlay shows while using other apps';
 

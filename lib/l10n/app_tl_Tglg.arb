@@ -43,12 +43,6 @@
     "x-latin": "Aklatan",
     "x-review-status": "draft"
   },
-  "replayShortcutLabel": "ᜊᜎᜒᜃ᜔-ᜆᜓᜄ᜔ᜆᜓᜄ᜔",
-  "@replayShortcutLabel": {
-    "description": "Menu listening-recap browse shortcut only; Flick branding elsewhere is unchanged.",
-    "x-latin": "Balik-tugtog",
-    "x-review-status": "draft"
-  },
   "nowPlaying": "ᜃᜐᜎᜓᜃᜓᜌᜅ᜔ ᜆᜓᜋᜓᜆᜓᜄ᜔ᜆᜓᜄ᜔",
   "@nowPlaying": {
     "description": "Menu current-playback heading; player uses the separate compact Tumutugtog label.",

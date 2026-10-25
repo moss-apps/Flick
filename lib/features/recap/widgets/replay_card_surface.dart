@@ -5,7 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'replay_card_options.dart';
 import 'replay_style.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/replay_l10n.dart';
 
 class ReplayCardSurface extends StatelessWidget {
   final ReplayCardPalette palette;

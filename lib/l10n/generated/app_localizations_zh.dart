@@ -15,9 +15,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playingLabel => '播放中';
 
   @override
-  String get replayShortcutLabel => '聆听回顾';
-
-  @override
   String get aDraggableOverlayShowsWhileUsing => '使用其他应用时显示可拖动的悬浮窗';
 
   @override

@@ -15,7 +15,6 @@ enum BaybayinLabel {
   queue,
   settings,
   library,
-  replay,
   nowPlaying,
   playing,
 }
@@ -31,7 +30,6 @@ extension BaybayinLabelCopy on BaybayinLabel {
     BaybayinLabel.queue => l10n.queue,
     BaybayinLabel.settings => l10n.settings,
     BaybayinLabel.library => l10n.libraryLabel,
-    BaybayinLabel.replay => l10n.replayShortcutLabel,
     BaybayinLabel.nowPlaying => l10n.nowPlaying,
     BaybayinLabel.playing => l10n.playingLabel,
   };

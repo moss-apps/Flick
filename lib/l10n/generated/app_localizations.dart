@@ -113,12 +113,6 @@ abstract class AppLocalizations {
   /// **'Playing'**
   String get playingLabel;
 
-  /// Menu browse shortcut for the listening recap; not a user playlist name.
-  ///
-  /// In en, this message translates to:
-  /// **'Listening recap'**
-  String get replayShortcutLabel;
-
   /// lib/features/settings/screens/playback_display_settings_screen.dart:85
   ///
   /// In en, this message translates to:

@@ -2,7 +2,7 @@
 
 **Draft, not linguistically verified.** The Filipino reviewer decides whether
 the wording is natural and the Baybayin spelling is correct. Passing tests does
-not approve a translation. The 2,356-message Latin resource, twelve curated
+not approve a translation. The 2,355-message Latin resource, eleven curated
 Baybayin labels and fifteen native-speaker-supplied Taglish hooks remain drafts
 for review. The latest corrections are screen-specific, not a global replacement
 of Filipino with English.
@@ -30,9 +30,10 @@ subsequently turning them off survives a restart.
 - Home greetings use the reviewer's verbatim Taglish hooks. The summary shows
   real counts on three lines: `902 na kanta`, `18 mga paborito mo`, `1 playlist`
   are examples, not hardcoded values.
-- The Browse shortcut row (Library, Albums, Folders, Queue, listening recap,
-  Artists) uses Baybayin when enabled. Smart mixes and original playlist names
-  are not the requested carousel and are not converted.
+- The Browse shortcut row uses Baybayin for Library, Albums, Folders, Queue and
+  Artists when enabled. The **Flick Replay** shortcut stays in English. Smart
+  mixes and original playlist names are not the requested carousel and are not
+  converted.
 - Home's current-playback heading uses **Kasalukuyang tumutugtog** in Baybayin;
   both player layouts use only **Tumutugtog** in Baybayin, with no visible caption.
 - Favorites, Artists, Queue, Folders and the main Settings headings use Baybayin.
@@ -44,6 +45,9 @@ subsequently turning them off survives a restart.
 - Other general home copy is English. The audio-engine picker is fully English
   in Taglish: title, option names, and explanations. English and Chinese keep
   their own localized copy.
+- Flick Replay is fully English in Taglish: cards, period labels and dates,
+  studio controls, tooltips, empty/error states and saved posters. Downloadable
+  CSV/TXT recaps are always English regardless of UI language.
 - Settings uses English for its section names, titles, options and descriptions.
   The only Taglish line is the page tagline:
   **Dito mo ayusin mga configuration ng settings mo.**
@@ -98,7 +102,6 @@ Baybayin in the app or rendered screenshots. A Markdown viewer may lack the font
 | `queue` | Queue | Queue screen heading and menu browse shortcut, not settings titles. | Pila | ᜉᜒᜎ | draft |
 | `settings` | Settings | Main Settings heading and navigation, not individual setting titles. | Mga pagsasaayos | ᜋᜅ ᜉᜄ᜔ᜐᜐᜀᜌᜓᜐ᜔ | draft |
 | `libraryLabel` | Library | Menu Library browse shortcut only. | Aklatan | ᜀᜃ᜔ᜎᜆᜈ᜔ | draft |
-| `replayShortcutLabel` | Listening recap | Menu listening-recap browse shortcut only; Flick branding elsewhere is unchanged. | Balik-tugtog | ᜊᜎᜒᜃ᜔-ᜆᜓᜄ᜔ᜆᜓᜄ᜔ | draft |
 | `nowPlaying` | Now Playing | Menu current-playback heading; player uses the separate compact Tumutugtog label. | Kasalukuyang tumutugtog | ᜃᜐᜎᜓᜃᜓᜌᜅ᜔ ᜆᜓᜋᜓᜆᜓᜄ᜔ᜆᜓᜄ᜔ | draft |
 | `playingLabel` | Playing | Player status heading only, with no visible Latin caption. | Tumutugtog | ᜆᜓᜋᜓᜆᜓᜄ᜔ᜆᜓᜄ᜔ | draft |
 | `playlists` | Playlists | Main Playlists library heading only; not navigation or user-created names. | Mga talaan ng kanta | ᜋᜅ ᜆᜎᜀᜈ᜔ ᜈᜅ᜔ ᜃᜈ᜔ᜆ | draft |
@@ -165,7 +168,7 @@ stability, locale isolation, review coverage and layout.
 ## Verification and release checklist
 
 Automated localization tests cover full Filipino key parity and ICU arguments,
-twelve-key script allowlisting, review-table synchronization, reviewer vocabulary,
+eleven-key script allowlisting, review-table synchronization, reviewer vocabulary,
 plural counts (0, 1, 2, 101), old preference migration, locale aliases, independent
 persistence, live switching, Latin accessibility labels, actual font coverage,
 narrow layouts, enlarged text and all greeting variants. They **do not certify
@@ -182,7 +185,7 @@ host widget renders with bundled fonts, not a substitute for Android hardware.
 
 Before removing the experimental/draft notices, the Filipino reviewer should:
 
-- [ ] Review Latin Filipino wording, all twelve Baybayin spellings and hooks.
+- [ ] Review Latin Filipino wording, all eleven Baybayin spellings and hooks.
 - [ ] Test Android API 26 and a current Android version, including bold text,
       combining/final marks, narrow widths and large system font sizes.
 - [ ] Switch Taglish ↔ English ↔ Chinese and enable/disable headings live.
@@ -190,8 +193,9 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
       one-time migration; disabling migrated headings must remain disabled.
 - [ ] Follow a Filipino/Tagalog phone locale: Taglish appears, headings stay off
       unless previously explicitly enabled. English escape remains reachable.
-- [ ] Check the per-screen role policy above, including all Browse shortcuts,
-      both player layouts, all-English settings except the Taglish tagline,
+- [ ] Check the per-screen role policy above, including the English Flick Replay
+      shortcut and the Baybayin Browse shortcuts, both player layouts,
+      all-English settings except the Taglish tagline,
       unchanged search, and the Taglish-only support card. Technical values and
       original music/playlist metadata must not change.
 - [ ] Use TalkBack: each heading announces its Latin label once as a heading;

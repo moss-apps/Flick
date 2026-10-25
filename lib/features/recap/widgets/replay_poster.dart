@@ -7,14 +7,15 @@ import 'replay_card_surface.dart';
 import 'replay_graphics.dart';
 import 'replay_sections.dart';
 import 'replay_style.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/replay_l10n.dart';
 
-enum ReplayPosterType { overview, songs, artists, album }
+enum ReplayPosterType { overview, songs, artist, artists, album }
 
 extension ReplayPosterTypeX on ReplayPosterType {
   String get label => switch (this) {
     ReplayPosterType.overview => l10n.replay,
     ReplayPosterType.songs => l10n.topSongs2,
+    ReplayPosterType.artist => l10n.topArtist,
     ReplayPosterType.artists => l10n.topArtists,
     ReplayPosterType.album => l10n.topAlbum,
   };
@@ -22,6 +23,7 @@ extension ReplayPosterTypeX on ReplayPosterType {
   ReplayCardKind get kind => switch (this) {
     ReplayPosterType.overview => ReplayCardKind.overview,
     ReplayPosterType.songs => ReplayCardKind.songs,
+    ReplayPosterType.artist ||
     ReplayPosterType.artists => ReplayCardKind.artists,
     ReplayPosterType.album => ReplayCardKind.album,
   };
@@ -78,7 +80,7 @@ class ReplayPoster extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      recap.period.label,
+                      recap.period.labelFor(l10n),
                       style: TextStyle(fontSize: 13, color: palette.secondary),
                     ),
                   ],
@@ -94,6 +96,7 @@ class ReplayPoster extends StatelessWidget {
                 Expanded(
                   child: switch (type) {
                     ReplayPosterType.overview => _overview(palette),
+                    ReplayPosterType.artist => _artist(palette),
                     ReplayPosterType.album => _album(palette),
                     ReplayPosterType.songs ||
                     ReplayPosterType.artists => _rankings(palette),
@@ -201,6 +204,109 @@ class ReplayPoster extends StatelessWidget {
         const SizedBox(height: 20),
         ReplayMetrics(recap: recap, options: options, palette: palette),
         const SizedBox(height: 22),
+      ],
+    );
+  }
+
+  Widget _artist(ReplayCardPalette palette) {
+    final artist = recap.topArtist;
+    final heading = Text(
+      type.label,
+      style: TextStyle(
+        fontSize: 44,
+        height: 1.05,
+        letterSpacing: -1.1,
+        fontWeight: FontWeight.w700,
+        color: palette.foreground,
+      ),
+    );
+    if (artist == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: heading,
+          ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Text(
+                l10n.noRankingDataYet,
+                style: TextStyle(color: palette.secondary, fontSize: 18),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    // Matched from the existing recap only; no invented artist imagery.
+    final covers = recap.topSongs
+        .where(
+          (entry) =>
+              entry.song.artist.trim().toLowerCase() ==
+              artist.artist.trim().toLowerCase(),
+        )
+        .map((entry) => entry.song.albumArt)
+        .whereType<String>()
+        .where((path) => path.isNotEmpty);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: heading,
+        ),
+        const SizedBox(height: 20),
+        Expanded(
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.contain,
+              child: SizedBox(
+                width: 340,
+                child: ReplayArtworkStage(
+                  paths: [covers.isEmpty ? null : covers.first],
+                  animated: animated,
+                  layered: false,
+                  framed: options.surfaceDetail,
+                  ornaments: options.ornaments,
+                  highResolution: true,
+                  color: palette.dark ? palette.accent : palette.foreground,
+                  badge: options.badges
+                      ? ReplayStyle.plays(artist.plays)
+                      : null,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          artist.artist,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 27,
+            height: 1.1,
+            fontWeight: FontWeight.w700,
+            color: palette.foreground,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          l10n.songsInRotation(artist.uniqueSongs),
+          style: TextStyle(fontSize: 14, color: palette.secondary),
+        ),
+        const SizedBox(height: 16),
+        Divider(height: 1, color: palette.rule),
+        const SizedBox(height: 14),
+        Text(
+          '${options.badges ? '#1 · ' : ''}${ReplayStyle.plays(artist.plays)}',
+          style: TextStyle(fontSize: 13, color: palette.secondary),
+        ),
       ],
     );
   }

@@ -9,7 +9,7 @@ import 'replay_card_surface.dart';
 import 'replay_graphics.dart';
 import 'replay_reveal.dart';
 import 'replay_style.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/replay_l10n.dart';
 
 TextStyle _display(Color color, double size) => TextStyle(
   fontSize: size,
@@ -49,7 +49,7 @@ class ReplayOverview extends StatelessWidget {
                 ReplayBrand(color: palette.foreground),
                 const SizedBox(height: 8),
                 Text(
-                  '${recap.period.label} · ${ReplayStyle.range(recap)}',
+                  '${recap.period.labelFor(l10n)} · ${ReplayStyle.range(recap)}',
                   style: TextStyle(color: palette.secondary, fontSize: 12),
                 ),
                 const SizedBox(height: 20),
@@ -125,7 +125,7 @@ class ReplayOverview extends StatelessWidget {
                       child: Text(
                         options.tagline
                             ? l10n.yourMusicOnRepeat
-                            : recap.period.label,
+                            : recap.period.labelFor(l10n),
                         style: TextStyle(
                           fontSize: 11,
                           color: palette.secondary,

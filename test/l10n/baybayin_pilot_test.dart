@@ -148,7 +148,6 @@ void main() {
         'queue',
         'settings',
         'libraryLabel',
-        'replayShortcutLabel',
         'nowPlaying',
         'playingLabel',
       });
