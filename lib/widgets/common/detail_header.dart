@@ -274,7 +274,7 @@ class DetailActionCapsule extends StatelessWidget {
               ),
               slice(),
               segment(
-                tooltip: l10n.more,
+                tooltip: l10n.englishForFilipino.more,
                 child: Icon(
                   LucideIcons.ellipsisVertical,
                   color: fg,
@@ -357,7 +357,7 @@ class DetailMoreSheet extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 4),
               child: Text(
-                l10n.more.toUpperCase(),
+                l10n.englishForFilipino.more.toUpperCase(),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,

@@ -258,9 +258,48 @@ void main() {
       );
       expect(strings.addedToFavorites, 'Goods, na sa favorites mo na.');
       expect(strings.removedFromFavorites3, 'Okay, naalis na po.');
+      expect(strings.aboutThem, 'Tungkol sa kanila');
+      expect(
+        <String>[
+          strings.playerMenuAddToQueue,
+          strings.playerMenuAddToPlaylist,
+          strings.playerMenuSetAlbumArt,
+          strings.playerMenuRefreshAlbumArt,
+          strings.playerMenuEditMetadata,
+          strings.playerMenuSleepTimer,
+          strings.playerMenuShare,
+        ],
+        <String>[
+          'Dagdag ba natin sa queue mo?',
+          'Dagdag ba natin sa playlist mo?',
+          'Lagyan natin ng album art para di blangko.',
+          'Refresh natin yung album art.',
+          'May babaguhin ka ba sa metadata?',
+          'Sleep timer?',
+          'Share mo?',
+        ],
+      );
       expect(
         strings.englishForFilipino.chooseAudioEngine,
         en['chooseAudioEngine'],
+      );
+      expect(
+        strings.englishForFilipino.audioSignalPath,
+        en['audioSignalPath'],
+      );
+      expect(
+        strings.englishForFilipino.lyricsSyncStudio,
+        en['lyricsSyncStudio'],
+      );
+      expect(strings.englishForFilipino.queue, en['queue']);
+      expect(strings.englishForFilipino.more, en['more']);
+      expect(
+        strings.englishForFilipino.playerMenuAddToQueue,
+        en['playerMenuAddToQueue'],
+      );
+      expect(
+        strings.englishForFilipino.playerMenuRefreshAlbumArt,
+        en['playerMenuRefreshAlbumArt'],
       );
       expect(strings.englishForFilipino.settings, en['settings']);
       expect(strings.englishForFilipino.soloDeveloper, en['soloDeveloper']);

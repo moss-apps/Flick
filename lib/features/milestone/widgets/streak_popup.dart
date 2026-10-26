@@ -7,6 +7,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../services/milestone_service.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/streak_greeting.dart';
 
 /// Launch-day streak popup. Shows a rolling 7-day window of containers; the
 /// trailing [streak] days are "checked" and animate in with a staggered
@@ -37,6 +38,10 @@ class _StreakPopupState extends State<StreakPopup>
   late final AnimationController _reveal;
   late final AnimationController _pulse;
   late final AnimationController _flame;
+
+  /// One supplied Taglish greeting per opening. Kept for English and Chinese
+  /// too, but only shown when the copy role is Filipino.
+  late final String _taglishGreeting = randomTaglishStreakGreeting();
 
   @override
   void initState() {
@@ -89,6 +94,7 @@ class _StreakPopupState extends State<StreakPopup>
   }
 
   String get _motivationalMessage {
+    if (l10n.isFilipino) return _taglishGreeting;
     final s = widget.streak;
     if (s <= 1) return l10n.welcomeBackLetSStartA;
     if (s < 7) return l10n.keepItGoingOpenTomorrowTo;
@@ -190,7 +196,7 @@ class _StreakPopupState extends State<StreakPopup>
             ),
             const SizedBox(width: AppConstants.spacingSm),
             Text(
-              l10n.dayStreak,
+              l10n.englishForFilipino.dayStreak,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -264,7 +270,7 @@ class _StreakPopupState extends State<StreakPopup>
           ),
         ),
         child: Text(
-          l10n.continueLabel,
+          l10n.englishForFilipino.continueLabel,
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
@@ -286,7 +292,7 @@ class _StreakPopupState extends State<StreakPopup>
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       child: Text(
-        l10n.donTShowAgainToday,
+        l10n.englishForFilipino.donTShowAgainToday,
         style: TextStyle(
           color: AppColors.textTertiary,
           fontSize: 12,

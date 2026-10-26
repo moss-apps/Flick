@@ -73,6 +73,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutThisAlbum => 'About this album';
 
   @override
+  String get aboutThem => 'About them';
+
+  @override
   String get absoluteVolumeSync => 'Absolute Volume Sync';
 
   @override
@@ -5627,6 +5630,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerLayout => 'Player Layout';
 
   @override
+  String get playerMenuAddToPlaylist => 'Add to Playlist';
+
+  @override
+  String get playerMenuAddToQueue => 'Add to Queue';
+
+  @override
+  String get playerMenuEditMetadata => 'Edit Metadata';
+
+  @override
+  String get playerMenuRefreshAlbumArt => 'Refresh Motion Art';
+
+  @override
+  String get playerMenuSetAlbumArt => 'Set Album Art';
+
+  @override
+  String get playerMenuShare => 'Share';
+
+  @override
+  String get playerMenuSleepTimer => 'Sleep Timer';
+
+  @override
   String playlist(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -5941,9 +5965,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get refreshDevices2 => 'Refresh devices';
-
-  @override
-  String get refreshMotionArt => 'Refresh Motion Art';
 
   @override
   String get refreshOutputs => 'Refresh outputs';

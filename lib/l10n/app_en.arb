@@ -71,6 +71,10 @@
   "@aboutThisAlbum": {
     "description": "lib/features/albums/screens/album_detail_screen.dart:519"
   },
+  "aboutThem": "About them",
+  "@aboutThem": {
+    "description": "Artist detail biography section and its expanded sheet."
+  },
   "absoluteVolumeSync": "Absolute Volume Sync",
   "@absoluteVolumeSync": {
     "description": "lib/features/settings/screens/bluetooth_settings_screen.dart:398"
@@ -7400,6 +7404,34 @@
   "@playerLayout": {
     "description": "lib/features/player/widgets/player_layout_sheet.dart:92"
   },
+  "playerMenuAddToPlaylist": "Add to Playlist",
+  "@playerMenuAddToPlaylist": {
+    "description": "Full-player song actions sheet; Taglish uses supplied wording."
+  },
+  "playerMenuAddToQueue": "Add to Queue",
+  "@playerMenuAddToQueue": {
+    "description": "Full-player song actions sheet; Taglish uses supplied wording."
+  },
+  "playerMenuEditMetadata": "Edit Metadata",
+  "@playerMenuEditMetadata": {
+    "description": "Full-player song actions sheet; Taglish uses supplied wording."
+  },
+  "playerMenuRefreshAlbumArt": "Refresh Motion Art",
+  "@playerMenuRefreshAlbumArt": {
+    "description": "Full-player song actions sheet; Taglish calls this album art."
+  },
+  "playerMenuSetAlbumArt": "Set Album Art",
+  "@playerMenuSetAlbumArt": {
+    "description": "Full-player song actions sheet; Taglish uses supplied wording."
+  },
+  "playerMenuShare": "Share",
+  "@playerMenuShare": {
+    "description": "Full-player song actions sheet; Taglish uses supplied wording."
+  },
+  "playerMenuSleepTimer": "Sleep Timer",
+  "@playerMenuSleepTimer": {
+    "description": "Full-player song actions sheet; Taglish uses supplied wording."
+  },
   "playlist": "{count, plural, =1{{count} playlist} other{{count} playlists}}",
   "@playlist": {
     "description": "lib/features/playlists/screens/playlists_screen.dart:92",
@@ -7827,10 +7859,6 @@
   "refreshDevices2": "Refresh devices",
   "@refreshDevices2": {
     "description": "lib/widgets/uac2/uac2_device_selector.dart:179"
-  },
-  "refreshMotionArt": "Refresh Motion Art",
-  "@refreshMotionArt": {
-    "description": "lib/features/player/widgets/song_actions_sheet.dart:238"
   },
   "refreshOutputs": "Refresh outputs",
   "@refreshOutputs": {

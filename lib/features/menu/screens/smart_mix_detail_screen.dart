@@ -269,12 +269,12 @@ class _SmartMixDetailScreenState extends ConsumerState<SmartMixDetailScreen>
       items: [
         DetailMoreSheetItem(
           icon: LucideIcons.listPlus,
-          label: l10n.addToPlaylist,
+          label: l10n.englishForFilipino.addToPlaylist,
           onTap: () => AddToPlaylistSheet.showSongs(context, widget.songs),
         ),
         DetailMoreSheetItem(
           icon: LucideIcons.moonStar,
-          label: l10n.sleepTimer,
+          label: l10n.englishForFilipino.sleepTimer,
           onTap: () => SleepTimerBottomSheet.show(context, _playerService),
         ),
       ],

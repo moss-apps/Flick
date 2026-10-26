@@ -75,6 +75,9 @@ class AppLocalizationsTl extends AppLocalizations {
   String get aboutThisAlbum => 'Tungkol sa album na ito';
 
   @override
+  String get aboutThem => 'Tungkol sa kanila';
+
+  @override
   String get absoluteVolumeSync => 'Pagsabay ng absolute volume';
 
   @override
@@ -5688,6 +5691,28 @@ class AppLocalizationsTl extends AppLocalizations {
   String get playerLayout => 'Ayos ng player';
 
   @override
+  String get playerMenuAddToPlaylist => 'Dagdag ba natin sa playlist mo?';
+
+  @override
+  String get playerMenuAddToQueue => 'Dagdag ba natin sa queue mo?';
+
+  @override
+  String get playerMenuEditMetadata => 'May babaguhin ka ba sa metadata?';
+
+  @override
+  String get playerMenuRefreshAlbumArt => 'Refresh natin yung album art.';
+
+  @override
+  String get playerMenuSetAlbumArt =>
+      'Lagyan natin ng album art para di blangko.';
+
+  @override
+  String get playerMenuShare => 'Share mo?';
+
+  @override
+  String get playerMenuSleepTimer => 'Sleep timer?';
+
+  @override
   String playlist(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -6005,9 +6030,6 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get refreshDevices2 => 'I-refresh ang mga aparato';
-
-  @override
-  String get refreshMotionArt => 'I-refresh ang Motion Art';
 
   @override
   String get refreshOutputs => 'I-refresh ang mga output';

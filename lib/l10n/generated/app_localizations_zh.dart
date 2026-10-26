@@ -64,6 +64,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutThisAlbum => '关于这张专辑';
 
   @override
+  String get aboutThem => '关于他们';
+
+  @override
   String get absoluteVolumeSync => '绝对音量同步';
 
   @override
@@ -5252,6 +5255,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerLayout => '播放器布局';
 
   @override
+  String get playerMenuAddToPlaylist => '添加到播放列表';
+
+  @override
+  String get playerMenuAddToQueue => '添加到队列';
+
+  @override
+  String get playerMenuEditMetadata => '编辑元数据';
+
+  @override
+  String get playerMenuRefreshAlbumArt => '刷新动态封面';
+
+  @override
+  String get playerMenuSetAlbumArt => '设置专辑封面';
+
+  @override
+  String get playerMenuShare => '分享';
+
+  @override
+  String get playerMenuSleepTimer => '睡眠定时';
+
+  @override
   String playlist(int count) {
     return '$count 个播放列表';
   }
@@ -5539,9 +5563,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get refreshDevices2 => '刷新设备';
-
-  @override
-  String get refreshMotionArt => '刷新动态封面';
 
   @override
   String get refreshOutputs => '刷新输出';
