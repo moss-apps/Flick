@@ -100,6 +100,42 @@ void main() {
     });
   }
 
+  testWidgets('Taglish onboarding is English except the supplied welcome title', (tester) async {
+    final en = lookupFlickLocalizations(kFallbackLocale);
+    final tl = lookupFlickLocalizations(kFilipinoLocale);
+    AppConstants.setAnimationsEnabled(false);
+    await _pumpOnboarding(tester, kFilipinoLocale);
+
+    const welcome = 'Kumusta! Greetings from Flick!';
+    expect(tl.onboardingWelcomeTitle, welcome);
+    final titles = [
+      welcome,
+      en.onboardingLibraryTitle,
+      en.onboardingBrowseTitle,
+      en.onboardingPlaybackTitle,
+      en.onboardingReadyTitle,
+    ];
+    final bodies = [
+      en.onboardingWelcomeBody,
+      en.onboardingLibraryBody,
+      en.onboardingBrowseBody,
+      en.onboardingPlaybackBody,
+      en.onboardingReadyBody,
+    ];
+    for (var i = 0; i < titles.length; i++) {
+      expect(find.text(titles[i]), findsOneWidget);
+      expect(find.text(bodies[i]), findsOneWidget);
+      final isLastPage = i == titles.length - 1;
+      expect(find.text(isLastPage ? en.getStarted : en.next), findsOneWidget);
+      expect(find.text(tl.skip), findsNothing);
+      if (!isLastPage) {
+        expect(find.text(en.skip), findsOneWidget);
+        await _tapNext(tester, en.next);
+      }
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('the onboarding copy is not left in English in zh', (
     tester,
   ) async {

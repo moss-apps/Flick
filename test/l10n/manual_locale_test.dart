@@ -6,7 +6,8 @@
 // This test pins the two things that can silently regress now that the copy is
 // resolved through functions:
 //
-//   1. the manual renders in the active locale (not the English source);
+//   1. the manual follows its copy roles (English headings/Taglish instructions,
+//      fully localized Chinese);
 //   2. search matches what is *on screen*, which is why `_searchHits` resolves
 //      the copy before comparing -- searching "歌曲" has to find entries whose
 //      English title is "Browsing your library".
@@ -24,7 +25,7 @@ import 'package:flick/features/manual/screens/manual_screen.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/providers/player_provider.dart';
 
-Widget _host(Locale locale, {double width = 375}) {
+Widget _host(Locale locale, {double width = 375, double textScale = 1}) {
   return ProviderScope(
     // The screen watches the current song only to tint its background; without
     // this override it reaches the database and the whole tree fails to build,
@@ -41,7 +42,7 @@ Widget _host(Locale locale, {double width = 375}) {
           return MediaQuery(
             data: MediaQueryData(
               size: Size(width, 2400),
-              textScaler: TextScaler.noScaling,
+              textScaler: TextScaler.linear(textScale),
               disableAnimations: true,
             ),
             child: const ManualScreen(),
@@ -75,6 +76,7 @@ void main() {
 
   tearDown(() {
     LocaleController.instance.value = null;
+    LocaleController.instance.bindLocale(kFallbackLocale);
   });
 
   test('every manual string is translated, and none is left as the source', () {
@@ -153,20 +155,68 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('tl: the manual renders Taglish section titles', (tester) async {
+  testWidgets('tl: English manual headings, Taglish instructions and tips', (tester) async {
     final tl = lookupAppLocalizations(kFilipinoLocale);
     final en = lookupAppLocalizations(const Locale('en'));
 
     await tester.pumpWidget(_host(kFilipinoLocale));
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(tl.manualSongs, isNot(en.manualSongs));
-    expect(find.text(tl.manualSongs), findsOneWidget);
+    expect(find.text('Manual'), findsOneWidget);
+    expect(find.text(en.manualSongs), findsOneWidget);
+    expect(find.text(tl.manualSongs), findsNothing);
+    await tester.tap(find.text(en.manualSongs));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text(en.browsingYourLibrary), findsOneWidget);
+    expect(find.text(tl.browsingYourLibrary), findsNothing);
+    expect(find.text(tl.theSongsTabListsEvery), findsOneWidget);
+    expect(find.text(en.theSongsTabListsEvery), findsNothing);
     expect(
-      find.text(en.manualSongs),
-      findsNothing,
-      reason: 'the Taglish manual fell back to the English source',
+      find.textContaining(tl.sortPersistsAcrossSessions, findRichText: true),
+      findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tl: search matches English headings and Taglish instructions', (tester) async {
+    final tl = lookupFlickLocalizations(kFilipinoLocale);
+    final en = lookupFlickLocalizations(kFallbackLocale);
+    await tester.pumpWidget(_host(kFilipinoLocale));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byIcon(LucideIcons.search).first);
+    await tester.pump(const Duration(milliseconds: 200));
+    final field = find.byType(TextField);
+
+    await tester.enterText(field, en.browsingYourLibrary);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      find.byWidgetPredicate((widget) => widget is Text && widget.data == en.browsingYourLibrary),
+      findsOneWidget,
+    );
+    expect(find.text('SONGS'), findsOneWidget);
+    expect(find.text(tl.theSongsTabListsEvery), findsOneWidget);
+
+    await tester.enterText(field, 'Gusto mong iba');
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text(en.sortFilter), findsOneWidget);
+    expect(find.text(tl.tapTheSortIconTop), findsOneWidget);
+
+    await tester.enterText(field, 'no-such-manual-entry-123');
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text(en.noMatchesFor('no-such-manual-entry-123')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tl: longer instructions wrap on a narrow screen at 2x text', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(_host(kFilipinoLocale, width: 360, textScale: 2));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('Songs'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text(l10n.theSongsTabListsEvery), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -65,9 +65,9 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
       for (final entry in section.entries) {
         // The copy is resolved here, so search matches what is on screen in the
         // active locale rather than the English source.
-        final inTitle = entry.title(l10n).toLowerCase().contains(q);
+        final inTitle = entry.title(l10n.englishForFilipino).toLowerCase().contains(q);
         final inBody = entry.body(l10n).toLowerCase().contains(q);
-        final inSection = section.title(l10n).toLowerCase().contains(q);
+        final inSection = section.title(l10n.englishForFilipino).toLowerCase().contains(q);
         if (inTitle || inBody || inSection) {
           hits.add(_SearchHit(section: section, entry: entry));
         }
@@ -134,7 +134,7 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
               children: [
                 Center(
                   child: Text(
-                    l10n.manual,
+                    l10n.englishForFilipino.manual,
                     style: TextStyle(
                       fontFamily: 'GoogleSansFlex',
                       fontSize: 22,
@@ -199,7 +199,7 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
               controller: _searchController,
               autofocus: true,
               textInputAction: TextInputAction.search,
-              hintText: l10n.searchTheManual,
+              hintText: l10n.englishForFilipino.searchTheManual,
               showBackground: false,
               onChanged: (v) => setState(() => _query = v),
             ),
@@ -225,7 +225,7 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
               ),
               const SizedBox(height: AppConstants.spacingMd),
               Text(
-                l10n.noMatchesFor(_query),
+                l10n.englishForFilipino.noMatchesFor(_query),
                 style: const TextStyle(
                   fontFamily: 'GoogleSansFlex',
                   color: AppColors.textSecondary,
@@ -250,7 +250,7 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _ManualEntryContent(
-              sectionLabel: hit.section.title(context.l10n),
+              sectionLabel: hit.section.title(context.l10n.englishForFilipino),
               entry: hit.entry,
             ),
             if (i < hits.length - 1) ...[
@@ -314,7 +314,7 @@ class _ManualSectionCardState extends State<_ManualSectionCard> {
                   const SizedBox(width: AppConstants.spacingMd),
                   Expanded(
                     child: Text(
-                      widget.section.title(context.l10n),
+                      widget.section.title(context.l10n.englishForFilipino),
                       style: const TextStyle(
                         fontFamily: 'GoogleSansFlex',
                         fontSize: 16,
@@ -424,7 +424,7 @@ class _ManualEntryContent extends StatelessWidget {
           const SizedBox(height: 4),
         ],
         Text(
-          entry.title(l10n),
+          entry.title(l10n.englishForFilipino),
           style: const TextStyle(
             fontFamily: 'GoogleSansFlex',
             fontSize: 15,

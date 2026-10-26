@@ -31,10 +31,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   /// accessor and cannot appear in a `const` expression, so the codemod that
   /// converted the rest of the app skipped them. The line breaks are part of the
   /// layout (the title is set at 38pt/0.92), so they live in the translations.
-  List<_StepData> _steps(AppLocalizations l10n) => [
+  List<_StepData> _steps(
+    AppLocalizations l10n, {
+    required String welcomeTitle,
+  }) => [
     _StepData(
       icon: LucideIcons.zap,
-      title: l10n.onboardingWelcomeTitle,
+      title: welcomeTitle,
       description: l10n.onboardingWelcomeBody,
     ),
     _StepData(
@@ -109,8 +112,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final steps = _steps(l10n);
+    final l10n = context.l10n.englishForFilipino;
+    final steps = _steps(
+      l10n,
+      welcomeTitle: context.l10n.onboardingWelcomeTitle,
+    );
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -151,7 +157,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   Widget _buildHeader() {
-    final l10n = context.l10n;
+    final l10n = context.l10n.englishForFilipino;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppConstants.spacingMd,
@@ -248,7 +254,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   Widget _buildActionButton({required bool isLastPage}) {
-    final l10n = context.l10n;
+    final l10n = context.l10n.englishForFilipino;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),

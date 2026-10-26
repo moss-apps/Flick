@@ -7,7 +7,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../services/milestone_service.dart';
 import '../../../widgets/common/vinyl_record.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 /// Signature celebration card shown when a milestone is unlocked. The visual
 /// anchor is a hand-painted vinyl record — a deliberate reference to Flick's

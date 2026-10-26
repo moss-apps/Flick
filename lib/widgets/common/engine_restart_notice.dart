@@ -5,7 +5,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/menu/screens/restarting_screen.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 /// Inline "restart required" prompt shown after the audio engine is changed.
 ///

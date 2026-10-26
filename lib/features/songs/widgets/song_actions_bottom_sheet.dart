@@ -21,7 +21,7 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 /// Bottom sheet with actions for a song (add to playlist, favorites, view metadata, etc.)
 class SongActionsBottomSheet extends ConsumerWidget {
@@ -515,6 +515,9 @@ class SongActionsBottomSheet extends ConsumerWidget {
   }
 
   void _showCreatePlaylistDialog(BuildContext context) {
+    // The creation dialog is an English surface in Taglish. English and
+    // Chinese still receive their own copy.
+    final l10n = context.l10n.englishForFilipino;
     final container = ProviderScope.containerOf(context, listen: false);
     final messenger = ScaffoldMessenger.of(context);
 
@@ -524,6 +527,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
         title: l10n.createPlaylist,
         hintText: l10n.playlistName,
         confirmLabel: l10n.create,
+        cancelLabel: l10n.cancel,
       ).then((name) async {
         if (name == null || name.isEmpty) return;
 

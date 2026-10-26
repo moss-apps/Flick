@@ -370,12 +370,13 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
   Future<void> _confirmDiscard() async {
     if (_discardDialogOpen) return;
     _discardDialogOpen = true;
-    final l10n = context.l10n;
+    final l10n = context.l10n.englishForFilipino;
     final confirmed = await FlickDialogs.confirm(
       context,
       title: l10n.discardChanges2,
       message: l10n.youHaveUnsavedChangesAreYou,
       confirmLabel: l10n.discard,
+      cancelLabel: l10n.cancel,
       destructive: true,
     );
     _discardDialogOpen = false;
@@ -395,7 +396,9 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
+    // The cover editor is an English surface in Taglish. English and Chinese
+    // still receive their own copy.
+    final l10n = context.l10n.englishForFilipino;
     final media = MediaQuery.of(context);
     final bottomInset = media.padding.bottom;
     final landscape = media.size.width > media.size.height;

@@ -6,7 +6,7 @@ import 'package:restart_app/restart_app.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/services/player_service.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 List<String> _restartMessages(AppLocalizations l10n) => <String>[
   l10n.applyingNewAudioEngine,

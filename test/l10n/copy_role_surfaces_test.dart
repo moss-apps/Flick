@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flick/core/theme/app_theme.dart';
+import 'package:flick/features/menu/screens/restarting_screen.dart';
 import 'package:flick/features/player/widgets/audio_signal_report.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/common/detail_header.dart';
+import 'package:flick/widgets/common/engine_restart_notice.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 Future<void> _pump(
@@ -81,5 +83,37 @@ void main() {
     expect(find.text(english.signalFileFormat), findsOneWidget);
     expect(find.text(taglish.signalSourceDescription), findsNothing);
     expect(find.text(taglish.signalFileFormat), findsNothing);
+  });
+
+  testWidgets('engine restart prompt is English under Taglish', (tester) async {
+    addTearDown(() => LocaleController.instance.bindLocale(kFallbackLocale));
+    final taglish = lookupFlickLocalizations(kFilipinoLocale);
+    final english = lookupFlickLocalizations(kFallbackLocale);
+    await _pump(tester, const EngineRestartNotice());
+
+    expect(find.text(english.restartRequired), findsOneWidget);
+    expect(find.text(english.yourNewAudioEngineIsReady), findsOneWidget);
+    expect(find.text(english.restart), findsOneWidget);
+    expect(find.text(taglish.restartRequired), findsNothing);
+    expect(find.text(taglish.yourNewAudioEngineIsReady), findsNothing);
+    expect(find.text(taglish.restart), findsNothing);
+  });
+
+  testWidgets('engine restarting screen is English under Taglish', (
+    tester,
+  ) async {
+    addTearDown(() => LocaleController.instance.bindLocale(kFallbackLocale));
+    final taglish = lookupFlickLocalizations(kFilipinoLocale);
+    final english = lookupFlickLocalizations(kFallbackLocale);
+    await _pump(tester, const RestartingScreen());
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text(english.restartingFlick), findsOneWidget);
+    expect(find.text(english.applyingNewAudioEngine), findsOneWidget);
+    expect(find.text(taglish.restartingFlick), findsNothing);
+    expect(find.text(taglish.applyingNewAudioEngine), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
   });
 }
