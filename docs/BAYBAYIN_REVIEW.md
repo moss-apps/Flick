@@ -2,7 +2,7 @@
 
 **Draft, not linguistically verified.** The Filipino reviewer decides whether
 the wording is natural and the Baybayin spelling is correct. Passing tests does
-not approve a translation. The 2,355-message Latin resource, eleven curated
+not approve a translation. The 2,507-message Latin resource, eleven curated
 Baybayin labels, fifteen native-speaker-supplied Taglish hooks and six streak
 greetings remain drafts for review. The latest corrections are screen-specific,
 not a global replacement of Filipino with English.
@@ -45,6 +45,18 @@ subsequently turning them off survives a restart.
 - Other general home copy is English. The audio-engine picker is fully English
   in Taglish: title, option names, and explanations. English and Chinese keep
   their own localized copy.
+- The Audio Signal Path panel is fully English in Taglish: title, status,
+  labels and values. The compact bit-perfect capsule is English as well.
+- The full player's top queue badge says **Queue**, not the Taglish **Pila**.
+- The full-player song actions sheet uses the supplied Taglish lines for add to
+  queue, add to playlist, set album art, refresh album art, edit metadata,
+  sleep timer and share. Its other actions keep their existing Taglish labels.
+- The album, artist, playlist and smart-mix three-dot More sheets use English,
+  including their **More** header.
+- The playlists screen's header and per-playlist three-dot menus use English.
+- The artist biography heading is **Tungkol sa kanila**.
+- The Lyrics Sync Studio is fully English in Taglish: editor, tool labels,
+  help, dialogs, save flow and validation messages.
 - Flick Replay is fully English in Taglish: cards, period labels and dates,
   studio controls, tooltips, empty/error states and saved posters. Downloadable
   CSV/TXT recaps are always English regardless of UI language.
@@ -169,6 +181,24 @@ Chinese keep their existing tier-specific messages.
 
 Edit `lib/l10n/streak_greeting.dart` and the corresponding rows together.
 
+## Full-player song actions
+
+The full-player three-dot sheet uses these exact Taglish lines. English and
+Chinese keep their existing menu labels.
+
+| Action | Taglish label | Status |
+|---|---|---|
+| Add to queue | Dagdag ba natin sa queue mo? | draft |
+| Add to playlist | Dagdag ba natin sa playlist mo? | draft |
+| Set album art | Lagyan natin ng album art para di blangko. | draft |
+| Refresh album art | Refresh natin yung album art. | draft |
+| Edit metadata | May babaguhin ka ba sa metadata? | draft |
+| Sleep timer | Sleep timer? | draft |
+| Share | Share mo? | draft |
+
+Edit `lib/l10n/app_tl.arb` (`playerMenu*` keys) and the corresponding rows
+together.
+
 ## Implementation notes
 
 - App locale is `tl`, the Tagalog locale supported by Flutter's stock controls;
@@ -216,10 +246,12 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
 - [ ] Follow a Filipino/Tagalog phone locale: Taglish appears, headings stay off
       unless previously explicitly enabled. English escape remains reachable.
 - [ ] Check the per-screen role policy above, including the English Flick Replay
-      shortcut and the Baybayin Browse shortcuts, both player layouts,
-      all-English settings except the Taglish tagline,
-      unchanged search, and the Taglish-only support card. Technical values and
-      original music/playlist metadata must not change.
+      shortcut and the Baybayin Browse shortcuts, both player layouts, the
+      English audio signal path, the **Queue** badge and detail/playlist menus,
+      the Taglish player action labels, the fully English Lyrics Sync Studio,
+      all-English settings except the Taglish tagline, unchanged search, and the
+      Taglish-only support card. Technical values and original music/playlist
+      metadata must not change.
 - [ ] Use TalkBack: each heading announces its Latin label once as a heading;
       verify actual Filipino pronunciation rather than assuming language support.
 - [ ] Check home hooks across time boundaries and day changes, including long
