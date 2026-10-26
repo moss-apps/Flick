@@ -58,6 +58,18 @@ subsequently turning them off survives a restart.
 - The album, artist, playlist and smart-mix three-dot More sheets use English,
   including their **More** header.
 - The playlists screen's header and per-playlist three-dot menus use English.
+- The long-press song actions sheet is fully English in Taglish: every action,
+  its Add to Playlist sub-sheet, View Metadata panel, delete warning, Edit
+  Metadata form, and Set Album Art picker (including search states, errors and
+  reset dialog). This also covers the shared sheet from Search and song action
+  buttons. Android's system share sheet follows the OS language.
+- The playlist creation dialogs are English in Taglish, including title, name
+  hint, storage selector, Cancel and Create. This applies from the Playlists
+  screen, song actions and multi-select actions. English and Chinese keep their
+  own copy.
+- The playlist cover editor is fully English in Taglish: title, crop/adjust/
+  filters tabs, tools, filter names, save/reset/close controls and the discard
+  dialog. English and Chinese keep their own UI copy.
 - The artist biography heading is **Tungkol sa kanila**.
 - The Lyrics Sync Studio is fully English in Taglish: editor, tool labels,
   help, dialogs, save flow and validation messages.
@@ -67,9 +79,22 @@ subsequently turning them off survives a restart.
 - The streak popup keeps its count label and both buttons in English
   (`N day streak`, `Continue`, `Don't show again today`). Its message is one of
   six Taglish greetings chosen at random each time the popup opens.
+- The Milestones screen, category names, progress units, dates, locked sheet and
+  celebration card are English in Taglish. The streak banner and its
+  **Current Streak** label are English too; the streak popup's greeting keeps
+  its separately requested Taglish copy.
 - Settings uses English for its section names, titles, options and descriptions.
   The only Taglish line is the page tagline:
   **Dito mo ayusin mga configuration ng settings mo.**
+- The **Manual** title, section/entry headings and search controls are English.
+  Its instructions and tips are conversational Taglish, not literal Filipino
+  translations. Manual search matches the displayed English headings and
+  Taglish instructions.
+- Onboarding is English except the first title:
+  **Kumusta! Greetings from Flick!** The interactive spotlight tutorial is fully
+  English, including its navigation buttons.
+- The license list and detail screens use English controls in Taglish, with
+  original license notices retained. English and Chinese keep their own UI.
 - The home update notice says **Yun oh! May bagong update na naman!** Its other
   copy/actions remain English.
 - Original server/device/preset names stay unchanged even though the surrounding
@@ -205,6 +230,33 @@ together.
 
 ## Implementation notes
 
+### Manual voice and first-run guidance
+
+All 82 manual instruction/tip messages in `app_tl.arb` have been rewritten as
+draft conversational Taglish. Keep UI names such as **Sort & Filter**,
+**Queue**, **Settings** and **Lyrics Sync Studio** recognizable. Use short,
+actionable directions with familiar English interface terms, not word-for-word
+translations. These drafts still need the native-speaker reviewer's approval.
+
+For example, the library guide starts: "Nasa Songs tab lahat ng tracks na
+na-scan ng Flick. Scroll ka lang para mag-browse. May hinahanap ka? I-type ang
+title o artist sa search bar para mas mabilis."
+
+`manual_screen.dart` resolves headings through `englishForFilipino` while
+instructions/tips keep the active catalog. Onboarding uses the same English
+role with only `onboardingWelcomeTitle` resolved from Taglish. The interactive
+tutorial uses English for its step titles, descriptions and controls.
+`LicensePage` needs a screen-local `Localizations.override`, since Flutter's
+license UI reads Material localizations rather than Flick's string getter.
+None of these overrides changes the app-wide locale.
+
+The song long-press flow uses the English copy shim in
+`song_actions_bottom_sheet.dart`, `metadata_editor_bottom_sheet.dart`,
+`album_art_picker_bottom_sheet.dart` and `album_art_import_service.dart`. That
+keeps the sheet, its sub-sheets and album-art failure messages English in
+Taglish while English and Chinese still receive their own resources. The
+separate full-player three-dot sheet keeps its supplied Taglish lines.
+
 - App locale is `tl`, the Tagalog locale supported by Flutter's stock controls;
   `fil` language tags are accepted as aliases. This is the Filipino UI choice.
 - `tl_Tglg` is a **resource-only** generated subclass. It is excluded from the
@@ -254,9 +306,14 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
       English audio-engine restart prompt/flow and audio signal path, the
       **Queue** badge and detail/playlist menus,
       the Taglish player action labels, the fully English Lyrics Sync Studio,
-      all-English settings except the Taglish tagline, unchanged search, and the
-      Taglish-only support card. Technical values and original music/playlist
-      metadata must not change.
+      the English Milestones surface and playlist cover editor, all-English
+      playlist creation dialogs, the English song long-press sheet and its
+      metadata/album-art subflows, settings except the Taglish tagline,
+      unchanged search, and the Taglish-only support card. Technical values and
+      original music/playlist metadata must not change.
+- [ ] Review all manual instructions and tips for natural Taglish; check its
+      English headings, mixed-language search and enlarged text. Verify English
+      onboarding/tutorial controls, the exact welcome title, and license pages.
 - [ ] Use TalkBack: each heading announces its Latin label once as a heading;
       verify actual Filipino pronunciation rather than assuming language support.
 - [ ] Check home hooks across time boundaries and day changes, including long
