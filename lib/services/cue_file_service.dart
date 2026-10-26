@@ -88,7 +88,6 @@ class CueFileService {
     String? currentTrackPerformer;
     int? currentTrackNumber;
     int? currentTrackIndexMs;
-    int? lastTrackIndexMs;
 
     for (var raw in lines) {
       final line = raw.trim();
@@ -141,9 +140,7 @@ class CueFileService {
       final trackMatch = _trackPattern.firstMatch(line);
       if (trackMatch != null) {
         // Finalize previous track
-        if (currentTrackNumber != null &&
-            lastTrackIndexMs != null &&
-            currentTrackIndexMs != null) {
+        if (currentTrackNumber != null && currentTrackIndexMs != null) {
           tracks.add(
             CueTrack(
               trackNumber: currentTrackNumber,
@@ -157,7 +154,6 @@ class CueFileService {
         currentTrackNumber = int.tryParse(trackMatch.group(1) ?? '');
         currentTrackTitle = null;
         currentTrackPerformer = null;
-        lastTrackIndexMs = currentTrackIndexMs;
         currentTrackIndexMs = null;
         continue;
       }
@@ -179,8 +175,7 @@ class CueFileService {
     }
 
     // Finalize last track
-    if (currentTrackNumber != null &&
-        currentTrackIndexMs != null) {
+    if (currentTrackNumber != null && currentTrackIndexMs != null) {
       tracks.add(
         CueTrack(
           trackNumber: currentTrackNumber,
