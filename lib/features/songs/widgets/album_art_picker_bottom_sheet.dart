@@ -13,7 +13,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 class AlbumArtPickerBottomSheet extends StatefulWidget {
   const AlbumArtPickerBottomSheet({super.key, required this.song});

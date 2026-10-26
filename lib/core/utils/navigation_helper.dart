@@ -154,10 +154,23 @@ class NavigationHelper {
   }
 
   /// Open today's listening recap, the destination of the Flick Replay widget.
+  ///
+  /// The recap is transparent and relies on the shell's persistent ambient
+  /// background, so it belongs on the nested tab navigator — the same place
+  /// the in-app Replay shortcut pushes it. A root-level route would cover the
+  /// whole shell, including that background, and leave the screen on a bare
+  /// backdrop.
   static Future<T?> navigateToRecap<T>(BuildContext context) {
-    final navigator = rootNavigatorKey.currentState != null
-        ? rootNavigatorKey.currentState!
-        : Navigator.of(context);
+    final root = rootNavigatorKey.currentState;
+    final nested = nestedNavigatorKey.currentState;
+
+    // The widget can fire while the full player or another root route covers
+    // the shell. Clear that route so the nested recap is actually visible.
+    if (nested != null && root != null && root.canPop()) {
+      root.popUntil((route) => route.isFirst);
+    }
+
+    final navigator = nested ?? root ?? Navigator.of(context);
     return navigator.push<T>(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>

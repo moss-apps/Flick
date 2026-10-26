@@ -13,20 +13,23 @@ import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/milestone/widgets/milestone_card.dart';
 import 'package:flick/features/milestone/widgets/streak_popup.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 /// Achievement-style collection view of every milestone tier. Unlocked tiles
 /// re-open the celebration card on tap; locked tiles show a small bottom
 /// sheet with the requirement and current progress.
 class MilestonesScreen extends ConsumerStatefulWidget {
-  const MilestonesScreen({super.key});
+  const MilestonesScreen({super.key, this.service});
+
+  /// Test seam. Production uses the default [MilestoneService].
+  final MilestoneService? service;
 
   @override
   ConsumerState<MilestonesScreen> createState() => _MilestonesScreenState();
 }
 
 class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
-  final _service = MilestoneService();
+  late final MilestoneService _service;
   bool _loading = true;
   bool _streaksEnabled = true;
   Map<MilestoneType, MilestoneRecord> _records = {};
@@ -35,6 +38,7 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   @override
   void initState() {
     super.initState();
+    _service = widget.service ?? MilestoneService();
     _refresh();
   }
 

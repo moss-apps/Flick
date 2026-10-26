@@ -240,13 +240,14 @@ extension MilestoneCategoryX on MilestoneCategory {
     };
   }
 
-  /// Localized unit for progress copy ("3 more songs to unlock"). Takes the
-  /// count so English can pick the singular/plural form.
+  /// English unit for milestone progress copy ("3 more songs to unlock").
+  /// Milestones stay English in the Taglish UI. Takes the count so English can
+  /// pick the singular/plural form.
   String unitLabel(int count) => switch (this) {
-    MilestoneCategory.songs => l10n.songUnit(count),
-    MilestoneCategory.hours => l10n.hourUnit(count),
-    MilestoneCategory.dayStreak => l10n.dayUnit(count),
-    MilestoneCategory.uniqueArtists => l10n.artistUnit(count),
+    MilestoneCategory.songs => l10n.englishForFilipino.songUnit(count),
+    MilestoneCategory.hours => l10n.englishForFilipino.hourUnit(count),
+    MilestoneCategory.dayStreak => l10n.englishForFilipino.dayUnit(count),
+    MilestoneCategory.uniqueArtists => l10n.englishForFilipino.artistUnit(count),
   };
 
   /// Accent color of the highest tier in this category met by [value], or

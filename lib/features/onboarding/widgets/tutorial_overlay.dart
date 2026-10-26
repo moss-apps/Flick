@@ -255,6 +255,7 @@ class _TooltipCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n.englishForFilipino;
     final showManualButton = step.isManualPointer && isLastStep;
     return Container(
       padding: const EdgeInsets.all(AppConstants.spacingLg),
@@ -310,7 +311,7 @@ class _TooltipCard extends StatelessWidget {
           ),
           const SizedBox(height: AppConstants.spacingMd),
           Text(
-            step.title(context.l10n),
+            step.title(l10n),
             style: const TextStyle(
               fontFamily: 'GoogleSansFlex',
               fontSize: 20,
@@ -320,7 +321,7 @@ class _TooltipCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            step.description(context.l10n),
+            step.description(l10n),
             style: const TextStyle(
               fontFamily: 'GoogleSansFlex',
               fontSize: 14,

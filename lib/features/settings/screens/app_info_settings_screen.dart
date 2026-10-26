@@ -35,11 +35,13 @@ class AppInfoSettingsScreen extends ConsumerStatefulWidget {
 
 class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     with SingleTickerProviderStateMixin {
+  // Follow GitHub's "latest release" instead of a pinned tag so the patch
+  // notes stay current without a code change on every release.
   static final Uri _releaseNotesApiUri = Uri.parse(
-    'https://api.github.com/repos/moss-apps/Flick/releases/tags/0.18.0-beta.1',
+    'https://api.github.com/repos/moss-apps/Flick/releases/latest',
   );
   static const String _releaseNotesUrl =
-      'https://github.com/moss-apps/Flick/releases/tag/0.18.0-beta.1';
+      'https://github.com/moss-apps/Flick/releases/latest';
 
   late final AnimationController _donationPulseController;
   late final Animation<double> _donationPulseAnimation;
@@ -558,22 +560,33 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         // ponytail: iOS platform override swaps the app bar back arrow for a chevron-left
-        builder: (_) => Theme(
-          data: Theme.of(context).copyWith(platform: TargetPlatform.iOS),
-          child: LicensePage(
-            applicationName: l10n.flick,
-            applicationVersion: kAppVersion,
-            applicationIcon: Padding(
-              padding: const EdgeInsets.all(AppConstants.spacingSm),
-              child: SvgPicture.asset(
-                'assets/icons/flicklogo_svg.svg',
-                width: 28,
-                height: 28,
-                fit: BoxFit.contain,
+        builder: (context) {
+          final page = Theme(
+            data: Theme.of(context).copyWith(platform: TargetPlatform.iOS),
+            child: LicensePage(
+              applicationName: l10n.flick,
+              applicationVersion: kAppVersion,
+              applicationIcon: Padding(
+                padding: const EdgeInsets.all(AppConstants.spacingSm),
+                child: SvgPicture.asset(
+                  'assets/icons/flicklogo_svg.svg',
+                  width: 28,
+                  height: 28,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
-          ),
-        ),
+          );
+          // Flutter's LicensePage uses MaterialLocalizations, not our copy
+          // getter. Keep its list/detail chrome English in Taglish too.
+          return context.l10n.isFilipino
+              ? Localizations.override(
+                  context: context,
+                  locale: kFallbackLocale,
+                  child: page,
+                )
+              : page;
+        },
       ),
     );
   }

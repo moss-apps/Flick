@@ -343,6 +343,9 @@ class PlaylistsScreen extends ConsumerWidget {
   }
 
   void _showCreatePlaylistDialog(BuildContext context, WidgetRef ref) {
+    // The creation dialog is an English surface in Taglish. English and
+    // Chinese still receive their own copy.
+    final l10n = context.l10n.englishForFilipino;
     final controller = TextEditingController();
     final serversAsync = ref.watch(networkServersProvider);
     final servers = serversAsync.value

@@ -12,7 +12,7 @@ import '../models/song.dart';
 import 'album_art_service.dart';
 import 'player_service.dart';
 import 'sources/network_source_service.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 class AlbumArtImportException implements Exception {
   const AlbumArtImportException(this.message);

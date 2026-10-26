@@ -195,18 +195,7 @@ class _MainShellState extends ConsumerState<MainShell>
     _widgetIntentHandler = WidgetIntentHandler(
       ref,
       onOpenQueue: () => NavigationHelper.navigateToQueue(context),
-      onOpenRecap: () {
-        if (!mounted) return;
-        if (rootNavigatorKey.currentState != null) {
-          NavigationHelper.navigateToRecap(context);
-          return;
-        }
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          NavigationHelper.navigateToRecap(context);
-        });
-        WidgetsBinding.instance.scheduleFrame();
-      },
+      onOpenRecap: _openRecapFromWidget,
     );
     unawaited(_widgetIntentHandler.attach());
 
@@ -414,13 +403,13 @@ class _MainShellState extends ConsumerState<MainShell>
     await showFlickDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: l10n.milestone,
+      barrierLabel: l10n.englishForFilipino.milestone,
       builder: (context) => MilestoneCard(
         milestone: milestone,
         nextMilestone: next.next,
         nextRemaining: next.next == null ? null : next.remaining,
-        supportLabel: l10n.supportFlick,
-        dismissLabel: l10n.dismiss,
+        supportLabel: l10n.englishForFilipino.supportFlick,
+        dismissLabel: l10n.englishForFilipino.dismiss,
         onSupportTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const SupportFlickScreen()),
@@ -677,6 +666,26 @@ class _MainShellState extends ConsumerState<MainShell>
     } else {
       _navBarAnimationController.forward();
     }
+  }
+
+  /// Opens Flick Replay from the home-screen widget.
+  ///
+  /// The widget already launches the running Flick Activity, so the recap
+  /// belongs on the nested tab navigator like the in-app Replay shortcut:
+  /// that keeps the persistent ambient background and bottom bar behind it.
+  /// On a cold start the nested navigator is not mounted yet, so wait for the
+  /// shell's first frame instead of falling back to a root-level screen.
+  void _openRecapFromWidget() {
+    if (!mounted) return;
+    if (nestedNavigatorKey.currentState != null) {
+      NavigationHelper.navigateToRecap(context);
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      NavigationHelper.navigateToRecap(context);
+    });
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   void _maybeOpenExternalPlayer(Song? song) {

@@ -1550,11 +1550,13 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final songs = _selectedSongs();
     if (songs.isEmpty || !mounted) return;
 
+    final l10n = context.l10n.englishForFilipino;
     final name = await FlickDialogs.input(
       context,
       title: l10n.createPlaylist,
       hintText: l10n.playlistName,
       confirmLabel: l10n.create,
+      cancelLabel: l10n.cancel,
     );
     if (name == null || name.isEmpty || !mounted) return;
 
