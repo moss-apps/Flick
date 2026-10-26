@@ -437,7 +437,7 @@ class _MainShellState extends ConsumerState<MainShell>
     showFlickDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: l10n.dayStreak2,
+      barrierLabel: l10n.englishForFilipino.dayStreak2,
       builder: (context) => StreakPopup(
         streak: streak,
         onSnooze: () => MilestoneService().snoozeStreakPopup(),

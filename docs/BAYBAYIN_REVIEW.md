@@ -3,9 +3,9 @@
 **Draft, not linguistically verified.** The Filipino reviewer decides whether
 the wording is natural and the Baybayin spelling is correct. Passing tests does
 not approve a translation. The 2,355-message Latin resource, eleven curated
-Baybayin labels and fifteen native-speaker-supplied Taglish hooks remain drafts
-for review. The latest corrections are screen-specific, not a global replacement
-of Filipino with English.
+Baybayin labels, fifteen native-speaker-supplied Taglish hooks and six streak
+greetings remain drafts for review. The latest corrections are screen-specific,
+not a global replacement of Filipino with English.
 
 ## Try it
 
@@ -48,6 +48,9 @@ subsequently turning them off survives a restart.
 - Flick Replay is fully English in Taglish: cards, period labels and dates,
   studio controls, tooltips, empty/error states and saved posters. Downloadable
   CSV/TXT recaps are always English regardless of UI language.
+- The streak popup keeps its count label and both buttons in English
+  (`N day streak`, `Continue`, `Don't show again today`). Its message is one of
+  six Taglish greetings chosen at random each time the popup opens.
 - Settings uses English for its section names, titles, options and descriptions.
   The only Taglish line is the page tagline:
   **Dito mo ayusin mga configuration ng settings mo.**
@@ -148,6 +151,24 @@ brief, inclusive and not overly promotional. Edit `lib/l10n/home_greeting.dart`
 and the corresponding rows together. Technical tests only check selection,
 stability, locale isolation, review coverage and layout.
 
+## Filipino-only streak greetings
+
+The launch-day streak popup keeps its visible count label and both buttons in
+English under Taglish. Its message is one of the six native-speaker-supplied
+Taglish lines below, chosen at random each time the popup opens. English and
+Chinese keep their existing tier-specific messages.
+
+| Original Taglish greeting | Status |
+|---|---|
+| Uy oh, may nagbabalik! | draft |
+| Welcome back po. Tara music jam na ulit. | draft |
+| Handa mo na earphones mo ulit. Hahaha. | draft |
+| Hobby mo talaga music, maem? | draft |
+| Share your music with? | draft |
+| Baka mamaya puro ka relapse ha? | draft |
+
+Edit `lib/l10n/streak_greeting.dart` and the corresponding rows together.
+
 ## Implementation notes
 
 - App locale is `tl`, the Tagalog locale supported by Flutter's stock controls;
@@ -171,8 +192,8 @@ Automated localization tests cover full Filipino key parity and ICU arguments,
 eleven-key script allowlisting, review-table synchronization, reviewer vocabulary,
 plural counts (0, 1, 2, 101), old preference migration, locale aliases, independent
 persistence, live switching, Latin accessibility labels, actual font coverage,
-narrow layouts, enlarged text and all greeting variants. They **do not certify
-linguistic correctness or Android/TalkBack behavior**.
+narrow layouts, enlarged text and all home/streak greeting variants. They **do
+not certify linguistic correctness or Android/TalkBack behavior**.
 
 ```sh
 flutter gen-l10n
@@ -185,7 +206,8 @@ host widget renders with bundled fonts, not a substitute for Android hardware.
 
 Before removing the experimental/draft notices, the Filipino reviewer should:
 
-- [ ] Review Latin Filipino wording, all eleven Baybayin spellings and hooks.
+- [ ] Review Latin Filipino wording, all eleven Baybayin spellings, home hooks
+      and the six streak greetings.
 - [ ] Test Android API 26 and a current Android version, including bold text,
       combining/final marks, narrow widths and large system font sizes.
 - [ ] Switch Taglish ↔ English ↔ Chinese and enable/disable headings live.
@@ -201,7 +223,8 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
 - [ ] Use TalkBack: each heading announces its Latin label once as a heading;
       verify actual Filipino pronunciation rather than assuming language support.
 - [ ] Check home hooks across time boundaries and day changes, including long
-      hooks at enlarged text settings.
+      hooks at enlarged text settings. Confirm the streak popup rotates through
+      all six lines and fits the longest greeting.
 - [ ] Check native dialogs, notifications and home-screen widgets separately for
       Latin Filipino font support, clipping and stale strings after switching.
 
