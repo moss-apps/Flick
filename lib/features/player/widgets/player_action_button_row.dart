@@ -617,7 +617,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required bool hasAlbumTint,
   }) {
     return Tooltip(
-      message: l10n.queue,
+      message: l10n.englishForFilipino.queue,
       child: GestureDetector(
         onTap: () => widget.onOpenQueue(context),
         child: Container(

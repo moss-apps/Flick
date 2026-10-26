@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/audio_output_diagnostics.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 enum _CapsulePhase { entering, visible, exiting, hidden }
 

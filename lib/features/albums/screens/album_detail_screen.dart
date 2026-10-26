@@ -335,18 +335,18 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
         DetailMoreSheetItem(
           icon: LucideIcons.alignLeft,
           label: ref.read(detailDescriptionProvider(_descriptionKey)).isEmpty
-              ? l10n.addDescription2
-              : l10n.editDescription2,
+              ? l10n.englishForFilipino.addDescription2
+              : l10n.englishForFilipino.editDescription2,
           onTap: _editDescription,
         ),
         DetailMoreSheetItem(
           icon: LucideIcons.listPlus,
-          label: l10n.addToPlaylist,
+          label: l10n.englishForFilipino.addToPlaylist,
           onTap: () => AddToPlaylistSheet.showSongs(context, widget.songs),
         ),
         DetailMoreSheetItem(
           icon: LucideIcons.sparkles,
-          label: l10n.identifyAlbum,
+          label: l10n.englishForFilipino.identifyAlbum,
           onTap: () => IdentifyAlbumSheet.show(
             context,
             songs: widget.songs,
@@ -357,17 +357,17 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
         if (appleMusic != null)
           DetailMoreSheetItem(
             icon: LucideIcons.externalLink,
-            label: l10n.openInAppleMusic,
+            label: l10n.englishForFilipino.openInAppleMusic,
             onTap: () => _openAppleMusic(_albumAppleMusicUri(appleMusic)),
           ),
         DetailMoreSheetItem(
           icon: LucideIcons.refreshCw,
-          label: l10n.refreshAppleMusic,
+          label: l10n.englishForFilipino.refreshAppleMusic,
           onTap: _refreshAppleMusic,
         ),
         DetailMoreSheetItem(
           icon: LucideIcons.moonStar,
-          label: l10n.sleepTimer,
+          label: l10n.englishForFilipino.sleepTimer,
           onTap: () =>
               SleepTimerBottomSheet.show(context, widget.playerService),
         ),

@@ -209,6 +209,12 @@ abstract class AppLocalizations {
   /// **'About this album'**
   String get aboutThisAlbum;
 
+  /// Artist detail biography section and its expanded sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'About them'**
+  String get aboutThem;
+
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:398
   ///
   /// In en, this message translates to:
@@ -9646,6 +9652,48 @@ abstract class AppLocalizations {
   /// **'Player Layout'**
   String get playerLayout;
 
+  /// Full-player song actions sheet; Taglish uses supplied wording.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Playlist'**
+  String get playerMenuAddToPlaylist;
+
+  /// Full-player song actions sheet; Taglish uses supplied wording.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Queue'**
+  String get playerMenuAddToQueue;
+
+  /// Full-player song actions sheet; Taglish uses supplied wording.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Metadata'**
+  String get playerMenuEditMetadata;
+
+  /// Full-player song actions sheet; Taglish calls this album art.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh Motion Art'**
+  String get playerMenuRefreshAlbumArt;
+
+  /// Full-player song actions sheet; Taglish uses supplied wording.
+  ///
+  /// In en, this message translates to:
+  /// **'Set Album Art'**
+  String get playerMenuSetAlbumArt;
+
+  /// Full-player song actions sheet; Taglish uses supplied wording.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get playerMenuShare;
+
+  /// Full-player song actions sheet; Taglish uses supplied wording.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep Timer'**
+  String get playerMenuSleepTimer;
+
   /// lib/features/playlists/screens/playlists_screen.dart:92
   ///
   /// In en, this message translates to:
@@ -10161,12 +10209,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Refresh devices'**
   String get refreshDevices2;
-
-  /// lib/features/player/widgets/song_actions_sheet.dart:238
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh Motion Art'**
-  String get refreshMotionArt;
 
   /// lib/features/settings/screens/casting_settings_screen.dart:257
   ///

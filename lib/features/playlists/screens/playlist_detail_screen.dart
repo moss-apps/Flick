@@ -449,36 +449,38 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
       items: [
         DetailMoreSheetItem(
           icon: LucideIcons.pencilLine,
-          label: l10n.rename,
+          label: l10n.englishForFilipino.rename,
           onTap: _renamePlaylist,
         ),
         if (hasCover)
           DetailMoreSheetItem(
             icon: LucideIcons.pencil,
-            label: l10n.editCover,
+            label: l10n.englishForFilipino.editCover,
             onTap: _editCover,
           ),
         DetailMoreSheetItem(
           icon: LucideIcons.imagePlus,
-          label: hasCover ? l10n.changeCover : l10n.setCover,
+          label: hasCover
+              ? l10n.englishForFilipino.changeCover
+              : l10n.englishForFilipino.setCover,
           onTap: _changeCover,
         ),
         if (hasCover)
           DetailMoreSheetItem(
             icon: LucideIcons.imageOff,
-            label: l10n.removeCover,
+            label: l10n.englishForFilipino.removeCover,
             onTap: _removeCover,
           ),
         DetailMoreSheetItem(
           icon: LucideIcons.alignLeft,
           label: ref.read(detailDescriptionProvider(_descriptionKey)).isEmpty
-              ? l10n.addDescription2
-              : l10n.editDescription2,
+              ? l10n.englishForFilipino.addDescription2
+              : l10n.englishForFilipino.editDescription2,
           onTap: _editDescription,
         ),
         DetailMoreSheetItem(
           icon: LucideIcons.arrowDownAZ,
-          label: l10n.sortSongs,
+          label: l10n.englishForFilipino.sortSongs,
           onTap: () => PlaylistSortBottomSheet.show(
             context,
             currentSort: _sortOption,
@@ -487,7 +489,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
         ),
         DetailMoreSheetItem(
           icon: LucideIcons.moonStar,
-          label: l10n.sleepTimer,
+          label: l10n.englishForFilipino.sleepTimer,
           onTap: () => SleepTimerBottomSheet.show(context, _playerService),
         ),
       ],

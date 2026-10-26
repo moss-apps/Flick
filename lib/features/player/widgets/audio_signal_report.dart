@@ -3,7 +3,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/models/audio_output_diagnostics.dart';
 import 'package:flick/models/song.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 enum AudioSignalReportPage { source, urb, recorded }
 

@@ -16,7 +16,7 @@ import 'package:flick/features/player/widgets/karaoke_lyric_line.dart';
 import 'package:flick/features/player/widgets/lyrics_editor_model.dart';
 import 'package:flick/features/player/widgets/lyrics_word_timeline.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 enum LyricsEditorViewMode { simple, wordSync, advanced }
 

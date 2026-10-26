@@ -200,7 +200,7 @@ class SongActionsSheet extends ConsumerWidget {
                             _buildSongActionTile(
                               context: sheetContext,
                               icon: LucideIcons.listPlus,
-                              label: l10n.addToQueue,
+                              label: l10n.playerMenuAddToQueue,
                               onTap: () async {
                                 Navigator.pop(sheetContext);
                                 await navigation.queueSong(context, activeSong);
@@ -209,7 +209,7 @@ class SongActionsSheet extends ConsumerWidget {
                           _buildSongActionTile(
                             context: sheetContext,
                             icon: LucideIcons.listMusic,
-                            label: l10n.addToPlaylist2,
+                            label: l10n.playerMenuAddToPlaylist,
                             onTap: () {
                               Navigator.pop(sheetContext);
                               AddToPlaylistSheet.show(context, activeSong);
@@ -218,7 +218,7 @@ class SongActionsSheet extends ConsumerWidget {
                           _buildSongActionTile(
                             context: sheetContext,
                             icon: LucideIcons.image,
-                            label: l10n.setAlbumArt,
+                            label: l10n.playerMenuSetAlbumArt,
                             onTap: () {
                               Navigator.pop(sheetContext);
                               Future.delayed(Duration.zero, () async {
@@ -236,7 +236,7 @@ class SongActionsSheet extends ConsumerWidget {
                           _buildSongActionTile(
                             context: sheetContext,
                             icon: LucideIcons.refreshCw,
-                            label: l10n.refreshMotionArt,
+                            label: l10n.playerMenuRefreshAlbumArt,
                             onTap: () async {
                               Navigator.pop(sheetContext);
                               final albumArtist = activeSong.albumArtist;
@@ -266,7 +266,7 @@ class SongActionsSheet extends ConsumerWidget {
                             _buildSongActionTile(
                               context: sheetContext,
                               icon: LucideIcons.pencil,
-                              label: l10n.editMetadata,
+                              label: l10n.playerMenuEditMetadata,
                               onTap: () {
                                 Navigator.pop(sheetContext);
                                 Future.delayed(Duration.zero, () async {
@@ -358,7 +358,7 @@ class SongActionsSheet extends ConsumerWidget {
                           _buildSongActionTile(
                             context: sheetContext,
                             icon: LucideIcons.moonStar,
-                            label: l10n.sleepTimer2,
+                            label: l10n.playerMenuSleepTimer,
                             onTap: () {
                               Navigator.pop(sheetContext);
                               SleepTimerBottomSheet.show(context, playerService);
@@ -367,7 +367,7 @@ class SongActionsSheet extends ConsumerWidget {
                           _buildSongActionTile(
                             context: sheetContext,
                             icon: LucideIcons.share2,
-                            label: l10n.share,
+                            label: l10n.playerMenuShare,
                             onTap: () {
                               Navigator.pop(sheetContext);
                               showModalBottomSheet(

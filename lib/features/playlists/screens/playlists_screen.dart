@@ -126,7 +126,7 @@ class PlaylistsScreen extends ConsumerWidget {
                     children: [
                       Icon(LucideIcons.plus, size: 18),
                       SizedBox(width: 8),
-                      Text(l10n.createPlaylist),
+                      Text(l10n.englishForFilipino.createPlaylist),
                     ],
                   ),
                 ),
@@ -136,7 +136,7 @@ class PlaylistsScreen extends ConsumerWidget {
                     children: [
                       Icon(LucideIcons.fileUp, size: 18),
                       SizedBox(width: 8),
-                      Text(l10n.importM3uM3u8),
+                      Text(l10n.englishForFilipino.importM3uM3u8),
                     ],
                   ),
                 ),
@@ -146,7 +146,7 @@ class PlaylistsScreen extends ConsumerWidget {
                     children: [
                       Icon(LucideIcons.refreshCw, size: 18),
                       SizedBox(width: 8),
-                      Text(l10n.syncServerPlaylists),
+                      Text(l10n.englishForFilipino.syncServerPlaylists),
                     ],
                   ),
                 ),
@@ -652,7 +652,7 @@ class _PlaylistCard extends StatelessWidget {
                         children: [
                           Icon(LucideIcons.pencilLine, size: 18),
                           SizedBox(width: 8),
-                          Text(l10n.rename),
+                          Text(l10n.englishForFilipino.rename),
                         ],
                       ),
                     ),
@@ -665,8 +665,8 @@ class _PlaylistCard extends StatelessWidget {
                           SizedBox(width: 8),
                           Text(
                             playlist.coverPath == null
-                                ? l10n.setCover
-                                : l10n.changeCover,
+                                ? l10n.englishForFilipino.setCover
+                                : l10n.englishForFilipino.changeCover,
                           ),
                         ],
                       ),
@@ -678,7 +678,7 @@ class _PlaylistCard extends StatelessWidget {
                           children: [
                             Icon(LucideIcons.imageOff, size: 18),
                             const SizedBox(width: 8),
-                            Text(l10n.removeCover),
+                            Text(l10n.englishForFilipino.removeCover),
                           ],
                         ),
                       ),
@@ -689,7 +689,7 @@ class _PlaylistCard extends StatelessWidget {
                         children: [
                           Icon(LucideIcons.fileDown, size: 18),
                           SizedBox(width: 8),
-                          Text(l10n.exportAsM3u),
+                          Text(l10n.englishForFilipino.exportAsM3u),
                         ],
                       ),
                     ),
@@ -699,7 +699,7 @@ class _PlaylistCard extends StatelessWidget {
                         children: [
                           Icon(LucideIcons.fileDown, size: 18),
                           SizedBox(width: 8),
-                          Text(l10n.exportAsM3u8),
+                          Text(l10n.englishForFilipino.exportAsM3u8),
                         ],
                       ),
                     ),
@@ -710,7 +710,10 @@ class _PlaylistCard extends StatelessWidget {
                         children: [
                           Icon(LucideIcons.trash2, color: Colors.red, size: 18),
                           const SizedBox(width: 8),
-                          Text(l10n.delete, style: TextStyle(color: Colors.red)),
+                          Text(
+                            l10n.englishForFilipino.delete,
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ],
                       ),
                     ),

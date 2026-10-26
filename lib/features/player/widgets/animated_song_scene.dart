@@ -637,7 +637,9 @@ class AnimatedSongScene extends ConsumerWidget {
           ),
           SizedBox(width: context.responsive(4.0, 5.0, 6.0)),
           Text(
-            count > 0 ? l10n.queue2(count) : l10n.queue,
+            count > 0
+                ? l10n.englishForFilipino.queue2(count)
+                : l10n.englishForFilipino.queue,
             style: TextStyle(
               fontFamily: 'GoogleSansFlex',
               fontSize: context.responsive(10.0, 11.0, 12.0),
