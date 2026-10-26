@@ -45,8 +45,12 @@ subsequently turning them off survives a restart.
 - Other general home copy is English. The audio-engine picker is fully English
   in Taglish: title, option names, and explanations. English and Chinese keep
   their own localized copy.
+- After an audio-engine change, both the restart prompt and the full-screen
+  restarting flow are English in Taglish.
 - The Audio Signal Path panel is fully English in Taglish: title, status,
   labels and values. The compact bit-perfect capsule is English as well.
+- The volume card's fixed-volume notice is English in Taglish wherever the card
+  appears, including the menu volume card.
 - The full player's top queue badge says **Queue**, not the Taglish **Pila**.
 - The full-player song actions sheet uses the supplied Taglish lines for add to
   queue, add to playlist, set album art, refresh album art, edit metadata,
@@ -247,7 +251,8 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
       unless previously explicitly enabled. English escape remains reachable.
 - [ ] Check the per-screen role policy above, including the English Flick Replay
       shortcut and the Baybayin Browse shortcuts, both player layouts, the
-      English audio signal path, the **Queue** badge and detail/playlist menus,
+      English audio-engine restart prompt/flow and audio signal path, the
+      **Queue** badge and detail/playlist menus,
       the Taglish player action labels, the fully English Lyrics Sync Studio,
       all-English settings except the Taglish tagline, unchanged search, and the
       Taglish-only support card. Technical values and original music/playlist

@@ -247,7 +247,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
           if (!isAvailable) ...[
             const SizedBox(height: AppConstants.spacingXs),
             Text(
-              l10n.volumeIsFixedWhileBitPerfect2,
+              l10n.englishForFilipino.volumeIsFixedWhileBitPerfect2,
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: tertiaryColor),

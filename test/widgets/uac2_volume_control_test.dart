@@ -282,6 +282,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Taglish fixed-volume notice is English', (tester) async {
+    addTearDown(() => LocaleController.instance.bindLocale(kFallbackLocale));
+    final player = _TestPlayer(VolumeTier.unavailable);
+    addTearDown(player.volumeTierNotifier.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerServiceProvider.overrideWithValue(player),
+          uac2DeviceStatusProvider.overrideWith(() => _TestStatus(_status())),
+        ],
+        child: MaterialApp(
+          locale: kFilipinoLocale,
+          supportedLocales: kSupportedLocales,
+          localizationsDelegates: kAppLocalizationsDelegates,
+          localeResolutionCallback: resolveAppLocale,
+          builder: (context, child) {
+            LocaleController.instance.bind(AppLocalizations.of(context));
+            return child!;
+          },
+          home: const Scaffold(
+            body: SingleChildScrollView(child: Uac2VolumeControl()),
+          ),
+        ),
+      ),
+    );
+
+    final english = lookupFlickLocalizations(kFallbackLocale);
+    final taglish = lookupFlickLocalizations(kFilipinoLocale);
+    expect(find.text(english.volumeIsFixedWhileBitPerfect2), findsOneWidget);
+    expect(find.text(taglish.volumeIsFixedWhileBitPerfect2), findsNothing);
+  });
+
   testWidgets(
     'volume sheet reacts to fixed output and discards failed writes',
     (tester) async {
