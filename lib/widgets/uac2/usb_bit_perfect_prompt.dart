@@ -161,14 +161,9 @@ class _UsbBitPerfectPromptState extends ConsumerState<UsbBitPerfectPrompt> {
     _previousEnginePreference = engine;
     _previousBitPerfectEnabled = bitPerfect;
     try {
-      if (engine != AudioEnginePreference.isochronousUsb) {
-        await ref
-            .read(playerServiceProvider)
-            .setAudioEnginePreference(AudioEnginePreference.isochronousUsb);
-      }
       final applied = await ref
-          .read(uac2ServiceProvider)
-          .setBitPerfectEnabled(true);
+          .read(playerServiceProvider)
+          .enableUsbDacBitPerfect();
       _invalidateEngineProviders();
       if (!mounted) return;
       _showEngagedSnackBar(status, promptKey, applied);
