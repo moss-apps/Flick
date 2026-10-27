@@ -8,7 +8,7 @@ import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/online_lyrics_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 class OnlineLyricsSearchSheet extends StatefulWidget {
   final Song song;

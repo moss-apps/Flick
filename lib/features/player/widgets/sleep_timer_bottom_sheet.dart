@@ -4,7 +4,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/utils/duration_format.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 class SleepTimerBottomSheet extends StatefulWidget {
   final PlayerService playerService;
