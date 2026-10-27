@@ -20,6 +20,7 @@ import 'package:flick/services/bluetooth_service.dart';
 import 'package:flick/services/audio_engine_manager.dart';
 import 'package:flick/services/audio_session_manager.dart';
 import 'package:flick/services/song_engine_routing.dart';
+import 'package:flick/services/playback_source.dart';
 import 'package:flick/services/equalizer_service.dart';
 import 'package:flick/services/android_audio_processing_service.dart';
 import 'package:flick/services/last_played_service.dart';
@@ -33,6 +34,7 @@ import 'package:flick/services/milestone_service.dart';
 import 'package:flick/services/android_audio_engine.dart';
 import 'package:flick/services/rust_audio_engine.dart';
 import 'package:flick/services/rust_audio_service.dart';
+import 'package:flick/src/rust/audio/source.dart' show SourceIdentity;
 import 'package:flick/services/app_preferences_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/color_extraction_service.dart';
@@ -453,11 +455,11 @@ class PlayerService {
   // just_audio engine's config provider; refreshed from prefs on load/change.
   int _crossfadeCurveIndex = 0;
 
-  /// Rust path of the outgoing track whose end-of-track handoff was already
+  /// Rust source of the outgoing track whose end-of-track handoff was already
   /// applied to the playlist UI when its crossfade started. The engine's later
-  /// TrackEnded event for the same path must not advance the index again; it
+  /// TrackEnded event for the same source must not advance the index again; it
   /// only queues the following successor.
-  String? _crossfadeUiHandoffFromPath;
+  SourceIdentity? _crossfadeUiHandoffFrom;
 
   final NotificationService _notificationService = NotificationService();
   final FloatingPlayerService _floatingPlayerService = FloatingPlayerService();
@@ -3179,16 +3181,14 @@ class PlayerService {
     };
     _rustAudioService.durationNotifier.addListener(_rustDurationListener!);
 
-    _rustAudioService.onTrackEnded = (endedPath) {
+    _rustAudioService.onTrackEnded = (source) {
       if (!_usingRustBackend) return;
-      unawaited(_onSongFinished(endedPath: endedPath));
+      unawaited(_onSongFinished(endedSource: source));
     };
-    _rustAudioService.onCrossfadeStarted = (fromPath, toPath) {
-      _debugLog('[crossfade] ENGINE TRIGGERED: $fromPath -> $toPath');
+    _rustAudioService.onCrossfadeStarted = (from, to) {
+      _debugLog('[crossfade] ENGINE TRIGGERED: ${from.path} -> ${to.path}');
       if (!_usingRustBackend) return;
-      unawaited(
-        _enqueuePlaybackRequest(() => _onCrossfadeStarted(fromPath, toPath)),
-      );
+      unawaited(_enqueuePlaybackRequest(() => _onCrossfadeStarted(from, to)));
     };
     _rustAudioService.onError = (message) {
       _debugLog('[PlayerService] Rust backend error: $message');
@@ -3496,15 +3496,15 @@ class PlayerService {
     await _showFloatingPlayerOverlay();
   }
 
-  Future<void> _onSongFinished({String? endedPath}) {
+  Future<void> _onSongFinished({SourceIdentity? endedSource}) {
     return _enqueuePlaybackRequest(
-      () => _onSongFinishedInternal(endedPath: endedPath),
+      () => _onSongFinishedInternal(endedSource: endedSource),
     );
   }
 
-  Future<void> _onSongFinishedInternal({String? endedPath}) async {
+  Future<void> _onSongFinishedInternal({SourceIdentity? endedSource}) async {
     _debugLog(
-      '_onSongFinished: loopMode=${loopModeNotifier.value}, currentIndex=$_currentIndex, playlistLength=${_playlist.length}, usingRustBackend=$_usingRustBackend, endedPath=$endedPath',
+      '_onSongFinished: loopMode=${loopModeNotifier.value}, currentIndex=$_currentIndex, playlistLength=${_playlist.length}, usingRustBackend=$_usingRustBackend, endedPath=${endedSource?.path}',
     );
     _debugLog(
       '[crossfade] completion: gapless=$_isGaplessActive, '
@@ -3515,30 +3515,27 @@ class PlayerService {
       'handoff=${_isGaplessActive || _isCrossfadeActive ? "native" : "manual"}',
     );
 
-    if (endedPath != null && _crossfadeUiHandoffFromPath == endedPath) {
-      _crossfadeUiHandoffFromPath = null;
-      await _finalizeCrossfadeUiHandoff(endedPath);
+    if (endedSource != null && _crossfadeUiHandoffFrom == endedSource) {
+      _crossfadeUiHandoffFrom = null;
+      await _finalizeCrossfadeUiHandoff(endedSource.path);
       return;
     }
 
-    // A seek that lands during a crossfade ends the overlap in the engine:
-    // the fading-out track is reported as ended while the UI (and playlist
-    // index) already moved to the incoming track. If the local handoff raced
-    // this event the engine can already be on the track this completion would
-    // advance to; advancing again would skip a song, so mirror the engine
-    // instead. Only a confirmed match may skip — a null or stale engine path
-    // keeps the normal completion path.
-    if (_usingRustBackend &&
-        endedPath != null &&
-        endedPath != _crossfadeUiHandoffFromPath) {
+    // A seek during a crossfade can retire the outgoing source after the UI
+    // has moved on. Only ignore its completion when the engine confirms that
+    // handoff. Compare the bounds too: adjacent CUE tracks share a file path,
+    // but the current segment's own completion must still advance the queue.
+    if (_usingRustBackend && endedSource != null) {
       final currentSong = currentSongNotifier.value;
       if (currentSong != null) {
         final expectedPath = await _resolveRustPath(currentSong);
-        final enginePath = _rustAudioService.currentPath;
-        if (expectedPath != null && enginePath == expectedPath) {
+        final engineSource = _rustAudioService.currentSource;
+        if (expectedPath != null &&
+            !matchesPlaybackSource(currentSong, expectedPath, endedSource) &&
+            matchesPlaybackSource(currentSong, expectedPath, engineSource)) {
           _debugLog(
-            '[crossfade] completion for $endedPath already superseded by '
-            '${currentSong.title}; engine is on the expected track',
+            '[crossfade] ignoring completion for a superseded source: '
+            '${endedSource.path}; current=${currentSong.title}',
           );
           unawaited(_queueNextTrackForGapless());
           return;
@@ -3582,16 +3579,20 @@ class PlayerService {
   /// to the incoming track immediately so the app follows the audible handoff
   /// instead of waiting for the outgoing track's TrackEnded event (which now
   /// only queues the following successor).
-  Future<void> _onCrossfadeStarted(String fromPath, String toPath) async {
+  Future<void> _onCrossfadeStarted(
+    SourceIdentity from,
+    SourceIdentity to,
+  ) async {
     if (_playlist.isEmpty || _currentIndex < 0) return;
-    if (_crossfadeUiHandoffFromPath == fromPath) return;
+    if (_crossfadeUiHandoffFrom == from) return;
 
     final fromSong = currentSongNotifier.value;
     if (fromSong == null) return;
     final fromResolved = await _resolveRustPath(fromSong);
-    if (fromResolved != null && fromResolved != fromPath) {
+    if (fromResolved != null &&
+        !matchesPlaybackSource(fromSong, fromResolved, from)) {
       _debugLog(
-        '[crossfade] UI handoff skipped: engine fading $fromPath while '
+        '[crossfade] UI handoff skipped: engine fading ${from.path} while '
         'current is ${fromSong.title}',
       );
       return;
@@ -3608,8 +3609,13 @@ class PlayerService {
     final nextIndex = isLastTrack ? 0 : _currentIndex + 1;
     if (nextIndex == _currentIndex) return;
     final nextSong = _playlist[nextIndex];
+    final nextResolved = await _resolveRustPath(nextSong);
+    if (nextResolved != null &&
+        !matchesPlaybackSource(nextSong, nextResolved, to)) {
+      return;
+    }
 
-    _crossfadeUiHandoffFromPath = fromPath;
+    _crossfadeUiHandoffFrom = from;
     _setCurrentIndex(nextIndex);
     currentSongNotifier.value = nextSong;
     // Keep the engine's reported track in sync so playback-state emissions
@@ -3637,11 +3643,12 @@ class PlayerService {
     final currentSong = currentSongNotifier.value;
     if (_usingRustBackend && currentSong != null) {
       final expectedPath = await _resolveRustPath(currentSong);
-      final enginePath = _rustAudioService.currentPath;
-      if (expectedPath != null && enginePath != expectedPath) {
+      final engineSource = _rustAudioService.currentSource;
+      if (expectedPath != null &&
+          !matchesPlaybackSource(currentSong, expectedPath, engineSource)) {
         _debugLog(
           '[crossfade] handoff mismatch after early UI handoff: '
-          'engineHasSource=${enginePath != null}; reloading ${currentSong.title}',
+          'engineHasSource=${engineSource != null}; reloading ${currentSong.title}',
         );
         await _playSongAtCurrentIndex();
         return;
@@ -3688,10 +3695,11 @@ class PlayerService {
 
     if (_usingRustBackend && currentSong != null) {
       final expectedPath = await _resolveRustPath(currentSong);
-      final enginePath = _rustAudioService.currentPath;
-      if (expectedPath != null && enginePath != expectedPath) {
+      final engineSource = _rustAudioService.currentSource;
+      if (expectedPath != null &&
+          !matchesPlaybackSource(currentSong, expectedPath, engineSource)) {
         _debugLog(
-          '[crossfade] handoff mismatch: engineHasSource=${enginePath != null}; '
+          '[crossfade] handoff mismatch: engineHasSource=${engineSource != null}; '
           'reloading ${currentSong.title}',
         );
         await _playSongAtCurrentIndex();
@@ -3699,7 +3707,7 @@ class PlayerService {
       }
       _debugLog(
         '[crossfade] handoff check: pathResolved=${expectedPath != null}, '
-        'engineMatchesExpected=${expectedPath != null && enginePath == expectedPath}',
+        'engineMatchesExpected=${matchesPlaybackSource(currentSong, expectedPath, engineSource)}',
       );
     }
 
@@ -3712,7 +3720,7 @@ class PlayerService {
 
   void _stopPlayback() async {
     _wasPlayingBeforeAudioInterruption = false;
-    _crossfadeUiHandoffFromPath = null;
+    _crossfadeUiHandoffFrom = null;
     await _savePosition();
     _positionSaveTimer?.cancel();
     _clearReplayTracking();
@@ -3769,19 +3777,10 @@ class PlayerService {
     final uri = resolved.uri;
     final headers = proxySafeHeaders(resolved.headers);
 
-    if (song.startOffsetMs != null && song.startOffsetMs! > 0) {
-      final start = Duration(milliseconds: song.startOffsetMs!);
-      final end = song.endOffsetMs != null && song.endOffsetMs! > 0
-          ? Duration(milliseconds: song.endOffsetMs!)
-          : null;
-      return just_audio.ClippingAudioSource(
-        child: just_audio.AudioSource.uri(uri, headers: headers),
-        start: start,
-        end: end,
-      );
-    }
-
-    return just_audio.AudioSource.uri(uri, headers: headers);
+    return clipPlaybackSource(
+      song,
+      just_audio.AudioSource.uri(uri, headers: headers),
+    );
   }
 
   /// Decodes ALAC/M4A/AIFF through the Rust engine without writing a WAV.
@@ -5022,7 +5021,7 @@ class PlayerService {
 
       _positionSaveTimer?.cancel();
       clearAbRepeat();
-      _crossfadeUiHandoffFromPath = null;
+      _crossfadeUiHandoffFrom = null;
 
       if (playlist != null) {
         final sourcePlaylist = wrapAroundQueueNotifier.value
@@ -5185,6 +5184,12 @@ class PlayerService {
           await _rustAudioService.queueNextHttp(
             url: http.url,
             headers: http.headers,
+            startSecs: nextSong.startOffsetMs == null
+                ? null
+                : nextSong.startOffsetMs! / 1000,
+            endSecs: nextSong.endOffsetMs == null
+                ? null
+                : nextSong.endOffsetMs! / 1000,
           );
           _debugLog(
             '[crossfade] HTTP queue request returned; readiness reported separately',
@@ -5201,7 +5206,15 @@ class PlayerService {
       await _rustAudioService.setReplayGainDefault(
         await _computeReplayGainDbFor(nextSong),
       );
-      await _rustAudioService.queueNext(nextPath);
+      await _rustAudioService.queueNext(
+        nextPath,
+        startSecs: nextSong.startOffsetMs == null
+            ? null
+            : nextSong.startOffsetMs! / 1000,
+        endSecs: nextSong.endOffsetMs == null
+            ? null
+            : nextSong.endOffsetMs! / 1000,
+      );
       _debugLog(
         '[crossfade] local queue request returned; readiness reported separately',
       );

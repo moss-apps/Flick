@@ -3321,9 +3321,7 @@ class LibraryScannerService {
             : artist
         ..trackNumber = track.trackNumber
         ..discNumber = meta?.discNumber ?? 1
-        ..durationMs = track.endOffsetMs != null
-            ? track.endOffsetMs! - track.startOffsetMs
-            : (meta?.duration ?? 0)
+        ..durationMs = track.durationMs(sourceDurationMs: meta?.duration)
         ..fileType = meta?.extension.toUpperCase() ?? 'UNKNOWN'
         ..dateAdded = existing?.dateAdded ?? DateTime.now()
         ..lastModified = lastModified
