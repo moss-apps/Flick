@@ -42,7 +42,11 @@ class _TestPlayer extends Fake implements PlayerService {
   final ValueNotifier<VolumeTier> volumeTierNotifier;
 
   @override
-  double currentVolume = 0.13;
+  final ValueNotifier<double> currentVolumeNotifier = ValueNotifier(0.13);
+
+  @override
+  double get currentVolume => currentVolumeNotifier.value;
+  set currentVolume(double value) => currentVolumeNotifier.value = value;
 
   @override
   double get maxVolume => 1.0;
@@ -124,6 +128,26 @@ Future<void> _pumpControl(
 void main() {
   for (final popup in [false, true]) {
     final surface = popup ? 'popup' : 'inline';
+
+    testWidgets('$surface refreshes an idle volume without a tier change', (
+      tester,
+    ) async {
+      final player = _TestPlayer(VolumeTier.system)..currentVolume = 1.0;
+      addTearDown(player.volumeTierNotifier.dispose);
+      addTearDown(player.currentVolumeNotifier.dispose);
+      await _pumpControl(
+        tester,
+        player: player,
+        status: _TestStatus(_status()),
+        popup: popup,
+      );
+
+      expect(tester.widget<Slider>(find.byType(Slider)).value, 1.0);
+      player.currentVolumeNotifier.value = 0.4;
+      await tester.pump();
+      expect(tester.widget<Slider>(find.byType(Slider)).value, 0.4);
+      expect(find.text('40%'), findsOneWidget);
+    });
 
     testWidgets(
       '$surface fixed output does not display stale app attenuation',
@@ -313,6 +337,26 @@ void main() {
     expect(find.text(english.volumeIsFixedWhileBitPerfect2), findsOneWidget);
     expect(find.text(taglish.volumeIsFixedWhileBitPerfect2), findsNothing);
   });
+
+  testWidgets(
+    'volume sheet refreshes a cold-start volume without a tier change',
+    (tester) async {
+      final player = _TestPlayer(VolumeTier.system)..currentVolume = 1.0;
+      addTearDown(player.volumeTierNotifier.dispose);
+      addTearDown(player.currentVolumeNotifier.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: VolumeBottomSheet(playerService: player)),
+        ),
+      );
+      expect(find.text('100%'), findsOneWidget);
+      player.currentVolumeNotifier.value = 0.4;
+      await tester.pump();
+      expect(tester.widget<Slider>(find.byType(Slider)).value, 0.4);
+      expect(find.text('40%'), findsOneWidget);
+      expect(find.text('100%'), findsNothing);
+    },
+  );
 
   testWidgets(
     'volume sheet reacts to fixed output and discards failed writes',

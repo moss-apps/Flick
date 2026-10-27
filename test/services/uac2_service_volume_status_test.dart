@@ -42,6 +42,7 @@ void main() {
     'direct USB unavailable stays unavailable, without stale system volume',
     () {
       final status = statusFromRoute({'volume': 0.13, 'muted': false});
+      expect(status.directUsbRegistered, isTrue);
       expect(status.volumeMode, Uac2VolumeMode.unavailable);
       expect(status.hasVolumeControl, isFalse);
       expect(status.volumeControlWritable, isFalse);

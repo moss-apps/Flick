@@ -202,6 +202,9 @@ const Map<String, String> _internalAssertionPaths = <String, String>{
   'lib/services/remote_source_service.dart': 'lookup assertions',
   'lib/services/rust_audio_engine.dart': 'engine assertions',
   'lib/services/rust_audio_service.dart': 'engine assertions',
+  'lib/services/usb_dac_volume_restore.dart':
+      'engine handoff assertions; the caller logs failures and shows localized '
+      'USB startup or activation copy rather than the internal message',
   'lib/services/wav_stream_audio_source.dart': 'session assertions',
   'lib/services/csv_export_service.dart':
       'the recap screen swallows the failure and shows l10n.couldNotSave…',
