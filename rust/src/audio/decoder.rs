@@ -8,7 +8,7 @@ use crate::dev_eprintln;
 use crate::audio::http_source::HttpMediaSource;
 use crate::audio::opus_decoder;
 use crate::audio::resampler::AudioResampler;
-use crate::audio::source::{AudioSource, SourceInfo, SourceProducer};
+use crate::audio::source::{AudioSource, PlaybackRange, SourceInfo, SourceProducer};
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -27,7 +27,7 @@ use symphonia::core::formats::probe::Hint;
 use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
-use symphonia::core::units::{Time, Timestamp};
+use symphonia::core::units::{Time, TimeBase, Timestamp};
 
 /// Default chunk size for decoding (in frames)
 const DECODE_CHUNK_SIZE: usize = 4096;
@@ -68,6 +68,7 @@ pub struct ProbeResult {
     pub format: Box<dyn FormatReader>,
     pub decoder: Box<dyn AudioDecoder>,
     pub track_id: u32,
+    pub time_base: Option<TimeBase>,
 }
 
 fn normalize_ogg_hint(ext: &str) -> &str {
@@ -247,6 +248,7 @@ fn build_probe_result(
 
     let source_info = SourceInfo {
         path: name_path,
+        range: PlaybackRange::default(),
         original_sample_rate: sample_rate,
         output_sample_rate: sample_rate,
         channels,
@@ -260,6 +262,7 @@ fn build_probe_result(
         format,
         decoder,
         track_id,
+        time_base: if header_lies { None } else { time_base },
     })
 }
 
@@ -364,17 +367,24 @@ impl DecoderThread {
         output_sample_rate: u32,
         output_channels: usize,
     ) -> Result<(AudioSource, Self), DecoderError> {
-        Self::spawn_with_seek(path, output_sample_rate, output_channels, None)
+        Self::spawn_with_seek(
+            path,
+            output_sample_rate,
+            output_channels,
+            None,
+            PlaybackRange::default(),
+        )
     }
 
     /// Spawn a new decoder thread and start decoding from a specific position.
     ///
-    /// `start_position_secs` is clamped to `>= 0`.
+    /// `start_position_secs` is relative to the range and clamped to its duration.
     pub fn spawn_with_seek(
         path: PathBuf,
         output_sample_rate: u32,
         output_channels: usize,
         start_position_secs: Option<f64>,
+        range: PlaybackRange,
     ) -> Result<(AudioSource, Self), DecoderError> {
         let probe_result = probe_file(&path)?;
         Self::spawn_from_probe_result(
@@ -382,6 +392,7 @@ impl DecoderThread {
             output_sample_rate,
             output_channels,
             start_position_secs,
+            range,
         )
     }
 
@@ -394,7 +405,13 @@ impl DecoderThread {
         output_channels: usize,
     ) -> Result<(AudioSource, Self), DecoderError> {
         let probe_result = probe_http(&url, headers)?;
-        Self::spawn_from_probe_result(probe_result, output_sample_rate, output_channels, None)
+        Self::spawn_from_probe_result(
+            probe_result,
+            output_sample_rate,
+            output_channels,
+            None,
+            PlaybackRange::default(),
+        )
     }
 
     /// Spawn a decoder thread using a probe result that has already been created.
@@ -403,21 +420,48 @@ impl DecoderThread {
         output_sample_rate: u32,
         output_channels: usize,
         start_position_secs: Option<f64>,
+        range: PlaybackRange,
     ) -> Result<(AudioSource, Self), DecoderError> {
+        let range = range.validate().map_err(DecoderError::DecodingFailed)?;
         let path = probe_result.source_info.path.clone();
         let mut source_info = probe_result.source_info.clone();
+        let source_rate = source_info.original_sample_rate;
+        let start_frame = seconds_to_frame(range.start_secs, source_rate);
+        let end_frame = range.end_secs.map(|end| seconds_to_frame(end, source_rate));
+        let file_end = (source_info.duration_secs > 0.0)
+            .then(|| seconds_to_frame(source_info.duration_secs, source_rate));
+        let duration_end = match (end_frame, file_end) {
+            (Some(end), Some(eof)) => Some(end.min(eof)),
+            (end, eof) => end.or(eof),
+        };
+        let duration_frames = duration_end.map(|end| end.saturating_sub(start_frame));
+        source_info.range = range;
+        source_info.duration_secs = duration_frames
+            .map(|frames| frames as f64 / source_rate as f64)
+            .unwrap_or(0.0);
         source_info.output_sample_rate = output_sample_rate;
         source_info.channels = output_channels;
-        source_info.total_samples =
-            (source_info.duration_secs * output_sample_rate as f64 * output_channels as f64) as u64;
+        source_info.total_samples = (source_info.duration_secs * output_sample_rate as f64).round()
+            as u64
+            * output_channels as u64;
+
+        let mut position_secs = start_position_secs.unwrap_or(0.0).max(0.0);
+        if duration_frames.is_some() {
+            position_secs = position_secs.min(source_info.duration_secs);
+        }
+        let decode_start = start_frame.saturating_add(seconds_to_frame(position_secs, source_rate));
+        // An open-ended track must really run to EOF, not truncate playback to
+        // a container's duration estimate. A seek to the known end is empty.
+        let decode_end = if duration_frames.is_some() && position_secs >= source_info.duration_secs
+        {
+            duration_end
+        } else {
+            end_frame
+        };
 
         // Create the source and producer
         let (source, producer) = AudioSource::new(source_info);
-        if let Some(position_secs) = start_position_secs {
-            if position_secs > 0.0 {
-                source.set_position_secs(position_secs);
-            }
-        }
+        source.set_position_secs(position_secs);
         let stop_signal = Arc::new(AtomicBool::new(false));
         let stop_signal_clone = Arc::clone(&stop_signal);
 
@@ -431,7 +475,8 @@ impl DecoderThread {
                     output_sample_rate,
                     output_channels,
                     stop_signal_clone,
-                    start_position_secs,
+                    decode_start,
+                    decode_end,
                 )
             })
             .map_err(|e| DecoderError::IoError(e.into()))?;
@@ -476,6 +521,20 @@ impl Drop for DecoderThread {
     }
 }
 
+fn seconds_to_frame(seconds: f64, sample_rate: u32) -> u64 {
+    (seconds * sample_rate as f64).round() as u64
+}
+
+fn timestamp_to_frame(ts: Timestamp, time_base: Option<TimeBase>, sample_rate: u32) -> u64 {
+    let ticks = ts.get().max(0) as u128;
+    match time_base {
+        Some(tb) => {
+            (ticks * tb.numer.get() as u128 * sample_rate as u128 / tb.denom.get() as u128) as u64
+        }
+        None => ticks as u64,
+    }
+}
+
 /// The main decoder loop running in a background thread.
 fn decode_thread(
     probe_result: ProbeResult,
@@ -483,28 +542,38 @@ fn decode_thread(
     output_sample_rate: u32,
     output_channels: usize,
     stop_signal: Arc<AtomicBool>,
-    start_position_secs: Option<f64>,
+    start_frame: u64,
+    end_frame: Option<u64>,
 ) -> Result<(), DecoderError> {
     let ProbeResult {
         source_info,
         mut format,
         mut decoder,
         track_id,
+        time_base,
     } = probe_result;
 
-    if let Some(position_secs) = start_position_secs {
-        let target_secs = position_secs.max(0.0);
-        if target_secs > 0.0 {
-            let seek_to = SeekTo::Time {
-                time: Time::try_from_secs_f64(target_secs).unwrap_or(Time::ZERO),
-                track_id: Some(track_id),
-            };
+    if end_frame.is_some_and(|end| start_frame >= end) {
+        producer.finish();
+        return Ok(());
+    }
+    let mut current_frame = 0;
+    if start_frame > 0 {
+        let target_secs = start_frame as f64 / source_info.original_sample_rate as f64;
+        let seek_to = SeekTo::Time {
+            time: Time::try_from_secs_f64(target_secs).unwrap_or(Time::ZERO),
+            track_id: Some(track_id),
+        };
 
-            format
-                .seek(SeekMode::Coarse, seek_to)
-                .map_err(|e| DecoderError::DecodingFailed(format!("Seek failed: {}", e)))?;
-            decoder.reset();
-        }
+        let seeked = format
+            .seek(SeekMode::Accurate, seek_to)
+            .map_err(|e| DecoderError::DecodingFailed(format!("Seek failed: {}", e)))?;
+        current_frame = timestamp_to_frame(
+            seeked.actual_ts,
+            time_base,
+            source_info.original_sample_rate,
+        );
+        decoder.reset();
     }
 
     let source_channels = source_info.channels;
@@ -608,6 +677,24 @@ fn decode_thread(
         decode_buffer.clear();
         convert_to_interleaved_f32(&decoded, &mut decode_buffer);
 
+        // Seek lands on a packet boundary. Discard preroll and stop at the
+        // exclusive track end BEFORE publishing any samples or resampling.
+        let frames = (decode_buffer.len() / source_channels) as u64;
+        let packet_start = current_frame;
+        current_frame = current_frame.saturating_add(frames);
+        let first = start_frame.saturating_sub(packet_start).min(frames);
+        let last = end_frame
+            .map(|end| end.saturating_sub(packet_start).min(frames))
+            .unwrap_or(frames);
+        if last <= first {
+            if end_frame.is_some_and(|end| current_frame >= end) {
+                break;
+            }
+            continue;
+        }
+        let selected_samples =
+            &decode_buffer[first as usize * source_channels..last as usize * source_channels];
+
         if !logged_meaningful_f32_peak {
             let mut peak = 0.0f32;
             for &s in decode_buffer.iter() {
@@ -628,18 +715,18 @@ fn decode_thread(
         let remixed_samples = if needs_channel_remix {
             remix_buffer.clear();
             remix_buffer.resize(
-                (decode_buffer.len() / source_channels.max(1)) * output_channels,
+                (selected_samples.len() / source_channels.max(1)) * output_channels,
                 0.0,
             );
             remix_interleaved_channels(
-                &decode_buffer,
+                selected_samples,
                 source_channels,
                 output_channels,
                 &mut remix_buffer,
             );
             &remix_buffer[..]
         } else {
-            &decode_buffer[..]
+            selected_samples
         };
 
         // Resample if needed
@@ -676,6 +763,9 @@ fn decode_thread(
             if written == 0 {
                 producer.wait_for_space(chunk.len().min(1024), 100);
             }
+        }
+        if end_frame.is_some_and(|end| current_frame >= end) {
+            break;
         }
     }
 
@@ -873,7 +963,223 @@ impl SeekContext {
 
 #[cfg(test)]
 mod tests {
-    use super::{implausible_layout, plausible_sample_rate};
+    use super::*;
+    use std::sync::atomic::AtomicUsize;
+
+    static FIXTURE_ID: AtomicUsize = AtomicUsize::new(0);
+
+    struct TestFile(PathBuf);
+
+    impl TestFile {
+        fn new(extension: &str) -> Self {
+            Self(std::env::temp_dir().join(format!(
+                "flick_cue_decoder_{}_{}.{}",
+                std::process::id(),
+                FIXTURE_ID.fetch_add(1, Ordering::Relaxed),
+                extension,
+            )))
+        }
+    }
+
+    impl Drop for TestFile {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    fn wav_fixture(rate: u32, bits: u16) -> (TestFile, Vec<f32>) {
+        let file = TestFile::new("wav");
+        let mut writer = hound::WavWriter::create(
+            &file.0,
+            hound::WavSpec {
+                channels: 2,
+                sample_rate: rate,
+                bits_per_sample: bits,
+                sample_format: hound::SampleFormat::Int,
+            },
+        )
+        .unwrap();
+        let mut expected = Vec::new();
+        for frame in 0..4096 {
+            let value = if bits == 16 {
+                frame * 17 % 60_000 - 30_000
+            } else {
+                frame * 1739 % 16_000_000 - 8_000_000
+            };
+            for sample in [value, -value - 1] {
+                writer.write_sample(sample).unwrap();
+                expected.push((sample as f64 / (1u64 << (bits - 1)) as f64) as f32);
+            }
+        }
+        writer.finalize().unwrap();
+        (file, expected)
+    }
+
+    fn flac_fixture() -> (TestFile, Vec<f32>) {
+        // Synthetic 24-bit stereo ramp, 4096 frames at 44.1 kHz, encoded by
+        // libFLAC 1.5.0 with 1024-frame blocks. No external encoder needed in CI.
+        let hex: String = include_str!("../../test_fixtures/cue_ramp_24bit.flac.hex")
+            .split_whitespace()
+            .collect();
+        let bytes: Vec<u8> = (0..hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+            .collect();
+        let file = TestFile::new("flac");
+        std::fs::write(&file.0, bytes).unwrap();
+        let expected = (0..4096)
+            .flat_map(|frame| {
+                let value = frame * 17 % 100_000 - 50_000;
+                [
+                    value as f32 / 8_388_608.0,
+                    (-value - 1) as f32 / 8_388_608.0,
+                ]
+            })
+            .collect();
+        (file, expected)
+    }
+
+    fn decode_range(
+        path: &Path,
+        rate: u32,
+        range: PlaybackRange,
+        seek: Option<f64>,
+    ) -> (SourceInfo, f64, Vec<f32>) {
+        let (mut source, decoder) =
+            DecoderThread::spawn_with_seek(path.to_path_buf(), rate, 2, seek, range).unwrap();
+        // Fixtures are smaller than the ring buffer, so joining cannot block.
+        decoder.join().unwrap();
+        let initial_position = source.position_secs();
+        let mut samples = Vec::new();
+        let mut buffer = [0.0; 512];
+        while !source.is_finished() {
+            let count = source.read(&mut buffer);
+            assert!(
+                count > 0,
+                "finished decoder must not leave an empty live source"
+            );
+            samples.extend_from_slice(&buffer[..count]);
+        }
+        (source.info, initial_position, samples)
+    }
+
+    fn check_segments(file: &TestFile, expected: &[f32], rate: u32) {
+        let mut combined = Vec::new();
+        for (start, end) in [(0.0, Some(0.013)), (0.013, Some(0.031)), (0.031, None)] {
+            let range = PlaybackRange {
+                start_secs: start,
+                end_secs: end,
+            };
+            let (info, position, samples) = decode_range(&file.0, rate, range, None);
+            let first = seconds_to_frame(start, rate) as usize;
+            let last = end
+                .map(|end| seconds_to_frame(end, rate) as usize)
+                .unwrap_or(expected.len() / 2);
+            assert_eq!(
+                samples,
+                expected[first * 2..last * 2],
+                "range {range:?} at {rate} Hz"
+            );
+            assert_eq!(position, 0.0);
+            assert_eq!(info.range, range);
+            assert_eq!(info.original_sample_rate, rate);
+            assert_eq!(info.output_sample_rate, rate);
+            assert_eq!(info.total_samples, samples.len() as u64);
+            assert!((info.duration_secs - (last - first) as f64 / rate as f64).abs() < 1e-9);
+            combined.extend(samples);
+        }
+        assert_eq!(
+            combined, expected,
+            "adjacent tracks must not duplicate or drop samples"
+        );
+    }
+
+    #[test]
+    fn cue_ranges_preserve_native_pcm_samples_and_cover_the_album() {
+        for rate in [44_100, 96_000] {
+            for bits in [16, 24] {
+                let (file, expected) = wav_fixture(rate, bits);
+                check_segments(&file, &expected, rate);
+                let (_, _, full) = decode_range(&file.0, rate, PlaybackRange::default(), None);
+                assert_eq!(full, expected, "ordinary files must remain unchanged");
+            }
+        }
+    }
+
+    #[test]
+    fn cue_flac_ranges_trim_partial_packets_without_changing_24bit_samples() {
+        let (file, expected) = flac_fixture();
+        check_segments(&file, &expected, 44_100);
+    }
+
+    #[test]
+    fn cue_seek_is_track_relative_and_cannot_run_past_its_end() {
+        let (file, expected) = flac_fixture();
+        let rate = 44_100;
+        let range = PlaybackRange {
+            start_secs: 0.013,
+            end_secs: Some(0.061),
+        };
+        let seek = 0.007;
+        let (info, position, samples) = decode_range(&file.0, rate, range, Some(seek));
+        let first = seconds_to_frame(range.start_secs, rate) + seconds_to_frame(seek, rate);
+        let last = seconds_to_frame(range.end_secs.unwrap(), rate);
+        assert_eq!(samples, expected[first as usize * 2..last as usize * 2]);
+        assert!((position - seek).abs() <= 1.0 / rate as f64);
+        let (_, position, samples) = decode_range(&file.0, rate, range, Some(999.0));
+        assert!(samples.is_empty());
+        assert!((position - info.duration_secs).abs() < 1e-9);
+    }
+
+    #[test]
+    fn cue_explicit_end_works_without_container_duration() {
+        let (file, expected) = flac_fixture();
+        let mut probe = probe_file(&file.0).unwrap();
+        probe.source_info.duration_secs = 0.0;
+        probe.source_info.total_samples = 0;
+        let range = PlaybackRange {
+            start_secs: 0.013,
+            end_secs: Some(0.031),
+        };
+        let (mut source, decoder) =
+            DecoderThread::spawn_from_probe_result(probe, 44_100, 2, None, range).unwrap();
+        decoder.join().unwrap();
+        let mut samples = vec![0.0; source.info.total_samples as usize];
+        assert_eq!(source.read(&mut samples), samples.len());
+        assert!(source.is_finished());
+        assert_eq!(samples, expected[573 * 2..1367 * 2]);
+    }
+
+    #[test]
+    fn invalid_cue_ranges_fail_before_starting_playback() {
+        let (file, _) = wav_fixture(44_100, 16);
+        for range in [
+            PlaybackRange {
+                start_secs: -1.0,
+                end_secs: None,
+            },
+            PlaybackRange {
+                start_secs: f64::NAN,
+                end_secs: None,
+            },
+            PlaybackRange {
+                start_secs: 1.0,
+                end_secs: Some(1.0),
+            },
+            PlaybackRange {
+                start_secs: 2.0,
+                end_secs: Some(1.0),
+            },
+            PlaybackRange {
+                start_secs: 0.0,
+                end_secs: Some(f64::INFINITY),
+            },
+        ] {
+            assert!(
+                DecoderThread::spawn_with_seek(file.0.clone(), 44_100, 2, None, range).is_err()
+            );
+        }
+    }
 
     #[test]
     fn bogus_container_rates_are_rejected() {

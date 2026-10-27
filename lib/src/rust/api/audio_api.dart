@@ -7,12 +7,13 @@ import '../audio/crossfader.dart';
 import '../audio/dsd_engine/dsd.dart';
 import '../audio/engine.dart';
 import '../audio/equalizer.dart';
+import '../audio/source.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'audio_api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `decide_queue_plan`, `dsd_callback_debug_json`, `effective_dsd_output_mode_for_rate_and_channels`, `ensure_audio_engine_excluded`, `ensure_audio_engine`, `managed_output_debug_json`, `plan_track_engine_config`, `prepare_decoder_source`, `queue_compatible_with_engine`, `read_audio_engine`, `record_dsd_native_failure`, `resolve_dsd_engine_sample_rate`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `verify_dop_passthrough`, `verify_dsd_engine_rate`, `with_audio_engine`
+// These functions are ignored because they are not marked as `pub`: `decide_queue_plan`, `dsd_callback_debug_json`, `effective_dsd_output_mode_for_rate_and_channels`, `ensure_audio_engine_excluded`, `ensure_audio_engine`, `managed_output_debug_json`, `plan_track_engine_config`, `playback_range_for_path`, `prepare_decoder_source`, `queue_compatible_with_engine`, `read_audio_engine`, `record_dsd_native_failure`, `resolve_dsd_engine_sample_rate`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `verify_dop_passthrough`, `verify_dsd_engine_rate`, `with_audio_engine`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `QueuePlanDecision`, `TrackEnginePlan`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
@@ -224,13 +225,27 @@ Future<void> audioPrepareEngine({int? preferredSampleRate}) =>
 Future<AudioProbeFormat> audioProbeFormat({required String path}) =>
     RustLib.instance.api.crateApiAudioApiAudioProbeFormat(path: path);
 
-/// Play an audio file.
-Future<void> audioPlay({required String path}) =>
-    RustLib.instance.api.crateApiAudioApiAudioPlay(path: path);
+/// Play an audio file, optionally restricted to a CUE track.
+Future<void> audioPlay({
+  required String path,
+  double? startSecs,
+  double? endSecs,
+}) => RustLib.instance.api.crateApiAudioApiAudioPlay(
+  path: path,
+  startSecs: startSecs,
+  endSecs: endSecs,
+);
 
 /// Queue the next track for gapless playback.
-Future<void> audioQueueNext({required String path}) =>
-    RustLib.instance.api.crateApiAudioApiAudioQueueNext(path: path);
+Future<void> audioQueueNext({
+  required String path,
+  double? startSecs,
+  double? endSecs,
+}) => RustLib.instance.api.crateApiAudioApiAudioQueueNext(
+  path: path,
+  startSecs: startSecs,
+  endSecs: endSecs,
+);
 
 /// Play a remote audio stream over HTTP. Range-support is assumed (caller
 /// verifies `Accept-Ranges: bytes`); PCM only, no DSD/WavPack over HTTP.
@@ -239,18 +254,26 @@ Future<void> audioQueueNext({required String path}) =>
 Future<void> audioPlayFromHttp({
   required String url,
   required Map<String, String> headers,
+  double? startSecs,
+  double? endSecs,
 }) => RustLib.instance.api.crateApiAudioApiAudioPlayFromHttp(
   url: url,
   headers: headers,
+  startSecs: startSecs,
+  endSecs: endSecs,
 );
 
 /// Queue a remote HTTP stream as the next track for gapless playback.
 Future<void> audioQueueNextFromHttp({
   required String url,
   required Map<String, String> headers,
+  double? startSecs,
+  double? endSecs,
 }) => RustLib.instance.api.crateApiAudioApiAudioQueueNextFromHttp(
   url: url,
   headers: headers,
+  startSecs: startSecs,
+  endSecs: endSecs,
 );
 
 /// Pause playback.
@@ -436,6 +459,11 @@ int? audioGetSampleRate() =>
 String? audioGetCurrentPath() =>
     RustLib.instance.api.crateApiAudioApiAudioGetCurrentPath();
 
+/// Current logical track, including CUE bounds; follows the audible source
+/// during a crossfade just like audio_get_progress.
+SourceIdentity? audioGetCurrentSource() =>
+    RustLib.instance.api.crateApiAudioApiAudioGetCurrentSource();
+
 /// Get the number of audio channels.
 BigInt? audioGetChannels() =>
     RustLib.instance.api.crateApiAudioApiAudioGetChannels();
@@ -489,16 +517,17 @@ sealed class AudioEventType with _$AudioEventType {
     double? durationSecs,
     required double bufferLevel,
   }) = AudioEventType_Progress;
-  const factory AudioEventType.trackEnded({required String path}) =
+  const factory AudioEventType.trackEnded({required SourceIdentity source}) =
       AudioEventType_TrackEnded;
   const factory AudioEventType.crossfadeStarted({
-    required String fromPath,
-    required String toPath,
+    required SourceIdentity from,
+    required SourceIdentity to,
   }) = AudioEventType_CrossfadeStarted;
   const factory AudioEventType.error({required String message}) =
       AudioEventType_Error;
-  const factory AudioEventType.nextTrackReady({required String path}) =
-      AudioEventType_NextTrackReady;
+  const factory AudioEventType.nextTrackReady({
+    required SourceIdentity source,
+  }) = AudioEventType_NextTrackReady;
 }
 
 /// discover the actual sample rate before the USB engine is configured. Used by

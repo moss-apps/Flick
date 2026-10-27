@@ -13,6 +13,13 @@ class CueTrack {
     required this.startOffsetMs,
     this.endOffsetMs,
   });
+
+  /// The final track ends at EOF, not one whole album after its start.
+  int durationMs({int? sourceDurationMs}) {
+    final end = endOffsetMs ?? sourceDurationMs;
+    if (end == null || end <= startOffsetMs) return 0;
+    return end - startOffsetMs;
+  }
 }
 
 /// Parsed CUE sheet.

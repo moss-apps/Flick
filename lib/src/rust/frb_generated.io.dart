@@ -17,6 +17,7 @@ import 'audio/crossfader.dart';
 import 'audio/dsd_engine/dsd.dart';
 import 'audio/engine.dart';
 import 'audio/equalizer.dart';
+import 'audio/source.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -137,6 +138,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScanOptions dco_decode_box_autoadd_scan_options(dynamic raw);
+
+  @protected
+  SourceIdentity dco_decode_box_autoadd_source_identity(dynamic raw);
 
   @protected
   TagEditFields dco_decode_box_autoadd_tag_edit_fields(dynamic raw);
@@ -273,6 +277,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SourceIdentity? dco_decode_opt_box_autoadd_source_identity(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_16(dynamic raw);
 
   @protected
@@ -289,6 +296,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  PlaybackRange dco_decode_playback_range(dynamic raw);
 
   @protected
   (bool, double, CrossfadeCurve) dco_decode_record_bool_f_32_crossfade_curve(
@@ -322,6 +332,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SmbProgress dco_decode_smb_progress(dynamic raw);
+
+  @protected
+  SourceIdentity dco_decode_source_identity(dynamic raw);
 
   @protected
   TagEditFields dco_decode_tag_edit_fields(dynamic raw);
@@ -514,6 +527,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScanOptions sse_decode_box_autoadd_scan_options(SseDeserializer deserializer);
 
   @protected
+  SourceIdentity sse_decode_box_autoadd_source_identity(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   TagEditFields sse_decode_box_autoadd_tag_edit_fields(
     SseDeserializer deserializer,
   );
@@ -674,6 +692,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SourceIdentity? sse_decode_opt_box_autoadd_source_identity(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer);
 
   @protected
@@ -690,6 +713,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  PlaybackRange sse_decode_playback_range(SseDeserializer deserializer);
 
   @protected
   (bool, double, CrossfadeCurve) sse_decode_record_bool_f_32_crossfade_curve(
@@ -729,6 +755,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SmbProgress sse_decode_smb_progress(SseDeserializer deserializer);
+
+  @protected
+  SourceIdentity sse_decode_source_identity(SseDeserializer deserializer);
 
   @protected
   TagEditFields sse_decode_tag_edit_fields(SseDeserializer deserializer);
@@ -957,6 +986,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_source_identity(
+    SourceIdentity self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_tag_edit_fields(
     TagEditFields self,
     SseSerializer serializer,
@@ -1152,6 +1187,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_source_identity(
+    SourceIdentity? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer);
 
   @protected
@@ -1171,6 +1212,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     Uint8List? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_playback_range(PlaybackRange self, SseSerializer serializer);
 
   @protected
   void sse_encode_record_bool_f_32_crossfade_curve(
@@ -1216,6 +1260,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_smb_progress(SmbProgress self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_source_identity(
+    SourceIdentity self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_tag_edit_fields(TagEditFields self, SseSerializer serializer);

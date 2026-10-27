@@ -174,6 +174,12 @@ class RustAudioEngine implements AudioEngine {
             await _rustAudioService.playHttp(
               url: http.url,
               headers: http.headers,
+              startSecs: track.startOffsetMs == null
+                  ? null
+                  : track.startOffsetMs! / 1000,
+              endSecs: track.endOffsetMs == null
+                  ? null
+                  : track.endOffsetMs! / 1000,
             );
             await _applyInitialSeekAfterStart();
             return;
@@ -198,7 +204,13 @@ class RustAudioEngine implements AudioEngine {
       );
     }
 
-    await _rustAudioService.play(path);
+    await _rustAudioService.play(
+      path,
+      startSecs: track.startOffsetMs == null
+          ? null
+          : track.startOffsetMs! / 1000,
+      endSecs: track.endOffsetMs == null ? null : track.endOffsetMs! / 1000,
+    );
     await _applyInitialSeekAfterStart();
   }
 

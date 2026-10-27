@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/src/rust/audio/engine.dart' show AudioApiPreference;
+import 'package:flick/src/rust/audio/source.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
@@ -50,17 +51,17 @@ class RustAudioService {
   int _lastPositionLabelMs = 0;
 
   // Event callbacks
-  void Function(String path)? onTrackEnded;
-  void Function(String fromPath, String toPath)? onCrossfadeStarted;
-  void Function(String path)? onNextTrackReady;
+  void Function(SourceIdentity source)? onTrackEnded;
+  void Function(SourceIdentity from, SourceIdentity to)? onCrossfadeStarted;
+  void Function(SourceIdentity source)? onNextTrackReady;
   void Function(String message)? onError;
 
   Timer? _progressTimer;
   Timer? _eventPollTimer;
   bool _initialized = false;
   bool _highResModeEnabled = false;
-  String? _currentPath;
-  String? _nextPath;
+  SourceIdentity? _currentSource;
+  SourceIdentity? _nextSource;
 
   /// Check if native audio engine is available on this platform.
   bool get isNativeAvailable => rust_audio.audioIsNativeAvailable();
@@ -258,31 +259,44 @@ class RustAudioService {
       stateNotifier.value == RustPlaybackState.crossfading;
 
   /// Get the current track path.
-  String? get currentPath {
+  String? get currentPath => currentSource?.path;
+
+  /// Includes the logical track bounds and follows progress during a fade.
+  SourceIdentity? get currentSource {
     if (!_initialized) return null;
     try {
-      return rust_audio.audioGetCurrentPath();
+      return rust_audio.audioGetCurrentSource();
     } catch (e) {
       devLog('Error getting current path: $e');
-      return _currentPath; // Fallback to cached value
+      return _currentSource; // Fallback to cached value
     }
   }
 
   /// Whether a next track is already queued in the engine.
-  bool get hasQueuedNext => _nextPath != null;
+  bool get hasQueuedNext => _nextSource != null;
 
   /// Play an audio file.
-  Future<void> play(String path) async {
+  Future<void> play(String path, {double? startSecs, double? endSecs}) async {
     if (!_initialized) {
       throw StateError('Rust audio engine not initialized');
     }
 
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
-    await _reviveAndRetry(() => rust_audio.audioPlay(path: path));
-    _currentPath = path;
-    // Also sync from Rust engine to ensure accuracy
-    _currentPath = rust_audio.audioGetCurrentPath() ?? path;
+    await _reviveAndRetry(
+      () => rust_audio.audioPlay(
+        path: path,
+        startSecs: startSecs,
+        endSecs: endSecs,
+      ),
+    );
+    final source = SourceIdentity(
+      path: path,
+      range: PlaybackRange(startSecs: startSecs ?? 0, endSecs: endSecs),
+    );
+    // Replaying the same segment preserves its native queued successor.
+    if (_currentSource != source) _nextSource = null;
+    _currentSource = source;
     _startProgressUpdates(fast: true);
   }
 
@@ -292,6 +306,8 @@ class RustAudioService {
   Future<void> playHttp({
     required String url,
     Map<String, String> headers = const {},
+    double? startSecs,
+    double? endSecs,
   }) async {
     if (!_initialized) {
       throw StateError('Rust audio engine not initialized');
@@ -299,38 +315,79 @@ class RustAudioService {
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
     await _reviveAndRetry(
-      () => rust_audio.audioPlayFromHttp(url: url, headers: headers),
+      () => rust_audio.audioPlayFromHttp(
+        url: url,
+        headers: headers,
+        startSecs: startSecs,
+        endSecs: endSecs,
+      ),
     );
-    _currentPath = rust_audio.audioGetCurrentPath() ?? url;
+    final source = _httpSourceIdentity(url, startSecs, endSecs);
+    if (_currentSource != source) _nextSource = null;
+    _currentSource = source;
     _startProgressUpdates(fast: true);
   }
 
   /// Queue the next track for gapless playback.
   /// The next track will automatically start when the current one ends.
-  Future<void> queueNext(String path) async {
+  Future<void> queueNext(
+    String path, {
+    double? startSecs,
+    double? endSecs,
+  }) async {
     if (!_initialized) {
       throw StateError('Rust audio engine not initialized');
     }
 
-    _nextPath = path;
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
-    await _reviveAndRetry(() => rust_audio.audioQueueNext(path: path));
+    await _reviveAndRetry(
+      () => rust_audio.audioQueueNext(
+        path: path,
+        startSecs: startSecs,
+        endSecs: endSecs,
+      ),
+    );
+    _nextSource = SourceIdentity(
+      path: path,
+      range: PlaybackRange(startSecs: startSecs ?? 0, endSecs: endSecs),
+    );
   }
 
   /// Queue a remote HTTP stream as the next track for gapless playback.
   Future<void> queueNextHttp({
     required String url,
     Map<String, String> headers = const {},
+    double? startSecs,
+    double? endSecs,
   }) async {
     if (!_initialized) {
       throw StateError('Rust audio engine not initialized');
     }
-    _nextPath = url;
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
     await _reviveAndRetry(
-      () => rust_audio.audioQueueNextFromHttp(url: url, headers: headers),
+      () => rust_audio.audioQueueNextFromHttp(
+        url: url,
+        headers: headers,
+        startSecs: startSecs,
+        endSecs: endSecs,
+      ),
+    );
+    _nextSource = _httpSourceIdentity(url, startSecs, endSecs);
+  }
+
+  // Match decoder::url_label: native HTTP sources use a filename-only label,
+  // never a credential-bearing URL. Cache the same identity for handoffs.
+  SourceIdentity _httpSourceIdentity(
+    String url,
+    double? startSecs,
+    double? endSecs,
+  ) {
+    final label = url.split('?').first.split('/').last;
+    return SourceIdentity(
+      path: label.isEmpty ? 'http-stream' : label,
+      range: PlaybackRange(startSecs: startSecs ?? 0, endSecs: endSecs),
     );
   }
 
@@ -406,8 +463,8 @@ class RustAudioService {
     if (!_initialized) return;
     await rust_audio.audioStop();
     _stopProgressUpdates();
-    _currentPath = null;
-    _nextPath = null;
+    _currentSource = null;
+    _nextSource = null;
   }
 
   /// Seek to a position in seconds.
@@ -694,35 +751,32 @@ class RustAudioService {
             bufferLevelNotifier.value = bufferLevel;
           }
         },
-        trackEnded: (path) {
-          final enginePath = currentPath;
+        trackEnded: (source) {
+          final engineSource = currentSource;
           devLog(
-            '[crossfade] TrackEnded: queued=${_nextPath != null}, '
-            'engineHasSource=${enginePath != null}, '
-            'engineMatchesRequested=${_nextPath != null && enginePath == _nextPath}',
+            '[crossfade] TrackEnded: queued=${_nextSource != null}, '
+            'engineHasSource=${engineSource != null}, '
+            'engineMatchesRequested=${_nextSource != null && engineSource == _nextSource}',
           );
           // Track finished, next track should auto-start if queued
-          if (_nextPath != null) {
-            _currentPath = _nextPath;
-            _nextPath = null;
-          } else {
-            // Update from Rust engine to ensure sync
-            _currentPath = rust_audio.audioGetCurrentPath();
+          _currentSource = engineSource;
+          if (engineSource == _nextSource || engineSource == null) {
+            _nextSource = null;
           }
-          onTrackEnded?.call(path);
+          onTrackEnded?.call(source);
         },
-        crossfadeStarted: (fromPath, toPath) {
-          onCrossfadeStarted?.call(fromPath, toPath);
+        crossfadeStarted: (from, to) {
+          onCrossfadeStarted?.call(from, to);
         },
         error: (message) {
           devLog('Rust audio error: $message');
           onError?.call(message);
         },
-        nextTrackReady: (path) {
+        nextTrackReady: (source) {
           devLog(
-            '[crossfade] NextTrackReady: matchesRequested=${path == _nextPath}',
+            '[crossfade] NextTrackReady: matchesRequested=${source == _nextSource}',
           );
-          onNextTrackReady?.call(path);
+          onNextTrackReady?.call(source);
         },
       );
     }

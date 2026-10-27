@@ -14,11 +14,41 @@ use std::sync::Arc;
 /// 48000 samples/sec * 2 channels * 5 seconds = 480,000 samples
 pub const SOURCE_BUFFER_SIZE: usize = 480_000;
 
+/// File-relative bounds of a logical PCM track. The end is exclusive; None
+/// means decode to EOF. Playback positions remain relative to the start.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct PlaybackRange {
+    pub start_secs: f64,
+    pub end_secs: Option<f64>,
+}
+
+impl PlaybackRange {
+    pub(crate) fn validate(self) -> Result<Self, String> {
+        if !self.start_secs.is_finite() || self.start_secs < 0.0 {
+            return Err("Invalid playback range start".to_string());
+        }
+        if let Some(end) = self.end_secs {
+            if !end.is_finite() || end <= self.start_secs {
+                return Err("Playback range end must be after its start".to_string());
+            }
+        }
+        Ok(self)
+    }
+}
+
+/// Unlike a path alone, this distinguishes adjacent tracks in a CUE album.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SourceIdentity {
+    pub path: String,
+    pub range: PlaybackRange,
+}
+
 /// Metadata about an audio source.
 #[derive(Debug, Clone)]
 pub struct SourceInfo {
     /// Path to the audio file
     pub path: PathBuf,
+    pub range: PlaybackRange,
     /// Sample rate of the source (before resampling)
     pub original_sample_rate: u32,
     /// Output sample rate (after resampling)
@@ -36,6 +66,15 @@ pub struct SourceInfo {
     // on track change. Note: HashMap Debug would print headers — never log
     // SourceInfo wholesale in release paths.
     pub http_origin: Option<(String, HashMap<String, String>)>,
+}
+
+impl SourceInfo {
+    pub(crate) fn identity(&self) -> SourceIdentity {
+        SourceIdentity {
+            path: self.path.to_string_lossy().to_string(),
+            range: self.range,
+        }
+    }
 }
 
 /// State of an audio source.
@@ -189,7 +228,7 @@ impl AudioSource {
 
     /// Set the current playback position in seconds.
     ///
-    /// Used after decoder-side seeks so progress reporting remains absolute.
+    /// Used after decoder-side seeks; relative to this logical track's start.
     pub fn set_position_secs(&self, position_secs: f64) {
         let clamped_secs = position_secs.max(0.0);
         let frames = (clamped_secs * self.info.output_sample_rate as f64).round() as u64;
@@ -578,6 +617,7 @@ mod tests {
     fn source_info(path: &str) -> SourceInfo {
         SourceInfo {
             path: PathBuf::from(path),
+            range: super::PlaybackRange::default(),
             original_sample_rate: 48_000,
             output_sample_rate: 48_000,
             channels: 2,

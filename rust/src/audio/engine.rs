@@ -18,7 +18,9 @@ use crate::audio::crossfeed::{Crossfeed, CrossfeedLevel};
 use crate::audio::equalizer::{EqBandSpec, Equalizer};
 use crate::audio::fx::SpatialFx;
 use crate::audio::pitch_shifter::PitchShifter;
-use crate::audio::source::{AudioSource, SourceInfo, SourceProvider};
+use crate::audio::source::{
+    AudioSource, PlaybackRange, SourceIdentity, SourceInfo, SourceProvider,
+};
 use crate::audio::strategy::OutputStrategy;
 #[cfg(target_os = "android")]
 use crate::audio::strategy::{select_strategy_excluded, DeviceCaps, TrackInfo};
@@ -947,6 +949,15 @@ impl AudioEngineHandle {
     pub fn get_current_path(&self) -> Option<PathBuf> {
         let sources = self.callback_data.sources.lock();
         sources.current().map(|source| source.info.path.clone())
+    }
+
+    pub fn get_current_source(&self) -> Option<SourceIdentity> {
+        let sources = self.callback_data.sources.lock();
+        progress_source(
+            self.callback_data.crossfade_active.load(Ordering::Relaxed),
+            &sources,
+        )
+        .map(|source| source.info.identity())
     }
 
     /// Try to receive an event (non-blocking).
@@ -3871,7 +3882,9 @@ fn command_processing_loop(
                 path,
                 engine_current
             );
-            let _ = event_tx.try_send(AudioEvent::TrackEnded { path });
+            let _ = event_tx.try_send(AudioEvent::TrackEnded {
+                source: source.info.identity(),
+            });
 
             // Crossfade completed — restore Playing state. This is the
             // natural bookend: a crossfade always ends with advance_to_next()
@@ -4194,7 +4207,28 @@ fn spawn_decoder(
     seek_secs: Option<f64>,
     callback_data: &AudioCallbackData,
 ) -> anyhow::Result<(AudioSource, DecoderHandle)> {
+    spawn_decoder_in_range(
+        path,
+        sample_rate,
+        channels,
+        seek_secs,
+        PlaybackRange::default(),
+        callback_data,
+    )
+}
+
+fn spawn_decoder_in_range(
+    path: PathBuf,
+    sample_rate: u32,
+    channels: usize,
+    seek_secs: Option<f64>,
+    range: PlaybackRange,
+    callback_data: &AudioCallbackData,
+) -> anyhow::Result<(AudioSource, DecoderHandle)> {
     let file_type = detect_file_type(&path);
+    if range != PlaybackRange::default() && !matches!(file_type, FileType::Standard) {
+        anyhow::bail!("CUE playback ranges are not supported for DSD/WavPack sources");
+    }
     match file_type {
         FileType::Dsd => {
             // Match the payload format the live engine was created for — the
@@ -4231,11 +4265,8 @@ fn spawn_decoder(
             Ok((source, handle))
         }
         FileType::Standard => {
-            let (source, thread) = if let Some(seek) = seek_secs {
-                DecoderThread::spawn_with_seek(path, sample_rate, channels, Some(seek))
-            } else {
-                DecoderThread::spawn(path, sample_rate, channels)
-            }?;
+            let (source, thread) =
+                DecoderThread::spawn_with_seek(path, sample_rate, channels, seek_secs, range)?;
             Ok((source, DecoderHandle::Symphonia(thread)))
         }
     }
@@ -4247,10 +4278,10 @@ fn spawn_decoder(
 /// not drop the fade/gapless queue: Dart does not re-queue after a plain
 /// replay, so losing the successor here disables the end-of-track handoff.
 /// Any real track change replaces the timeline and its successor with it.
-fn replay_keeps_successor(sources: &SourceProvider, path: &Path) -> bool {
+fn replay_keeps_successor(sources: &SourceProvider, path: &Path, range: PlaybackRange) -> bool {
     sources
         .current()
-        .map(|current| current.info.path == path)
+        .map(|current| current.info.path == path && current.info.range == range)
         .unwrap_or(false)
 }
 
@@ -4271,7 +4302,7 @@ fn handle_play(
     let mut invalidated_successor: Option<(SourceInfo, f32)> = None;
     {
         let mut sources = callback_data.sources.lock();
-        if replay_keeps_successor(&sources, &path) {
+        if replay_keeps_successor(&sources, &path, PlaybackRange::default()) {
             log::info!(
                 "[crossfade] replay of current track: keeping queued successor"
             );
@@ -4334,7 +4365,7 @@ fn handle_play_prepared(
     {
         let path = source.info.path.clone();
         let mut sources = callback_data.sources.lock();
-        if replay_keeps_successor(&sources, &path) {
+        if replay_keeps_successor(&sources, &path, source.info.range) {
             log::info!(
                 "[crossfade] replay of current track: keeping queued successor"
             );
@@ -4461,16 +4492,14 @@ fn report_next_ready(callback_data: &AudioCallbackData, event_tx: &Sender<AudioE
     if !sources.next_has_enough_buffer(0.1) {
         return;
     }
-    let path = sources
-        .next()
-        .map(|next| next.info.path.to_string_lossy().to_string());
+    let source = sources.next().map(|next| next.info.identity());
     drop(sources);
 
     callback_data
         .next_ready_reported
         .store(true, Ordering::Relaxed);
-    if let Some(path) = path {
-        let _ = event_tx.try_send(AudioEvent::NextTrackReady { path });
+    if let Some(source) = source {
+        let _ = event_tx.try_send(AudioEvent::NextTrackReady { source });
     }
 }
 
@@ -4552,12 +4581,8 @@ fn maybe_start_auto_crossfade(
         return false;
     }
 
-    let from = sources
-        .current()
-        .map(|s| s.info.path.to_string_lossy().to_string());
-    let to = sources
-        .next()
-        .map(|s| s.info.path.to_string_lossy().to_string());
+    let from = sources.current().map(|s| s.info.identity());
+    let to = sources.next().map(|s| s.info.identity());
 
     crossfader.set_active_duration_secs(effective);
     crossfader.start();
@@ -4566,18 +4591,15 @@ fn maybe_start_auto_crossfade(
         .store(true, Ordering::Relaxed);
     state.store(PlaybackState::Crossfading as u8, Ordering::Relaxed);
     let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Crossfading));
-    if let (Some(from_path), Some(to_path)) = (from, to) {
+    if let (Some(from), Some(to)) = (from, to) {
         log::info!(
             "[crossfade] auto fade started: remaining={:.2}s duration={:.2}s from={} to={}",
             remaining,
             effective,
-            from_path,
-            to_path
+            from.path,
+            to.path
         );
-        let _ = event_tx.try_send(AudioEvent::CrossfadeStarted {
-            from_path,
-            to_path,
-        });
+        let _ = event_tx.try_send(AudioEvent::CrossfadeStarted { from, to });
     }
     *near_end_logged = false;
     true
@@ -4600,12 +4622,25 @@ fn requeue_successor_from_info(
         probe_http(url, headers.clone())
             .map_err(|e| anyhow::anyhow!("{}", e))
             .and_then(|probe_result| {
-                DecoderThread::spawn_from_probe_result(probe_result, sample_rate, channels, None)
-                    .map(|(source, thread)| (source, DecoderHandle::Symphonia(thread)))
-                    .map_err(|e| anyhow::anyhow!("{}", e))
+                DecoderThread::spawn_from_probe_result(
+                    probe_result,
+                    sample_rate,
+                    channels,
+                    None,
+                    info.range,
+                )
+                .map(|(source, thread)| (source, DecoderHandle::Symphonia(thread)))
+                .map_err(|e| anyhow::anyhow!("{}", e))
             })
     } else {
-        spawn_decoder(info.path.clone(), sample_rate, channels, None, callback_data)
+        spawn_decoder_in_range(
+            info.path.clone(),
+            sample_rate,
+            channels,
+            None,
+            info.range,
+            callback_data,
+        )
     };
 
     match spawn_result {
@@ -4683,12 +4718,8 @@ fn handle_skip_to_next(
         let next_total = sources.next().map(|s| s.info.duration_secs).unwrap_or(0.0);
         let effective = clamp_crossfade_secs(configured, next_total);
         if configured > 0.0 && effective > 0.0 {
-            let from_path = sources
-                .current()
-                .map(|s| s.info.path.to_string_lossy().to_string());
-            let to_path = sources
-                .next_mut()
-                .map(|s| s.info.path.to_string_lossy().to_string());
+            let from = sources.current().map(|s| s.info.identity());
+            let to = sources.next().map(|s| s.info.identity());
             crossfader.set_active_duration_secs(effective);
             crossfader.start();
             callback_data
@@ -4696,11 +4727,8 @@ fn handle_skip_to_next(
                 .store(crossfader.is_active(), Ordering::Relaxed);
             state.store(PlaybackState::Crossfading as u8, Ordering::Relaxed);
             let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Crossfading));
-            if let (Some(from), Some(to)) = (from_path, to_path) {
-                let _ = event_tx.try_send(AudioEvent::CrossfadeStarted {
-                    from_path: from,
-                    to_path: to,
-                });
+            if let (Some(from), Some(to)) = (from, to) {
+                let _ = event_tx.try_send(AudioEvent::CrossfadeStarted { from, to });
             }
             true
         } else {
@@ -4732,7 +4760,7 @@ fn handle_seek(
     // seek during the fade must land in the incoming track, not the fading-out
     // one. As a side effect the seek then ends the fade: the outgoing source is
     // retired and the incoming source becomes the sole current.
-    let (path, http_origin, replaygain_db, successor, retire_current) = {
+    let (path, range, http_origin, replaygain_db, successor, retire_current) = {
         let sources = callback_data.sources.lock();
         // Same predicate `progress_source` uses for progress: while the fade is
         // in flight the incoming source is the audible track, so the seek must
@@ -4747,6 +4775,7 @@ fn handle_seek(
             let incoming = sources.next().unwrap();
             (
                 incoming.info.path.clone(),
+                incoming.info.range,
                 incoming.info.http_origin.clone(),
                 incoming.replaygain_db(),
                 successor,
@@ -4756,12 +4785,20 @@ fn handle_seek(
             match sources.current() {
                 Some(s) => (
                     s.info.path.clone(),
+                    s.info.range,
                     s.info.http_origin.clone(),
                     s.replaygain_db(),
                     successor,
                     false,
                 ),
-                None => (PathBuf::new(), None, 0.0, None, false),
+                None => (
+                    PathBuf::new(),
+                    PlaybackRange::default(),
+                    None,
+                    0.0,
+                    None,
+                    false,
+                ),
             }
         }
     };
@@ -4825,17 +4862,19 @@ fn handle_seek(
                 sample_rate,
                 callback_data.channels(),
                 Some(target_secs),
+                range,
             )
             .map(|(s, h)| (s, DecoderHandle::Symphonia(h)))
             .map_err(|e| anyhow::anyhow!("{}", e)),
             Err(e) => Err(anyhow::anyhow!("{}", e)),
         }
     } else {
-        spawn_decoder(
+        spawn_decoder_in_range(
             path.clone(),
             sample_rate,
             callback_data.channels(),
             Some(target_secs),
+            range,
             callback_data,
         )
     };
@@ -4919,6 +4958,7 @@ mod tests {
         let duration_secs = samples.len() as f64 / channels as f64 / sample_rate as f64;
         let info = SourceInfo {
             path: PathBuf::from(path),
+            range: PlaybackRange::default(),
             original_sample_rate: sample_rate,
             output_sample_rate: sample_rate,
             channels,
@@ -4942,6 +4982,7 @@ mod tests {
     fn queued_source_info(path: &str, sample_rate: u32, channels: usize) -> SourceInfo {
         SourceInfo {
             path: PathBuf::from(path),
+            range: PlaybackRange::default(),
             original_sample_rate: sample_rate,
             output_sample_rate: sample_rate,
             channels,
@@ -5185,19 +5226,94 @@ mod tests {
         provider.set_current(build_source_with_path("a.flac", &[0.25, 0.25], 48_000, 2));
         provider.queue_next(build_source_with_path("b.flac", &[0.5, 0.5], 48_000, 2));
 
-        assert!(replay_keeps_successor(&provider, std::path::Path::new("a.flac")));
+        assert!(replay_keeps_successor(
+            &provider,
+            std::path::Path::new("a.flac"),
+            PlaybackRange::default()
+        ));
         assert!(!replay_keeps_successor(
             &provider,
-            std::path::Path::new("b.flac")
+            std::path::Path::new("b.flac"),
+            PlaybackRange::default(),
         ));
 
         // The seek/replay primitive keeps the successor queued.
         provider.take_current();
         assert!(!replay_keeps_successor(
             &provider,
-            std::path::Path::new("a.flac")
+            std::path::Path::new("a.flac"),
+            PlaybackRange::default(),
         ));
         assert!(provider.has_next());
+    }
+
+    #[test]
+    fn changing_cue_segments_is_not_a_replay_of_the_shared_file() {
+        let mut provider = SourceProvider::new(48_000, 2);
+        let first = PlaybackRange {
+            start_secs: 0.0,
+            end_secs: Some(0.4),
+        };
+        let second = PlaybackRange {
+            start_secs: 0.4,
+            end_secs: None,
+        };
+        let mut current = build_source_with_path("album.flac", &[0.25; 8], 48_000, 2);
+        current.info.range = first;
+        provider.set_current(current);
+
+        assert!(replay_keeps_successor(
+            &provider,
+            Path::new("album.flac"),
+            first
+        ));
+        assert!(!replay_keeps_successor(
+            &provider,
+            Path::new("album.flac"),
+            second
+        ));
+        assert!(!replay_keeps_successor(
+            &provider,
+            Path::new("album.flac"),
+            PlaybackRange::default(),
+        ));
+    }
+
+    #[test]
+    fn same_file_cue_handoff_preserves_samples_and_the_finished_identity() {
+        let (data, finished_rx) = build_callback_data_with_finished(48_000, 2);
+        data.set_pipeline_mode(PipelineMode::Passthrough);
+        let first = PlaybackRange {
+            start_secs: 0.0,
+            end_secs: Some(2.0 / 48_000.0),
+        };
+        let second = PlaybackRange {
+            start_secs: 2.0 / 48_000.0,
+            end_secs: None,
+        };
+        let mut outgoing = build_source_with_path("album.flac", &[0.1, -0.1, 0.2, -0.2], 48_000, 2);
+        let mut incoming = build_source_with_path("album.flac", &[0.3, -0.3, 0.4, -0.4], 48_000, 2);
+        outgoing.info.range = first;
+        incoming.info.range = second;
+        {
+            let mut sources = data.sources.lock();
+            sources.set_current(outgoing);
+            sources.queue_next(incoming);
+        }
+
+        assert_eq!(
+            run_callback(&data, 6),
+            vec![0.1, -0.1, 0.2, -0.2, 0.3, -0.3]
+        );
+        let finished = finished_rx
+            .try_recv()
+            .expect("outgoing CUE segment finished");
+        assert_eq!(finished.info.identity().range, first);
+        assert!(finished_rx.try_recv().is_err(), "handoff is reported once");
+        let sources = data.sources.lock();
+        let current = sources.current().unwrap();
+        assert_eq!(current.info.identity().range, second);
+        assert_eq!(current.position_samples(), 2);
     }
 
     #[test]
@@ -5307,7 +5423,7 @@ mod tests {
         assert_eq!(producer.write(&chunk), chunk.len());
         report_next_ready(&data, &event_tx);
         match event_rx.try_recv().expect("expected NextTrackReady") {
-            AudioEvent::NextTrackReady { path } => assert_eq!(path, "next.flac"),
+            AudioEvent::NextTrackReady { source } => assert_eq!(source.path, "next.flac"),
             other => panic!("expected NextTrackReady, got {:?}", other),
         }
 
@@ -5450,6 +5566,97 @@ mod tests {
             fade.start();
         }
         data.crossfade_active.store(true, Ordering::Relaxed);
+    }
+
+    #[test]
+    fn cue_seek_preserves_bounds_and_targets_the_incoming_segment_during_fade() {
+        let (path, unused_path) = seek_test_fixtures("cue_seek");
+        let (data, finished_rx) = build_callback_data_with_finished(48_000, 2);
+        let (event_tx, _event_rx) = bounded::<AudioEvent>(16);
+        let decoders = Arc::new(Mutex::new(Vec::new()));
+        let state = Arc::new(AtomicU8::new(PlaybackState::Playing as u8));
+        let first = PlaybackRange {
+            start_secs: 0.1,
+            end_secs: Some(0.4),
+        };
+        let second = PlaybackRange {
+            start_secs: 0.4,
+            end_secs: Some(0.8),
+        };
+        for (index, range) in [first, second].into_iter().enumerate() {
+            let (mut source, handle) =
+                spawn_decoder_in_range(path.clone(), 48_000, 2, None, range, &data).unwrap();
+            source.set_ready();
+            let mut sources = data.sources.lock();
+            if index == 0 {
+                sources.set_current(source);
+            } else {
+                sources.queue_next(source);
+            }
+            decoders.lock().push(handle);
+        }
+
+        handle_seek(0.15, &data, &state, &decoders, &event_tx, 48_000);
+        {
+            let sources = data.sources.lock();
+            let current = sources.current().unwrap();
+            assert_eq!(current.info.range, first);
+            assert!((current.info.duration_secs - 0.3).abs() < 1e-9);
+            assert!((current.position_secs() - 0.15).abs() < 1e-9);
+            assert_eq!(sources.next().unwrap().info.range, second);
+        }
+        assert!(finished_rx.try_recv().is_err());
+
+        start_test_fade(&data);
+        handle_seek(0.05, &data, &state, &decoders, &event_tx, 48_000);
+        {
+            let sources = data.sources.lock();
+            let current = sources.current().unwrap();
+            assert_eq!(current.info.range, second);
+            assert!((current.info.duration_secs - 0.4).abs() < 1e-9);
+            assert!((current.position_secs() - 0.05).abs() < 1e-9);
+            assert!(!sources.has_next());
+        }
+        assert_eq!(finished_rx.try_recv().unwrap().info.range, first);
+        for handle in decoders.lock().drain(..) {
+            handle.join().unwrap();
+        }
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(unused_path);
+    }
+
+    #[test]
+    fn respawned_cue_successor_keeps_its_range_and_replaygain() {
+        let (path, unused_path) = seek_test_fixtures("cue_requeue");
+        let data = build_callback_data(48_000, 2);
+        let decoders = Arc::new(Mutex::new(Vec::new()));
+        let range = PlaybackRange {
+            start_secs: 0.4,
+            end_secs: Some(0.8),
+        };
+        let (source, handle) =
+            spawn_decoder_in_range(path.clone(), 48_000, 2, None, range, &data).unwrap();
+        source.set_position_secs(0.2);
+        let info = source.info.clone();
+        handle.join().unwrap();
+        drop(source);
+
+        assert!(requeue_successor_from_info(
+            info, -3.0, &data, &decoders, 48_000
+        ));
+        {
+            let sources = data.sources.lock();
+            let next = sources.next().unwrap();
+            assert_eq!(next.info.range, range);
+            assert_eq!(next.position_secs(), 0.0);
+            assert_eq!(next.replaygain_db(), -3.0);
+            assert!((next.info.duration_secs - 0.4).abs() < 1e-9);
+        }
+        for handle in decoders.lock().drain(..) {
+            handle.join().unwrap();
+        }
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(unused_path);
     }
 
     #[test]

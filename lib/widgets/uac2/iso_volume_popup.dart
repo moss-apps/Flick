@@ -178,9 +178,8 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
     }
 
     final tier = ref.watch(volumeTierProvider);
-    final playerService = ref.read(playerServiceProvider);
     final isAvailable = tier != VolumeTier.unavailable;
-    final playerVolume = playerService.currentVolume;
+    final playerVolume = ref.watch(playerVolumeProvider);
     final hardwareAuthority = tier == VolumeTier.hardware;
     final effectiveVolume = isAvailable
         ? (_draggingVolume ??

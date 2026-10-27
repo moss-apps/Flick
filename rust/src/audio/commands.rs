@@ -5,7 +5,7 @@
 
 use crate::audio::decoder_handle::DecoderHandle;
 use crate::audio::equalizer::EqBandSpec;
-use crate::audio::source::AudioSource;
+use crate::audio::source::{AudioSource, SourceIdentity};
 use std::path::PathBuf;
 
 /// Commands that can be sent to the audio engine.
@@ -150,11 +150,14 @@ pub enum AudioEvent {
     /// Progress update (sent periodically during playback)
     Progress(PlaybackProgress),
     /// Track finished naturally (not skipped)
-    TrackEnded { path: String },
+    TrackEnded { source: SourceIdentity },
     /// Crossfade started between tracks
-    CrossfadeStarted { from_path: String, to_path: String },
+    CrossfadeStarted {
+        from: SourceIdentity,
+        to: SourceIdentity,
+    },
     /// Error occurred during playback
     Error { message: String },
     /// Next track is ready (for gapless)
-    NextTrackReady { path: String },
+    NextTrackReady { source: SourceIdentity },
 }

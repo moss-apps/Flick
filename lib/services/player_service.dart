@@ -20,6 +20,7 @@ import 'package:flick/services/bluetooth_service.dart';
 import 'package:flick/services/audio_engine_manager.dart';
 import 'package:flick/services/audio_session_manager.dart';
 import 'package:flick/services/song_engine_routing.dart';
+import 'package:flick/services/playback_source.dart';
 import 'package:flick/services/equalizer_service.dart';
 import 'package:flick/services/android_audio_processing_service.dart';
 import 'package:flick/services/last_played_service.dart';
@@ -33,12 +34,14 @@ import 'package:flick/services/milestone_service.dart';
 import 'package:flick/services/android_audio_engine.dart';
 import 'package:flick/services/rust_audio_engine.dart';
 import 'package:flick/services/rust_audio_service.dart';
+import 'package:flick/src/rust/audio/source.dart' show SourceIdentity;
 import 'package:flick/services/app_preferences_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/album_color_mode_preference_service.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/services/uac2_service.dart';
+import 'package:flick/services/usb_dac_volume_restore.dart';
 import 'package:flick/services/alac_converter_service.dart';
 import 'package:flick/services/playback_cache_preferences_service.dart';
 import 'package:flick/services/remote_source_service.dart';
@@ -438,7 +441,7 @@ class PlayerService {
     return _instance;
   }
 
-  PlayerService._internal() {
+  PlayerService._internal() : _uac2Service = Uac2Service.instance {
     _playbackManager = AudioEngineManager();
     _sessionManager = AudioSessionManager(
       onSwitchEngine: _handleEngineSwitch,
@@ -448,16 +451,27 @@ class PlayerService {
     _init();
   }
 
+  /// Exercise route handoffs after launch without starting native engines.
+  @visibleForTesting
+  PlayerService.forTesting({
+    required AudioSessionManager sessionManager,
+    required Uac2Service uac2Service,
+  }) : _uac2Service = uac2Service {
+    _sessionManager = sessionManager;
+    _playbackManager = AudioEngineManager();
+    _audioInitialized = true;
+  }
+
   just_audio.AudioPlayer? _justAudioPlayer;
   // Cached crossfade curve index (0..3) for synchronous reads inside the
   // just_audio engine's config provider; refreshed from prefs on load/change.
   int _crossfadeCurveIndex = 0;
 
-  /// Rust path of the outgoing track whose end-of-track handoff was already
+  /// Rust source of the outgoing track whose end-of-track handoff was already
   /// applied to the playlist UI when its crossfade started. The engine's later
-  /// TrackEnded event for the same path must not advance the index again; it
+  /// TrackEnded event for the same source must not advance the index again; it
   /// only queues the following successor.
-  String? _crossfadeUiHandoffFromPath;
+  SourceIdentity? _crossfadeUiHandoffFrom;
 
   final NotificationService _notificationService = NotificationService();
   final FloatingPlayerService _floatingPlayerService = FloatingPlayerService();
@@ -470,7 +484,7 @@ class PlayerService {
   final SongRepository _songRepository = SongRepository();
   final PlaylistService _playlistService = PlaylistService();
   final RustAudioService _rustAudioService = RustAudioService();
-  final Uac2Service _uac2Service = Uac2Service.instance;
+  final Uac2Service _uac2Service;
   final CastingService _castingService = CastingService.instance;
   bool get isCasting => _castingService.isActive;
   final ColorExtractionService _colorExtractionService =
@@ -555,8 +569,10 @@ class PlayerService {
   String? _autoSyncGuardSongId;
   String? _restoredSongId;
   Duration _restoredPosition = Duration.zero;
-  double _currentVolume = 1.0;
-  String? _lastRestoredUsbVolumeKey;
+  final ValueNotifier<double> currentVolumeNotifier = ValueNotifier(1.0);
+  double get _currentVolume => currentVolumeNotifier.value;
+  set _currentVolume(double value) => currentVolumeNotifier.value = value;
+  final UsbDacVolumeRestore _usbDacVolumeRestore = UsbDacVolumeRestore();
 
   /// Default volume for bit-perfect mode (25 %, safety level).
   /// Mapped to ~0.01 linear gain by Rust's volume_to_gain curve.
@@ -800,7 +816,7 @@ class PlayerService {
     _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((
       _,
     ) async {
-      _lastRestoredUsbVolumeKey = null;
+      _usbDacVolumeRestore.reset();
       if (!isPlayingNotifier.value) return;
       final enabled = await _appPreferencesService.getPauseOnUsbDacDisconnect();
       if (enabled) pause();
@@ -811,7 +827,7 @@ class PlayerService {
     _usbDacAttachSubscription = _uac2Service.deviceAttachedEvents.listen((
       _,
     ) async {
-      _lastRestoredUsbVolumeKey = null;
+      _usbDacVolumeRestore.reset();
       if (!isPlayingNotifier.value) return;
       final enabled = await _appPreferencesService.getPauseOnUsbDacConnect();
       if (enabled) pause();
@@ -915,7 +931,7 @@ class PlayerService {
     if (status == null) {
       _hwVolumeFailed = false;
       _hardwareVolumeGeneration = null;
-      _lastRestoredUsbVolumeKey = null;
+      _usbDacVolumeRestore.reset();
       _activeUsbDsdMode = null;
       _activeUsbDsdSongId = null;
       unawaited(_reconcileVolumeForTier(_determineCurrentTier()));
@@ -1606,9 +1622,12 @@ class PlayerService {
   AudioEngineType get currentEngineType =>
       _sessionManager.initializedMode ?? _sessionManager.selectedMode;
   bool get isBitPerfectModeEnabled =>
-      (currentEngineType == AudioEngineType.usbDacExperimental &&
+      _isBitPerfectModeEnabledFor(currentEngineType);
+
+  bool _isBitPerfectModeEnabledFor(AudioEngineType mode) =>
+      (mode == AudioEngineType.usbDacExperimental &&
           _uac2Service.isBitPerfectEnabledSync) ||
-      (currentEngineType == AudioEngineType.dapInternalHighRes &&
+      (mode == AudioEngineType.dapInternalHighRes &&
           _uac2Service.isDapBitPerfectEnabledSync);
   bool get isBitPerfectProcessingLocked =>
       bitPerfectProcessingLockedNotifier.value;
@@ -1725,6 +1744,25 @@ class PlayerService {
     await _sessionManager.syncRouteSelection(
       reason: 'audio engine preference changed',
     );
+  }
+
+  /// Complete USB auto-engage even when no track has been played yet.
+  /// Changing the engine preference alone does not re-run launch volume setup.
+  Future<bool> enableUsbDacBitPerfect() async {
+    await setAudioEnginePreference(AudioEnginePreference.isochronousUsb);
+    final applied = await _uac2Service.setBitPerfectEnabled(true);
+    if (!applied) return false;
+    try {
+      // Permission may reveal a different serial, so use the authorized route
+      // after activation rather than the pre-permission attach notification.
+      await _restoreUsbDacVolumeBeforePlayback(
+        AudioEngineType.usbDacExperimental,
+      );
+      return true;
+    } catch (e) {
+      _debugLog('[VolFlow] USB DAC handoff volume restore failed: $e');
+      return false;
+    }
   }
 
   /// Re-resolves the desired engine/route. The newly selected engine attaches
@@ -2367,27 +2405,64 @@ class PlayerService {
   String? _usbDsdModeForSong(Song song) =>
       _activeUsbDsdSongId == song.id ? _activeUsbDsdMode : null;
 
-  bool _usbDsdWireForSong(Song song) {
-    if (!_isDirectUsbPath) return false;
+  bool _usbDsdWireForSong(Song song, {AudioEngineType? playbackMode}) {
+    if (!Platform.isAndroid ||
+        (playbackMode ?? currentEngineType) !=
+            AudioEngineType.usbDacExperimental) {
+      return false;
+    }
     final mode = _usbDsdModeForSong(song);
     return mode == 'dop' || mode == 'native' ||
         (mode == null && song.isDsd &&
             Uac2PreferencesService.dsdOutputModeSync != DsdOutputMode.forcePcm);
   }
 
-  VolumeTier _determineCurrentTier({Song? song}) => determineVolumeTier(
-    isBitPerfectVolumePath: song == null || !_isDirectUsbPath
-        ? _isBitPerfectVolumePath
-        : isBitPerfectModeEnabled && _usbDsdModeForSong(song) != 'pcm' &&
-            !(song.isDsd && Uac2PreferencesService.dsdOutputModeSync ==
-                DsdOutputMode.forcePcm),
-    volumeMode: _uac2Service.currentDeviceStatus?.volumeMode,
-    hwVolumeFailed: _hwVolumeFailed,
-    isDoP: song == null ? _usbDsdWireActive : _usbDsdWireForSong(song),
-    autoSwitchDsdForVolume: Uac2PreferencesService.autoSwitchDsdForVolumeSync,
-    isPassthrough: _isPassthroughActive,
-    usingRustBackend: _usingRustBackend,
-  );
+  VolumeTier _determineCurrentTier({Song? song, AudioEngineType? playbackMode}) {
+    // Keep the established live-engine calculation for current playback.
+    if (playbackMode == null || playbackMode == currentEngineType) {
+      return determineVolumeTier(
+        isBitPerfectVolumePath: song == null || !_isDirectUsbPath
+            ? _isBitPerfectVolumePath
+            : isBitPerfectModeEnabled && _usbDsdModeForSong(song) != 'pcm' &&
+                !(song.isDsd &&
+                    Uac2PreferencesService.dsdOutputModeSync ==
+                        DsdOutputMode.forcePcm),
+        volumeMode: _uac2Service.currentDeviceStatus?.volumeMode,
+        hwVolumeFailed: _hwVolumeFailed,
+        isDoP: song == null ? _usbDsdWireActive : _usbDsdWireForSong(song),
+        autoSwitchDsdForVolume:
+            Uac2PreferencesService.autoSwitchDsdForVolumeSync,
+        isPassthrough: _isPassthroughActive,
+        usingRustBackend: _usingRustBackend,
+      );
+    }
+
+    // During preparation initializedMode can still be the outgoing Standard or
+    // High Quality engine. Volume authority belongs to the incoming engine.
+    final targetSong = song ?? currentSongNotifier.value;
+    final directUsb = Platform.isAndroid &&
+        playbackMode == AudioEngineType.usbDacExperimental;
+    final convertedUsbDsd = directUsb &&
+        targetSong != null &&
+        (_usbDsdModeForSong(targetSong) == 'pcm' ||
+            (targetSong.isDsd &&
+                Uac2PreferencesService.dsdOutputModeSync ==
+                    DsdOutputMode.forcePcm));
+    final bitPerfectPath =
+        _isBitPerfectModeEnabledFor(playbackMode) && !convertedUsbDsd;
+    return determineVolumeTier(
+      isBitPerfectVolumePath: bitPerfectPath,
+      volumeMode: _uac2Service.currentDeviceStatus?.volumeMode,
+      hwVolumeFailed: _hwVolumeFailed,
+      isDoP: targetSong != null &&
+          _usbDsdWireForSong(targetSong, playbackMode: playbackMode),
+      autoSwitchDsdForVolume: Uac2PreferencesService.autoSwitchDsdForVolumeSync,
+      // The policy below explicitly enables passthrough for the target mode;
+      // outgoing-engine diagnostics cannot describe that prepared pipeline.
+      isPassthrough: bitPerfectPath,
+      usingRustBackend: playbackMode.usesRustBackend,
+    );
+  }
 
   Future<void> _reconcileVolumeForTier(
     VolumeTier tier, {
@@ -2434,63 +2509,74 @@ class PlayerService {
     AudioEngineType playbackMode, {
     Song? song,
   }) async {
-    if (!Platform.isAndroid ||
-        playbackMode != AudioEngineType.usbDacExperimental) {
+    // Only the Android USB engine reaches this path. Staging its remembered
+    // volume must not depend on a native engine having been initialized.
+    if (playbackMode != AudioEngineType.usbDacExperimental) {
       return;
     }
-    var status = _uac2Service.currentDeviceStatus;
-    if (status == null) return;
-
+    final generation = _usbDacVolumeRestore.connectionGeneration;
     await _uac2Service.refreshAndroidRouteStatus(
       isPlaying: isPlayingNotifier.value,
       hasActiveSong: currentSongNotifier.value != null,
     );
-    status = _uac2Service.currentDeviceStatus;
-    if (status == null) return;
+    if (generation != _usbDacVolumeRestore.connectionGeneration) {
+      throw StateError(
+        'Failed to restore USB DAC hardware volume before playback: route changed',
+      );
+    }
+    final status = _uac2Service.currentDeviceStatus;
+    if (status == null) {
+      throw StateError(
+        'Failed to restore USB DAC hardware volume before playback: no route',
+      );
+    }
     final device = status.device;
-    final tier = _determineCurrentTier(song: song);
+    final tier = _determineCurrentTier(song: song, playbackMode: playbackMode);
     // Include the tier so switching between software and hardware authority
     // (PCM to DSD, or toggling bit-perfect) restores again, while a physical
     // knob change later in the same tier is left alone.
     final key =
         '${Uac2PreferencesService.usbDeviceVolumeKey(device)}|${tier.name}';
-    if (_lastRestoredUsbVolumeKey == key) return;
-    final savedVolume = await _preferencesService.getUsbVolumeForDevice(device);
-    if (_uac2Service.currentDeviceStatus?.device != device) {
-      throw StateError(
-        'Failed to restore USB DAC hardware volume before playback: route changed',
-      );
-    }
-    if (!savedVolume.isFinite) return;
-    _currentVolume = savedVolume.clamp(0.0, 1.0).toDouble();
-
-    final hardwareAuthority =
-        tier == VolumeTier.hardware &&
-        status.volumeMode == Uac2VolumeMode.hardware &&
-        status.volumeControlWritable;
-    final actual = status.volume;
-    if (!hardwareAuthority ||
-        (actual != null && (actual - savedVolume).abs() <= 1e-6)) {
-      _lastRestoredUsbVolumeKey = key;
-      return;
-    }
-
-    final restored = await _uac2Service.setVolume(savedVolume, persist: false);
-    if (restored) {
-      final applied = _uac2Service.currentDeviceStatus?.volume;
-      if (applied != null && applied.isFinite) {
-        _currentVolume = applied.clamp(0.0, 1.0).toDouble();
+    await _usbDacVolumeRestore.runOnce(key, (ensureCurrent) async {
+      final savedVolume = await _preferencesService.getUsbVolumeForDevice(device);
+      ensureCurrent();
+      final currentStatus = _uac2Service.currentDeviceStatus;
+      if (currentStatus == null || currentStatus.device != device) {
+        throw StateError(
+          'Failed to restore USB DAC hardware volume before playback: route changed',
+        );
       }
+      final targetVolume = savedVolume.clamp(0.0, 1.0).toDouble();
+      _currentVolume = targetVolume;
+
+      final hardwareAuthority =
+          tier == VolumeTier.hardware &&
+          currentStatus.volumeMode == Uac2VolumeMode.hardware &&
+          currentStatus.volumeControlWritable;
+      final actual = currentStatus.volume;
+      if (!hardwareAuthority ||
+          (actual != null && (actual - targetVolume).abs() <= 1e-6)) {
+        return;
+      }
+
+      final restored = await _uac2Service.setVolume(targetVolume, persist: false);
+      ensureCurrent();
+      if (!restored) {
+        // Never fall through to unity-gain passthrough at an unknown DAC level.
+        // Failed restores are not cached, so manual playback retries them.
+        throw StateError(
+          'Failed to restore USB DAC hardware volume before playback',
+        );
+      }
+      final appliedStatus = _uac2Service.currentDeviceStatus;
+      if (appliedStatus == null || appliedStatus.device != device) {
+        throw StateError(
+          'Failed to restore USB DAC hardware volume before playback: route changed',
+        );
+      }
+      _currentVolume = appliedStatus.volume ?? targetVolume;
       _hwVolumeFailed = false;
-      _lastRestoredUsbVolumeKey = key;
-    } else {
-      _debugLog('[VolFlow] USB DAC volume restore failed');
-      // Do not fall through to unity-gain passthrough at an unknown DAC level.
-      // Leave the guard unset so a manual playback retry tries restoration again.
-      throw StateError(
-        'Failed to restore USB DAC hardware volume before playback',
-      );
-    }
+    });
   }
 
   /// Prefer [primary], then the current-song notifier, then the last engine
@@ -3179,16 +3265,14 @@ class PlayerService {
     };
     _rustAudioService.durationNotifier.addListener(_rustDurationListener!);
 
-    _rustAudioService.onTrackEnded = (endedPath) {
+    _rustAudioService.onTrackEnded = (source) {
       if (!_usingRustBackend) return;
-      unawaited(_onSongFinished(endedPath: endedPath));
+      unawaited(_onSongFinished(endedSource: source));
     };
-    _rustAudioService.onCrossfadeStarted = (fromPath, toPath) {
-      _debugLog('[crossfade] ENGINE TRIGGERED: $fromPath -> $toPath');
+    _rustAudioService.onCrossfadeStarted = (from, to) {
+      _debugLog('[crossfade] ENGINE TRIGGERED: ${from.path} -> ${to.path}');
       if (!_usingRustBackend) return;
-      unawaited(
-        _enqueuePlaybackRequest(() => _onCrossfadeStarted(fromPath, toPath)),
-      );
+      unawaited(_enqueuePlaybackRequest(() => _onCrossfadeStarted(from, to)));
     };
     _rustAudioService.onError = (message) {
       _debugLog('[PlayerService] Rust backend error: $message');
@@ -3496,15 +3580,15 @@ class PlayerService {
     await _showFloatingPlayerOverlay();
   }
 
-  Future<void> _onSongFinished({String? endedPath}) {
+  Future<void> _onSongFinished({SourceIdentity? endedSource}) {
     return _enqueuePlaybackRequest(
-      () => _onSongFinishedInternal(endedPath: endedPath),
+      () => _onSongFinishedInternal(endedSource: endedSource),
     );
   }
 
-  Future<void> _onSongFinishedInternal({String? endedPath}) async {
+  Future<void> _onSongFinishedInternal({SourceIdentity? endedSource}) async {
     _debugLog(
-      '_onSongFinished: loopMode=${loopModeNotifier.value}, currentIndex=$_currentIndex, playlistLength=${_playlist.length}, usingRustBackend=$_usingRustBackend, endedPath=$endedPath',
+      '_onSongFinished: loopMode=${loopModeNotifier.value}, currentIndex=$_currentIndex, playlistLength=${_playlist.length}, usingRustBackend=$_usingRustBackend, endedPath=${endedSource?.path}',
     );
     _debugLog(
       '[crossfade] completion: gapless=$_isGaplessActive, '
@@ -3515,30 +3599,27 @@ class PlayerService {
       'handoff=${_isGaplessActive || _isCrossfadeActive ? "native" : "manual"}',
     );
 
-    if (endedPath != null && _crossfadeUiHandoffFromPath == endedPath) {
-      _crossfadeUiHandoffFromPath = null;
-      await _finalizeCrossfadeUiHandoff(endedPath);
+    if (endedSource != null && _crossfadeUiHandoffFrom == endedSource) {
+      _crossfadeUiHandoffFrom = null;
+      await _finalizeCrossfadeUiHandoff(endedSource.path);
       return;
     }
 
-    // A seek that lands during a crossfade ends the overlap in the engine:
-    // the fading-out track is reported as ended while the UI (and playlist
-    // index) already moved to the incoming track. If the local handoff raced
-    // this event the engine can already be on the track this completion would
-    // advance to; advancing again would skip a song, so mirror the engine
-    // instead. Only a confirmed match may skip — a null or stale engine path
-    // keeps the normal completion path.
-    if (_usingRustBackend &&
-        endedPath != null &&
-        endedPath != _crossfadeUiHandoffFromPath) {
+    // A seek during a crossfade can retire the outgoing source after the UI
+    // has moved on. Only ignore its completion when the engine confirms that
+    // handoff. Compare the bounds too: adjacent CUE tracks share a file path,
+    // but the current segment's own completion must still advance the queue.
+    if (_usingRustBackend && endedSource != null) {
       final currentSong = currentSongNotifier.value;
       if (currentSong != null) {
         final expectedPath = await _resolveRustPath(currentSong);
-        final enginePath = _rustAudioService.currentPath;
-        if (expectedPath != null && enginePath == expectedPath) {
+        final engineSource = _rustAudioService.currentSource;
+        if (expectedPath != null &&
+            !matchesPlaybackSource(currentSong, expectedPath, endedSource) &&
+            matchesPlaybackSource(currentSong, expectedPath, engineSource)) {
           _debugLog(
-            '[crossfade] completion for $endedPath already superseded by '
-            '${currentSong.title}; engine is on the expected track',
+            '[crossfade] ignoring completion for a superseded source: '
+            '${endedSource.path}; current=${currentSong.title}',
           );
           unawaited(_queueNextTrackForGapless());
           return;
@@ -3582,16 +3663,20 @@ class PlayerService {
   /// to the incoming track immediately so the app follows the audible handoff
   /// instead of waiting for the outgoing track's TrackEnded event (which now
   /// only queues the following successor).
-  Future<void> _onCrossfadeStarted(String fromPath, String toPath) async {
+  Future<void> _onCrossfadeStarted(
+    SourceIdentity from,
+    SourceIdentity to,
+  ) async {
     if (_playlist.isEmpty || _currentIndex < 0) return;
-    if (_crossfadeUiHandoffFromPath == fromPath) return;
+    if (_crossfadeUiHandoffFrom == from) return;
 
     final fromSong = currentSongNotifier.value;
     if (fromSong == null) return;
     final fromResolved = await _resolveRustPath(fromSong);
-    if (fromResolved != null && fromResolved != fromPath) {
+    if (fromResolved != null &&
+        !matchesPlaybackSource(fromSong, fromResolved, from)) {
       _debugLog(
-        '[crossfade] UI handoff skipped: engine fading $fromPath while '
+        '[crossfade] UI handoff skipped: engine fading ${from.path} while '
         'current is ${fromSong.title}',
       );
       return;
@@ -3608,8 +3693,13 @@ class PlayerService {
     final nextIndex = isLastTrack ? 0 : _currentIndex + 1;
     if (nextIndex == _currentIndex) return;
     final nextSong = _playlist[nextIndex];
+    final nextResolved = await _resolveRustPath(nextSong);
+    if (nextResolved != null &&
+        !matchesPlaybackSource(nextSong, nextResolved, to)) {
+      return;
+    }
 
-    _crossfadeUiHandoffFromPath = fromPath;
+    _crossfadeUiHandoffFrom = from;
     _setCurrentIndex(nextIndex);
     currentSongNotifier.value = nextSong;
     // Keep the engine's reported track in sync so playback-state emissions
@@ -3637,11 +3727,12 @@ class PlayerService {
     final currentSong = currentSongNotifier.value;
     if (_usingRustBackend && currentSong != null) {
       final expectedPath = await _resolveRustPath(currentSong);
-      final enginePath = _rustAudioService.currentPath;
-      if (expectedPath != null && enginePath != expectedPath) {
+      final engineSource = _rustAudioService.currentSource;
+      if (expectedPath != null &&
+          !matchesPlaybackSource(currentSong, expectedPath, engineSource)) {
         _debugLog(
           '[crossfade] handoff mismatch after early UI handoff: '
-          'engineHasSource=${enginePath != null}; reloading ${currentSong.title}',
+          'engineHasSource=${engineSource != null}; reloading ${currentSong.title}',
         );
         await _playSongAtCurrentIndex();
         return;
@@ -3688,10 +3779,11 @@ class PlayerService {
 
     if (_usingRustBackend && currentSong != null) {
       final expectedPath = await _resolveRustPath(currentSong);
-      final enginePath = _rustAudioService.currentPath;
-      if (expectedPath != null && enginePath != expectedPath) {
+      final engineSource = _rustAudioService.currentSource;
+      if (expectedPath != null &&
+          !matchesPlaybackSource(currentSong, expectedPath, engineSource)) {
         _debugLog(
-          '[crossfade] handoff mismatch: engineHasSource=${enginePath != null}; '
+          '[crossfade] handoff mismatch: engineHasSource=${engineSource != null}; '
           'reloading ${currentSong.title}',
         );
         await _playSongAtCurrentIndex();
@@ -3699,7 +3791,7 @@ class PlayerService {
       }
       _debugLog(
         '[crossfade] handoff check: pathResolved=${expectedPath != null}, '
-        'engineMatchesExpected=${expectedPath != null && enginePath == expectedPath}',
+        'engineMatchesExpected=${matchesPlaybackSource(currentSong, expectedPath, engineSource)}',
       );
     }
 
@@ -3712,7 +3804,7 @@ class PlayerService {
 
   void _stopPlayback() async {
     _wasPlayingBeforeAudioInterruption = false;
-    _crossfadeUiHandoffFromPath = null;
+    _crossfadeUiHandoffFrom = null;
     await _savePosition();
     _positionSaveTimer?.cancel();
     _clearReplayTracking();
@@ -3769,19 +3861,10 @@ class PlayerService {
     final uri = resolved.uri;
     final headers = proxySafeHeaders(resolved.headers);
 
-    if (song.startOffsetMs != null && song.startOffsetMs! > 0) {
-      final start = Duration(milliseconds: song.startOffsetMs!);
-      final end = song.endOffsetMs != null && song.endOffsetMs! > 0
-          ? Duration(milliseconds: song.endOffsetMs!)
-          : null;
-      return just_audio.ClippingAudioSource(
-        child: just_audio.AudioSource.uri(uri, headers: headers),
-        start: start,
-        end: end,
-      );
-    }
-
-    return just_audio.AudioSource.uri(uri, headers: headers);
+    return clipPlaybackSource(
+      song,
+      just_audio.AudioSource.uri(uri, headers: headers),
+    );
   }
 
   /// Decodes ALAC/M4A/AIFF through the Rust engine without writing a WAV.
@@ -4387,14 +4470,15 @@ class PlayerService {
     // The incoming track may not be published by the engine yet. Decide its
     // volume authority before PCM/DSD playback, not from the outgoing song.
     await _restoreUsbDacVolumeBeforePlayback(playbackMode, song: song);
-    final usbDsdWireActive = song == null
-        ? _usbDsdWireActive
-        : _usbDsdWireForSong(song);
+    final activeSong = song ?? currentSongNotifier.value;
+    final usbDsdWireActive = activeSong != null &&
+        _usbDsdWireForSong(activeSong, playbackMode: playbackMode);
+    final bitPerfect = _isBitPerfectModeEnabledFor(playbackMode);
 
     _debugLog(
       '[crossfade] policy: engine=${playbackMode.logLabel}, '
       'preference=${_rustAudioService.crossfadeEnabledNotifier.value}, '
-      'locked=$isBitPerfectProcessingLocked, bitPerfect=$isBitPerfectModeEnabled, '
+      'locked=$isBitPerfectProcessingLocked, bitPerfect=$bitPerfect, '
       'duration=${_rustAudioService.crossfadeDurationNotifier.value}s',
     );
 
@@ -4403,11 +4487,11 @@ class PlayerService {
     final convertedUsbDsd = playbackMode == AudioEngineType.usbDacExperimental &&
         (song ?? currentSongNotifier.value)?.isDsd == true &&
         Uac2PreferencesService.dsdOutputModeSync == DsdOutputMode.forcePcm;
-    if (!isBitPerfectModeEnabled || convertedUsbDsd) {
+    if (!bitPerfect || convertedUsbDsd) {
       await _rustAudioService.setPipelineModePassthrough(false);
     }
 
-    if (isBitPerfectModeEnabled) {
+    if (bitPerfect) {
       await _rustAudioService.setCrossfade(
         enabled: false,
         durationSecs: _rustAudioService.crossfadeDurationNotifier.value,
@@ -4417,14 +4501,14 @@ class PlayerService {
         await _rustAudioService.setPipelineModePassthrough(true);
       }
       await _reconcileVolumeForTier(
-        _determineCurrentTier(song: song),
+        _determineCurrentTier(song: song, playbackMode: playbackMode),
         usbDsdWireActive: usbDsdWireActive,
       );
       await _rustAudioService.setPlaybackSpeed(1.0);
       await _rustAudioService.setPitchShiftSemitones(0.0);
     } else if (playbackMode == AudioEngineType.usbDacExperimental) {
       await _reconcileVolumeForTier(
-        _determineCurrentTier(song: song),
+        _determineCurrentTier(song: song, playbackMode: playbackMode),
         usbDsdWireActive: usbDsdWireActive,
       );
       await _rustAudioService.setPlaybackSpeed(1.0);
@@ -5022,7 +5106,7 @@ class PlayerService {
 
       _positionSaveTimer?.cancel();
       clearAbRepeat();
-      _crossfadeUiHandoffFromPath = null;
+      _crossfadeUiHandoffFrom = null;
 
       if (playlist != null) {
         final sourcePlaylist = wrapAroundQueueNotifier.value
@@ -5185,6 +5269,12 @@ class PlayerService {
           await _rustAudioService.queueNextHttp(
             url: http.url,
             headers: http.headers,
+            startSecs: nextSong.startOffsetMs == null
+                ? null
+                : nextSong.startOffsetMs! / 1000,
+            endSecs: nextSong.endOffsetMs == null
+                ? null
+                : nextSong.endOffsetMs! / 1000,
           );
           _debugLog(
             '[crossfade] HTTP queue request returned; readiness reported separately',
@@ -5201,7 +5291,15 @@ class PlayerService {
       await _rustAudioService.setReplayGainDefault(
         await _computeReplayGainDbFor(nextSong),
       );
-      await _rustAudioService.queueNext(nextPath);
+      await _rustAudioService.queueNext(
+        nextPath,
+        startSecs: nextSong.startOffsetMs == null
+            ? null
+            : nextSong.startOffsetMs! / 1000,
+        endSecs: nextSong.endOffsetMs == null
+            ? null
+            : nextSong.endOffsetMs! / 1000,
+      );
       _debugLog(
         '[crossfade] local queue request returned; readiness reported separately',
       );
@@ -6842,6 +6940,7 @@ class PlayerService {
     _sessionManager.dispose();
     audioOutputDiagnosticsNotifier.dispose();
     volumeTierNotifier.dispose();
+    currentVolumeNotifier.dispose();
     bitPerfectProcessingLockedNotifier.dispose();
 
     currentSongNotifier.dispose();

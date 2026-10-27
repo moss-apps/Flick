@@ -9,6 +9,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/src/rust/api/uac2_api.dart' as rust_uac2;
 import 'package:flick/services/uac2_preferences_service.dart';
+import 'package:flick/services/usb_dac_volume_restore.dart';
 import 'package:flick/services/uac2_exception.dart';
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -124,6 +125,7 @@ class Uac2DeviceStatus {
   final Uac2RouteType routeType;
   final String? routeLabel;
   final bool isExternalRoute;
+  final bool directUsbRegistered;
   final Uac2VolumeMode volumeMode;
   final bool hasVolumeControl;
   final bool volumeControlWritable;
@@ -140,6 +142,7 @@ class Uac2DeviceStatus {
     this.routeType = Uac2RouteType.unknown,
     this.routeLabel,
     this.isExternalRoute = false,
+    this.directUsbRegistered = false,
     this.volumeMode = Uac2VolumeMode.unavailable,
     this.hasVolumeControl = false,
     this.volumeControlWritable = true,
@@ -170,6 +173,7 @@ class Uac2DeviceStatus {
       routeLabel: routeStatus['routeLabel'] as String?,
       isExternalRoute: routeStatus['isExternal'] == true ||
           preferredUsbDetected || directUsbRegistered,
+      directUsbRegistered: directUsbRegistered,
       warningMessage: _androidRouteWarningMessage(
         routeType,
         preferredUsbDetected: preferredUsbDetected,
@@ -202,6 +206,7 @@ class Uac2DeviceStatus {
     Uac2RouteType? routeType,
     Object? routeLabel = _unset,
     bool? isExternalRoute,
+    bool? directUsbRegistered,
     Uac2VolumeMode? volumeMode,
     bool? hasVolumeControl,
     bool? volumeControlWritable,
@@ -228,6 +233,7 @@ class Uac2DeviceStatus {
           ? this.routeLabel
           : routeLabel as String?,
       isExternalRoute: isExternalRoute ?? this.isExternalRoute,
+      directUsbRegistered: directUsbRegistered ?? this.directUsbRegistered,
       volumeMode: volumeMode ?? this.volumeMode,
       hasVolumeControl: hasVolumeControl ?? this.hasVolumeControl,
       volumeControlWritable:
@@ -246,6 +252,8 @@ class Uac2Service {
   static const _channel = MethodChannel('com.mossapps.flick/uac2');
 
   final _preferencesService = Uac2PreferencesService();
+  final _hardwareVolumeRestore = UsbDacVolumeRestore();
+  Future<void> _bitPerfectChangeQueue = Future<void>.value();
   final ValueNotifier<bool> bitPerfectEnabledNotifier = ValueNotifier(false);
   final ValueNotifier<bool> dapBitPerfectEnabledNotifier = ValueNotifier(true);
 
@@ -403,10 +411,12 @@ class Uac2Service {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'onDeviceAttached':
+          _hardwareVolumeRestore.reset();
           _deviceAttachedController.add(null);
           _scheduleAndroidRouteRefresh();
           return;
         case 'onDeviceDetached':
+          _hardwareVolumeRestore.reset();
           _deviceDetachedController.add(null);
           _scheduleAndroidRouteRefresh();
           return;
@@ -585,7 +595,11 @@ class Uac2Service {
     }
   }
 
-  Future<bool> selectDevice(Uac2DeviceInfo device) async {
+  Future<bool> selectDevice(
+    Uac2DeviceInfo device, {
+    bool? bitPerfectOverride,
+    bool throwOnVolumeRestoreFailure = false,
+  }) async {
     try {
       final resolvedDevice = Platform.isAndroid
           ? await _resolveConnectedAndroidDevice(device)
@@ -633,22 +647,11 @@ class Uac2Service {
         final authorizedDevice = hasPermission
             ? androidDevice
             : await _resolveConnectedAndroidDevice(androidDevice) ?? androidDevice;
-        final bitPerfectEnabled = await _preferencesService
-            .getBitPerfectEnabled();
-        // Hand the saved level to native before the Rust stream is created.
-        // Only do this when the DAC's Feature Unit is the volume authority;
-        // with bit-perfect off, the Rust gain path applies the same level and
-        // writing both would attenuate it twice. DSD restores in PlayerService
-        // once the active wire path is known.
-        final restoreVolume = bitPerfectEnabled
-            ? await _preferencesService.getUsbVolumeForDevice(authorizedDevice)
-            : null;
+        final bitPerfectEnabled = bitPerfectOverride ??
+            await _preferencesService.getBitPerfectEnabled();
         final activated = await _channel.invokeMethod<bool>(
           'activateDirectUsb',
-          {
-            'deviceName': deviceIdentifier,
-            'restoreVolume': ?restoreVolume,
-          },
+          {'deviceName': deviceIdentifier},
         );
         if (activated != true) {
           _updateStatus(
@@ -659,6 +662,13 @@ class Uac2Service {
             ),
           );
           return false;
+        }
+
+        // Await the same restore for cold activation and an already registered
+        // DAC. Native stages it before startup, or writes/readbacks immediately
+        // on a prepared backend. DSP-only PCM must not be attenuated twice.
+        if (bitPerfectEnabled) {
+          await _restoreAndroidDirectUsbHardwareVolume(authorizedDevice);
         }
 
         await _channel.invokeMethod<bool>('setExclusiveDacMode', {
@@ -694,13 +704,19 @@ class Uac2Service {
       return true;
     } catch (e) {
       devLog('Uac2Service.selectDevice failed: $e');
+      final volumeRestoreFailed = e is UsbDacVolumeRestoreError;
       _updateStatus(
         Uac2DeviceStatus(
           device: device,
           state: Uac2State.error,
-          errorMessage: e.toString(),
+          errorMessage: volumeRestoreFailed
+              ? l10n.exclusiveUsbIsStillUnavailableCheck
+              : e.toString(),
         ),
       );
+      // Playback must remain stopped on a volume safety refusal, not silently
+      // fall back to an Android output at an unrelated system volume.
+      if (volumeRestoreFailed && throwOnVolumeRestoreFailure) rethrow;
       return false;
     }
   }
@@ -724,7 +740,10 @@ class Uac2Service {
       return false;
     }
 
-    final selected = await selectDevice(resolvedDevice);
+    final selected = await selectDevice(
+      resolvedDevice,
+      throwOnVolumeRestoreFailure: true,
+    );
     if (!selected) {
       return false;
     }
@@ -969,6 +988,7 @@ class Uac2Service {
       return;
     }
 
+    _hardwareVolumeRestore.reset();
     final preferredDevice = await _resolvePreferredAndroidDevice(null);
     await _setAndroidDirectUsbPlaybackActive(false);
     try {
@@ -1990,6 +2010,22 @@ Future<void> stopPriorityAnchor() async {
     return currentStatus.state == Uac2State.error;
   }
 
+  Future<void> _restoreAndroidDirectUsbHardwareVolume(Uac2DeviceInfo device) {
+    final key = Uac2PreferencesService.usbDeviceVolumeKey(device);
+    return _hardwareVolumeRestore.restoreHardwareVolume(
+      key,
+      loadVolume: () => _preferencesService.getUsbVolumeForDevice(device),
+      writeVolume: (volume) async {
+        final deviceName = device.deviceName;
+        if (deviceName == null || deviceName.isEmpty) return false;
+        return await _channel.invokeMethod<bool>(
+          'queueDirectUsbHardwareVolumeRestore',
+          {'deviceName': deviceName, 'restoreVolume': volume},
+        ) == true;
+      },
+    );
+  }
+
   Uac2DeviceInfo? _currentAndroidPlaybackDeviceIfReusable({
     required bool requireActivatableDeviceName,
   }) {
@@ -2219,6 +2255,11 @@ Future<void> stopPriorityAnchor() async {
   }
 
   void _updateStatus(Uac2DeviceStatus? status) {
+    if (status == null || status.state == Uac2State.error ||
+        (_currentDeviceStatus?.directUsbRegistered == true &&
+            !status.directUsbRegistered && status.state != Uac2State.connecting)) {
+      _hardwareVolumeRestore.reset();
+    }
     _currentDeviceStatus = status;
     _notifyStatusListeners();
   }
@@ -2236,40 +2277,60 @@ Future<void> stopPriorityAnchor() async {
     _updateStatus(current.copyWith(state: Uac2State.prewarming));
   }
 
-  Future<bool> setBitPerfectEnabled(bool enabled, {bool persist = true}) async {
-    if (persist) {
-      await _preferencesService.setBitPerfectEnabled(enabled);
-    }
-    bitPerfectEnabledNotifier.value = enabled;
+  Future<bool> setBitPerfectEnabled(bool enabled, {bool persist = true}) {
+    final result = _bitPerfectChangeQueue.then(
+      (_) => _setBitPerfectEnabled(enabled, persist: persist),
+    );
+    _bitPerfectChangeQueue = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    return result;
+  }
 
+  Future<bool> _setBitPerfectEnabled(bool enabled, {required bool persist}) async {
     if (!Platform.isAndroid) {
       return false;
     }
 
-    if (enabled) {
-      final preferredDevice = await _resolvePreferredAndroidActivationDevice(
-        null,
-      );
-      if (preferredDevice != null &&
-          (preferredDevice.deviceName?.isNotEmpty ?? false) &&
-          _shouldActivateAndroidDirectUsb(preferredDevice)) {
-        final selected = await selectDevice(preferredDevice);
-        if (!selected) {
-          return false;
-        }
-      }
-    }
-
     try {
+      if (enabled) {
+        final preferredDevice = await _resolvePreferredAndroidActivationDevice(
+          null,
+        );
+        if (preferredDevice != null &&
+            (preferredDevice.deviceName?.isNotEmpty ?? false)) {
+          if (_shouldActivateAndroidDirectUsb(preferredDevice) ||
+              _currentDeviceStatus?.directUsbRegistered != true) {
+            final selected = await selectDevice(
+              preferredDevice,
+              bitPerfectOverride: true,
+            );
+            if (!selected) return false;
+          } else {
+            await _restoreAndroidDirectUsbHardwareVolume(preferredDevice);
+          }
+        }
+      } else {
+        _hardwareVolumeRestore.reset();
+      }
+
       final result = await _channel.invokeMethod<bool>('setExclusiveDacMode', {
         'enabled': enabled,
       });
+      if (result == false) return false;
+      // Publishing this flag releases software gain in PlayerService. Do not
+      // expose unity-gain passthrough until the native restore has succeeded.
+      if (persist) {
+        await _preferencesService.setBitPerfectEnabled(enabled);
+      }
+      bitPerfectEnabledNotifier.value = enabled;
       await _refreshAndroidRouteStatus(
         formatOverride: _lastKnownFormat,
         isPlaying: _lastKnownIsPlaying,
         hasActiveSong: _lastKnownHasSong,
       );
-      return result ?? true;
+      return true;
     } catch (e) {
       devLog('Uac2Service.setBitPerfectEnabled failed: $e');
       return false;

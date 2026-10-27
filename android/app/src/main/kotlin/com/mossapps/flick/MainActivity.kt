@@ -943,6 +943,25 @@ class MainActivity: FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "deviceName is required", null)
                     }
                 }
+                "queueDirectUsbHardwareVolumeRestore" -> {
+                    val deviceName = call.argument<String>("deviceName")
+                    val restoreVolume = call.argument<Double>("restoreVolume")
+                    if (deviceName != null && restoreVolume != null) {
+                        if (activeDirectUsbDeviceName != deviceName) {
+                            result.success(false)
+                        } else {
+                            result.success(
+                                restoreDirectUsbHardwareVolume(deviceName, restoreVolume)
+                            )
+                        }
+                    } else {
+                        result.error(
+                            "INVALID_ARGUMENT",
+                            "deviceName and restoreVolume are required",
+                            null,
+                        )
+                    }
+                }
                 "setExclusiveDacMode" -> {
                     val enabled = call.argument<Boolean>("enabled")
                     if (enabled != null) {
@@ -4007,7 +4026,9 @@ class MainActivity: FlutterActivity() {
 
             val existingConnection = directUsbConnections[deviceName]
             if (activeDirectUsbDeviceName == deviceName && existingConnection != null) {
-                return true
+                // Auto-engage can enable bit-perfect after DSP registered the DAC.
+                // Do not skip its restore just because the connection is reusable.
+                return restoreDirectUsbHardwareVolume(deviceName, restoreVolume)
             }
             val connection = existingConnection ?: usbManager.openDevice(device)
             if (connection == null) {
@@ -4055,25 +4076,16 @@ class MainActivity: FlutterActivity() {
                 return false
             }
 
-            if (restoreVolume != null) {
-                if (restoreVolume.isFinite() && restoreVolume in 0.0..1.0) {
-                    if (!nativeQueueRustDirectUsbHardwareVolumeRestore(restoreVolume)) {
-                        Log.w(
-                            "UAC2",
-                            "Rust could not queue hardware volume restore for $deviceName",
-                        )
-                    }
-                } else {
-                    Log.w("UAC2", "Ignoring invalid volume restore value: $restoreVolume")
-                }
-            }
-
             if (activeDirectUsbDeviceName != null && activeDirectUsbDeviceName != deviceName) {
                 closeDirectUsbConnection(activeDirectUsbDeviceName)
             }
 
             directUsbConnections[deviceName] = connection
             activeDirectUsbDeviceName = deviceName
+            if (!restoreDirectUsbHardwareVolume(deviceName, restoreVolume)) {
+                deactivateDirectUsb()
+                return false
+            }
             if (!nativeSetRustDirectUsbLockEnabled(true)) {
                 Log.w("UAC2", "Rust direct USB idle lock failed for $deviceName")
             }
@@ -4084,6 +4096,19 @@ class MainActivity: FlutterActivity() {
             Log.e("UAC2", "Failed to activate direct USB DAC: ${e.message}", e)
             false
         }
+    }
+
+    private fun restoreDirectUsbHardwareVolume(deviceName: String, volume: Double?): Boolean {
+        if (volume == null) return true
+        if (!volume.isFinite() || volume !in 0.0..1.0) {
+            Log.e("UAC2", "Invalid hardware volume restore value: $volume")
+            return false
+        }
+        if (!nativeQueueRustDirectUsbHardwareVolumeRestore(volume)) {
+            Log.e("UAC2", "Rust could not restore hardware volume for $deviceName")
+            return false
+        }
+        return true
     }
 
     private fun probeDirectUsbExclusiveAccess(

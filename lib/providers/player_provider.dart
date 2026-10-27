@@ -101,6 +101,15 @@ final playerServiceProvider = Provider<PlayerService>((ref) {
   return PlayerService();
 });
 
+/// App volume changes independently of playback and volume-authority changes.
+final playerVolumeProvider = Provider<double>((ref) {
+  final notifier = ref.watch(playerServiceProvider).currentVolumeNotifier;
+  void listener() => ref.invalidateSelf();
+  notifier.addListener(listener);
+  ref.onDispose(() => notifier.removeListener(listener));
+  return notifier.value;
+});
+
 /// Notifier that bridges PlayerService ValueNotifiers to Riverpod state.
 class PlayerNotifier extends Notifier<PlayerState> {
   late PlayerService _service;

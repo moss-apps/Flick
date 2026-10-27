@@ -428,22 +428,17 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
               value: enabled,
               onChanged: (value) async {
                 final changed = value != enabled;
-                if (value) {
-                  final engine = audioEngineAsync.asData?.value;
-                  if (engine != null &&
-                      engine != AudioEnginePreference.isochronousUsb) {
-                    await PlayerService().setAudioEnginePreference(
-                      AudioEnginePreference.isochronousUsb,
-                    );
-                    ref.invalidate(audioEnginePreferenceProvider);
-                  }
-                }
-                final applied = await ref
-                    .read(uac2ServiceProvider)
-                    .setBitPerfectEnabled(value);
+                final applied = value
+                    ? await ref
+                          .read(playerServiceProvider)
+                          .enableUsbDacBitPerfect()
+                    : await ref
+                          .read(uac2ServiceProvider)
+                          .setBitPerfectEnabled(false);
+                ref.invalidate(audioEnginePreferenceProvider);
                 ref.invalidate(uac2BitPerfectEnabledProvider);
-ref.invalidate(uac2ExclusiveDacModeProvider);
-              ref.invalidate(killIsochronousUsbOnQuitProvider);
+                ref.invalidate(uac2ExclusiveDacModeProvider);
+                ref.invalidate(killIsochronousUsbOnQuitProvider);
                 if (!context.mounted) {
                   return;
                 }
