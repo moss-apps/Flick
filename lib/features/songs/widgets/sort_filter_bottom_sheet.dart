@@ -4,7 +4,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 class SortFilterBottomSheet extends StatelessWidget {
   final SongSortOption currentSort;
@@ -196,7 +196,7 @@ class SortFilterBottomSheet extends StatelessWidget {
               : Colors.transparent,
         ),
         child: Text(
-          filter.displayName,
+          filter.displayNameFor(l10n),
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,

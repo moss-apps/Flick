@@ -63,6 +63,15 @@ subsequently turning them off survives a restart.
   Metadata form, and Set Album Art picker (including search states, errors and
   reset dialog). This also covers the shared sheet from Search and song action
   buttons. Android's system share sheet follows the OS language.
+- Songs sorting sheets are English in Taglish, regardless of the current sort:
+  sort choices, format filters and **All Formats**. Album sorting's three-dot
+  menu is English too, including view-mode options, **Album options** and
+  **Sort & Filter**. Its album-options sheet uses English sort choices,
+  format filters, album limit and page-size description.
+- Songs multiselection is English in Taglish: selected count, action tooltips,
+  More actions, select/deselect all, playlist picker and creation dialog,
+  deletion warning/actions and bulk-action feedback. The library heading,
+  normal song count, search copy and original metadata are unchanged.
 - The playlist creation dialogs are English in Taglish, including title, name
   hint, storage selector, Cancel and Create. This applies from the Playlists
   screen, song actions and multi-select actions. English and Chinese keep their
@@ -103,9 +112,10 @@ subsequently turning them off survives a restart.
   **Donations will help me a lot! Hehehe. Sana masarap ulam mo lagi!** in its own
   small card immediately above the Ko-fi / Buy Me a Coffee card. Donation
   destinations are unchanged.
-- Favorite add/remove toasts are the only Taglish toasts:
+- Single-song favorite add/remove toasts are the only Taglish toasts:
   **Goods, na sa favorites mo na.** and **Okay, naalis na po.** All other toasts
-  use English, including settings, lyrics, artwork, queue and deletion messages.
+  use English, including bulk selection, settings, lyrics, artwork, queue and
+  deletion messages.
 - Search is unchanged. The remaining Filipino resource stays available to other
   screens and services; there is no global English or Baybayin override.
 - Track titles, musical-artist names, album names, user playlist names and actual
@@ -257,6 +267,12 @@ keeps the sheet, its sub-sheets and album-art failure messages English in
 Taglish while English and Chinese still receive their own resources. The
 separate full-player three-dot sheet keeps its supplied Taglish lines.
 
+`sort_filter_bottom_sheet.dart` also uses the English shim. Scoped copy roles
+in `songs_screen.dart` keep the album menu, album-options sheet and multiselect
+flows English without changing the rest of the screen. Format labels accept
+an explicit catalog via `SongFileTypeFilter.displayNameFor`; existing callers
+of `displayName` still use the active locale. Sorting/filtering logic is unchanged.
+
 - App locale is `tl`, the Tagalog locale supported by Flutter's stock controls;
   `fil` language tags are accepted as aliases. This is the Filipino UI choice.
 - `tl_Tglg` is a **resource-only** generated subclass. It is excluded from the
@@ -308,7 +324,8 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
       the Taglish player action labels, the fully English Lyrics Sync Studio,
       the English Milestones surface and playlist cover editor, all-English
       playlist creation dialogs, the English song long-press sheet and its
-      metadata/album-art subflows, settings except the Taglish tagline,
+      metadata/album-art subflows, Songs sort/album-options sheets and
+      multiselection subflows, settings except the Taglish tagline,
       unchanged search, and the Taglish-only support card. Technical values and
       original music/playlist metadata must not change.
 - [ ] Review all manual instructions and tips for natural Taglish; check its

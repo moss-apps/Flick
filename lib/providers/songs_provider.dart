@@ -111,7 +111,10 @@ enum SongFileTypeFilter {
 }
 
 extension SongFileTypeFilterExtension on SongFileTypeFilter {
-  String get displayName {
+  String get displayName => displayNameFor(l10n);
+
+  /// Lets a surface resolve its copy role without changing other filter labels.
+  String displayNameFor(AppLocalizations l10n) {
     switch (this) {
       case SongFileTypeFilter.all:
         return l10n.allFormats;

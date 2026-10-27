@@ -1414,7 +1414,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     PlayerService().refreshNotificationState();
     if (mounted) {
       _showSongActionSnackBar(
-        l10n.addedToFavorites,
+        l10n.englishForFilipino.addedToFavorites,
         onUndo: () async {
           for (final song in toFavorite) {
             await ref.read(favoritesServiceProvider).removeFavorite(song.id);
@@ -1436,6 +1436,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final songs = _selectedSongs();
     if (songs.isEmpty || !mounted) return;
 
+    final l10n = context.l10n.englishForFilipino;
     await showModalBottomSheet<void>(
       useRootNavigator: true,
       context: context,
@@ -1592,6 +1593,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         _cachedDisplaySongs.isNotEmpty;
     if (!mounted) return;
 
+    final l10n = context.l10n.englishForFilipino;
     await showModalBottomSheet<void>(
       useRootNavigator: true,
       context: context,
@@ -1671,6 +1673,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final songs = _selectedSongs();
     if (songs.isEmpty || !mounted) return;
 
+    final l10n = context.l10n.englishForFilipino;
     final canDeleteFiles = songs.any(
       (s) => s.filePath != null && s.filePath!.isNotEmpty && !s.isExternal,
     );
@@ -2014,6 +2017,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     SongSortOption currentSort,
     SongFileTypeFilter currentFilter,
   ) {
+    final l10n = context.l10n.englishForFilipino;
     return SurfaceIconButton(
       child: PopupMenuButton<_AlbumOverflowAction>(
         icon: Icon(
@@ -2074,6 +2078,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
 
   Widget _buildSelectionHeader() {
     final count = _selectedIds.length;
+    final l10n = context.l10n.englishForFilipino;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -2987,6 +2992,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n.englishForFilipino;
     return AppBottomSheetSurface(
       maxHeightRatio: 0.7,
       child: SingleChildScrollView(
@@ -3017,7 +3023,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
             ),
             const SizedBox(height: AppConstants.spacingSm),
             ..._AlbumGridSortOption.values.map(
-              (option) => _buildAlbumSortTile(context, option),
+              (option) => _buildAlbumSortTile(context, option, l10n),
             ),
             const SizedBox(height: AppConstants.spacingMd),
             const Divider(color: AppColors.glassBorder, height: 1),
@@ -3062,7 +3068,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
                           : Colors.transparent,
                     ),
                     child: Text(
-                      filter.displayName,
+                      filter.displayNameFor(l10n),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: isSelected
@@ -3154,10 +3160,11 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
   Widget _buildAlbumSortTile(
     BuildContext context,
     _AlbumGridSortOption option,
+    AppLocalizations l10n,
   ) {
     final isSelected = _selectedSort == option;
     final icon = _albumSortIcon(option);
-    final label = _albumSortLabel(option);
+    final label = _albumSortLabel(option, l10n);
 
     return Material(
       color: Colors.transparent,
@@ -3223,7 +3230,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
     }
   }
 
-  String _albumSortLabel(_AlbumGridSortOption option) {
+  String _albumSortLabel(_AlbumGridSortOption option, AppLocalizations l10n) {
     switch (option) {
       case _AlbumGridSortOption.name:
         return l10n.albumName;
