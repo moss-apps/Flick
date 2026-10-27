@@ -41,6 +41,7 @@ import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/album_color_mode_preference_service.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/services/uac2_service.dart';
+import 'package:flick/services/usb_dac_volume_restore.dart';
 import 'package:flick/services/alac_converter_service.dart';
 import 'package:flick/services/playback_cache_preferences_service.dart';
 import 'package:flick/services/remote_source_service.dart';
@@ -440,7 +441,7 @@ class PlayerService {
     return _instance;
   }
 
-  PlayerService._internal() {
+  PlayerService._internal() : _uac2Service = Uac2Service.instance {
     _playbackManager = AudioEngineManager();
     _sessionManager = AudioSessionManager(
       onSwitchEngine: _handleEngineSwitch,
@@ -448,6 +449,17 @@ class PlayerService {
     );
     _bindPlaybackState();
     _init();
+  }
+
+  /// Exercise route handoffs after launch without starting native engines.
+  @visibleForTesting
+  PlayerService.forTesting({
+    required AudioSessionManager sessionManager,
+    required Uac2Service uac2Service,
+  }) : _uac2Service = uac2Service {
+    _sessionManager = sessionManager;
+    _playbackManager = AudioEngineManager();
+    _audioInitialized = true;
   }
 
   just_audio.AudioPlayer? _justAudioPlayer;
@@ -472,7 +484,7 @@ class PlayerService {
   final SongRepository _songRepository = SongRepository();
   final PlaylistService _playlistService = PlaylistService();
   final RustAudioService _rustAudioService = RustAudioService();
-  final Uac2Service _uac2Service = Uac2Service.instance;
+  final Uac2Service _uac2Service;
   final CastingService _castingService = CastingService.instance;
   bool get isCasting => _castingService.isActive;
   final ColorExtractionService _colorExtractionService =
@@ -557,8 +569,10 @@ class PlayerService {
   String? _autoSyncGuardSongId;
   String? _restoredSongId;
   Duration _restoredPosition = Duration.zero;
-  double _currentVolume = 1.0;
-  String? _lastRestoredUsbVolumeKey;
+  final ValueNotifier<double> currentVolumeNotifier = ValueNotifier(1.0);
+  double get _currentVolume => currentVolumeNotifier.value;
+  set _currentVolume(double value) => currentVolumeNotifier.value = value;
+  final UsbDacVolumeRestore _usbDacVolumeRestore = UsbDacVolumeRestore();
 
   /// Default volume for bit-perfect mode (25 %, safety level).
   /// Mapped to ~0.01 linear gain by Rust's volume_to_gain curve.
@@ -802,7 +816,7 @@ class PlayerService {
     _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((
       _,
     ) async {
-      _lastRestoredUsbVolumeKey = null;
+      _usbDacVolumeRestore.reset();
       if (!isPlayingNotifier.value) return;
       final enabled = await _appPreferencesService.getPauseOnUsbDacDisconnect();
       if (enabled) pause();
@@ -813,7 +827,7 @@ class PlayerService {
     _usbDacAttachSubscription = _uac2Service.deviceAttachedEvents.listen((
       _,
     ) async {
-      _lastRestoredUsbVolumeKey = null;
+      _usbDacVolumeRestore.reset();
       if (!isPlayingNotifier.value) return;
       final enabled = await _appPreferencesService.getPauseOnUsbDacConnect();
       if (enabled) pause();
@@ -917,7 +931,7 @@ class PlayerService {
     if (status == null) {
       _hwVolumeFailed = false;
       _hardwareVolumeGeneration = null;
-      _lastRestoredUsbVolumeKey = null;
+      _usbDacVolumeRestore.reset();
       _activeUsbDsdMode = null;
       _activeUsbDsdSongId = null;
       unawaited(_reconcileVolumeForTier(_determineCurrentTier()));
@@ -1608,9 +1622,12 @@ class PlayerService {
   AudioEngineType get currentEngineType =>
       _sessionManager.initializedMode ?? _sessionManager.selectedMode;
   bool get isBitPerfectModeEnabled =>
-      (currentEngineType == AudioEngineType.usbDacExperimental &&
+      _isBitPerfectModeEnabledFor(currentEngineType);
+
+  bool _isBitPerfectModeEnabledFor(AudioEngineType mode) =>
+      (mode == AudioEngineType.usbDacExperimental &&
           _uac2Service.isBitPerfectEnabledSync) ||
-      (currentEngineType == AudioEngineType.dapInternalHighRes &&
+      (mode == AudioEngineType.dapInternalHighRes &&
           _uac2Service.isDapBitPerfectEnabledSync);
   bool get isBitPerfectProcessingLocked =>
       bitPerfectProcessingLockedNotifier.value;
@@ -1727,6 +1744,25 @@ class PlayerService {
     await _sessionManager.syncRouteSelection(
       reason: 'audio engine preference changed',
     );
+  }
+
+  /// Complete USB auto-engage even when no track has been played yet.
+  /// Changing the engine preference alone does not re-run launch volume setup.
+  Future<bool> enableUsbDacBitPerfect() async {
+    await setAudioEnginePreference(AudioEnginePreference.isochronousUsb);
+    final applied = await _uac2Service.setBitPerfectEnabled(true);
+    if (!applied) return false;
+    try {
+      // Permission may reveal a different serial, so use the authorized route
+      // after activation rather than the pre-permission attach notification.
+      await _restoreUsbDacVolumeBeforePlayback(
+        AudioEngineType.usbDacExperimental,
+      );
+      return true;
+    } catch (e) {
+      _debugLog('[VolFlow] USB DAC handoff volume restore failed: $e');
+      return false;
+    }
   }
 
   /// Re-resolves the desired engine/route. The newly selected engine attaches
@@ -2369,27 +2405,64 @@ class PlayerService {
   String? _usbDsdModeForSong(Song song) =>
       _activeUsbDsdSongId == song.id ? _activeUsbDsdMode : null;
 
-  bool _usbDsdWireForSong(Song song) {
-    if (!_isDirectUsbPath) return false;
+  bool _usbDsdWireForSong(Song song, {AudioEngineType? playbackMode}) {
+    if (!Platform.isAndroid ||
+        (playbackMode ?? currentEngineType) !=
+            AudioEngineType.usbDacExperimental) {
+      return false;
+    }
     final mode = _usbDsdModeForSong(song);
     return mode == 'dop' || mode == 'native' ||
         (mode == null && song.isDsd &&
             Uac2PreferencesService.dsdOutputModeSync != DsdOutputMode.forcePcm);
   }
 
-  VolumeTier _determineCurrentTier({Song? song}) => determineVolumeTier(
-    isBitPerfectVolumePath: song == null || !_isDirectUsbPath
-        ? _isBitPerfectVolumePath
-        : isBitPerfectModeEnabled && _usbDsdModeForSong(song) != 'pcm' &&
-            !(song.isDsd && Uac2PreferencesService.dsdOutputModeSync ==
-                DsdOutputMode.forcePcm),
-    volumeMode: _uac2Service.currentDeviceStatus?.volumeMode,
-    hwVolumeFailed: _hwVolumeFailed,
-    isDoP: song == null ? _usbDsdWireActive : _usbDsdWireForSong(song),
-    autoSwitchDsdForVolume: Uac2PreferencesService.autoSwitchDsdForVolumeSync,
-    isPassthrough: _isPassthroughActive,
-    usingRustBackend: _usingRustBackend,
-  );
+  VolumeTier _determineCurrentTier({Song? song, AudioEngineType? playbackMode}) {
+    // Keep the established live-engine calculation for current playback.
+    if (playbackMode == null || playbackMode == currentEngineType) {
+      return determineVolumeTier(
+        isBitPerfectVolumePath: song == null || !_isDirectUsbPath
+            ? _isBitPerfectVolumePath
+            : isBitPerfectModeEnabled && _usbDsdModeForSong(song) != 'pcm' &&
+                !(song.isDsd &&
+                    Uac2PreferencesService.dsdOutputModeSync ==
+                        DsdOutputMode.forcePcm),
+        volumeMode: _uac2Service.currentDeviceStatus?.volumeMode,
+        hwVolumeFailed: _hwVolumeFailed,
+        isDoP: song == null ? _usbDsdWireActive : _usbDsdWireForSong(song),
+        autoSwitchDsdForVolume:
+            Uac2PreferencesService.autoSwitchDsdForVolumeSync,
+        isPassthrough: _isPassthroughActive,
+        usingRustBackend: _usingRustBackend,
+      );
+    }
+
+    // During preparation initializedMode can still be the outgoing Standard or
+    // High Quality engine. Volume authority belongs to the incoming engine.
+    final targetSong = song ?? currentSongNotifier.value;
+    final directUsb = Platform.isAndroid &&
+        playbackMode == AudioEngineType.usbDacExperimental;
+    final convertedUsbDsd = directUsb &&
+        targetSong != null &&
+        (_usbDsdModeForSong(targetSong) == 'pcm' ||
+            (targetSong.isDsd &&
+                Uac2PreferencesService.dsdOutputModeSync ==
+                    DsdOutputMode.forcePcm));
+    final bitPerfectPath =
+        _isBitPerfectModeEnabledFor(playbackMode) && !convertedUsbDsd;
+    return determineVolumeTier(
+      isBitPerfectVolumePath: bitPerfectPath,
+      volumeMode: _uac2Service.currentDeviceStatus?.volumeMode,
+      hwVolumeFailed: _hwVolumeFailed,
+      isDoP: targetSong != null &&
+          _usbDsdWireForSong(targetSong, playbackMode: playbackMode),
+      autoSwitchDsdForVolume: Uac2PreferencesService.autoSwitchDsdForVolumeSync,
+      // The policy below explicitly enables passthrough for the target mode;
+      // outgoing-engine diagnostics cannot describe that prepared pipeline.
+      isPassthrough: bitPerfectPath,
+      usingRustBackend: playbackMode.usesRustBackend,
+    );
+  }
 
   Future<void> _reconcileVolumeForTier(
     VolumeTier tier, {
@@ -2436,63 +2509,74 @@ class PlayerService {
     AudioEngineType playbackMode, {
     Song? song,
   }) async {
-    if (!Platform.isAndroid ||
-        playbackMode != AudioEngineType.usbDacExperimental) {
+    // Only the Android USB engine reaches this path. Staging its remembered
+    // volume must not depend on a native engine having been initialized.
+    if (playbackMode != AudioEngineType.usbDacExperimental) {
       return;
     }
-    var status = _uac2Service.currentDeviceStatus;
-    if (status == null) return;
-
+    final generation = _usbDacVolumeRestore.connectionGeneration;
     await _uac2Service.refreshAndroidRouteStatus(
       isPlaying: isPlayingNotifier.value,
       hasActiveSong: currentSongNotifier.value != null,
     );
-    status = _uac2Service.currentDeviceStatus;
-    if (status == null) return;
+    if (generation != _usbDacVolumeRestore.connectionGeneration) {
+      throw StateError(
+        'Failed to restore USB DAC hardware volume before playback: route changed',
+      );
+    }
+    final status = _uac2Service.currentDeviceStatus;
+    if (status == null) {
+      throw StateError(
+        'Failed to restore USB DAC hardware volume before playback: no route',
+      );
+    }
     final device = status.device;
-    final tier = _determineCurrentTier(song: song);
+    final tier = _determineCurrentTier(song: song, playbackMode: playbackMode);
     // Include the tier so switching between software and hardware authority
     // (PCM to DSD, or toggling bit-perfect) restores again, while a physical
     // knob change later in the same tier is left alone.
     final key =
         '${Uac2PreferencesService.usbDeviceVolumeKey(device)}|${tier.name}';
-    if (_lastRestoredUsbVolumeKey == key) return;
-    final savedVolume = await _preferencesService.getUsbVolumeForDevice(device);
-    if (_uac2Service.currentDeviceStatus?.device != device) {
-      throw StateError(
-        'Failed to restore USB DAC hardware volume before playback: route changed',
-      );
-    }
-    if (!savedVolume.isFinite) return;
-    _currentVolume = savedVolume.clamp(0.0, 1.0).toDouble();
-
-    final hardwareAuthority =
-        tier == VolumeTier.hardware &&
-        status.volumeMode == Uac2VolumeMode.hardware &&
-        status.volumeControlWritable;
-    final actual = status.volume;
-    if (!hardwareAuthority ||
-        (actual != null && (actual - savedVolume).abs() <= 1e-6)) {
-      _lastRestoredUsbVolumeKey = key;
-      return;
-    }
-
-    final restored = await _uac2Service.setVolume(savedVolume, persist: false);
-    if (restored) {
-      final applied = _uac2Service.currentDeviceStatus?.volume;
-      if (applied != null && applied.isFinite) {
-        _currentVolume = applied.clamp(0.0, 1.0).toDouble();
+    await _usbDacVolumeRestore.runOnce(key, (ensureCurrent) async {
+      final savedVolume = await _preferencesService.getUsbVolumeForDevice(device);
+      ensureCurrent();
+      final currentStatus = _uac2Service.currentDeviceStatus;
+      if (currentStatus == null || currentStatus.device != device) {
+        throw StateError(
+          'Failed to restore USB DAC hardware volume before playback: route changed',
+        );
       }
+      final targetVolume = savedVolume.clamp(0.0, 1.0).toDouble();
+      _currentVolume = targetVolume;
+
+      final hardwareAuthority =
+          tier == VolumeTier.hardware &&
+          currentStatus.volumeMode == Uac2VolumeMode.hardware &&
+          currentStatus.volumeControlWritable;
+      final actual = currentStatus.volume;
+      if (!hardwareAuthority ||
+          (actual != null && (actual - targetVolume).abs() <= 1e-6)) {
+        return;
+      }
+
+      final restored = await _uac2Service.setVolume(targetVolume, persist: false);
+      ensureCurrent();
+      if (!restored) {
+        // Never fall through to unity-gain passthrough at an unknown DAC level.
+        // Failed restores are not cached, so manual playback retries them.
+        throw StateError(
+          'Failed to restore USB DAC hardware volume before playback',
+        );
+      }
+      final appliedStatus = _uac2Service.currentDeviceStatus;
+      if (appliedStatus == null || appliedStatus.device != device) {
+        throw StateError(
+          'Failed to restore USB DAC hardware volume before playback: route changed',
+        );
+      }
+      _currentVolume = appliedStatus.volume ?? targetVolume;
       _hwVolumeFailed = false;
-      _lastRestoredUsbVolumeKey = key;
-    } else {
-      _debugLog('[VolFlow] USB DAC volume restore failed');
-      // Do not fall through to unity-gain passthrough at an unknown DAC level.
-      // Leave the guard unset so a manual playback retry tries restoration again.
-      throw StateError(
-        'Failed to restore USB DAC hardware volume before playback',
-      );
-    }
+    });
   }
 
   /// Prefer [primary], then the current-song notifier, then the last engine
@@ -4386,14 +4470,15 @@ class PlayerService {
     // The incoming track may not be published by the engine yet. Decide its
     // volume authority before PCM/DSD playback, not from the outgoing song.
     await _restoreUsbDacVolumeBeforePlayback(playbackMode, song: song);
-    final usbDsdWireActive = song == null
-        ? _usbDsdWireActive
-        : _usbDsdWireForSong(song);
+    final activeSong = song ?? currentSongNotifier.value;
+    final usbDsdWireActive = activeSong != null &&
+        _usbDsdWireForSong(activeSong, playbackMode: playbackMode);
+    final bitPerfect = _isBitPerfectModeEnabledFor(playbackMode);
 
     _debugLog(
       '[crossfade] policy: engine=${playbackMode.logLabel}, '
       'preference=${_rustAudioService.crossfadeEnabledNotifier.value}, '
-      'locked=$isBitPerfectProcessingLocked, bitPerfect=$isBitPerfectModeEnabled, '
+      'locked=$isBitPerfectProcessingLocked, bitPerfect=$bitPerfect, '
       'duration=${_rustAudioService.crossfadeDurationNotifier.value}s',
     );
 
@@ -4402,11 +4487,11 @@ class PlayerService {
     final convertedUsbDsd = playbackMode == AudioEngineType.usbDacExperimental &&
         (song ?? currentSongNotifier.value)?.isDsd == true &&
         Uac2PreferencesService.dsdOutputModeSync == DsdOutputMode.forcePcm;
-    if (!isBitPerfectModeEnabled || convertedUsbDsd) {
+    if (!bitPerfect || convertedUsbDsd) {
       await _rustAudioService.setPipelineModePassthrough(false);
     }
 
-    if (isBitPerfectModeEnabled) {
+    if (bitPerfect) {
       await _rustAudioService.setCrossfade(
         enabled: false,
         durationSecs: _rustAudioService.crossfadeDurationNotifier.value,
@@ -4416,14 +4501,14 @@ class PlayerService {
         await _rustAudioService.setPipelineModePassthrough(true);
       }
       await _reconcileVolumeForTier(
-        _determineCurrentTier(song: song),
+        _determineCurrentTier(song: song, playbackMode: playbackMode),
         usbDsdWireActive: usbDsdWireActive,
       );
       await _rustAudioService.setPlaybackSpeed(1.0);
       await _rustAudioService.setPitchShiftSemitones(0.0);
     } else if (playbackMode == AudioEngineType.usbDacExperimental) {
       await _reconcileVolumeForTier(
-        _determineCurrentTier(song: song),
+        _determineCurrentTier(song: song, playbackMode: playbackMode),
         usbDsdWireActive: usbDsdWireActive,
       );
       await _rustAudioService.setPlaybackSpeed(1.0);
@@ -6855,6 +6940,7 @@ class PlayerService {
     _sessionManager.dispose();
     audioOutputDiagnosticsNotifier.dispose();
     volumeTierNotifier.dispose();
+    currentVolumeNotifier.dispose();
     bitPerfectProcessingLockedNotifier.dispose();
 
     currentSongNotifier.dispose();
