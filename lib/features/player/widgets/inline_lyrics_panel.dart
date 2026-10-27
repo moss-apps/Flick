@@ -15,7 +15,7 @@ import 'package:flick/features/player/screens/lyrics_sync_screen.dart';
 import 'package:flick/features/player/widgets/online_lyrics_search_sheet.dart';
 import 'package:flick/features/player/widgets/synced_lyrics_view.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 class InlineLyricsPanel extends ConsumerStatefulWidget {
   final PlayerService playerService;
   final LyricsService lyricsService;

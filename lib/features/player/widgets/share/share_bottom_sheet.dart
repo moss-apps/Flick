@@ -21,7 +21,7 @@ import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 class ShareBottomSheet extends ConsumerStatefulWidget {
   final Song song;
@@ -291,7 +291,7 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
           Row(
             children: [
               Text(
-                templates[_selectedTemplate].label(context.l10n),
+                templates[_selectedTemplate].label(l10n),
                 style: TextStyle(
                   fontFamily: 'GoogleSansFlex',
                   fontSize: 14,
