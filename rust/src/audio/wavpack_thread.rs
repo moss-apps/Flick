@@ -159,6 +159,7 @@ impl WavpackDecoderThread {
 
         let source_info = SourceInfo {
             path: path.clone(),
+            range: crate::audio::source::PlaybackRange::default(),
             original_sample_rate: file_sample_rate,
             output_sample_rate,
             channels: output_channels,
