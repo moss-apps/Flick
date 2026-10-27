@@ -52,9 +52,14 @@ subsequently turning them off survives a restart.
 - The volume card's fixed-volume notice is English in Taglish wherever the card
   appears, including the menu volume card.
 - The full player's top queue badge says **Queue**, not the Taglish **Pila**.
-- The full-player song actions sheet uses the supplied Taglish lines for add to
-  queue, add to playlist, set album art, refresh album art, edit metadata,
-  sleep timer and share. Its other actions keep their existing Taglish labels.
+- The full-player three-dot song actions sheet is fully English in Taglish:
+  add to queue/playlist, album art, metadata, lyrics, visualizer, artist/album
+  navigation, player layout, playback speed, pitch, sleep timer and share.
+- Its sub-interfaces are English too: Add to Playlist, View Metadata, Share
+  (including preview templates, share text and actions), Playback Speed, Pitch,
+  Sleep Timer and Player Layout. The inline lyrics panel and online lyrics
+  search are English as well, while the full-player top chip and locker copy
+  keep their Taglish lines and the queue badge stays **Queue**.
 - The album, artist, playlist and smart-mix three-dot More sheets use English,
   including their **More** header.
 - The playlists screen's header and per-playlist three-dot menus use English.
@@ -222,21 +227,13 @@ Edit `lib/l10n/streak_greeting.dart` and the corresponding rows together.
 
 ## Full-player song actions
 
-The full-player three-dot sheet uses these exact Taglish lines. English and
-Chinese keep their existing menu labels.
-
-| Action | Taglish label | Status |
-|---|---|---|
-| Add to queue | Dagdag ba natin sa queue mo? | draft |
-| Add to playlist | Dagdag ba natin sa playlist mo? | draft |
-| Set album art | Lagyan natin ng album art para di blangko. | draft |
-| Refresh album art | Refresh natin yung album art. | draft |
-| Edit metadata | May babaguhin ka ba sa metadata? | draft |
-| Sleep timer | Sleep timer? | draft |
-| Share | Share mo? | draft |
-
-Edit `lib/l10n/app_tl.arb` (`playerMenu*` keys) and the corresponding rows
-together.
+The full-player three-dot sheet is an English surface in Taglish. Its actions
+read **Add to Queue**, **Add to Playlist**, **Set Album Art**, **Refresh Motion
+Art**, **Edit Metadata**, **View Metadata**, **Lyrics**, **Visualizer** /
+**Hide Visualizer**, **Go to Artist**, **Go to Album**, **Player Layout**,
+**Playback Speed**, **Pitch**, **Sleep Timer** and **Share**. The sheet's
+sub-interfaces listed above are English as well. English and Chinese keep their
+existing menu labels.
 
 ## Implementation notes
 
@@ -264,8 +261,16 @@ The song long-press flow uses the English copy shim in
 `song_actions_bottom_sheet.dart`, `metadata_editor_bottom_sheet.dart`,
 `album_art_picker_bottom_sheet.dart` and `album_art_import_service.dart`. That
 keeps the sheet, its sub-sheets and album-art failure messages English in
-Taglish while English and Chinese still receive their own resources. The
-separate full-player three-dot sheet keeps its supplied Taglish lines.
+Taglish while English and Chinese still receive their own resources.
+
+The full-player three-dot flow uses the same shim in `song_actions_sheet.dart`,
+`add_to_playlist_sheet.dart`, `share_bottom_sheet.dart`,
+`album_art_share_card.dart`, `song_metadata_sheet.dart`, the speed/pitch/sleep
+sheets, `player_layout_sheet.dart`, `inline_lyrics_panel.dart`,
+`online_lyrics_search_sheet.dart` and `lyrics_word_timeline.dart`. Share
+template names resolve through the passed English catalog. The top chip and
+locker copy in `full_player_screen.dart` intentionally stay on the active
+catalog, and the queue badge remains the separately requested **Queue**.
 
 `sort_filter_bottom_sheet.dart` also uses the English shim. Scoped copy roles
 in `songs_screen.dart` keep the album menu, album-options sheet and multiselect
@@ -321,7 +326,9 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
       shortcut and the Baybayin Browse shortcuts, both player layouts, the
       English audio-engine restart prompt/flow and audio signal path, the
       **Queue** badge and detail/playlist menus,
-      the Taglish player action labels, the fully English Lyrics Sync Studio,
+      the fully English full-player three-dot sheet, inline/online lyrics and
+      its playlist/share/metadata/speed/pitch/sleep/layout sub-interfaces,
+      the fully English Lyrics Sync Studio,
       the English Milestones surface and playlist cover editor, all-English
       playlist creation dialogs, the English song long-press sheet and its
       metadata/album-art subflows, Songs sort/album-options sheets and
