@@ -131,15 +131,15 @@ return nextTrackReady(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String state)?  stateChanged,TResult Function( double positionSecs,  double? durationSecs,  double bufferLevel)?  progress,TResult Function( String path)?  trackEnded,TResult Function( String fromPath,  String toPath)?  crossfadeStarted,TResult Function( String message)?  error,TResult Function( String path)?  nextTrackReady,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String state)?  stateChanged,TResult Function( double positionSecs,  double? durationSecs,  double bufferLevel)?  progress,TResult Function( SourceIdentity source)?  trackEnded,TResult Function( SourceIdentity from,  SourceIdentity to)?  crossfadeStarted,TResult Function( String message)?  error,TResult Function( SourceIdentity source)?  nextTrackReady,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AudioEventType_StateChanged() when stateChanged != null:
 return stateChanged(_that.state);case AudioEventType_Progress() when progress != null:
 return progress(_that.positionSecs,_that.durationSecs,_that.bufferLevel);case AudioEventType_TrackEnded() when trackEnded != null:
-return trackEnded(_that.path);case AudioEventType_CrossfadeStarted() when crossfadeStarted != null:
-return crossfadeStarted(_that.fromPath,_that.toPath);case AudioEventType_Error() when error != null:
+return trackEnded(_that.source);case AudioEventType_CrossfadeStarted() when crossfadeStarted != null:
+return crossfadeStarted(_that.from,_that.to);case AudioEventType_Error() when error != null:
 return error(_that.message);case AudioEventType_NextTrackReady() when nextTrackReady != null:
-return nextTrackReady(_that.path);case _:
+return nextTrackReady(_that.source);case _:
   return orElse();
 
 }
@@ -157,15 +157,15 @@ return nextTrackReady(_that.path);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String state)  stateChanged,required TResult Function( double positionSecs,  double? durationSecs,  double bufferLevel)  progress,required TResult Function( String path)  trackEnded,required TResult Function( String fromPath,  String toPath)  crossfadeStarted,required TResult Function( String message)  error,required TResult Function( String path)  nextTrackReady,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String state)  stateChanged,required TResult Function( double positionSecs,  double? durationSecs,  double bufferLevel)  progress,required TResult Function( SourceIdentity source)  trackEnded,required TResult Function( SourceIdentity from,  SourceIdentity to)  crossfadeStarted,required TResult Function( String message)  error,required TResult Function( SourceIdentity source)  nextTrackReady,}) {final _that = this;
 switch (_that) {
 case AudioEventType_StateChanged():
 return stateChanged(_that.state);case AudioEventType_Progress():
 return progress(_that.positionSecs,_that.durationSecs,_that.bufferLevel);case AudioEventType_TrackEnded():
-return trackEnded(_that.path);case AudioEventType_CrossfadeStarted():
-return crossfadeStarted(_that.fromPath,_that.toPath);case AudioEventType_Error():
+return trackEnded(_that.source);case AudioEventType_CrossfadeStarted():
+return crossfadeStarted(_that.from,_that.to);case AudioEventType_Error():
 return error(_that.message);case AudioEventType_NextTrackReady():
-return nextTrackReady(_that.path);}
+return nextTrackReady(_that.source);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -179,15 +179,15 @@ return nextTrackReady(_that.path);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String state)?  stateChanged,TResult? Function( double positionSecs,  double? durationSecs,  double bufferLevel)?  progress,TResult? Function( String path)?  trackEnded,TResult? Function( String fromPath,  String toPath)?  crossfadeStarted,TResult? Function( String message)?  error,TResult? Function( String path)?  nextTrackReady,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String state)?  stateChanged,TResult? Function( double positionSecs,  double? durationSecs,  double bufferLevel)?  progress,TResult? Function( SourceIdentity source)?  trackEnded,TResult? Function( SourceIdentity from,  SourceIdentity to)?  crossfadeStarted,TResult? Function( String message)?  error,TResult? Function( SourceIdentity source)?  nextTrackReady,}) {final _that = this;
 switch (_that) {
 case AudioEventType_StateChanged() when stateChanged != null:
 return stateChanged(_that.state);case AudioEventType_Progress() when progress != null:
 return progress(_that.positionSecs,_that.durationSecs,_that.bufferLevel);case AudioEventType_TrackEnded() when trackEnded != null:
-return trackEnded(_that.path);case AudioEventType_CrossfadeStarted() when crossfadeStarted != null:
-return crossfadeStarted(_that.fromPath,_that.toPath);case AudioEventType_Error() when error != null:
+return trackEnded(_that.source);case AudioEventType_CrossfadeStarted() when crossfadeStarted != null:
+return crossfadeStarted(_that.from,_that.to);case AudioEventType_Error() when error != null:
 return error(_that.message);case AudioEventType_NextTrackReady() when nextTrackReady != null:
-return nextTrackReady(_that.path);case _:
+return nextTrackReady(_that.source);case _:
   return null;
 
 }
@@ -335,10 +335,10 @@ as double,
 
 
 class AudioEventType_TrackEnded extends AudioEventType {
-  const AudioEventType_TrackEnded({required this.path}): super._();
+  const AudioEventType_TrackEnded({required this.source}): super._();
   
 
- final  String path;
+ final  SourceIdentity source;
 
 /// Create a copy of AudioEventType
 /// with the given fields replaced by the non-null parameter values.
@@ -350,16 +350,16 @@ $AudioEventType_TrackEndedCopyWith<AudioEventType_TrackEnded> get copyWith => _$
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AudioEventType_TrackEnded&&(identical(other.path, path) || other.path == path));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AudioEventType_TrackEnded&&(identical(other.source, source) || other.source == source));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,path);
+int get hashCode => Object.hash(runtimeType,source);
 
 @override
 String toString() {
-  return 'AudioEventType.trackEnded(path: $path)';
+  return 'AudioEventType.trackEnded(source: $source)';
 }
 
 
@@ -370,7 +370,7 @@ abstract mixin class $AudioEventType_TrackEndedCopyWith<$Res> implements $AudioE
   factory $AudioEventType_TrackEndedCopyWith(AudioEventType_TrackEnded value, $Res Function(AudioEventType_TrackEnded) _then) = _$AudioEventType_TrackEndedCopyWithImpl;
 @useResult
 $Res call({
- String path
+ SourceIdentity source
 });
 
 
@@ -387,10 +387,10 @@ class _$AudioEventType_TrackEndedCopyWithImpl<$Res>
 
 /// Create a copy of AudioEventType
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? path = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? source = null,}) {
   return _then(AudioEventType_TrackEnded(
-path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
-as String,
+source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as SourceIdentity,
   ));
 }
 
@@ -401,11 +401,11 @@ as String,
 
 
 class AudioEventType_CrossfadeStarted extends AudioEventType {
-  const AudioEventType_CrossfadeStarted({required this.fromPath, required this.toPath}): super._();
+  const AudioEventType_CrossfadeStarted({required this.from, required this.to}): super._();
   
 
- final  String fromPath;
- final  String toPath;
+ final  SourceIdentity from;
+ final  SourceIdentity to;
 
 /// Create a copy of AudioEventType
 /// with the given fields replaced by the non-null parameter values.
@@ -417,16 +417,16 @@ $AudioEventType_CrossfadeStartedCopyWith<AudioEventType_CrossfadeStarted> get co
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AudioEventType_CrossfadeStarted&&(identical(other.fromPath, fromPath) || other.fromPath == fromPath)&&(identical(other.toPath, toPath) || other.toPath == toPath));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AudioEventType_CrossfadeStarted&&(identical(other.from, from) || other.from == from)&&(identical(other.to, to) || other.to == to));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,fromPath,toPath);
+int get hashCode => Object.hash(runtimeType,from,to);
 
 @override
 String toString() {
-  return 'AudioEventType.crossfadeStarted(fromPath: $fromPath, toPath: $toPath)';
+  return 'AudioEventType.crossfadeStarted(from: $from, to: $to)';
 }
 
 
@@ -437,7 +437,7 @@ abstract mixin class $AudioEventType_CrossfadeStartedCopyWith<$Res> implements $
   factory $AudioEventType_CrossfadeStartedCopyWith(AudioEventType_CrossfadeStarted value, $Res Function(AudioEventType_CrossfadeStarted) _then) = _$AudioEventType_CrossfadeStartedCopyWithImpl;
 @useResult
 $Res call({
- String fromPath, String toPath
+ SourceIdentity from, SourceIdentity to
 });
 
 
@@ -454,11 +454,11 @@ class _$AudioEventType_CrossfadeStartedCopyWithImpl<$Res>
 
 /// Create a copy of AudioEventType
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? fromPath = null,Object? toPath = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? from = null,Object? to = null,}) {
   return _then(AudioEventType_CrossfadeStarted(
-fromPath: null == fromPath ? _self.fromPath : fromPath // ignore: cast_nullable_to_non_nullable
-as String,toPath: null == toPath ? _self.toPath : toPath // ignore: cast_nullable_to_non_nullable
-as String,
+from: null == from ? _self.from : from // ignore: cast_nullable_to_non_nullable
+as SourceIdentity,to: null == to ? _self.to : to // ignore: cast_nullable_to_non_nullable
+as SourceIdentity,
   ));
 }
 
@@ -535,10 +535,10 @@ as String,
 
 
 class AudioEventType_NextTrackReady extends AudioEventType {
-  const AudioEventType_NextTrackReady({required this.path}): super._();
+  const AudioEventType_NextTrackReady({required this.source}): super._();
   
 
- final  String path;
+ final  SourceIdentity source;
 
 /// Create a copy of AudioEventType
 /// with the given fields replaced by the non-null parameter values.
@@ -550,16 +550,16 @@ $AudioEventType_NextTrackReadyCopyWith<AudioEventType_NextTrackReady> get copyWi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AudioEventType_NextTrackReady&&(identical(other.path, path) || other.path == path));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AudioEventType_NextTrackReady&&(identical(other.source, source) || other.source == source));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,path);
+int get hashCode => Object.hash(runtimeType,source);
 
 @override
 String toString() {
-  return 'AudioEventType.nextTrackReady(path: $path)';
+  return 'AudioEventType.nextTrackReady(source: $source)';
 }
 
 
@@ -570,7 +570,7 @@ abstract mixin class $AudioEventType_NextTrackReadyCopyWith<$Res> implements $Au
   factory $AudioEventType_NextTrackReadyCopyWith(AudioEventType_NextTrackReady value, $Res Function(AudioEventType_NextTrackReady) _then) = _$AudioEventType_NextTrackReadyCopyWithImpl;
 @useResult
 $Res call({
- String path
+ SourceIdentity source
 });
 
 
@@ -587,10 +587,10 @@ class _$AudioEventType_NextTrackReadyCopyWithImpl<$Res>
 
 /// Create a copy of AudioEventType
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? path = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? source = null,}) {
   return _then(AudioEventType_NextTrackReady(
-path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
-as String,
+source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as SourceIdentity,
   ));
 }
 
