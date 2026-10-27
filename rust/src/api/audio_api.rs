@@ -15,6 +15,7 @@ use crate::audio::dsd_engine::DsdDecoderThread;
 use crate::audio::engine::AudioApiPreference;
 use crate::audio::equalizer::EqBandSpec;
 use crate::audio::manager::{AudioCapability, AudioCapabilitySnapshot, AudioEngine, EngineManager};
+use crate::audio::source::{PlaybackRange, SourceIdentity};
 use crate::audio::strategy::OutputStrategy;
 use crate::audio::wavpack_thread::WavpackDecoderThread;
 use log::{info as log_info, warn as log_warn};
@@ -736,6 +737,7 @@ fn prepare_decoder_source(
     planned_dsd_mode: Option<DsdOutputMode>,
     output_sample_rate: u32,
     output_channels: usize,
+    range: PlaybackRange,
 ) -> Result<(crate::audio::source::AudioSource, DecoderHandle), String> {
     match detect_file_type(path) {
         crate::audio::decoder_handle::FileType::Dsd => {
@@ -781,6 +783,7 @@ fn prepare_decoder_source(
                 output_sample_rate,
                 output_channels,
                 None,
+                range,
             )
             .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
             Ok((source, DecoderHandle::Symphonia(thread)))
@@ -815,17 +818,17 @@ pub enum AudioEventType {
         buffer_level: f32,
     },
     TrackEnded {
-        path: String,
+        source: SourceIdentity,
     },
     CrossfadeStarted {
-        from_path: String,
-        to_path: String,
+        from: SourceIdentity,
+        to: SourceIdentity,
     },
     Error {
         message: String,
     },
     NextTrackReady {
-        path: String,
+        source: SourceIdentity,
     },
 }
 
@@ -1261,10 +1264,36 @@ pub fn audio_probe_format(path: String) -> Result<AudioProbeFormat, String> {
     })
 }
 
-/// Play an audio file.
-pub fn audio_play(path: String) -> Result<(), String> {
+fn playback_range_for_path(
+    path: &std::path::Path,
+    start_secs: Option<f64>,
+    end_secs: Option<f64>,
+) -> Result<PlaybackRange, String> {
+    let range = PlaybackRange {
+        start_secs: start_secs.unwrap_or(0.0),
+        end_secs,
+    }
+    .validate()?;
+    if range != PlaybackRange::default()
+        && !matches!(
+            detect_file_type(path),
+            crate::audio::decoder_handle::FileType::Standard
+        )
+    {
+        return Err("CUE playback ranges are not supported for DSD/WavPack sources".to_string());
+    }
+    Ok(range)
+}
+
+/// Play an audio file, optionally restricted to a CUE track.
+pub fn audio_play(
+    path: String,
+    start_secs: Option<f64>,
+    end_secs: Option<f64>,
+) -> Result<(), String> {
     crate::assert_android_debug_logging();
     let path = PathBuf::from(&path);
+    let range = playback_range_for_path(&path, start_secs, end_secs)?;
     match detect_file_type(&path) {
         crate::audio::decoder_handle::FileType::Dsd => {
             let requested_mode = current_dsd_output_mode();
@@ -1397,6 +1426,7 @@ pub fn audio_play(path: String) -> Result<(), String> {
                 output_sample_rate,
                 output_channels,
                 None,
+                range,
             )
             .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
             with_audio_engine(|handle| {
@@ -1408,9 +1438,14 @@ pub fn audio_play(path: String) -> Result<(), String> {
 }
 
 /// Queue the next track for gapless playback.
-pub fn audio_queue_next(path: String) -> Result<(), String> {
+pub fn audio_queue_next(
+    path: String,
+    start_secs: Option<f64>,
+    end_secs: Option<f64>,
+) -> Result<(), String> {
     crate::assert_android_debug_logging();
     let path = PathBuf::from(path);
+    let range = playback_range_for_path(&path, start_secs, end_secs)?;
     if !audio_is_initialized() {
         match detect_file_type(&path) {
             crate::audio::decoder_handle::FileType::Dsd => {
@@ -1548,6 +1583,7 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
                     output_sample_rate,
                     output_channels,
                     None,
+                    range,
                 )
                 .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
                 return with_audio_engine(|handle| {
@@ -1590,8 +1626,13 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
             return Ok(());
         }
     }
-    let (source, handle) =
-        prepare_decoder_source(&path, plan.dsd_mode, output_sample_rate, output_channels)?;
+    let (source, handle) = prepare_decoder_source(
+        &path,
+        plan.dsd_mode,
+        output_sample_rate,
+        output_channels,
+        range,
+    )?;
     with_audio_engine(|engine| {
         engine.set_dop_override(plan.is_raw)?;
         engine.queue_next_prepared(source, handle)
@@ -1602,7 +1643,17 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
 /// verifies `Accept-Ranges: bytes`); PCM only, no DSD/WavPack over HTTP.
 /// Auth is carried via `headers` (e.g. WebDAV Basic) — Subsonic/Jellyfin embed
 /// credentials in the URL query and pass an empty header map.
-pub fn audio_play_from_http(url: String, headers: HashMap<String, String>) -> Result<(), String> {
+pub fn audio_play_from_http(
+    url: String,
+    headers: HashMap<String, String>,
+    start_secs: Option<f64>,
+    end_secs: Option<f64>,
+) -> Result<(), String> {
+    let range = PlaybackRange {
+        start_secs: start_secs.unwrap_or(0.0),
+        end_secs,
+    }
+    .validate()?;
     clear_dsd_track_rate();
     let probe_result = probe_http(&url, headers)
         .map_err(|e| format!("Failed to probe HTTP stream: {}", e))?;
@@ -1622,6 +1673,7 @@ pub fn audio_play_from_http(url: String, headers: HashMap<String, String>) -> Re
         output_sample_rate,
         output_channels,
         None,
+        range,
     )
     .map_err(|e| format!("Failed to decode HTTP stream: {}", e))?;
     with_audio_engine(|handle| {
@@ -1634,7 +1686,14 @@ pub fn audio_play_from_http(url: String, headers: HashMap<String, String>) -> Re
 pub fn audio_queue_next_from_http(
     url: String,
     headers: HashMap<String, String>,
+    start_secs: Option<f64>,
+    end_secs: Option<f64>,
 ) -> Result<(), String> {
+    let range = PlaybackRange {
+        start_secs: start_secs.unwrap_or(0.0),
+        end_secs,
+    }
+    .validate()?;
     if !audio_is_initialized() {
         clear_dsd_track_rate();
         let probe_result = probe_http(&url, headers)
@@ -1648,6 +1707,7 @@ pub fn audio_queue_next_from_http(
             output_sample_rate,
             output_channels,
             None,
+            range,
         )
         .map_err(|e| format!("Failed to decode HTTP stream: {}", e))?;
         return with_audio_engine(|handle| {
@@ -1694,6 +1754,7 @@ pub fn audio_queue_next_from_http(
         output_sample_rate,
         output_channels,
         None,
+        range,
     )
     .map_err(|e| format!("Failed to decode HTTP stream: {}", e))?;
     with_audio_engine(|handle| {
@@ -1928,12 +1989,10 @@ pub fn audio_poll_event() -> Option<AudioEventType> {
             duration_secs: p.duration_secs,
             buffer_level: p.buffer_level,
         },
-        AudioEvent::TrackEnded { path } => AudioEventType::TrackEnded { path },
-        AudioEvent::CrossfadeStarted { from_path, to_path } => {
-            AudioEventType::CrossfadeStarted { from_path, to_path }
-        }
+        AudioEvent::TrackEnded { source } => AudioEventType::TrackEnded { source },
+        AudioEvent::CrossfadeStarted { from, to } => AudioEventType::CrossfadeStarted { from, to },
         AudioEvent::Error { message } => AudioEventType::Error { message },
-        AudioEvent::NextTrackReady { path } => AudioEventType::NextTrackReady { path },
+        AudioEvent::NextTrackReady { source } => AudioEventType::NextTrackReady { source },
     })
 }
 
@@ -1961,6 +2020,13 @@ pub fn audio_get_current_path() -> Option<String> {
     read_audio_engine(|handle| handle.get_current_path())
         .flatten()
         .map(|p| p.to_string_lossy().to_string())
+}
+
+/// Current logical track, including CUE bounds; follows the audible source
+/// during a crossfade just like audio_get_progress.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_get_current_source() -> Option<SourceIdentity> {
+    read_audio_engine(|handle| handle.get_current_source()).flatten()
 }
 
 /// Get the number of audio channels.

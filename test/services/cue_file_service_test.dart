@@ -5,6 +5,32 @@ import 'package:flick/services/cue_file_service.dart';
 void main() {
   final service = CueFileService();
 
+  group('CueTrack.durationMs', () {
+    test('uses the next index for a bounded track', () {
+      const track = CueTrack(
+        trackNumber: 2,
+        title: 'Two',
+        performer: 'Artist',
+        startOffsetMs: 13000,
+        endOffsetMs: 31000,
+      );
+      expect(track.durationMs(sourceDurationMs: 60000), 18000);
+    });
+
+    test('subtracts the final start from the source duration', () {
+      const track = CueTrack(
+        trackNumber: 3,
+        title: 'Three',
+        performer: 'Artist',
+        startOffsetMs: 31000,
+      );
+      expect(track.durationMs(sourceDurationMs: 60000), 29000);
+      expect(track.durationMs(), 0);
+      expect(track.durationMs(sourceDurationMs: 0), 0);
+      expect(track.durationMs(sourceDurationMs: 30000), 0);
+    });
+  });
+
   group('CueFileService.parseCueSheet', () {
     test('keeps the first track when it starts at zero', () {
       const cue = '''
