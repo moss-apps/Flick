@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,18 +18,44 @@ import 'package:flick/services/uac2_service.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
 import 'package:isar_community/isar.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<String?> _isarCorePath() async {
+String? _isarCorePath() {
   final override = Platform.environment['ISAR_CORE_LIB'];
   if (override != null && File(override).existsSync()) return override;
 
-  final package = await Isolate.resolvePackageUri(
-    Uri.parse('package:isar_community_flutter_libs/'),
+  final fileName = switch (Abi.current()) {
+    Abi.linuxX64 || Abi.linuxArm || Abi.linuxArm64 => 'libisar.so',
+    Abi.macosX64 || Abi.macosArm64 => 'libisar.dylib',
+    Abi.windowsX64 => 'isar.dll',
+    _ => null,
+  };
+  if (fileName == null) return null;
+
+  // Isolate.resolvePackageUri is unsupported under `flutter test`, so read
+  // the package config that pub already generated instead.
+  final packageConfig = File(
+    p.join(Directory.current.path, '.dart_tool', 'package_config.json'),
   );
-  if (package == null) return null;
-  final path = File.fromUri(package.resolve('linux/libisar.so'));
-  return path.existsSync() ? path.path : null;
+  if (!packageConfig.existsSync()) return null;
+
+  final config =
+      jsonDecode(packageConfig.readAsStringSync()) as Map<String, dynamic>;
+  final packages = config['packages'];
+  if (packages is! List) return null;
+  for (final package in packages) {
+    if (package is! Map<String, dynamic> ||
+        package['name'] != 'isar_community_flutter_libs') {
+      continue;
+    }
+    final rootUri = package['rootUri'];
+    if (rootUri is! String) return null;
+    final root = Directory.fromUri(packageConfig.uri.resolve(rootUri));
+    final path = p.join(root.path, Platform.operatingSystem, fileName);
+    return File(path).existsSync() ? path : null;
+  }
+  return null;
 }
 
 const _attachedDevice = Uac2DeviceInfo(
@@ -154,12 +180,12 @@ void main() {
   late Directory databaseDir;
 
   setUpAll(() async {
-    final corePath = await _isarCorePath();
+    databaseDir = await Directory.systemTemp.createTemp('flick_usb_volume');
+    final corePath = _isarCorePath();
     if (corePath == null) {
       fail('isar core library not found; set ISAR_CORE_LIB');
     }
     Isar.initializeIsarCore(libraries: {Abi.current(): corePath});
-    databaseDir = await Directory.systemTemp.createTemp('flick_usb_volume');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.flutter.io/path_provider'),
