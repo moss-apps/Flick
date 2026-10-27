@@ -20,9 +20,15 @@ class VolumeBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<VolumeTier>(
-      valueListenable: playerService.volumeTierNotifier,
-      builder: (context, tier, _) => _buildVolumeSheet(context, tier),
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        playerService.volumeTierNotifier,
+        playerService.currentVolumeNotifier,
+      ]),
+      builder: (context, _) => _buildVolumeSheet(
+        context,
+        playerService.volumeTierNotifier.value,
+      ),
     );
   }
 

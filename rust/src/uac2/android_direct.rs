@@ -1792,19 +1792,30 @@ pub fn register_android_usb_device(device: AndroidDirectUsbDevice) -> Result<(),
     Ok(())
 }
 
-/// Stage a remembered hardware level for the next Rust USB backend startup.
+/// Restore a remembered hardware level now, or stage it for backend startup.
 ///
 /// The DAC's Feature Unit is not discovered until the backend claims the
 /// stream, so the write cannot happen during registration. Keeping the value
 /// in the state lets startup apply it before the first isochronous transfer.
+/// An already prepared DSP session must restore immediately, before Dart can
+/// enable unity-gain passthrough on that same backend.
 pub fn android_direct_queue_hardware_volume_restore(volume: f64) -> Result<(), String> {
     if !volume.is_finite() || !(0.0..=1.0).contains(&volume) {
         return Err(format!("USB hardware volume restore value out of range: {volume}"));
     }
-    let mut guard = DIRECT_USB_STATE.lock();
-    let state = guard
-        .as_mut()
+    let _hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
+    let state = DIRECT_USB_STATE
+        .lock()
+        .as_ref()
+        .cloned()
         .ok_or_else(|| "No Android direct USB DAC is registered".to_string())?;
+    if state.hardware_volume_control.is_some() {
+        return set_android_usb_hardware_volume_for_state(&state, volume);
+    }
+    let mut guard = DIRECT_USB_STATE.lock();
+    let state = guard.as_mut()
+        .filter(|current| current.hardware_volume_generation == state.hardware_volume_generation)
+        .ok_or_else(|| "USB volume route changed before restore".to_string())?;
     state.pending_hardware_volume_restore = Some(volume);
     Ok(())
 }
@@ -3753,6 +3764,14 @@ pub fn android_direct_set_hardware_volume(volume: f64) -> Result<(), String> {
         .as_ref()
         .cloned()
         .ok_or_else(|| "No Android direct USB DAC is registered".to_string())?;
+    set_android_usb_hardware_volume_for_state(&state, volume)
+}
+
+/// Caller holds ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX across write/readback.
+fn set_android_usb_hardware_volume_for_state(
+    state: &AndroidDirectUsbState,
+    volume: f64,
+) -> Result<(), String> {
     let control = state
         .hardware_volume_control
         .clone()
@@ -3775,6 +3794,11 @@ pub fn android_direct_set_hardware_volume(volume: f64) -> Result<(), String> {
     })?;
 
     publish_hardware_volume_snapshot(state.hardware_volume_generation, normalized, muted)?;
+    if let Some(current) = DIRECT_USB_STATE.lock().as_mut()
+        .filter(|current| current.hardware_volume_generation == state.hardware_volume_generation)
+    {
+        current.pending_hardware_volume_restore = None;
+    }
     dev_eprintln!("[VolFlow] SET_CUR OK: normalized={normalized:.3}");
     Ok(())
 }
