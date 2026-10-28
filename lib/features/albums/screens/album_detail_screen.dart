@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flick/widgets/common/flick_snackbar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +11,9 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/widgets/identify_album_sheet.dart';
+import 'package:flick/features/albums/widgets/album_completeness_status.dart';
 import 'package:flick/features/artists/screens/artist_detail_screen.dart';
+import 'package:flick/models/album_completeness.dart';
 import 'package:flick/models/playback_context.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/apple_music_provider.dart';
@@ -67,6 +71,11 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
   final ScrollController _scrollController = ScrollController();
   bool _showAppBarActions = false;
 
+  AlbumCompleteness _completeness = AlbumCompleteness.unknown;
+  bool _completenessLoaded = false;
+  StreamSubscription<void>? _songsSubscription;
+  Timer? _completenessRefreshTimer;
+
   List<AlbumGroup> _moreAlbums = [];
   Map<String, List<Song>> _moreArtists = {};
   Color? _albumColor;
@@ -75,12 +84,21 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _songsSubscription = _songRepository.watchSongs().listen((_) {
+      _completenessRefreshTimer?.cancel();
+      _completenessRefreshTimer = Timer(
+        const Duration(milliseconds: 400),
+        _refreshCompleteness,
+      );
+    });
     _loadExtras();
     _extractAlbumColor();
   }
 
   @override
   void dispose() {
+    _completenessRefreshTimer?.cancel();
+    _songsSubscription?.cancel();
     _scrollController.dispose();
     disposeArtworkGate();
     super.dispose();
@@ -97,6 +115,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
   Future<void> _loadExtras() async {
     final allAlbums = await _songRepository.getAlbumGroups();
     final allArtists = await _songRepository.getSongsByArtist();
+    final completeness = _completenessFor(allAlbums);
 
     final moreAlbums =
         allAlbums
@@ -116,8 +135,32 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
       setState(() {
         _moreAlbums = moreAlbums;
         _moreArtists = moreArtists;
+        _completeness = completeness;
+        _completenessLoaded = true;
       });
     }
+  }
+
+  Future<void> _refreshCompleteness() async {
+    try {
+      final allAlbums = await _songRepository.getAlbumGroups();
+      if (!mounted) return;
+      setState(() {
+        _completeness = _completenessFor(allAlbums);
+        _completenessLoaded = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _completeness = AlbumCompleteness.unknown);
+    }
+  }
+
+  AlbumCompleteness _completenessFor(List<AlbumGroup> albums) {
+    return SongRepository.resolveAlbumCompleteness(
+      albums,
+      albumName: widget.albumName,
+      albumArtist: widget.albumArtist,
+    );
   }
 
   String _albumKey(String albumName) {
@@ -486,6 +529,9 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
                   subtitle: widget.albumArtist,
                   meta: _metaLine,
                   lossless: _hasLossless,
+                  metadataBadge: _completenessLoaded && _completeness.isComplete
+                      ? AlbumVerifiedBadge(completeness: _completeness)
+                      : null,
                   fadeTo: resolvedBg,
                   onBack: () => Navigator.of(context).pop(),
                 ),
@@ -509,6 +555,12 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
                      ),
                    ),
                  ),
+                  if (_completenessLoaded && !_completeness.isComplete)
+                    SliverToBoxAdapter(
+                      child: AlbumCompletenessStatusWidget(
+                        completeness: _completeness,
+                      ),
+                    ),
                   SliverToBoxAdapter(
                     child: DetailDescription(descriptionKey: _descriptionKey),
                   ),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import '../core/constants/metadata_constants.dart';
 import '../core/utils/audio_metadata_utils.dart';
 import '../data/database.dart';
 import '../data/repositories/song_repository.dart';
@@ -710,7 +711,8 @@ class LibraryScannerService {
         if (mode == ScanMode.quick &&
             file.lastModified == existingTime &&
             existing.metadataComplete &&
-            existing.sampleRate != null) {
+            existing.sampleRate != null &&
+            existing.metadataVersion >= kCurrentTrackMetadataVersion) {
           continue;
         }
       }
@@ -733,9 +735,11 @@ class LibraryScannerService {
       final needsSparseMetadata =
           mode == ScanMode.full ||
           existing == null ||
+          file.lastModified != existing.lastModified?.millisecondsSinceEpoch ||
           existing.sampleRate == null ||
           existing.bitDepth == null ||
-          existing.discNumber == null;
+          existing.discNumber == null ||
+          existing.metadataVersion < kCurrentTrackMetadataVersion;
 
       final artist = (file.artist?.trim().isNotEmpty ?? false)
           ? file.artist!.trim()
@@ -754,7 +758,9 @@ class LibraryScannerService {
             ? file.albumArtist!.trim()
             : artist
         ..trackNumber = file.trackNumber ?? 0
+        ..trackTotal = file.trackTotal ?? existing?.trackTotal
         ..discNumber = file.discNumber ?? 1
+        ..discTotal = file.discTotal ?? existing?.discTotal
         ..durationMs = file.duration ?? 0
         ..fileType = file.extension.toUpperCase()
         ..dateAdded =
@@ -785,7 +791,10 @@ class LibraryScannerService {
         ..readMode = existing?.readMode
         ..accurateRip = existing?.accurateRip
         ..metadataComplete =
-            (existing?.metadataComplete ?? false) || !needsSparseMetadata;
+            (existing?.metadataComplete ?? false) || !needsSparseMetadata
+        ..metadataVersion = needsSparseMetadata
+            ? 0
+            : existing.metadataVersion;
 
       if (existing != null) {
         song.id = existing.id;
@@ -966,6 +975,7 @@ class LibraryScannerService {
             int.tryParse(meta.bitrate!),
           );
         }
+        applyTrackTotals(existing, meta);
         if (!existing.hasLocalEdits) {
           existing.discNumber = meta.discNumber ?? existing.discNumber;
           existing.albumArtist = (meta.albumArtist?.trim().isNotEmpty ?? false)
@@ -1318,6 +1328,7 @@ class LibraryScannerService {
             : existing.bitrate;
         existing.bitDepth = meta.bitDepth ?? existing.bitDepth;
         existing.sampleRate = meta.sampleRate ?? existing.sampleRate;
+        applyTrackTotals(existing, meta);
         existing.metadataComplete =
             existing.metadataComplete ||
             (meta.sampleRate != null && meta.bitDepth != null);
@@ -1529,6 +1540,7 @@ class LibraryScannerService {
             !existing.metadataComplete ||
             existing.bitrate == null ||
             existing.sampleRate == null ||
+            existing.metadataVersion < kCurrentTrackMetadataVersion ||
             fileTypeMismatch;
 
         if (mode == ScanMode.full ||
@@ -1693,7 +1705,13 @@ class LibraryScannerService {
               ? meta!.albumArtist!.trim()
               : artist
           ..trackNumber = meta?.trackNumber ?? 0
+          ..trackTotal = meta?.metadataRead == true
+              ? meta!.trackTotal
+              : existing?.trackTotal
           ..discNumber = meta?.discNumber ?? 1
+          ..discTotal = meta?.metadataRead == true
+              ? meta!.discTotal
+              : existing?.discTotal
           ..durationMs = meta?.duration ?? 0
           ..fileType = basic.extension.toUpperCase()
           ..dateAdded = existingMap[basic.uri]?.dateAdded ?? DateTime.now()
@@ -1727,7 +1745,8 @@ class LibraryScannerService {
           // ponytail: mark complete on any successful parse. sampleRate/bitDepth
           // are API 31+ only, so requiring them kept this false on older devices
           // and forced a full re-extract every rescan.
-          ..metadataComplete = (meta?.duration ?? 0) > 0;
+          ..metadataComplete = (meta?.duration ?? 0) > 0
+          ..metadataVersion = _metadataVersionFor(meta, existing);
 
         if (existing != null) {
           song.id = existing.id;
@@ -1863,8 +1882,12 @@ class LibraryScannerService {
     final safKeyedSongs = <SongEntity>[];
 
     // Full mode re-reads every file and skips the fingerprint shortcuts,
-    // including the CUE/log unchanged checks below.
-    final forceFull = mode == ScanMode.full;
+    // including the CUE/log unchanged checks below. A single stale metadata
+    // row also forces this folder's rescan so track totals backfill once.
+    final forceFull = mode == ScanMode.full || needsMetadataBackfill(
+      existingSongs,
+      excludedSongs: filteredExistingSongs,
+    );
 
     // Load fingerprint cache — supplements DB with faster lookup
     final cachedFingerprints = forceFull
@@ -1973,7 +1996,9 @@ class LibraryScannerService {
                 : l10n.unknownAlbum
             ..albumArtist = existing?.albumArtist ?? artist
             ..trackNumber = metadata.trackNumber ?? existing?.trackNumber ?? 0
+            ..trackTotal = metadata.trackTotal
             ..discNumber = metadata.discNumber ?? existing?.discNumber ?? 1
+            ..discTotal = metadata.discTotal
             ..durationMs = metadata.durationMs?.toInt() ?? 0
             ..fileType = metadata.format.toUpperCase()
             ..dateAdded = existing?.dateAdded ?? DateTime.now()
@@ -2000,7 +2025,8 @@ class LibraryScannerService {
             ..replaygainTrackPeak = metadata.replaygainTrackPeak
             ..replaygainAlbumGain = metadata.replaygainAlbumGain
             ..replaygainAlbumPeak = metadata.replaygainAlbumPeak
-            ..metadataComplete = true;
+            ..metadataComplete = true
+            ..metadataVersion = kCurrentTrackMetadataVersion;
 
           if (existing != null) {
             song.id = existing.id;
@@ -2216,7 +2242,9 @@ class LibraryScannerService {
                       album: fallbackSource.album,
                       albumArtist: fallbackSource.albumArtist,
                       trackNumber: fallbackSource.trackNumber,
+                      trackTotal: fallbackSource.trackTotal,
                       discNumber: fallbackSource.discNumber,
+                      discTotal: fallbackSource.discTotal,
                       duration: fallbackSource.durationMs,
                       albumArtPath: fallbackSource.albumArtPath,
                       bitrate: fallbackSource.bitrate?.toString(),
@@ -2766,10 +2794,14 @@ class LibraryScannerService {
           meta.sampleRate != null &&
           meta.bitDepth != null &&
           meta.bitrate != null;
-      if (retrieverSolved) continue;
+      // Android commonly omits standalone Vorbis/MP4 total tags even when it
+      // can read the stream. Check them with Rust during this metadata pass;
+      // the version marker prevents repeating the backfill on unchanged rows.
+      final needsTotals = meta?.trackTotal == null || meta?.discTotal == null;
+      if (retrieverSolved && !needsTotals) continue;
 
-      if (!shouldRustRetryMetadata(
-        extension: _extensionOfUri(uri),
+      if (!needsTotals && !shouldRustRetryMetadata(
+        extension: _extensionOfUri(rawPathByUri?[uri] ?? uri),
         hasMetadata: meta != null,
         hasSampleRate: meta?.sampleRate != null,
         hasDuration: meta?.duration != null,
@@ -2850,7 +2882,9 @@ class LibraryScannerService {
       album: base?.album ?? rust.album,
       albumArtist: base?.albumArtist,
       trackNumber: base?.trackNumber ?? rust.trackNumber,
+      trackTotal: base?.trackTotal ?? rust.trackTotal,
       discNumber: base?.discNumber ?? rust.discNumber,
+      discTotal: base?.discTotal ?? rust.discTotal,
       genre: base?.genre ?? rust.genre,
       duration: base?.duration ?? rust.durationMs?.toInt(),
       albumArtPath: base?.albumArtPath,
@@ -2866,6 +2900,8 @@ class LibraryScannerService {
       filePath: base?.filePath,
       year: base?.year ?? rust.year,
       dateAdded: base?.dateAdded,
+      relativeFolderPath: base?.relativeFolderPath,
+      metadataRead: true,
     );
   }
 
@@ -3215,6 +3251,35 @@ class LibraryScannerService {
     return fileName.substring(0, lastDot);
   }
 
+  /// Only a successful read can complete the versioned tag backfill.
+  static int _metadataVersionFor(AudioFileInfo? meta, SongEntity? existing) {
+    return meta?.metadataRead == true
+        ? kCurrentTrackMetadataVersion
+        : (existing?.metadataVersion ?? 0);
+  }
+
+  @visibleForTesting
+  static bool needsMetadataBackfill(
+    Iterable<SongEntity> songs, {
+    Iterable<SongEntity> excludedSongs = const [],
+  }) {
+    final excluded = excludedSongs.toSet();
+    return songs.any(
+      (song) => !excluded.contains(song) &&
+          song.metadataVersion < kCurrentTrackMetadataVersion,
+    );
+  }
+
+  /// Refresh totals independently of user-edited titles and track numbers.
+  /// A successful read with absent tags must also clear stale cached totals.
+  @visibleForTesting
+  static void applyTrackTotals(SongEntity song, AudioFileInfo metadata) {
+    if (!metadata.metadataRead) return;
+    song.trackTotal = metadata.trackTotal;
+    song.discTotal = metadata.discTotal;
+    song.metadataVersion = kCurrentTrackMetadataVersion;
+  }
+
   /// When an existing song has `hasLocalEdits == true`, preserve its text
   /// metadata fields instead of overwriting them with scanned file tags.
   void _preserveLocalEdits(SongEntity song, SongEntity? existing) {
@@ -3320,7 +3385,9 @@ class LibraryScannerService {
             ? cueSheet.performer!.trim()
             : artist
         ..trackNumber = track.trackNumber
+        ..trackTotal = meta?.trackTotal ?? cueSheet.tracks.length
         ..discNumber = meta?.discNumber ?? 1
+        ..discTotal = meta?.discTotal
         ..durationMs = track.durationMs(sourceDurationMs: meta?.duration)
         ..fileType = meta?.extension.toUpperCase() ?? 'UNKNOWN'
         ..dateAdded = existing?.dateAdded ?? DateTime.now()
@@ -3357,7 +3424,8 @@ class LibraryScannerService {
         ..copyCrc = trackLog?.trackNumber == track.trackNumber
             ? trackLog?.copyCrc
             : null
-        ..metadataComplete = meta?.sampleRate != null && meta?.bitDepth != null;
+        ..metadataComplete = meta?.sampleRate != null && meta?.bitDepth != null
+        ..metadataVersion = kCurrentTrackMetadataVersion;
 
       if (existing != null) {
         entity.id = existing.id;

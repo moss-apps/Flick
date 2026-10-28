@@ -324,13 +324,74 @@ class AppLocalizationsEn extends AppLocalizations {
   String get albumColors => 'Album Colors';
 
   @override
+  String get albumComplete => 'Complete album (based on tags)';
+
+  @override
+  String get albumCompleteExplanation =>
+      'All expected tracks and discs are in your library, according to the embedded tags.';
+
+  @override
+  String get albumCompleteShort => 'Complete';
+
+  @override
+  String get albumCompleteTitle => 'Album is complete';
+
+  @override
+  String get albumCompleteVerificationNote =>
+      'Checked against file tags, not an online tracklist.';
+
+  @override
+  String get albumCompletenessUnknown =>
+      'Album completeness can\'t be verified from the track tags.';
+
+  @override
   String get albumCount => 'Album Count';
 
   @override
   String get albumDetail => 'Album detail';
 
   @override
+  String get albumIncompleteShort => 'Incomplete';
+
+  @override
   String get albumLimit => 'ALBUM LIMIT';
+
+  @override
+  String albumMissingDiscNumbers(String numbers) {
+    return 'Missing disc numbers: $numbers';
+  }
+
+  @override
+  String albumMissingDiscs(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Missing $count discs',
+      one: 'Missing 1 disc',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String albumMissingPositions(String positions) {
+    return 'Missing positions (disc:track): $positions';
+  }
+
+  @override
+  String albumMissingTrackNumbers(String numbers) {
+    return 'Missing track numbers: $numbers';
+  }
+
+  @override
+  String albumMissingTracks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Missing $count tracks',
+      one: 'Missing 1 track',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get albumName => 'Album Name';

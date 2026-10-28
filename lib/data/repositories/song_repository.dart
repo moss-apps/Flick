@@ -4,6 +4,7 @@ import '../../core/utils/audio_metadata_utils.dart';
 import '../../core/utils/string_sort_utils.dart';
 import '../database.dart';
 import '../../models/song.dart';
+import '../../models/album_completeness.dart';
 import 'package:flick/l10n/l10n.dart';
 
 class AlbumGroup {
@@ -477,6 +478,24 @@ class SongRepository {
     return null;
   }
 
+  /// Resolve against full library groups, never the subset passed by search.
+  /// A missing or ambiguous identity is not evidence about the whole album.
+  static AlbumCompleteness resolveAlbumCompleteness(
+    Iterable<AlbumGroup> libraryAlbums, {
+    required String albumName,
+    required String albumArtist,
+  }) {
+    final name = albumName.trim().toLowerCase();
+    final artist = albumArtist.trim().toLowerCase();
+    final matches = libraryAlbums.where(
+      (album) => album.albumName.trim().toLowerCase() == name &&
+          album.albumArtist.trim().toLowerCase() == artist,
+    ).toList();
+    return matches.length == 1
+        ? AlbumCompleteness.resolve(matches.single.songs)
+        : AlbumCompleteness.unknown;
+  }
+
   /// Get all unique artists with their songs.
   Future<Map<String, List<Song>>> getSongsByArtist() async {
     final songs = await getAllSongs();
@@ -528,7 +547,9 @@ class SongRepository {
       album: entity.album,
       albumArtist: entity.albumArtist,
       trackNumber: entity.trackNumber,
+      trackTotal: entity.trackTotal,
       discNumber: entity.discNumber,
+      discTotal: entity.discTotal,
       year: entity.year,
       genre: entity.genre,
       filePath: entity.filePath,

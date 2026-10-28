@@ -333,13 +333,74 @@ class AppLocalizationsTl extends AppLocalizations {
   String get albumColors => 'Mga kulay ng album';
 
   @override
+  String get albumComplete => 'Kumpleto ang album (ayon sa tags)';
+
+  @override
+  String get albumCompleteExplanation =>
+      'Nasa library mo ang lahat ng inaasahang track at disc, ayon sa mga naka-embed na tag.';
+
+  @override
+  String get albumCompleteShort => 'Kumpleto';
+
+  @override
+  String get albumCompleteTitle => 'Kumpleto ang album';
+
+  @override
+  String get albumCompleteVerificationNote =>
+      'Batay ito sa tags ng mga file, hindi sa isang online na tracklist.';
+
+  @override
+  String get albumCompletenessUnknown =>
+      'Hindi matukoy kung kumpleto ang album mula sa mga tag ng kanta.';
+
+  @override
   String get albumCount => 'Bilang ng album';
 
   @override
   String get albumDetail => 'Detalye ng album';
 
   @override
+  String get albumIncompleteShort => 'Hindi kumpleto';
+
+  @override
   String get albumLimit => 'LIMITASYON NG ALBUM';
+
+  @override
+  String albumMissingDiscNumbers(String numbers) {
+    return 'Kulang na disc number: $numbers';
+  }
+
+  @override
+  String albumMissingDiscs(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Kulang ang $count disc',
+      one: 'Kulang ang $count disc',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String albumMissingPositions(String positions) {
+    return 'Kulang na posisyon (disc:track): $positions';
+  }
+
+  @override
+  String albumMissingTrackNumbers(String numbers) {
+    return 'Kulang na track number: $numbers';
+  }
+
+  @override
+  String albumMissingTracks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Kulang ang $count kanta',
+      one: 'Kulang ang $count kanta',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get albumName => 'Pangalan ng album';

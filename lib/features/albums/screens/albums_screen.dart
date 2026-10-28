@@ -10,6 +10,8 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/string_sort_utils.dart';
+import 'package:flick/models/album_completeness.dart';
+import 'package:flick/features/albums/widgets/album_completeness_status.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/screens/album_detail_screen.dart';
@@ -596,6 +598,7 @@ class _AlbumCardState extends State<_AlbumCard>
     final artworkTargetHeight = widget.stretchArtwork
         ? artworkTargetWidth
         : null;
+    final completeness = AlbumCompleteness.resolve(widget.songs);
 
     return GestureDetector(
       onTapDown: (_) => _controller.forward(),
@@ -710,6 +713,14 @@ class _AlbumCardState extends State<_AlbumCard>
                                     ),
                                   ),
                                 ),
+                                if (!completeness.isUnknown)
+                                  Positioned(
+                                    right: AppConstants.spacingSm,
+                                    bottom: AppConstants.spacingSm,
+                                    child: AlbumCompletenessBadge(
+                                      completeness: completeness,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),

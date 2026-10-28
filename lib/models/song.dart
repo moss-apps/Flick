@@ -71,8 +71,14 @@ class Song {
   /// Track number within the album
   final int? trackNumber;
 
+  /// Total number of tracks on this disc, when tagged
+  final int? trackTotal;
+
   /// Disc number within a multi-disc release
   final int? discNumber;
+
+  /// Total number of discs in the release, when tagged
+  final int? discTotal;
 
   /// Year of release
   final int? year;
@@ -135,7 +141,9 @@ class Song {
     this.album,
     this.albumArtist,
     this.trackNumber,
+    this.trackTotal,
     this.discNumber,
+    this.discTotal,
     this.year,
     this.genre,
     this.filePath,
@@ -245,7 +253,9 @@ class Song {
     String? album,
     String? albumArtist,
     int? trackNumber,
+    int? trackTotal,
     int? discNumber,
+    int? discTotal,
     int? year,
     String? genre,
     String? filePath,
@@ -282,7 +292,9 @@ class Song {
       album: album ?? this.album,
       albumArtist: albumArtist ?? this.albumArtist,
       trackNumber: trackNumber ?? this.trackNumber,
+      trackTotal: trackTotal ?? this.trackTotal,
       discNumber: discNumber ?? this.discNumber,
+      discTotal: discTotal ?? this.discTotal,
       year: year ?? this.year,
       genre: genre ?? this.genre,
       filePath: filePath ?? this.filePath,

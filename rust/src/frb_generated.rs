@@ -4666,7 +4666,9 @@ impl SseDecode for crate::api::scanner::AudioFileMetadata {
         let mut var_sampleRate = <Option<u32>>::sse_decode(deserializer);
         let mut var_bitrate = <Option<u32>>::sse_decode(deserializer);
         let mut var_trackNumber = <Option<u32>>::sse_decode(deserializer);
+        let mut var_trackTotal = <Option<u32>>::sse_decode(deserializer);
         let mut var_discNumber = <Option<u32>>::sse_decode(deserializer);
+        let mut var_discTotal = <Option<u32>>::sse_decode(deserializer);
         let mut var_genre = <Option<String>>::sse_decode(deserializer);
         let mut var_year = <Option<u32>>::sse_decode(deserializer);
         let mut var_fileSize = <u64>::sse_decode(deserializer);
@@ -4686,7 +4688,9 @@ impl SseDecode for crate::api::scanner::AudioFileMetadata {
             sample_rate: var_sampleRate,
             bitrate: var_bitrate,
             track_number: var_trackNumber,
+            track_total: var_trackTotal,
             disc_number: var_discNumber,
+            disc_total: var_discTotal,
             genre: var_genre,
             year: var_year,
             file_size: var_fileSize,
@@ -6309,7 +6313,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::scanner::AudioFileMetadata {
             self.sample_rate.into_into_dart().into_dart(),
             self.bitrate.into_into_dart().into_dart(),
             self.track_number.into_into_dart().into_dart(),
+            self.track_total.into_into_dart().into_dart(),
             self.disc_number.into_into_dart().into_dart(),
+            self.disc_total.into_into_dart().into_dart(),
             self.genre.into_into_dart().into_dart(),
             self.year.into_into_dart().into_dart(),
             self.file_size.into_into_dart().into_dart(),
@@ -7158,7 +7164,9 @@ impl SseEncode for crate::api::scanner::AudioFileMetadata {
         <Option<u32>>::sse_encode(self.sample_rate, serializer);
         <Option<u32>>::sse_encode(self.bitrate, serializer);
         <Option<u32>>::sse_encode(self.track_number, serializer);
+        <Option<u32>>::sse_encode(self.track_total, serializer);
         <Option<u32>>::sse_encode(self.disc_number, serializer);
+        <Option<u32>>::sse_encode(self.disc_total, serializer);
         <Option<String>>::sse_encode(self.genre, serializer);
         <Option<u32>>::sse_encode(self.year, serializer);
         <u64>::sse_encode(self.file_size, serializer);

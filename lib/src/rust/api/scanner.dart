@@ -74,7 +74,9 @@ class AudioFileMetadata {
   final int? sampleRate;
   final int? bitrate;
   final int? trackNumber;
+  final int? trackTotal;
   final int? discNumber;
+  final int? discTotal;
   final String? genre;
   final int? year;
   final BigInt fileSize;
@@ -103,7 +105,9 @@ class AudioFileMetadata {
     this.sampleRate,
     this.bitrate,
     this.trackNumber,
+    this.trackTotal,
     this.discNumber,
+    this.discTotal,
     this.genre,
     this.year,
     required this.fileSize,
@@ -126,7 +130,9 @@ class AudioFileMetadata {
       sampleRate.hashCode ^
       bitrate.hashCode ^
       trackNumber.hashCode ^
+      trackTotal.hashCode ^
       discNumber.hashCode ^
+      discTotal.hashCode ^
       genre.hashCode ^
       year.hashCode ^
       fileSize.hashCode ^
@@ -151,7 +157,9 @@ class AudioFileMetadata {
           sampleRate == other.sampleRate &&
           bitrate == other.bitrate &&
           trackNumber == other.trackNumber &&
+          trackTotal == other.trackTotal &&
           discNumber == other.discNumber &&
+          discTotal == other.discTotal &&
           genre == other.genre &&
           year == other.year &&
           fileSize == other.fileSize &&

@@ -641,6 +641,42 @@ abstract class AppLocalizations {
   /// **'Album Colors'**
   String get albumColors;
 
+  /// Verification badge tooltip when every expected track and disc is present.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete album (based on tags)'**
+  String get albumComplete;
+
+  /// Explains the tag-only evidence for the verified-complete album badge.
+  ///
+  /// In en, this message translates to:
+  /// **'All expected tracks and discs are in your library, according to the embedded tags.'**
+  String get albumCompleteExplanation;
+
+  /// Compact label for complete-album indicators in the metadata line and album grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete'**
+  String get albumCompleteShort;
+
+  /// Title of the top sheet explaining tag-based album completeness.
+  ///
+  /// In en, this message translates to:
+  /// **'Album is complete'**
+  String get albumCompleteTitle;
+
+  /// Clarifies that album completeness is not verified against an online catalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked against file tags, not an online tracklist.'**
+  String get albumCompleteVerificationNote;
+
+  /// Album detail status when track or disc totals are missing or conflicting.
+  ///
+  /// In en, this message translates to:
+  /// **'Album completeness can\'t be verified from the track tags.'**
+  String get albumCompletenessUnknown;
+
   /// lib/features/artists/screens/artists_screen.dart:878
   ///
   /// In en, this message translates to:
@@ -653,11 +689,47 @@ abstract class AppLocalizations {
   /// **'Album detail'**
   String get albumDetail;
 
+  /// Compact album-grid badge label for an incomplete album.
+  ///
+  /// In en, this message translates to:
+  /// **'Incomplete'**
+  String get albumIncompleteShort;
+
   /// lib/features/songs/screens/songs_screen.dart:2958
   ///
   /// In en, this message translates to:
   /// **'ALBUM LIMIT'**
   String get albumLimit;
+
+  /// Lists the disc numbers absent from an incomplete multi-disc album.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing disc numbers: {numbers}'**
+  String albumMissingDiscNumbers(String numbers);
+
+  /// Number of whole discs absent from an incomplete album.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Missing 1 disc} other{Missing {count} discs}}'**
+  String albumMissingDiscs(int count);
+
+  /// Lists missing disc:track positions for a multi-disc album.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing positions (disc:track): {positions}'**
+  String albumMissingPositions(String positions);
+
+  /// Lists the track numbers absent from a single-disc album.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing track numbers: {numbers}'**
+  String albumMissingTrackNumbers(String numbers);
+
+  /// Number of tracks absent from an incomplete album.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Missing 1 track} other{Missing {count} tracks}}'**
+  String albumMissingTracks(int count);
 
   /// lib/features/albums/screens/albums_screen.dart:916
   ///

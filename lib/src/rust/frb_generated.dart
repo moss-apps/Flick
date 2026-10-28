@@ -4599,8 +4599,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AudioFileMetadata dco_decode_audio_file_metadata(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 19)
-      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
+    if (arr.length != 21)
+      throw Exception('unexpected arr length: expect 21 but see ${arr.length}');
     return AudioFileMetadata(
       path: dco_decode_String(arr[0]),
       title: dco_decode_opt_String(arr[1]),
@@ -4613,14 +4613,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sampleRate: dco_decode_opt_box_autoadd_u_32(arr[8]),
       bitrate: dco_decode_opt_box_autoadd_u_32(arr[9]),
       trackNumber: dco_decode_opt_box_autoadd_u_32(arr[10]),
-      discNumber: dco_decode_opt_box_autoadd_u_32(arr[11]),
-      genre: dco_decode_opt_String(arr[12]),
-      year: dco_decode_opt_box_autoadd_u_32(arr[13]),
-      fileSize: dco_decode_u_64(arr[14]),
-      replaygainTrackGain: dco_decode_opt_box_autoadd_f_64(arr[15]),
-      replaygainTrackPeak: dco_decode_opt_box_autoadd_f_64(arr[16]),
-      replaygainAlbumGain: dco_decode_opt_box_autoadd_f_64(arr[17]),
-      replaygainAlbumPeak: dco_decode_opt_box_autoadd_f_64(arr[18]),
+      trackTotal: dco_decode_opt_box_autoadd_u_32(arr[11]),
+      discNumber: dco_decode_opt_box_autoadd_u_32(arr[12]),
+      discTotal: dco_decode_opt_box_autoadd_u_32(arr[13]),
+      genre: dco_decode_opt_String(arr[14]),
+      year: dco_decode_opt_box_autoadd_u_32(arr[15]),
+      fileSize: dco_decode_u_64(arr[16]),
+      replaygainTrackGain: dco_decode_opt_box_autoadd_f_64(arr[17]),
+      replaygainTrackPeak: dco_decode_opt_box_autoadd_f_64(arr[18]),
+      replaygainAlbumGain: dco_decode_opt_box_autoadd_f_64(arr[19]),
+      replaygainAlbumPeak: dco_decode_opt_box_autoadd_f_64(arr[20]),
     );
   }
 
@@ -5632,7 +5634,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_sampleRate = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_bitrate = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_trackNumber = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_trackTotal = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_discNumber = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_discTotal = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_genre = sse_decode_opt_String(deserializer);
     var var_year = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_fileSize = sse_decode_u_64(deserializer);
@@ -5652,7 +5656,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sampleRate: var_sampleRate,
       bitrate: var_bitrate,
       trackNumber: var_trackNumber,
+      trackTotal: var_trackTotal,
       discNumber: var_discNumber,
+      discTotal: var_discTotal,
       genre: var_genre,
       year: var_year,
       fileSize: var_fileSize,
@@ -6908,7 +6914,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_u_32(self.sampleRate, serializer);
     sse_encode_opt_box_autoadd_u_32(self.bitrate, serializer);
     sse_encode_opt_box_autoadd_u_32(self.trackNumber, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.trackTotal, serializer);
     sse_encode_opt_box_autoadd_u_32(self.discNumber, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.discTotal, serializer);
     sse_encode_opt_String(self.genre, serializer);
     sse_encode_opt_box_autoadd_u_32(self.year, serializer);
     sse_encode_u_64(self.fileSize, serializer);

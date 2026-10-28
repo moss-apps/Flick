@@ -425,6 +425,30 @@
   "@albumColors": {
     "description": "lib/features/player/widgets/player_layout_sheet.dart:395"
   },
+  "albumComplete": "Complete album (based on tags)",
+  "@albumComplete": {
+    "description": "Verification badge tooltip when every expected track and disc is present."
+  },
+  "albumCompleteExplanation": "All expected tracks and discs are in your library, according to the embedded tags.",
+  "@albumCompleteExplanation": {
+    "description": "Explains the tag-only evidence for the verified-complete album badge."
+  },
+  "albumCompleteShort": "Complete",
+  "@albumCompleteShort": {
+    "description": "Compact label for complete-album indicators in the metadata line and album grid."
+  },
+  "albumCompleteTitle": "Album is complete",
+  "@albumCompleteTitle": {
+    "description": "Title of the top sheet explaining tag-based album completeness."
+  },
+  "albumCompleteVerificationNote": "Checked against file tags, not an online tracklist.",
+  "@albumCompleteVerificationNote": {
+    "description": "Clarifies that album completeness is not verified against an online catalog."
+  },
+  "albumCompletenessUnknown": "Album completeness can't be verified from the track tags.",
+  "@albumCompletenessUnknown": {
+    "description": "Album detail status when track or disc totals are missing or conflicting."
+  },
   "albumCount": "Album Count",
   "@albumCount": {
     "description": "lib/features/artists/screens/artists_screen.dart:878"
@@ -433,9 +457,58 @@
   "@albumDetail": {
     "description": "lib/features/manual/data/manual_data.dart"
   },
+  "albumIncompleteShort": "Incomplete",
+  "@albumIncompleteShort": {
+    "description": "Compact album-grid badge label for an incomplete album."
+  },
   "albumLimit": "ALBUM LIMIT",
   "@albumLimit": {
     "description": "lib/features/songs/screens/songs_screen.dart:2958"
+  },
+  "albumMissingDiscNumbers": "Missing disc numbers: {numbers}",
+  "@albumMissingDiscNumbers": {
+    "description": "Lists the disc numbers absent from an incomplete multi-disc album.",
+    "placeholders": {
+      "numbers": {
+        "type": "String"
+      }
+    }
+  },
+  "albumMissingDiscs": "{count, plural, =1{Missing 1 disc} other{Missing {count} discs}}",
+  "@albumMissingDiscs": {
+    "description": "Number of whole discs absent from an incomplete album.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "albumMissingPositions": "Missing positions (disc:track): {positions}",
+  "@albumMissingPositions": {
+    "description": "Lists missing disc:track positions for a multi-disc album.",
+    "placeholders": {
+      "positions": {
+        "type": "String"
+      }
+    }
+  },
+  "albumMissingTrackNumbers": "Missing track numbers: {numbers}",
+  "@albumMissingTrackNumbers": {
+    "description": "Lists the track numbers absent from a single-disc album.",
+    "placeholders": {
+      "numbers": {
+        "type": "String"
+      }
+    }
+  },
+  "albumMissingTracks": "{count, plural, =1{Missing 1 track} other{Missing {count} tracks}}",
+  "@albumMissingTracks": {
+    "description": "Number of tracks absent from an incomplete album.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "albumName": "Album Name",
   "@albumName": {

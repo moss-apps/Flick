@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Library
+- Show offline album completeness from embedded track/disc totals, including a tappable check-and-Complete label aligned with Lossless in the album metadata, missing positions on album details, and known-status badges in the album grid (#327). The label opens an “Album is complete” top sheet explaining the tag-based verification. Missing or ambiguous tags remain unverified; existing libraries backfill totals on the next scan without overwriting local edits.
+
 ## 0.23.0-beta.1 (2026-10-19)
 
 ### Localization & Typography
