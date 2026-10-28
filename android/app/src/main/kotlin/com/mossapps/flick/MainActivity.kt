@@ -2208,12 +2208,16 @@ class MainActivity: FlutterActivity() {
         metadata["artist"] = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
         metadata["album"] = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
         metadata["albumArtist"] = extractMetadataByKeyName(retriever, "METADATA_KEY_ALBUMARTIST")
-        metadata["trackNumber"] = parseMetadataNumber(
+        val (trackNumber, trackTotal) = parseMetadataNumberPair(
             extractMetadataByKeyName(retriever, "METADATA_KEY_CD_TRACK_NUMBER")
         )
-        metadata["discNumber"] = parseMetadataNumber(
+        metadata["trackNumber"] = trackNumber
+        metadata["trackTotal"] = trackTotal
+        val (discNumber, discTotal) = parseMetadataNumberPair(
             extractMetadataByKeyName(retriever, "METADATA_KEY_DISC_NUMBER")
         )
+        metadata["discNumber"] = discNumber
+        metadata["discTotal"] = discTotal
         metadata["bitrate"] = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
         metadata["mimeType"] = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
         metadata["genre"] = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
@@ -2239,6 +2243,7 @@ class MainActivity: FlutterActivity() {
             metadata["duration"] = durationStr.toLongOrNull()
         }
 
+        metadata["metadataRead"] = true
         return metadata
     }
 

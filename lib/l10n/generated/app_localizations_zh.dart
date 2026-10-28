@@ -305,13 +305,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get albumColors => '专辑配色';
 
   @override
+  String get albumComplete => '专辑完整（根据标签）';
+
+  @override
+  String get albumCompleteExplanation => '根据文件标签，所有预期的曲目和光盘都已收录在音乐库中。';
+
+  @override
+  String get albumCompleteShort => '完整';
+
+  @override
+  String get albumCompleteTitle => '专辑曲目已齐全';
+
+  @override
+  String get albumCompleteVerificationNote => '仅依据文件标签，未与在线曲目列表比对。';
+
+  @override
+  String get albumCompletenessUnknown => '无法根据曲目标签确认专辑是否完整。';
+
+  @override
   String get albumCount => '专辑数量';
 
   @override
   String get albumDetail => '专辑详情';
 
   @override
+  String get albumIncompleteShort => '不完整';
+
+  @override
   String get albumLimit => '专辑上限';
+
+  @override
+  String albumMissingDiscNumbers(String numbers) {
+    return '缺少光盘编号：$numbers';
+  }
+
+  @override
+  String albumMissingDiscs(int count) {
+    return '缺少 $count 张光盘';
+  }
+
+  @override
+  String albumMissingPositions(String positions) {
+    return '缺少位置（光盘:曲目）：$positions';
+  }
+
+  @override
+  String albumMissingTrackNumbers(String numbers) {
+    return '缺少曲目编号：$numbers';
+  }
+
+  @override
+  String albumMissingTracks(int count) {
+    return '缺少 $count 首曲目';
+  }
 
   @override
   String get albumName => '专辑名称';

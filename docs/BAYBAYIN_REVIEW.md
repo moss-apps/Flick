@@ -62,6 +62,9 @@ subsequently turning them off survives a restart.
   keep their Taglish lines and the queue badge stays **Queue**.
 - The album, artist, playlist and smart-mix three-dot More sheets use English,
   including their **More** header.
+- Album completeness uses English in Taglish: header and grid badges, missing
+  track/disc counts and positions, unknown status, and the verification sheet.
+  Album titles, artists and other metadata keep their existing copy roles.
 - The playlists screen's header and per-playlist three-dot menus use English.
 - The long-press song actions sheet is fully English in Taglish: every action,
   its Add to Playlist sub-sheet, View Metadata panel, delete warning, Edit
