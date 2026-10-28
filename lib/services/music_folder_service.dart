@@ -73,7 +73,9 @@ class AudioFileInfo {
   final String? album;
   final String? albumArtist;
   final int? trackNumber;
+  final int? trackTotal;
   final int? discNumber;
+  final int? discTotal;
   final int? duration;
   final String? albumArtPath;
   final String? bitrate;
@@ -83,6 +85,10 @@ class AudioFileInfo {
   final String? genre;
   final int? year;
   final int? dateAdded;
+
+  /// True after a successful tag read, even if the file has no total tags.
+  /// Discovery-only and failed retriever rows leave this false.
+  final bool metadataRead;
 
   /// Directory path relative to the scanned root, recorded by the SAF walker
   /// using on-disk display names ('Hindi/Album'; '' directly under the root).
@@ -102,7 +108,9 @@ class AudioFileInfo {
     this.album,
     this.albumArtist,
     this.trackNumber,
+    this.trackTotal,
     this.discNumber,
+    this.discTotal,
     this.duration,
     this.albumArtPath,
     this.bitrate,
@@ -112,6 +120,7 @@ class AudioFileInfo {
     this.genre,
     this.year,
     this.dateAdded,
+    this.metadataRead = false,
     this.relativeFolderPath,
   });
 
@@ -130,7 +139,9 @@ class AudioFileInfo {
       album: map['album'] as String?,
       albumArtist: map['albumArtist'] as String?,
       trackNumber: (map['trackNumber'] as num?)?.toInt(),
+      trackTotal: (map['trackTotal'] as num?)?.toInt(),
       discNumber: (map['discNumber'] as num?)?.toInt(),
+      discTotal: (map['discTotal'] as num?)?.toInt(),
       duration: map['duration'] != null
           ? (map['duration'] as num).toInt()
           : null,
@@ -142,6 +153,7 @@ class AudioFileInfo {
       genre: map['genre'] as String?,
       year: (map['year'] as num?)?.toInt(),
       dateAdded: (map['dateAdded'] as num?)?.toInt(),
+      metadataRead: map['metadataRead'] == true,
       relativeFolderPath: map['relativeFolderPath'] as String?,
     );
   }

@@ -20,6 +20,9 @@ class DetailHeader extends StatelessWidget {
   final int subtitleMaxLines;
   final String? meta;
   final bool lossless;
+
+  /// Optional inline indicator beside the format/metadata, with its own action.
+  final Widget? metadataBadge;
   final Color fadeTo;
   final VoidCallback onBack;
 
@@ -43,6 +46,7 @@ class DetailHeader extends StatelessWidget {
     this.artColor,
     this.subtitleMaxLines = 1,
     this.lossless = false,
+    this.metadataBadge,
   });
 
   double _resolveHeight(BuildContext context) {
@@ -129,34 +133,72 @@ class DetailHeader extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                if (meta != null || lossless) ...[
+                if (meta != null || lossless || metadataBadge != null) ...[
                   const SizedBox(height: 4),
-                  Text.rich(
-                    TextSpan(
+                  if (metadataBadge != null)
+                    Wrap(
+                      alignment: centeredTitle
+                          ? WrapAlignment.center
+                          : WrapAlignment.start,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: AppConstants.spacingSm,
                       children: [
-                        if (meta != null) TextSpan(text: meta),
-                        if (meta != null && lossless)
-                          const TextSpan(text: ' · '),
-                        if (lossless) ...[
-                          WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: Icon(
-                              LucideIcons.audioWaveform,
-                              size: 14,
-                              color: context.adaptiveTextSecondary,
-                            ),
+                        if (meta != null)
+                          Text(
+                            meta!,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: context.adaptiveTextTertiary),
+                            textAlign: textAlign,
                           ),
-                          TextSpan(text: l10n.lossless),
-                        ],
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (lossless) ...[
+                              Icon(
+                                LucideIcons.audioWaveform,
+                                size: 14,
+                                color: context.adaptiveTextSecondary,
+                              ),
+                              const SizedBox(width: AppConstants.spacingXxs),
+                              Text(
+                                context.l10n.lossless,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: context.adaptiveTextTertiary),
+                              ),
+                              const SizedBox(width: AppConstants.spacingSm),
+                            ],
+                            metadataBadge!,
+                          ],
+                        ),
                       ],
+                    )
+                  else
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          if (meta != null) TextSpan(text: meta),
+                          if (meta != null && lossless)
+                            const TextSpan(text: ' · '),
+                          if (lossless) ...[
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Icon(
+                                LucideIcons.audioWaveform,
+                                size: 14,
+                                color: context.adaptiveTextSecondary,
+                              ),
+                            ),
+                            TextSpan(text: l10n.lossless),
+                          ],
+                        ],
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.adaptiveTextTertiary,
+                      ),
+                      textAlign: textAlign,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
-                    textAlign: textAlign,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ],
                 ],
               ),
