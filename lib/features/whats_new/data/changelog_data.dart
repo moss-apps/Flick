@@ -44,6 +44,59 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
+    version: '0.23.0-beta.2',
+    date: '2026-10-28',
+    sections: [
+      ChangelogSection(
+        title: 'Localization',
+        bullets: [
+          '**Taglish replaces the experimental Baybayin pilot** — a full Tagalog + English interface (draft copy pending native-speaker review) with daily rotating home greetings and streak messages, translated onboarding and help, and an optional **Baybayin labels** switch for curated headings, browse shortcuts, and navigation labels.',
+          'Settings, Flick Replay, audio-engine surfaces, the fixed-volume notice, and full-player action sheets stay English in Taglish; existing `tl-Tglg` selections migrate with labels enabled, while new installs default to Latin labels.',
+          '**The in-app manual is now translated into Chinese** — all 16 sections and 172 strings resolve from the ARB catalog, and searching the manual in Chinese matches translated copy.',
+          'Closed the remaining localization gaps in Taglish surfaces and moved hardcoded English into the ARB files.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Settings',
+        bullets: [
+          '**Settings search** — search across page names, section titles, and setting descriptions; grouped, ranked results open the right page and scroll directly to the matched section.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Library & Artwork',
+        bullets: [
+          '**Offline album completeness** — albums show a tappable Complete label beside Lossless in the metadata line, known-status badges in the album grid, and missing disc/track positions on album details. Verification uses embedded track/disc totals, never an online tracklist; missing or ambiguous tags stay unverified, and existing libraries backfill totals on the next scan without overwriting local edits.',
+          '**Playlist covers and rename** — set, change, or remove a custom cover from the playlist list or detail menu. The full-screen editor supports zoom-and-crop, rotate/flip, filters, and a vignette; covers appear in lists, details, and search and supply the dominant color when no collage exists. Playlists can also be renamed from both menus.',
+          '**Artist portraits** — explicitly tagged artist artwork (ID3/APE picture types 7, 8, and 10) is extracted from DSF, DFF, and lofty-supported files. Local portraits are preferred, online artwork is fetched only when a file has none, and the artwork cache prunes unreferenced portraits.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'USB & DSD Audio',
+        bullets: [
+          '**Per-DAC volume memory** — Flick remembers the hardware volume of each USB DAC and restores it before playback, including when bit-perfect auto-engages. Hardware volume is applied before software gain is released, and a failed restore deactivates the direct connection instead of leaving playback at the wrong level.',
+          '**Live volume state and clearer diagnostics** — the volume sheet and Audio Info rebuild on hardware or software volume changes, distinguish native hardware volume from the software fallback, and surface hardware volume errors in diagnostics. Mute-readback failures no longer discard the whole snapshot.',
+          '**DSD playback fixes** — oversized DSF audio blocks are read in windows so large-block files play; multichannel fold-down shows an informational marker and labels the active fallback instead of appearing blocked; software decimation is capped at 176.4 kHz, and rate mismatches fail instead of playing at the wrong pitch.',
+          'USB isochronous transfers use a deeper queue for better host-scheduling tolerance, and explicit feedback endpoint selection now has test coverage.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Playback',
+        bullets: [
+          '**CUE tracks play only their own range on the Rust engine** — track bounds now reach the native decoder, and events carry a path-plus-range identity so adjacent tracks stay distinct through crossfade handoffs and durations no longer bleed into the next track. The standard Android engine clips to the same bounds.',
+          'CUE sheets that use pregap indexes (`INDEX 00` / `INDEX 01`) now keep the first track instead of dropping it. Playback ranges currently apply to standard PCM files; DSD and WavPack still play the whole file.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Interface & Polish',
+        bullets: [
+          '**Artwork-aware detail headers** — album, artist, and smart-mix headers use a frosted control palette sampled from the cover, and the playlist back button adapts for contrast.',
+          '**Playlist more sheet** restyled with a scrollable, sectioned layout and drag handle.',
+          '**Album grid text scaling** — tiles measure their metadata with the active text theme and scale, so larger system fonts grow the tile instead of clipping titles.',
+        ],
+      ),
+    ],
+  ),
+  ChangelogEntry(
     version: '0.23.0-beta.1',
     date: '2026-10-19',
     sections: [
