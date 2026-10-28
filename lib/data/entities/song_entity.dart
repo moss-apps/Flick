@@ -40,8 +40,14 @@ class SongEntity {
   /// Track number
   int? trackNumber;
 
+  /// Total number of tracks on this disc, when tagged.
+  int? trackTotal;
+
   /// Disc number
   int? discNumber;
+
+  /// Total number of discs in the release, when tagged.
+  int? discTotal;
 
   /// Year of release
   int? year;
@@ -119,6 +125,11 @@ class SongEntity {
   /// extracted. false means background extraction is still pending.
   @Index()
   bool metadataComplete = false;
+
+  /// Version of the metadata extraction pass that produced this row. Rows with
+  /// an older version are re-read on the next library scan so newly supported
+  /// fields (such as track/disc totals) are backfilled.
+  int metadataVersion = 0;
 
   /// Whether the user has edited metadata locally (title, artist, album, etc.).
   /// When true, text metadata fields are preserved during library rescans instead
