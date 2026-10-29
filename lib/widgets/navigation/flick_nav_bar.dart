@@ -17,7 +17,6 @@ class FlickNavBar extends StatefulWidget {
   final Widget? miniPlayerWidget;
   final NavBarConfig config;
   final bool collapsed;
-  final bool separateMiniPlayer;
 
   const FlickNavBar({
     super.key,
@@ -28,7 +27,6 @@ class FlickNavBar extends StatefulWidget {
     this.showMiniPlayer = false,
     this.miniPlayerWidget,
     this.collapsed = false,
-    this.separateMiniPlayer = false,
   });
 
   @override
@@ -40,7 +38,6 @@ class _FlickNavBarState extends State<FlickNavBar> {
   Widget build(BuildContext context) {
     final buttons = widget.config.orderedButtons;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final horizontalPadding = BottomBarGeometry.navigationInset(context);
     final verticalPadding = context.scaleSize(AppConstants.spacingSm);
 
     final borderRadius = BorderRadius.circular(context.scaleSize(20));
@@ -50,21 +47,25 @@ class _FlickNavBarState extends State<FlickNavBar> {
         left: MediaQuery.paddingOf(context).left,
         right: MediaQuery.paddingOf(context).right,
       ),
-      child: Column(
+      child: LayoutBuilder(
+      builder: (context, constraints) {
+      final navigationWidth = BottomBarGeometry.navigationWidth(
+        context,
+        widget.config,
+        availableWidth: constraints.maxWidth,
+      );
+      return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.separateMiniPlayer &&
-            widget.showMiniPlayer &&
-            widget.miniPlayerWidget != null)
+        if (widget.showMiniPlayer && widget.miniPlayerWidget != null)
           widget.miniPlayerWidget!,
         AnimatedContainer(
+          key: const ValueKey('bottom_bar_surface'),
           duration: AppConstants.animationNormal,
           curve: Curves.easeOutCubic,
-          margin: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            0,
-            horizontalPadding,
-            bottomPadding + verticalPadding,
+          width: navigationWidth,
+          margin: EdgeInsets.only(
+            bottom: bottomPadding + verticalPadding,
           ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -112,26 +113,19 @@ class _FlickNavBarState extends State<FlickNavBar> {
                     ),
                   ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!widget.separateMiniPlayer &&
-                  widget.showMiniPlayer &&
-                  widget.miniPlayerWidget != null)
-                widget.miniPlayerWidget!,
-              AnimatedCrossFade(
-                firstChild: _buildNavigationRow(context, buttons),
-                secondChild: const SizedBox.shrink(),
-                crossFadeState: widget.collapsed
-                    ? CrossFadeState.showSecond
-                    : CrossFadeState.showFirst,
-                duration: AppConstants.animationNormal,
-                sizeCurve: Curves.easeOutCubic,
-              ),
-            ],
+          child: AnimatedCrossFade(
+            firstChild: _buildNavigationRow(context, buttons),
+            secondChild: const SizedBox.shrink(),
+            crossFadeState: widget.collapsed
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: AppConstants.animationNormal,
+            sizeCurve: Curves.easeOutCubic,
           ),
         ),
       ],
+      );
+      },
       ),
     );
   }

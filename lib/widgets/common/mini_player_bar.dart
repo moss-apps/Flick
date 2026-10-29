@@ -77,18 +77,17 @@ class MiniPlayerBar extends StatelessWidget {
         );
         final minimum =
             controlsWidth + titleWidth + 16 + (config.showArtwork ? height : 0);
-        final width = separated
-            ? config.widthMode == MiniPlayerWidthMode.matchNavigation
-                  ? math.max(
-                      0.0,
-                      available -
-                          2 * BottomBarGeometry.navigationInset(context),
-                    )
-                  : math.min(
-                      available,
-                      math.max(available * config.widthFraction, minimum),
-                    )
-            : math.max(0.0, available - 24);
+        final standardWidth = BottomBarGeometry.standardNavigationWidth(
+          context,
+          availableWidth: available,
+        );
+        final width =
+            separated && config.widthMode == MiniPlayerWidthMode.custom
+            ? math.min(
+                available,
+                math.max(available * config.widthFraction, minimum),
+              )
+            : standardWidth;
         final artworkVisible =
             config.showArtwork &&
             width >= controlsWidth + titleWidth + height + 16;

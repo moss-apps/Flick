@@ -10,6 +10,7 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
   static const _spacingKey = 'nav_bar_spacing';
   static const _iconSizeKey = 'nav_bar_icon_size';
   static const _showLabelsKey = 'nav_bar_show_labels';
+  static const _widthFractionKey = 'nav_bar_width_fraction';
 
   bool _initialized = false;
   late Future<void> _ready;
@@ -44,6 +45,10 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
       buttonSpacingFactor: prefs.getDouble(_spacingKey) ?? 1.0,
       iconSizeFactor: prefs.getDouble(_iconSizeKey) ?? 1.0,
       showLabels: prefs.getBool(_showLabelsKey) ?? true,
+      widthFraction: (prefs.getDouble(_widthFractionKey) ?? 1.0).clamp(
+        0.7,
+        1.0,
+      ),
     );
   }
 
@@ -87,6 +92,7 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
     await prefs.setDouble(_spacingKey, state.buttonSpacingFactor);
     await prefs.setDouble(_iconSizeKey, state.iconSizeFactor);
     await prefs.setBool(_showLabelsKey, state.showLabels);
+    await prefs.setDouble(_widthFractionKey, state.widthFraction);
   }
 
   Future<void> setEnabledButtons(List<NavBarButton> buttons) async {
@@ -145,6 +151,13 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
   Future<void> setShowLabels(bool value) async {
     if (state.showLabels == value) return;
     state = state.copyWith(showLabels: value);
+    await _persist();
+  }
+
+  Future<void> setWidthFraction(double value) async {
+    final clamped = value.clamp(0.7, 1.0);
+    if (state.widthFraction == clamped) return;
+    state = state.copyWith(widthFraction: clamped);
     await _persist();
   }
 

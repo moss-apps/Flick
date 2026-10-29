@@ -86,7 +86,6 @@ void main() {
                   currentIndex: 1,
                   onTap: (_) {},
                   collapsed: collapsed,
-                  separateMiniPlayer: separated,
                   showMiniPlayer: true,
                   miniPlayerWidget: _bar(
                     config,
@@ -134,7 +133,6 @@ void main() {
             currentIndex: 1,
             onTap: (_) {},
             showMiniPlayer: true,
-            separateMiniPlayer: true,
             collapsed: collapsed,
             miniPlayerWidget: _bar(
               MiniPlayerConfig.defaultConfig,
@@ -154,6 +152,66 @@ void main() {
     expect(await render(true), expanded);
     expect(expanded, 327);
   });
+
+  testWidgets(
+    'bottom bar width changes alone while the mini player stays put',
+    (tester) async {
+      final navigationConfig = NavBarConfig.defaultConfig.copyWith(
+        widthFraction: 0.8,
+      );
+
+      for (final separated in [false, true]) {
+        Future<void> render(bool collapsed) async {
+          await tester.pumpWidget(
+            _host(
+              FlickNavBar(
+                config: navigationConfig,
+                currentIndex: 1,
+                onTap: (_) {},
+                showMiniPlayer: true,
+                collapsed: collapsed,
+                miniPlayerWidget: _bar(
+                  MiniPlayerConfig.defaultConfig,
+                  separated: separated,
+                  collapsed: collapsed,
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+        }
+
+        await render(false);
+        final navBarCenter = tester.getCenter(find.byType(FlickNavBar)).dx;
+        final bar = tester.getRect(
+          find.byKey(const ValueKey('bottom_bar_surface')),
+        );
+        final mini = tester.getRect(
+          find.byKey(const ValueKey('mini_player_surface')),
+        );
+        expect(bar.width, closeTo(327 * 0.8, 0.01));
+        expect(bar.center.dx, closeTo(navBarCenter, 0.01));
+        expect(mini.width, closeTo(327, 0.01));
+        expect(mini.center.dx, closeTo(navBarCenter, 0.01));
+        expect(tester.takeException(), isNull);
+
+        await render(true);
+        expect(
+          tester
+              .getSize(find.byKey(const ValueKey('bottom_bar_surface')))
+              .width,
+          closeTo(327 * 0.8, 0.01),
+        );
+        expect(
+          tester
+              .getSize(find.byKey(const ValueKey('mini_player_surface')))
+              .width,
+          closeTo(327, 0.01),
+        );
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 
   testWidgets(
     'custom width can be wider and narrower and is ignored when joined',
@@ -178,8 +236,8 @@ void main() {
 
       expect(await render(1, true), 375);
       expect(await render(0.7, true), 262.5);
-      expect(await render(0.7, false), 351);
-      expect(await render(1, false), 351);
+      expect(await render(0.7, false), 327);
+      expect(await render(1, false), 327);
     },
   );
 
@@ -396,6 +454,7 @@ void main() {
       'nav_bar_spacing': 1.5,
       'nav_bar_icon_size': 1.3,
       'nav_bar_show_labels': false,
+      'nav_bar_width_fraction': 0.8,
       'bottom_bar_auto_collapse_enabled': true,
       'bottom_bar_auto_collapse_seconds': 17,
       'separate_mini_player_from_nav_bar': true,
@@ -413,6 +472,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(container.read(navBarConfigProvider).showLabels, isFalse);
+    expect(container.read(navBarConfigProvider).widthFraction, 0.8);
+    expect(find.text('Bottom Bar Width'), findsOneWidget);
     await tester.ensureVisible(find.text('Reset Navigation to Defaults'));
     await tester.tap(find.text('Reset Navigation to Defaults'));
     await tester.pumpAndSettle();
@@ -433,6 +494,7 @@ void main() {
     expect(stored.getDouble('nav_bar_spacing'), 1);
     expect(stored.getDouble('nav_bar_icon_size'), 1);
     expect(stored.getBool('nav_bar_show_labels'), isTrue);
+    expect(stored.getDouble('nav_bar_width_fraction'), 1);
     expect(stored.getBool('bottom_bar_auto_collapse_enabled'), isFalse);
     expect(stored.getInt('bottom_bar_auto_collapse_seconds'), 5);
     expect(tester.takeException(), isNull);

@@ -533,6 +533,12 @@ abstract class AppLocalizations {
   /// **'Adjust the size of the icons'**
   String get adjustTheSizeOfTheIcons;
 
+  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:226
+  ///
+  /// In en, this message translates to:
+  /// **'Scale the bar inward from its usual side margins'**
+  String get adjustTheWidthOfTheBottom;
+
   /// lib/models/advance_list_order.dart:15
   ///
   /// In en, this message translates to:
@@ -1900,6 +1906,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bottom Bar Always Visible'**
   String get bottomBarAlwaysVisible;
+
+  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:225
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom Bar Width'**
+  String get bottomBarWidth;
 
   /// lib/features/settings/screens/visualizer_settings_screen.dart:169
   ///
