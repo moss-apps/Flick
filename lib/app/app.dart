@@ -1059,7 +1059,6 @@ class _MainShellState extends ConsumerState<MainShell>
           );
         },
         showMiniPlayer: true,
-        separateMiniPlayer: separated,
         miniPlayerWidget: TutorialTargetAnchor(
           target: TutorialTarget.miniPlayer,
           child: EmbeddedMiniPlayer(

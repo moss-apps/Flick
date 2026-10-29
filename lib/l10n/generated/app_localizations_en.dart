@@ -265,6 +265,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adjustTheSizeOfTheIcons => 'Adjust the size of the icons';
 
   @override
+  String get adjustTheWidthOfTheBottom =>
+      'Scale the bar inward from its usual side margins';
+
+  @override
   String get advanceToARandomCategory => 'Advance to a random category';
 
   @override
@@ -1083,6 +1087,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bottomBarAlwaysVisible => 'Bottom Bar Always Visible';
+
+  @override
+  String get bottomBarWidth => 'Bottom Bar Width';
 
   @override
   String get bouncy => 'Bouncy';

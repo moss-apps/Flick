@@ -9,6 +9,7 @@ import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/app_preferences_service.dart';
+import 'package:flick/widgets/navigation/bottom_bar_geometry.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/settings/widgets/mini_player_customization.dart';
 import 'package:flick/l10n/settings_l10n.dart';
@@ -220,6 +221,22 @@ class BottomBarSettingsScreen extends ConsumerWidget {
           SettingsSectionHeader(l10n.englishForFilipino.navigationAppearance, sectionId: 'navigationAppearance'),
           SettingsCard(
             children: [
+              SliderSetting(
+                icon: LucideIcons.moveHorizontal,
+                title: l10n.englishForFilipino.bottomBarWidth,
+                subtitle: l10n.adjustTheWidthOfTheBottom,
+                value: config.widthFraction,
+                displayValue: '${(config.widthFraction * 100).round()}%',
+                min: BottomBarGeometry.minWidthFraction,
+                max: BottomBarGeometry.maxWidthFraction,
+                divisions: 30,
+                onChanged: (value) {
+                  ref
+                      .read(navBarConfigProvider.notifier)
+                      .setWidthFraction(value);
+                },
+              ),
+              const SettingsDivider(),
               SliderSetting(
                 icon: LucideIcons.ruler,
                 title: l10n.englishForFilipino.barHeight,

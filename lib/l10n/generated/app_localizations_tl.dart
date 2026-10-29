@@ -274,6 +274,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String get adjustTheSizeOfTheIcons => 'Ayusin ang laki ng mga icon';
 
   @override
+  String get adjustTheWidthOfTheBottom =>
+      'Iurong ang bar mula sa karaniwang gilid';
+
+  @override
   String get advanceToARandomCategory => 'Lumipat sa sapalarang kategorya';
 
   @override
@@ -1098,6 +1102,9 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get bottomBarAlwaysVisible => 'Laging ipakita ang bar sa ibaba';
+
+  @override
+  String get bottomBarWidth => 'Lapad ng bar sa ibaba';
 
   @override
   String get bouncy => 'Tumalbog';

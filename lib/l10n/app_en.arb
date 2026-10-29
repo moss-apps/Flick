@@ -348,6 +348,10 @@
   "@adjustTheSizeOfTheIcons": {
     "description": "lib/features/settings/screens/bottom_bar_settings_screen.dart:291"
   },
+  "adjustTheWidthOfTheBottom": "Scale the bar inward from its usual side margins",
+  "@adjustTheWidthOfTheBottom": {
+    "description": "lib/features/settings/screens/bottom_bar_settings_screen.dart:226"
+  },
   "advanceToARandomCategory": "Advance to a random category",
   "@advanceToARandomCategory": {
     "description": "lib/models/advance_list_order.dart:15"
@@ -1430,6 +1434,10 @@
   "bottomBarAlwaysVisible": "Bottom Bar Always Visible",
   "@bottomBarAlwaysVisible": {
     "description": "lib/features/settings/screens/playback_display_settings_screen.dart:142"
+  },
+  "bottomBarWidth": "Bottom Bar Width",
+  "@bottomBarWidth": {
+    "description": "lib/features/settings/screens/bottom_bar_settings_screen.dart:225"
   },
   "bouncy": "Bouncy",
   "@bouncy": {

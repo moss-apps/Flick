@@ -248,6 +248,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adjustTheSizeOfTheIcons => '调整图标的大小';
 
   @override
+  String get adjustTheWidthOfTheBottom => '从两侧向中间收窄底栏';
+
+  @override
   String get advanceToARandomCategory => '随机切换到一个分类';
 
   @override
@@ -1004,6 +1007,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get bottomBarAlwaysVisible => '底栏始终可见';
+
+  @override
+  String get bottomBarWidth => '底栏宽度';
 
   @override
   String get bouncy => '弹跳';

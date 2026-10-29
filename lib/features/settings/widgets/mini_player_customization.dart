@@ -360,7 +360,6 @@ class _MiniPlayerPreviewState extends ConsumerState<MiniPlayerPreview> {
                     onTap: (_) {},
                     collapsed: _collapsed,
                     showMiniPlayer: true,
-                    separateMiniPlayer: separated,
                     miniPlayerWidget: MiniPlayerBar(
                       config: mini,
                       separated: separated,

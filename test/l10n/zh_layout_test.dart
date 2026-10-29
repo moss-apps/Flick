@@ -196,7 +196,6 @@ Widget _navBar({required bool collapsed, required bool separated}) => FlickNavBa
       currentIndex: 1,
       onTap: (_) {},
       collapsed: collapsed,
-      separateMiniPlayer: separated,
       showMiniPlayer: true,
       miniPlayerWidget: MiniPlayerBar(
         config: _miniConfig(),

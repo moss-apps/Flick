@@ -517,6 +517,7 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
         _section('disabled', l10n.disabled, []),
         _section('hidden', l10n.hidden, []),
         _section('navigationAppearance', l10n.navigationAppearance, [
+          ('bottomBarWidth', l10n.bottomBarWidth),
           ('barHeight', l10n.barHeight),
           ('buttonSpacing', l10n.buttonSpacing),
           ('iconSize', l10n.iconSize),
