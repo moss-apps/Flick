@@ -676,7 +676,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
               color: AppColors.accent,
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
+                  parent: ClampingScrollPhysics(),
                 ),
                 slivers: [
                   SliverToBoxAdapter(

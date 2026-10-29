@@ -94,7 +94,6 @@ class ParametricEqGraph extends ConsumerWidget {
                   ),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
                     child: SizedBox(
                       width: contentWidth,
                       child: LineChart(

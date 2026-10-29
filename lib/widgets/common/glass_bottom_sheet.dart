@@ -191,10 +191,7 @@ class GlassBottomSheet extends StatelessWidget {
                 child: DefaultTextStyle(
                   style: Theme.of(context).textTheme.bodyMedium!,
                   child: RepaintBoundary(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: content!,
-                    ),
+                    child: SingleChildScrollView(child: content!),
                   ),
                 ),
               ),
