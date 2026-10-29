@@ -2996,7 +2996,6 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
     return AppBottomSheetSurface(
       maxHeightRatio: 0.7,
       child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

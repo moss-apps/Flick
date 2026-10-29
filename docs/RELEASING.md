@@ -11,7 +11,7 @@ flutter build appbundle --flavor play --release
 ```
 
 - Output: `build/app/outputs/bundle/playRelease/app-play-release.aab`
-- Upload the bundle and bump the version code (current: `0.23.0-beta.1+30`).
+- Upload the bundle and bump the version code (current: `0.23.0-beta.2+31`).
 - The `play` flavor does **not** declare `MANAGE_EXTERNAL_STORAGE`. The
   All Files Access declaration no longer applies to this build — **do not
   resubmit it**. It was rejected twice (see

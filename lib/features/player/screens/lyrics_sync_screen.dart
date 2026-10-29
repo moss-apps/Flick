@@ -1219,7 +1219,6 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
 
   Widget _buildToolsPane(BuildContext context) {
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

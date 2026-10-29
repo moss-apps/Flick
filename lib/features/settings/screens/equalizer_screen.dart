@@ -1832,7 +1832,6 @@ class _GraphicEqView extends ConsumerWidget {
                   child: RepaintBoundary(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
                       child: Row(
                         children: List<Widget>.generate(
                           EqualizerState.defaultGraphicFrequenciesHz.length,
@@ -2251,7 +2250,6 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                     child: ListView.separated(
                       controller: _bandScrollController,
                       scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
                       itemCount: bands.length + 1,
                       separatorBuilder: (_, _) =>
                           const SizedBox(width: AppConstants.spacingMd),
@@ -2372,7 +2370,6 @@ class _ParametricBandSummary extends StatelessWidget {
       height: 34,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
         itemCount: bands.length,
         itemBuilder: (context, index) {
           final band = bands[index];
