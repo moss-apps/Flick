@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/core/theme/app_system_ui.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/features/songs/screens/songs_screen.dart';
 import 'package:flick/features/menu/screens/menu_screen.dart';
@@ -61,16 +62,6 @@ class FlickPlayerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Set system UI overlay style for immersive experience
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: AppColors.background,
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
-    );
-
     return ValueListenableBuilder<Locale?>(
       valueListenable: LocaleController.instance,
       builder: (context, selectedLocale, _) {
@@ -92,14 +83,22 @@ class FlickPlayerApp extends StatelessWidget {
             // service-layer strings resolve consistently with the widget layer.
             LocaleController.instance.bind(AppLocalizations.of(context));
             return Consumer(
-              builder: (context, ref, _) => ConnectionNoticeHost(
-                showNotice: ref.watch(
-                  appPreferencesProvider.select(
-                    (preferences) => preferences.connectionNoticesEnabled,
+              builder: (context, ref, _) =>
+                  AnnotatedRegion<SystemUiOverlayStyle>(
+                    // App-wide fallback. A route that paints a light surface
+                    // (the onboarding pages) declares its own region; once it
+                    // is gone this one takes over again instead of leaving the
+                    // old icon brightness behind.
+                    value: AppSystemUi.standard,
+                    child: ConnectionNoticeHost(
+                      showNotice: ref.watch(
+                        appPreferencesProvider.select(
+                          (preferences) => preferences.connectionNoticesEnabled,
+                        ),
+                      ),
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                   ),
-                ),
-                child: child ?? const SizedBox.shrink(),
-              ),
             );
           },
         );

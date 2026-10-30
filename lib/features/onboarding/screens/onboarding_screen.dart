@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flick/core/theme/app_system_ui.dart';
 import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/features/onboarding/widgets/onboarding_poster.dart';
 import 'package:flick/features/recap/widgets/replay_style.dart';
@@ -72,17 +73,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       l10n.onboardingReadyBody,
     ];
     final colors = OnboardingPosterColors.forPage(_currentPage);
-    final dark = colors.background == ReplayStyle.ink;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: colors.background,
-        systemNavigationBarIconBrightness: dark
-            ? Brightness.light
-            : Brightness.dark,
-      ),
+      value: AppSystemUi.forBackground(colors.background),
       child: Scaffold(
         backgroundColor: colors.background,
         body: AnimatedContainer(
