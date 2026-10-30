@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-29T11:10:48Z",
+  "title": "Design System: Flick Poster Visual System",
+  "extensions": {
+    "colorMeta": {
+      "acid": { "role": "primary", "displayName": "Replay Acid" },
+      "signal": { "role": "secondary", "displayName": "Replay Signal" },
+      "ink": { "role": "neutral", "displayName": "Replay Ink" },
+      "paper": { "role": "neutral", "displayName": "Replay Paper" }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Measured poster display",
+        "purpose": "Native Flutter sizing, not a CSS viewport clamp. W and H are the poster's local constrained viewport; wide = W >= 620 && W > H; w = wide ? (W - 80) / 2 : W - 48. enlarged = MediaQuery.textScalerOf(context).scale(16) > 21. Normal base = clamp(w * 0.17, 44, w >= 600 ? 96 : 72); enlarged reading-tier base = clamp(w * 0.115, 30, 44). Only enlarged headings are fitted. TextPainter uses actual direction, locale, and unchanged actual TextScaler, including nonlinear scaling. Accept base when minIntrinsicWidth <= w - 1; otherwise eight bounded bisections between 16 and base retain the largest measured fitting candidate. Intrinsic width respects localized word/line boundaries. Letter spacing = -0.035 * fittedFontSize. Flutter still scales the resulting size; copy scaling is never disabled or capped. The panel copy is one fixed-size reference snapshot, not this algorithm."
+      },
+      "body": {
+        "displayName": "Localized guidance",
+        "purpose": "Preserve supplied line breaks and natural wrapping, with unchanged actual TextScaler. GoogleSansFlex falls back explicitly through NotoSansSC and NotoSansTagalog, then platform fallback for missing glyphs. No ellipsis or fixed copy height."
+      },
+      "button": {
+        "displayName": "Primary action label",
+        "purpose": "Localized Next/Get Started labels retain actual TextScaler and may wrap inside a Flexible child. Native Material states are authoritative."
+      },
+      "skip": {
+        "displayName": "Optional Skip label",
+        "purpose": "Native TextButton with unchanged copy scaling; absent on the final page, where a placeholder preserves header geometry."
+      },
+      "progress": {
+        "displayName": "Real onboarding count",
+        "purpose": "Numeric progress and five noninteractive dots; a single live-region semantics value avoids duplicate announcements."
+      },
+      "logotype": {
+        "displayName": "Fixed Flick wordmark",
+        "purpose": "Bold italic brand text in a 60dp-wide scale-down box. This brand treatment alone uses TextScaler.noScaling; it is not guidance copy."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "graphic-reveal",
+        "value": "650ms",
+        "purpose": "Once per mounted graphic's first active presentation. Main geometry uses Curves.easeOutQuart. Mark dot i uses Interval(i * 0.012, 0.72 + i * 0.012, curve: Curves.easeOutQuart). Inactive graphics are settled; returning does not restart a played reveal. Panel artwork shows the static final pose."
+      },
+      {
+        "name": "page-and-field-transition",
+        "value": "300ms",
+        "purpose": "PageController.animateToPage and the background AnimatedContainer use Curves.easeOutCubic through ReplayStyle.duration(context)."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "Duration.zero",
+        "purpose": "MediaQuery.disableAnimations or AppConstants.animationNormal == Duration.zero presents finished static art, jumps Next immediately, and removes the field transition. Native Material tap feedback may still settle independently."
+      }
+    ],
+    "breakpoints": [
+      { "name": "content-max-width", "value": "960dp maximum for header, poster, and footer; 24dp horizontal padding inside" },
+      { "name": "wide-poster", "value": "Local poster constraints.maxWidth >= 620dp AND constraints.maxWidth > constraints.maxHeight" },
+      { "name": "stacked-tablet-art", "value": "Stacked branch at local W >= 620dp allows art up to 520dp instead of 300dp; height = clamp(H * 0.44, 176, W >= 620 ? 520 : 300)" },
+      { "name": "wide-art-height", "value": "Wide branch art height = clamp(H, 200, 400)dp, with equal copy/art columns and a 32dp gap" },
+      { "name": "footer-stack-width", "value": "Footer inner available width < 320dp, after frame padding; stack progress and full-width action with a 12dp gap" },
+      { "name": "enlarged-copy-and-footer", "value": "MediaQuery.textScalerOf(context).scale(16) > 21; use the reading-tier display base and stack the footer regardless of width" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Ink action on an acid field",
+      "kind": "button",
+      "refersTo": "button-ink",
+      "description": "Reference translation of the native FilledButton, shown on acid. On paper/signal its label instead matches that field. Minimum 144 × 56dp, not a fixed height. Web state layers and focus outline are equivalents, not an Android state specification; no Flutter changes are implied.",
+      "html": "<div class=\"ds-ink-action-stage\"><button type=\"button\" class=\"ds-ink-action\"><span>Next</span><svg aria-hidden=\"true\" focusable=\"false\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14m-6-6 6 6-6 6\"/></svg></button></div>",
+      "css": ".ds-ink-action-stage{background:#E3F369;padding:24px}.ds-ink-action{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:20px;min-width:144px;min-height:56px;padding:16px 20px;border:0;border-radius:2px;background:#0A0A0A;color:#E3F369;font-family:GoogleSansFlex,NotoSansSC,NotoSansTagalog,sans-serif;font-size:16px;font-weight:700;cursor:pointer}.ds-ink-action span{min-width:0;white-space:normal;text-align:center}.ds-ink-action svg{flex-shrink:0}.ds-ink-action::after{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;pointer-events:none}.ds-ink-action:hover::after{opacity:.08}.ds-ink-action:focus-visible{outline:2px solid #0A0A0A;outline-offset:3px}.ds-ink-action:focus-visible::after{opacity:.1}.ds-ink-action:active::after{opacity:.1}.ds-ink-action:disabled{opacity:.38;cursor:default}.ds-ink-action:disabled::after{opacity:0}"
+    },
+    {
+      "name": "Acid action on an ink field",
+      "kind": "button",
+      "refersTo": "button-acid",
+      "description": "Reference translation of the native primary action on an ink field. Get Started is the final-page label. This panel button does not persist completion or run the Flutter tutorial handoff.",
+      "html": "<div class=\"ds-acid-action-stage\"><button type=\"button\" class=\"ds-acid-action\"><span>Get Started</span><svg aria-hidden=\"true\" focusable=\"false\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14m-6-6 6 6-6 6\"/></svg></button></div>",
+      "css": ".ds-acid-action-stage{background:#0A0A0A;padding:24px}.ds-acid-action{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:20px;min-width:144px;min-height:56px;padding:16px 20px;border:0;border-radius:2px;background:#E3F369;color:#0A0A0A;font-family:GoogleSansFlex,NotoSansSC,NotoSansTagalog,sans-serif;font-size:16px;font-weight:700;cursor:pointer}.ds-acid-action span{min-width:0;white-space:normal;text-align:center}.ds-acid-action svg{flex-shrink:0}.ds-acid-action::after{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;pointer-events:none}.ds-acid-action:hover::after{opacity:.08}.ds-acid-action:focus-visible{outline:2px solid #E3F369;outline-offset:3px}.ds-acid-action:focus-visible::after{opacity:.1}.ds-acid-action:active::after{opacity:.1}.ds-acid-action:disabled{opacity:.38;cursor:default}.ds-acid-action:disabled::after{opacity:0}"
+    },
+    {
+      "name": "Skip text action",
+      "kind": "button",
+      "refersTo": "button-skip",
+      "description": "Reference translation of the square native TextButton, shown on acid with its at-least-48dp target and inherited theme padding. The native screen supplies the current foreground and completion callback.",
+      "html": "<div class=\"ds-skip-stage\"><button type=\"button\" class=\"ds-skip\">Skip</button></div>",
+      "css": ".ds-skip-stage{background:#E3F369;padding:24px}.ds-skip{position:relative;min-width:48px;min-height:48px;padding:8px 16px;border:0;border-radius:0;background:transparent;color:#0A0A0A;font-family:GoogleSansFlex,NotoSansSC,NotoSansTagalog,sans-serif;font-size:15px;cursor:pointer}.ds-skip::after{content:'';position:absolute;inset:0;background:currentColor;opacity:0;pointer-events:none}.ds-skip:hover::after{opacity:.08}.ds-skip:focus-visible{outline:2px solid #0A0A0A;outline-offset:3px}.ds-skip:focus-visible::after{opacity:.1}.ds-skip:active::after{opacity:.1}.ds-skip:disabled{opacity:.38;cursor:default}.ds-skip:disabled::after{opacity:0}"
+    },
+    {
+      "name": "Ruled progress footer",
+      "kind": "custom",
+      "refersTo": "progress",
+      "description": "Reference translation of the pinned footer in its real initial state, not clickable dots or playback telemetry. The native live region announces 1 / 5 once. The container query models inner width below 320dp only; native TextScaler.scale(16) > 21 also stacks it. HTML controls are illustrative, not wired navigation.",
+      "html": "<div class=\"ds-footer-frame\"><div class=\"ds-footer\"><div class=\"ds-footer-progress\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"1 / 5\"><div class=\"ds-footer-count\" aria-hidden=\"true\">01 / 05</div><div class=\"ds-footer-dots\" aria-hidden=\"true\"><span class=\"ds-footer-dot ds-footer-current\"></span><span class=\"ds-footer-dot\"></span><span class=\"ds-footer-dot\"></span><span class=\"ds-footer-dot\"></span><span class=\"ds-footer-dot\"></span></div></div><button type=\"button\" class=\"ds-footer-action\"><span>Next</span><svg aria-hidden=\"true\" focusable=\"false\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14m-6-6 6 6-6 6\"/></svg></button></div></div>",
+      "css": ".ds-footer-frame{container-type:inline-size;background:#E3F369;color:#0A0A0A;padding:0 24px 20px;font-family:GoogleSansFlex,NotoSansSC,NotoSansTagalog,sans-serif}.ds-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid rgb(10 10 10 / .3);padding-top:16px}.ds-footer-count{font-size:13px;font-weight:700;letter-spacing:1px}.ds-footer-dots{display:flex;margin-top:8px}.ds-footer-dot{display:block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:currentColor;opacity:.25}.ds-footer-current{opacity:1}.ds-footer-action{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:20px;min-width:144px;min-height:56px;padding:16px 20px;border:0;border-radius:2px;background:#0A0A0A;color:#E3F369;font-family:GoogleSansFlex,NotoSansSC,NotoSansTagalog,sans-serif;font-size:16px;font-weight:700;cursor:pointer}.ds-footer-action span{min-width:0;white-space:normal;text-align:center}.ds-footer-action svg{flex-shrink:0}.ds-footer-action::after{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;pointer-events:none}.ds-footer-action:hover::after{opacity:.08}.ds-footer-action:focus-visible{outline:2px solid #0A0A0A;outline-offset:3px}.ds-footer-action:focus-visible::after{opacity:.1}.ds-footer-action:active::after{opacity:.1}.ds-footer-action:disabled{opacity:.38;cursor:default}.ds-footer-action:disabled::after{opacity:0}@container (max-width:319.98px){.ds-footer{flex-direction:column;align-items:stretch;gap:12px}}"
+    },
+    {
+      "name": "Localized poster copy",
+      "kind": "custom",
+      "refersTo": "poster-copy",
+      "description": "Fixed-size reference translation of the grouped Browse copy on paper: local W=360dp gives w=312dp and normal base display size 53.04. The source localization's explicit line breaks are preserved. This is not responsive Flutter sizing, enlarged-heading fitting, or an instruction to use one page's composition universally. Browser font fallback cannot certify native font wrapping.",
+      "html": "<section class=\"ds-copy\"><h2 class=\"ds-copy-heading\">Browse\nYour Music</h2><p class=\"ds-copy-body\">Swipe between tabs to explore\nSongs, Artists, Albums, and\nPlaylists. Sort and search\nyour entire collection.</p></section>",
+      "css": ".ds-copy{width:312px;max-width:100%;padding:24px;background:#F1F0EB;color:#0A0A0A;font-family:GoogleSansFlex,NotoSansSC,NotoSansTagalog,sans-serif}.ds-copy-heading{margin:0;font-size:53.04px;font-weight:700;line-height:1;letter-spacing:-.035em;white-space:pre-line}.ds-copy-body{margin:20px 0 0;font-size:16px;font-weight:400;line-height:1.5;letter-spacing:.25px;white-space:pre-line}"
+    },
+    {
+      "name": "Official mark and livery artwork",
+      "kind": "custom",
+      "description": "Static final-pose reference translation of the native welcome graphic, not a shipping raster or interactive control. All 18 official SVG circles are retained, nested at 606:734 inside the separate 360 × 244 artboard. Dart uses the corresponding normalized x/606,y/734 centers in _logoDots, with radius bounds.width * (29.4994 / 606). The SVG is semantic-free like ExcludeSemantics in the native painter.",
+      "html": "<div class=\"ds-art\"><svg class=\"ds-art-board\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 360 244\" xmlns=\"http://www.w3.org/2000/svg\"><defs><clipPath id=\"ds-art-stripe-clip\"><rect x=\"-16\" y=\"174\" width=\"174\" height=\"62\"/></clipPath><pattern id=\"ds-art-matrix\" x=\"10\" y=\"32\" width=\"12\" height=\"12\" patternUnits=\"userSpaceOnUse\"><circle cx=\"6\" cy=\"6\" r=\"2.2\" fill=\"currentColor\"/></pattern></defs><rect x=\"10\" y=\"32\" width=\"60\" height=\"48\" fill=\"url(#ds-art-matrix)\"/><g clip-path=\"url(#ds-art-stripe-clip)\" fill=\"currentColor\"><path d=\"M-78 236h15l62-62h-15z M-46 236h15l62-62h-15z M-14 236h15l62-62h-15z M18 236h15l62-62h-15z M50 236h15l62-62h-15z M82 236h15l62-62h-15z M114 236h15l62-62h-15z M146 236h15l62-62h-15z\"/></g><path d=\"M0 148h112\" stroke=\"currentColor\"/><circle cx=\"112\" cy=\"148\" r=\"5\" fill=\"#FF5636\"/><svg x=\"166\" y=\"0\" width=\"194\" height=\"235\" viewBox=\"0 0 606 734\" preserveAspectRatio=\"xMidYMid meet\" fill=\"currentColor\"><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(0.31499 -0.949095 -0.949095 -0.31499 587.416 640.753)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(0.31499 -0.949095 -0.949095 -0.31499 494.09 609.779)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(0.31499 -0.949095 -0.949095 -0.31499 400.764 578.806)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(-1 0 0 1 412.004 224.306)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(-1 0 0 1 412.004 322.637)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(-1 0 0 1 412.004 420.968)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(-0.364673 0.931136 0.931136 0.364673 182.528 51.4795)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(-0.364673 0.931136 0.931136 0.364673 274.088 87.3384)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(-0.364673 0.931136 0.931136 0.364673 365.648 123.197)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(-0.364673 0.931136 0.931136 0.364673 90.5999 106.637)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(-0.364673 0.931136 0.931136 0.364673 182.16 142.496)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(-0.364673 0.931136 0.931136 0.364673 273.719 178.354)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(1 0 0 -1 261.077 344.59)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(-0.364673 0.931136 0.931136 0.364673 97.217 20.2373)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(1 0 0 -1 0 58.999)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(0.31499 -0.949095 -0.949095 -0.31499 587.083 733.448)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(0.31499 -0.949095 -0.949095 -0.31499 493.757 702.475)\"/><circle cx=\"29.4994\" cy=\"29.4994\" r=\"29.4994\" transform=\"matrix(0.31499 -0.949095 -0.949095 -0.31499 400.431 671.501)\"/></svg><path d=\"M4 8h8M8 4v8M348 236h8M352 232v8\" fill=\"none\" stroke=\"currentColor\" stroke-opacity=\".55\"/></svg></div>",
+      "css": ".ds-art{background:#E3F369;color:#0A0A0A;padding:24px}.ds-art-board{display:block;width:100%;max-width:360px;height:auto;aspect-ratio:360/244;overflow:hidden}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Utilitarian music posters with motorsport livery",
+    "overview": "Flick's poster visual system combines Replay color fields, large branded type, black livery stripes, dot matrices, and authored record geometry. The official dotted Flick mark anchors the identity; familiar native controls remain distinct from decorative artwork. This records the approved implementation, not a new visual world.\n\nScope is the onboarding/Replay-derived poster visual system only. Standard player, library, and settings screens retain their existing Material dark theme in `lib/core/theme/app_theme.dart`. Onboarding page order and exact compositions belong to `.impeccable/surfaces/onboarding-screens-onboarding-screen-dart-eb866e34.md`, not universal design rules.\n\nThe frozen implementation includes the reviewed font-wrapping fix. The handoff reports 25 passing onboarding tests using bundled fonts, including English/Taglish whole-word regressions at 320 × 568 with 2x text, and a clean targeted analyzer. The full suite has an unrelated Isar binary mismatch. Review PNGs are supplementary Flutter widget renders, not device screenshots or shipping assets. Native Android sign-off remains blocked: the emulator did not boot, the user's phone was untouched, and the final native gate is not closed.",
+    "keyCharacteristics": [
+      "Flat Replay color fields and foreground-tinted rules.",
+      "Large left-aligned type, livery stripes, dot matrices, and authored record geometry.",
+      "Scrollable copy/art with stable native navigation and finite motion."
+    ],
+    "rules": [
+      { "name": "The Field Contrast Rule", "body": "Choose the foreground and action pairing for its actual field; do not use color alone to identify progress.", "section": "colors" },
+      { "name": "The Scaled Copy Rule", "body": "Keep the actual TextScaler on guidance and controls; fit enlarged headings by measurement rather than truncating words or suppressing scaling.", "section": "typography" },
+      { "name": "The Flat Poster Rule", "body": "Keep this poster world free of shadows, glass, gradients, and glow; this is not a prohibition on unrelated app surfaces.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do preserve Replay color roles, bundled font fallbacks, and the official 18-dot mark.",
+      "Do keep actual localized copy scaling, measured enlarged-heading fitting, and reachable native actions.",
+      "Do keep decoration semantic-free and progress tied to the real onboarding state.",
+      "Do distinguish supplementary widget renders from outstanding native Android verification."
+    ],
+    "donts": [
+      "Don't re-theme standard player, library, or settings screens from this scoped poster record.",
+      "Don't promote onboarding page order or a page's exact composition into universal rules.",
+      "Don't truncate guidance, suppress its TextScaler, or replace the fitter with a CSS viewport clamp.",
+      "Don't invent listening data, audio claims, services, ads, dependencies, or fonts to decorate onboarding."
+    ]
+  }
+}
