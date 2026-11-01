@@ -21,6 +21,10 @@ class DetailHeader extends StatelessWidget {
   final String? meta;
   final bool lossless;
 
+  /// Optional copy override for the lossless indicator. Callers that keep a
+  /// header line in a specific language pass their resolved label here.
+  final String? losslessLabel;
+
   /// Optional inline indicator beside the format/metadata, with its own action.
   final Widget? metadataBadge;
   final Color fadeTo;
@@ -46,6 +50,7 @@ class DetailHeader extends StatelessWidget {
     this.artColor,
     this.subtitleMaxLines = 1,
     this.lossless = false,
+    this.losslessLabel,
     this.metadataBadge,
   });
 
@@ -161,7 +166,7 @@ class DetailHeader extends StatelessWidget {
                               ),
                               const SizedBox(width: AppConstants.spacingXxs),
                               Text(
-                                context.l10n.lossless,
+                                losslessLabel ?? context.l10n.lossless,
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(color: context.adaptiveTextTertiary),
                               ),
@@ -188,7 +193,9 @@ class DetailHeader extends StatelessWidget {
                                 color: context.adaptiveTextSecondary,
                               ),
                             ),
-                            TextSpan(text: l10n.lossless),
+                            TextSpan(
+                              text: losslessLabel ?? l10n.lossless,
+                            ),
                           ],
                         ],
                       ),

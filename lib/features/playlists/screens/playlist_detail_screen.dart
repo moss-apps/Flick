@@ -32,6 +32,7 @@ import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/features/playlists/playlist_cover_actions.dart';
+import 'package:flick/features/playlists/playlist_header_meta.dart';
 import 'package:flick/features/playlists/playlist_rename_action.dart';
 import 'package:flick/features/playlists/widgets/playlist_sort_bottom_sheet.dart';
 import 'package:flick/features/songs/widgets/song_actions_button.dart';
@@ -135,25 +136,6 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
       }
     }
     return null;
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) return '';
-    final months = [
-      l10n.jan,
-      l10n.feb,
-      l10n.mar,
-      l10n.apr,
-      l10n.may,
-      l10n.jun,
-      l10n.jul,
-      l10n.aug,
-      l10n.sep,
-      l10n.oct,
-      l10n.nov,
-      l10n.dec,
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   bool get _hasLossless {
@@ -513,14 +495,16 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
         .where((p) => p.id != playlist.id)
         .toList();
     final bgColor = _tintBackground(_backgroundBlend);
-    final meta = [
-      if (_songs.isNotEmpty) l10n.songs3(_songs.length),
-      if (_songs.isNotEmpty) _formattedTotalDuration,
-      l10n.created(_formatDate(playlist.createdAt)),
-      if (playlist.updatedAt != null &&
-          playlist.updatedAt != playlist.createdAt)
-        l10n.updated(_formatDate(playlist.updatedAt)),
-    ].join(' · ');
+    // The playlist header stays in English under Taglish, while the playlist
+    // name, song metadata and the rest of the screen keep the active locale.
+    final headerCopy = context.l10n.englishForFilipino;
+    final meta = buildPlaylistHeaderMeta(
+      l10n: headerCopy,
+      songCount: _songs.length,
+      totalDuration: _formattedTotalDuration,
+      createdAt: playlist.createdAt,
+      updatedAt: playlist.updatedAt,
+    );
 
     return TweenAnimationBuilder<Color?>(
       tween: ColorTween(begin: AppColors.background, end: bgColor),
@@ -550,6 +534,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen>
                         subtitle: null,
                         meta: meta,
                         lossless: _hasLossless,
+                        losslessLabel: headerCopy.lossless,
                         fadeTo: resolvedBg,
                         onBack: () => Navigator.of(context).pop(),
                       ),
