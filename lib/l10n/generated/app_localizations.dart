@@ -14732,6 +14732,12 @@ abstract class AppLocalizations {
   /// **'A direct USB DAC is registered. Direct USB bypasses Android\'s mixer and system volume. The format shown is requested content format, not a measured DAC output rate.'**
   String get directUsbFormatNotice;
 
+  /// Shown after a DAC control failure; Play retries a low verified hardware volume without requiring a slider gesture.
+  ///
+  /// In en, this message translates to:
+  /// **'The DAC volume could not be confirmed. Press Play to retry at a low level. If it still fails, reconnect the DAC.'**
+  String get usbVolumeSafetyPaused;
+
   /// USB control capability notice, without claiming the DAC physically lacks volume controls or software gain is active.
   ///
   /// In en, this message translates to:

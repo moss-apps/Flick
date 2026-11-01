@@ -87,6 +87,10 @@ subsequently turning them off survives a restart.
 - The playlist cover editor is fully English in Taglish: title, crop/adjust/
   filters tabs, tools, filter names, save/reset/close controls and the discard
   dialog. English and Chinese keep their own UI copy.
+- The playlist detail header information line is English in Taglish: song
+  count, total duration, created/updated dates and the **Lossless** label. The
+  playlist name and other playlist metadata remain unchanged. English and
+  Chinese keep their own copy.
 - The artist biography heading is **Tungkol sa kanila**.
 - The Lyrics Sync Studio is fully English in Taglish: editor, tool labels,
   help, dialogs, save flow and validation messages.
@@ -281,6 +285,11 @@ flows English without changing the rest of the screen. Format labels accept
 an explicit catalog via `SongFileTypeFilter.displayNameFor`; existing callers
 of `displayName` still use the active locale. Sorting/filtering logic is unchanged.
 
+`playlist_detail_screen.dart` builds its header information line through
+`playlist_header_meta.dart` with the English copy role and passes that role's
+`lossless` label into `DetailHeader.losslessLabel`. Other detail screens keep
+the active catalog.
+
 - App locale is `tl`, the Tagalog locale supported by Flutter's stock controls;
   `fil` language tags are accepted as aliases. This is the Filipino UI choice.
 - `tl_Tglg` is a **resource-only** generated subclass. It is excluded from the
@@ -332,7 +341,8 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
       the fully English full-player three-dot sheet, inline/online lyrics and
       its playlist/share/metadata/speed/pitch/sleep/layout sub-interfaces,
       the fully English Lyrics Sync Studio,
-      the English Milestones surface and playlist cover editor, all-English
+      the English Milestones surface and playlist cover editor, the English
+      playlist detail header information line/lossless indicator, all-English
       playlist creation dialogs, the English song long-press sheet and its
       metadata/album-art subflows, Songs sort/album-options sheets and
       multiselection subflows, settings except the Taglish tagline,

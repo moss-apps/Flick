@@ -7,6 +7,8 @@ class UsbDacVolumeRestoreError extends StateError {
         'Failed to restore USB DAC hardware volume before playback'
         '${reason.isEmpty ? '' : ': $reason'}',
       );
+
+  UsbDacVolumeRestoreError.routeChanged() : this('route changed');
 }
 
 /// Restores once per DAC/volume authority, coalescing concurrent handoffs.
@@ -58,20 +60,24 @@ class UsbDacVolumeRestore {
 
   Future<void> runOnce(
     String key,
-    Future<void> Function(void Function() ensureCurrent) restore,
-  ) {
+    Future<void> Function(void Function() ensureCurrent) restore, {
+    bool force = false,
+  }) {
     if (_key != key) {
       _clear();
       _key = key;
     }
-    if (_restored) return Future<void>.value();
     final inFlight = _inFlight;
     if (inFlight != null) return inFlight;
+    // A control failure after a successful startup must be retryable on Play.
+    // Still coalesce concurrent retries instead of invalidating their work.
+    if (_restored && !force) return Future<void>.value();
+    _restored = false;
 
     final generation = _generation;
     void ensureCurrent() {
       if (generation != _generation) {
-        throw UsbDacVolumeRestoreError('route changed');
+        throw UsbDacVolumeRestoreError.routeChanged();
       }
     }
 

@@ -4,19 +4,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/utils/volume_curve.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/player_service.dart' show VolumeTier;
 import 'package:flick/l10n/l10n.dart';
-
-/// Convert a linear volume (0.0–1.0) to decibels using the same
-/// exponential curve as the Rust audio engine (≈ -60 dB to 0 dB).
-String _volumeToDb(double volume) {
-  if (volume <= 0.0) return '-∞';
-  if (volume >= 1.0) return '0.0';
-  final db = 60.0 * (volume - 1.0);
-  return db.toStringAsFixed(1);
-}
 
 class Uac2VolumeControl extends ConsumerStatefulWidget {
   final bool useGradientBackground;
@@ -96,6 +88,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
     }
 
     final tier = ref.watch(volumeTierProvider);
+    final safetyBlocked = ref.watch(usbVolumeSafetyBlockedProvider);
     final isAvailable = tier != VolumeTier.unavailable;
     final playerVolume = ref.watch(playerVolumeProvider);
     final hardwareAuthority = tier == VolumeTier.hardware;
@@ -114,6 +107,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
         isAvailable &&
         !_muteUpdateInFlight;
     final muteControlWritable =
+        !safetyBlocked &&
         volumeControlWritable &&
         (!hardwareAuthority || deviceStatus.muted != null);
     // The engine's dB curve is not the DAC Feature Unit's attenuation range.
@@ -123,7 +117,7 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
         : showDb
         ? l10n.db15(
             (effectiveVolume * 100).round(),
-            _volumeToDb(effectiveVolume),
+            formatSoftwareVolumeDb(effectiveVolume),
           )
         : '${(effectiveVolume * 100).round()}%';
 
@@ -243,7 +237,18 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
               ),
             ],
           ),
-          if (!isAvailable) ...[
+          if (safetyBlocked) ...[
+            const SizedBox(height: AppConstants.spacingXs),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                l10n.usbVolumeSafetyPaused,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: subLabelColor,
+                ),
+              ),
+            ),
+          ] else if (!isAvailable) ...[
             const SizedBox(height: AppConstants.spacingXs),
             Text(
               l10n.englishForFilipino.volumeIsFixedWhileBitPerfect2,

@@ -4,6 +4,7 @@ import 'package:flick/services/uac2_service.dart';
 
 VolumeTier tier({
   bool bitPerfectPath = true,
+  bool directUsb = false,
   Uac2VolumeMode? mode,
   bool hwFailed = false,
   bool dop = false,
@@ -18,6 +19,7 @@ VolumeTier tier({
   autoSwitchDsdForVolume: autoSwitch,
   isPassthrough: passthrough,
   usingRustBackend: rust,
+  isDirectUsbPath: directUsb,
 );
 
 void main() {
@@ -64,6 +66,54 @@ void main() {
       expect(
         tier(dop: true, mode: Uac2VolumeMode.software, autoSwitch: true),
         VolumeTier.software,
+      );
+    });
+
+    test(
+      'direct USB keeps DAC hardware authority with PCM bit-perfect off',
+      () {
+        expect(
+          tier(
+            bitPerfectPath: false,
+            directUsb: true,
+            mode: Uac2VolumeMode.hardware,
+          ),
+          VolumeTier.hardware,
+        );
+        // The grant is scoped to direct USB: a stale hardware mode on another
+        // engine must not steal authority from the software/DSP path.
+        expect(
+          tier(
+            bitPerfectPath: false,
+            directUsb: false,
+            mode: Uac2VolumeMode.hardware,
+          ),
+          VolumeTier.software,
+        );
+      },
+    );
+
+    test('direct USB falls back to engine gain without trusted hardware', () {
+      expect(
+        tier(
+          bitPerfectPath: false,
+          directUsb: true,
+          mode: Uac2VolumeMode.software,
+        ),
+        VolumeTier.software,
+      );
+      expect(
+        tier(
+          bitPerfectPath: false,
+          directUsb: true,
+          mode: Uac2VolumeMode.hardware,
+          hwFailed: true,
+        ),
+        VolumeTier.software,
+      );
+      expect(
+        tier(bitPerfectPath: false, directUsb: true, mode: null, rust: false),
+        VolumeTier.system,
       );
     });
 

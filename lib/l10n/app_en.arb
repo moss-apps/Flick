@@ -11417,6 +11417,10 @@
   "@directUsbFormatNotice": {
     "description": "Direct USB route notice; registration does not prove streaming or DAC output rate."
   },
+  "usbVolumeSafetyPaused": "The DAC volume could not be confirmed. Press Play to retry at a low level. If it still fails, reconnect the DAC.",
+  "@usbVolumeSafetyPaused": {
+    "description": "Shown after a DAC control failure; Play retries a low verified hardware volume without requiring a slider gesture."
+  },
   "usbHardwareVolumeUnavailable": "USB hardware volume is unavailable in Flick. During bit-perfect passthrough, use the device's physical controls. For software volume, play PCM with bit-perfect disabled.",
   "@usbHardwareVolumeUnavailable": {
     "description": "USB control capability notice, without claiming the DAC physically lacks volume controls or software gain is active."

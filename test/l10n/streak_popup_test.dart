@@ -42,6 +42,12 @@ Future<void> _disposeStreak(WidgetTester tester) async {
   await tester.pump();
 }
 
+// The calendar can contain the same number; only the header is the streak count.
+Finder _streakCount(int streak, String dayStreakLabel) => find.descendant(
+  of: find.widgetWithText(Row, dayStreakLabel),
+  matching: find.text('$streak'),
+);
+
 String _visibleGreeting(WidgetTester tester) {
   final texts = tester
       .widgetList<Text>(find.byType(Text))
@@ -90,7 +96,7 @@ void main() {
       for (final streak in [1, 8, 99]) {
         await _pumpStreak(tester, locale: kFilipinoLocale, streak: streak);
 
-        expect(find.text('$streak'), findsOneWidget);
+        expect(_streakCount(streak, english.dayStreak), findsOneWidget);
         expect(find.text(english.dayStreak), findsOneWidget);
         expect(find.text(english.continueLabel), findsOneWidget);
         expect(find.text(english.donTShowAgainToday), findsOneWidget);
@@ -117,7 +123,7 @@ void main() {
 
     await _pumpStreak(tester, locale: kFallbackLocale, streak: 1);
 
-    expect(find.text('1'), findsOneWidget);
+    expect(_streakCount(1, english.dayStreak), findsOneWidget);
     expect(find.text(english.dayStreak), findsOneWidget);
     expect(find.text(english.continueLabel), findsOneWidget);
     expect(find.text(english.donTShowAgainToday), findsOneWidget);
@@ -142,7 +148,7 @@ void main() {
 
     await _pumpStreak(tester, locale: const Locale('zh', 'CN'), streak: 1);
 
-    expect(find.text('1'), findsOneWidget);
+    expect(_streakCount(1, chinese.dayStreak), findsOneWidget);
     expect(find.text(chinese.dayStreak), findsOneWidget);
     expect(find.text(chinese.continueLabel), findsOneWidget);
     expect(find.text(chinese.donTShowAgainToday), findsOneWidget);
@@ -150,5 +156,28 @@ void main() {
     expect(find.text('day streak'), findsNothing);
 
     await _disposeStreak(tester);
+  });
+
+  testWidgets('streak count is distinct from a matching calendar day', (
+    tester,
+  ) async {
+    addTearDown(() => LocaleController.instance.bindLocale(kFallbackLocale));
+    // Force the collision on every run, not just when a fixed count happens to
+    // appear in the rolling calendar window.
+    final streak = DateTime.now().day;
+
+    for (final locale in [
+      kFilipinoLocale,
+      kFallbackLocale,
+      const Locale('zh', 'CN'),
+    ]) {
+      final strings = lookupFlickLocalizations(locale).englishForFilipino;
+      await _pumpStreak(tester, locale: locale, streak: streak);
+
+      expect(find.text('$streak'), findsNWidgets(2));
+      expect(_streakCount(streak, strings.dayStreak), findsOneWidget);
+
+      await _disposeStreak(tester);
+    }
   });
 }

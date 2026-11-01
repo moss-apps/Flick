@@ -24,6 +24,7 @@ class VolumeBottomSheet extends StatelessWidget {
       listenable: Listenable.merge([
         playerService.volumeTierNotifier,
         playerService.currentVolumeNotifier,
+        playerService.usbVolumeSafetyBlockedNotifier,
       ]),
       builder: (context, _) => _buildVolumeSheet(
         context,
@@ -134,7 +135,18 @@ class VolumeBottomSheet extends StatelessWidget {
                   ),
                 ],
               ),
-              if (!isAvailable) ...[
+              if (playerService.usbVolumeSafetyBlockedNotifier.value) ...[
+                const SizedBox(height: 8),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    l10n.usbVolumeSafetyPaused,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ] else if (!isAvailable) ...[
                 const SizedBox(height: 8),
                 Text(
                   l10n.volumeIsFixedWhileBitPerfect,

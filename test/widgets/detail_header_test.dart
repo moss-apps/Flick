@@ -7,7 +7,12 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/widgets/common/detail_header.dart';
 
-Widget _host({Color? artColor}) {
+Widget _host({
+  Color? artColor,
+  String? meta,
+  bool lossless = false,
+  String? losslessLabel,
+}) {
   return MaterialApp(
     theme: AppTheme.darkTheme,
     home: Scaffold(
@@ -19,7 +24,9 @@ Widget _host({Color? artColor}) {
             artBuilder: (_) => const ColoredBox(color: Colors.black),
             title: 'Test Album',
             subtitle: 'Test Artist',
-            meta: null,
+            meta: meta,
+            lossless: lossless,
+            losslessLabel: losslessLabel,
             fadeTo: AppColors.background,
             artColor: artColor,
             onBack: () {},
@@ -107,6 +114,23 @@ void main() {
     expect(
       _backButtonIcon(tester).color,
       AdaptiveColors.textPrimaryOn(AppColors.background),
+    );
+  });
+
+  testWidgets('callers can supply an English lossless label', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 1400);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      _host(meta: '3 songs', lossless: true, losslessLabel: ' Custom Lossless'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Custom Lossless', findRichText: true),
+      findsOneWidget,
     );
   });
 }

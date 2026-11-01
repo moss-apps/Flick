@@ -8705,6 +8705,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'A direct USB DAC is registered. Direct USB bypasses Android\'s mixer and system volume. The format shown is requested content format, not a measured DAC output rate.';
 
   @override
+  String get usbVolumeSafetyPaused =>
+      'The DAC volume could not be confirmed. Press Play to retry at a low level. If it still fails, reconnect the DAC.';
+
+  @override
   String get usbHardwareVolumeUnavailable =>
       'USB hardware volume is unavailable in Flick. During bit-perfect passthrough, use the device\'s physical controls. For software volume, play PCM with bit-perfect disabled.';
 

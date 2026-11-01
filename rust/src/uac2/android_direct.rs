@@ -3,6 +3,7 @@ use crate::dev_eprintln;
 use crate::audio::commands::AudioEvent;
 use crate::audio::engine::{audio_callback, AudioCallbackData};
 use crate::uac2::endpoint::{select_explicit_feedback_endpoint, FeedbackEndpointCandidate};
+use crate::uac2::iso_packet_validation::{iso_transfer_status_label, validate_iso_packet_descriptors};
 use crate::uac2::payload_audit_latch::PayloadAuditLatch;
 use crate::uac2::volume_control::{
     normalize_volume, parse_uac2_volume_ranges, quantize_volume, read_hardware_volume_snapshot, volume_bounds,
@@ -777,6 +778,10 @@ struct IsoTransferUserData {
 struct IsoTransferSlot {
     transfer: std::ptr::NonNull<libusb_transfer>,
     user_data: *mut IsoTransferUserData,
+    slot_index: usize,
+    generation: u64,
+    submitted_endpoint: u8,
+    submitted_bytes: usize,
     packet_sizes: Vec<usize>,
     queued_frame_count: usize,
     queued_underrun: bool,
@@ -793,7 +798,7 @@ struct IsoTransferPayload {
 }
 
 impl IsoTransferSlot {
-    fn new(packet_count: usize, buffer_capacity: usize) -> Result<Self, String> {
+    fn new(slot_index: usize, packet_count: usize, buffer_capacity: usize) -> Result<Self, String> {
         let completion = Arc::new(IsoTransferCompletion::new());
         let user_data = Box::new(IsoTransferUserData {
             completion,
@@ -812,6 +817,10 @@ impl IsoTransferSlot {
         Ok(Self {
             transfer,
             user_data: user_data_ptr,
+            slot_index,
+            generation: 0,
+            submitted_endpoint: 0,
+            submitted_bytes: 0,
             packet_sizes: vec![0; packet_count],
             queued_frame_count: 0,
             queued_underrun: false,
@@ -882,6 +891,9 @@ impl IsoTransferSlot {
             }
         }
 
+        self.generation = self.generation.saturating_add(1);
+        self.submitted_endpoint = endpoint;
+        self.submitted_bytes = payload.transfer_buffer.len();
         self.queued_frame_count = payload.frame_count;
         self.queued_underrun = payload.underrun;
         self.packet_sizes.copy_from_slice(&payload.packet_sizes);
@@ -906,7 +918,19 @@ impl IsoTransferSlot {
 
     fn validate_packets(&self) -> Result<(), String> {
         let transfer = unsafe { self.transfer.as_ref() };
-        validate_iso_packet_results(transfer, &self.packet_sizes)
+        validate_iso_packet_results(transfer, &self.packet_sizes).map_err(|error| {
+            format!(
+                "{}; slot={} generation={} submitted_endpoint=0x{:02x} \
+                 completed_endpoint=0x{:02x} submitted_bytes={} transfer_length={}",
+                error,
+                self.slot_index,
+                self.generation,
+                self.submitted_endpoint,
+                transfer.endpoint,
+                self.submitted_bytes,
+                transfer.length,
+            )
+        })
     }
 
     fn mark_completed(&mut self) {
@@ -6070,8 +6094,12 @@ fn run_usb_output_loop(
         thread::sleep(Duration::from_millis(2));
     }
 
-    for _ in 0..transfer_slot_count {
-        match IsoTransferSlot::new(scheduler.packets_per_transfer(), transfer_buffer_capacity) {
+    for slot_index in 0..transfer_slot_count {
+        match IsoTransferSlot::new(
+            slot_index,
+            scheduler.packets_per_transfer(),
+            transfer_buffer_capacity,
+        ) {
             Ok(slot) => slots.push(slot),
             Err(error) => {
                 fatal_error = Some(format!(
@@ -6209,7 +6237,22 @@ fn run_usb_output_loop(
             slot.mark_completed();
 
             if let Err(error) = transfer_result {
-                fatal_error = Some(format!("Android USB direct transfer failed: {}", error));
+                fatal_error = Some(format!(
+                    "Android USB direct transfer failed: {}; sample_rate={} channels={} \
+                     subslot_bytes={} bit_resolution={} service_interval_us={} interface={} \
+                     alt={} endpoint=0x{:02x} speed={:?} sync={}",
+                    error,
+                    playback_format.sample_rate,
+                    channels,
+                    slot_bytes,
+                    candidate.bit_resolution,
+                    candidate.service_interval_us,
+                    candidate.interface_number,
+                    candidate.alt_setting,
+                    candidate.endpoint_address,
+                    candidate.usb_speed,
+                    sync_type_label(candidate.sync_type),
+                ));
                 break;
             }
 
@@ -8602,59 +8645,21 @@ fn validate_iso_packet_results(
     transfer: &libusb_transfer,
     packet_sizes: &[usize],
 ) -> Result<(), String> {
-    let mut bad_statuses = Vec::new();
-    let mut short_packets = Vec::new();
-
-    for (index, expected_length) in packet_sizes.iter().enumerate() {
-        let descriptor = unsafe { &*transfer.iso_packet_desc.as_ptr().add(index) };
-        if descriptor.status != LIBUSB_TRANSFER_COMPLETED {
-            bad_statuses.push(format!(
-                "#{}:{}",
-                index,
-                iso_transfer_status_label(descriptor.status)
-            ));
-        }
-        if descriptor.actual_length != descriptor.length {
-            short_packets.push(format!(
-                "#{}:{}/{}",
-                index, descriptor.actual_length, descriptor.length
-            ));
-        } else if descriptor.actual_length as usize != *expected_length {
-            short_packets.push(format!(
-                "#{}:{}/{}",
-                index, descriptor.actual_length, expected_length
-            ));
-        }
+    if transfer.num_iso_packets != packet_sizes.len() as i32 {
+        return Err(format!(
+            "isochronous transfer completed with packet errors: \
+             packet count changed: requested={}, transfer={}",
+            packet_sizes.len(),
+            transfer.num_iso_packets,
+        ));
     }
 
-    if bad_statuses.is_empty() && short_packets.is_empty() {
-        return Ok(());
-    }
-
-    let mut parts = Vec::new();
-    if !bad_statuses.is_empty() {
-        parts.push(format!("packet_statuses={}", bad_statuses.join(",")));
-    }
-    if !short_packets.is_empty() {
-        parts.push(format!("packet_lengths={}", short_packets.join(",")));
-    }
-    Err(format!(
-        "isochronous transfer completed with packet errors: {}",
-        parts.join("; ")
-    ))
-}
-
-fn iso_transfer_status_label(status: i32) -> &'static str {
-    match status {
-        LIBUSB_TRANSFER_COMPLETED => "completed",
-        LIBUSB_TRANSFER_TIMED_OUT => "timed_out",
-        LIBUSB_TRANSFER_STALL => "stall",
-        LIBUSB_TRANSFER_NO_DEVICE => "no_device",
-        LIBUSB_TRANSFER_OVERFLOW => "overflow",
-        LIBUSB_TRANSFER_CANCELLED => "cancelled",
-        LIBUSB_TRANSFER_ERROR => "error",
-        _ => "unknown",
-    }
+    // Both callers allocated exactly packet_sizes.len() descriptors and call
+    // this only after completion, before resubmitting or freeing the transfer.
+    let descriptors = unsafe {
+        std::slice::from_raw_parts(transfer.iso_packet_desc.as_ptr(), packet_sizes.len())
+    };
+    validate_iso_packet_descriptors(packet_sizes, descriptors)
 }
 
 #[cfg(test)]

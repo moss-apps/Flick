@@ -2297,6 +2297,7 @@
   "volumeDipsWhileNotificationSoundsPlay": "Humihina ang volume habang tumutunog ang mga abiso",
   "volumeIsFixedWhileBitPerfect": "Nakapirmi ang volume habang bit-perfect passthrough dahil walang USB hardware volume sa Flick. Gamitin ang mga kontrol ng aparato, o magpatugtog ng PCM na naka-off ang bit-perfect para sa software volume.",
   "volumeIsFixedWhileBitPerfect2": "Nakapirmi ang volume habang bit-perfect passthrough dahil walang USB hardware volume sa Flick. Gamitin ang mga kontrol ng aparato, o magpatugtog ng PCM na naka-off ang bit-perfect para sa software volume.",
+  "usbVolumeSafetyPaused": "The DAC volume could not be confirmed. Press Play to retry at a low level. If it still fails, reconnect the DAC.",
   "usbHardwareVolumeUnavailable": "Walang USB hardware volume sa Flick. Habang bit-perfect passthrough, gamitin ang pisikal na mga kontrol ng aparato. Para sa software volume, magpatugtog ng PCM na naka-off ang bit-perfect.",
   "usbHardwareVolumeError": "USB hardware volume: {reason}",
   "wAgo": "{arg1} linggo ang nakalipas",
