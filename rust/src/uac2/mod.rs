@@ -46,6 +46,8 @@ mod format_negotiation;
 #[cfg(feature = "uac2")]
 pub(crate) mod iso_packet_scheduler;
 #[cfg(feature = "uac2")]
+mod iso_packet_validation;
+#[cfg(feature = "uac2")]
 mod logging;
 #[cfg(feature = "uac2")]
 mod payload_audit_latch;
