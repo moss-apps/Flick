@@ -45,6 +45,9 @@ class _TestPlayer extends Fake implements PlayerService {
   final ValueNotifier<double> currentVolumeNotifier = ValueNotifier(0.13);
 
   @override
+  final ValueNotifier<bool> usbVolumeSafetyBlockedNotifier = ValueNotifier(false);
+
+  @override
   double get currentVolume => currentVolumeNotifier.value;
   set currentVolume(double value) => currentVolumeNotifier.value = value;
 
@@ -129,6 +132,26 @@ void main() {
   for (final popup in [false, true]) {
     final surface = popup ? 'popup' : 'inline';
 
+    testWidgets('$surface explains a safety pause and keeps the DAC slider usable', (tester) async {
+      final player = _TestPlayer(VolumeTier.hardware);
+      await _pumpControl(
+        tester, player: player, status: _TestStatus(_status(hardware: true, muted: false)), popup: popup,
+      );
+      player.usbVolumeSafetyBlockedNotifier.value = true;
+      await tester.pump();
+      expect(tester.widget<Slider>(find.byType(Slider)).onChanged, isNotNull);
+      if (popup) {
+        expect(find.byTooltip(l10n.usbVolumeSafetyPaused), findsOneWidget);
+      } else {
+        expect(find.text(l10n.usbVolumeSafetyPaused), findsOneWidget);
+      }
+      final muteButton = tester.widget<IconButton>(find.byType(IconButton).first);
+      expect(muteButton.onPressed, isNull);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      player.usbVolumeSafetyBlockedNotifier.dispose();
+    });
+
     testWidgets('$surface refreshes an idle volume without a tier change', (
       tester,
     ) async {
@@ -198,6 +221,23 @@ void main() {
       await tester.pumpAndSettle();
       expect(player.writes, [0.4, 0.0, 0.4]);
       expect(status.muteWrites, isEmpty);
+    });
+
+    testWidgets('$surface software label uses the engine −40 dB curve', (
+      tester,
+    ) async {
+      final player = _TestPlayer(VolumeTier.software)..currentVolume = 0.5;
+      addTearDown(player.volumeTierNotifier.dispose);
+      addTearDown(player.currentVolumeNotifier.dispose);
+      await _pumpControl(
+        tester,
+        player: player,
+        status: _TestStatus(_status()),
+        popup: popup,
+      );
+
+      expect(find.textContaining('-20.0 dB'), findsOneWidget);
+      expect(find.textContaining('-30.0 dB'), findsNothing);
     });
 
     testWidgets('$surface unknown hardware mute does not disable volume', (
@@ -304,6 +344,28 @@ void main() {
     );
     expect(find.text(l10n.volumeIsFixedWhileBitPerfect2), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('safety pause notice wraps on a narrow screen with large text', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(360, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final player = _TestPlayer(VolumeTier.hardware)
+      ..usbVolumeSafetyBlockedNotifier.value = true;
+    await _pumpControl(tester, player: player, status: _TestStatus(_status(hardware: true)), textScale: 2.0);
+    expect(find.text(l10n.usbVolumeSafetyPaused), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('volume sheet reacts to the safety pause without a tier change', (tester) async {
+    final player = _TestPlayer(VolumeTier.hardware);
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: VolumeBottomSheet(playerService: player))));
+    expect(find.text(l10n.usbVolumeSafetyPaused), findsNothing);
+    player.usbVolumeSafetyBlockedNotifier.value = true;
+    await tester.pump();
+    expect(find.text(l10n.usbVolumeSafetyPaused), findsOneWidget);
+    expect(tester.widget<Slider>(find.byType(Slider)).onChanged, isNotNull);
   });
 
   testWidgets('Taglish fixed-volume notice is English', (tester) async {

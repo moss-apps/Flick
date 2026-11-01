@@ -247,6 +247,29 @@ void main() {
     expect(attempts, 2);
   });
 
+  test(
+    'forced recovery retries a completed restore and still coalesces',
+    () async {
+      final restore = UsbDacVolumeRestore();
+      final release = Completer<void>();
+      var calls = 0;
+      await restore.runOnce('dac|hardware', (_) async => calls++);
+
+      Future<void> recover() => restore.runOnce('dac|hardware', (_) async {
+        calls++;
+        await release.future;
+      }, force: true);
+
+      final first = recover();
+      final second = recover();
+      expect(calls, 2);
+      release.complete();
+      await Future.wait([first, second]);
+      await restore.runOnce('dac|hardware', (_) async => calls++);
+      expect(calls, 2);
+    },
+  );
+
   test('reset cancels work waiting on a route change', () async {
     final restore = UsbDacVolumeRestore();
     final started = Completer<void>();

@@ -140,4 +140,68 @@ void main() {
       Uac2PreferencesService.defaultUsbDacVolume,
     );
   });
+
+  test('new DAC keeps the first-use hardware and software default', () async {
+    final settings = await Uac2PreferencesService().getUsbVolumeSettingsForDevice(deviceA);
+    expect(settings.hardware, 0.4);
+    expect(settings.software, 0.4);
+  });
+
+  test('legacy device percentage never establishes hardware authority', () async {
+    final prefs = Uac2PreferencesService();
+    await prefs.setUsbVolumeForDevice(deviceA, 0.5);
+    final settings = await prefs.getUsbVolumeSettingsForDevice(deviceA);
+    expect(settings.hardware, isNull);
+    expect(settings.software, 0.5);
+    expect((await prefs.getUsbVolumeSettingsForDevice(deviceB)).hardware, 0.4);
+  });
+
+  test('global software migration uses the default rather than a hardware percentage', () async {
+    SharedPreferences.setMockInitialValues({'uac2_usb_software_volume': 0.33});
+    final prefs = Uac2PreferencesService();
+    final settings = await prefs.getUsbVolumeSettingsForDevice(deviceA);
+    expect(settings.hardware, isNull);
+    expect(settings.software, 0.33);
+    expect((await prefs.getUsbVolumeSettingsForDevice(deviceB)).hardware, 0.4);
+  });
+
+  test('hardware and software levels round-trip independently', () async {
+    final prefs = Uac2PreferencesService();
+    await prefs.setUsbVolumeForDevice(deviceA, 0.5);
+    await prefs.setUsbVolumeForDevice(deviceA, 0.2, authority: UsbVolumeAuthority.hardware);
+    await prefs.setUsbVolumeForDevice(deviceA, 0.6, authority: UsbVolumeAuthority.software);
+    final settings = await Uac2PreferencesService().getUsbVolumeSettingsForDevice(deviceA);
+    expect(settings.hardware, 0.2);
+    expect(settings.software, 0.6);
+    expect(await prefs.getUsbVolumeForDevice(deviceA), 0.5); // Legacy untouched.
+    await prefs.setUsbVolumeForDevice(deviceA, 0.0, authority: UsbVolumeAuthority.hardware);
+    await prefs.setUsbVolumeForDevice(deviceB, 1.0, authority: UsbVolumeAuthority.hardware);
+    expect((await prefs.getUsbVolumeSettingsForDevice(deviceA)).hardware, 0.0);
+    expect((await prefs.getUsbVolumeSettingsForDevice(deviceB)).hardware, 1.0);
+  });
+
+  test('software-only records cannot become DAC percentages on reconnect', () async {
+    final prefs = Uac2PreferencesService();
+    await prefs.setUsbVolumeForDevice(deviceA, 0.3, authority: UsbVolumeAuthority.software);
+    final settings = await prefs.getUsbVolumeSettingsForDevice(deviceA);
+    expect(settings.hardware, isNull);
+    expect(settings.software, 0.3);
+  });
+
+  test('corrupt or invalid hardware records fail closed', () async {
+    final key = Uac2PreferencesService.usbDeviceVolumeKey(deviceA);
+    for (final raw in ['not-json', '{"$key":{"hardware":2.0}}', '{"$key":null}']) {
+      SharedPreferences.setMockInitialValues({'uac2_usb_device_volume_authorities': raw});
+      expect((await Uac2PreferencesService().getUsbVolumeSettingsForDevice(deviceA)).hardware, isNull);
+    }
+    SharedPreferences.setMockInitialValues({'uac2_usb_device_volumes': '{"$key":1e999}'});
+    expect((await Uac2PreferencesService().getUsbVolumeSettingsForDevice(deviceA)).hardware, isNull);
+  });
+
+  test('clearing preferences also removes authority-specific levels', () async {
+    final prefs = Uac2PreferencesService();
+    await prefs.setUsbVolumeForDevice(deviceA, 0.2, authority: UsbVolumeAuthority.hardware);
+    await prefs.clearAllPreferences();
+    expect((await prefs.getUsbVolumeSettingsForDevice(deviceA)).hardware, 0.4);
+  });
 }
