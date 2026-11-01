@@ -8806,6 +8806,10 @@ class AppLocalizationsTl extends AppLocalizations {
       'May nakarehistrong direktang USB DAC. Nilalaktawan ng direktang USB ang mixer at system volume ng Android. Ang ipinapakitang format ay ang hinihinging format ng nilalaman, hindi ang nasukat na output rate ng DAC.';
 
   @override
+  String get usbVolumeSafetyPaused =>
+      'The DAC volume could not be confirmed. Press Play to retry at a low level. If it still fails, reconnect the DAC.';
+
+  @override
   String get usbHardwareVolumeUnavailable =>
       'Walang USB hardware volume sa Flick. Habang bit-perfect passthrough, gamitin ang pisikal na mga kontrol ng aparato. Para sa software volume, magpatugtog ng PCM na naka-off ang bit-perfect.';
 

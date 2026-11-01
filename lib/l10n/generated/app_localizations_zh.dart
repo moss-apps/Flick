@@ -8068,6 +8068,10 @@ class AppLocalizationsZh extends AppLocalizations {
       '直连 USB DAC 已注册。直连 USB 绕过 Android 混音器和系统音量。此处显示的是请求的音频格式，并非实测的 DAC 输出采样率。';
 
   @override
+  String get usbVolumeSafetyPaused =>
+      '无法确认 DAC 音量。点击播放以较低音量重试。如果仍然失败，请重新连接 DAC。';
+
+  @override
   String get usbHardwareVolumeUnavailable =>
       'Flick 当前无法使用 USB 硬件音量。位完美直通时，请使用设备上的音量键。如需软件音量，请关闭位完美并以 PCM 播放。';
 

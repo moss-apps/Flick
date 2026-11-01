@@ -1176,7 +1176,11 @@ Future<void> stopPriorityAnchor() async {
         final actual = await getVolume();
         if (hardwareOnly) await getMute();
         if (hardwareOnly && persist && actual != null) {
-          await _preferencesService.setUsbVolumeForDevice(status.device, actual);
+          await _preferencesService.setUsbVolumeForDevice(
+            status.device,
+            actual,
+            authority: UsbVolumeAuthority.hardware,
+          );
         }
         return actual != null;
       }
@@ -2010,12 +2014,31 @@ Future<void> stopPriorityAnchor() async {
     return currentStatus.state == Uac2State.error;
   }
 
-  Future<void> _restoreAndroidDirectUsbHardwareVolume(Uac2DeviceInfo device) {
+  Future<void> _restoreAndroidDirectUsbHardwareVolume(
+    Uac2DeviceInfo device,
+  ) async {
+    if (_lastKnownIsPlaying) return;
+    final generation = _hardwareVolumeRestore.connectionGeneration;
+    final settings = await _preferencesService.getUsbVolumeSettingsForDevice(
+      device,
+    );
+    if (generation != _hardwareVolumeRestore.connectionGeneration) {
+      throw UsbDacVolumeRestoreError.routeChanged();
+    }
+    if (_lastKnownIsPlaying) return;
+    final volume = settings.hardware;
+    // Let Dart's pre-playback barrier select a low hardware default after
+    // discovery. A legacy software percentage is not a hardware restore target.
+    if (volume == null) return;
     final key = Uac2PreferencesService.usbDeviceVolumeKey(device);
-    return _hardwareVolumeRestore.restoreHardwareVolume(
+    await _hardwareVolumeRestore.restoreHardwareVolume(
       key,
-      loadVolume: () => _preferencesService.getUsbVolumeForDevice(device),
+      loadVolume: () async => volume,
       writeVolume: (volume) async {
+        if (_lastKnownIsPlaying ||
+            generation != _hardwareVolumeRestore.connectionGeneration) {
+          return false;
+        }
         final deviceName = device.deviceName;
         if (deviceName == null || deviceName.isEmpty) return false;
         return await _channel.invokeMethod<bool>(

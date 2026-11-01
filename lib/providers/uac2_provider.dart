@@ -150,6 +150,14 @@ final volumeTierProvider = Provider<VolumeTier>((ref) {
   return notifier.value;
 });
 
+final usbVolumeSafetyBlockedProvider = Provider<bool>((ref) {
+  final notifier = ref.watch(playerServiceProvider).usbVolumeSafetyBlockedNotifier;
+  void listener() => ref.invalidateSelf();
+  notifier.addListener(listener);
+  ref.onDispose(() => notifier.removeListener(listener));
+  return notifier.value;
+});
+
 final audioOutputDiagnosticsProvider = Provider<AudioOutputDiagnostics?>((ref) {
   final notifier = ref
       .watch(playerServiceProvider)

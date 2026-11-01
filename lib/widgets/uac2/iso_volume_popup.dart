@@ -4,17 +4,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/utils/volume_curve.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/player_service.dart' show VolumeTier;
 import 'package:flick/l10n/l10n.dart';
-
-String _volumeToDb(double volume) {
-  if (volume <= 0.0) return '-∞';
-  if (volume >= 1.0) return '0.0';
-  final db = 60.0 * (volume - 1.0);
-  return db.toStringAsFixed(1);
-}
 
 VoidCallback? showIsoVolumePopup(BuildContext context, GlobalKey buttonKey) {
   final buttonContext = buttonKey.currentContext;
@@ -178,6 +172,7 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
     }
 
     final tier = ref.watch(volumeTierProvider);
+    final safetyBlocked = ref.watch(usbVolumeSafetyBlockedProvider);
     final isAvailable = tier != VolumeTier.unavailable;
     final playerVolume = ref.watch(playerVolumeProvider);
     final hardwareAuthority = tier == VolumeTier.hardware;
@@ -196,6 +191,7 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
         isAvailable &&
         !_muteUpdateInFlight;
     final muteControlWritable =
+        !safetyBlocked &&
         volumeControlWritable &&
         (!hardwareAuthority || deviceStatus.muted != null);
     final showDb = tier == VolumeTier.software;
@@ -204,7 +200,7 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
         : showDb
         ? l10n.db15(
             (effectiveVolume * 100).round(),
-            _volumeToDb(effectiveVolume),
+            formatSoftwareVolumeDb(effectiveVolume),
           )
         : '${(effectiveVolume * 100).round()}%';
 
@@ -308,7 +304,7 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
                                   : showDb
                                   ? l10n.nDb(
                                       (effectiveVolume * 100).round(),
-                                      _volumeToDb(effectiveVolume),
+                                      formatSoftwareVolumeDb(effectiveVolume),
                                     )
                                   : '${(effectiveVolume * 100).round()}%',
                               semanticsLabel: volumeLabel,
@@ -321,7 +317,17 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
                                     height: 1.2,
                                   ),
                             ),
-                            if (!volumeControlWritable) ...[
+                            if (safetyBlocked) ...[
+                              const SizedBox(height: 2),
+                              Tooltip(
+                                message: l10n.usbVolumeSafetyPaused,
+                                child: Icon(
+                                  LucideIcons.triangleAlert,
+                                  size: 16,
+                                  color: context.adaptiveTextSecondary,
+                                ),
+                              ),
+                            ] else if (!volumeControlWritable) ...[
                               const SizedBox(height: 2),
                               Icon(
                                 LucideIcons.lock,
