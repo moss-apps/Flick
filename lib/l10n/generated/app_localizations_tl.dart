@@ -7309,6 +7309,34 @@ class AppLocalizationsTl extends AppLocalizations {
   String get slope => 'Slope';
 
   @override
+  String get smbInvalidServerUrl =>
+      'Gamitin ang smb://server/share o smb://server/share/folder. Ilagay ang mga kredensyal sa mga field ng username at password, hindi sa URL.';
+
+  @override
+  String get smbSigningRequired =>
+      'Kailangan ng server ang SMB signing. Gumamit ng account na pinapayagan ng patakaran sa seguridad ng server; maaaring hindi payagan ang guest access.';
+
+  @override
+  String get smbCacheWriteFailed =>
+      'Hindi mai-save ang SMB download. Suriin ang natitirang storage sa telepono, saka subukan muli.';
+
+  @override
+  String get smbDownloadIncomplete =>
+      'Hindi natapos ang SMB download. Suriin ang koneksyon at subukan muli; hindi patutugtugin ang hindi kumpletong file.';
+
+  @override
+  String get smbPathNotFound =>
+      'Hindi nahanap ang SMB folder o file. Suriin ang folder sa URL ng server o i-sync muli ang aklatan.';
+
+  @override
+  String get smbDecodeFailed =>
+      'Na-download ang SMB file, pero hindi masimulan ang pagpapatugtog. Subukang patugtugin ang parehong file nang lokal sa Flick at suriin ang napiling audio output.';
+
+  @override
+  String get smbOperationFailed =>
+      'Nabigo ang SMB operation. Patakbuhin ang Test Connection at suriin ang SMB stage/code sa log bago subukan muli.';
+
+  @override
   String get smbAccessDenied =>
       'Hindi pinapayagan ang pag-access. Suriing nababasa ng account ang share na ito.';
 

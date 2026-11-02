@@ -29,6 +29,17 @@ void main() {
       expect(s.share, 'music');
     });
 
+    test(
+      'decodes percent signs exactly once and accepts Unicode/trailing slash',
+      () {
+        final s = SmbService.parseServerUrl(
+          'smb://nas/Music%25/日本語/100%2520hits/',
+        );
+        expect(s.share, 'Music%');
+        expect(s.rootPath, '日本語/100%20hits');
+      },
+    );
+
     test('normalizes Windows UNC paths', () {
       final s = SmbService.parseServerUrl(r'\\nas\music\Albums');
       expect(s.host, 'nas');
@@ -49,6 +60,27 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
+
+    for (final url in [
+      'smb://private-host:bad/private-share',
+      'smb://private-user:private-password@private-host/private-share',
+      'smb://private-host:65536/private-share',
+      'https://private-host/private-share',
+      'smb://private-host/private-share?private-password',
+    ]) {
+      test('rejects invalid/credential-bearing URL without echoing input', () {
+        expect(
+          () => SmbService.parseServerUrl(url),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.toString(),
+              'safe parser message',
+              isNot(contains('private-')),
+            ),
+          ),
+        );
+      });
+    }
   });
 
   group('SmbService.describePingError', () {
@@ -71,16 +103,18 @@ void main() {
     test('maps an unknown share to URL guidance', () {
       expect(
         SmbService.describePingError(
-          Exception('Protocol error: STATUS_BAD_NETWORK_NAME during TREE_CONNECT'),
+          Exception(
+            'Protocol error: STATUS_BAD_NETWORK_NAME during TREE_CONNECT',
+          ),
         ),
         contains('share'),
       );
     });
 
-    test('keeps an unrecognized error as-is', () {
+    test('never exposes an unrecognized raw error', () {
       expect(
         SmbService.describePingError(Exception('weird transport failure')),
-        contains('weird transport failure'),
+        isNot(contains('weird transport failure')),
       );
     });
   });

@@ -246,6 +246,9 @@ class _MainShellState extends ConsumerState<MainShell>
 
     _playerService.pendingMilestoneNotifier.addListener(_handleMilestone);
     _playerService.streakPopupNotifier.addListener(_handleStreakPopup);
+    _playerService.networkPlaybackErrorNotifier.addListener(
+      _handleNetworkPlaybackError,
+    );
 
     ref.listenManual<NavBarConfig>(navBarConfigProvider, (previous, next) {
       if (previous == null || !mounted) return;
@@ -418,6 +421,15 @@ class _MainShellState extends ConsumerState<MainShell>
     );
   }
 
+  void _handleNetworkPlaybackError() {
+    final message = _playerService.networkPlaybackErrorNotifier.value;
+    if (message == null || !mounted) return;
+    ScaffoldMessenger.of(context).showFlickSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 10)),
+      id: 'network-playback-error',
+    );
+  }
+
   void _handleStreakPopup() {
     final streak = _playerService.streakPopupNotifier.value;
     if (streak == null || streak < 1 || !mounted) return;
@@ -528,6 +540,9 @@ class _MainShellState extends ConsumerState<MainShell>
     );
     _playerService.pendingMilestoneNotifier.removeListener(_handleMilestone);
     _playerService.streakPopupNotifier.removeListener(_handleStreakPopup);
+    _playerService.networkPlaybackErrorNotifier.removeListener(
+      _handleNetworkPlaybackError,
+    );
     WidgetsBinding.instance.removeObserver(this);
     _navBarVisibilitySubscription.close();
     _navBarAlwaysVisibleSubscription.close();

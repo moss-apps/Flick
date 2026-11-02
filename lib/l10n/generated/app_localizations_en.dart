@@ -7227,6 +7227,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get slope => 'Slope';
 
   @override
+  String get smbInvalidServerUrl =>
+      'Use smb://server/share or smb://server/share/folder. Enter credentials in the username and password fields, not in the URL.';
+
+  @override
+  String get smbSigningRequired =>
+      'The server requires SMB signing. Use an account permitted by the server\'s security policy; guest access may not be allowed.';
+
+  @override
+  String get smbCacheWriteFailed =>
+      'Could not save the SMB download. Check free storage on the phone, then retry.';
+
+  @override
+  String get smbDownloadIncomplete =>
+      'The SMB download did not finish. Check the connection and retry; no partial file will be played.';
+
+  @override
+  String get smbPathNotFound =>
+      'The SMB folder or file was not found. Check the folder in the server URL or sync the library again.';
+
+  @override
+  String get smbDecodeFailed =>
+      'The SMB file was downloaded, but playback could not start. Try the same file locally in Flick and check the selected audio output.';
+
+  @override
+  String get smbOperationFailed =>
+      'The SMB operation failed. Run Test Connection and check the SMB stage/code in the log before retrying.';
+
+  @override
   String get smbAccessDenied =>
       'Access denied. Check that the account can read this share.';
 

@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 /// Bounded LRU download cache for network-sourced songs.
 ///
 /// Layout: `<appCache>/network_cache/<serverId>/<md5(serverId:remoteId)>.<ext>`.
-/// LRU by file mtime; eviction runs after each [stash] once the total exceeds
+/// LRU by file mtime; eviction runs after each [stash] or [completeDownload] once the total exceeds
 /// [sizeCapBytes].
 class NetworkCacheService {
   NetworkCacheService({
@@ -44,7 +44,9 @@ class NetworkCacheService {
     String remoteId, {
     String? extension,
   }) async {
-    final serverDir = Directory(p.join((await _root()).path, '$remoteServerId'));
+    final serverDir = Directory(
+      p.join((await _root()).path, '$remoteServerId'),
+    );
     if (!await serverDir.exists()) return null;
 
     final hash = _hash(remoteServerId, remoteId);
@@ -71,10 +73,15 @@ class NetworkCacheService {
     List<int> bytes, {
     String? extension,
   }) async {
-    final serverDir = Directory(p.join((await _root()).path, '$remoteServerId'));
+    final serverDir = Directory(
+      p.join((await _root()).path, '$remoteServerId'),
+    );
     await serverDir.create(recursive: true);
     final file = File(
-      p.join(serverDir.path, '${_hash(remoteServerId, remoteId)}.${extension ?? 'bin'}'),
+      p.join(
+        serverDir.path,
+        '${_hash(remoteServerId, remoteId)}.${extension ?? 'bin'}',
+      ),
     );
     await file.writeAsBytes(bytes, flush: true);
     await _evictIfOverCap(protect: file);
@@ -89,19 +96,32 @@ class NetworkCacheService {
     String remoteId, {
     String? extension,
   }) async {
-    final serverDir = Directory(p.join((await _root()).path, '$remoteServerId'));
+    final serverDir = Directory(
+      p.join((await _root()).path, '$remoteServerId'),
+    );
     await serverDir.create(recursive: true);
-    return p.join(serverDir.path,
-        '${_hash(remoteServerId, remoteId)}.${extension ?? 'bin'}');
+    return p.join(
+      serverDir.path,
+      '${_hash(remoteServerId, remoteId)}.${extension ?? 'bin'}',
+    );
   }
 
   Future<String?> _findByHash(Directory serverDir, String hash) async {
     await for (final entry in serverDir.list()) {
       final name = p.basename(entry.path);
-      if (name.startsWith('$hash.')) return name;
+      if (entry is File &&
+          !name.endsWith('.part') &&
+          name.startsWith('$hash.')) {
+        return name;
+      }
     }
     return null;
   }
+
+  /// Called only after the native downloader has atomically published a file.
+  /// Staging files are hidden and excluded from lookup and eviction.
+  Future<void> completeDownload(String path) =>
+      _evictIfOverCap(protect: File(path));
 
   // ponytail: full O(n) size scan per eviction; track running totals only
   // if a server with a huge cache ever shows up on profile.
@@ -113,6 +133,10 @@ class NetworkCacheService {
       if (serverDir is! Directory) continue;
       await for (final entry in serverDir.list()) {
         if (entry is! File) continue;
+        if (p.basename(entry.path).startsWith('.') ||
+            entry.path.endsWith('.part')) {
+          continue;
+        }
         files.add(entry);
         total += await entry.length();
       }

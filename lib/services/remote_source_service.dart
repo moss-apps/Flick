@@ -7,7 +7,16 @@ import '../data/database.dart';
 import '../data/repositories/song_repository.dart';
 import '../models/song.dart';
 import '../src/rust/api/audio_api.dart' as rust_audio;
+import '../src/rust/api/scanner.dart' as rust_scanner;
 import 'sources/network_source_service.dart';
+
+typedef NetworkMetadataWriter =
+    Future<void> Function(
+      String filePath, {
+      int? sampleRate,
+      int? bitDepth,
+      int? durationMs,
+    });
 
 /// Bridges playback/download for network-sourced songs.
 ///
@@ -16,12 +25,28 @@ import 'sources/network_source_service.dart';
 /// into [NetworkCacheService] via the protocol service registered for the
 /// song's `sourceType`.
 class RemoteSourceService {
-  RemoteSourceService._();
+  RemoteSourceService._({
+    Future<rust_scanner.AudioFileMetadata?> Function(String)? metadataReader,
+    NetworkMetadataWriter? metadataWriter,
+  }) : _metadataReader =
+           metadataReader ??
+           ((path) => rust_scanner.extractFileMetadata(path: path)),
+       _metadataWriter = metadataWriter;
+
+  final Future<rust_scanner.AudioFileMetadata?> Function(String)
+  _metadataReader;
+  final NetworkMetadataWriter? _metadataWriter;
 
   static RemoteSourceService instance = RemoteSourceService._();
 
   @visibleForTesting
-  static RemoteSourceService create() => RemoteSourceService._();
+  static RemoteSourceService create({
+    Future<rust_scanner.AudioFileMetadata?> Function(String)? metadataReader,
+    NetworkMetadataWriter? metadataWriter,
+  }) => RemoteSourceService._(
+    metadataReader: metadataReader,
+    metadataWriter: metadataWriter,
+  );
 
   /// Progress (0..1) of the interactive playback download, null when idle.
   final ValueNotifier<double?> downloadProgressNotifier = ValueNotifier(null);
@@ -29,6 +54,8 @@ class RemoteSourceService {
   /// Songs whose format probe failed (e.g. AAC-in-M4A Symphonia gap);
   /// skip retrying them every play.
   final Set<String> _probeFailed = {};
+  final Set<String> _probed = {};
+  final Set<String> _probing = {};
 
   Future<NetworkServerEntity> _serverFor(Song song) async {
     final serverId = song.remoteServerId;
@@ -67,30 +94,50 @@ class RemoteSourceService {
             ? (p) => downloadProgressNotifier.value = p
             : null,
       );
-      unawaited(_backfillAudioFormat(song, path));
+      unawaited(backfillAudioMetadata(song, path));
       return path;
     } finally {
       if (reportProgress) downloadProgressNotifier.value = null;
     }
   }
 
-  /// ponytail: probe-once backfill for sources whose sync can't read tags
-  /// (SMB/WebDAV listing has no sampleRate/bitDepth). Runs after the file is
-  /// local either way; HTTP-direct streams skip it. Full tag read at sync time
-  /// is the upgrade path if users want quality labels before first play.
-  Future<void> _backfillAudioFormat(Song song, String localPath) async {
-    if (song.sampleRate != null || song.bitDepth != null) return;
-    if (_probeFailed.contains(song.id)) return;
+  /// Backfill missing duration/format from a cached original without blocking
+  /// playback. HTTP-direct streams skip this; sync never downloads every song.
+  @visibleForTesting
+  Future<void> backfillAudioMetadata(Song song, String localPath) async {
+    if (song.sampleRate != null &&
+        song.bitDepth != null &&
+        song.duration > Duration.zero) {
+      return;
+    }
+    if (_probeFailed.contains(song.id) ||
+        _probed.contains(song.id) ||
+        !_probing.add(song.id)) {
+      return;
+    }
     try {
-      final probed = await rust_audio.audioProbeFormat(path: localPath);
-      await SongRepository().updateAudioFormat(
+      final metadata = await _metadataReader(localPath);
+      // Some formats support the lightweight format probe but not tag reads.
+      rust_audio.AudioProbeFormat? probed;
+      if (metadata?.sampleRate == null) {
+        try {
+          probed = await rust_audio.audioProbeFormat(path: localPath);
+        } catch (_) {
+          /* A missing format probe must not discard a valid duration. */
+        }
+      }
+      await (_metadataWriter ?? SongRepository().updateAudioFormat)(
         song.filePath!,
-        sampleRate: probed.sampleRate,
-        bitDepth: probed.bitsPerSample,
+        sampleRate: metadata?.sampleRate ?? probed?.sampleRate,
+        bitDepth: metadata?.bitDepth ?? probed?.bitsPerSample,
+        durationMs: metadata?.durationMs?.toInt(),
       );
+      _probed.add(song.id);
     } catch (e) {
       _probeFailed.add(song.id);
-      AppLog.instance.add('Format backfill failed for "${song.title}": $e');
+      AppLog.instance.add('Network metadata backfill result=failed');
+    } finally {
+      _probing.remove(song.id);
     }
   }
 
@@ -124,7 +171,7 @@ class RemoteSourceService {
     try {
       await ensureLocal(song, reportProgress: false);
     } catch (e) {
-      AppLog.instance.add('Prefetch failed for "${song.title}": $e');
+      AppLog.instance.add('Network prefetch result=failed');
     }
   }
 }

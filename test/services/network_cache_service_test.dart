@@ -36,11 +36,26 @@ void main() {
   });
 
   test('cap is enforced and oldest entry is evicted first', () async {
-    final p1 = await service.stash(1, 'old', List.filled(40, 0), extension: 'flac');
+    final p1 = await service.stash(
+      1,
+      'old',
+      List.filled(40, 0),
+      extension: 'flac',
+    );
     await File(p1).setLastModified(base);
-    final p2 = await service.stash(1, 'mid', List.filled(40, 0), extension: 'flac');
+    final p2 = await service.stash(
+      1,
+      'mid',
+      List.filled(40, 0),
+      extension: 'flac',
+    );
     await File(p2).setLastModified(base.add(const Duration(seconds: 1)));
-    final p3 = await service.stash(1, 'new', List.filled(40, 0), extension: 'flac');
+    final p3 = await service.stash(
+      1,
+      'new',
+      List.filled(40, 0),
+      extension: 'flac',
+    );
     await File(p3).setLastModified(base.add(const Duration(seconds: 2)));
 
     await service.stash(1, 'trigger', [1], extension: 'flac');
@@ -51,9 +66,19 @@ void main() {
   });
 
   test('recently accessed entries survive eviction', () async {
-    final p1 = await service.stash(1, 'old', List.filled(40, 0), extension: 'flac');
+    final p1 = await service.stash(
+      1,
+      'old',
+      List.filled(40, 0),
+      extension: 'flac',
+    );
     await File(p1).setLastModified(base);
-    final p2 = await service.stash(1, 'fresh', List.filled(40, 0), extension: 'flac');
+    final p2 = await service.stash(
+      1,
+      'fresh',
+      List.filled(40, 0),
+      extension: 'flac',
+    );
     await File(p2).setLastModified(base.add(const Duration(seconds: 1)));
 
     expect(await service.getPath(1, 'old', extension: 'flac'), isNotNull);
@@ -74,5 +99,19 @@ void main() {
     );
     expect(await File(path).exists(), isTrue);
     expect(await service.getPath(1, 'huge', extension: 'flac'), path);
+  });
+
+  test('staging files are never lookup or eviction candidates', () async {
+    final dest = await service.pathFor(1, 'pending');
+    final staging = File(
+      '${File(dest).parent.path}/.${File(dest).uri.pathSegments.last}.1.part',
+    );
+    await staging.writeAsBytes(List.filled(200, 0));
+    final oldStylePart = File('$dest.part');
+    await oldStylePart.writeAsBytes([1]);
+    expect(await service.getPath(1, 'pending'), isNull);
+    await service.stash(1, 'completed', List.filled(40, 0));
+    expect(await staging.exists(), isTrue);
+    expect(await oldStylePart.exists(), isTrue);
   });
 }
