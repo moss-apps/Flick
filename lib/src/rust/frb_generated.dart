@@ -439,6 +439,7 @@ abstract class RustLibApi extends BaseApi {
     required String share,
     required String user,
     required String pass,
+    required String rootPath,
   });
 
   Future<Uint8List> crateApiSmbApiSmbReadFile({
@@ -3532,6 +3533,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String share,
     required String user,
     required String pass,
+    required String rootPath,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -3542,6 +3544,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(share, serializer);
           sse_encode_String(user, serializer);
           sse_encode_String(pass, serializer);
+          sse_encode_String(rootPath, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3554,7 +3557,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiSmbApiSmbPingConstMeta,
-        argValues: [host, port, share, user, pass],
+        argValues: [host, port, share, user, pass, rootPath],
         apiImpl: this,
       ),
     );
@@ -3562,7 +3565,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSmbApiSmbPingConstMeta => const TaskConstMeta(
     debugName: "smb_ping",
-    argNames: ["host", "port", "share", "user", "pass"],
+    argNames: ["host", "port", "share", "user", "pass", "rootPath"],
   );
 
   @override

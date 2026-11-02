@@ -45,6 +45,7 @@ import 'package:flick/services/usb_dac_volume_restore.dart';
 import 'package:flick/services/alac_converter_service.dart';
 import 'package:flick/services/playback_cache_preferences_service.dart';
 import 'package:flick/services/remote_source_service.dart';
+import 'package:flick/services/sources/smb_failure.dart';
 import 'package:flick/services/wav_stream_audio_source.dart';
 import 'package:flick/services/casting/casting_service.dart';
 import 'package:flick/core/utils/app_log.dart';
@@ -643,6 +644,7 @@ class PlayerService {
   /// stream attach or cache download). UI surfaces a loading indicator so the
   /// user sees that their tap was registered during the network round-trip.
   final ValueNotifier<bool> isNetworkLoadingNotifier = ValueNotifier(false);
+  final ValueNotifier<String?> networkPlaybackErrorNotifier = ValueNotifier(null);
   // ponytail: monotonically increasing token; only the most-recent network
   // play request is allowed to clear the loading flag. Upgrade path: a per-
   // song Set<int> if multiple concurrent network loads ever need tracking.
@@ -5466,6 +5468,10 @@ class PlayerService {
         );
       }
     } catch (e, stackTrace) {
+      if (e is SmbFailure) {
+        _reportSmbPlaybackFailure(e);
+        return;
+      }
       final recovered = await _handleDirectUsbStartupRefusal(
         e,
         song: song,
@@ -5480,6 +5486,10 @@ class PlayerService {
         initialPosition: Duration.zero,
       );
       if (rustRecovered) {
+        return;
+      }
+      if (song.sourceType == 'smb') {
+        _reportSmbPlaybackFailure(const SmbFailure('decode', 'protocol'));
         return;
       }
       _debugLog(
@@ -5497,6 +5507,13 @@ class PlayerService {
         isNetworkLoadingNotifier.value = false;
       }
     }
+  }
+
+  void _reportSmbPlaybackFailure(SmbFailure failure) {
+    AppLog.instance.add('$failure result=failed');
+    // Reset so repeated attempts with the same failure still notify the UI.
+    networkPlaybackErrorNotifier.value = null;
+    networkPlaybackErrorNotifier.value = '${failure.message} ($failure)';
   }
 
   Future<void> _playSongAtCurrentIndex() async {
@@ -5618,7 +5635,12 @@ class PlayerService {
   /// WavPack containers are not decodable by ExoPlayer, so retry them on the
   /// Rust decoder instead of leaving playback stalled on the failed track.
   void _onAndroidTrackError(Song song) {
-    if (!song.requiresRustDecoder) return;
+    if (!song.requiresRustDecoder) {
+      if (song.sourceType == 'smb') {
+        _reportSmbPlaybackFailure(const SmbFailure('decode', 'protocol'));
+      }
+      return;
+    }
     _debugLog(
       '[Playback] System tier failed to decode ${song.title}; '
       'retrying on the Rust decoder',

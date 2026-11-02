@@ -12364,6 +12364,48 @@ abstract class AppLocalizations {
   /// **'Slope'**
   String get slope;
 
+  /// No description provided for @smbInvalidServerUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Use smb://server/share or smb://server/share/folder. Enter credentials in the username and password fields, not in the URL.'**
+  String get smbInvalidServerUrl;
+
+  /// No description provided for @smbSigningRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'The server requires SMB signing. Use an account permitted by the server\'s security policy; guest access may not be allowed.'**
+  String get smbSigningRequired;
+
+  /// No description provided for @smbCacheWriteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the SMB download. Check free storage on the phone, then retry.'**
+  String get smbCacheWriteFailed;
+
+  /// No description provided for @smbDownloadIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'The SMB download did not finish. Check the connection and retry; no partial file will be played.'**
+  String get smbDownloadIncomplete;
+
+  /// No description provided for @smbPathNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The SMB folder or file was not found. Check the folder in the server URL or sync the library again.'**
+  String get smbPathNotFound;
+
+  /// No description provided for @smbDecodeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The SMB file was downloaded, but playback could not start. Try the same file locally in Flick and check the selected audio output.'**
+  String get smbDecodeFailed;
+
+  /// No description provided for @smbOperationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The SMB operation failed. Run Test Connection and check the SMB stage/code in the log before retrying.'**
+  String get smbOperationFailed;
+
   /// l10n pass: user-visible service error
   ///
   /// In en, this message translates to:

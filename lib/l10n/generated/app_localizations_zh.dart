@@ -6726,6 +6726,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get slope => '斜率';
 
   @override
+  String get smbInvalidServerUrl =>
+      '请使用 smb://服务器/共享名 或 smb://服务器/共享名/文件夹。请在用户名和密码栏中填写凭据，不要将其放入网址。';
+
+  @override
+  String get smbSigningRequired => '服务器要求 SMB 签名。请使用符合服务器安全策略的账号；可能不允许访客访问。';
+
+  @override
+  String get smbCacheWriteFailed => '无法保存 SMB 下载文件。请检查手机的剩余存储空间，然后重试。';
+
+  @override
+  String get smbDownloadIncomplete => 'SMB 下载未完成。请检查连接后重试；不会播放未下载完整的文件。';
+
+  @override
+  String get smbPathNotFound => '找不到 SMB 文件夹或文件。请检查服务器网址中的文件夹，或重新同步音乐库。';
+
+  @override
+  String get smbDecodeFailed =>
+      'SMB 文件已下载，但无法开始播放。请在 Flick 中尝试播放同一本地文件，并检查所选音频输出。';
+
+  @override
+  String get smbOperationFailed =>
+      'SMB 操作失败。请运行“测试连接”，并在重试前检查日志中的 SMB stage/code。';
+
+  @override
   String get smbAccessDenied => '访问被拒绝。请确认该账号有权读取此共享。';
 
   @override

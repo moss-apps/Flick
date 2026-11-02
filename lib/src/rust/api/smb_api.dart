@@ -6,23 +6,26 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `addr`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `addr`, `commit`, `create`, `failure`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `PendingDownload`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `drop`, `fmt`, `fmt`
 
-/// Connect + open the share. Used by the ping flow; success means credentials
-/// and transport are good. (smb2::connect applies a 5s timeout.)
+/// Connect, open the share and list the configured root once (not recursively).
+/// Success does not imply permission to read every file in that directory.
 Future<void> smbPing({
   required String host,
   required int port,
   required String share,
   required String user,
   required String pass,
+  required String rootPath,
 }) => RustLib.instance.api.crateApiSmbApiSmbPing(
   host: host,
   port: port,
   share: share,
   user: user,
   pass: pass,
+  rootPath: rootPath,
 );
 
 /// BFS walk of `root_path` (relative to the share) pushing one [SmbEntry] per
@@ -61,7 +64,7 @@ Future<Uint8List> smbReadFile({
   pass: pass,
 );
 
-/// Stream a file directly to `dest_path` on disk, reporting progress per chunk.
+/// Download to a staging file, then atomically publish only a complete file.
 Stream<SmbProgress> smbDownloadFile({
   required String host,
   required int port,
