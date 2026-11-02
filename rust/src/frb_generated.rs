@@ -3460,12 +3460,18 @@ fn wire__crate__api__smb_api__smb_ping_impl(
             let api_share = <String>::sse_decode(&mut deserializer);
             let api_user = <String>::sse_decode(&mut deserializer);
             let api_pass = <String>::sse_decode(&mut deserializer);
+            let api_root_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
                         let output_ok = crate::api::smb_api::smb_ping(
-                            api_host, api_port, api_share, api_user, api_pass,
+                            api_host,
+                            api_port,
+                            api_share,
+                            api_user,
+                            api_pass,
+                            api_root_path,
                         )
                         .await?;
                         std::result::Result::Ok(output_ok)

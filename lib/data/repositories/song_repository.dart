@@ -146,6 +146,51 @@ class SongRepository {
     });
   }
 
+  /// SMB listings have no tags. Keep metadata learned from cached originals,
+  /// local edits and stable row identity when refreshing the listing.
+  Future<void> upsertSmbSongs(List<SongEntity> entities) async {
+    if (entities.isEmpty) return;
+    await _isar.writeTxn(() async {
+      final merged = <SongEntity>[];
+      for (final entity in entities) {
+        final existing = await _isar.songEntitys.getByFilePathStartOffsetMs(
+          entity.filePath,
+          entity.startOffsetMs,
+        );
+        merged.add(mergeSmbListing(entity, existing));
+      }
+      await _isar.songEntitys.putAll(merged);
+    });
+  }
+
+  static SongEntity mergeSmbListing(SongEntity listing, SongEntity? existing) {
+    if (existing == null) return listing;
+    // Do not merge unrelated sources just because a caller supplied a bad key.
+    if (existing.sourceType != 'smb' ||
+        listing.sourceType != 'smb' ||
+        existing.remoteServerId != listing.remoteServerId ||
+        existing.remoteId != listing.remoteId ||
+        existing.filePath != listing.filePath) {
+      return listing;
+    }
+    if (existing.fileSize != listing.fileSize) {
+      existing.durationMs = null;
+      existing.sampleRate = null;
+      existing.bitDepth = null;
+      existing.bitrate = null;
+    }
+    if (!existing.hasLocalEdits) {
+      existing.title = listing.title;
+      existing.artist = listing.artist;
+      existing.album = listing.album;
+    }
+    return existing
+      ..fileSize = listing.fileSize
+      ..fileType = listing.fileType
+      ..albumArtPath = listing.albumArtPath
+      ..lastModified = listing.lastModified;
+  }
+
   /// Persist ReplayGain metadata for a path (written by the ReplayGain
   /// scanner, which keeps the DB in sync with the file tags). Applies to
   /// every entity sharing the path (CUE tracks included).
@@ -358,11 +403,12 @@ class SongRepository {
   }
 
   /// Persist probed audio format for songs whose sync couldn't read tags
-  /// (SMB/WebDAV). Only fills null fields.
+  /// (SMB/WebDAV). Only fills missing fields, leaving identity and edits intact.
   Future<void> updateAudioFormat(
     String filePath, {
     int? sampleRate,
     int? bitDepth,
+    int? durationMs,
   }) async {
     await _isar.writeTxn(() async {
       final existing = await _isar.songEntitys
@@ -370,17 +416,36 @@ class SongRepository {
           .filePathEqualTo(filePath)
           .findFirst();
       if (existing == null) return;
-      var changed = false;
-      if (sampleRate != null && existing.sampleRate == null) {
-        existing.sampleRate = sampleRate;
-        changed = true;
-      }
-      if (bitDepth != null && existing.bitDepth == null) {
-        existing.bitDepth = bitDepth;
-        changed = true;
-      }
+      final changed = fillMissingAudioMetadata(
+        existing,
+        sampleRate: sampleRate,
+        bitDepth: bitDepth,
+        durationMs: durationMs,
+      );
       if (changed) await _isar.songEntitys.put(existing);
     });
+  }
+
+  static bool fillMissingAudioMetadata(
+    SongEntity song, {
+    int? sampleRate,
+    int? bitDepth,
+    int? durationMs,
+  }) {
+    var changed = false;
+    if (sampleRate != null && sampleRate > 0 && song.sampleRate == null) {
+      song.sampleRate = sampleRate;
+      changed = true;
+    }
+    if (bitDepth != null && bitDepth > 0 && song.bitDepth == null) {
+      song.bitDepth = bitDepth;
+      changed = true;
+    }
+    if (durationMs != null && durationMs > 0 && (song.durationMs ?? 0) <= 0) {
+      song.durationMs = durationMs;
+      changed = true;
+    }
+    return changed;
   }
 
   /// Count songs in a folder.
