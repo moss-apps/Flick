@@ -64,7 +64,9 @@ extension AlbumColorModeL10n on AlbumColorMode {
     AlbumColorMode.vibrant => l10n.vibrant,
   };
 
-  String get description => switch (this) {
+  String get description => descriptionFor(l10n);
+
+  String descriptionFor(AppLocalizations l10n) => switch (this) {
     AlbumColorMode.off => l10n.useTheDefaultMonochromeTheme,
     AlbumColorMode.subtle => l10n.faintHueShiftFromAlbumArt,
     AlbumColorMode.moderate => l10n.noticeableTintingFromAlbumArt,
@@ -151,7 +153,9 @@ extension PlayerScreenModeL10n on PlayerScreenMode {
     PlayerScreenMode.artworkCard => l10n.artworkCard,
   };
 
-  String get description => switch (this) {
+  String get description => descriptionFor(l10n);
+
+  String descriptionFor(AppLocalizations l10n) => switch (this) {
     PlayerScreenMode.immersive => l10n.fullBleedAlbumArtWithThe,
     PlayerScreenMode.artworkCard => l10n.roundedAlbumArtCardWithA,
   };

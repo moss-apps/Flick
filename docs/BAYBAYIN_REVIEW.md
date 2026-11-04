@@ -60,6 +60,9 @@ subsequently turning them off survives a restart.
   Sleep Timer and Player Layout. The inline lyrics panel and online lyrics
   search are English as well, while the full-player top chip and locker copy
   keep their Taglish lines and the queue badge stays **Queue**.
+- The standalone Player Layout settings screen is English in Taglish too,
+  including both layout names and descriptions, layout controls, quick-action
+  pickers and album-color options. English and Chinese keep their own copy.
 - The album, artist, playlist and smart-mix three-dot More sheets use English,
   including their **More** header.
 - Album completeness uses English in Taglish: header and grid badges, missing
@@ -279,6 +282,15 @@ template names resolve through the passed English catalog. The top chip and
 locker copy in `full_player_screen.dart` intentionally stay on the active
 catalog, and the queue badge remains the separately requested **Queue**.
 
+Player Layout has two entry points, and both use the English role in Taglish:
+`player_layout_sheet.dart` imports the English shim, while
+`player_layout_settings_screen.dart` resolves its explicit labels through
+`englishForFilipino` and its shared copy through `settings_l10n.dart`.
+`model_labels.dart` gained caller-catalog `descriptionFor` methods for player
+screen modes and album-color modes, so plain extension getters elsewhere still
+follow the active locale. The action picker uses the same English catalog as
+the sheet.
+
 `sort_filter_bottom_sheet.dart` also uses the English shim. Scoped copy roles
 in `songs_screen.dart` keep the album menu, album-options sheet and multiselect
 flows English without changing the rest of the screen. Format labels accept
@@ -340,6 +352,7 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
       **Queue** badge and detail/playlist menus,
       the fully English full-player three-dot sheet, inline/online lyrics and
       its playlist/share/metadata/speed/pitch/sleep/layout sub-interfaces,
+      the English Player Layout settings screen and action picker,
       the fully English Lyrics Sync Studio,
       the English Milestones surface and playlist cover editor, the English
       playlist detail header information line/lossless indicator, all-English

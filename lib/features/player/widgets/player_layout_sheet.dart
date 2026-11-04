@@ -182,8 +182,8 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _PlayerLayoutOptionTile(
-                      title: PlayerScreenMode.immersive.label,
-                      subtitle: PlayerScreenMode.immersive.description,
+                      title: PlayerScreenMode.immersive.labelFor(l10n),
+                      subtitle: PlayerScreenMode.immersive.descriptionFor(l10n),
                       icon: Icons.fit_screen_rounded,
                       isSelected: _mode == PlayerScreenMode.immersive,
                       onTap: () {
@@ -193,8 +193,8 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                     ),
                     const SizedBox(height: 12),
                     _PlayerLayoutOptionTile(
-                      title: PlayerScreenMode.artworkCard.label,
-                      subtitle: PlayerScreenMode.artworkCard.description,
+                      title: PlayerScreenMode.artworkCard.labelFor(l10n),
+                      subtitle: PlayerScreenMode.artworkCard.descriptionFor(l10n),
                       icon: Icons.rounded_corner_rounded,
                       isSelected: _mode == PlayerScreenMode.artworkCard,
                       onTap: () {
@@ -436,7 +436,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                               ),
                             ),
                             child: Text(
-                              mode.label,
+                              mode.labelFor(l10n),
                               style: TextStyle(
                                 fontFamily: 'GoogleSansFlex',
                                 fontSize: 14,
@@ -523,7 +523,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    _mode.label,
+                                    _mode.labelFor(l10n),
                                     style: TextStyle(
                                       fontFamily: 'GoogleSansFlex',
                                       fontSize: 15,
@@ -1373,7 +1373,7 @@ class _PlayerActionButtonSelector extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      action.label,
+                      action.labelFor(l10n),
                       style: TextStyle(
                         fontFamily: 'GoogleSansFlex',
                         fontSize: 12,
