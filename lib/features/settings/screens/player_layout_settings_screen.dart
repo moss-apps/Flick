@@ -104,7 +104,9 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               SelectionSetting(
                 icon: Icons.fit_screen_rounded,
                 title: PlayerScreenMode.immersive.labelFor(l10n.englishForFilipino),
-                subtitle: PlayerScreenMode.immersive.description,
+                subtitle: PlayerScreenMode.immersive.descriptionFor(
+                  l10n.englishForFilipino,
+                ),
                 selected: playerScreenMode == PlayerScreenMode.immersive,
                 onTap: () {
                   ref
@@ -116,7 +118,9 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
               SelectionSetting(
                 icon: Icons.rounded_corner_rounded,
                 title: PlayerScreenMode.artworkCard.labelFor(l10n.englishForFilipino),
-                subtitle: PlayerScreenMode.artworkCard.description,
+                subtitle: PlayerScreenMode.artworkCard.descriptionFor(
+                  l10n.englishForFilipino,
+                ),
                 selected: playerScreenMode == PlayerScreenMode.artworkCard,
                 onTap: () {
                   ref
