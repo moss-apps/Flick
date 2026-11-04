@@ -1186,11 +1186,37 @@ pub(crate) fn managed_output_debug_json() -> serde_json::Value {
     #[cfg(not(target_os = "android"))]
     let scratch_frames = 0usize;
 
-    let stats = read_audio_engine(|handle| handle.managed_output_stats());
+    let managed = read_audio_engine(|handle| handle.managed_output_stats());
+    let pcm = read_audio_engine(|handle| handle.pcm_callback_stats());
     serde_json::json!({
-        "burst_frames_max": stats.map(|(frames, _)| frames),
-        "burst_chunked_count": stats.map(|(_, chunks)| chunks),
+        "burst_frames_max": managed.map(|stats| stats.burst_frames_max),
+        "burst_chunked_count": managed.map(|stats| stats.burst_chunked_count),
+        "callback_count": managed.map(|stats| stats.callback_count),
+        "callback_frames_total": managed.map(|stats| stats.callback_frames_total),
+        "callback_duration_us_max": managed.map(|stats| stats.callback_duration_us_max),
+        "callback_overruns": managed.map(|stats| stats.callback_overruns),
+        "xrun_count_supported": managed.map(|stats| stats.xrun_count_supported),
+        "xrun_count": managed.and_then(|stats| stats.xrun_count),
+        "frames_per_burst": managed.map(|stats| stats.frames_per_burst),
+        "buffer_size_frames": managed.map(|stats| stats.buffer_size_frames),
+        "buffer_capacity_frames": managed.map(|stats| stats.buffer_capacity_frames),
         "scratch_frames": scratch_frames,
+        "pcm_callback": {
+            "source_lock_misses": pcm.map(|stats| stats.source_lock_misses),
+            "crossfader_lock_misses": pcm.map(|stats| stats.crossfader_lock_misses),
+            "mix_buffer_lock_misses": pcm.map(|stats| stats.mix_buffer_lock_misses),
+            "speed_lock_misses": pcm.map(|stats| stats.speed_lock_misses),
+            "starved_samples": pcm.map(|stats| stats.starved_samples),
+            "skipped_pitch": pcm.map(|stats| stats.skipped_pitch),
+            "skipped_eq": pcm.map(|stats| stats.skipped_eq),
+            "skipped_crossfeed": pcm.map(|stats| stats.skipped_crossfeed),
+            "skipped_fx": pcm.map(|stats| stats.skipped_fx),
+            "skipped_convolver": pcm.map(|stats| stats.skipped_convolver),
+            "skipped_dynamics": pcm.map(|stats| stats.skipped_dynamics),
+            "peak": pcm.map(|stats| stats.peak),
+            "clipped_samples": pcm.map(|stats| stats.clipped_samples),
+            "non_finite_samples": pcm.map(|stats| stats.non_finite_samples),
+        },
     })
 }
 
