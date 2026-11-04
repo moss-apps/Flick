@@ -12,7 +12,7 @@
 - **Mini player as its own card** — the mini player now always sits above the frosted navigation bar instead of merging into it, aligns to the standard bar width, and keeps its gradient, border, and shadow in separated and collapsed layouts.
 
 ### Interface & Polish
-- **Android-native scrolling** — removed the remaining iOS-style bounce overrides from shared bottom sheets, the Menu refresh list, lyrics sync tools, album filters, and the EQ graphs and lists. Android's own glow and stretch behavior is back, with a regression test that keeps `BouncingScrollPhysics` out.
+- **Android-native scrolling** — removed the remaining iOS-style bounce overrides from shared bottom sheets, the Menu refresh list, lyrics sync tools, album filters, and the EQ graphs and lists. Android's own glow and stretch behavior is back, with a regression test that keeps iOS bounce physics out.
 - **Taglish playlist header** — playlist song count, duration, created/updated dates, and the Lossless label stay English in Taglish; the playlist name and song metadata keep the active locale.
 
 ### USB & DSD Audio
