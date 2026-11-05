@@ -20,6 +20,7 @@ import 'package:flick/features/player/widgets/song_stage_carousel.dart';
 import 'package:flick/features/player/widgets/lyrics_mode_waveform_strip.dart';
 import 'package:flick/features/player/widgets/album_color_helpers.dart';
 import 'package:flick/models/album_color_mode.dart';
+import 'package:flick/models/immersive_background_style.dart';
 import 'package:flick/models/player_screen_mode.dart';
 import 'package:flick/models/player_action_button.dart';
 import 'package:flick/models/song.dart';
@@ -333,6 +334,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     String visFreq,
     String visMove,
     bool animatedArtwork,
+    ImmersiveBackgroundStyle backgroundStyle,
   ) {
     final bgBlend = albumColorMode.backgroundBlend;
     final hasAlbumTint = albumColor != null && bgBlend > 0;
@@ -356,6 +358,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             visFreq,
             visMove,
             animatedArtwork,
+            backgroundStyle,
           ),
         ),
         Positioned.fill(
@@ -384,9 +387,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     String visFreq,
     String visMove,
     bool animatedArtwork,
+    ImmersiveBackgroundStyle backgroundStyle,
   ) {
     final bgBlend = albumColorMode.backgroundBlend;
     final hasAlbumTint = albumColor != null && bgBlend > 0;
+    final useBlurGradient =
+        backgroundStyle == ImmersiveBackgroundStyle.blurGradient;
 
     if (visualizationMode &&
         _playerScreenMode != PlayerScreenMode.artworkCard) {
@@ -487,6 +493,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             gradientBase.withValues(alpha: 0.08),
             Colors.transparent,
           ]
+        : useBlurGradient
+        ? [
+            gradientBase.withValues(alpha: 0.72),
+            gradientBase.withValues(alpha: 0.58),
+            gradientBase.withValues(alpha: 0.42),
+            gradientBase.withValues(alpha: 0.24),
+            gradientBase.withValues(alpha: 0.1),
+            Colors.transparent,
+          ]
         : [
             gradientBase,
             gradientBase.withValues(alpha: 0.95),
@@ -530,6 +545,33 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     return Stack(
       children: [
         Positioned.fill(child: artLayer),
+        if (useBlurGradient)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                duration: AppConstants.animationNormal,
+                opacity: _isImmersiveFullView ? 0.0 : 1.0,
+                child: ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.transparent,
+                      Colors.white,
+                    ],
+                    stops: [0.0, 0.42, 0.82],
+                  ).createShader(bounds),
+                  blendMode: BlendMode.dstIn,
+                  child: AmbientBackground(
+                    song: song,
+                    imageOpacity: 1.0,
+                    scrimOpacity: 0.0,
+                  ),
+                ),
+              ),
+            ),
+          ),
         Positioned.fill(
           child: AnimatedContainer(
             duration: AppConstants.animationNormal,
@@ -860,6 +902,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     final visStyle = appPrefs.visualizerAnimationStyle;
     final visFreq = appPrefs.visualizerFrequencyMode;
     final visMove = appPrefs.visualizerMovementMode;
+    final immersiveBackgroundStyle = ImmersiveBackgroundStyleX.fromStorageValue(
+      appPrefs.immersiveBackgroundStyle,
+    );
 
     final colorMode = ref.watch(albumColorModeProvider);
     final dominantColor = ref.watch(albumDominantColorSyncProvider);
@@ -954,6 +999,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   visMove,
                   showImmersiveFullView,
                   showVisualizerOnly,
+                  immersiveBackgroundStyle,
                 ),
               ),
             );
@@ -974,6 +1020,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     String visMove,
     bool showImmersiveFullView,
     bool showVisualizerOnly,
+    ImmersiveBackgroundStyle backgroundStyle,
   ) {
     final visualizationMode =
         _isVisualizationMode && appPrefs.visualizerEnabled;
@@ -1033,6 +1080,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       visFreq,
       visMove,
       appPrefs.animatedAlbumArt && appPrefs.animationsEnabled,
+      backgroundStyle,
     );
 
     if (showVisualizerOnly) {

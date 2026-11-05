@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -7,6 +8,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/models/immersive_background_style.dart';
 import 'package:flick/models/player_screen_mode.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/player_action_button.dart';
@@ -63,6 +65,9 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
     final colorMode = ref.watch(albumColorModeProvider);
     final appPrefs = ref.watch(appPreferencesProvider);
     final prefsNotifier = ref.read(appPreferencesProvider.notifier);
+    final immersiveBackgroundStyle = ImmersiveBackgroundStyleX.fromStorageValue(
+      appPrefs.immersiveBackgroundStyle,
+    );
     return SafeArea(
       top: false,
       bottom: false,
@@ -122,6 +127,7 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                       immersiveFullViewScale: appPrefs.immersiveFullViewScale,
                       immersiveShowTitle: appPrefs.immersiveShowTitle,
                       immersiveShowArtist: appPrefs.immersiveShowArtist,
+                      immersiveBackgroundStyle: immersiveBackgroundStyle,
                     ),
                     Positioned(
                       top: 8,
@@ -282,6 +288,14 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                       title: l10n.immersive,
                       icon: Icons.fit_screen_rounded,
                       children: [
+                        _PlayerBackgroundStyleSelector(
+                          currentValue: immersiveBackgroundStyle,
+                          onChanged: (style) {
+                            prefsNotifier.setImmersiveBackgroundStyle(
+                              style.storageValue,
+                            );
+                          },
+                        ),
                         _PlayerCustomizationSlider(
                           title: l10n.textSize,
                           value: appPrefs.immersiveTextScale,
@@ -501,6 +515,10 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                           immersiveShowTitle: appPrefs.immersiveShowTitle,
                           immersiveShowArtist: appPrefs.immersiveShowArtist,
                           immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
+                          immersiveBackgroundStyle:
+                              ImmersiveBackgroundStyleX.fromStorageValue(
+                                appPrefs.immersiveBackgroundStyle,
+                              ),
                         ),
                       ),
                       Positioned(
@@ -815,6 +833,92 @@ class _PlayerCustomizationSlider extends StatelessWidget {
   }
 }
 
+class _PlayerBackgroundStyleSelector extends StatelessWidget {
+  final ImmersiveBackgroundStyle currentValue;
+  final ValueChanged<ImmersiveBackgroundStyle> onChanged;
+
+  const _PlayerBackgroundStyleSelector({
+    required this.currentValue,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.background,
+          style: TextStyle(
+            fontFamily: 'GoogleSansFlex',
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: context.adaptiveTextPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: ImmersiveBackgroundStyle.values.map((style) {
+            final isSelected = style == currentValue;
+            return GestureDetector(
+              onTap: () => onChanged(style),
+              child: AnimatedContainer(
+                duration: AppConstants.animationFast,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.accent.withValues(alpha: 0.18)
+                      : AppColors.glassBackground,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.accent.withValues(alpha: 0.6)
+                        : AppColors.glassBorder,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      style == ImmersiveBackgroundStyle.colorGradient
+                          ? Icons.gradient_rounded
+                          : Icons.blur_on_rounded,
+                      size: 14,
+                      color: isSelected
+                          ? AppColors.accent
+                          : context.adaptiveTextSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      style.labelFor(l10n),
+                      style: TextStyle(
+                        fontFamily: 'GoogleSansFlex',
+                        fontSize: 12,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: isSelected
+                            ? AppColors.textPrimary
+                            : context.adaptiveTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 6),
+      ],
+    );
+  }
+}
+
 class _PlayerLayoutPreview extends StatelessWidget {
   final Song? song;
   final PlayerScreenMode mode;
@@ -831,6 +935,7 @@ class _PlayerLayoutPreview extends StatelessWidget {
   final double immersiveFullViewScale;
   final bool immersiveShowTitle;
   final bool immersiveShowArtist;
+  final ImmersiveBackgroundStyle immersiveBackgroundStyle;
 
   const _PlayerLayoutPreview({
     required this.song,
@@ -848,6 +953,7 @@ class _PlayerLayoutPreview extends StatelessWidget {
     required this.immersiveFullViewScale,
     this.immersiveShowTitle = true,
     this.immersiveShowArtist = true,
+    this.immersiveBackgroundStyle = ImmersiveBackgroundStyle.colorGradient,
   });
 
   @override
@@ -951,13 +1057,11 @@ class _PlayerLayoutPreview extends StatelessWidget {
     return Stack(
       children: [
         Positioned.fill(
-          child: Opacity(
-            opacity: 0.28,
-            child: _PreviewAlbumArt(
-              song: song,
-              size: double.infinity,
-              radius: 0,
-            ),
+          child: _ImmersivePreviewBackground(
+            song: song,
+            backgroundStyle: immersiveBackgroundStyle,
+            artOpacity: 0.28,
+            blurSigma: 6,
           ),
         ),
         Positioned(
@@ -1023,6 +1127,58 @@ class _PlayerLayoutPreview extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _ImmersivePreviewBackground extends StatelessWidget {
+  final Song? song;
+  final ImmersiveBackgroundStyle backgroundStyle;
+  final double artOpacity;
+  final double blurSigma;
+
+  const _ImmersivePreviewBackground({
+    required this.song,
+    required this.backgroundStyle,
+    required this.artOpacity,
+    required this.blurSigma,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final useBlur = backgroundStyle == ImmersiveBackgroundStyle.blurGradient;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Opacity(
+          opacity: useBlur ? math.min(1.0, artOpacity + 0.18) : artOpacity,
+          child: _PreviewAlbumArt(song: song, size: double.infinity, radius: 0),
+        ),
+        if (useBlur)
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Colors.transparent, Colors.white],
+              stops: [0.0, 0.42, 0.82],
+            ).createShader(bounds),
+            blendMode: BlendMode.dstIn,
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(
+                sigmaX: blurSigma,
+                sigmaY: blurSigma,
+              ),
+              child: Opacity(
+                opacity: 0.86,
+                child: _PreviewAlbumArt(
+                  song: song,
+                  size: double.infinity,
+                  radius: 0,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1094,6 +1250,7 @@ class _FullScreenPreview extends StatelessWidget {
   final bool immersiveShowTitle;
   final bool immersiveShowArtist;
   final bool immersiveShowFileInfo;
+  final ImmersiveBackgroundStyle immersiveBackgroundStyle;
 
   const _FullScreenPreview({
     required this.song,
@@ -1113,6 +1270,7 @@ class _FullScreenPreview extends StatelessWidget {
     this.immersiveShowTitle = true,
     this.immersiveShowArtist = true,
     this.immersiveShowFileInfo = true,
+    this.immersiveBackgroundStyle = ImmersiveBackgroundStyle.colorGradient,
   });
 
   @override
@@ -1222,13 +1380,11 @@ class _FullScreenPreview extends StatelessWidget {
     return Stack(
       children: [
         Positioned.fill(
-          child: Opacity(
-            opacity: 0.32,
-            child: _PreviewAlbumArt(
-              song: song,
-              size: double.infinity,
-              radius: 0,
-            ),
+          child: _ImmersivePreviewBackground(
+            song: song,
+            backgroundStyle: immersiveBackgroundStyle,
+            artOpacity: 0.32,
+            blurSigma: 18,
           ),
         ),
         Positioned(

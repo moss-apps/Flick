@@ -50,7 +50,18 @@ class AmbientBackgroundScope extends InheritedWidget {
 class AmbientBackground extends StatefulWidget {
   final Song? song;
 
-  const AmbientBackground({super.key, this.song});
+  /// Opacity of the pre-blurred artwork itself.
+  final double imageOpacity;
+
+  /// Black scrim drawn over the blurred artwork.
+  final double scrimOpacity;
+
+  const AmbientBackground({
+    super.key,
+    this.song,
+    this.imageOpacity = 0.6,
+    this.scrimOpacity = 0.3,
+  });
 
   @override
   State<AmbientBackground> createState() => _AmbientBackgroundState();
@@ -265,10 +276,13 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
               RawImage(
                 image: image,
                 fit: BoxFit.cover,
-                opacity: const AlwaysStoppedAnimation(0.6),
+                opacity: AlwaysStoppedAnimation(widget.imageOpacity),
               ),
               // Dark scrim for readability
-              ColoredBox(color: Colors.black.withValues(alpha: 0.3)),
+              if (widget.scrimOpacity > 0)
+                ColoredBox(
+                  color: Colors.black.withValues(alpha: widget.scrimOpacity),
+                ),
             ],
           ),
         ),
