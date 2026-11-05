@@ -87,6 +87,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
@@ -603,6 +604,34 @@ class MainActivity: FlutterActivity() {
                         }
                     } else {
                         result.error("INVALID_ARGUMENT", "folderTreeUri, filePath, and tempFilePath are required", null)
+                    }
+                }
+                "stageContentUriForEdit" -> {
+                    val uri = call.argument<String>("uri")
+                    val extensionHint = call.argument<String>("extensionHint")
+                    if (uri != null) {
+                        mainScope.launch {
+                            val staged = withContext(Dispatchers.IO) {
+                                stageContentUriForEdit(uri, extensionHint)
+                            }
+                            result.success(staged)
+                        }
+                    } else {
+                        result.error("INVALID_ARGUMENT", "uri is required", null)
+                    }
+                }
+                "writeBytesToContentUri" -> {
+                    val uri = call.argument<String>("uri")
+                    val tempFilePath = call.argument<String>("tempFilePath")
+                    if (uri != null && tempFilePath != null) {
+                        mainScope.launch {
+                            val written = withContext(Dispatchers.IO) {
+                                writeBytesToContentUri(uri, tempFilePath)
+                            }
+                            result.success(written)
+                        }
+                    } else {
+                        result.error("INVALID_ARGUMENT", "uri and tempFilePath are required", null)
                     }
                 }
                 "queryMediaStoreAudio" -> {
@@ -1877,6 +1906,124 @@ class MainActivity: FlutterActivity() {
         } catch (e: Throwable) {
             Log.w("MainActivity", "writeFileBytesViaSaf failed: ${e.message}", e)
             false
+        }
+    }
+
+    /**
+     * Copies a content:// document into a private, uniquely named cache file so
+     * the Rust tagger can open it by path. The shared playback staging cache is
+     * deliberately not reused: editing mutates this copy, and a cached playback
+     * file must never be modified in place.
+     */
+    private fun stageContentUriForEdit(uriString: String, extensionHint: String?): Map<String, Any?> {
+        val uri = Uri.parse(uriString)
+        val stagingDir = File(cacheDir, "metadata_edits")
+        val stagedFile = try {
+            stagingDir.mkdirs()
+            pruneMetadataEditStaging(stagingDir)
+            val extension = resolveStagedExtension(uri, extensionHint)
+            File(stagingDir, "${md5(uriString)}-${UUID.randomUUID()}.$extension")
+        } catch (e: Exception) {
+            Log.w("MainActivity", "stageContentUriForEdit: could not prepare staging: ${e.message}", e)
+            return mapOf("path" to null, "reason" to "failed")
+        }
+
+        return try {
+            val input = contentResolver.openInputStream(uri)
+            if (input == null) {
+                mapOf("path" to null, "reason" to "not_found")
+            } else {
+                input.use { source ->
+                    stagedFile.outputStream().use { target ->
+                        copyStream(source, target)
+                    }
+                }
+                if (stagedFile.length() <= 0L) {
+                    stagedFile.delete()
+                    mapOf("path" to null, "reason" to "failed")
+                } else {
+                    mapOf("path" to stagedFile.absolutePath, "reason" to null)
+                }
+            }
+        } catch (e: java.io.FileNotFoundException) {
+            stagedFile.delete()
+            Log.w("MainActivity", "stageContentUriForEdit: not found: $uriString (${e.message})")
+            mapOf("path" to null, "reason" to "not_found")
+        } catch (e: SecurityException) {
+            stagedFile.delete()
+            Log.w("MainActivity", "stageContentUriForEdit: no access: $uriString (${e.message})")
+            mapOf("path" to null, "reason" to "no_access")
+        } catch (e: Exception) {
+            stagedFile.delete()
+            Log.w("MainActivity", "stageContentUriForEdit failed: ${e.message}", e)
+            mapOf("path" to null, "reason" to "failed")
+        }
+    }
+
+    /** Streams an edited cache copy back over the original document URI. */
+    private fun writeBytesToContentUri(uriString: String, tempFilePath: String): Map<String, Any?> {
+        val tempFile = File(tempFilePath)
+        if (!tempFile.exists()) {
+            return mapOf("success" to false, "reason" to "failed")
+        }
+        val uri = Uri.parse(uriString)
+
+        return try {
+            val output = openContentUriOutputStream(uri)
+            if (output == null) {
+                mapOf("success" to false, "reason" to "failed")
+            } else {
+                output.use { target ->
+                    tempFile.inputStream().use { source ->
+                        copyStream(source, target)
+                    }
+                }
+                mapOf("success" to true, "reason" to "ok")
+            }
+        } catch (e: java.io.FileNotFoundException) {
+            Log.w("MainActivity", "writeBytesToContentUri: not found: $uriString (${e.message})")
+            mapOf("success" to false, "reason" to "not_found")
+        } catch (e: SecurityException) {
+            Log.w("MainActivity", "writeBytesToContentUri: no access: $uriString (${e.message})")
+            mapOf("success" to false, "reason" to "no_access")
+        } catch (e: Exception) {
+            Log.w("MainActivity", "writeBytesToContentUri failed: ${e.message}", e)
+            mapOf("success" to false, "reason" to "failed")
+        }
+    }
+
+    /**
+     * "wt" truncates before writing, but a few document providers only accept
+     * "w". A genuinely missing document fails again on the retry and is
+     * reported as not_found by the caller.
+     */
+    private fun openContentUriOutputStream(uri: Uri): OutputStream? {
+        return try {
+            contentResolver.openOutputStream(uri, "wt")
+        } catch (e: IllegalArgumentException) {
+            contentResolver.openOutputStream(uri, "w")
+        } catch (e: java.io.FileNotFoundException) {
+            contentResolver.openOutputStream(uri, "w")
+        }
+    }
+
+    private fun copyStream(source: InputStream, target: OutputStream) {
+        val buffer = ByteArray(1024 * 1024)
+        while (true) {
+            val read = source.read(buffer)
+            if (read < 0) break
+            target.write(buffer, 0, read)
+        }
+        target.flush()
+    }
+
+    /** Clear edit copies left behind by crashes; 24h is far beyond one save. */
+    private fun pruneMetadataEditStaging(stagingDir: File) {
+        val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
+        stagingDir.listFiles()?.forEach { file ->
+            if (file.isFile && file.lastModified() < cutoff) {
+                file.delete()
+            }
         }
     }
 
