@@ -25,6 +25,7 @@ import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/advance_list_order.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/audio_engine_type.dart';
+import 'package:flick/models/immersive_background_style.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/models/playback_context.dart';
 import 'package:flick/models/player_action_button.dart';
@@ -158,6 +159,16 @@ extension PlayerScreenModeL10n on PlayerScreenMode {
   String descriptionFor(AppLocalizations l10n) => switch (this) {
     PlayerScreenMode.immersive => l10n.fullBleedAlbumArtWithThe,
     PlayerScreenMode.artworkCard => l10n.roundedAlbumArtCardWithA,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 沉浸式播放器背景
+// ---------------------------------------------------------------------------
+extension ImmersiveBackgroundStyleL10n on ImmersiveBackgroundStyle {
+  String labelFor(AppLocalizations l10n) => switch (this) {
+    ImmersiveBackgroundStyle.colorGradient => l10n.colorGradient,
+    ImmersiveBackgroundStyle.blurGradient => l10n.blurGradient,
   };
 }
 

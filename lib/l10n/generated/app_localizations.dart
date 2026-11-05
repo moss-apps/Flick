@@ -1529,6 +1529,18 @@ abstract class AppLocalizations {
   /// **'Background'**
   String get background;
 
+  /// No description provided for @blurGradient.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur gradient'**
+  String get blurGradient;
+
+  /// No description provided for @colorGradient.
+  ///
+  /// In en, this message translates to:
+  /// **'Color gradient'**
+  String get colorGradient;
+
   /// lib/features/settings/widgets/mini_player_customization.dart:197
   ///
   /// In en, this message translates to:
@@ -5741,6 +5753,12 @@ abstract class AppLocalizations {
   /// **'File Information'**
   String get fileInformation;
 
+  /// lib/services/metadata_editor_service.dart: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'This file is no longer available. It may have been moved or deleted. Rescan the library, then try again.'**
+  String get fileIsNoLongerAvailable;
+
   /// lib/features/player/widgets/song_metadata_sheet.dart:82
   ///
   /// In en, this message translates to:
@@ -5914,6 +5932,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Flick logs'**
   String get flickLogs;
+
+  /// lib/services/metadata_editor_service.dart: user-visible service error
+  ///
+  /// In en, this message translates to:
+  /// **'Flick no longer has permission to edit this file. Re-add its folder in Settings to grant edit access, then try again.'**
+  String get flickNoLongerHasPermissionToEditThisFile;
 
   /// lib/features/settings/screens/app_info_settings_screen.dart:444
   ///

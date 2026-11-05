@@ -874,6 +874,12 @@ class AppLocalizationsTl extends AppLocalizations {
   String get background => 'Likuran';
 
   @override
+  String get blurGradient => 'Gradient ng blur';
+
+  @override
+  String get colorGradient => 'Gradient ng kulay';
+
+  @override
   String get backgroundOpacity => 'Pagkalabo ng likuran';
 
   @override
@@ -3389,6 +3395,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String get fileInformation => 'Impormasyon ng file';
 
   @override
+  String get fileIsNoLongerAvailable =>
+      'Hindi na available ang file na ito. Maaaring nailipat o natanggal ito. I-scan muli ang library at subukan ulit.';
+
+  @override
   String get filePath => 'Path ng file';
 
   @override
@@ -3506,6 +3516,10 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get flickLogs => 'Mga log ng Flick';
+
+  @override
+  String get flickNoLongerHasPermissionToEditThisFile =>
+      'Wala nang pahintulot ang Flick na i-edit ang file na ito. Alisin at idagdag muli ang folder nito sa Mga pagsasaayos upang payagang baguhin ito, saka subukan muli.';
 
   @override
   String get flickPlayer => 'Flick Player';

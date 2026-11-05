@@ -793,6 +793,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get background => '背景';
 
   @override
+  String get blurGradient => '模糊渐变';
+
+  @override
+  String get colorGradient => '色彩渐变';
+
+  @override
   String get backgroundOpacity => '背景不透明度';
 
   @override
@@ -3117,6 +3123,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fileInformation => '文件信息';
 
   @override
+  String get fileIsNoLongerAvailable => '此文件已不可用，可能已被移动或删除。请重新扫描媒体库后重试。';
+
+  @override
   String get filePath => '文件路径';
 
   @override
@@ -3216,6 +3225,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get flickLogs => 'Flick 日志';
+
+  @override
+  String get flickNoLongerHasPermissionToEditThisFile =>
+      'Flick 已没有编辑此文件的权限。请在设置中移除并重新添加该文件夹以授予编辑权限，然后重试。';
 
   @override
   String get flickPlayer => 'Flick 音乐播放器';

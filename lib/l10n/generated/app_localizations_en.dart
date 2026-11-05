@@ -861,6 +861,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get background => 'Background';
 
   @override
+  String get blurGradient => 'Blur gradient';
+
+  @override
+  String get colorGradient => 'Color gradient';
+
+  @override
   String get backgroundOpacity => 'Background Opacity';
 
   @override
@@ -3346,6 +3352,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fileInformation => 'File Information';
 
   @override
+  String get fileIsNoLongerAvailable =>
+      'This file is no longer available. It may have been moved or deleted. Rescan the library, then try again.';
+
+  @override
   String get filePath => 'File Path';
 
   @override
@@ -3460,6 +3470,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get flickLogs => 'Flick logs';
+
+  @override
+  String get flickNoLongerHasPermissionToEditThisFile =>
+      'Flick no longer has permission to edit this file. Re-add its folder in Settings to grant edit access, then try again.';
 
   @override
   String get flickPlayer => 'Flick Player';

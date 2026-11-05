@@ -1113,6 +1113,8 @@
   "@background": {
     "description": "lib/features/settings/screens/widget_settings_screen.dart:155"
   },
+  "blurGradient": "Blur gradient",
+  "colorGradient": "Color gradient",
   "backgroundOpacity": "Background Opacity",
   "@backgroundOpacity": {
     "description": "lib/features/settings/widgets/mini_player_customization.dart:197"
@@ -4348,6 +4350,10 @@
   "@fileInformation": {
     "description": "lib/features/songs/screens/metadata_editor_screen.dart:444"
   },
+  "fileIsNoLongerAvailable": "This file is no longer available. It may have been moved or deleted. Rescan the library, then try again.",
+  "@fileIsNoLongerAvailable": {
+    "description": "lib/services/metadata_editor_service.dart: user-visible service error"
+  },
   "filePath": "File Path",
   "@filePath": {
     "description": "lib/features/player/widgets/song_metadata_sheet.dart:82"
@@ -4491,6 +4497,10 @@
   "flickLogs": "Flick logs",
   "@flickLogs": {
     "description": "lib/features/settings/screens/logs_screen.dart:110"
+  },
+  "flickNoLongerHasPermissionToEditThisFile": "Flick no longer has permission to edit this file. Re-add its folder in Settings to grant edit access, then try again.",
+  "@flickNoLongerHasPermissionToEditThisFile": {
+    "description": "lib/services/metadata_editor_service.dart: user-visible service error"
   },
   "flickPlayer": "Flick Player",
   "@flickPlayer": {
