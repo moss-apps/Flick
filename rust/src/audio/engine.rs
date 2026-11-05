@@ -15,7 +15,7 @@ use crate::audio::device::current_device_profile;
 use crate::audio::dsd_engine::DsdDecoderThread;
 use crate::audio::dynamics::DynamicsChain;
 use crate::audio::crossfeed::{Crossfeed, CrossfeedLevel};
-use crate::audio::equalizer::{EqBandSpec, Equalizer};
+use crate::audio::equalizer::{EqBandSpec, EqParams, Equalizer};
 use crate::audio::fx::SpatialFx;
 use crate::audio::pitch_shifter::PitchShifter;
 use crate::audio::source::{
@@ -152,10 +152,50 @@ impl From<crate::audio::dsd_engine::dsd::DsdOutputMode> for EngineDsdMode {
     }
 }
 
+/// Cumulative counters from the real-time PCM/DSP callback. Published through
+/// atomics so diagnostics can inspect the live path without logging from (or
+/// taking locks in) the audio callback.
+#[allow(dead_code)] // fields are consumed by Android diagnostics and tests
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct PcmCallbackStats {
+    pub source_lock_misses: u64,
+    pub crossfader_lock_misses: u64,
+    pub mix_buffer_lock_misses: u64,
+    pub speed_lock_misses: u64,
+    pub starved_samples: u64,
+    pub skipped_pitch: u64,
+    pub skipped_eq: u64,
+    pub skipped_crossfeed: u64,
+    pub skipped_fx: u64,
+    pub skipped_convolver: u64,
+    pub skipped_dynamics: u64,
+    pub peak: f32,
+    pub clipped_samples: u64,
+    pub non_finite_samples: u64,
+}
+
+/// Managed Oboe stream configuration and xrun counters, sampled from the
+/// control thread (never from the audio callback).
+#[allow(dead_code)] // fields are consumed by Android diagnostics and tests
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct ManagedOutputStats {
+    pub callback_count: u64,
+    pub callback_frames_total: u64,
+    pub callback_duration_us_max: u64,
+    pub callback_overruns: u64,
+    pub burst_frames_max: u32,
+    pub burst_chunked_count: u64,
+    pub xrun_count_supported: bool,
+    pub xrun_count: Option<u32>,
+    pub frames_per_burst: u32,
+    pub buffer_size_frames: u32,
+    pub buffer_capacity_frames: u32,
+}
+
 /// Audio callback data shared between engine and audio thread.
 ///
-/// This struct contains only lock-free or atomic data to ensure
-/// the audio callback never blocks.
+/// Progress and diagnostics use atomics. Mutable render state is protected by
+/// non-blocking callback locks; control-side contention must be kept out of it.
 pub struct AudioCallbackData {
     /// Volume level (0.0 to 1.0)
     volume: std::sync::atomic::AtomicU32, // Using AtomicU32 for f32 bit pattern
@@ -181,8 +221,12 @@ pub struct AudioCallbackData {
     speed_buffer: Mutex<Vec<f32>>,
     /// Fractional sample position for speed interpolation
     speed_frac_pos: Mutex<f64>,
-    /// Graphic EQ (10 bands). try_lock in callback to avoid blocking.
+    /// Live EQ filter state, mutated only on the render side.
     equalizer: Mutex<Equalizer>,
+    /// Latest precomputed EQ update. A busy mailbox defers the update, not the
+    /// active EQ processing. Coalescing avoids unbounded slider-update queues.
+    pending_equalizer: Mutex<Option<EqParams>>,
+    equalizer_update_pending: AtomicBool,
     /// Creative spatial/time FX.
     fx: Mutex<SpatialFx>,
     /// BS2B (Bauer stereophonic-to-binaural) crossfeed. Reduces headphone ear
@@ -210,6 +254,14 @@ pub struct AudioCallbackData {
     /// passthrough so the BS2B filters run even on a verified bit-perfect USB
     /// output (same trick as EQ).
     crossfeed_forces_dsp: AtomicBool,
+    /// Lock-free mirrors of effects that are enabled but have no dedicated
+    /// passthrough override. The callback uses these to avoid contending on
+    /// inactive effect mutexes and to distinguish an active stage skipped by
+    /// lock contention from an effect that is simply bypassed.
+    fx_enabled: AtomicBool,
+    convolver_enabled: AtomicBool,
+    compressor_enabled: AtomicBool,
+    limiter_enabled: AtomicBool,
     /// Effective ReplayGain for the current track (dB, f32 bits). New sources
     /// are stamped with this value at spawn; [AudioCommand::SetReplayGain]
     /// updates it live. ReplayGain != 0 dB needs the DSP path, so this also
@@ -234,6 +286,10 @@ pub struct AudioCallbackData {
     /// `try_lock` never collides mid-fade (a collision drops the fade gains and
     /// emits the outgoing track at full volume = audible chopping).
     crossfade_active: AtomicBool,
+    /// Lock-free mirror of `crossfader.is_enabled()`. Lets the command loop
+    /// skip disabled-crossfade checks without taking the source/crossfader
+    /// locks that the real-time callback needs.
+    crossfade_configured: AtomicBool,
     /// Latches a reported [AudioEvent::NextTrackReady] for the queued
     /// successor. Starts `true` ("nothing to report"); queueing arms it, and
     /// the command loop reports only once the successor actually holds audio.
@@ -261,6 +317,49 @@ pub struct AudioCallbackData {
     dsd_starved_samples: AtomicU64,
     /// Telemetry: callbacks silenced by `sources` lock contention.
     dsd_lock_misses: AtomicU64,
+    /// Telemetry: PCM callbacks whose entire block was silenced because the
+    /// source provider lock was busy. This is the DSP-path counterpart of
+    /// `dsd_lock_misses`.
+    pcm_source_lock_misses: AtomicU64,
+    /// Telemetry: PCM callbacks that could not acquire crossfader state.
+    pcm_crossfader_lock_misses: AtomicU64,
+    /// Telemetry: PCM callbacks that could not acquire the crossfade mix or
+    /// speed scratch buffers.
+    pcm_mix_buffer_lock_misses: AtomicU64,
+    pcm_speed_lock_misses: AtomicU64,
+    /// Telemetry: samples zero-filled because a live PCM source ran short.
+    pcm_starved_samples: AtomicU64,
+    /// Telemetry: DSP blocks where an active effect was bypassed because its
+    /// control lock was busy.
+    dsp_skipped_pitch: AtomicU64,
+    dsp_skipped_eq: AtomicU64,
+    dsp_skipped_crossfeed: AtomicU64,
+    dsp_skipped_fx: AtomicU64,
+    dsp_skipped_convolver: AtomicU64,
+    dsp_skipped_dynamics: AtomicU64,
+    /// Telemetry: highest absolute output sample after the final volume stage
+    /// (f32 bits), and the number of samples outside [-1, 1] or non-finite.
+    output_peak_bits: AtomicU32,
+    output_clipped_samples: AtomicU64,
+    output_nonfinite_samples: AtomicU64,
+    /// Telemetry sampled from the managed Oboe stream control path.
+    managed_callback_count: AtomicU64,
+    managed_callback_frames_total: AtomicU64,
+    managed_callback_duration_us_max: AtomicU64,
+    managed_callback_overruns: AtomicU64,
+    managed_xrun_count_supported: AtomicBool,
+    managed_xrun_count_available: AtomicBool,
+    managed_xrun_count: AtomicU32,
+    managed_frames_per_burst: AtomicU32,
+    managed_buffer_size_frames: AtomicU32,
+    managed_buffer_capacity_frames: AtomicU32,
+    /// Lock-free playback progress snapshot. `progress_seq` is a seqlock
+    /// generation: odd while the callback publishes, even when stable.
+    progress_seq: AtomicU64,
+    progress_position_secs_bits: AtomicU64,
+    progress_duration_secs_bits: AtomicU64,
+    progress_buffer_level_bits: AtomicU32,
+    progress_has_source: AtomicBool,
     /// Latches the first persistent-silence report (zero channels, undersized
     /// mix buffers) so the RT callback emits a single "output lost" event
     /// instead of spamming the channel every callback.
@@ -314,6 +413,8 @@ impl AudioCallbackData {
             speed_buffer: Mutex::new(vec![0.0; speed_buffer_size]),
             speed_frac_pos: Mutex::new(0.0),
             equalizer: Mutex::new(Equalizer::new()),
+            pending_equalizer: Mutex::new(None),
+            equalizer_update_pending: AtomicBool::new(false),
             fx: Mutex::new(SpatialFx::new(sample_rate)),
             crossfeed: Mutex::new(Crossfeed::new(sample_rate)),
             convolver: Mutex::new(Convolver::new(sample_rate)),
@@ -322,12 +423,17 @@ impl AudioCallbackData {
             pitch_shift_forces_dsp: AtomicBool::new(false),
             eq_forces_dsp: AtomicBool::new(false),
             crossfeed_forces_dsp: AtomicBool::new(false),
+            fx_enabled: AtomicBool::new(false),
+            convolver_enabled: AtomicBool::new(false),
+            compressor_enabled: AtomicBool::new(false),
+            limiter_enabled: AtomicBool::new(false),
             replaygain_db: AtomicU32::new(0.0f32.to_bits()),
             replaygain_forces_dsp: AtomicBool::new(false),
             finished_tracks,
             tuning_432hz_enabled: AtomicBool::new(tuning_enabled),
             crossfade_forces_dsp: AtomicBool::new(false),
             crossfade_active: AtomicBool::new(false),
+            crossfade_configured: AtomicBool::new(false),
             next_ready_reported: AtomicBool::new(true),
             stream_needs_restart: AtomicBool::new(false),
             engine_dsd_mode: AtomicU8::new(engine_dsd_mode as u8),
@@ -336,6 +442,35 @@ impl AudioCallbackData {
             dop_marker_phase: AtomicBool::new(false),
             dsd_starved_samples: AtomicU64::new(0),
             dsd_lock_misses: AtomicU64::new(0),
+            pcm_source_lock_misses: AtomicU64::new(0),
+            pcm_crossfader_lock_misses: AtomicU64::new(0),
+            pcm_mix_buffer_lock_misses: AtomicU64::new(0),
+            pcm_speed_lock_misses: AtomicU64::new(0),
+            pcm_starved_samples: AtomicU64::new(0),
+            dsp_skipped_pitch: AtomicU64::new(0),
+            dsp_skipped_eq: AtomicU64::new(0),
+            dsp_skipped_crossfeed: AtomicU64::new(0),
+            dsp_skipped_fx: AtomicU64::new(0),
+            dsp_skipped_convolver: AtomicU64::new(0),
+            dsp_skipped_dynamics: AtomicU64::new(0),
+            output_peak_bits: AtomicU32::new(0.0f32.to_bits()),
+            output_clipped_samples: AtomicU64::new(0),
+            output_nonfinite_samples: AtomicU64::new(0),
+            managed_callback_count: AtomicU64::new(0),
+            managed_callback_frames_total: AtomicU64::new(0),
+            managed_callback_duration_us_max: AtomicU64::new(0),
+            managed_callback_overruns: AtomicU64::new(0),
+            managed_xrun_count_supported: AtomicBool::new(false),
+            managed_xrun_count_available: AtomicBool::new(false),
+            managed_xrun_count: AtomicU32::new(0),
+            managed_frames_per_burst: AtomicU32::new(0),
+            managed_buffer_size_frames: AtomicU32::new(0),
+            managed_buffer_capacity_frames: AtomicU32::new(0),
+            progress_seq: AtomicU64::new(0),
+            progress_position_secs_bits: AtomicU64::new(0.0f64.to_bits()),
+            progress_duration_secs_bits: AtomicU64::new(0.0f64.to_bits()),
+            progress_buffer_level_bits: AtomicU32::new(0.0f32.to_bits()),
+            progress_has_source: AtomicBool::new(false),
             output_loss_reported: AtomicBool::new(false),
             oboe_burst_frames_max: AtomicU32::new(0),
             oboe_burst_chunked_count: AtomicU64::new(0),
@@ -424,6 +559,200 @@ impl AudioCallbackData {
         )
     }
 
+    /// Publish the current source's UI progress through the lock-free snapshot.
+    /// Callers must hold the `sources` lock so the source cannot be replaced
+    /// between selection and publication.
+    pub(crate) fn publish_progress_snapshot(&self, sources: &SourceProvider) {
+        let source = progress_source(
+            self.crossfade_active.load(Ordering::Relaxed),
+            sources,
+        );
+
+        self.progress_seq.fetch_add(1, Ordering::Relaxed);
+        // Publish the odd generation before any payload stores. The reader's
+        // acquire fence before rechecking the generation pairs with this fence.
+        std::sync::atomic::fence(Ordering::Release);
+        match source {
+            Some(source) => {
+                self.progress_position_secs_bits
+                    .store(source.position_secs().to_bits(), Ordering::Relaxed);
+                self.progress_duration_secs_bits
+                    .store(source.info.duration_secs.to_bits(), Ordering::Relaxed);
+                self.progress_buffer_level_bits
+                    .store(source.buffer_level().to_bits(), Ordering::Relaxed);
+                self.progress_has_source.store(true, Ordering::Relaxed);
+            }
+            None => {
+                self.progress_position_secs_bits
+                    .store(0.0f64.to_bits(), Ordering::Relaxed);
+                self.progress_duration_secs_bits
+                    .store(0.0f64.to_bits(), Ordering::Relaxed);
+                self.progress_buffer_level_bits
+                    .store(0.0f32.to_bits(), Ordering::Relaxed);
+                self.progress_has_source.store(false, Ordering::Relaxed);
+            }
+        }
+        self.progress_seq.fetch_add(1, Ordering::Release);
+    }
+
+    /// Clear the progress snapshot when playback is explicitly stopped or the
+    /// engine is shutting down. Callers must hold the `sources` lock so this
+    /// cannot interleave with a callback publishing a newer snapshot.
+    pub(crate) fn clear_progress_snapshot(&self) {
+        self.progress_seq.fetch_add(1, Ordering::Relaxed);
+        std::sync::atomic::fence(Ordering::Release);
+        self.progress_position_secs_bits
+            .store(0.0f64.to_bits(), Ordering::Relaxed);
+        self.progress_duration_secs_bits
+            .store(0.0f64.to_bits(), Ordering::Relaxed);
+        self.progress_buffer_level_bits
+            .store(0.0f32.to_bits(), Ordering::Relaxed);
+        self.progress_has_source.store(false, Ordering::Relaxed);
+        self.progress_seq.fetch_add(1, Ordering::Release);
+    }
+
+    /// Read the lock-free progress snapshot. Never takes the sources lock.
+    pub(crate) fn progress_snapshot(&self) -> Option<PlaybackProgress> {
+        for _ in 0..4 {
+            let seq_before = self.progress_seq.load(Ordering::Acquire);
+            if seq_before & 1 != 0 {
+                continue;
+            }
+            let has_source = self.progress_has_source.load(Ordering::Relaxed);
+            let position_bits = self.progress_position_secs_bits.load(Ordering::Relaxed);
+            let duration_bits = self.progress_duration_secs_bits.load(Ordering::Relaxed);
+            let buffer_level_bits = self.progress_buffer_level_bits.load(Ordering::Relaxed);
+            std::sync::atomic::fence(Ordering::Acquire);
+            let seq_after = self.progress_seq.load(Ordering::Relaxed);
+            if seq_before != seq_after {
+                continue;
+            }
+            if !has_source {
+                return None;
+            }
+            return Some(PlaybackProgress {
+                position_secs: f64::from_bits(position_bits),
+                duration_secs: Some(f64::from_bits(duration_bits)),
+                buffer_level: f32::from_bits(buffer_level_bits),
+            });
+        }
+        None
+    }
+
+    /// Cumulative PCM/DSP callback path counters.
+    pub(crate) fn pcm_callback_stats(&self) -> PcmCallbackStats {
+        PcmCallbackStats {
+            source_lock_misses: self.pcm_source_lock_misses.load(Ordering::Relaxed),
+            crossfader_lock_misses: self.pcm_crossfader_lock_misses.load(Ordering::Relaxed),
+            mix_buffer_lock_misses: self.pcm_mix_buffer_lock_misses.load(Ordering::Relaxed),
+            speed_lock_misses: self.pcm_speed_lock_misses.load(Ordering::Relaxed),
+            starved_samples: self.pcm_starved_samples.load(Ordering::Relaxed),
+            skipped_pitch: self.dsp_skipped_pitch.load(Ordering::Relaxed),
+            skipped_eq: self.dsp_skipped_eq.load(Ordering::Relaxed),
+            skipped_crossfeed: self.dsp_skipped_crossfeed.load(Ordering::Relaxed),
+            skipped_fx: self.dsp_skipped_fx.load(Ordering::Relaxed),
+            skipped_convolver: self.dsp_skipped_convolver.load(Ordering::Relaxed),
+            skipped_dynamics: self.dsp_skipped_dynamics.load(Ordering::Relaxed),
+            peak: f32::from_bits(self.output_peak_bits.load(Ordering::Relaxed)),
+            clipped_samples: self.output_clipped_samples.load(Ordering::Relaxed),
+            non_finite_samples: self.output_nonfinite_samples.load(Ordering::Relaxed),
+        }
+    }
+
+    /// Record the output peak and clipping/non-finite sample counts after the
+    /// final volume stage. RT-safe: only positive-float bit comparisons and
+    /// atomic updates.
+    #[inline]
+    pub(crate) fn note_output_peak(&self, peak: f32, clipped: u64, non_finite: u64) {
+        if peak > 0.0 {
+            self.output_peak_bits
+                .fetch_max(peak.to_bits(), Ordering::Relaxed);
+        }
+        if clipped > 0 {
+            self.output_clipped_samples
+                .fetch_add(clipped, Ordering::Relaxed);
+        }
+        if non_finite > 0 {
+            self.output_nonfinite_samples
+                .fetch_add(non_finite, Ordering::Relaxed);
+        }
+    }
+
+    /// Telemetry: execution time for one whole device burst (including bounded
+    /// rendering and output conversion). An overrun is not an OS xrun count.
+    #[inline]
+    pub(crate) fn note_managed_callback(
+        &self,
+        frames: usize,
+        elapsed: std::time::Duration,
+        sample_rate: u32,
+    ) {
+        self.managed_callback_count.fetch_add(1, Ordering::Relaxed);
+        self.managed_callback_frames_total
+            .fetch_add(frames as u64, Ordering::Relaxed);
+        self.managed_callback_duration_us_max.fetch_max(
+            elapsed.as_micros().min(u64::MAX as u128) as u64,
+            Ordering::Relaxed,
+        );
+        if sample_rate > 0
+            && frames > 0
+            && elapsed.as_nanos() > frames as u128 * 1_000_000_000 / sample_rate as u128
+        {
+            self.managed_callback_overruns.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Publish managed-stream configuration and xrun counters sampled from the
+    /// control thread. An unavailable reading must not look like zero underruns
+    /// or a stale reading from a previously opened stream.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn note_managed_telemetry(
+        &self,
+        xrun_supported: bool,
+        xrun_count: Option<u32>,
+        frames_per_burst: u32,
+        buffer_size_frames: u32,
+        buffer_capacity_frames: u32,
+    ) {
+        self.managed_xrun_count_supported
+            .store(xrun_supported, Ordering::Relaxed);
+        if let Some(count) = xrun_count {
+            self.managed_xrun_count.store(count, Ordering::Relaxed);
+        }
+        self.managed_xrun_count_available
+            .store(xrun_supported && xrun_count.is_some(), Ordering::Relaxed);
+        self.managed_frames_per_burst
+            .store(frames_per_burst, Ordering::Relaxed);
+        self.managed_buffer_size_frames
+            .store(buffer_size_frames, Ordering::Relaxed);
+        self.managed_buffer_capacity_frames
+            .store(buffer_capacity_frames, Ordering::Relaxed);
+    }
+
+    /// Snapshot of managed-stream and burst telemetry.
+    pub(crate) fn managed_output_stats(&self) -> ManagedOutputStats {
+        ManagedOutputStats {
+            callback_count: self.managed_callback_count.load(Ordering::Relaxed),
+            callback_frames_total: self.managed_callback_frames_total.load(Ordering::Relaxed),
+            callback_duration_us_max: self
+                .managed_callback_duration_us_max
+                .load(Ordering::Relaxed),
+            callback_overruns: self.managed_callback_overruns.load(Ordering::Relaxed),
+            burst_frames_max: self.oboe_burst_frames_max.load(Ordering::Relaxed),
+            burst_chunked_count: self.oboe_burst_chunked_count.load(Ordering::Relaxed),
+            xrun_count_supported: self.managed_xrun_count_supported.load(Ordering::Relaxed),
+            xrun_count: self
+                .managed_xrun_count_available
+                .load(Ordering::Relaxed)
+                .then(|| self.managed_xrun_count.load(Ordering::Relaxed)),
+            frames_per_burst: self.managed_frames_per_burst.load(Ordering::Relaxed),
+            buffer_size_frames: self.managed_buffer_size_frames.load(Ordering::Relaxed),
+            buffer_capacity_frames: self
+                .managed_buffer_capacity_frames
+                .load(Ordering::Relaxed),
+        }
+    }
+
     /// Telemetry: record a managed-output device burst and the number of
     /// bounded chunks it was rendered in (see `render_managed_burst`).
     #[allow(dead_code)] // consumed by the Android-only managed output callbacks
@@ -448,6 +777,39 @@ impl AudioCallbackData {
     #[allow(dead_code)] // consumed by the Android-only managed output callbacks
     pub(crate) fn dsp_burst_frames_cap(&self) -> usize {
         self.dsp_burst_frames_cap.load(Ordering::Relaxed)
+    }
+
+    /// Publish already prepared coefficients without touching the live EQ.
+    /// Replacing an unconsumed update is intentional: the latest slider value wins.
+    fn queue_equalizer_params(&self, params: EqParams) {
+        let mut pending = self.pending_equalizer.lock();
+        *pending = Some(params);
+        self.equalizer_update_pending.store(true, Ordering::Release);
+    }
+
+    /// Apply the latest EQ settings at a render block boundary. If the producer
+    /// is publishing, leave the old settings active and retry next block. Neither
+    /// a mailbox collision nor coefficient computation can bypass an active EQ.
+    fn apply_pending_equalizer(&self) {
+        if !self.equalizer_update_pending.load(Ordering::Acquire) {
+            return;
+        }
+        let Some(mut pending) = self.pending_equalizer.try_lock() else {
+            return;
+        };
+        let Some(mut eq) = self.equalizer.try_lock() else {
+            return;
+        };
+        if let Some(params) = pending.take() {
+            eq.apply_params(params);
+            self.eq_forces_dsp.store(
+                params.enabled
+                    && (params.active_bands > 0
+                        || (params.preamp_linear - 1.0).abs() > f32::EPSILON),
+                Ordering::Relaxed,
+            );
+        }
+        self.equalizer_update_pending.store(false, Ordering::Release);
     }
 
     #[inline]
@@ -592,7 +954,11 @@ impl AudioCallbackData {
             .store((buffer_size / self.channels.max(1)).max(1), Ordering::Relaxed);
         self.crossfader.lock().rebind_sample_rate(sample_rate);
         self.crossfade_active.store(false, Ordering::Relaxed);
-        *self.sources.lock() = SourceProvider::new(sample_rate, self.channels);
+        {
+            let mut sources = self.sources.lock();
+            *sources = SourceProvider::new(sample_rate, self.channels);
+            self.clear_progress_snapshot();
+        }
         *self.mix_buffer_a.lock() = vec![0.0; buffer_size];
         *self.mix_buffer_b.lock() = vec![0.0; buffer_size];
         *self.speed_buffer.lock() = vec![0.0; speed_buffer_size];
@@ -601,6 +967,8 @@ impl AudioCallbackData {
         self.crossfeed.lock().rebind_sample_rate(sample_rate);
         self.convolver.lock().reconfigure_sample_rate(sample_rate);
         *self.dynamics.lock() = DynamicsChain::new(sample_rate);
+        self.compressor_enabled.store(false, Ordering::Relaxed);
+        self.limiter_enabled.store(false, Ordering::Relaxed);
         let semitones = self.pitch_shifter.lock().semitones();
         let mut shifter = PitchShifter::new(sample_rate, self.channels);
         shifter.set_semitones(semitones);
@@ -931,18 +1299,11 @@ impl AudioEngineHandle {
         }
     }
 
-    /// Get current progress.
+    /// Get current progress from the callback-published snapshot. Progress
+    /// polling runs every 50 ms; taking the source lock here raced the audio
+    /// callback and could silence a block on a `try_lock` miss.
     pub fn get_progress(&self) -> Option<PlaybackProgress> {
-        let sources = self.callback_data.sources.lock();
-        progress_source(
-            self.callback_data.crossfade_active.load(Ordering::Relaxed),
-            &sources,
-        )
-        .map(|source| PlaybackProgress {
-            position_secs: source.position_secs(),
-            duration_secs: Some(source.info.duration_secs),
-            buffer_level: source.buffer_level(),
-        })
+        self.callback_data.progress_snapshot()
     }
 
     /// Get the current track path.
@@ -988,8 +1349,12 @@ impl AudioEngineHandle {
         self.callback_data.dsd_starve_stats()
     }
 
-    pub(crate) fn managed_output_stats(&self) -> (u32, u64) {
-        self.callback_data.oboe_burst_stats()
+    pub(crate) fn managed_output_stats(&self) -> ManagedOutputStats {
+        self.callback_data.managed_output_stats()
+    }
+
+    pub(crate) fn pcm_callback_stats(&self) -> PcmCallbackStats {
+        self.callback_data.pcm_callback_stats()
     }
 
     pub fn audio_api_pref(&self) -> AudioApiPreference {
@@ -1405,7 +1770,49 @@ struct AndroidManagedStream {
 }
 
 #[cfg(target_os = "android")]
+fn read_managed_stream_telemetry<T: AudioStreamSafe>(
+    stream: &mut T,
+) -> (bool, Option<u32>, u32, u32, u32) {
+    let xrun_supported = stream.is_xrun_count_supported();
+    let xrun_count = if xrun_supported {
+        stream
+            .get_xrun_count()
+            .ok()
+            .filter(|count| *count >= 0)
+            .map(|count| count as u32)
+    } else {
+        None
+    };
+    (
+        xrun_supported,
+        xrun_count,
+        stream.get_frames_per_burst().max(0) as u32,
+        stream.get_buffer_size_in_frames().max(0) as u32,
+        stream.get_buffer_capacity_in_frames().max(0) as u32,
+    )
+}
+
+#[cfg(target_os = "android")]
 impl AndroidManagedStream {
+    /// Sample control-thread telemetry from the live stream. Oboe's xrun count
+    /// is only meaningful while the stream is running, so the supervisor
+    /// refreshes it alongside its restart polling.
+    fn note_telemetry(&mut self, callback_data: &AudioCallbackData) {
+        let (supported, xruns, frames_per_burst, buffer_size, capacity) = match &mut self.kind {
+            AndroidManagedStreamKind::F32(s) => read_managed_stream_telemetry(s),
+            AndroidManagedStreamKind::I32(s) => read_managed_stream_telemetry(s),
+            AndroidManagedStreamKind::I32Pcm(s) => read_managed_stream_telemetry(s),
+            AndroidManagedStreamKind::I16(s) => read_managed_stream_telemetry(s),
+        };
+        callback_data.note_managed_telemetry(
+            supported,
+            xruns,
+            frames_per_burst,
+            buffer_size,
+            capacity,
+        );
+    }
+
     fn start(&mut self) -> Result<(), oboe::Error> {
         match &mut self.kind {
             AndroidManagedStreamKind::F32(s) => s.start(),
@@ -1484,6 +1891,9 @@ impl ManagedStreamSupervisor {
     /// parameters. The source position is untouched, so the new stream
     /// continues from the interrupted sample.
     fn poll_restart(&mut self, shutdown: &AtomicBool) {
+        if let Some(stream) = self.stream.as_mut() {
+            stream.note_telemetry(&self.callback_data);
+        }
         if !self.callback_data.stream_restart_requested() {
             return;
         }
@@ -2655,6 +3065,7 @@ impl AudioOutputCallback for AndroidOutputCallbackF32 {
         _audio_stream: &mut dyn AudioOutputStreamSafe,
         audio_data: &mut [(f32, f32)],
     ) -> DataCallbackResult {
+        let callback_started = std::time::Instant::now();
         let total_frames = audio_data.len();
         let callback_data = &self.callback_data;
         let event_tx = &self.event_tx;
@@ -2671,6 +3082,11 @@ impl AudioOutputCallback for AndroidOutputCallbackF32 {
                     *frame = (chunk[sample_index], chunk[sample_index + 1]);
                 }
             },
+        );
+        callback_data.note_managed_callback(
+            total_frames,
+            callback_started.elapsed(),
+            _audio_stream.get_sample_rate().max(0) as u32,
         );
         callback_data.note_oboe_burst(total_frames, chunks);
 
@@ -2754,6 +3170,7 @@ impl AudioOutputCallback for AndroidOutputCallbackI32 {
         _audio_stream: &mut dyn AudioOutputStreamSafe,
         audio_data: &mut [(i32, i32)],
     ) -> DataCallbackResult {
+        let callback_started = std::time::Instant::now();
         let total_frames = audio_data.len();
         let callback_data = &self.callback_data;
         let event_tx = &self.event_tx;
@@ -2773,6 +3190,11 @@ impl AudioOutputCallback for AndroidOutputCallbackI32 {
                     );
                 }
             },
+        );
+        callback_data.note_managed_callback(
+            total_frames,
+            callback_started.elapsed(),
+            _audio_stream.get_sample_rate().max(0) as u32,
         );
         callback_data.note_oboe_burst(total_frames, chunks);
 
@@ -2864,6 +3286,7 @@ impl AudioOutputCallback for AndroidOutputCallbackI32Pcm {
         _audio_stream: &mut dyn AudioOutputStreamSafe,
         audio_data: &mut [(i32, i32)],
     ) -> DataCallbackResult {
+        let callback_started = std::time::Instant::now();
         let total_frames = audio_data.len();
         let callback_data = &self.callback_data;
         let event_tx = &self.event_tx;
@@ -2883,6 +3306,11 @@ impl AudioOutputCallback for AndroidOutputCallbackI32Pcm {
                     );
                 }
             },
+        );
+        callback_data.note_managed_callback(
+            total_frames,
+            callback_started.elapsed(),
+            _audio_stream.get_sample_rate().max(0) as u32,
         );
         callback_data.note_oboe_burst(total_frames, chunks);
 
@@ -2968,6 +3396,7 @@ impl AudioOutputCallback for AndroidOutputCallbackI16 {
         _audio_stream: &mut dyn AudioOutputStreamSafe,
         audio_data: &mut [(i16, i16)],
     ) -> DataCallbackResult {
+        let callback_started = std::time::Instant::now();
         let total_frames = audio_data.len();
         let callback_data = &self.callback_data;
         let event_tx = &self.event_tx;
@@ -2987,6 +3416,11 @@ impl AudioOutputCallback for AndroidOutputCallbackI16 {
                     );
                 }
             },
+        );
+        callback_data.note_managed_callback(
+            total_frames,
+            callback_started.elapsed(),
+            _audio_stream.get_sample_rate().max(0) as u32,
         );
         callback_data.note_oboe_burst(total_frames, chunks);
 
@@ -3360,14 +3794,16 @@ fn open_android_output_stream(
                         } else {
                             (!exclusive_notes.is_empty()).then(|| exclusive_notes.join(" | "))
                         };
-                        return Ok(AndroidManagedStream {
+                        let mut stream = AndroidManagedStream {
                             kind,
                             actual_sample_rate: actual_rate.max(1) as u32,
                             active_audio_api: audio_api_label(actual_api),
                             active_sharing: sharing_label(actual_sharing),
                             sample_format,
                             exclusive_error,
-                        });
+                        };
+                        stream.note_telemetry(&callback_data);
+                        return Ok(stream);
                     }
                     Err(error) => {
                         if sharing_mode == SharingMode::Exclusive {
@@ -3382,14 +3818,16 @@ fn open_android_output_stream(
     }
 
     if let Some(kind) = fallback_kind {
-        return Ok(AndroidManagedStream {
+        let mut stream = AndroidManagedStream {
             kind,
             actual_sample_rate: fallback_rate.max(1),
             active_audio_api: fallback_api.unwrap_or("Unspecified"),
             active_sharing: fallback_sharing.unwrap_or("Unspecified"),
             sample_format: fallback_format.unwrap_or("f32"),
             exclusive_error: (!exclusive_notes.is_empty()).then(|| exclusive_notes.join(" | ")),
-        });
+        };
+        stream.note_telemetry(&callback_data);
+        return Ok(stream);
     }
 
     Err(last_error.unwrap_or_else(|| {
@@ -3543,6 +3981,86 @@ fn volume_to_gain(volume: f32) -> f32 {
     }
 }
 
+/// Run the DSP effects that are actually active and finish with the master
+/// volume stage. Inactive effects are never locked, which keeps their control
+/// mutexes out of the real-time callback entirely. An active effect whose lock
+/// is busy is counted as skipped instead of being silently bypassed.
+#[inline]
+fn process_dsp_effects(data: &AudioCallbackData, output: &mut [f32], channels: usize, volume: f32) {
+    if data.pitch_shift_forces_dsp.load(Ordering::Relaxed) {
+        match data.pitch_shifter.try_lock() {
+            Some(mut pitch) => pitch.process(output, channels),
+            None => {
+                data.dsp_skipped_pitch.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+    if data.eq_forces_dsp.load(Ordering::Relaxed) {
+        match data.equalizer.try_lock() {
+            Some(mut eq) => eq.process(output, channels),
+            None => {
+                data.dsp_skipped_eq.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+    if data.crossfeed_forces_dsp.load(Ordering::Relaxed) {
+        match data.crossfeed.try_lock() {
+            Some(mut crossfeed) => crossfeed.process(output, channels),
+            None => {
+                data.dsp_skipped_crossfeed.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+    if data.fx_enabled.load(Ordering::Relaxed) {
+        match data.fx.try_lock() {
+            Some(mut fx) => fx.process(output, channels),
+            None => {
+                data.dsp_skipped_fx.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+    if data.convolver_enabled.load(Ordering::Relaxed) {
+        match data.convolver.try_lock() {
+            Some(mut convolver) => convolver.process(output, channels),
+            None => {
+                data.dsp_skipped_convolver.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+    if data.compressor_enabled.load(Ordering::Relaxed)
+        || data.limiter_enabled.load(Ordering::Relaxed)
+    {
+        match data.dynamics.try_lock() {
+            Some(mut dynamics) => dynamics.process(output, channels),
+            None => {
+                data.dsp_skipped_dynamics.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+
+    // Volume is always applied last, after all DSP processing. This is also the
+    // single point where the callback measures the final signal level without
+    // logging or allocating on the audio thread.
+    let mut peak = 0.0f32;
+    let mut clipped = 0u64;
+    let mut non_finite = 0u64;
+    for sample in output.iter_mut() {
+        *sample *= volume;
+        if sample.is_finite() {
+            let magnitude = sample.abs();
+            if magnitude > peak {
+                peak = magnitude;
+            }
+            if magnitude > 1.0 {
+                clipped += 1;
+            }
+        } else {
+            non_finite += 1;
+        }
+    }
+    data.note_output_peak(peak, clipped, non_finite);
+}
+
 /// The real-time audio callback.
 ///
 /// This function MUST NOT:
@@ -3559,6 +4077,8 @@ pub(crate) fn audio_callback(
         data.fill_silence(output);
         return;
     }
+
+    data.apply_pending_equalizer();
 
     // Passthrough path: raw samples from decoder straight to output.
     if data.pipeline_mode.load(Ordering::Relaxed) == PipelineMode::Dop as u8 {
@@ -3584,6 +4104,7 @@ pub(crate) fn audio_callback(
             crate::audio::dsd_engine::dsd::dop::frame_dop_f32(output, data.channels, &mut marker_is_fa);
             data.dop_marker_phase.store(marker_is_fa, Ordering::Relaxed);
         }
+        data.publish_progress_snapshot(&sources);
         return;
     }
 
@@ -3610,6 +4131,7 @@ pub(crate) fn audio_callback(
                 .fetch_add((output.len() - read) as u64, Ordering::Relaxed);
             data.fill_silence(&mut output[read..]);
         }
+        data.publish_progress_snapshot(&sources);
         return;
     }
 
@@ -3631,61 +4153,48 @@ pub(crate) fn audio_callback(
     let mut sources = match data.sources.try_lock() {
         Some(s) => s,
         None => {
+            data.pcm_source_lock_misses.fetch_add(1, Ordering::Relaxed);
             output.fill(0.0);
             return;
         }
     };
 
-    let mut crossfader = match data.crossfader.try_lock() {
-        Some(c) => c,
-        None => {
-            // Never take the ordinary gapless read path during a fade: it
-            // drops both fade gains and can advance at EOF behind the
-            // crossfader's back. Stay non-blocking and preserve both sources
-            // until the next callback can acquire the fade state.
-            if data.crossfade_active.load(Ordering::Relaxed) {
-                output.fill(0.0);
-                return;
+    // Only touch crossfader state when a fade can exist. A disabled crossfade
+    // must not contend with the command loop's auto-fade check on every block.
+    let mut crossfader = None;
+    if data.crossfade_configured.load(Ordering::Relaxed)
+        || data.crossfade_active.load(Ordering::Relaxed)
+    {
+        match data.crossfader.try_lock() {
+            Some(c) => crossfader = Some(c),
+            None => {
+                data.pcm_crossfader_lock_misses
+                    .fetch_add(1, Ordering::Relaxed);
+                // Never take the ordinary gapless read path during a fade: it
+                // drops both fade gains and can advance at EOF behind the
+                // crossfader's back. Stay non-blocking and preserve both sources
+                // until the next callback can acquire the fade state.
+                if data.crossfade_active.load(Ordering::Relaxed) {
+                    output.fill(0.0);
+                    return;
+                }
             }
-            let (read, old_source) = sources.read(output);
-
-            if let Some(source) = old_source {
-                let _ = data.finished_tracks.try_send(source);
-            }
-
-            if read < output.len() {
-                output[read..].fill(0.0);
-            }
-            if let Some(mut pitch) = data.pitch_shifter.try_lock() {
-                pitch.process(output, channels);
-            }
-            if let Some(mut eq) = data.equalizer.try_lock() {
-                eq.process(output, channels);
-            }
-            if let Some(mut crossfeed) = data.crossfeed.try_lock() {
-                crossfeed.process(output, channels);
-            }
-            if let Some(mut fx) = data.fx.try_lock() {
-                fx.process(output, channels);
-            }
-            if let Some(mut convolver) = data.convolver.try_lock() {
-                convolver.process(output, channels);
-            }
-            if let Some(mut dynamics) = data.dynamics.try_lock() {
-                dynamics.process(output, channels);
-            }
-            // Volume is always applied last, after all DSP processing.
-            for sample in output.iter_mut() {
-                *sample *= volume;
-            }
-            return;
         }
-    };
+    }
 
-    if crossfader.is_active() && sources.next_mut().is_some() {
+    let fading = crossfader
+        .as_ref()
+        .map(|c| c.is_active())
+        .unwrap_or(false)
+        && sources.next().is_some();
+
+    if fading {
+        let crossfader = crossfader.as_mut().expect("fade requires crossfader state");
         let mut buf_a = match data.mix_buffer_a.try_lock() {
             Some(b) => b,
             None => {
+                data.pcm_mix_buffer_lock_misses
+                    .fetch_add(1, Ordering::Relaxed);
                 output.fill(0.0);
                 return;
             }
@@ -3693,6 +4202,8 @@ pub(crate) fn audio_callback(
         let mut buf_b = match data.mix_buffer_b.try_lock() {
             Some(b) => b,
             None => {
+                data.pcm_mix_buffer_lock_misses
+                    .fetch_add(1, Ordering::Relaxed);
                 output.fill(0.0);
                 return;
             }
@@ -3711,6 +4222,8 @@ pub(crate) fn audio_callback(
             return;
         }
 
+        let had_current = sources.current().is_some();
+        let had_next = sources.next().is_some();
         let read_a = sources
             .current_mut()
             .map(|s| s.read(&mut buf_a[..needed]))
@@ -3722,22 +4235,31 @@ pub(crate) fn audio_callback(
 
         if read_a < needed {
             buf_a[read_a..needed].fill(0.0);
+            if had_current && sources.current().is_some_and(|s| !s.is_finished()) {
+                data.pcm_starved_samples
+                    .fetch_add((needed - read_a) as u64, Ordering::Relaxed);
+            }
         }
         if read_b < needed {
             buf_b[read_b..needed].fill(0.0);
+            if had_next && sources.next().is_some_and(|s| !s.is_finished()) {
+                data.pcm_starved_samples
+                    .fetch_add((needed - read_b) as u64, Ordering::Relaxed);
+            }
         }
 
         let _ = crossfader.mix(&buf_a[..needed], &buf_b[..needed], output, channels);
 
         if !crossfader.is_active() {
             data.crossfade_active.store(false, Ordering::Relaxed);
-            drop(crossfader);
             if let Some(source) = sources.advance_to_next() {
                 let _ = data.finished_tracks.try_send(source);
             }
         }
+        data.publish_progress_snapshot(&sources);
     } else {
         if (speed - 1.0).abs() < 0.001 {
+            let had_current = sources.current().is_some();
             let (read, old_source) = sources.read(output);
 
             if let Some(source) = old_source {
@@ -3746,11 +4268,17 @@ pub(crate) fn audio_callback(
 
             if read < output.len() {
                 output[read..].fill(0.0);
+                if had_current && sources.current().is_some_and(|s| !s.is_finished()) {
+                    data.pcm_starved_samples
+                        .fetch_add((output.len() - read) as u64, Ordering::Relaxed);
+                }
             }
+            data.publish_progress_snapshot(&sources);
         } else {
             let mut speed_buf = match data.speed_buffer.try_lock() {
                 Some(b) => b,
                 None => {
+                    data.pcm_speed_lock_misses.fetch_add(1, Ordering::Relaxed);
                     output.fill(0.0);
                     return;
                 }
@@ -3758,6 +4286,7 @@ pub(crate) fn audio_callback(
             let mut frac_pos = match data.speed_frac_pos.try_lock() {
                 Some(p) => p,
                 None => {
+                    data.pcm_speed_lock_misses.fetch_add(1, Ordering::Relaxed);
                     output.fill(0.0);
                     return;
                 }
@@ -3772,11 +4301,21 @@ pub(crate) fn audio_callback(
                 return;
             }
 
+            let had_current = sources.current().is_some();
             let (read, old_source) = sources.read(&mut speed_buf[..input_samples_needed]);
 
             if let Some(source) = old_source {
                 let _ = data.finished_tracks.try_send(source);
             }
+
+            if had_current
+                && sources.current().is_some_and(|s| !s.is_finished())
+                && read < input_samples_needed
+            {
+                data.pcm_starved_samples
+                    .fetch_add((input_samples_needed - read) as u64, Ordering::Relaxed);
+            }
+            data.publish_progress_snapshot(&sources);
 
             if read < channels {
                 output.fill(0.0);
@@ -3810,29 +4349,11 @@ pub(crate) fn audio_callback(
         }
     }
 
-    if let Some(mut pitch) = data.pitch_shifter.try_lock() {
-        pitch.process(output, channels);
-    }
-    if let Some(mut eq) = data.equalizer.try_lock() {
-        eq.process(output, channels);
-    }
-    if let Some(mut crossfeed) = data.crossfeed.try_lock() {
-        crossfeed.process(output, channels);
-    }
-    if let Some(mut fx) = data.fx.try_lock() {
-        fx.process(output, channels);
-    }
-    if let Some(mut convolver) = data.convolver.try_lock() {
-        convolver.process(output, channels);
-    }
-    if let Some(mut dynamics) = data.dynamics.try_lock() {
-        dynamics.process(output, channels);
-    }
-
-    // Volume is always applied last, after all DSP processing.
-    for sample in output.iter_mut() {
-        *sample *= volume;
-    }
+    // Release playback state before the effect chain: command handling must not
+    // wait on the source/crossfade locks while the callback runs effects.
+    drop(crossfader);
+    drop(sources);
+    process_dsp_effects(data, output, channels, volume);
 }
 
 /// Command processing loop running in the audio thread.
@@ -3966,7 +4487,11 @@ fn command_processing_loop(
                         let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Playing));
                     }
                     AudioCommand::Stop => {
-                        callback_data.sources.lock().stop();
+                        {
+                            let mut sources = callback_data.sources.lock();
+                            sources.stop();
+                            callback_data.clear_progress_snapshot();
+                        }
                         callback_data.crossfader.lock().reset();
                         callback_data.pitch_shifter.lock().reset();
                         callback_data.crossfade_active.store(false, Ordering::Relaxed);
@@ -4027,6 +4552,9 @@ fn command_processing_loop(
                         callback_data
                             .crossfade_forces_dsp
                             .store(enabled, Ordering::Relaxed);
+                        callback_data
+                            .crossfade_configured
+                            .store(enabled, Ordering::Relaxed);
                         log::info!(
                             "[crossfade] set enabled={} duration={:.1}s forces_dsp={}",
                             enabled,
@@ -4046,17 +4574,14 @@ fn command_processing_loop(
                         preamp_db,
                         specs,
                     } => {
-                        if let Some(mut eq) = callback_data.equalizer.try_lock() {
-                            eq.set(enabled, preamp_db, &specs, sample_rate);
-                        }
-                        // EQ needs the DSP path (see crossfade). Force out of
-                        // passthrough when active so the biquads run even on a
-                        // verified bit-perfect USB output. Preamp-only also
-                        // needs the gain stage.
-                        callback_data.eq_forces_dsp.store(
-                            enabled && (!specs.is_empty() || preamp_db.abs() > f32::EPSILON),
-                            Ordering::Relaxed,
-                        );
+                        // Biquad computation belongs on the control thread, not
+                        // behind the live filter-state lock or in the callback.
+                        let params = if enabled {
+                            EqParams::from_specs(&specs, preamp_db, sample_rate)
+                        } else {
+                            EqParams::disabled()
+                        };
+                        callback_data.queue_equalizer_params(params);
                     }
                     AudioCommand::SetCrossfeed { level } => {
                         callback_data.crossfeed.lock().set_level(level);
@@ -4096,6 +4621,9 @@ fn command_processing_loop(
                             release_ms,
                             makeup_gain_db,
                         );
+                        callback_data
+                            .compressor_enabled
+                            .store(enabled, Ordering::Relaxed);
                     }
                     AudioCommand::SetLimiter {
                         enabled,
@@ -4109,6 +4637,9 @@ fn command_processing_loop(
                             ceiling_db,
                             release_ms,
                         );
+                        callback_data
+                            .limiter_enabled
+                            .store(enabled, Ordering::Relaxed);
                     }
                     AudioCommand::SetPipelineMode { passthrough } => {
                         let mode = if passthrough {
@@ -4155,22 +4686,33 @@ fn command_processing_loop(
                             enabled, balance, tempo, damp, filter_hz, delay_ms, size, mix,
                             feedback, width,
                         );
+                        callback_data.fx_enabled.store(enabled, Ordering::Relaxed);
                     }
                     AudioCommand::SetConvolver { enabled, mix } => {
                         callback_data.convolver.lock().set(enabled, mix);
+                        callback_data
+                            .convolver_enabled
+                            .store(enabled, Ordering::Relaxed);
                     }
                     AudioCommand::SetConvolverIr { coeffs } => {
                         callback_data.convolver.lock().load_ir(coeffs);
                     }
                     AudioCommand::ClearConvolverIr => {
                         callback_data.convolver.lock().clear_ir();
+                        callback_data
+                            .convolver_enabled
+                            .store(false, Ordering::Relaxed);
                     }
                     AudioCommand::CrossfadeToNext | AudioCommand::SkipToNext => {
                         handle_skip_to_next(&callback_data, &state, &event_tx);
                     }
                     AudioCommand::Shutdown => {
                         // Stop everything and exit
-                        callback_data.sources.lock().stop();
+                        {
+                            let mut sources = callback_data.sources.lock();
+                            sources.stop();
+                            callback_data.clear_progress_snapshot();
+                        }
                         for decoder in decoders.lock().drain(..) {
                             decoder.stop();
                         }
@@ -4442,7 +4984,11 @@ fn start_playback_source(
     source.set_ready();
     source.set_playing();
 
-    callback_data.sources.lock().set_current(source);
+    {
+        let mut sources = callback_data.sources.lock();
+        sources.set_current(source);
+        callback_data.publish_progress_snapshot(&sources);
+    }
     callback_data.set_paused(false);
     decoders.lock().push(decoder_handle);
 
@@ -4530,6 +5076,12 @@ fn maybe_start_auto_crossfade(
     // try_lock drops the fade gains and emits the outgoing track at full
     // volume = audible chopping).
     if callback_data.crossfade_active.load(Ordering::Relaxed) {
+        return false;
+    }
+
+    // Disabled crossfade is the common case. Check the lock-free mirror before
+    // taking the source/crossfader locks that the real-time callback needs.
+    if !callback_data.crossfade_configured.load(Ordering::Relaxed) {
         return false;
     }
 
@@ -4887,7 +5439,11 @@ fn handle_seek(
                 source.set_playing();
             }
 
-            callback_data.sources.lock().set_current(source);
+            {
+                let mut sources = callback_data.sources.lock();
+                sources.set_current(source);
+                callback_data.publish_progress_snapshot(&sources);
+            }
             callback_data.set_paused(was_paused);
             decoders.lock().push(handle);
 
@@ -5333,6 +5889,7 @@ mod tests {
             fade.set_enabled(true);
             fade.set_duration(0.5);
         }
+        data.crossfade_configured.store(true, Ordering::Relaxed);
         let state = Arc::new(AtomicU8::new(PlaybackState::Playing as u8));
         let mut near_end_logged = false;
 
@@ -5376,6 +5933,7 @@ mod tests {
             fade.set_enabled(true);
             fade.set_duration(0.5);
         }
+        data.crossfade_configured.store(true, Ordering::Relaxed);
         let state = Arc::new(AtomicU8::new(PlaybackState::Playing as u8));
         let mut near_end_logged = false;
 
@@ -6232,5 +6790,272 @@ mod tests {
         assert!(panicked);
         assert_eq!(chunks, 1);
         assert_eq!(spans, vec![(0, 1_000)]);
+    }
+
+    #[test]
+    fn pcm_callback_counts_source_lock_miss_and_silences_block() {
+        let data = build_callback_data(48_000, 2);
+        let _sources = data.sources.lock();
+
+        let output = run_callback(&data, 16);
+
+        assert!(output.iter().all(|sample| *sample == 0.0));
+        assert_eq!(data.pcm_callback_stats().source_lock_misses, 1);
+    }
+
+    #[test]
+    fn pcm_callback_counts_starved_samples_on_short_read() {
+        let data = build_callback_data(48_000, 2);
+        let (mut source, _producer) =
+            AudioSource::new(queued_source_info("empty-current.flac", 48_000, 2));
+        source.set_ready();
+        source.set_playing();
+        data.sources.lock().set_current(source);
+
+        let output = run_callback(&data, 16);
+
+        assert!(output.iter().all(|sample| *sample == 0.0));
+        let stats = data.pcm_callback_stats();
+        assert_eq!(stats.starved_samples, 16);
+        assert_eq!(stats.source_lock_misses, 0);
+    }
+
+    #[test]
+    fn pcm_callback_does_not_count_natural_eof_as_starvation() {
+        let data = build_callback_data(48_000, 2);
+        data.sources
+            .lock()
+            .set_current(build_source(&[0.5, 0.5, -0.5, -0.5], 48_000, 2));
+
+        let output = run_callback(&data, 16);
+
+        assert_eq!(output[..4], [0.5, 0.5, -0.5, -0.5]);
+        assert!(output[4..].iter().all(|sample| *sample == 0.0));
+        assert_eq!(data.pcm_callback_stats().starved_samples, 0);
+    }
+
+    #[test]
+    fn pcm_callback_records_peak_and_clipping_after_volume() {
+        let data = build_callback_data(48_000, 2);
+        data.set_volume(2.0);
+        data.sources.lock().set_current(build_source(
+            &[0.75, -0.75, 0.125, -0.125],
+            48_000,
+            2,
+        ));
+
+        let output = run_callback(&data, 4);
+
+        assert_eq!(output, vec![1.5, -1.5, 0.25, -0.25]);
+        let stats = data.pcm_callback_stats();
+        assert_eq!(stats.peak, 1.5);
+        assert_eq!(stats.clipped_samples, 2);
+        assert_eq!(stats.non_finite_samples, 0);
+    }
+
+    #[test]
+    fn active_effect_lock_miss_is_counted_as_skipped() {
+        let data = build_callback_data(48_000, 2);
+        data.sources
+            .lock()
+            .set_current(build_source(&[0.1; 8], 48_000, 2));
+        data.eq_forces_dsp.store(true, Ordering::Relaxed);
+        let _eq = data.equalizer.lock();
+
+        let output = run_callback(&data, 8);
+
+        assert_eq!(output, vec![0.1; 8]);
+        assert_eq!(data.pcm_callback_stats().skipped_eq, 1);
+    }
+
+    #[test]
+    fn progress_snapshot_is_readable_while_sources_are_locked() {
+        let data = build_callback_data(48_000, 2);
+        let source = build_source(&[0.25; 96_000], 48_000, 2);
+        source.set_position_secs(0.75);
+
+        let mut sources = data.sources.lock();
+        sources.set_current(source);
+        data.publish_progress_snapshot(&sources);
+
+        let progress = data
+            .progress_snapshot()
+            .expect("published progress must survive a held source lock");
+        assert_eq!(progress.position_secs, 0.75);
+        assert!(progress.duration_secs.is_some());
+    }
+
+    #[test]
+    fn auto_crossfade_does_not_start_when_configuration_mirror_is_disabled() {
+        let data = build_callback_data(48_000, 2);
+        let (event_tx, _event_rx) = bounded::<AudioEvent>(8);
+        {
+            let mut sources = data.sources.lock();
+            let outgoing = build_source(&[0.25; 96_000], 48_000, 2);
+            outgoing.set_position_secs(0.75);
+            sources.set_current(outgoing);
+            sources.queue_next(build_source(&[0.5; 96_000], 48_000, 2));
+        }
+        {
+            let mut fade = data.crossfader.lock();
+            fade.set_enabled(true);
+            fade.set_duration(0.5);
+        }
+        let state = Arc::new(AtomicU8::new(PlaybackState::Playing as u8));
+        let mut near_end_logged = false;
+
+        assert!(!maybe_start_auto_crossfade(
+            &data,
+            &state,
+            &event_tx,
+            &mut near_end_logged
+        ));
+        assert!(!data.crossfade_active.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn managed_output_telemetry_accumulates() {
+        let data = build_callback_data(48_000, 2);
+        data.note_managed_callback(1_922, std::time::Duration::from_micros(1_000), 96_000);
+        data.note_managed_callback(480, std::time::Duration::from_millis(11), 48_000);
+        data.note_managed_telemetry(true, Some(3), 192, 960, 9_600);
+
+        let stats = data.managed_output_stats();
+        assert_eq!(stats.callback_count, 2);
+        assert_eq!(stats.callback_frames_total, 2_402);
+        assert!(stats.xrun_count_supported);
+        assert_eq!(stats.xrun_count, Some(3));
+        assert_eq!(stats.callback_duration_us_max, 11_000);
+        assert_eq!(stats.callback_overruns, 1);
+        assert_eq!(stats.frames_per_burst, 192);
+        assert_eq!(stats.buffer_size_frames, 960);
+        assert_eq!(stats.buffer_capacity_frames, 9_600);
+    }
+
+    #[test]
+    fn managed_output_does_not_report_unavailable_xruns_as_zero_or_stale() {
+        let data = build_callback_data(48_000, 2);
+        assert_eq!(data.managed_output_stats().xrun_count, None);
+        data.note_managed_telemetry(true, Some(7), 192, 960, 9_600);
+        assert_eq!(data.managed_output_stats().xrun_count, Some(7));
+
+        data.note_managed_telemetry(true, None, 192, 960, 9_600);
+        assert!(data.managed_output_stats().xrun_count_supported);
+        assert_eq!(data.managed_output_stats().xrun_count, None);
+
+        data.note_managed_telemetry(false, None, 0, 0, 0);
+        let stats = data.managed_output_stats();
+        assert!(!stats.xrun_count_supported);
+        assert_eq!(stats.xrun_count, None);
+        assert_eq!(stats.frames_per_burst, 0);
+        assert_eq!(stats.buffer_size_frames, 0);
+        assert_eq!(stats.buffer_capacity_frames, 0);
+    }
+
+    #[test]
+    fn eq_mailbox_contention_keeps_previous_processing_until_next_block() {
+        let data = build_callback_data(48_000, 2);
+        data.sources
+            .lock()
+            .set_current(build_source(&[0.5; 64], 48_000, 2));
+        let previous = EqParams::from_specs(&[], -6.0, 48_000);
+        data.queue_equalizer_params(previous);
+        let expected = 0.5 * previous.preamp_linear;
+        assert!(run_callback(&data, 8)
+            .iter()
+            .all(|sample| (*sample - expected).abs() < 1e-6));
+
+        data.queue_equalizer_params(EqParams::disabled());
+        let pending = data.pending_equalizer.lock();
+        let during_update = run_callback(&data, 8);
+        assert!(during_update
+            .iter()
+            .all(|sample| (*sample - expected).abs() < 1e-6));
+        assert_eq!(data.pcm_callback_stats().skipped_eq, 0);
+        assert!(data.equalizer_update_pending.load(Ordering::Acquire));
+        drop(pending);
+
+        assert_eq!(run_callback(&data, 8), vec![0.5; 8]);
+        assert!(!data.eq_forces_dsp.load(Ordering::Relaxed));
+        assert!(!data.equalizer_update_pending.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn eq_updates_never_lock_live_state_and_latest_pending_value_wins() {
+        let data = build_callback_data(48_000, 2);
+        data.sources
+            .lock()
+            .set_current(build_source(&[0.5; 64], 48_000, 2));
+        let live = data.equalizer.lock();
+        data.queue_equalizer_params(EqParams::from_specs(&[], 6.0, 48_000));
+        let latest = EqParams::from_specs(&[], -12.0, 48_000);
+        data.queue_equalizer_params(latest);
+        drop(live);
+
+        let expected = 0.5 * latest.preamp_linear;
+        assert!(run_callback(&data, 8)
+            .iter()
+            .all(|sample| (*sample - expected).abs() < 1e-6));
+        assert_eq!(data.pcm_callback_stats().skipped_eq, 0);
+        assert_eq!(data.pcm_callback_stats().source_lock_misses, 0);
+    }
+
+    #[test]
+    fn eq_enable_and_disable_take_effect_at_passthrough_block_boundaries() {
+        let data = build_passthrough_callback_data(96_000, 2);
+        data.sources
+            .lock()
+            .set_current(build_source(&[0.5; 64], 96_000, 2));
+        let params = EqParams::from_specs(&[], -6.0, 96_000);
+        data.queue_equalizer_params(params);
+        assert!(run_callback(&data, 8)
+            .iter()
+            .all(|sample| (*sample - 0.5 * params.preamp_linear).abs() < 1e-6));
+        assert!(!data.is_passthrough());
+
+        data.queue_equalizer_params(EqParams::disabled());
+        assert_eq!(run_callback(&data, 8), vec![0.5; 8]);
+        assert!(data.is_passthrough());
+    }
+
+    #[test]
+    fn progress_polling_during_pcm_render_does_not_contend_with_sources() {
+        for sample_rate in [44_100, 48_000, 96_000] {
+            let data = Arc::new(build_callback_data(sample_rate, 2));
+            data.sources.lock().set_current(build_source(
+                &vec![0.25; 80_000],
+                sample_rate,
+                2,
+            ));
+            let polling_data = Arc::clone(&data);
+            let polling = thread::spawn(move || {
+                for _ in 0..10_000 {
+                    let _ = polling_data.progress_snapshot();
+                }
+            });
+            for _ in 0..20 {
+                // The reporter's largest device burst was 1,922 frames.
+                assert_eq!(run_callback(&data, 1_922 * 2), vec![0.25; 1_922 * 2]);
+            }
+            polling.join().unwrap();
+            assert_eq!(data.pcm_callback_stats().source_lock_misses, 0);
+            assert_eq!(data.pcm_callback_stats().starved_samples, 0);
+            assert!(data.progress_snapshot().unwrap().position_secs > 0.0);
+        }
+    }
+
+    #[test]
+    fn reconfigure_sample_rate_clears_progress_snapshot() {
+        let data = build_callback_data(48_000, 2);
+        {
+            let mut sources = data.sources.lock();
+            sources.set_current(build_source(&[0.25; 64], 48_000, 2));
+            data.publish_progress_snapshot(&sources);
+        }
+        assert!(data.progress_snapshot().is_some());
+
+        data.reconfigure_sample_rate(96_000);
+
+        assert!(data.progress_snapshot().is_none());
     }
 }

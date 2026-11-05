@@ -390,7 +390,10 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
         _section('progressBar', l10n.progressBar, [
           ('waveform', l10n.waveform),
           ('line', l10n.line),
-        ], keywords: 'seekbar'),
+          ('waveformHeight', l10n.waveformHeight),
+          ('lineThickness', l10n.lineThickness),
+          ('resetToDefaults', l10n.resetToDefaults),
+        ], keywords: 'seekbar height thickness size'),
         _section('albumColors', l10n.albumColors, [
           ('off', l10n.off),
           ('subtle', l10n.subtle),

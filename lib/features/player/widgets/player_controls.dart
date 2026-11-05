@@ -13,6 +13,7 @@ import 'package:flick/features/player/widgets/shuffle_mode_sheet.dart';
 import 'package:flick/features/player/widgets/loop_mode_sheet.dart';
 
 import 'package:flick/l10n/l10n.dart';
+
 class PlayerControls extends StatelessWidget {
   final PlayerService playerService;
   final String Function(Duration) formatDuration;
@@ -24,7 +25,11 @@ class PlayerControls extends StatelessWidget {
   final Color? albumColor;
   final bool showTimeLabels;
 
-  const PlayerControls({super.key,
+  /// Tighter metrics for the right pane of the landscape player.
+  final bool compact;
+
+  const PlayerControls({
+    super.key,
     required this.playerService,
     required this.formatDuration,
     required this.currentSong,
@@ -34,6 +39,7 @@ class PlayerControls extends StatelessWidget {
     this.albumColorMode = AlbumColorMode.off,
     this.albumColor,
     this.showTimeLabels = true,
+    this.compact = false,
   });
 
   @override
@@ -48,6 +54,9 @@ class PlayerControls extends StatelessWidget {
     final activeAccent = hasAlbumTint
         ? albumAccent(albumColor!, accentBlend)
         : AppColors.accent;
+    final sideSize = compact ? 44.0 : context.responsive(40.0, 44.0, 48.0);
+    final iconSize = compact ? 18.0 : context.responsive(18.0, 20.0, 22.0);
+    final gap = compact ? 4.0 : context.responsive(14.0, 18.0, 22.0);
 
     return RepaintBoundary(
       child: ValueListenableBuilder<Duration>(
@@ -79,8 +88,7 @@ class PlayerControls extends StatelessWidget {
                                   position: position,
                                   duration: duration,
                                   formatDuration: formatDuration,
-                                  horizontalPadding:
-                                      timelineHorizontalPadding,
+                                  horizontalPadding: timelineHorizontalPadding,
                                 ),
                                 const SizedBox(height: 12),
                               ],
@@ -88,9 +96,12 @@ class PlayerControls extends StatelessWidget {
                           : const SizedBox.shrink(),
                     ),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                       // Shuffle
                       ValueListenableBuilder<ShuffleMode>(
                         valueListenable: playerService.shuffleModeNotifier,
@@ -107,22 +118,25 @@ class PlayerControls extends StatelessWidget {
                               playerService.toggleShuffle();
                               final next =
                                   playerService.shuffleModeNotifier.value;
-                              ScaffoldMessenger.of(context)
-                                .showFlickSnackBar(
-                                  SnackBar(
-                                    content: Text(l10n.englishForFilipino.shuffle2(next.label)),
-                                    behavior: SnackBarBehavior.floating,
-                                    duration: const Duration(seconds: 1),
+                              ScaffoldMessenger.of(context).showFlickSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    l10n.englishForFilipino.shuffle2(
+                                      next.label,
+                                    ),
                                   ),
-                                );
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
                             },
                             onLongPress: () {
                               AppHaptics.tap();
                               ShuffleModeSheet.show(context, playerService);
                             },
                             child: Container(
-                              width: context.responsive(40.0, 44.0, 48.0),
-                              height: context.responsive(40.0, 44.0, 48.0),
+                              width: sideSize,
+                              height: sideSize,
                               decoration: BoxDecoration(
                                 color: isActive
                                     ? activeAccent.withValues(alpha: 0.25)
@@ -139,7 +153,7 @@ class PlayerControls extends StatelessWidget {
                               ),
                               child: Icon(
                                 icon,
-                                size: context.responsive(18.0, 20.0, 22.0),
+                                size: iconSize,
                                 color: isActive
                                     ? activeAccent
                                     : Colors.white.withValues(alpha: 0.7),
@@ -148,11 +162,11 @@ class PlayerControls extends StatelessWidget {
                           );
                         },
                       ),
-                      SizedBox(width: context.responsive(14.0, 18.0, 22.0)),
+                      SizedBox(width: gap),
                       // Previous
                       Container(
-                        width: context.responsive(40.0, 44.0, 48.0),
-                        height: context.responsive(40.0, 44.0, 48.0),
+                        width: sideSize,
+                        height: sideSize,
                         decoration: BoxDecoration(
                           color: buttonSurface.withValues(alpha: 0.6),
                           shape: BoxShape.circle,
@@ -162,23 +176,24 @@ class PlayerControls extends StatelessWidget {
                             AppHaptics.tap();
                             onPrevious();
                           },
-                          iconSize: context.responsive(18.0, 20.0, 22.0),
+                          iconSize: iconSize,
                           padding: EdgeInsets.zero,
                           icon: Icon(LucideIcons.skipBack, color: Colors.white),
                         ),
                       ),
-                      SizedBox(width: context.responsive(14.0, 18.0, 22.0)),
+                      SizedBox(width: gap),
                       // Play/Pause
                       _PlayPauseButton(
                         playerService: playerService,
                         albumColorMode: albumColorMode,
                         albumColor: albumColor,
+                        compact: compact,
                       ),
-                      SizedBox(width: context.responsive(14.0, 18.0, 22.0)),
+                      SizedBox(width: gap),
                       // Next
                       Container(
-                        width: context.responsive(40.0, 44.0, 48.0),
-                        height: context.responsive(40.0, 44.0, 48.0),
+                        width: sideSize,
+                        height: sideSize,
                         decoration: BoxDecoration(
                           color: buttonSurface.withValues(alpha: 0.6),
                           shape: BoxShape.circle,
@@ -188,7 +203,7 @@ class PlayerControls extends StatelessWidget {
                             AppHaptics.tap();
                             onNext();
                           },
-                          iconSize: context.responsive(18.0, 20.0, 22.0),
+                          iconSize: iconSize,
                           padding: EdgeInsets.zero,
                           icon: Icon(
                             LucideIcons.skipForward,
@@ -196,7 +211,7 @@ class PlayerControls extends StatelessWidget {
                           ),
                         ),
                       ),
-                      SizedBox(width: context.responsive(14.0, 18.0, 22.0)),
+                      SizedBox(width: gap),
                       // Repeat/Loop
                       ValueListenableBuilder<LoopMode>(
                         valueListenable: playerService.loopModeNotifier,
@@ -211,22 +226,23 @@ class PlayerControls extends StatelessWidget {
                               AppHaptics.tap();
                               playerService.toggleLoopMode();
                               final next = playerService.loopModeNotifier.value;
-                              ScaffoldMessenger.of(context)
-                                .showFlickSnackBar(
-                                  SnackBar(
-                                    content: Text(l10n.englishForFilipino.repeat(next.label)),
-                                    behavior: SnackBarBehavior.floating,
-                                    duration: const Duration(seconds: 1),
+                              ScaffoldMessenger.of(context).showFlickSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    l10n.englishForFilipino.repeat(next.label),
                                   ),
-                                );
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
                             },
                             onLongPress: () {
                               AppHaptics.tap();
                               LoopModeSheet.show(context, playerService);
                             },
                             child: Container(
-                              width: context.responsive(40.0, 44.0, 48.0),
-                              height: context.responsive(40.0, 44.0, 48.0),
+                              width: sideSize,
+                              height: sideSize,
                               decoration: BoxDecoration(
                                 color: buttonSurface.withValues(alpha: 0.6),
                                 shape: BoxShape.circle,
@@ -234,11 +250,7 @@ class PlayerControls extends StatelessWidget {
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
-                                  Icon(
-                                    icon,
-                                    size: context.responsive(18.0, 20.0, 22.0),
-                                    color: color,
-                                  ),
+                                  Icon(icon, size: iconSize, color: color),
                                   if (loopMode == LoopMode.all)
                                     Positioned(
                                       bottom: 6,
@@ -257,7 +269,8 @@ class PlayerControls extends StatelessWidget {
                           );
                         },
                       ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               );
@@ -275,7 +288,8 @@ class PlaybackTimeLabels extends StatelessWidget {
   final String Function(Duration) formatDuration;
   final double horizontalPadding;
 
-  const PlaybackTimeLabels({super.key,
+  const PlaybackTimeLabels({
+    super.key,
     required this.position,
     required this.duration,
     required this.formatDuration,
@@ -319,10 +333,13 @@ class _PlayPauseButton extends StatelessWidget {
   final AlbumColorMode albumColorMode;
   final Color? albumColor;
 
+  final bool compact;
+
   const _PlayPauseButton({
     required this.playerService,
     this.albumColorMode = AlbumColorMode.off,
     this.albumColor,
+    this.compact = false,
   });
 
   @override
@@ -342,8 +359,12 @@ class _PlayPauseButton extends StatelessWidget {
       child: ValueListenableBuilder<bool>(
         valueListenable: playerService.isPlayingNotifier,
         builder: (context, isPlaying, _) {
-          final buttonSize = context.responsive(58.0, 64.0, 68.0);
-          final iconSize = context.responsive(26.0, 28.0, 30.0);
+          final buttonSize = compact
+              ? 52.0
+              : context.responsive(58.0, 64.0, 68.0);
+          final iconSize = compact
+              ? 24.0
+              : context.responsive(26.0, 28.0, 30.0);
 
           return Container(
             width: buttonSize,

@@ -21,13 +21,13 @@ class SongMetadataSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: AppBottomSheetSurface.decoration,
-      padding: EdgeInsets.fromLTRB(
+    return AppBottomSheetSurface(
+      scrollable: true,
+      padding: const EdgeInsets.fromLTRB(
         20,
         16,
         20,
-        24 + MediaQuery.paddingOf(context).bottom,
+        24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

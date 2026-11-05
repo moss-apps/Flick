@@ -793,6 +793,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get background => '背景';
 
   @override
+  String get blurGradient => '模糊渐变';
+
+  @override
+  String get colorGradient => '色彩渐变';
+
+  @override
   String get backgroundOpacity => '背景不透明度';
 
   @override
@@ -3117,6 +3123,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fileInformation => '文件信息';
 
   @override
+  String get fileIsNoLongerAvailable => '此文件已不可用，可能已被移动或删除。请重新扫描媒体库后重试。';
+
+  @override
   String get filePath => '文件路径';
 
   @override
@@ -3216,6 +3225,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get flickLogs => 'Flick 日志';
+
+  @override
+  String get flickNoLongerHasPermissionToEditThisFile =>
+      'Flick 已没有编辑此文件的权限。请在设置中移除并重新添加该文件夹以授予编辑权限，然后重试。';
 
   @override
   String get flickPlayer => 'Flick 音乐播放器';
@@ -4105,6 +4118,12 @@ class AppLocalizationsZh extends AppLocalizations {
   ) {
     return '第 $arg1 行 / 共 $arg2 行  ·  $captured/$segmentCount 个词';
   }
+
+  @override
+  String get lineThickness => '线条粗细';
+
+  @override
+  String get lineThicknessDescription => '调整进度线条的粗细。';
 
   @override
   String get linear => '线性';
@@ -5887,6 +5906,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get restartingFlick => '正在重启 Flick';
+
+  @override
+  String get restoreDefaultProgressBarSize => '将所选进度条样式恢复为默认大小。';
 
   @override
   String get restoreTheOriginalOrbitalLayout => '恢复原始轨道布局';
@@ -8129,6 +8151,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get waveform => '波形';
+
+  @override
+  String get waveformHeight => '波形高度';
+
+  @override
+  String get waveformHeightDescription => '调整波形柱的高度。';
 
   @override
   String get waveformSeekbar => '波形进度条';

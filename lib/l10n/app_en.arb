@@ -1113,6 +1113,8 @@
   "@background": {
     "description": "lib/features/settings/screens/widget_settings_screen.dart:155"
   },
+  "blurGradient": "Blur gradient",
+  "colorGradient": "Color gradient",
   "backgroundOpacity": "Background Opacity",
   "@backgroundOpacity": {
     "description": "lib/features/settings/widgets/mini_player_customization.dart:197"
@@ -4348,6 +4350,10 @@
   "@fileInformation": {
     "description": "lib/features/songs/screens/metadata_editor_screen.dart:444"
   },
+  "fileIsNoLongerAvailable": "This file is no longer available. It may have been moved or deleted. Rescan the library, then try again.",
+  "@fileIsNoLongerAvailable": {
+    "description": "lib/services/metadata_editor_service.dart: user-visible service error"
+  },
   "filePath": "File Path",
   "@filePath": {
     "description": "lib/features/player/widgets/song_metadata_sheet.dart:82"
@@ -4491,6 +4497,10 @@
   "flickLogs": "Flick logs",
   "@flickLogs": {
     "description": "lib/features/settings/screens/logs_screen.dart:110"
+  },
+  "flickNoLongerHasPermissionToEditThisFile": "Flick no longer has permission to edit this file. Re-add its folder in Settings to grant edit access, then try again.",
+  "@flickNoLongerHasPermissionToEditThisFile": {
+    "description": "lib/services/metadata_editor_service.dart: user-visible service error"
   },
   "flickPlayer": "Flick Player",
   "@flickPlayer": {
@@ -5795,6 +5805,14 @@
         "type": "Object"
       }
     }
+  },
+  "lineThickness": "Line Thickness",
+  "@lineThickness": {
+    "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
+  },
+  "lineThicknessDescription": "Adjust how thick the progress line appears.",
+  "@lineThicknessDescription": {
+    "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
   },
   "linear": "Linear",
   "@linear": {
@@ -8337,6 +8355,10 @@
   "restartingFlick": "Restarting Flick",
   "@restartingFlick": {
     "description": "lib/features/menu/screens/restarting_screen.dart:126"
+  },
+  "restoreDefaultProgressBarSize": "Restore the selected progress bar style to its default size.",
+  "@restoreDefaultProgressBarSize": {
+    "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
   },
   "restoreTheOriginalOrbitalLayout": "Restore the original orbital layout",
   "@restoreTheOriginalOrbitalLayout": {
@@ -11478,6 +11500,14 @@
   "waveform": "Waveform",
   "@waveform": {
     "description": "lib/models/progress_bar_style.dart:16"
+  },
+  "waveformHeight": "Waveform Height",
+  "@waveformHeight": {
+    "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
+  },
+  "waveformHeightDescription": "Adjust how tall the waveform bars appear.",
+  "@waveformHeightDescription": {
+    "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
   },
   "waveformSeekbar": "Waveform seekbar",
   "@waveformSeekbar": {

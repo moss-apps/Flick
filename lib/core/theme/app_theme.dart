@@ -156,6 +156,12 @@ class AppTheme {
       // Text theme
       textTheme: _textTheme,
 
+      // Let the app's sheet surfaces use the available window, rather than
+      // Material 3's fixed 640dp modal-route cap on landscape/tablets.
+      bottomSheetTheme: const BottomSheetThemeData(
+        constraints: BoxConstraints(maxWidth: double.infinity),
+      ),
+
       // Shared transient feedback: a quiet surface with native Material motion.
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,

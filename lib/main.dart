@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/src/rust/frb_generated.dart';
 import 'package:flick/app/app.dart';
@@ -28,10 +27,6 @@ Future<void> main() async {
   // Snapshot install freshness before anything can write to the preference
   // store: new installations start on the adaptive refresh-rate default.
   await AppPreferencesService.captureInstallFreshness();
-
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
 
   await AppLog.instance.initializePersistence();
   await Uac2PreferencesService().initializeDeveloperModeCache();

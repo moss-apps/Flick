@@ -265,8 +265,9 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
             ? dominantColor
             : null;
 
-    return Container(
-      decoration: AppBottomSheetSurface.decoration,
+    return AppBottomSheetSurface(
+      scrollable: true,
+      padding: EdgeInsets.zero,
       child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

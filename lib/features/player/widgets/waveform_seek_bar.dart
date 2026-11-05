@@ -20,19 +20,25 @@ class WaveformSeekBar extends StatefulWidget {
     this.barCount = 60,
     this.appearProgress = 1.0,
     this.cachedPeaks,
+    this.height = 60,
   });
 
   final int barCount;
+
+  /// Visible height of the waveform bars in logical pixels. The touch area
+  /// stays at least 48dp tall even when this is smaller.
+  final double height;
 
   @override
   State<WaveformSeekBar> createState() => _WaveformSeekBarState();
 }
 
 class _WaveformSeekBarState extends State<WaveformSeekBar> {
-  static const double _baseHeight = 60;
-  static const double _expandedHeight = 96;
   static const double _fineScrubZoom = 2.6;
   static const int _cachedSampleCount = 180;
+
+  double get _baseHeight => max(48.0, widget.height);
+  double get _expandedHeight => max(72.0, widget.height + 36.0);
 
   // Cache the waveform data so it doesn't jitter on rebuilds
   late List<double> _waveformData;
@@ -245,7 +251,9 @@ class _WaveformSeekBarState extends State<WaveformSeekBar> {
                 ),
                 padding: EdgeInsets.symmetric(
                   horizontal: 2,
-                  vertical: _isFineScrubbing ? 6 : 0,
+                  vertical: _isFineScrubbing
+                      ? 6
+                      : (_baseHeight - widget.height) / 2,
                 ),
                 child: RepaintBoundary(
                   child: CustomPaint(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
@@ -63,7 +64,27 @@ class _FloatingMiniPlayerState extends ConsumerState<FloatingMiniPlayer>
 
   @override
   void didChangeMetrics() {
-    setState(() => _offset = Offset.zero);
+    if (!mounted) return;
+
+    // Keep the island where the user left it, re-clamped to the new window.
+    // Resetting to zero on every metrics change made it jump to center after
+    // rotation and could leave a dragged island outside a landscape viewport.
+    final screenSize = MediaQuery.sizeOf(context);
+    final safeArea = MediaQuery.paddingOf(context);
+    final t = _expandAnimation.value;
+    final width = 96.0 + t * 184.0;
+    final maxDx = math.max(0.0, (screenSize.width - width) / 2 - 8);
+    final bottomLimit = math.max(
+      0.0,
+      screenSize.height - 36.0 - safeArea.bottom - safeArea.top - 16,
+    );
+
+    setState(() {
+      _offset = Offset(
+        _offset.dx.clamp(-maxDx, maxDx),
+        _offset.dy.clamp(0.0, bottomLimit),
+      );
+    });
   }
 
   void _onTap() {

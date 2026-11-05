@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/models/album_color_mode.dart';
+import 'package:flick/models/progress_bar_size.dart';
 import 'package:flick/models/progress_bar_style.dart';
 import 'package:flick/models/song_tile_thumbnail_mode.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/features/settings/widgets/progress_bar_preview.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 
 import 'package:flick/l10n/settings_l10n.dart';
@@ -17,6 +19,22 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appPreferences = ref.watch(appPreferencesProvider);
+    final progressBarStyle = ref.watch(progressBarStyleProvider);
+    final progressBarSizes = ref.watch(progressBarSizeProvider);
+    final isWaveform = progressBarStyle == ProgressBarStyle.waveform;
+    final progressBarSize = isWaveform
+        ? progressBarSizes.waveformHeight
+        : progressBarSizes.lineThickness;
+    final progressBarMin = isWaveform
+        ? ProgressBarSizes.minWaveformHeight
+        : ProgressBarSizes.minLineThickness;
+    final progressBarMax = isWaveform
+        ? ProgressBarSizes.maxWaveformHeight
+        : ProgressBarSizes.maxLineThickness;
+    final progressBarDivisions = isWaveform
+        ? ((progressBarMax - progressBarMin) / ProgressBarSizes.waveformHeightStep)
+            .round()
+        : (progressBarMax - progressBarMin).round();
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.uiCustomization,
@@ -221,7 +239,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                   SelectionSetting(
                     icon: icon,
                     title: mode.labelFor(l10n.englishForFilipino),
-                    subtitle: mode.description,
+                    subtitle: mode.descriptionFor(l10n),
                     selected: isSelected,
                     onTap: () {
                       ref
@@ -240,9 +258,8 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               SelectionSetting(
                 icon: LucideIcons.audioWaveform,
                 title: ProgressBarStyle.waveform.labelFor(l10n.englishForFilipino),
-                subtitle: ProgressBarStyle.waveform.description,
-                selected: ref.watch(progressBarStyleProvider) ==
-                    ProgressBarStyle.waveform,
+                subtitle: ProgressBarStyle.waveform.descriptionFor(l10n),
+                selected: progressBarStyle == ProgressBarStyle.waveform,
                 onTap: () {
                   ref
                       .read(progressBarStyleProvider.notifier)
@@ -253,13 +270,67 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               SelectionSetting(
                 icon: LucideIcons.minus,
                 title: ProgressBarStyle.line.labelFor(l10n.englishForFilipino),
-                subtitle: ProgressBarStyle.line.description,
-                selected: ref.watch(progressBarStyleProvider) ==
-                    ProgressBarStyle.line,
+                subtitle: ProgressBarStyle.line.descriptionFor(l10n),
+                selected: progressBarStyle == ProgressBarStyle.line,
                 onTap: () {
                   ref
                       .read(progressBarStyleProvider.notifier)
                       .setStyle(ProgressBarStyle.line);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          SettingsCard(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.spacingLg,
+                  vertical: AppConstants.spacingMd,
+                ),
+                child: const ProgressBarPreview(),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          SettingsCard(
+            children: [
+              SliderSetting(
+                icon: isWaveform ? LucideIcons.audioWaveform : LucideIcons.minus,
+                title: isWaveform
+                    ? l10n.englishForFilipino.waveformHeight
+                    : l10n.englishForFilipino.lineThickness,
+                subtitle: isWaveform
+                    ? l10n.englishForFilipino.waveformHeightDescription
+                    : l10n.englishForFilipino.lineThicknessDescription,
+                value: progressBarSize,
+                displayValue: l10n.englishForFilipino.dp(
+                  progressBarSize.round(),
+                ),
+                min: progressBarMin,
+                max: progressBarMax,
+                divisions: progressBarDivisions,
+                onChanged: (value) {
+                  final notifier = ref.read(progressBarSizeProvider.notifier);
+                  if (isWaveform) {
+                    notifier.setWaveformHeight(value);
+                  } else {
+                    notifier.setLineThickness(value);
+                  }
+                },
+              ),
+              const SettingsDivider(),
+              ActionButton(
+                icon: LucideIcons.rotateCcw,
+                title: l10n.englishForFilipino.resetToDefaults,
+                subtitle: l10n.englishForFilipino.restoreDefaultProgressBarSize,
+                onTap: () {
+                  final notifier = ref.read(progressBarSizeProvider.notifier);
+                  if (isWaveform) {
+                    notifier.resetWaveformHeight();
+                  } else {
+                    notifier.resetLineThickness();
+                  }
                 },
               ),
             ],
@@ -277,7 +348,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                   SelectionSetting(
                     icon: LucideIcons.palette,
                     title: mode.labelFor(l10n.englishForFilipino),
-                    subtitle: mode.description,
+                    subtitle: mode.descriptionFor(l10n),
                     selected: isSelected,
                     onTap: () {
                       ref

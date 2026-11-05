@@ -2896,6 +2896,7 @@ class PlayerService {
     final directUsbState = _mapValue(rustAudioState?['direct_usb']);
     final dsdCallbackState = _mapValue(rustAudioState?['dsd_callback']);
     final managedOutputState = _mapValue(rustAudioState?['managed_output']);
+    final pcmCallbackState = _mapValue(managedOutputState?['pcm_callback']);
     final deviceProfile = _mapValue(rustAudioState?['device_profile']);
     final detectedDap = _isDetectedDapProfile(deviceProfile);
     final detectedDapBrand = _detectedDapBrand(deviceProfile);
@@ -3313,6 +3314,14 @@ class PlayerService {
               reportedOutputSampleRate == 48000
         ? 'app-stream-may-match-link'
         : 'app-stream-resampled-by-bt-mixer';
+    final pcmSkippedStages = pcmCallbackState == null
+        ? -1
+        : (_intValue(pcmCallbackState['skipped_pitch']) ?? 0) +
+            (_intValue(pcmCallbackState['skipped_eq']) ?? 0) +
+            (_intValue(pcmCallbackState['skipped_crossfeed']) ?? 0) +
+            (_intValue(pcmCallbackState['skipped_fx']) ?? 0) +
+            (_intValue(pcmCallbackState['skipped_convolver']) ?? 0) +
+            (_intValue(pcmCallbackState['skipped_dynamics']) ?? 0);
 
     _debugLog(
       '[Diagnostics] $reason: mode=${mode.logLabel}, '
@@ -3338,6 +3347,24 @@ class PlayerService {
       'callbackFramesMax=${_intValue(managedOutputState?['burst_frames_max']) ?? -1}, '
       'callbackChunks=${_intValue(managedOutputState?['burst_chunked_count']) ?? -1}, '
       'callbackScratchFrames=${_intValue(managedOutputState?['scratch_frames']) ?? -1}, '
+      'callbackCount=${_intValue(managedOutputState?['callback_count']) ?? -1}, '
+      'callbackFramesTotal=${_intValue(managedOutputState?['callback_frames_total']) ?? -1}, '
+      'callbackDurationUsMax=${_intValue(managedOutputState?['callback_duration_us_max']) ?? -1}, '
+      'callbackOverruns=${_intValue(managedOutputState?['callback_overruns']) ?? -1}, '
+      'xrunSupported=${managedOutputState?['xrun_count_supported'] ?? 'unknown'}, '
+      'xrunCount=${_intValue(managedOutputState?['xrun_count']) ?? -1}, '
+      'framesPerBurst=${_intValue(managedOutputState?['frames_per_burst']) ?? -1}, '
+      'bufferFrames=${_intValue(managedOutputState?['buffer_size_frames']) ?? -1}/'
+      '${_intValue(managedOutputState?['buffer_capacity_frames']) ?? -1}, '
+      'pcmSourceLockMisses=${_intValue(pcmCallbackState?['source_lock_misses']) ?? -1}, '
+      'pcmCrossfadeLockMisses=${_intValue(pcmCallbackState?['crossfader_lock_misses']) ?? -1}, '
+      'pcmMixLockMisses=${_intValue(pcmCallbackState?['mix_buffer_lock_misses']) ?? -1}, '
+      'pcmSpeedLockMisses=${_intValue(pcmCallbackState?['speed_lock_misses']) ?? -1}, '
+      'pcmStarvedSamples=${_intValue(pcmCallbackState?['starved_samples']) ?? -1}, '
+      'pcmSkippedDspStages=$pcmSkippedStages, '
+      'pcmPeak=${pcmCallbackState?['peak'] ?? -1}, '
+      'pcmClippedSamples=${_intValue(pcmCallbackState?['clipped_samples']) ?? -1}, '
+      'pcmNonFiniteSamples=${_intValue(pcmCallbackState?['non_finite_samples']) ?? -1}, '
       'producerFrames=${producerFrames ?? -1}, consumerFrames=${consumerFrames ?? -1}, '
       'driftMs=${driftMsFromTarget ?? -999}, '
       'resampler=$resamplerActive, passthrough=$passthroughAllowed, '

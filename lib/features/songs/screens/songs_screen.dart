@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/utils/adaptive_layout.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
@@ -135,6 +136,12 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final songsAsync = ref.watch(songsProvider);
     final viewMode = ref.watch(songsViewModeProvider);
     final navBarVisible = ref.watch(navBarVisibleProvider);
+    final reserveSideMiniPlayer =
+        viewMode != SongViewMode.list &&
+        songsAsync.value?.sortOption != SongSortOption.album &&
+        AdaptiveLayout.useCompactLandscapeMiniPlayer(
+          MediaQuery.sizeOf(context),
+        );
     final swipeActionsEnabled = ref
         .watch(appPreferencesProvider)
         .swipeActionsEnabled;
@@ -143,209 +150,200 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
       NavBarButton.search,
     );
 
-    final sortOption =
-        songsAsync.value?.sortOption ?? SongSortOption.albumArtist;
-    final isAlbumMode = sortOption == SongSortOption.album;
-    final shouldReserveOrbitBottomSpace =
-        viewMode != SongViewMode.list && navBarVisible && !isAlbumMode;
-
     return Stack(
       clipBehavior: Clip.none,
       children: [
         SafeArea(
           bottom: false,
-          child: Column(
-            children: [
-              // Header with sort option
-              AnimatedSwitcher(
-                duration: AppConstants.animationNormal,
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) =>
-                    FadeTransition(opacity: animation, child: child),
-                child: _selectionMode
-                    ? KeyedSubtree(
-                        key: const ValueKey('selection_header'),
-                        child: _buildSelectionHeader(),
-                      )
-                    : KeyedSubtree(
-                        key: const ValueKey('normal_header'),
-                        child: _buildHeader(songsAsync),
-                      ),
-              ),
+          child: Padding(
+            padding: EdgeInsets.only(
+              right: reserveSideMiniPlayer
+                  ? AdaptiveLayout.sideMiniPlayerContentInset
+                  : 0,
+            ),
+            child: Column(
+              children: [
+                // Header with sort option
+                AnimatedSwitcher(
+                  duration: AppConstants.animationNormal,
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) =>
+                      FadeTransition(opacity: animation, child: child),
+                  child: _selectionMode
+                      ? KeyedSubtree(
+                          key: const ValueKey('selection_header'),
+                          child: _buildSelectionHeader(),
+                        )
+                      : KeyedSubtree(
+                          key: const ValueKey('normal_header'),
+                          child: _buildHeader(songsAsync),
+                        ),
+                ),
 
-              // Search Bar (hidden when Search tab is in the nav bar)
-              if (!searchInNavBar) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppConstants.spacingLg,
-                  ),
-                  child: TutorialTargetAnchor(
-                    target: TutorialTarget.songsSearchBar,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.surfaceLight.withValues(alpha: 0.75),
-                            AppColors.surface.withValues(alpha: 0.85),
+                // Search Bar (hidden when Search tab is in the nav bar)
+                if (!searchInNavBar) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingLg,
+                    ),
+                    child: TutorialTargetAnchor(
+                      target: TutorialTarget.songsSearchBar,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppColors.surfaceLight.withValues(alpha: 0.75),
+                              AppColors.surface.withValues(alpha: 0.85),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            AppConstants.radiusXl,
+                          ),
+                          border: Border.all(
+                            color: AppColors.glassBorder,
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 16,
+                              spreadRadius: 1,
+                              offset: const Offset(0, 4),
+                            ),
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(
-                          AppConstants.radiusXl,
+                        child: GlassSearchBar(
+                          controller: _searchController,
+                          hintText: l10n.searchSongsArtists,
+                          showBackground: false,
+                          onChanged: (value) {
+                            setState(() {
+                              _searchQuery = value.toLowerCase();
+                              _selectedIndex = 0;
+                              _lastSyncedSong = null;
+                            });
+                          },
                         ),
-                        border: Border.all(
-                          color: AppColors.glassBorder,
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 16,
-                            spreadRadius: 1,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: GlassSearchBar(
-                        controller: _searchController,
-                        hintText: l10n.searchSongsArtists,
-                        showBackground: false,
-                        onChanged: (value) {
-                          setState(() {
-                            _searchQuery = value.toLowerCase();
-                            _selectedIndex = 0;
-                            _lastSyncedSong = null;
-                          });
-                        },
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: AppConstants.spacingMd),
-              ],
+                  const SizedBox(height: AppConstants.spacingMd),
+                ],
 
-              // Content based on async state
-              Expanded(
-                child: songsAsync.when(
-                  loading: () => _buildLoadingState(),
-                  error: (error, stack) => _buildErrorState(error),
-                  data: (songsState) {
-                    final isAlbumMode =
-                        songsState.sortOption == SongSortOption.album;
-                    final allSongs = songsState.sortedSongs;
-                    var songs = allSongs;
-                    if (_cachedSongs != songsState.songs) {
-                      _cachedSongs = songsState.songs;
-                      _lastSyncedSong = null;
-                    }
-
-                    if (_searchQuery.isNotEmpty) {
-                      songs = songs.where((song) {
-                        return song.title.toLowerCase().contains(
-                              _searchQuery,
-                            ) ||
-                            song.artist.toLowerCase().contains(_searchQuery);
-                      }).toList();
-                    }
-                    _cachedDisplaySongs = songs;
-
-                    if (!isAlbumMode) {
-                      _wasInAlbumMode = false;
-                      final sig =
-                          '${songs.length}:${songs.isNotEmpty ? songs.first.id : ''}';
-                      if (sig != _listPaginationSignature) {
-                        _listPaginationSignature = sig;
-                        _resetListPagination();
+                // Content based on async state
+                Expanded(
+                  child: songsAsync.when(
+                    loading: () => _buildLoadingState(),
+                    error: (error, stack) => _buildErrorState(error),
+                    data: (songsState) {
+                      final isAlbumMode =
+                          songsState.sortOption == SongSortOption.album;
+                      final allSongs = songsState.sortedSongs;
+                      var songs = allSongs;
+                      if (_cachedSongs != songsState.songs) {
+                        _cachedSongs = songsState.songs;
+                        _lastSyncedSong = null;
                       }
-                    }
 
-                    if (songs.isEmpty && _searchQuery.isEmpty) {
-                      return _buildEmptyState();
-                    }
-
-                    if (songs.isEmpty && _searchQuery.isNotEmpty) {
-                      return _buildNoSearchResultsState();
-                    }
-
-                    if (isAlbumMode) {
-                      if (!_wasInAlbumMode) {
-                        _wasInAlbumMode = true;
-                        _visibleAlbumCount = _getAlbumPageSize();
-                        _albumPaginationSignature = '';
-                      }
-                      final albumGroups = songsState.albumGroups;
                       if (_searchQuery.isNotEmpty) {
-                        final filteredGroups = <AlbumGroup>[];
-                        for (final group in albumGroups) {
-                          final filtered = group.songs.where((song) {
-                            return song.title.toLowerCase().contains(
-                                  _searchQuery,
-                                ) ||
-                                song.artist.toLowerCase().contains(
-                                  _searchQuery,
-                                );
-                          }).toList();
-                          if (filtered.isNotEmpty) {
-                            filteredGroups.add(
-                              AlbumGroup(
-                                key: group.key,
-                                albumName: group.albumName,
-                                albumArtist: group.albumArtist,
-                                songs: filtered,
-                              ),
-                            );
-                          }
-                        }
-                        if (filteredGroups.isEmpty) {
-                          return _buildNoSearchResultsState();
-                        }
-                        return _buildAlbumGridView(filteredGroups);
+                        songs = songs.where((song) {
+                          return song.title.toLowerCase().contains(
+                                _searchQuery,
+                              ) ||
+                              song.artist.toLowerCase().contains(_searchQuery);
+                        }).toList();
                       }
-                      if (albumGroups.isEmpty) {
+                      _cachedDisplaySongs = songs;
+
+                      if (!isAlbumMode) {
+                        _wasInAlbumMode = false;
+                        final sig =
+                            '${songs.length}:${songs.isNotEmpty ? songs.first.id : ''}';
+                        if (sig != _listPaginationSignature) {
+                          _listPaginationSignature = sig;
+                          _resetListPagination();
+                        }
+                      }
+
+                      if (songs.isEmpty && _searchQuery.isEmpty) {
                         return _buildEmptyState();
                       }
-                      return _buildAlbumGridView(albumGroups);
-                    }
 
-                    _alignCurrentSongAfterSongsLoad(songs);
+                      if (songs.isEmpty && _searchQuery.isNotEmpty) {
+                        return _buildNoSearchResultsState();
+                      }
 
-                    if (_selectedIndex >= songs.length) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          setState(() => _selectedIndex = 0);
+                      if (isAlbumMode) {
+                        if (!_wasInAlbumMode) {
+                          _wasInAlbumMode = true;
+                          _visibleAlbumCount = _getAlbumPageSize();
+                          _albumPaginationSignature = '';
                         }
-                      });
-                    }
+                        final albumGroups = songsState.albumGroups;
+                        if (_searchQuery.isNotEmpty) {
+                          final filteredGroups = <AlbumGroup>[];
+                          for (final group in albumGroups) {
+                            final filtered = group.songs.where((song) {
+                              return song.title.toLowerCase().contains(
+                                    _searchQuery,
+                                  ) ||
+                                  song.artist.toLowerCase().contains(
+                                    _searchQuery,
+                                  );
+                            }).toList();
+                            if (filtered.isNotEmpty) {
+                              filteredGroups.add(
+                                AlbumGroup(
+                                  key: group.key,
+                                  albumName: group.albumName,
+                                  albumArtist: group.albumArtist,
+                                  songs: filtered,
+                                ),
+                              );
+                            }
+                          }
+                          if (filteredGroups.isEmpty) {
+                            return _buildNoSearchResultsState();
+                          }
+                          return _buildAlbumGridView(filteredGroups);
+                        }
+                        if (albumGroups.isEmpty) {
+                          return _buildEmptyState();
+                        }
+                        return _buildAlbumGridView(albumGroups);
+                      }
 
-                    _syncSelectedTokenForIndex(songs, _selectedIndex);
+                      _alignCurrentSongAfterSongsLoad(songs);
 
-                    final tokenToIndexMap = _buildFastIndexMap(songs);
-                    final appPrefs = ref.watch(appPreferencesProvider);
+                      if (_selectedIndex >= songs.length) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            setState(() => _selectedIndex = 0);
+                          }
+                        });
+                      }
 
-                    return _buildSongsView(
-                      songs,
-                      viewMode,
-                      tokenToIndexMap,
-                      navBarVisible,
-                      swipeActionsEnabled,
-                      appPrefs.fastIndexEnabled,
-                    );
-                  },
+                      _syncSelectedTokenForIndex(songs, _selectedIndex);
+
+                      final tokenToIndexMap = _buildFastIndexMap(songs);
+                      final appPrefs = ref.watch(appPreferencesProvider);
+
+                      return _buildSongsView(
+                        songs,
+                        viewMode,
+                        tokenToIndexMap,
+                        navBarVisible,
+                        swipeActionsEnabled,
+                        appPrefs.fastIndexEnabled,
+                      );
+                    },
+                  ),
                 ),
-              ),
-
-              // Reserve space only when needed for orbit view.
-              // List view handles its own bottom padding.
-              AnimatedContainer(
-                duration: AppConstants.animationNormal,
-                curve: Curves.easeOutCubic,
-                height: shouldReserveOrbitBottomSpace
-                    ? AppConstants.navBarHeight + AppConstants.spacingLg
-                    : 0,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
@@ -446,6 +444,10 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         }
       },
       child: OrbitScroll(
+        scrollDirection:
+            MediaQuery.sizeOf(context).width > MediaQuery.sizeOf(context).height
+            ? Axis.horizontal
+            : Axis.vertical,
         controller: _orbitScrollController,
         songs: songs,
         selectedIndex: _selectedIndex.clamp(0, songs.length - 1).toInt(),
@@ -577,9 +579,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final sorted = List<AlbumGroup>.from(albums);
     switch (_albumSortOption) {
       case _AlbumGridSortOption.name:
-        sorted.sort(
-          (a, b) => compareCaseInsensitive(a.albumName, b.albumName),
-        );
+        sorted.sort((a, b) => compareCaseInsensitive(a.albumName, b.albumName));
       case _AlbumGridSortOption.artist:
         sorted.sort((a, b) {
           final c = compareCaseInsensitive(a.albumArtist, b.albumArtist);
@@ -1860,7 +1860,10 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
           content: Text(message),
           action: onUndo == null
               ? null
-              : SnackBarAction(label: l10n.englishForFilipino.undo, onPressed: onUndo),
+              : SnackBarAction(
+                  label: l10n.englishForFilipino.undo,
+                  onPressed: onUndo,
+                ),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -2727,7 +2730,9 @@ class _AlbumCardState extends State<_AlbumCard>
               fit: BoxFit.cover,
               useThumbnail: true,
               thumbnailWidth: artworkTargetWidth,
-              thumbnailHeight: widget.stretchArtwork ? artworkTargetWidth : null,
+              thumbnailHeight: widget.stretchArtwork
+                  ? artworkTargetWidth
+                  : null,
               placeholder: _buildPlaceholder(context),
               errorWidget: _buildPlaceholder(context),
             ),
@@ -2757,7 +2762,9 @@ class _AlbumCardState extends State<_AlbumCard>
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
                 ),
                 child: Text(
                   l10n.tracks6(widget.album.songs.length),
@@ -2791,9 +2798,9 @@ class _AlbumCardState extends State<_AlbumCard>
         const SizedBox(height: _albumCardLineGap),
         Text(
           widget.album.albumArtist,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: context.adaptiveTextSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: context.adaptiveTextSecondary),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

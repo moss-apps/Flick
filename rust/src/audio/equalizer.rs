@@ -192,7 +192,8 @@ impl Equalizer {
         }
     }
 
-    /// Called from command thread. sample_rate must match engine.
+    /// Prepare parameters at the engine sample rate, then apply them. The
+    /// engine prepares these off-thread and uses `apply_params` at a block boundary.
     pub fn set(
         &mut self,
         enabled: bool,
@@ -205,11 +206,17 @@ impl Equalizer {
         } else {
             EqParams::disabled()
         };
+        self.apply_params(next);
+    }
+
+    /// Apply precomputed coefficients without allocating or resetting active
+    /// filter history. Only the render side mutates the live filter state.
+    pub(crate) fn apply_params(&mut self, next: EqParams) {
         let idx = self.index.load(Ordering::Relaxed);
         self.params[1 - idx as usize] = next;
         self.index.store(1 - idx, Ordering::Release);
         // Reset state when disabling to avoid artifacts when re-enabling
-        if !enabled {
+        if !next.enabled {
             for ch_state in &mut self.state {
                 for band_state in ch_state.iter_mut() {
                     band_state.fill(0.0);

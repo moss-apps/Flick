@@ -25,6 +25,7 @@ import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/advance_list_order.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/audio_engine_type.dart';
+import 'package:flick/models/immersive_background_style.dart';
 import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/models/playback_context.dart';
 import 'package:flick/models/player_action_button.dart';
@@ -162,6 +163,16 @@ extension PlayerScreenModeL10n on PlayerScreenMode {
 }
 
 // ---------------------------------------------------------------------------
+// 沉浸式播放器背景
+// ---------------------------------------------------------------------------
+extension ImmersiveBackgroundStyleL10n on ImmersiveBackgroundStyle {
+  String labelFor(AppLocalizations l10n) => switch (this) {
+    ImmersiveBackgroundStyle.colorGradient => l10n.colorGradient,
+    ImmersiveBackgroundStyle.blurGradient => l10n.blurGradient,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // 进度条样式
 // ---------------------------------------------------------------------------
 extension ProgressBarStyleL10n on ProgressBarStyle {
@@ -172,7 +183,9 @@ extension ProgressBarStyleL10n on ProgressBarStyle {
     ProgressBarStyle.line => l10n.line,
   };
 
-  String get description => switch (this) {
+  String get description => descriptionFor(l10n);
+
+  String descriptionFor(AppLocalizations l10n) => switch (this) {
     ProgressBarStyle.waveform => l10n.verticalBarsThatAnimateAcrossThe,
     ProgressBarStyle.line => l10n.cleanStraightLineWithPrecisionScrubbing,
   };
@@ -211,7 +224,9 @@ extension SongTileThumbnailModeL10n on SongTileThumbnailMode {
     SongTileThumbnailMode.trackNumberOnArt => l10n.numberOnArt,
   };
 
-  String get description => switch (this) {
+  String get description => descriptionFor(l10n);
+
+  String descriptionFor(AppLocalizations l10n) => switch (this) {
     SongTileThumbnailMode.artwork => l10n.showAlbumArtwork,
     SongTileThumbnailMode.trackNumber => l10n.showTheTrackNumber,
     SongTileThumbnailMode.trackNumberOnArt => l10n.showTheNumberOverBlurredArt,

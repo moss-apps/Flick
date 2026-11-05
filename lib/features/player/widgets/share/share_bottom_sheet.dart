@@ -221,13 +221,13 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
   Widget build(BuildContext context) {
     final templates = ShareTemplate.values;
 
-    return Container(
-      decoration: AppBottomSheetSurface.decoration,
-      padding: EdgeInsets.fromLTRB(
+    return AppBottomSheetSurface(
+      scrollable: true,
+      padding: const EdgeInsets.fromLTRB(
         20,
         16,
         20,
-        24 + MediaQuery.paddingOf(context).bottom,
+        24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

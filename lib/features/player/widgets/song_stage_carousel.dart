@@ -59,7 +59,8 @@ class SongStageCarouselState extends State<SongStageCarousel>
   bool _isDragging = false;
   bool _isAnimating = false;
   double _dragStartX = double.infinity;
-  double _dragStartY = double.infinity;
+  bool _dragStartedNearSystemBottom = false;
+  Size? _lastWindowSize;
 
   // Frozen stages — prevents the glimpse bug where upNext updates to C
   // (via _setCurrentIndex) before currentSongNotifier flips from A->B,
@@ -111,6 +112,26 @@ class SongStageCarouselState extends State<SongStageCarousel>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final nextSize = MediaQuery.sizeOf(context);
+    if (_lastWindowSize != null &&
+        nextSize != _lastWindowSize &&
+        (_isDragging || _dragOffset != 0)) {
+      // Rotation or resize landed mid-swipe. Settle on the current song
+      // instead of carrying a half-finished gesture into the new geometry.
+      _controller.stop();
+      _isAnimating = false;
+      _isDragging = false;
+      _dragOffset = 0;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onDragStateChanged?.call(false);
+      });
+    }
+    _lastWindowSize = nextSize;
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -136,7 +157,10 @@ class SongStageCarouselState extends State<SongStageCarousel>
   Future<void> _animateToTargetAndCommit({required bool isNext}) async {
     final width = context.size?.width ?? MediaQuery.sizeOf(context).width;
     final target = isNext ? -width : width;
-    await _animateOffsetTo(target, commitDuration: const Duration(milliseconds: 320));
+    await _animateOffsetTo(
+      target,
+      commitDuration: const Duration(milliseconds: 320),
+    );
     // Service changes song; our didUpdateWidget will snap offset.
     HapticFeedback.lightImpact();
     if (isNext) {
@@ -149,16 +173,18 @@ class SongStageCarouselState extends State<SongStageCarousel>
     }
   }
 
-  Future<void> _animateOffsetTo(double target,
-      {required Duration commitDuration}) async {
+  Future<void> _animateOffsetTo(
+    double target, {
+    required Duration commitDuration,
+  }) async {
     if (_dragOffset == target) return;
     _isAnimating = true;
     _animStartOffset = _dragOffset;
     _animTargetOffset = target;
-    _animation = Tween<double>(begin: _animStartOffset, end: _animTargetOffset)
-        .animate(
-          CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-        );
+    _animation = Tween<double>(
+      begin: _animStartOffset,
+      end: _animTargetOffset,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
     _controller.duration = commitDuration;
     _controller.value = 0;
     await _controller.forward();
@@ -167,8 +193,12 @@ class SongStageCarouselState extends State<SongStageCarousel>
 
   void _handleDragStart(DragStartDetails details) {
     if (!widget.enabled || _isAnimating) return;
-    _dragStartX = details.globalPosition.dx;
-    _dragStartY = details.globalPosition.dy;
+    // Carousel-local coordinates; the stage may be a pane inside landscape,
+    // so global x can never be compared with the local width.
+    _dragStartX = details.localPosition.dx;
+    _dragStartedNearSystemBottom =
+        details.globalPosition.dy >=
+        MediaQuery.sizeOf(context).height - _edgeExclusion;
     _controller.stop();
     _isAnimating = false;
     _isDragging = true;
@@ -212,15 +242,18 @@ class SongStageCarouselState extends State<SongStageCarousel>
     _isDragging = false;
     widget.onDragStateChanged?.call(false);
 
-    // Edge exclusion: if drag started near screen edge, don't navigate.
+    // Edge exclusion: left/right use carousel-local coordinates; the bottom
+    // check uses the real system edge captured at drag start.
     final width = context.size?.width ?? MediaQuery.sizeOf(context).width;
-    final height = MediaQuery.sizeOf(context).height;
     final nearEdge =
         _dragStartX <= _edgeExclusion ||
         _dragStartX >= width - _edgeExclusion ||
-        _dragStartY >= height - _edgeExclusion;
+        _dragStartedNearSystemBottom;
     if (nearEdge) {
-      await _animateOffsetTo(0, commitDuration: const Duration(milliseconds: 220));
+      await _animateOffsetTo(
+        0,
+        commitDuration: const Duration(milliseconds: 220),
+      );
       return;
     }
 
@@ -236,20 +269,26 @@ class SongStageCarouselState extends State<SongStageCarousel>
 
     if (shouldNext) {
       HapticFeedback.mediumImpact();
-      await _animateOffsetTo(-width,
-          commitDuration: const Duration(milliseconds: 320));
+      await _animateOffsetTo(
+        -width,
+        commitDuration: const Duration(milliseconds: 320),
+      );
       await widget.onNext();
       if (mounted) setState(() => _dragOffset = 0.0);
     } else if (shouldPrev) {
       HapticFeedback.mediumImpact();
-      await _animateOffsetTo(width,
-          commitDuration: const Duration(milliseconds: 320));
+      await _animateOffsetTo(
+        width,
+        commitDuration: const Duration(milliseconds: 320),
+      );
       await widget.onPrevious();
       if (mounted) setState(() => _dragOffset = 0.0);
     } else {
       if (_dragOffset.abs() > 8) AppHaptics.tap();
-      await _animateOffsetTo(0,
-          commitDuration: const Duration(milliseconds: 260));
+      await _animateOffsetTo(
+        0,
+        commitDuration: const Duration(milliseconds: 260),
+      );
     }
   }
 

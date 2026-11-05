@@ -86,6 +86,7 @@ class _WaveformLayerState extends State<WaveformLayer>
     return Consumer(
       builder: (context, ref, _) {
         final style = ref.watch(progressBarStyleProvider);
+        final sizes = ref.watch(progressBarSizeProvider);
         return AnimatedBuilder(
           animation: _appearAnimation,
           builder: (context, _) {
@@ -109,6 +110,7 @@ class _WaveformLayerState extends State<WaveformLayer>
                         position: position,
                         duration: duration,
                         appearProgress: t,
+                        thickness: sizes.lineThickness,
                         onChanged: (newPos) {
                           widget.positionNotifier.value = newPos;
                           unawaited(widget.playerService.seek(newPos));
@@ -119,6 +121,7 @@ class _WaveformLayerState extends State<WaveformLayer>
                         position: position,
                         duration: duration,
                         appearProgress: t,
+                        height: sizes.waveformHeight,
                         cachedPeaks: _cachedPeaks,
                         onChanged: (newPos) {
                           widget.positionNotifier.value = newPos;

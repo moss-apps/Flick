@@ -63,6 +63,9 @@ subsequently turning them off survives a restart.
 - The standalone Player Layout settings screen is English in Taglish too,
   including both layout names and descriptions, layout controls, quick-action
   pickers and album-color options. English and Chinese keep their own copy.
+- The UI Customization settings screen is English in Taglish for Track
+  Thumbnails, Progress Bar and Album Colors, including option names and
+  descriptions. English and Chinese keep their own copy.
 - The album, artist, playlist and smart-mix three-dot More sheets use English,
   including their **More** header.
 - Album completeness uses English in Taglish: header and grid badges, missing
@@ -289,7 +292,9 @@ Player Layout has two entry points, and both use the English role in Taglish:
 `model_labels.dart` gained caller-catalog `descriptionFor` methods for player
 screen modes and album-color modes, so plain extension getters elsewhere still
 follow the active locale. The action picker uses the same English catalog as
-the sheet.
+the sheet. The same pattern covers `ProgressBarStyle` and
+`SongTileThumbnailMode`; the UI Customization screen passes its English role
+catalog so those option descriptions do not fall back to Taglish.
 
 `sort_filter_bottom_sheet.dart` also uses the English shim. Scoped copy roles
 in `songs_screen.dart` keep the album menu, album-options sheet and multiselect
@@ -353,6 +358,8 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
       the fully English full-player three-dot sheet, inline/online lyrics and
       its playlist/share/metadata/speed/pitch/sleep/layout sub-interfaces,
       the English Player Layout settings screen and action picker,
+      the English UI Customization Track Thumbnails, Progress Bar and Album
+      Colors sections,
       the fully English Lyrics Sync Studio,
       the English Milestones surface and playlist cover editor, the English
       playlist detail header information line/lossless indicator, all-English

@@ -20,6 +20,19 @@ import 'package:flick/features/player/widgets/waveform_layer.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
+/// Which part of the stage a layout needs.
+///
+/// The portrait player always uses [full]. The landscape player splits the
+/// same stage across two panes so the artwork keeps its square aspect ratio
+/// while playback controls stay pinned beside it.
+enum SongStagePane {
+  full,
+  artworkOnly,
+  backdropOnly,
+  immersiveIdentity,
+  artworkCardDetails,
+}
+
 /// The sliding portion of the player: album art + title/artist/album +
 /// file-info row + waveform. Background, top chrome and [PlayerControls]
 /// stay pinned — only this stage translates during a swipe.
@@ -27,8 +40,6 @@ import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 /// The file-info row keeps its layout slot even when hidden; the row is
 /// then drawn pinned by the parent screen ([fileInfoRowVisible]).
 class SongStage extends ConsumerWidget {
-  static const double _shortHeightThreshold = 620.0;
-
   final Song song;
   final bool lyricsMode;
   final bool visualizationMode;
@@ -70,6 +81,9 @@ class SongStage extends ConsumerWidget {
   final ValueChanged<bool>? onVinylChanged;
   final VoidCallback onToggleLyrics;
   final bool showWaveform;
+
+  /// Selects the full portrait stage or one pane of the landscape layout.
+  final SongStagePane pane;
 
   /// Gates Motion Art on the album art box (e.g. only the settled carousel
   /// page keeps video running).
@@ -119,6 +133,7 @@ class SongStage extends ConsumerWidget {
     this.onVinylChanged,
     required this.onToggleLyrics,
     this.showWaveform = true,
+    this.pane = SongStagePane.full,
     this.motionArtEnabled = true,
     this.active = true,
   });
@@ -127,12 +142,11 @@ class SongStage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Rebuild the capsule when verification settles, not on every diagnostic tick.
     ref.watch(uac2BitPerfectIndicatorProvider);
-    final isShortHeight =
-        MediaQuery.sizeOf(context).height < _shortHeightThreshold;
+    if (pane != SongStagePane.full) {
+      return _buildPane(context);
+    }
     final showImmersiveFullView =
-        immersiveFullView &&
-        playerScreenMode == PlayerScreenMode.immersive &&
-        !isShortHeight;
+        immersiveFullView && playerScreenMode == PlayerScreenMode.immersive;
     final showVisualizerOnly = visualizationMode && showImmersiveFullView;
 
     // Inner switcher: immersive full-view vs default vs lyrics — keep the
@@ -182,6 +196,73 @@ class SongStage extends ConsumerWidget {
               ),
             ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Landscape panes
+  // ---------------------------------------------------------------------------
+
+  Widget _buildPane(BuildContext context) {
+    switch (pane) {
+      case SongStagePane.full:
+      case SongStagePane.backdropOnly:
+        return const SizedBox.shrink();
+      case SongStagePane.artworkOnly:
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final extent = math.min(
+              constraints.maxWidth,
+              constraints.maxHeight,
+            );
+            if (extent < 80) return const SizedBox.shrink();
+            final artworkSize = math
+                .max(80.0, extent * 0.92 * artworkCardArtworkScale)
+                .clamp(80.0, extent)
+                .toDouble();
+            return Center(
+              child: SizedBox(
+                width: artworkSize,
+                height: artworkSize,
+                child: visualizationMode
+                    ? VisualizerArtBox(
+                        playerService: playerService,
+                        size: artworkSize,
+                        animationStyle: visualizerAnimationStyle,
+                        frequencyMode: visualizerFrequencyMode,
+                        movementMode: visualizerMovementMode,
+                        albumColor: albumColor,
+                        showFrame: artworkCardShowFrame,
+                      )
+                    : AlbumArtBox(
+                        song: song,
+                        size: artworkSize,
+                        playerService: playerService,
+                        onRotationEnabledChanged: onRotationEnabledChanged,
+                        initialVinyl: vinylMode,
+                        onVinylChanged: onVinylChanged,
+                        showFrame: artworkCardShowFrame,
+                        motionArtEnabled: motionArtEnabled,
+                      ),
+              ),
+            );
+          },
+        );
+      case SongStagePane.immersiveIdentity:
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Transform.translate(
+              offset: Offset(0, immersiveVerticalOffset.clamp(-40.0, 40.0)),
+              child: _buildImmersiveSongHeader(context, landscape: true),
+            ),
+          ),
+        );
+      case SongStagePane.artworkCardDetails:
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: _buildSongIdentity(context, compact: true, landscape: true),
+        );
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -381,98 +462,107 @@ class SongStage extends ConsumerWidget {
           context.responsive(16.0, 20.0, 24.0),
           context.responsive(20.0, 24.0, 28.0),
         ),
-        child: Container(
-          padding: EdgeInsets.all(
-            context.responsive(10.0, 12.0, 14.0) * immersiveFullViewScale,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFF121212).withValues(alpha: 0.72),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(
-                  18 * immersiveFullViewScale,
-                ),
-                child: SizedBox(
-                  width: artworkSize,
-                  height: artworkSize,
-                  child: CachedImageWidget(
-                    imagePath: song.albumArt,
-                    audioSourcePath: song.filePath,
-                    fit: BoxFit.cover,
-                    placeholder: Container(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      child: FlickArtworkPlaceholder(
-                        size: artworkSize * 0.44,
-                        opacity: 0.92,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Container(
+            padding: EdgeInsets.all(
+              context.responsive(10.0, 12.0, 14.0) * immersiveFullViewScale,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF121212).withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    18 * immersiveFullViewScale,
+                  ),
+                  child: SizedBox(
+                    width: artworkSize,
+                    height: artworkSize,
+                    child: CachedImageWidget(
+                      imagePath: song.albumArt,
+                      audioSourcePath: song.filePath,
+                      fit: BoxFit.cover,
+                      placeholder: Container(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        child: FlickArtworkPlaceholder(
+                          size: artworkSize * 0.44,
+                          opacity: 0.92,
+                        ),
                       ),
-                    ),
-                    errorWidget: Container(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      child: FlickArtworkPlaceholder(
-                        size: artworkSize * 0.44,
-                        opacity: 0.92,
+                      errorWidget: Container(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        child: FlickArtworkPlaceholder(
+                          size: artworkSize * 0.44,
+                          opacity: 0.92,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              SizedBox(width: context.responsive(12.0, 14.0, 16.0)),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (immersiveShowTitle)
-                      Text(
-                        song.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontFamily: 'GoogleSansFlex',
-                          fontSize: context.responsiveText(
-                            context.responsive(18.0, 19.0, 21.0) *
-                                immersiveTextScale,
-                          ),
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          height: 1.12,
-                        ),
-                      ),
-                    if (immersiveShowTitle && immersiveShowArtist)
-                      SizedBox(height: context.responsive(6.0, 7.0, 8.0)),
-                    if (immersiveShowArtist)
-                      GestureDetector(
-                        onTap: () => onNavigateToArtistDetail(song),
-                        child: Text(
-                          song.artist,
-                          maxLines: 1,
+                SizedBox(width: context.responsive(12.0, 14.0, 16.0)),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (immersiveShowTitle)
+                        Text(
+                          song.title,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: 'GoogleSansFlex',
                             fontSize: context.responsiveText(
-                              context.responsive(13.0, 14.0, 15.0) *
+                              context.responsive(18.0, 19.0, 21.0) *
                                   immersiveTextScale,
                             ),
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white.withValues(alpha: 0.78),
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height: 1.12,
                           ),
                         ),
-                      ),
-                  ],
+                      if (immersiveShowTitle && immersiveShowArtist)
+                        SizedBox(height: context.responsive(6.0, 7.0, 8.0)),
+                      if (immersiveShowArtist)
+                        GestureDetector(
+                          onTap: () => onNavigateToArtistDetail(song),
+                          child: Text(
+                            song.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'GoogleSansFlex',
+                              fontSize: context.responsiveText(
+                                context.responsive(13.0, 14.0, 15.0) *
+                                    immersiveTextScale,
+                              ),
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withValues(alpha: 0.78),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildImmersiveSongHeader(BuildContext context) {
+  Widget _buildImmersiveSongHeader(
+    BuildContext context, {
+    bool landscape = false,
+  }) {
+    final titleSize = landscape ? 24.0 : context.responsive(22.0, 24.0, 28.0);
+    final artistSize = landscape ? 14.0 : context.responsive(13.0, 14.0, 16.0);
+    final titleGap = landscape ? 8.0 : context.responsive(10.0, 12.0, 14.0);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -489,7 +579,7 @@ class SongStage extends ConsumerWidget {
                   style: TextStyle(
                     fontFamily: 'GoogleSansFlex',
                     fontSize: context.responsiveText(
-                      context.responsive(22.0, 24.0, 28.0) * immersiveTextScale,
+                      titleSize * immersiveTextScale,
                     ),
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -497,7 +587,7 @@ class SongStage extends ConsumerWidget {
                   ),
                 ),
               if (immersiveShowTitle && immersiveShowArtist)
-                SizedBox(height: context.responsive(10.0, 12.0, 14.0)),
+                SizedBox(height: titleGap),
               if (immersiveShowArtist)
                 GestureDetector(
                   onTap: () => onNavigateToArtistDetail(song),
@@ -508,8 +598,7 @@ class SongStage extends ConsumerWidget {
                     style: TextStyle(
                       fontFamily: 'GoogleSansFlex',
                       fontSize: context.responsiveText(
-                        context.responsive(13.0, 14.0, 16.0) *
-                            immersiveTextScale,
+                        artistSize * immersiveTextScale,
                       ),
                       fontWeight: FontWeight.w500,
                       color: Colors.white.withValues(alpha: 0.82),
@@ -517,7 +606,7 @@ class SongStage extends ConsumerWidget {
                   ),
                 ),
               if (immersiveShowTitle || immersiveShowArtist)
-                SizedBox(height: context.responsive(10.0, 12.0, 14.0)),
+                SizedBox(height: landscape ? 8.0 : titleGap),
             ],
           ),
         ),
@@ -738,16 +827,21 @@ class SongStage extends ConsumerWidget {
     BuildContext context, {
     bool compact = false,
     bool veryCompact = false,
+    bool landscape = false,
   }) {
     final titleSize =
-        (veryCompact
+        (landscape
+            ? 22.0
+            : veryCompact
             ? context.responsive(20.0, 22.0, 25.0)
             : compact
             ? context.responsive(22.0, 25.0, 28.0)
             : context.responsive(25.0, 27.0, 30.0)) *
         artworkCardTextScale;
     final artistSize =
-        (veryCompact
+        (landscape
+            ? 14.0
+            : veryCompact
             ? context.responsive(13.0, 14.0, 15.0)
             : compact
             ? context.responsive(14.0, 15.0, 16.0)
@@ -788,11 +882,14 @@ class SongStage extends ConsumerWidget {
     final hasAlbum = song.album != null && song.album!.trim().isNotEmpty;
 
     return Column(
+      crossAxisAlignment: landscape
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.center,
       children: [
         if (artworkCardShowTitle)
           Text(
             song.title,
-            textAlign: TextAlign.center,
+            textAlign: landscape ? TextAlign.start : TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -810,7 +907,7 @@ class SongStage extends ConsumerWidget {
             onTap: () => onNavigateToArtistDetail(song),
             child: Text(
               song.artist,
-              textAlign: TextAlign.center,
+              textAlign: landscape ? TextAlign.start : TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -827,7 +924,7 @@ class SongStage extends ConsumerWidget {
           SizedBox(height: artistToAlbumSpacing),
           if (diagnostics != null && appPrefs.replaceAlbumWithBitPerfectCapsule)
             Stack(
-              alignment: Alignment.center,
+              alignment: landscape ? Alignment.centerLeft : Alignment.center,
               children: [
                 if (hasAlbum)
                   AnimatedOpacity(
@@ -849,6 +946,9 @@ class SongStage extends ConsumerWidget {
                         onTap: () => onNavigateToAlbumDetail(song),
                         child: Text(
                           song.album!,
+                          textAlign: landscape
+                              ? TextAlign.start
+                              : TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -897,6 +997,7 @@ class SongStage extends ConsumerWidget {
                 ),
                 child: Text(
                   song.album!,
+                  textAlign: landscape ? TextAlign.start : TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

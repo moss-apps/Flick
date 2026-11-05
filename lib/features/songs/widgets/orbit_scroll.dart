@@ -58,6 +58,10 @@ class OrbitScroll extends StatefulWidget {
   /// Controller for external jump-to-index actions.
   final OrbitScrollController? controller;
 
+  /// Landscape owns horizontal drags only within its music viewport. The
+  /// surrounding header and side gutters remain available to tab navigation.
+  final Axis scrollDirection;
+
   final double radiusRatio;
   final double centerOffsetRatio;
   final double centerYRatio;
@@ -83,6 +87,7 @@ class OrbitScroll extends StatefulWidget {
     this.isSelectionMode = false,
     this.selectedIds = const {},
     this.controller,
+    this.scrollDirection = Axis.vertical,
     this.radiusRatio = 1.0,
     this.centerOffsetRatio = -0.5,
     this.centerYRatio = 0.42,
@@ -118,6 +123,9 @@ class _OrbitScrollState extends State<OrbitScroll>
   bool _artworkGateHeld = false;
   DateTime _lastScrollTime = DateTime.now();
   int _lastReportedIndex = 0;
+  Size? _layoutSize;
+  double _dragExtent = 90.0;
+  int _animationGeneration = 0;
 
   // Cache for transform calculations (bounded)
   final Map<int, _Position> _positionCache = {};
@@ -129,10 +137,7 @@ class _OrbitScrollState extends State<OrbitScroll>
   // user-tunable count takes effect. Upgrade to a memo if this ever shows in a profile.
   List<int> get _orderedIndices {
     final visibleRange = widget.visibleItems ~/ 2;
-    return List.generate(
-          visibleRange * 2 + 1,
-          (i) => i - visibleRange,
-        )
+    return List.generate(visibleRange * 2 + 1, (i) => i - visibleRange)
       ..sort((a, b) => b.abs().compareTo(a.abs()));
   }
 
@@ -167,14 +172,26 @@ class _OrbitScrollState extends State<OrbitScroll>
         oldWidget.centerOffsetRatio != widget.centerOffsetRatio ||
         oldWidget.centerYRatio != widget.centerYRatio ||
         oldWidget.cardArtSize != widget.cardArtSize ||
-        oldWidget.cardWidthRatio != widget.cardWidthRatio) {
+        oldWidget.cardWidthRatio != widget.cardWidthRatio ||
+        oldWidget.scrollDirection != widget.scrollDirection) {
       _transformCache.clear();
       _positionCache.clear();
+    }
+    if (oldWidget.scrollDirection != widget.scrollDirection ||
+        oldWidget.songs.length != widget.songs.length) {
+      _animationGeneration++;
+      _controller.stop();
+      _isScrolling = false;
+      _scrollOffset.value = _scrollOffset.value
+          .round()
+          .clamp(0, math.max(0, widget.songs.length - 1))
+          .toDouble();
     }
     if (widget.selectedIndex != oldWidget.selectedIndex) {
       _lastReportedIndex = widget.selectedIndex;
       // If the index changed externally, snap/spring to it
-      if ((widget.selectedIndex.toDouble() - _scrollOffset.value).abs() > 0.05) {
+      if ((widget.selectedIndex.toDouble() - _scrollOffset.value).abs() >
+          0.05) {
         _animateTo(widget.selectedIndex.toDouble());
       }
     }
@@ -182,6 +199,7 @@ class _OrbitScrollState extends State<OrbitScroll>
 
   @override
   void dispose() {
+    _animationGeneration++;
     widget.controller?._detach();
     _controller.dispose();
     _scrollOffset.dispose();
@@ -256,11 +274,13 @@ class _OrbitScrollState extends State<OrbitScroll>
     });
   }
 
-  void _onVerticalDragStart(DragStartDetails details) {
+  void _onDragStart(DragStartDetails details) {
+    _animationGeneration++;
     _controller.stop();
   }
 
-  void _onVerticalDragUpdate(DragUpdateDetails details) {
+  void _onDragUpdate(DragUpdateDetails details) {
+    if (widget.songs.isEmpty) return;
     final delta = details.primaryDelta ?? 0.0;
     if (delta == 0) return;
 
@@ -274,15 +294,17 @@ class _OrbitScrollState extends State<OrbitScroll>
         maxScrollExtent: widget.songs.length.toDouble(),
         pixels: _scrollOffset.value,
         viewportDimension: 100,
-        axisDirection: AxisDirection.down,
+        axisDirection: widget.scrollDirection == Axis.horizontal
+            ? AxisDirection.right
+            : AxisDirection.down,
         devicePixelRatio: 1.0,
       ),
       context: context,
       direction: direction,
     ).dispatch(context);
 
-    const itemHeight = 90.0;
-    var itemDelta = -(delta / itemHeight);
+    var itemDelta = -(delta / _dragExtent);
+    _markScrollActive();
 
     double newOffset = _scrollOffset.value + itemDelta;
     if (newOffset < -0.5 || newOffset > widget.songs.length - 0.5) {
@@ -303,7 +325,8 @@ class _OrbitScrollState extends State<OrbitScroll>
     }
   }
 
-  void _onVerticalDragEnd(DragEndDetails details) {
+  void _onDragEnd(DragEndDetails details) {
+    if (widget.songs.isEmpty) return;
     final velocity = details.primaryVelocity ?? 0.0;
 
     // Dispatch end notification (idle)
@@ -313,7 +336,9 @@ class _OrbitScrollState extends State<OrbitScroll>
         maxScrollExtent: widget.songs.length.toDouble(),
         pixels: _scrollOffset.value,
         viewportDimension: 100,
-        axisDirection: AxisDirection.down,
+        axisDirection: widget.scrollDirection == Axis.horizontal
+            ? AxisDirection.right
+            : AxisDirection.down,
         devicePixelRatio: 1.0,
       ),
       context: context,
@@ -322,8 +347,7 @@ class _OrbitScrollState extends State<OrbitScroll>
 
     // Pixels per second
     // Convert to items per second
-    const itemHeight = 90.0;
-    final velocityItemsPerSec = -velocity / itemHeight;
+    final velocityItemsPerSec = -velocity / _dragExtent;
 
     // 1. Predict landing point
     // We use a FrictionSimulation to see where it WOULD land.
@@ -347,6 +371,11 @@ class _OrbitScrollState extends State<OrbitScroll>
   }
 
   void _animateTo(double target, {double velocity = 0.0}) {
+    final generation = ++_animationGeneration;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _jumpToIndex(target.round(), false);
+      return;
+    }
     // Create a spring simulation from current => target
     final description = SpringDescription.withDampingRatio(
       mass: 1.0,
@@ -362,6 +391,7 @@ class _OrbitScrollState extends State<OrbitScroll>
     );
 
     _controller.animateWith(simulation).whenComplete(() {
+      if (!mounted || generation != _animationGeneration) return;
       // Ensure we explicitly set the final state to avoid micro-drifts
       _scrollOffset.value = target;
       setState(() {
@@ -388,54 +418,102 @@ class _OrbitScrollState extends State<OrbitScroll>
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final horizontal = widget.scrollDirection == Axis.horizontal;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: horizontal ? 28 : 0),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = constraints.biggest;
+          if (_layoutSize != size) {
+            _layoutSize = size;
+            _positionCache.clear();
+            _transformCache.clear();
+          }
+          // Phone landscape leaves a much shorter stage than a tablet. Keep
+          // the same orbit metaphor, but lift and shrink it so the flanking
+          // cards are not pushed off the bottom of the window.
+          final compactHorizontal = horizontal && size.height < 420;
+          final orbitRadius = horizontal
+              ? size.width * widget.radiusRatio.clamp(0.6, 1.4)
+              : size.width * widget.radiusRatio;
+          final orbitCenterX = horizontal
+              ? size.width / 2
+              : size.width * widget.centerOffsetRatio;
+          final orbitCenterY = horizontal
+              ? size.height * (compactHorizontal ? 0.44 : 0.48) + orbitRadius
+              : size.height * widget.centerYRatio;
+          _dragExtent = horizontal
+              ? (size.width * 0.28).clamp(140.0, 280.0)
+              : 90;
 
-    // Calculate orbit parameters
-    final orbitRadius = size.width * widget.radiusRatio;
-    final orbitCenterX = size.width * widget.centerOffsetRatio;
-    final orbitCenterY = size.height * widget.centerYRatio;
+          final viewport = GestureDetector(
+            onVerticalDragStart: horizontal ? null : _onDragStart,
+            onVerticalDragUpdate: horizontal ? null : _onDragUpdate,
+            onVerticalDragEnd: horizontal ? null : _onDragEnd,
+            onVerticalDragCancel: horizontal ? null : _onDragCancel,
+            onHorizontalDragStart: horizontal ? _onDragStart : null,
+            onHorizontalDragUpdate: horizontal ? _onDragUpdate : null,
+            onHorizontalDragEnd: horizontal ? _onDragEnd : null,
+            onHorizontalDragCancel: horizontal ? _onDragCancel : null,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.transparent,
+              child: Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  // Background glow
+                  if (widget.showGlow)
+                    _buildSelectionGlow(
+                      orbitCenterX,
+                      orbitCenterY,
+                      orbitRadius,
+                    ),
 
-    return GestureDetector(
-      onVerticalDragStart: _onVerticalDragStart,
-      onVerticalDragUpdate: _onVerticalDragUpdate,
-      onVerticalDragEnd: _onVerticalDragEnd,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: double.infinity,
-        height: double.infinity,
-        color: Colors.transparent,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Background glow
-            if (widget.showGlow)
-              _buildSelectionGlow(orbitCenterX, orbitCenterY, orbitRadius),
+                  // Path
+                  if (widget.showPath)
+                    _buildOrbitPath(orbitCenterX, orbitCenterY, orbitRadius),
 
-            // Path
-            if (widget.showPath)
-              _buildOrbitPath(orbitCenterX, orbitCenterY, orbitRadius),
-
-            // Songs — only rebuilds when scroll offset changes
-            ValueListenableBuilder<double>(
-              valueListenable: _scrollOffset,
-              builder: (context, _, __) {
-                return SizedBox.expand(
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: _buildSongItems(orbitCenterX, orbitCenterY, orbitRadius),
+                  // Songs — only rebuilds when scroll offset changes
+                  ValueListenableBuilder<double>(
+                    valueListenable: _scrollOffset,
+                    builder: (context, _, __) {
+                      return SizedBox.expand(
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: _buildSongItems(
+                            orbitCenterX,
+                            orbitCenterY,
+                            orbitRadius,
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ],
+              ),
             ),
-          ],
-        ),
+          );
+          // Inner recognizers win Flutter's gesture arena before the ancestor
+          // PageView. No global physics toggle is needed (or left stuck on cancel).
+          return viewport;
+        },
       ),
     );
   }
 
+  void _onDragCancel() {
+    if (widget.songs.isEmpty) return;
+    _animateTo(
+      _scrollOffset.value.round().clamp(0, widget.songs.length - 1).toDouble(),
+    );
+  }
+
   Widget _buildSelectionGlow(double centerX, double centerY, double radius) {
-    final x = centerX + radius;
-    final y = centerY;
+    final horizontal = widget.scrollDirection == Axis.horizontal;
+    final x = horizontal ? centerX : centerX + radius;
+    final y = horizontal ? centerY - radius : centerY;
     return Positioned(
       left: x - 120, // Slightly larger glow
       top: y - 120,
@@ -466,6 +544,7 @@ class _OrbitScrollState extends State<OrbitScroll>
           centerX: centerX,
           centerY: centerY,
           radius: radius,
+          horizontal: widget.scrollDirection == Axis.horizontal,
         ),
       ),
     );
@@ -473,6 +552,25 @@ class _OrbitScrollState extends State<OrbitScroll>
 
   List<Widget> _buildSongItems(double centerX, double centerY, double radius) {
     final List<Widget> items = [];
+
+    final horizontal = widget.scrollDirection == Axis.horizontal;
+    final compactHorizontal = horizontal && _layoutSize!.height < 420;
+    final cardScale = math.max(1.0, widget.selectedScale);
+    final viewportCardWidth =
+        (_layoutSize!.width * widget.cardWidthRatio * 0.5) / cardScale;
+    final compactCardHeight = _layoutSize!.height * 0.72 / cardScale;
+    final cardWidth = horizontal
+        ? compactHorizontal
+              ? math
+                    .min(viewportCardWidth, compactCardHeight * 1.05)
+                    .clamp(88.0, 280.0)
+              : viewportCardWidth.clamp(160.0, 280.0)
+        : null;
+    final cardHeight = horizontal
+        ? compactHorizontal
+              ? compactCardHeight
+              : math.min(380.0, _layoutSize!.height * 0.85) / cardScale
+        : null;
 
     final centerIndex = _scrollOffset.value.round();
 
@@ -498,16 +596,15 @@ class _OrbitScrollState extends State<OrbitScroll>
 
         double scale;
         if (distanceFromCenter < 1.0) {
-          scale = widget.selectedScale -
-              (widget.selectedScale - adjacentScale) *
-                  distanceFromCenter;
+          scale =
+              widget.selectedScale -
+              (widget.selectedScale - adjacentScale) * distanceFromCenter;
         } else if (distanceFromCenter < 2.0) {
-          scale = adjacentScale -
-              (adjacentScale - distantScale) *
-                  (distanceFromCenter - 1.0);
+          scale =
+              adjacentScale -
+              (adjacentScale - distantScale) * (distanceFromCenter - 1.0);
         } else {
-          scale = distantScale -
-              (distanceFromCenter - 2.0) * 0.12;
+          scale = distantScale - (distanceFromCenter - 2.0) * 0.12;
         }
         scale = scale.clamp(0.0, 1.25);
 
@@ -533,16 +630,26 @@ class _OrbitScrollState extends State<OrbitScroll>
           child: FractionalTranslation(
             translation: const Offset(-0.5, -0.5),
             child: SongCard(
+              key: ValueKey(widget.songs[actualIndex].id),
               song: widget.songs[actualIndex],
               scale: transform.scale,
               opacity: transform.opacity,
               isSelected: transform.isSelected,
-              swipeActionsEnabled: widget.swipeActionsEnabled,
+              // Horizontal drags browse songs here, never queue/favorite.
+              // Those actions remain in the existing long-press song menu.
+              swipeActionsEnabled:
+                  widget.swipeActionsEnabled &&
+                  widget.scrollDirection == Axis.vertical,
               isSelectionMode: widget.isSelectionMode,
-              isMultiSelected: widget.selectedIds.contains(widget.songs[actualIndex].id),
+              isMultiSelected: widget.selectedIds.contains(
+                widget.songs[actualIndex].id,
+              ),
               artSizeBase: widget.cardArtSize,
               artSizeLarge: widget.cardArtSize * 1.5625,
               cardWidthRatio: widget.cardWidthRatio,
+              artworkAbove: horizontal,
+              width: cardWidth,
+              height: cardHeight,
               artResolutionMultiplier: widget.artResolutionMultiplier,
               onTap: () {
                 AppHaptics.tap();
@@ -581,8 +688,13 @@ class _OrbitScrollState extends State<OrbitScroll>
         relativeIndex.sign * splitAmount * math.min(relativeIndex.abs(), 1.0);
 
     final angle = adjustedIndex * widget.itemSpacing;
-    final x = centerX + radius * math.cos(angle);
-    final y = centerY + radius * math.sin(angle);
+    final horizontal = widget.scrollDirection == Axis.horizontal;
+    final x = horizontal
+        ? centerX + radius * math.sin(angle)
+        : centerX + radius * math.cos(angle);
+    final y = horizontal
+        ? centerY - radius * math.cos(angle)
+        : centerY + radius * math.sin(angle);
 
     final position = _Position(x, y);
 
@@ -616,11 +728,13 @@ class _OrbitPathPainter extends CustomPainter {
   final double centerX;
   final double centerY;
   final double radius;
+  final bool horizontal;
 
   _OrbitPathPainter({
     required this.centerX,
     required this.centerY,
     required this.radius,
+    this.horizontal = false,
   });
 
   @override
@@ -635,13 +749,20 @@ class _OrbitPathPainter extends CustomPainter {
       radius: radius,
     );
 
-    canvas.drawArc(rect, -math.pi / 2.5, 2 * math.pi / 2.5, false, paint);
+    canvas.drawArc(
+      rect,
+      horizontal ? -math.pi / 2 - math.pi / 2.5 : -math.pi / 2.5,
+      2 * math.pi / 2.5,
+      false,
+      paint,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _OrbitPathPainter oldDelegate) {
     return centerX != oldDelegate.centerX ||
         centerY != oldDelegate.centerY ||
-        radius != oldDelegate.radius;
+        radius != oldDelegate.radius ||
+        horizontal != oldDelegate.horizontal;
   }
 }

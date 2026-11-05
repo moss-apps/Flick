@@ -79,6 +79,19 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   Widget build(BuildContext context) {
     final activePresetName = ref.watch(eqActivePresetNameProvider);
     final currentSong = ref.watch(currentSongProvider);
+    final size = MediaQuery.sizeOf(context);
+    final isShortWide = size.width > size.height && size.height < 560.0;
+
+    final header = _Header(
+      title: l10n.englishForFilipino.eqDynamics,
+      subtitle: activePresetName != null ? l10n.preset(activePresetName) : null,
+      onBack: () => Navigator.of(context).pop(),
+      onPresets: _showPresetsBottomSheet,
+    );
+    final tabs = _EffectsTabBar(
+      selectedIndex: _currentPage,
+      onSelected: _switchToPage,
+    );
 
     return Stack(
       children: [
@@ -90,78 +103,72 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _Header(
-                  title: l10n.englishForFilipino.eqDynamics,
-                  subtitle: activePresetName != null
-                      ? l10n.preset(activePresetName)
-                      : null,
-                  onBack: () => Navigator.of(context).pop(),
-                  onPresets: _showPresetsBottomSheet,
-                ),
-                Expanded(
-                  child: Column(
+                if (isShortWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _EffectsTabBar(
-                        selectedIndex: _currentPage,
-                        onSelected: _switchToPage,
+                      Expanded(child: header),
+                      SizedBox(
+                        width: math.min(340.0, size.width * 0.42),
+                        child: tabs,
                       ),
-                      const SizedBox(height: AppConstants.spacingMd),
-                      Expanded(
-                        child: GestureDetector(
-                          onHorizontalDragEnd: (details) {
-                            final velocity = details.primaryVelocity ?? 0;
-                            if (velocity < -250) {
-                              _switchToPage(_currentPage + 1);
-                            } else if (velocity > 250) {
-                              _switchToPage(_currentPage - 1);
-                            }
-                          },
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            switchInCurve: Curves.easeOutCubic,
-                            switchOutCurve: Curves.easeInCubic,
-                            layoutBuilder:
-                                (currentChild, previousChildren) => Stack(
-                                  alignment: Alignment.topCenter,
-                                  children: [
-                                    ...previousChildren,
-                                    ?currentChild,
-                                  ],
-                                ),
-                            transitionBuilder: (child, animation) {
-                              final incoming =
-                                  (child.key as ValueKey).value ==
-                                      _currentPage;
-                              final beginX =
-                                  (incoming ? _pageDirection : -_pageDirection)
-                                      .toDouble();
-                              return SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: Offset(beginX, 0),
-                                  end: Offset.zero,
-                                ).animate(animation),
-                                child: FadeTransition(
-                                  opacity: animation,
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: KeyedSubtree(
-                              key: ValueKey(_currentPage),
-                              child: switch (_currentPage) {
-                                0 => _EqPage(
-                                  scrollController: _scrollController,
-                                  graphicGraphKey: _graphicGraphKey,
-                                  parametricGraphKey: _parametricGraphKey,
-                                ),
-                                1 => const _DynamicsPage(),
-                                _ => const _FxPage(),
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
+                      const SizedBox(width: AppConstants.spacingMd),
                     ],
+                  )
+                else ...[
+                  header,
+                  tabs,
+                  const SizedBox(height: AppConstants.spacingMd),
+                ],
+                Expanded(
+                  child: GestureDetector(
+                    onHorizontalDragEnd: (details) {
+                      final velocity = details.primaryVelocity ?? 0;
+                      if (velocity < -250) {
+                        _switchToPage(_currentPage + 1);
+                      } else if (velocity > 250) {
+                        _switchToPage(_currentPage - 1);
+                      }
+                    },
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      layoutBuilder: (currentChild, previousChildren) => Stack(
+                        alignment: Alignment.topCenter,
+                        children: [...previousChildren, ?currentChild],
+                      ),
+                      transitionBuilder: (child, animation) {
+                        final incoming =
+                            (child.key as ValueKey).value == _currentPage;
+                        final beginX =
+                            (incoming ? _pageDirection : -_pageDirection)
+                                .toDouble();
+                        return SlideTransition(
+                          position: Tween<Offset>(
+                            begin: Offset(beginX, 0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: KeyedSubtree(
+                        key: ValueKey(_currentPage),
+                        child: switch (_currentPage) {
+                          0 => _EqPage(
+                            scrollController: _scrollController,
+                            graphicGraphKey: _graphicGraphKey,
+                            parametricGraphKey: _parametricGraphKey,
+                            compact: isShortWide,
+                          ),
+                          1 => const _DynamicsPage(),
+                          _ => const _FxPage(),
+                        },
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -233,11 +240,13 @@ class _EqPage extends ConsumerWidget {
   final ScrollController scrollController;
   final GlobalKey graphicGraphKey;
   final GlobalKey parametricGraphKey;
+  final bool compact;
 
   const _EqPage({
     required this.scrollController,
     required this.graphicGraphKey,
     required this.parametricGraphKey,
+    this.compact = false,
   });
 
   @override
@@ -245,45 +254,47 @@ class _EqPage extends ConsumerWidget {
     final enabled = ref.watch(eqEnabledProvider);
     final mode = ref.watch(eqModeProvider);
 
-      return NotificationListener<ScrollNotification>(
-        onNotification: (_) => true,
-        child: SingleChildScrollView(
-          controller: scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
-          child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _GlassCard(
-            child: Column(
-              children: [
-                _TopControlsRow(enabled: enabled),
-                _Divider(),
-                _PreampRow(enabled: enabled),
-                _Divider(),
-                _ModeAndActionsRow(mode: mode),
-              ],
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) => true,
+      child: SingleChildScrollView(
+        controller: scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _GlassCard(
+              child: Column(
+                children: [
+                  _TopControlsRow(enabled: enabled),
+                  _Divider(),
+                  _PreampRow(enabled: enabled),
+                  _Divider(),
+                  _ModeAndActionsRow(mode: mode),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          _BmtKnobsRow(enabled: enabled),
-          const SizedBox(height: AppConstants.spacingLg),
-          AnimatedSwitcher(
-            duration: AppConstants.animationNormal,
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            child: mode == EqMode.graphic
-                ? _GraphicEqView(
-                    key: const ValueKey('graphic'),
-                    graphKey: graphicGraphKey,
-                  )
-                : _ParametricEqView(
-                    key: const ValueKey('param'),
-                    graphKey: parametricGraphKey,
-                  ),
+            const SizedBox(height: AppConstants.spacingLg),
+            _BmtKnobsRow(enabled: enabled),
+            const SizedBox(height: AppConstants.spacingLg),
+            AnimatedSwitcher(
+              duration: AppConstants.animationNormal,
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: mode == EqMode.graphic
+                  ? _GraphicEqView(
+                      key: const ValueKey('graphic'),
+                      graphKey: graphicGraphKey,
+                      compact: compact,
+                    )
+                  : _ParametricEqView(
+                      key: const ValueKey('param'),
+                      graphKey: parametricGraphKey,
+                      compact: compact,
+                    ),
             ),
-          SizedBox(height: AppConstants.navBarHeight + 120),
-        ],
-      ),
+            SizedBox(height: _bottomSpacer(context)),
+          ],
+        ),
       ),
     );
   }
@@ -302,7 +313,7 @@ class _DynamicsPage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const _DynamicsSection(),
-            SizedBox(height: AppConstants.navBarHeight + 120),
+            SizedBox(height: _bottomSpacer(context)),
           ],
         ),
       ),
@@ -323,7 +334,7 @@ class _FxPage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const _CreativeFxSection(),
-            SizedBox(height: AppConstants.navBarHeight + 120),
+            SizedBox(height: _bottomSpacer(context)),
           ],
         ),
       ),
@@ -1718,9 +1729,21 @@ class _BmtKnobsRow extends ConsumerWidget {
   }
 }
 
+double _bottomSpacer(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  return size.width > size.height && size.height < 560
+      ? 72.0
+      : AppConstants.navBarHeight + 120;
+}
+
 class _GraphicEqView extends ConsumerWidget {
   final GlobalKey? graphKey;
-  const _GraphicEqView({super.key, this.graphKey});
+  final bool compact;
+  const _GraphicEqView({
+    super.key,
+    this.graphKey,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1803,9 +1826,9 @@ class _GraphicEqView extends ConsumerWidget {
                   RepaintBoundary(
                     child: Opacity(
                       opacity: enabled ? 1.0 : 0.5,
-                      child: const SizedBox(
-                        height: 220,
-                        child: GraphicEqGraph(),
+                      child: SizedBox(
+                        height: compact ? 160.0 : 220.0,
+                        child: const GraphicEqGraph(),
                       ),
                     ),
                   ),
@@ -1828,7 +1851,7 @@ class _GraphicEqView extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppConstants.spacingMd),
                 SizedBox(
-                  height: 332,
+                  height: compact ? 260.0 : 332.0,
                   child: RepaintBoundary(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
@@ -2108,7 +2131,12 @@ class _AnimatedSliderState extends State<_AnimatedSlider>
 
 class _ParametricEqView extends ConsumerStatefulWidget {
   final GlobalKey? graphKey;
-  const _ParametricEqView({super.key, this.graphKey});
+  final bool compact;
+  const _ParametricEqView({
+    super.key,
+    this.graphKey,
+    this.compact = false,
+  });
 
   @override
   ConsumerState<_ParametricEqView> createState() => _ParametricEqViewState();
@@ -2218,9 +2246,9 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                   RepaintBoundary(
                     child: Opacity(
                       opacity: enabled ? 1.0 : 0.5,
-                      child: const SizedBox(
-                        height: 220,
-                        child: ParametricEqGraph(),
+                      child: SizedBox(
+                        height: widget.compact ? 160.0 : 220.0,
+                        child: const ParametricEqGraph(),
                       ),
                     ),
                   ),
@@ -2246,7 +2274,7 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                   ),
                   const SizedBox(height: AppConstants.spacingMd),
                   SizedBox(
-                    height: 300,
+                    height: widget.compact ? 260.0 : 300.0,
                     child: ListView.separated(
                       controller: _bandScrollController,
                       scrollDirection: Axis.horizontal,

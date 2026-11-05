@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
@@ -6,12 +8,14 @@ class AppBottomSheetSurface extends StatelessWidget {
   final Widget child;
   final double? maxHeightRatio;
   final EdgeInsetsGeometry? padding;
+  final bool scrollable;
 
   const AppBottomSheetSurface({
     super.key,
     required this.child,
     this.maxHeightRatio,
     this.padding,
+    this.scrollable = false,
   });
 
   static final BoxDecoration decoration = BoxDecoration(
@@ -39,9 +43,18 @@ class AppBottomSheetSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    final maxHeight = maxHeightRatio != null
-        ? mediaQuery.size.height * maxHeightRatio!
-        : mediaQuery.size.height * 0.85;
+    final availableHeight =
+        (mediaQuery.size.height - mediaQuery.viewInsets.bottom).clamp(
+          0.0,
+          mediaQuery.size.height,
+        );
+    final isWide = mediaQuery.size.width > mediaQuery.size.height;
+    final maxHeight = availableHeight *
+        (maxHeightRatio ?? (isWide ? 0.96 : 0.9));
+    final sheetWidth = math.min(
+      mediaQuery.size.width,
+      isWide ? 1120.0 : 760.0,
+    );
 
     // The sheet surface paints all the way to the bottom edge of the screen.
     // The system gesture/navigation inset is handled by bottom padding so
@@ -69,10 +82,15 @@ class AppBottomSheetSurface extends StatelessWidget {
               onTap: () {},
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: maxHeight),
-                child: Container(
-                  decoration: decoration,
-                  padding: effectivePadding,
-                  child: child,
+                child: SizedBox(
+                  width: sheetWidth,
+                  child: Container(
+                    decoration: decoration,
+                    padding: effectivePadding,
+                    child: scrollable
+                        ? SingleChildScrollView(child: child)
+                        : child,
+                  ),
                 ),
               ),
             ),
@@ -154,8 +172,11 @@ class GlassBottomSheet extends StatelessWidget {
       isDismissible: isDismissible,
       enableDrag: enableDrag,
       backgroundColor: Colors.transparent,
+      constraints: const BoxConstraints(maxWidth: double.infinity),
       barrierColor: Colors.black.withValues(alpha: 0.5),
-      builder: (context) => GlassBottomSheet(
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: GlassBottomSheet(
         title: title,
         content: content,
         actions: actions,
@@ -164,6 +185,7 @@ class GlassBottomSheet extends StatelessWidget {
         isScrollControlled: isScrollControlled,
         maxHeightRatio: maxHeightRatio,
         contentPadding: contentPadding,
+        ),
       ),
     );
   }

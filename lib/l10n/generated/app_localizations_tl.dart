@@ -874,6 +874,12 @@ class AppLocalizationsTl extends AppLocalizations {
   String get background => 'Likuran';
 
   @override
+  String get blurGradient => 'Gradient ng blur';
+
+  @override
+  String get colorGradient => 'Gradient ng kulay';
+
+  @override
   String get backgroundOpacity => 'Pagkalabo ng likuran';
 
   @override
@@ -3389,6 +3395,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String get fileInformation => 'Impormasyon ng file';
 
   @override
+  String get fileIsNoLongerAvailable =>
+      'Hindi na available ang file na ito. Maaaring nailipat o natanggal ito. I-scan muli ang library at subukan ulit.';
+
+  @override
   String get filePath => 'Path ng file';
 
   @override
@@ -3506,6 +3516,10 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get flickLogs => 'Mga log ng Flick';
+
+  @override
+  String get flickNoLongerHasPermissionToEditThisFile =>
+      'Wala nang pahintulot ang Flick na i-edit ang file na ito. Alisin at idagdag muli ang folder nito sa Mga pagsasaayos upang payagang baguhin ito, saka subukan muli.';
 
   @override
   String get flickPlayer => 'Flick Player';
@@ -4470,6 +4484,13 @@ class AppLocalizationsTl extends AppLocalizations {
   ) {
     return 'Linya $arg1 sa $arg2  ·  $captured/$segmentCount salita';
   }
+
+  @override
+  String get lineThickness => 'Line Thickness';
+
+  @override
+  String get lineThicknessDescription =>
+      'Adjust how thick the progress line appears.';
 
   @override
   String get linear => 'Linear';
@@ -6385,6 +6406,10 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get restartingFlick => 'Muling sinisimulan ang Flick';
+
+  @override
+  String get restoreDefaultProgressBarSize =>
+      'Restore the selected progress bar style to its default size.';
 
   @override
   String get restoreTheOriginalOrbitalLayout =>
@@ -8872,6 +8897,13 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get waveform => 'Waveform';
+
+  @override
+  String get waveformHeight => 'Waveform Height';
+
+  @override
+  String get waveformHeightDescription =>
+      'Adjust how tall the waveform bars appear.';
 
   @override
   String get waveformSeekbar => 'Waveform seekbar';
