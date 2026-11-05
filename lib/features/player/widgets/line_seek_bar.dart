@@ -10,6 +10,10 @@ class LineSeekBar extends StatefulWidget {
   final ValueChanged<Duration>? onChangeEnd;
   final double appearProgress;
 
+  /// Visible thickness of the progress line in logical pixels. The touch
+  /// area stays at least 48dp tall even when this is smaller.
+  final double thickness;
+
   const LineSeekBar({
     super.key,
     required this.position,
@@ -17,6 +21,7 @@ class LineSeekBar extends StatefulWidget {
     required this.onChanged,
     this.onChangeEnd,
     this.appearProgress = 1.0,
+    this.thickness = 3,
   });
 
   @override
@@ -25,9 +30,11 @@ class LineSeekBar extends StatefulWidget {
 
 class _LineSeekBarState extends State<LineSeekBar>
     with SingleTickerProviderStateMixin {
-  static const double _baseHeight = 40;
-  static const double _expandedHeight = 72;
   static const double _fineScrubZoom = 2.6;
+
+  double get _baseHeight => math.max(48.0, widget.thickness + 36.0);
+  double get _expandedHeight => math.max(72.0, widget.thickness + 36.0);
+  double get _finePaintHeight => math.max(10.0, widget.thickness);
 
   bool _isDragging = false;
   bool _isFineScrubbing = false;
@@ -184,15 +191,17 @@ class _LineSeekBarState extends State<LineSeekBar>
   }
 
   double get _effectiveLineHeight {
-    if (_isFineScrubbing) return 10;
-    if (_isDragging) return 5;
-    return 3;
+    if (_isFineScrubbing) return math.max(10.0, widget.thickness);
+    if (_isDragging) return math.max(5.0, widget.thickness);
+    return widget.thickness;
   }
 
+  double get _restingDotRadius => math.max(3.5, widget.thickness / 2 + 2);
+
   double get _effectiveDotRadius {
-    if (_isFineScrubbing) return 7;
-    if (_isDragging) return 5;
-    return 3.5;
+    if (_isFineScrubbing) return math.max(7.0, _restingDotRadius + 3.5);
+    if (_isDragging) return math.max(5.0, _restingDotRadius + 1.5);
+    return _restingDotRadius;
   }
 
   @override
@@ -231,8 +240,13 @@ class _LineSeekBarState extends State<LineSeekBar>
                       : Colors.transparent,
                 ),
                 padding: _isFineScrubbing
-                    ? EdgeInsets.symmetric(vertical: (_expandedHeight - 10) / 2)
-                    : const EdgeInsets.only(top: 26, bottom: 10),
+                    ? EdgeInsets.symmetric(
+                        vertical: (_expandedHeight - _finePaintHeight) / 2,
+                      )
+                    : EdgeInsets.only(
+                        top: 26,
+                        bottom: _baseHeight - 26 - _finePaintHeight,
+                      ),
                 child: RepaintBoundary(
                   child: AnimatedBuilder(
                     animation: _pulseAnimation,
