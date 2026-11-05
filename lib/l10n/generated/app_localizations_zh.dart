@@ -4120,6 +4120,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get lineThickness => '线条粗细';
+
+  @override
+  String get lineThicknessDescription => '调整进度线条的粗细。';
+
+  @override
   String get linear => '线性';
 
   @override
@@ -5900,6 +5906,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get restartingFlick => '正在重启 Flick';
+
+  @override
+  String get restoreDefaultProgressBarSize => '将所选进度条样式恢复为默认大小。';
 
   @override
   String get restoreTheOriginalOrbitalLayout => '恢复原始轨道布局';
@@ -8142,6 +8151,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get waveform => '波形';
+
+  @override
+  String get waveformHeight => '波形高度';
+
+  @override
+  String get waveformHeightDescription => '调整波形柱的高度。';
 
   @override
   String get waveformSeekbar => '波形进度条';

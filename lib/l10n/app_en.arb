@@ -5806,6 +5806,14 @@
       }
     }
   },
+  "lineThickness": "Line Thickness",
+  "@lineThickness": {
+    "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
+  },
+  "lineThicknessDescription": "Adjust how thick the progress line appears.",
+  "@lineThicknessDescription": {
+    "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
+  },
   "linear": "Linear",
   "@linear": {
     "description": "lib/features/player/widgets/bit_perfect_indicator.dart:919"
@@ -8347,6 +8355,10 @@
   "restartingFlick": "Restarting Flick",
   "@restartingFlick": {
     "description": "lib/features/menu/screens/restarting_screen.dart:126"
+  },
+  "restoreDefaultProgressBarSize": "Restore the selected progress bar style to its default size.",
+  "@restoreDefaultProgressBarSize": {
+    "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
   },
   "restoreTheOriginalOrbitalLayout": "Restore the original orbital layout",
   "@restoreTheOriginalOrbitalLayout": {
@@ -11488,6 +11500,14 @@
   "waveform": "Waveform",
   "@waveform": {
     "description": "lib/models/progress_bar_style.dart:16"
+  },
+  "waveformHeight": "Waveform Height",
+  "@waveformHeight": {
+    "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
+  },
+  "waveformHeightDescription": "Adjust how tall the waveform bars appear.",
+  "@waveformHeightDescription": {
+    "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
   },
   "waveformSeekbar": "Waveform seekbar",
   "@waveformSeekbar": {

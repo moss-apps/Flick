@@ -4434,6 +4434,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get lineThickness => 'Line Thickness';
+
+  @override
+  String get lineThicknessDescription =>
+      'Adjust how thick the progress line appears.';
+
+  @override
   String get linear => 'Linear';
 
   @override
@@ -6329,6 +6336,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restartingFlick => 'Restarting Flick';
+
+  @override
+  String get restoreDefaultProgressBarSize =>
+      'Restore the selected progress bar style to its default size.';
 
   @override
   String get restoreTheOriginalOrbitalLayout =>
@@ -8785,6 +8796,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get waveform => 'Waveform';
+
+  @override
+  String get waveformHeight => 'Waveform Height';
+
+  @override
+  String get waveformHeightDescription =>
+      'Adjust how tall the waveform bars appear.';
 
   @override
   String get waveformSeekbar => 'Waveform seekbar';

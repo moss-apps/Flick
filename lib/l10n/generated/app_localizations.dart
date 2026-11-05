@@ -7552,6 +7552,18 @@ abstract class AppLocalizations {
     Object segmentCount,
   );
 
+  /// lib/features/settings/screens/ui_customization_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Line Thickness'**
+  String get lineThickness;
+
+  /// lib/features/settings/screens/ui_customization_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust how thick the progress line appears.'**
+  String get lineThicknessDescription;
+
   /// lib/features/player/widgets/bit_perfect_indicator.dart:919
   ///
   /// In en, this message translates to:
@@ -10803,6 +10815,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restarting Flick'**
   String get restartingFlick;
+
+  /// lib/features/settings/screens/ui_customization_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Restore the selected progress bar style to its default size.'**
+  String get restoreDefaultProgressBarSize;
 
   /// lib/features/settings/screens/orbit_settings_screen.dart:200
   ///
@@ -14857,6 +14875,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Waveform'**
   String get waveform;
+
+  /// lib/features/settings/screens/ui_customization_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Waveform Height'**
+  String get waveformHeight;
+
+  /// lib/features/settings/screens/ui_customization_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust how tall the waveform bars appear.'**
+  String get waveformHeightDescription;
 
   /// lib/features/manual/data/manual_data.dart
   ///
