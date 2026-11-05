@@ -87,6 +87,71 @@ void main() {
     },
   );
 
+  test(
+    'a throwing progress callback cannot abort or duplicate the transfer',
+    () async {
+      final half = Completer<void>();
+      final first = service.stream(
+        server,
+        'song.flac',
+        extension: 'flac',
+        onProgress: (value) {
+          if (value == 0.5 && !half.isCompleted) half.complete();
+        },
+      );
+      final dest = await started.future;
+      await File(dest).writeAsBytes([1, 2, 3, 4]);
+
+      progress.add(update(2, 4));
+      await half.future;
+
+      // Joining after progress already exists exercises the catch-up path;
+      // the completion event exercises the live listener path. Neither may
+      // escape or cancel the shared transfer.
+      final broken = service.stream(
+        server,
+        'song.flac',
+        extension: 'flac',
+        onProgress: (_) => throw StateError('broken UI callback'),
+      );
+      final alsoJoined = service.stream(
+        server,
+        'song.flac',
+        extension: 'flac',
+      );
+
+      progress.add(update(4, 4, complete: true));
+      await progress.close();
+
+      expect(await first, dest);
+      expect(await broken, dest);
+      expect(await alsoJoined, dest);
+      expect(calls, 1);
+      expect(await File(dest).readAsBytes(), [1, 2, 3, 4]);
+    },
+  );
+
+  test(
+    'cache extension is normalized and derived from the remote path',
+    () async {
+      final first = service.stream(server, 'album/song.FLAC');
+      final dest = await started.future;
+      expect(dest, endsWith('.flac'));
+      await File(dest).writeAsBytes([1]);
+      progress.add(update(1, 1, complete: true));
+      await progress.close();
+      expect(await first, dest);
+
+      // A later caller with an explicit (differently cased/spaced) hint must
+      // hit the same cached file instead of downloading it again.
+      expect(
+        await service.stream(server, 'album/song.FLAC', extension: ' FLAC '),
+        dest,
+      );
+      expect(calls, 1);
+    },
+  );
+
   for (final terminal in [false, true]) {
     test(
       'rejects ${terminal ? 'wrong byte count' : 'missing completion'} and retries',

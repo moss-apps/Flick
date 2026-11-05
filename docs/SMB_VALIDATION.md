@@ -7,13 +7,26 @@ guest fallback, or change to signing/encryption policy. Test Connection now open
 the share and lists the configured root folder once; it does not guarantee read
 permission for every file or successful decoding/output.
 
+Library sync treats the configured root as mandatory but skips an unreadable or
+vanished child directory (common on Windows shares: `System Volume
+Information`, per-user folders, or a folder deleted mid-scan) instead of
+aborting the whole sync. Directory identities are de-duplicated and recursion is
+depth-capped so junction/DFS loops cannot run forever. Cover-art reads use the
+pipelined reader, so images larger than the server's single-READ limit still
+load.
+
 Downloads use a same-directory hidden staging file, verify the server's byte
 count, then close and atomically rename it. Dart also requires the completion
 event and checks the published file length. Playback/prefetch for the same
-server/file share one download. Older SMB cache entries are bypassed using a new
-SMB-only cache key, without clearing app data or other protocols' cache entries.
-Normal errors/cancellation clean up staging files; force-killing the process can
-leave an unused hidden staging file, which is never considered playable.
+server/file share one download. A resync invalidates cached bytes when the
+listed file size changes, so a replaced file cannot keep playing from the old
+cache. Older SMB cache entries are bypassed using a new SMB-only cache key,
+without clearing app data or other protocols' cache entries. Normal
+errors/cancellation clean up staging files; force-killing the process can leave
+an unused hidden staging file, which is never considered playable. Progress
+listeners are isolated from the transfer, so a failing UI callback cannot cancel
+a download other callers are waiting on, and the shared-transfer entry is
+released when the transfer finishes rather than when its first waiter leaves.
 
 Listing-only songs can still show `00:00` before their first download. After a
 successful download, metadata extraction asynchronously fills missing duration,
@@ -33,7 +46,8 @@ flutter test
 Tests cover interrupted/short downloads and retry, absent/invalid completion,
 on-disk length validation, same-key concurrency with progress, original bytes,
 legacy-cache bypass, LRU accounting, staging-file exclusion, URL encoding,
-configured-root probing, safe diagnostics and metadata preservation.
+configured-root probing, safe diagnostics, metadata preservation, partial
+directory walks, and progress-listener isolation.
 
 ## Real-device checklist (not replaced by unit tests)
 
@@ -47,7 +61,9 @@ posting addresses, share names or credentials.
    in their separate fields, never in the URL.
 2. Confirm correct credentials work. Wrong credentials, denied shares, missing
    roots and denied file reads should fail at the corresponding stage. A readable
-   root with a denied track can legitimately pass Test Connection.
+   root with a denied track can legitimately pass Test Connection. A denied
+   child folder should be skipped during sync while sibling folders still
+   import; a denied configured root must still fail the sync.
 3. Play uncached FLAC/MP3 and a large hi-res/DSD original supported by the selected
    output. Compare the same file played locally in Flick. Confirm duration/format
    update after caching, and remain after library sync.
