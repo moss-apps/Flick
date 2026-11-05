@@ -4486,11 +4486,11 @@ class AppLocalizationsTl extends AppLocalizations {
   }
 
   @override
-  String get lineThickness => 'Kapal ng Linya';
+  String get lineThickness => 'Line Thickness';
 
   @override
   String get lineThicknessDescription =>
-      'Ayusin ang kapal ng linya ng progreso.';
+      'Adjust how thick the progress line appears.';
 
   @override
   String get linear => 'Linear';
@@ -6409,7 +6409,7 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get restoreDefaultProgressBarSize =>
-      'Ibalik sa default na laki ang napiling istilo ng progress bar.';
+      'Restore the selected progress bar style to its default size.';
 
   @override
   String get restoreTheOriginalOrbitalLayout =>
@@ -8899,11 +8899,11 @@ class AppLocalizationsTl extends AppLocalizations {
   String get waveform => 'Waveform';
 
   @override
-  String get waveformHeight => 'Taas ng Waveform';
+  String get waveformHeight => 'Waveform Height';
 
   @override
   String get waveformHeightDescription =>
-      'Ayusin ang taas ng mga bar ng waveform.';
+      'Adjust how tall the waveform bars appear.';
 
   @override
   String get waveformSeekbar => 'Waveform seekbar';
