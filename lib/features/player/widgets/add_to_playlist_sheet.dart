@@ -25,19 +25,20 @@ class AddToPlaylistSheet extends ConsumerWidget {
       useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => AddToPlaylistSheet(songs: songs),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      decoration: AppBottomSheetSurface.decoration,
-      padding: EdgeInsets.fromLTRB(
+    return AppBottomSheetSurface(
+      scrollable: true,
+      padding: const EdgeInsets.fromLTRB(
         24,
         24,
         24,
-        24 + MediaQuery.paddingOf(context).bottom,
+        24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

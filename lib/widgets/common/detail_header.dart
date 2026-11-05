@@ -55,8 +55,17 @@ class DetailHeader extends StatelessWidget {
   });
 
   double _resolveHeight(BuildContext context) {
-    if (!expanded) return 300;
-    return (MediaQuery.of(context).size.height * 0.55).clamp(360.0, 560.0);
+    final size = MediaQuery.sizeOf(context);
+    final isWide = size.width > size.height;
+    if (!expanded) {
+      return isWide ? (size.height * 0.55).clamp(150.0, 220.0) : 300;
+    }
+    if (isWide) {
+      // Keep enough room for the tracklist below instead of letting the
+      // cover consume almost the whole short landscape viewport.
+      return (size.height * 0.62).clamp(180.0, 280.0);
+    }
+    return (size.height * 0.55).clamp(360.0, 560.0);
   }
 
   @override

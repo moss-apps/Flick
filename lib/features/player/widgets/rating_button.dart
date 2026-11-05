@@ -13,6 +13,9 @@ class RatingButton extends StatefulWidget {
   final Color inactiveBg;
   final Color inactiveBorder;
 
+  /// Draws the icon without a chip, used by the landscape action row.
+  final bool flat;
+
   const RatingButton({
     super.key,
     required this.currentRating,
@@ -24,6 +27,7 @@ class RatingButton extends StatefulWidget {
     this.accentBlend = 0,
     required this.inactiveBg,
     required this.inactiveBorder,
+    this.flat = false,
   });
 
   @override
@@ -94,8 +98,9 @@ class _RatingButtonState extends State<RatingButton>
   Widget _buildIconButton() {
     final rating = widget.currentRating;
     final active = rating > 0;
+    final activeColor = _activeColor();
     final bgColor = active
-        ? _activeColor().withValues(alpha: 0.28)
+        ? activeColor.withValues(alpha: 0.28)
         : widget.inactiveBg;
     final icon = active ? Icons.star : LucideIcons.star;
 
@@ -110,17 +115,25 @@ class _RatingButtonState extends State<RatingButton>
       },
       child: Container(
         padding: widget.padding,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(widget.borderRadius),
-          border: active
-              ? Border.all(color: _activeColor().withValues(alpha: 0.45))
-              : Border.all(color: widget.inactiveBorder),
-        ),
+        decoration: widget.flat
+            ? null
+            : BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(widget.borderRadius),
+                border: active
+                    ? Border.all(color: activeColor.withValues(alpha: 0.45))
+                    : Border.all(color: widget.inactiveBorder),
+              ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.white.withValues(alpha: 0.96), size: widget.iconSize),
+            Icon(
+              icon,
+              color: widget.flat && active
+                  ? activeColor
+                  : Colors.white.withValues(alpha: 0.96),
+              size: widget.iconSize,
+            ),
             if (rating > 0) ...[
               SizedBox(width: widget.iconSize * 0.2),
               Text(
@@ -162,9 +175,13 @@ class _RatingButtonState extends State<RatingButton>
               children: List.generate(5, (i) {
                 final starIndex = i + 1;
                 final delay = i * 0.08;
-                final starProgress = (_starsController.value - delay)
-                    .clamp(0.0, 1.0);
-                final easedProgress = Curves.easeOutBack.transform(starProgress).clamp(0.001, double.infinity);
+                final starProgress = (_starsController.value - delay).clamp(
+                  0.0,
+                  1.0,
+                );
+                final easedProgress = Curves.easeOutBack
+                    .transform(starProgress)
+                    .clamp(0.001, double.infinity);
                 final isFilled = starIndex <= (widget.currentRating);
                 final isHovered = _hoveredStar > 0 && starIndex <= _hoveredStar;
 
@@ -186,7 +203,10 @@ class _RatingButtonState extends State<RatingButton>
                     final box = context.findRenderObject() as RenderBox;
                     final localPos = box.globalToLocal(details.globalPosition);
                     final starWidth = box.size.width / 5;
-                    final hovered = ((localPos.dx / starWidth).ceil()).clamp(0, 5);
+                    final hovered = ((localPos.dx / starWidth).ceil()).clamp(
+                      0,
+                      5,
+                    );
                     if (hovered != _hoveredStar) {
                       setState(() => _hoveredStar = hovered);
                     }
@@ -195,7 +215,10 @@ class _RatingButtonState extends State<RatingButton>
                     final box = context.findRenderObject() as RenderBox;
                     final localPos = box.globalToLocal(details.globalPosition);
                     final starWidth = box.size.width / 5;
-                    final hovered = ((localPos.dx / starWidth).ceil()).clamp(0, 5);
+                    final hovered = ((localPos.dx / starWidth).ceil()).clamp(
+                      0,
+                      5,
+                    );
                     if (hovered != _hoveredStar) {
                       setState(() => _hoveredStar = hovered);
                     }
@@ -207,7 +230,9 @@ class _RatingButtonState extends State<RatingButton>
                         horizontal: widget.iconSize * 0.08,
                       ),
                       child: Icon(
-                        (isFilled || isHovered) ? Icons.star : Icons.star_border,
+                        (isFilled || isHovered)
+                            ? Icons.star
+                            : Icons.star_border,
                         color: (isFilled || isHovered)
                             ? Colors.amber.shade400
                             : Colors.white.withValues(alpha: 0.4),

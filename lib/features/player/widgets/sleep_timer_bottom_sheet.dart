@@ -15,6 +15,7 @@ class SleepTimerBottomSheet extends StatefulWidget {
       useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => SleepTimerBottomSheet(playerService: playerService),
     );
   }
@@ -31,13 +32,13 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: AppBottomSheetSurface.decoration,
-      padding: EdgeInsets.fromLTRB(
+    return AppBottomSheetSurface(
+      scrollable: true,
+      padding: const EdgeInsets.fromLTRB(
         20,
         16,
         20,
-        24 + MediaQuery.paddingOf(context).bottom,
+        24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

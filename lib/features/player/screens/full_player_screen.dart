@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/utils/adaptive_layout.dart';
 import 'package:flick/core/utils/duration_format.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/data/repositories/song_repository.dart';
@@ -17,7 +18,9 @@ import 'package:flick/features/player/widgets/player_navigation.dart';
 import 'package:flick/features/player/widgets/song_actions_sheet.dart';
 import 'package:flick/features/player/widgets/song_stage.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
+import 'package:flick/features/player/widgets/landscape_player_layout.dart';
 import 'package:flick/features/player/widgets/lyrics_mode_waveform_strip.dart';
+import 'package:flick/features/player/widgets/inline_lyrics_panel.dart';
 import 'package:flick/features/player/widgets/album_color_helpers.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/immersive_background_style.dart';
@@ -234,8 +237,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   void _setVisualizationMode(bool value) {
     final nextLyricsMode = value ? false : _isLyricsMode;
-    if (_isVisualizationMode == value && _isLyricsMode == nextLyricsMode)
+    if (_isVisualizationMode == value && _isLyricsMode == nextLyricsMode) {
       return;
+    }
     setState(() {
       _isVisualizationMode = value;
       _isLyricsMode = nextLyricsMode;
@@ -393,6 +397,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     final hasAlbumTint = albumColor != null && bgBlend > 0;
     final useBlurGradient =
         backgroundStyle == ImmersiveBackgroundStyle.blurGradient;
+    // In the side-by-side immersive layout the controls own the right pane, so
+    // the scrim/blur needs to deepen toward that edge instead of the bottom.
+    final sideImmersiveLayout =
+        _playerScreenMode == PlayerScreenMode.immersive &&
+        !_isImmersiveFullView &&
+        AdaptiveLayout.usePlayerSideLayout(MediaQuery.sizeOf(context));
 
     if (visualizationMode &&
         _playerScreenMode != PlayerScreenMode.artworkCard) {
@@ -413,19 +423,31 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    overlayColor.withValues(alpha: 0.7),
-                    overlayColor.withValues(alpha: 0.35),
-                    Colors.transparent,
-                    Colors.transparent,
-                    overlayColor.withValues(alpha: 0.3),
-                    overlayColor.withValues(alpha: 0.75),
-                  ],
-                  stops: const [0.0, 0.12, 0.28, 0.62, 0.82, 1.0],
-                ),
+                gradient: sideImmersiveLayout
+                    ? LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Colors.transparent,
+                          Colors.transparent,
+                          overlayColor.withValues(alpha: 0.35),
+                          overlayColor.withValues(alpha: 0.75),
+                        ],
+                        stops: const [0.0, 0.42, 0.68, 1.0],
+                      )
+                    : LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          overlayColor.withValues(alpha: 0.7),
+                          overlayColor.withValues(alpha: 0.35),
+                          Colors.transparent,
+                          Colors.transparent,
+                          overlayColor.withValues(alpha: 0.3),
+                          overlayColor.withValues(alpha: 0.75),
+                        ],
+                        stops: const [0.0, 0.12, 0.28, 0.62, 0.82, 1.0],
+                      ),
               ),
             ),
           ),
@@ -526,7 +548,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             errorWidget: placeholder,
             albumName: song.album,
             artistName:
-                (song.albumArtist != null && song.albumArtist!.trim().isNotEmpty)
+                (song.albumArtist != null &&
+                    song.albumArtist!.trim().isNotEmpty)
                 ? song.albumArtist
                 : song.artist,
             representativeSongTitle: song.title,
@@ -552,15 +575,19 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 duration: AppConstants.animationNormal,
                 opacity: _isImmersiveFullView ? 0.0 : 1.0,
                 child: ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
+                  shaderCallback: (bounds) => LinearGradient(
+                    begin: sideImmersiveLayout
+                        ? Alignment.centerLeft
+                        : Alignment.topCenter,
+                    end: sideImmersiveLayout
+                        ? Alignment.centerRight
+                        : Alignment.bottomCenter,
+                    colors: const [
                       Colors.transparent,
                       Colors.transparent,
                       Colors.white,
                     ],
-                    stops: [0.0, 0.42, 0.82],
+                    stops: const [0.0, 0.42, 0.82],
                   ).createShader(bounds),
                   blendMode: BlendMode.dstIn,
                   child: AmbientBackground(
@@ -577,8 +604,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             duration: AppConstants.animationNormal,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
+                begin: sideImmersiveLayout
+                    ? Alignment.centerRight
+                    : Alignment.bottomCenter,
+                end: sideImmersiveLayout
+                    ? Alignment.centerLeft
+                    : Alignment.topCenter,
                 colors: gradientColors,
                 stops: const [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
               ),
@@ -648,7 +679,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       BaybayinText(
                         label: BaybayinLabel.playing,
                         fallback: context.l10n.isFilipino
-                            ? context.l10n.playingLabel : l10n.nowPlaying,
+                            ? context.l10n.playingLabel
+                            : l10n.nowPlaying,
                         style: TextStyle(
                           fontFamily: 'GoogleSansFlex',
                           fontSize: context.responsive(12.0, 13.0, 14.0),
@@ -871,8 +903,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   Widget _buildPinnedWaveform(
     BuildContext context,
     Song song,
-    PlayerScreenMode mode,
-  ) {
+    PlayerScreenMode mode, {
+    double? horizontalPadding,
+  }) {
     final isImmersive = mode == PlayerScreenMode.immersive;
     // Lyrics uses the strip for immersive (waveform + dismiss arrow) but the
     // time labels are now unified as a single pinned default for BOTH
@@ -883,9 +916,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       positionNotifier: _throttledPositionNotifier,
       currentSong: song,
       formatDuration: formatDuration,
-      horizontalPadding: isImmersive
-          ? context.responsive(18.0, 24.0, 30.0)
-          : context.responsive(16.0, 20.0, 24.0),
+      horizontalPadding:
+          horizontalPadding ??
+          (isImmersive
+              ? context.responsive(18.0, 24.0, 30.0)
+              : context.responsive(16.0, 20.0, 24.0)),
       onSwipeUp: () => _setLyricsMode(false),
       showTimeLabels: false,
       showArrow: _isLyricsMode && isImmersive,
@@ -931,11 +966,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               return const SizedBox.shrink();
             }
 
-            final isShortHeight = MediaQuery.sizeOf(context).height < 620.0;
             final showImmersiveFullView =
                 _isImmersiveFullView &&
-                _playerScreenMode == PlayerScreenMode.immersive &&
-                !isShortHeight;
+                _playerScreenMode == PlayerScreenMode.immersive;
             final showVisualizerOnly =
                 _isVisualizationMode &&
                 appPrefs.visualizerEnabled &&
@@ -1025,10 +1058,16 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     final visualizationMode =
         _isVisualizationMode && appPrefs.visualizerEnabled;
 
-    // Shared file-info builder for stages; also drawn pinned (overlay) so the
-    // left/right buttons don't slide with the carousel.
-    Widget fileInfoBuilder(Song s, bool lm, PlayerScreenMode mode) {
+    // Shared action-row builder for stages and the pinned overlay. The
+    // landscape pane passes `compact: true` for a single short row.
+    Widget buildActionRow(
+      Song s,
+      bool lm,
+      PlayerScreenMode mode, {
+      bool compact = false,
+    }) {
       return PlayerActionButtonRow(
+        compact: compact,
         song: s,
         lyricsMode: lm,
         isVisualizationMode: _isVisualizationMode,
@@ -1056,6 +1095,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         onShowUsbVolumePopup: (ctx) => _showUsbVolumePopup(ctx),
       );
     }
+
+    Widget fileInfoBuilder(Song s, bool lm, PlayerScreenMode mode) =>
+        buildActionRow(s, lm, mode);
 
     // Overlay shows over the stage's reserved invisible row slot.
     final showPinnedActionRow = _playerScreenMode == PlayerScreenMode.immersive
@@ -1176,6 +1218,33 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   },
                 );
               },
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (AdaptiveLayout.usePlayerSideLayout(MediaQuery.sizeOf(context))) {
+      return Stack(
+        children: [
+          Positioned.fill(child: background),
+          SafeArea(
+            child: _buildLandscapeLayout(
+              context,
+              song,
+              appPrefs,
+              colorMode,
+              albumColor,
+              visStyle,
+              visFreq,
+              visMove,
+              visualizationMode,
+              (s) => buildActionRow(
+                s,
+                _isLyricsMode,
+                _playerScreenMode,
+                compact: true,
+              ),
             ),
           ),
         ],
@@ -1360,11 +1429,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   SizedBox(
-                                    height: context.responsive(
-                                      8.0,
-                                      10.0,
-                                      12.0,
-                                    ),
+                                    height: context.responsive(8.0, 10.0, 12.0),
                                   ),
                                   Padding(
                                     padding: EdgeInsets.symmetric(
@@ -1377,19 +1442,23 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                         return ValueListenableBuilder<Duration>(
                                           valueListenable:
                                               _playerService.durationNotifier,
-                                          builder: (context, engineDuration, _) {
-                                            final duration =
-                                                engineDuration.inMilliseconds > 0
-                                                ? engineDuration
-                                                : (song.duration);
-                                            return PlaybackTimeLabels(
-                                              position: position,
-                                              duration: duration,
-                                              formatDuration: formatDuration,
-                                              horizontalPadding:
-                                                  timeLabelsPadding,
-                                            );
-                                          },
+                                          builder:
+                                              (context, engineDuration, _) {
+                                                final duration =
+                                                    engineDuration
+                                                            .inMilliseconds >
+                                                        0
+                                                    ? engineDuration
+                                                    : (song.duration);
+                                                return PlaybackTimeLabels(
+                                                  position: position,
+                                                  duration: duration,
+                                                  formatDuration:
+                                                      formatDuration,
+                                                  horizontalPadding:
+                                                      timeLabelsPadding,
+                                                );
+                                              },
                                         );
                                       },
                                     ),
@@ -1443,6 +1512,237 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           ),
         ),
       ],
+    );
+  }
+
+  /// Wide, short window: square stage on the left, pinned playback on the
+  /// right. Both player styles keep their own identity instead of being
+  /// squeezed into the portrait column.
+  Widget _buildLandscapeLayout(
+    BuildContext context,
+    Song song,
+    dynamic appPrefs,
+    AlbumColorMode colorMode,
+    Color? albumColor,
+    String visStyle,
+    String visFreq,
+    String visMove,
+    bool visualizationMode,
+    Widget Function(Song song) actionRowBuilder,
+  ) {
+    final isArtwork = _playerScreenMode == PlayerScreenMode.artworkCard;
+    final showActions = isArtwork
+        ? appPrefs.artworkCardShowFileInfo
+        : appPrefs.immersiveShowFileInfo;
+
+    final leftPane = _isLyricsMode
+        ? Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
+            child: InlineLyricsPanel(
+              song: song,
+              playerService: _playerService,
+              lyricsService: _lyricsService,
+              albumColor: albumColor,
+              positionNotifier: _throttledPositionNotifier,
+              active: true,
+            ),
+          )
+        : ValueListenableBuilder<List<Song>>(
+            valueListenable: _playerService.upNextNotifier,
+            builder: (context, upNext, _) {
+              return ValueListenableBuilder<int>(
+                valueListenable: _playerService.currentIndexNotifier,
+                builder: (context, idx, _) {
+                  final prev = _playerService.peekPrevious;
+                  final next = _playerService.peekNext;
+                  return SongStageCarousel(
+                    key: _carouselKey,
+                    currentSong: song,
+                    prevSong: prev,
+                    nextSong: next,
+                    enabled: !_isVinylRotationActive,
+                    onDragStateChanged: (v) => _isCarouselDragging = v,
+                    onNext: _handleCarouselNext,
+                    onPrevious: _handleCarouselPrevious,
+                    stageBuilder: (s) {
+                      final isCurrent = s.id == song.id;
+                      return SongStage(
+                        song: s,
+                        pane: isArtwork
+                            ? SongStagePane.artworkOnly
+                            : SongStagePane.backdropOnly,
+                        lyricsMode: _isLyricsMode,
+                        visualizationMode: visualizationMode,
+                        immersiveFullView: false,
+                        playerScreenMode: _playerScreenMode,
+                        albumColorMode: colorMode,
+                        albumColor: albumColor,
+                        playerService: _playerService,
+                        lyricsService: _lyricsService,
+                        positionNotifier: isCurrent
+                            ? _throttledPositionNotifier
+                            : _zeroPosition,
+                        formatDuration: formatDuration,
+                        onNavigateToArtistDetail: (s) =>
+                            _navigation.openArtistFromSong(context, s),
+                        onNavigateToAlbumDetail: (s) =>
+                            _navigation.openAlbumFromSong(context, s),
+                        buildFileInfoRow: (s, _, _) => actionRowBuilder(s),
+                        fileInfoRowVisible: false,
+                        visualizerAnimationStyle: visStyle,
+                        visualizerFrequencyMode: visFreq,
+                        visualizerMovementMode: visMove,
+                        artworkCardArtworkScale:
+                            appPrefs.artworkCardArtworkScale,
+                        artworkCardTextScale: appPrefs.artworkCardTextScale,
+                        artworkCardVerticalOffset:
+                            appPrefs.artworkCardVerticalOffset,
+                        artworkCardArtworkOffset:
+                            appPrefs.artworkCardArtworkOffset,
+                        artworkCardShowTitle: appPrefs.artworkCardShowTitle,
+                        artworkCardShowArtist: appPrefs.artworkCardShowArtist,
+                        artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
+                        artworkCardShowFileInfo:
+                            appPrefs.artworkCardShowFileInfo,
+                        artworkCardShowFrame: appPrefs.artworkCardShowFrame,
+                        immersiveTextScale: appPrefs.immersiveTextScale,
+                        immersiveVerticalOffset:
+                            appPrefs.immersiveVerticalOffset,
+                        immersiveFullViewScale: appPrefs.immersiveFullViewScale,
+                        immersiveShowTitle: appPrefs.immersiveShowTitle,
+                        immersiveShowArtist: appPrefs.immersiveShowArtist,
+                        immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
+                        onRotationEnabledChanged: (enabled) {
+                          _isVinylRotationActive = enabled;
+                        },
+                        vinylMode: _isVinylMode,
+                        onVinylChanged: (v) => _isVinylMode = v,
+                        onToggleLyrics: () => _setLyricsMode(!_isLyricsMode),
+                        showWaveform: false,
+                        motionArtEnabled: isCurrent,
+                        active: isCurrent,
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          );
+
+    final detailsPane = isArtwork
+        ? SongStagePane.artworkCardDetails
+        : SongStagePane.immersiveIdentity;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Column(
+        children: [
+          const Uac2ErrorNotification(),
+          _buildTopChrome(context, song, albumColor, colorMode, appPrefs),
+          const SizedBox(height: 4),
+          Expanded(
+            child: LandscapePlayerLayout(
+              stage: leftPane,
+              artworkCard: isArtwork,
+              lyricsMode: _isLyricsMode,
+              identity: SongStage(
+                song: song,
+                pane: detailsPane,
+                lyricsMode: _isLyricsMode,
+                visualizationMode: visualizationMode,
+                immersiveFullView: false,
+                playerScreenMode: _playerScreenMode,
+                albumColorMode: colorMode,
+                albumColor: albumColor,
+                playerService: _playerService,
+                lyricsService: _lyricsService,
+                positionNotifier: _throttledPositionNotifier,
+                formatDuration: formatDuration,
+                onNavigateToArtistDetail: (s) =>
+                    _navigation.openArtistFromSong(context, s),
+                onNavigateToAlbumDetail: (s) =>
+                    _navigation.openAlbumFromSong(context, s),
+                buildFileInfoRow: (s, _, _) => actionRowBuilder(s),
+                fileInfoRowVisible: false,
+                visualizerAnimationStyle: visStyle,
+                visualizerFrequencyMode: visFreq,
+                visualizerMovementMode: visMove,
+                artworkCardArtworkScale: appPrefs.artworkCardArtworkScale,
+                artworkCardTextScale: appPrefs.artworkCardTextScale,
+                artworkCardVerticalOffset: appPrefs.artworkCardVerticalOffset,
+                artworkCardArtworkOffset: appPrefs.artworkCardArtworkOffset,
+                artworkCardShowTitle: appPrefs.artworkCardShowTitle,
+                artworkCardShowArtist: appPrefs.artworkCardShowArtist,
+                artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
+                artworkCardShowFileInfo: appPrefs.artworkCardShowFileInfo,
+                artworkCardShowFrame: appPrefs.artworkCardShowFrame,
+                immersiveTextScale: appPrefs.immersiveTextScale,
+                immersiveVerticalOffset: appPrefs.immersiveVerticalOffset,
+                immersiveFullViewScale: appPrefs.immersiveFullViewScale,
+                immersiveShowTitle: appPrefs.immersiveShowTitle,
+                immersiveShowArtist: appPrefs.immersiveShowArtist,
+                immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
+                onRotationEnabledChanged: (enabled) {
+                  _isVinylRotationActive = enabled;
+                },
+                vinylMode: _isVinylMode,
+                onVinylChanged: (v) => _isVinylMode = v,
+                onToggleLyrics: () => _setLyricsMode(!_isLyricsMode),
+                showWaveform: false,
+                motionArtEnabled: true,
+                active: true,
+              ),
+              actions: showActions ? actionRowBuilder(song) : null,
+              playback: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildPinnedWaveform(
+                    context,
+                    song,
+                    _playerScreenMode,
+                    horizontalPadding: 4,
+                  ),
+                  if (_isLyricsMode) ...[
+                    const SizedBox(height: 6),
+                    ValueListenableBuilder<Duration>(
+                      valueListenable: _playerService.positionNotifier,
+                      builder: (context, position, _) {
+                        return ValueListenableBuilder<Duration>(
+                          valueListenable: _playerService.durationNotifier,
+                          builder: (context, engineDuration, _) {
+                            final duration = engineDuration.inMilliseconds > 0
+                                ? engineDuration
+                                : song.duration;
+                            return PlaybackTimeLabels(
+                              position: position,
+                              duration: duration,
+                              formatDuration: formatDuration,
+                              horizontalPadding: 4,
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 4),
+                  PlayerControls(
+                    playerService: _playerService,
+                    formatDuration: formatDuration,
+                    currentSong: song,
+                    onPrevious: _animateToPreviousSong,
+                    onNext: _animateToNextSong,
+                    timelineHorizontalPadding: 4,
+                    albumColorMode: colorMode,
+                    albumColor: albumColor,
+                    showTimeLabels: !_isLyricsMode,
+                    compact: MediaQuery.sizeOf(context).height < 500,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

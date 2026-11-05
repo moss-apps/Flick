@@ -14,6 +14,7 @@ class VolumeBottomSheet extends StatelessWidget {
       useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => VolumeBottomSheet(playerService: playerService),
     );
   }
@@ -40,13 +41,13 @@ class VolumeBottomSheet extends StatelessWidget {
     double currentVolume = initialVolume;
     return StatefulBuilder(
       builder: (context, setSheetState) {
-        return Container(
-          decoration: AppBottomSheetSurface.decoration,
-          padding: EdgeInsets.fromLTRB(
+        return AppBottomSheetSurface(
+          scrollable: true,
+          padding: const EdgeInsets.fromLTRB(
             20,
             16,
             20,
-            24 + MediaQuery.paddingOf(context).bottom,
+            24,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

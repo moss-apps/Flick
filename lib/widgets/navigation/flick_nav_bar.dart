@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/utils/adaptive_layout.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -180,6 +181,274 @@ class _FlickNavBarState extends State<FlickNavBar> {
                   ),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact, scrollable navigation for wide windows. It reuses the same
+/// destination order and item widgets as [FlickNavBar], so user
+/// customisation is preserved instead of being re-interpreted.
+class FlickNavRail extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  final VoidCallback? onBottomBarSettings;
+  final NavBarConfig config;
+
+  const FlickNavRail({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+    this.onBottomBarSettings,
+    required this.config,
+  });
+
+  static double width(BuildContext context) =>
+      AdaptiveLayout.railWidth(context) + MediaQuery.paddingOf(context).left;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final railWidth = AdaptiveLayout.railWidth(context);
+    final buttons = config.orderedButtons;
+    final missingEssentials = config.missingEssentials;
+    final isOnMissingEssential = missingEssentials.any(
+      (button) => button.pageIndex == currentIndex,
+    );
+
+    return Container(
+      width: railWidth + mq.padding.left,
+      padding: EdgeInsets.only(
+        left: mq.padding.left + 6,
+        right: 6,
+        top: mq.padding.top + 10,
+        bottom: mq.padding.bottom + 10,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.surfaceLight.withValues(alpha: 0.94),
+            AppColors.surface.withValues(alpha: 0.98),
+          ],
+        ),
+        border: const Border(right: BorderSide(color: AppColors.glassBorder)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.28),
+            blurRadius: 20,
+            offset: const Offset(6, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  for (final button in buttons)
+                    _RailItem(
+                      button: button,
+                      isSelected: currentIndex == button.pageIndex,
+                      config: config,
+                      onTap: () => onTap(button.pageIndex),
+                      onLongPress: onBottomBarSettings,
+                    ),
+                  if (missingEssentials.isNotEmpty)
+                    _RailOverflowItem(
+                      isSelected: isOnMissingEssential,
+                      config: config,
+                      onTap: () =>
+                          _showOverflowSheet(context, missingEssentials),
+                      onLongPress: onBottomBarSettings,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (onBottomBarSettings != null) ...[
+            Divider(
+              height: 17,
+              color: AppColors.glassBorder.withValues(alpha: 0.7),
+            ),
+            IconButton(
+              onPressed: AppHaptics.wrap(onBottomBarSettings!),
+              tooltip: l10n.customizeBottomBar,
+              icon: Icon(
+                LucideIcons.settings,
+                color: AppColors.inactiveState,
+                size: context.responsiveIcon(AppConstants.iconSizeSm),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showOverflowSheet(
+    BuildContext context,
+    List<NavBarButton> missingButtons,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.all(12),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.7,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.surfaceLight.withValues(alpha: 0.97),
+                  AppColors.surface.withValues(alpha: 0.99),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.glassBorder),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final button in missingButtons)
+                    ListTile(
+                      leading: Icon(
+                        button.icon,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                      title: BaybayinText(
+                        label: baybayinNavigationLabel(button),
+                        fallback: button.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        onTap(button.pageIndex);
+                      },
+                    ),
+                  if (onBottomBarSettings != null) ...[
+                    Divider(
+                      height: 1,
+                      color: AppColors.glassBorder,
+                      indent: 12,
+                      endIndent: 12,
+                    ),
+                    ListTile(
+                      leading: Icon(
+                        LucideIcons.settings,
+                        size: 20,
+                        color: AppColors.accent.withValues(alpha: 0.85),
+                      ),
+                      title: Text(l10n.customizeBottomBar),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        onBottomBarSettings!();
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RailItem extends StatelessWidget {
+  final NavBarButton button;
+  final bool isSelected;
+  final NavBarConfig config;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  const _RailItem({
+    required this.button,
+    required this.isSelected,
+    required this.config,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: _FlickNavItem(
+          button: button,
+          isSelected: isSelected,
+          config: config,
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
+}
+
+class _RailOverflowItem extends StatelessWidget {
+  final bool isSelected;
+  final NavBarConfig config;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  const _RailOverflowItem({
+    required this.isSelected,
+    required this.config,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isSelected ? AppColors.activeState : AppColors.inactiveState;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              LucideIcons.ellipsis,
+              color: color,
+              size:
+                  context.responsiveIcon(AppConstants.iconSizeSm) *
+                  config.iconSizeFactor,
+            ),
+            if (config.showLabels) ...[
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  l10n.more,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontFamily: 'GoogleSansFlex',
+                    fontSize:
+                        context.responsiveText(8.0) * config.barSizeFactor,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -16,8 +16,7 @@ Future<T?> showFlickDialog<T>({
     context: context,
     barrierDismissible: barrierDismissible,
     barrierLabel: barrierLabel,
-    barrierColor:
-        barrierColor ?? Colors.black.withValues(alpha: 0.5),
+    barrierColor: barrierColor ?? Colors.black.withValues(alpha: 0.5),
     transitionDuration: AppConstants.animationDialog,
     pageBuilder: (context, animation, secondaryAnimation) =>
         const SizedBox.shrink(),
@@ -140,9 +139,9 @@ class FlickTextField extends StatelessWidget {
         keyboardType: keyboardType,
         textCapitalization: textCapitalization,
         maxLength: maxLength,
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: AppColors.textPrimary,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodyLarge?.copyWith(color: AppColors.textPrimary),
         decoration: InputDecoration(
           isDense: true,
           hintText: hint,
@@ -230,7 +229,10 @@ class FlickDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxHeight = MediaQuery.of(context).size.height * 0.8;
+    final mediaQuery = MediaQuery.of(context);
+    final availableHeight =
+        mediaQuery.size.height - mediaQuery.viewInsets.bottom;
+    final maxHeight = availableHeight * 0.8;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -310,7 +312,8 @@ class FlickDialog extends StatelessWidget {
     );
   }
 
-  Color get _iconColor => destructive ? AppColors.error : AppColors.textSecondary;
+  Color get _iconColor =>
+      destructive ? AppColors.error : AppColors.textSecondary;
 }
 
 /// One-call helpers for the two most common dialog shapes.

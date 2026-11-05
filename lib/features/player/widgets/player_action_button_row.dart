@@ -43,6 +43,9 @@ class PlayerActionButtonRow extends ConsumerStatefulWidget {
   final GlobalKey usbVolumeButtonKey;
   final void Function(BuildContext) onShowUsbVolumePopup;
 
+  /// Horizontal, tighter arrangement used by the landscape player pane.
+  final bool compact;
+
   const PlayerActionButtonRow({
     super.key,
     required this.song,
@@ -62,6 +65,7 @@ class PlayerActionButtonRow extends ConsumerStatefulWidget {
     required this.onOpenQueue,
     required this.usbVolumeButtonKey,
     required this.onShowUsbVolumePopup,
+    this.compact = false,
   });
 
   @override
@@ -82,118 +86,119 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     final rightTopAction = widget.rightTopAction;
     final rightAction = widget.rightAction;
     final immersiveActions = playerScreenMode == PlayerScreenMode.immersive;
-    final actionPadding = immersiveActions
+    final actionPadding = widget.compact
+        ? const EdgeInsets.all(15)
+        : immersiveActions
         ? EdgeInsets.all(context.responsive(8.0, 9.0, 10.0))
         : EdgeInsets.all(context.responsive(6.0, 7.0, 8.0));
     final actionRadius = immersiveActions ? 12.0 : 10.0;
-    final actionIconSize = context.responsive(18.0, 20.0, 22.0);
+    final actionIconSize = widget.compact
+        ? 18.0
+        : context.responsive(18.0, 20.0, 22.0);
 
     final accentBlend = albumColorMode.accentBlend;
     final surfaceBlend = albumColorMode.surfaceBlend;
     final hasAlbumTint = albumColor != null && accentBlend > 0;
 
     final inactiveBg = hasAlbumTint
-        ? albumSurface(
-            albumColor,
-            surfaceBlend,
-          ).withValues(alpha: 0.15)
+        ? albumSurface(albumColor, surfaceBlend).withValues(alpha: 0.15)
         : Colors.white.withValues(alpha: 0.15);
     final inactiveBorder = hasAlbumTint
-        ? albumSurface(
-            albumColor,
-            surfaceBlend,
-          ).withValues(alpha: 0.08)
+        ? albumSurface(albumColor, surfaceBlend).withValues(alpha: 0.08)
         : Colors.white.withValues(alpha: 0.08);
+
+    final leftButtons = _buildSideButtons(
+      topAction: leftTopAction,
+      bottomAction: leftAction,
+      context: context,
+      song: song,
+      actionPadding: actionPadding,
+      actionRadius: actionRadius,
+      actionIconSize: actionIconSize,
+      inactiveBg: inactiveBg,
+      inactiveBorder: inactiveBorder,
+      albumColor: albumColor,
+      accentBlend: accentBlend,
+      hasAlbumTint: hasAlbumTint,
+      immersiveActions: immersiveActions,
+      lyricsMode: lyricsMode,
+      compact: widget.compact,
+    );
+    final fileInfo = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildPlayerBadge(context, song.fileType.toUpperCase()),
+        if (song.isDsd && song.dsdRateLabel.isNotEmpty) ...[
+          SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
+          Flexible(
+            child: Text(
+              song.dsdRateLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'GoogleSansFlex',
+                fontSize: context.responsive(9.0, 10.0, 11.0),
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+        ] else if (song.resolution != null) ...[
+          SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
+          Flexible(
+            child: Text(
+              song.resolution!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'GoogleSansFlex',
+                fontSize: context.responsive(9.0, 10.0, 11.0),
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+        ],
+        SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
+        BitPerfectIndicator(
+          song: song,
+          playerService: widget.playerService,
+          onTap: () {
+            final diagnostics = ref.read(audioOutputDiagnosticsProvider);
+            final deviceStatus = ref.read(uac2DeviceStatusProvider);
+            BitPerfectIndicator.showInfoSheet(
+              context,
+              song: song,
+              diagnostics: diagnostics,
+              deviceStatus: deviceStatus,
+              playerService: widget.playerService,
+            );
+          },
+        ),
+      ],
+    );
+    final rightButtons = _buildSideButtons(
+      topAction: rightTopAction,
+      bottomAction: rightAction,
+      context: context,
+      song: song,
+      actionPadding: actionPadding,
+      actionRadius: actionRadius,
+      actionIconSize: actionIconSize,
+      inactiveBg: inactiveBg,
+      inactiveBorder: inactiveBorder,
+      albumColor: albumColor,
+      accentBlend: accentBlend,
+      hasAlbumTint: hasAlbumTint,
+      immersiveActions: immersiveActions,
+      lyricsMode: lyricsMode,
+      compact: widget.compact,
+    );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _buildSideButtons(
-          topAction: leftTopAction,
-          bottomAction: leftAction,
-          context: context,
-          song: song,
-          actionPadding: actionPadding,
-          actionRadius: actionRadius,
-          actionIconSize: actionIconSize,
-          inactiveBg: inactiveBg,
-          inactiveBorder: inactiveBorder,
-          albumColor: albumColor,
-          accentBlend: accentBlend,
-          hasAlbumTint: hasAlbumTint,
-          immersiveActions: immersiveActions,
-          lyricsMode: lyricsMode,
-        ),
-        Flexible(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildPlayerBadge(context, song.fileType.toUpperCase()),
-              if (song.isDsd && song.dsdRateLabel.isNotEmpty) ...[
-                SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
-                Flexible(
-                  child: Text(
-                    song.dsdRateLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
-                      fontSize: context.responsive(9.0, 10.0, 11.0),
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ),
-              ] else if (song.resolution != null) ...[
-                SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
-                Flexible(
-                  child: Text(
-                    song.resolution!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
-                      fontSize: context.responsive(9.0, 10.0, 11.0),
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ),
-              ],
-              SizedBox(width: context.responsive(5.0, 6.0, 7.0)),
-              BitPerfectIndicator(
-                song: song,
-                playerService: widget.playerService,
-                onTap: () {
-                  final diagnostics = ref.read(audioOutputDiagnosticsProvider);
-                  final deviceStatus = ref.read(uac2DeviceStatusProvider);
-                  BitPerfectIndicator.showInfoSheet(
-                    context,
-                    song: song,
-                    diagnostics: diagnostics,
-                    deviceStatus: deviceStatus,
-                    playerService: widget.playerService,
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        _buildSideButtons(
-          topAction: rightTopAction,
-          bottomAction: rightAction,
-          context: context,
-          song: song,
-          actionPadding: actionPadding,
-          actionRadius: actionRadius,
-          actionIconSize: actionIconSize,
-          inactiveBg: inactiveBg,
-          inactiveBorder: inactiveBorder,
-          albumColor: albumColor,
-          accentBlend: accentBlend,
-          hasAlbumTint: hasAlbumTint,
-          immersiveActions: immersiveActions,
-          lyricsMode: lyricsMode,
-        ),
+        leftButtons,
+        Flexible(child: fileInfo),
+        rightButtons,
       ],
     );
   }
@@ -219,6 +224,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       ),
     );
   }
+
   Widget _buildSideButtons({
     required PlayerActionButton topAction,
     required PlayerActionButton bottomAction,
@@ -234,12 +240,17 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required bool hasAlbumTint,
     required bool immersiveActions,
     required bool lyricsMode,
+    required bool compact,
   }) {
     final buttons = <Widget>[];
     for (final action in [topAction, bottomAction]) {
       if (action == PlayerActionButton.none) continue;
       if (buttons.isNotEmpty) {
-        buttons.add(SizedBox(height: context.responsive(6.0, 7.0, 8.0)));
+        buttons.add(
+          compact
+              ? const SizedBox(width: 6)
+              : SizedBox(height: context.responsive(6.0, 7.0, 8.0)),
+        );
       }
       buttons.add(
         _buildActionButton(
@@ -260,6 +271,9 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       );
     }
     if (buttons.isEmpty) return const SizedBox.shrink();
+    if (compact) {
+      return Row(mainAxisSize: MainAxisSize.min, children: buttons);
+    }
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -426,17 +440,14 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required bool lyricsMode,
   }) {
     final lyricsActiveBg = hasAlbumTint
-        ? albumAccent(
-            albumColor!,
-            accentBlend,
-          ).withValues(alpha: 0.28)
+        ? albumAccent(albumColor!, accentBlend).withValues(alpha: 0.28)
         : AppColors.accent.withValues(alpha: 0.28);
     final lyricsActiveBorder = hasAlbumTint
-        ? albumAccent(
-            albumColor!,
-            accentBlend,
-          ).withValues(alpha: 0.45)
+        ? albumAccent(albumColor!, accentBlend).withValues(alpha: 0.45)
         : AppColors.accent.withValues(alpha: 0.45);
+    final lyricsActiveColor = hasAlbumTint
+        ? albumAccent(albumColor!, accentBlend)
+        : AppColors.accent;
 
     return Tooltip(
       message: lyricsMode ? l10n.hideLyrics : l10n.showLyrics,
@@ -444,18 +455,22 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         onTap: () => widget.onToggleLyrics(),
         child: Container(
           padding: actionPadding,
-          decoration: BoxDecoration(
-            color: lyricsMode ? lyricsActiveBg : inactiveBg,
-            borderRadius: BorderRadius.circular(actionRadius),
-            border: Border.all(
-              color: lyricsMode ? lyricsActiveBorder : inactiveBorder,
-            ),
-          ),
+          decoration: widget.compact
+              ? null
+              : BoxDecoration(
+                  color: lyricsMode ? lyricsActiveBg : inactiveBg,
+                  borderRadius: BorderRadius.circular(actionRadius),
+                  border: Border.all(
+                    color: lyricsMode ? lyricsActiveBorder : inactiveBorder,
+                  ),
+                ),
           child: Icon(
             lyricsMode
                 ? Icons.keyboard_arrow_down_rounded
                 : LucideIcons.fileText,
-            color: Colors.white.withValues(alpha: 0.96),
+            color: widget.compact && lyricsMode
+                ? lyricsActiveColor
+                : Colors.white.withValues(alpha: 0.96),
             size: actionIconSize,
           ),
         ),
@@ -479,14 +494,18 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         final isFavorite = snapshot.data ?? false;
         return GestureDetector(
           onTap: () async {
-            final newState = await widget.favoritesService.toggleFavorite(song.id);
+            final newState = await widget.favoritesService.toggleFavorite(
+              song.id,
+            );
             setState(() {});
             widget.playerService.refreshNotificationState();
             if (context.mounted) {
               ScaffoldMessenger.of(context).showFlickSnackBar(
                 SnackBar(
                   content: Text(
-                    newState ? l10n.addedToFavorites : l10n.removedFromFavorites3,
+                    newState
+                        ? l10n.addedToFavorites
+                        : l10n.removedFromFavorites3,
                   ),
                   duration: const Duration(seconds: 1),
                 ),
@@ -495,25 +514,24 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
           },
           child: Container(
             padding: actionPadding,
-            decoration: BoxDecoration(
-              color: isFavorite
-                  ? (hasAlbumTint
-                        ? albumAccent(
-                            albumColor!,
-                            accentBlend,
-                          ).withValues(alpha: 0.25)
-                        : Colors.red.withValues(alpha: 0.25))
-                  : inactiveBg,
-              borderRadius: BorderRadius.circular(actionRadius),
-            ),
+            decoration: widget.compact
+                ? null
+                : BoxDecoration(
+                    color: isFavorite
+                        ? (hasAlbumTint
+                              ? albumAccent(
+                                  albumColor!,
+                                  accentBlend,
+                                ).withValues(alpha: 0.25)
+                              : Colors.red.withValues(alpha: 0.25))
+                        : inactiveBg,
+                    borderRadius: BorderRadius.circular(actionRadius),
+                  ),
             child: Icon(
               isFavorite ? Icons.favorite : Icons.favorite_border,
               color: isFavorite
                   ? (hasAlbumTint
-                        ? albumAccent(
-                            albumColor!,
-                            accentBlend,
-                          )
+                        ? albumAccent(albumColor!, accentBlend)
                         : Colors.red)
                   : Colors.white.withValues(alpha: 0.9),
               size: actionIconSize,
@@ -537,17 +555,14 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
   }) {
     final isVisMode = widget.isVisualizationMode;
     final visActiveBg = hasAlbumTint
-        ? albumAccent(
-            albumColor!,
-            accentBlend,
-          ).withValues(alpha: 0.28)
+        ? albumAccent(albumColor!, accentBlend).withValues(alpha: 0.28)
         : AppColors.accent.withValues(alpha: 0.28);
     final visActiveBorder = hasAlbumTint
-        ? albumAccent(
-            albumColor!,
-            accentBlend,
-          ).withValues(alpha: 0.45)
+        ? albumAccent(albumColor!, accentBlend).withValues(alpha: 0.45)
         : AppColors.accent.withValues(alpha: 0.45);
+    final visActiveColor = hasAlbumTint
+        ? albumAccent(albumColor!, accentBlend)
+        : AppColors.accent;
 
     return Tooltip(
       message: isVisMode ? l10n.hideVisualizer : l10n.showVisualizer,
@@ -555,16 +570,20 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         onTap: () => widget.onToggleVisualization(!isVisMode),
         child: Container(
           padding: actionPadding,
-          decoration: BoxDecoration(
-            color: isVisMode ? visActiveBg : inactiveBg,
-            borderRadius: BorderRadius.circular(actionRadius),
-            border: Border.all(
-              color: isVisMode ? visActiveBorder : inactiveBorder,
-            ),
-          ),
+          decoration: widget.compact
+              ? null
+              : BoxDecoration(
+                  color: isVisMode ? visActiveBg : inactiveBg,
+                  borderRadius: BorderRadius.circular(actionRadius),
+                  border: Border.all(
+                    color: isVisMode ? visActiveBorder : inactiveBorder,
+                  ),
+                ),
           child: Icon(
             Icons.graphic_eq_rounded,
-            color: Colors.white.withValues(alpha: 0.96),
+            color: widget.compact && isVisMode
+                ? visActiveColor
+                : Colors.white.withValues(alpha: 0.96),
             size: actionIconSize,
           ),
         ),
@@ -602,6 +621,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       accentBlend: accentBlend,
       inactiveBg: inactiveBg,
       inactiveBorder: inactiveBorder,
+      flat: widget.compact,
     );
   }
 
@@ -622,11 +642,13 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         onTap: () => widget.onOpenQueue(context),
         child: Container(
           padding: actionPadding,
-          decoration: BoxDecoration(
-            color: inactiveBg,
-            borderRadius: BorderRadius.circular(actionRadius),
-            border: Border.all(color: inactiveBorder),
-          ),
+          decoration: widget.compact
+              ? null
+              : BoxDecoration(
+                  color: inactiveBg,
+                  borderRadius: BorderRadius.circular(actionRadius),
+                  border: Border.all(color: inactiveBorder),
+                ),
           child: Icon(
             LucideIcons.listMusic,
             color: Colors.white.withValues(alpha: 0.96),
@@ -651,11 +673,13 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         onTap: () => SleepTimerBottomSheet.show(context, widget.playerService),
         child: Container(
           padding: actionPadding,
-          decoration: BoxDecoration(
-            color: inactiveBg,
-            borderRadius: BorderRadius.circular(actionRadius),
-            border: Border.all(color: inactiveBorder),
-          ),
+          decoration: widget.compact
+              ? null
+              : BoxDecoration(
+                  color: inactiveBg,
+                  borderRadius: BorderRadius.circular(actionRadius),
+                  border: Border.all(color: inactiveBorder),
+                ),
           child: Icon(
             LucideIcons.moonStar,
             color: Colors.white.withValues(alpha: 0.96),
@@ -679,7 +703,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       child: GestureDetector(
         onTap: () {
           showModalBottomSheet(
-      useRootNavigator: true,
+            useRootNavigator: true,
             context: context,
             backgroundColor: Colors.transparent,
             isScrollControlled: true,
@@ -688,11 +712,13 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         },
         child: Container(
           padding: actionPadding,
-          decoration: BoxDecoration(
-            color: inactiveBg,
-            borderRadius: BorderRadius.circular(actionRadius),
-            border: Border.all(color: inactiveBorder),
-          ),
+          decoration: widget.compact
+              ? null
+              : BoxDecoration(
+                  color: inactiveBg,
+                  borderRadius: BorderRadius.circular(actionRadius),
+                  border: Border.all(color: inactiveBorder),
+                ),
           child: Icon(
             LucideIcons.share2,
             color: Colors.white.withValues(alpha: 0.96),
@@ -731,11 +757,13 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         onTap: () => widget.onShowUsbVolumePopup(context),
         child: Container(
           padding: actionPadding,
-          decoration: BoxDecoration(
-            color: inactiveBg,
-            borderRadius: BorderRadius.circular(actionRadius),
-            border: Border.all(color: inactiveBorder),
-          ),
+          decoration: widget.compact
+              ? null
+              : BoxDecoration(
+                  color: inactiveBg,
+                  borderRadius: BorderRadius.circular(actionRadius),
+                  border: Border.all(color: inactiveBorder),
+                ),
           child: Icon(
             LucideIcons.volume2,
             color: Colors.white.withValues(alpha: 0.96),
@@ -788,11 +816,13 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         },
         child: Container(
           padding: actionPadding,
-          decoration: BoxDecoration(
-            color: inactiveBg,
-            borderRadius: BorderRadius.circular(actionRadius),
-            border: Border.all(color: inactiveBorder),
-          ),
+          decoration: widget.compact
+              ? null
+              : BoxDecoration(
+                  color: inactiveBg,
+                  borderRadius: BorderRadius.circular(actionRadius),
+                  border: Border.all(color: inactiveBorder),
+                ),
           child: Icon(
             LucideIcons.slidersHorizontal,
             color: Colors.white.withValues(alpha: 0.96),
@@ -817,11 +847,13 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         onTap: () => VolumeBottomSheet.show(context, widget.playerService),
         child: Container(
           padding: actionPadding,
-          decoration: BoxDecoration(
-            color: inactiveBg,
-            borderRadius: BorderRadius.circular(actionRadius),
-            border: Border.all(color: inactiveBorder),
-          ),
+          decoration: widget.compact
+              ? null
+              : BoxDecoration(
+                  color: inactiveBg,
+                  borderRadius: BorderRadius.circular(actionRadius),
+                  border: Border.all(color: inactiveBorder),
+                ),
           child: Icon(
             LucideIcons.volume,
             color: Colors.white.withValues(alpha: 0.96),
@@ -845,23 +877,23 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       message: isCasting ? l10n.castingTapToManage : l10n.cast,
       child: GestureDetector(
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const CastingSettingsScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const CastingSettingsScreen()),
         ),
         child: Container(
           padding: actionPadding,
-          decoration: BoxDecoration(
-            color: isCasting
-                ? AppColors.accent.withValues(alpha: 0.28)
-                : inactiveBg,
-            borderRadius: BorderRadius.circular(actionRadius),
-            border: Border.all(
-              color: isCasting
-                  ? AppColors.accent.withValues(alpha: 0.45)
-                  : inactiveBorder,
-            ),
-          ),
+          decoration: widget.compact
+              ? null
+              : BoxDecoration(
+                  color: isCasting
+                      ? AppColors.accent.withValues(alpha: 0.28)
+                      : inactiveBg,
+                  borderRadius: BorderRadius.circular(actionRadius),
+                  border: Border.all(
+                    color: isCasting
+                        ? AppColors.accent.withValues(alpha: 0.45)
+                        : inactiveBorder,
+                  ),
+                ),
           child: Icon(
             LucideIcons.cast,
             color: isCasting

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -52,6 +53,9 @@ class SongCard extends StatefulWidget {
 
   /// Decode-resolution multiplier applied to art size (higher = sharper, heavier).
   final double artResolutionMultiplier;
+  final double? width;
+  final double? height;
+  final bool artworkAbove;
 
   const SongCard({
     super.key,
@@ -69,6 +73,9 @@ class SongCard extends StatefulWidget {
     this.artSizeLarge = AppConstants.songCardArtSizeLarge,
     this.cardWidthRatio = 0.68,
     this.artResolutionMultiplier = 2.0,
+    this.width,
+    this.height,
+    this.artworkAbove = false,
   });
 
   @override
@@ -85,8 +92,9 @@ class _SongCardState extends State<SongCard> {
     final artSize =
         widget.isSelected ? widget.artSizeLarge : widget.artSizeBase;
 
-    final cardWidth = MediaQuery.of(context).size.width * widget.cardWidthRatio;
-    const cardHeight = 130.0;
+    final cardWidth = widget.width ??
+        MediaQuery.sizeOf(context).width * widget.cardWidthRatio;
+    final cardHeight = widget.height ?? 130.0;
 
     final isSwiping = _dragDx.abs() > 0.001;
     final isFlashing = _queuedFlash || _favoriteFlash;
@@ -183,6 +191,7 @@ class _SongCardState extends State<SongCard> {
   }
 
   Widget _buildCardFace(double artSize) {
+    if (widget.artworkAbove) return _buildArtworkCard(artSize);
     return ClipRRect(
       borderRadius: const BorderRadius.all(Radius.circular(AppConstants.radiusLg)),
       child: Stack(
@@ -231,6 +240,131 @@ class _SongCardState extends State<SongCard> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildArtworkCard(double artSize) {
+    return Semantics(
+      selected: widget.isSelected || widget.isMultiSelected,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        child: ColoredBox(
+          color: AppColors.surface,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final enlargedText =
+                  MediaQuery.textScalerOf(context).scale(14) > 19;
+              final showArtwork =
+                  constraints.maxHeight > (enlargedText ? 150 : 100);
+              final text = Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.song.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'GoogleSansFlex',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.song.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'GoogleSansFlex',
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+              if (!showArtwork) {
+                // A short window still shows the music, not a row of text-only
+                // cards. Overlay the identity instead of squeezing out the art.
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildAlbumWithGradient(artSize),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0x33000000), Color(0xE6000000)],
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomLeft,
+                      child: SingleChildScrollView(child: text),
+                    ),
+                    if (widget.isSelectionMode)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Icon(
+                          widget.isMultiSelected
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                  ],
+                );
+              }
+              return Stack(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (showArtwork)
+                        Expanded(
+                          child: _buildRawImage(
+                            widget.song.albumArt ?? '',
+                            audioSourcePath: widget.song.filePath,
+                            artSize: math.max(artSize, constraints.maxWidth),
+                          ),
+                        ),
+                      if (showArtwork)
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: constraints.maxHeight * 0.55,
+                          ),
+                          child: SingleChildScrollView(child: text),
+                        )
+                      else
+                        Expanded(child: SingleChildScrollView(child: text)),
+                    ],
+                  ),
+                  if (widget.isSelectionMode)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Icon(
+                        widget.isMultiSelected
+                            ? Icons.check_circle_rounded
+                            : Icons.radio_button_unchecked_rounded,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }

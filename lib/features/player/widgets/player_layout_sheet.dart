@@ -68,410 +68,416 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
     final immersiveBackgroundStyle = ImmersiveBackgroundStyleX.fromStorageValue(
       appPrefs.immersiveBackgroundStyle,
     );
-    return SafeArea(
-      top: false,
-      bottom: false,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        decoration: AppBottomSheetSurface.decoration,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.dashboard_customize_rounded,
-                    size: 20,
-                    color: context.adaptiveTextSecondary,
+    return AppBottomSheetSurface(
+      padding: EdgeInsets.zero,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide =
+              MediaQuery.sizeOf(context).width >
+              MediaQuery.sizeOf(context).height;
+          final header = Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.dashboard_customize_rounded,
+                  size: 20,
+                  color: context.adaptiveTextSecondary,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  l10n.playerLayout,
+                  style: TextStyle(
+                    fontFamily: 'GoogleSansFlex',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: context.adaptiveTextPrimary,
                   ),
-                  const SizedBox(width: 10),
-                  Text(
-                    l10n.playerLayout,
-                    style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: context.adaptiveTextPrimary,
+                ),
+              ],
+            ),
+          );
+          final preview = Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GestureDetector(
+              onTap: () => _showFullScreenPreview(),
+              child: Stack(
+                children: [
+                  _PlayerLayoutPreview(
+                    song: widget.playerService.currentSongNotifier.value,
+                    mode: _mode,
+                    artworkCardArtworkScale: appPrefs.artworkCardArtworkScale,
+                    artworkCardTextScale: appPrefs.artworkCardTextScale,
+                    artworkCardVerticalOffset:
+                        appPrefs.artworkCardVerticalOffset,
+                    artworkCardArtworkOffset: appPrefs.artworkCardArtworkOffset,
+                    artworkCardShowTitle: appPrefs.artworkCardShowTitle,
+                    artworkCardShowArtist: appPrefs.artworkCardShowArtist,
+                    artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
+                    artworkCardShowFrame: appPrefs.artworkCardShowFrame,
+                    immersiveTextScale: appPrefs.immersiveTextScale,
+                    immersiveVerticalOffset: appPrefs.immersiveVerticalOffset,
+                    immersiveFullViewScale: appPrefs.immersiveFullViewScale,
+                    immersiveShowTitle: appPrefs.immersiveShowTitle,
+                    immersiveShowArtist: appPrefs.immersiveShowArtist,
+                    immersiveBackgroundStyle: immersiveBackgroundStyle,
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.48),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.open_in_full_rounded,
+                            size: 13,
+                            color: Colors.white.withValues(alpha: 0.86),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            l10n.fullscreen,
+                            style: TextStyle(
+                              fontFamily: 'GoogleSansFlex',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withValues(alpha: 0.86),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: GestureDetector(
-                onTap: () => _showFullScreenPreview(),
-                child: Stack(
+          );
+          final settings = SingleChildScrollView(
+            // Surface reaches the bottom edge; content clears the system
+            // gesture/navigation inset.
+            padding: EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PlayerLayoutOptionTile(
+                  title: PlayerScreenMode.immersive.labelFor(l10n),
+                  subtitle: PlayerScreenMode.immersive.descriptionFor(l10n),
+                  icon: Icons.fit_screen_rounded,
+                  isSelected: _mode == PlayerScreenMode.immersive,
+                  onTap: () {
+                    unawaited(widget.onModeChanged(PlayerScreenMode.immersive));
+                    setState(() => _mode = PlayerScreenMode.immersive);
+                  },
+                ),
+                const SizedBox(height: 12),
+                _PlayerLayoutOptionTile(
+                  title: PlayerScreenMode.artworkCard.labelFor(l10n),
+                  subtitle: PlayerScreenMode.artworkCard.descriptionFor(l10n),
+                  icon: Icons.rounded_corner_rounded,
+                  isSelected: _mode == PlayerScreenMode.artworkCard,
+                  onTap: () {
+                    unawaited(
+                      widget.onModeChanged(PlayerScreenMode.artworkCard),
+                    );
+                    setState(() => _mode = PlayerScreenMode.artworkCard);
+                  },
+                ),
+                const SizedBox(height: 20),
+                _PlayerCustomizationGroup(
+                  title: l10n.artworkCard,
+                  icon: Icons.rounded_corner_rounded,
                   children: [
-                    _PlayerLayoutPreview(
-                      song: widget.playerService.currentSongNotifier.value,
-                      mode: _mode,
-                      artworkCardArtworkScale:
-                          appPrefs.artworkCardArtworkScale,
-                      artworkCardTextScale: appPrefs.artworkCardTextScale,
-                      artworkCardVerticalOffset:
-                          appPrefs.artworkCardVerticalOffset,
-                      artworkCardArtworkOffset:
-                          appPrefs.artworkCardArtworkOffset,
-                      artworkCardShowTitle: appPrefs.artworkCardShowTitle,
-                      artworkCardShowArtist: appPrefs.artworkCardShowArtist,
-                      artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
-                      artworkCardShowFrame: appPrefs.artworkCardShowFrame,
-                      immersiveTextScale: appPrefs.immersiveTextScale,
-                      immersiveVerticalOffset: appPrefs.immersiveVerticalOffset,
-                      immersiveFullViewScale: appPrefs.immersiveFullViewScale,
-                      immersiveShowTitle: appPrefs.immersiveShowTitle,
-                      immersiveShowArtist: appPrefs.immersiveShowArtist,
-                      immersiveBackgroundStyle: immersiveBackgroundStyle,
+                    _PlayerCustomizationSlider(
+                      title: l10n.artworkSize,
+                      value: appPrefs.artworkCardArtworkScale,
+                      min: 0.8,
+                      max: 1.36,
+                      divisions: 28,
+                      valueLabel:
+                          '${(appPrefs.artworkCardArtworkScale * 100).round()}%',
+                      onChanged: prefsNotifier.setArtworkCardArtworkScale,
                     ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.48),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.open_in_full_rounded,
-                              size: 13,
-                              color: Colors.white.withValues(alpha: 0.86),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              l10n.fullscreen,
-                              style: TextStyle(
-                                fontFamily: 'GoogleSansFlex',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white.withValues(alpha: 0.86),
-                              ),
-                            ),
-                          ],
+                    _PlayerCustomizationSlider(
+                      title: l10n.textSize,
+                      value: appPrefs.artworkCardTextScale,
+                      min: 0.82,
+                      max: 1.2,
+                      divisions: 19,
+                      valueLabel:
+                          '${(appPrefs.artworkCardTextScale * 100).round()}%',
+                      onChanged: prefsNotifier.setArtworkCardTextScale,
+                    ),
+                    _PlayerCustomizationSlider(
+                      title: l10n.contentPlacement,
+                      value: appPrefs.artworkCardVerticalOffset,
+                      min: -36,
+                      max: 36,
+                      divisions: 12,
+                      valueLabel: _placementLabel(
+                        appPrefs.artworkCardVerticalOffset,
+                      ),
+                      onChanged: prefsNotifier.setArtworkCardVerticalOffset,
+                    ),
+                    _PlayerCustomizationSlider(
+                      title: l10n.artworkPlacement,
+                      value: appPrefs.artworkCardArtworkOffset,
+                      min: -48,
+                      max: 48,
+                      divisions: 16,
+                      valueLabel: _placementLabel(
+                        appPrefs.artworkCardArtworkOffset,
+                      ),
+                      onChanged: prefsNotifier.setArtworkCardArtworkOffset,
+                    ),
+                    const SizedBox(height: 6),
+                    _PlayerCustomizationToggle(
+                      title: l10n.showTitle,
+                      value: appPrefs.artworkCardShowTitle,
+                      onChanged: prefsNotifier.setArtworkCardShowTitle,
+                    ),
+                    _PlayerCustomizationToggle(
+                      title: l10n.showArtist,
+                      value: appPrefs.artworkCardShowArtist,
+                      onChanged: prefsNotifier.setArtworkCardShowArtist,
+                    ),
+                    _PlayerCustomizationToggle(
+                      title: l10n.showAlbum,
+                      value: appPrefs.artworkCardShowAlbum,
+                      onChanged: prefsNotifier.setArtworkCardShowAlbum,
+                    ),
+                    _PlayerCustomizationToggle(
+                      title: l10n.showFileInfo,
+                      value: appPrefs.artworkCardShowFileInfo,
+                      onChanged: prefsNotifier.setArtworkCardShowFileInfo,
+                    ),
+                    _PlayerCustomizationToggle(
+                      title: l10n.showFrame,
+                      value: appPrefs.artworkCardShowFrame,
+                      onChanged: prefsNotifier.setArtworkCardShowFrame,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _PlayerCustomizationGroup(
+                  title: l10n.immersive,
+                  icon: Icons.fit_screen_rounded,
+                  children: [
+                    _PlayerBackgroundStyleSelector(
+                      currentValue: immersiveBackgroundStyle,
+                      onChanged: (style) {
+                        prefsNotifier.setImmersiveBackgroundStyle(
+                          style.storageValue,
+                        );
+                      },
+                    ),
+                    _PlayerCustomizationSlider(
+                      title: l10n.textSize,
+                      value: appPrefs.immersiveTextScale,
+                      min: 0.82,
+                      max: 1.2,
+                      divisions: 19,
+                      valueLabel:
+                          '${(appPrefs.immersiveTextScale * 100).round()}%',
+                      onChanged: prefsNotifier.setImmersiveTextScale,
+                    ),
+                    _PlayerCustomizationSlider(
+                      title: l10n.textPlacement,
+                      value: appPrefs.immersiveVerticalOffset,
+                      min: -36,
+                      max: 36,
+                      divisions: 12,
+                      valueLabel: _placementLabel(
+                        appPrefs.immersiveVerticalOffset,
+                      ),
+                      onChanged: prefsNotifier.setImmersiveVerticalOffset,
+                    ),
+                    _PlayerCustomizationSlider(
+                      title: l10n.fullViewCardSize,
+                      value: appPrefs.immersiveFullViewScale,
+                      min: 0.82,
+                      max: 1.18,
+                      divisions: 18,
+                      valueLabel:
+                          '${(appPrefs.immersiveFullViewScale * 100).round()}%',
+                      onChanged: prefsNotifier.setImmersiveFullViewScale,
+                    ),
+                    const SizedBox(height: 6),
+                    _PlayerCustomizationToggle(
+                      title: l10n.showTitle,
+                      value: appPrefs.immersiveShowTitle,
+                      onChanged: prefsNotifier.setImmersiveShowTitle,
+                    ),
+                    _PlayerCustomizationToggle(
+                      title: l10n.showArtist,
+                      value: appPrefs.immersiveShowArtist,
+                      onChanged: prefsNotifier.setImmersiveShowArtist,
+                    ),
+                    _PlayerCustomizationToggle(
+                      title: l10n.showFileInfo,
+                      value: appPrefs.immersiveShowFileInfo,
+                      onChanged: prefsNotifier.setImmersiveShowFileInfo,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _PlayerCustomizationGroup(
+                  title: l10n.quickActions,
+                  icon: Icons.swap_horiz_rounded,
+                  children: [
+                    _PlayerActionButtonSelector(
+                      label: l10n.leftTop,
+                      currentValue: PlayerActionButtonX.fromStorageValue(
+                        appPrefs.leftTopActionButton,
+                      ),
+                      onChanged: (action) {
+                        prefsNotifier.setLeftTopActionButton(
+                          action.storageValue,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _PlayerActionButtonSelector(
+                      label: l10n.leftBottom,
+                      currentValue: PlayerActionButtonX.fromStorageValue(
+                        appPrefs.leftActionButton,
+                      ),
+                      onChanged: (action) {
+                        prefsNotifier.setLeftActionButton(action.storageValue);
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _PlayerActionButtonSelector(
+                      label: l10n.rightTop,
+                      currentValue: PlayerActionButtonX.fromStorageValue(
+                        appPrefs.rightTopActionButton,
+                      ),
+                      onChanged: (action) {
+                        prefsNotifier.setRightTopActionButton(
+                          action.storageValue,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _PlayerActionButtonSelector(
+                      label: l10n.rightBottom,
+                      currentValue: PlayerActionButtonX.fromStorageValue(
+                        appPrefs.rightActionButton,
+                      ),
+                      onChanged: (action) {
+                        prefsNotifier.setRightActionButton(action.storageValue);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.palette_outlined,
+                      size: 20,
+                      color: context.adaptiveTextSecondary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        l10n.albumColors,
+                        style: TextStyle(
+                          fontFamily: 'GoogleSansFlex',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: context.adaptiveTextPrimary,
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              height: 1,
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              color: AppColors.glassBorder,
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                // Surface reaches the bottom edge; content clears the system
-                // gesture/navigation inset.
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  12,
-                  20,
-                  24 + MediaQuery.paddingOf(context).bottom,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _PlayerLayoutOptionTile(
-                      title: PlayerScreenMode.immersive.labelFor(l10n),
-                      subtitle: PlayerScreenMode.immersive.descriptionFor(l10n),
-                      icon: Icons.fit_screen_rounded,
-                      isSelected: _mode == PlayerScreenMode.immersive,
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: AlbumColorMode.values.map((mode) {
+                    final isSelected = colorMode == mode;
+                    return GestureDetector(
                       onTap: () {
-                        unawaited(widget.onModeChanged(PlayerScreenMode.immersive));
-                        setState(() => _mode = PlayerScreenMode.immersive);
+                        ref.read(albumColorModeProvider.notifier).setMode(mode);
                       },
-                    ),
-                    const SizedBox(height: 12),
-                    _PlayerLayoutOptionTile(
-                      title: PlayerScreenMode.artworkCard.labelFor(l10n),
-                      subtitle: PlayerScreenMode.artworkCard.descriptionFor(l10n),
-                      icon: Icons.rounded_corner_rounded,
-                      isSelected: _mode == PlayerScreenMode.artworkCard,
-                      onTap: () {
-                        unawaited(widget.onModeChanged(PlayerScreenMode.artworkCard));
-                        setState(() => _mode = PlayerScreenMode.artworkCard);
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    _PlayerCustomizationGroup(
-                      title: l10n.artworkCard,
-                      icon: Icons.rounded_corner_rounded,
-                      children: [
-                        _PlayerCustomizationSlider(
-                          title: l10n.artworkSize,
-                          value: appPrefs.artworkCardArtworkScale,
-                          min: 0.8,
-                          max: 1.36,
-                          divisions: 28,
-                          valueLabel:
-                              '${(appPrefs.artworkCardArtworkScale * 100).round()}%',
-                          onChanged: prefsNotifier.setArtworkCardArtworkScale,
+                      child: AnimatedContainer(
+                        duration: AppConstants.animationFast,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
                         ),
-                        _PlayerCustomizationSlider(
-                          title: l10n.textSize,
-                          value: appPrefs.artworkCardTextScale,
-                          min: 0.82,
-                          max: 1.2,
-                          divisions: 19,
-                          valueLabel:
-                              '${(appPrefs.artworkCardTextScale * 100).round()}%',
-                          onChanged: prefsNotifier.setArtworkCardTextScale,
-                        ),
-                        _PlayerCustomizationSlider(
-                          title: l10n.contentPlacement,
-                          value: appPrefs.artworkCardVerticalOffset,
-                          min: -36,
-                          max: 36,
-                          divisions: 12,
-                          valueLabel: _placementLabel(
-                            appPrefs.artworkCardVerticalOffset,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.accent.withValues(alpha: 0.14)
+                              : AppColors.glassBackground,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.accent.withValues(alpha: 0.6)
+                                : AppColors.glassBorder,
+                            width: 1,
                           ),
-                          onChanged: prefsNotifier.setArtworkCardVerticalOffset,
                         ),
-                        _PlayerCustomizationSlider(
-                          title: l10n.artworkPlacement,
-                          value: appPrefs.artworkCardArtworkOffset,
-                          min: -48,
-                          max: 48,
-                          divisions: 16,
-                          valueLabel: _placementLabel(
-                            appPrefs.artworkCardArtworkOffset,
-                          ),
-                          onChanged: prefsNotifier.setArtworkCardArtworkOffset,
-                        ),
-                        const SizedBox(height: 6),
-                        _PlayerCustomizationToggle(
-                          title: l10n.showTitle,
-                          value: appPrefs.artworkCardShowTitle,
-                          onChanged: prefsNotifier.setArtworkCardShowTitle,
-                        ),
-                        _PlayerCustomizationToggle(
-                          title: l10n.showArtist,
-                          value: appPrefs.artworkCardShowArtist,
-                          onChanged: prefsNotifier.setArtworkCardShowArtist,
-                        ),
-                        _PlayerCustomizationToggle(
-                          title: l10n.showAlbum,
-                          value: appPrefs.artworkCardShowAlbum,
-                          onChanged: prefsNotifier.setArtworkCardShowAlbum,
-                        ),
-                        _PlayerCustomizationToggle(
-                          title: l10n.showFileInfo,
-                          value: appPrefs.artworkCardShowFileInfo,
-                          onChanged: prefsNotifier.setArtworkCardShowFileInfo,
-                        ),
-                        _PlayerCustomizationToggle(
-                          title: l10n.showFrame,
-                          value: appPrefs.artworkCardShowFrame,
-                          onChanged: prefsNotifier.setArtworkCardShowFrame,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _PlayerCustomizationGroup(
-                      title: l10n.immersive,
-                      icon: Icons.fit_screen_rounded,
-                      children: [
-                        _PlayerBackgroundStyleSelector(
-                          currentValue: immersiveBackgroundStyle,
-                          onChanged: (style) {
-                            prefsNotifier.setImmersiveBackgroundStyle(
-                              style.storageValue,
-                            );
-                          },
-                        ),
-                        _PlayerCustomizationSlider(
-                          title: l10n.textSize,
-                          value: appPrefs.immersiveTextScale,
-                          min: 0.82,
-                          max: 1.2,
-                          divisions: 19,
-                          valueLabel:
-                              '${(appPrefs.immersiveTextScale * 100).round()}%',
-                          onChanged: prefsNotifier.setImmersiveTextScale,
-                        ),
-                        _PlayerCustomizationSlider(
-                          title: l10n.textPlacement,
-                          value: appPrefs.immersiveVerticalOffset,
-                          min: -36,
-                          max: 36,
-                          divisions: 12,
-                          valueLabel: _placementLabel(
-                            appPrefs.immersiveVerticalOffset,
-                          ),
-                          onChanged: prefsNotifier.setImmersiveVerticalOffset,
-                        ),
-                        _PlayerCustomizationSlider(
-                          title: l10n.fullViewCardSize,
-                          value: appPrefs.immersiveFullViewScale,
-                          min: 0.82,
-                          max: 1.18,
-                          divisions: 18,
-                          valueLabel:
-                              '${(appPrefs.immersiveFullViewScale * 100).round()}%',
-                          onChanged: prefsNotifier.setImmersiveFullViewScale,
-                        ),
-                        const SizedBox(height: 6),
-                        _PlayerCustomizationToggle(
-                          title: l10n.showTitle,
-                          value: appPrefs.immersiveShowTitle,
-                          onChanged: prefsNotifier.setImmersiveShowTitle,
-                        ),
-                        _PlayerCustomizationToggle(
-                          title: l10n.showArtist,
-                          value: appPrefs.immersiveShowArtist,
-                          onChanged: prefsNotifier.setImmersiveShowArtist,
-                        ),
-                        _PlayerCustomizationToggle(
-                          title: l10n.showFileInfo,
-                          value: appPrefs.immersiveShowFileInfo,
-                          onChanged: prefsNotifier.setImmersiveShowFileInfo,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _PlayerCustomizationGroup(
-                      title: l10n.quickActions,
-                      icon: Icons.swap_horiz_rounded,
-                      children: [
-                        _PlayerActionButtonSelector(
-                          label: l10n.leftTop,
-                          currentValue: PlayerActionButtonX.fromStorageValue(
-                            appPrefs.leftTopActionButton,
-                          ),
-                          onChanged: (action) {
-                            prefsNotifier.setLeftTopActionButton(
-                              action.storageValue,
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        _PlayerActionButtonSelector(
-                          label: l10n.leftBottom,
-                          currentValue: PlayerActionButtonX.fromStorageValue(
-                            appPrefs.leftActionButton,
-                          ),
-                          onChanged: (action) {
-                            prefsNotifier.setLeftActionButton(
-                              action.storageValue,
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        _PlayerActionButtonSelector(
-                          label: l10n.rightTop,
-                          currentValue: PlayerActionButtonX.fromStorageValue(
-                            appPrefs.rightTopActionButton,
-                          ),
-                          onChanged: (action) {
-                            prefsNotifier.setRightTopActionButton(
-                              action.storageValue,
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        _PlayerActionButtonSelector(
-                          label: l10n.rightBottom,
-                          currentValue: PlayerActionButtonX.fromStorageValue(
-                            appPrefs.rightActionButton,
-                          ),
-                          onChanged: (action) {
-                            prefsNotifier.setRightActionButton(
-                              action.storageValue,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.palette_outlined,
-                          size: 20,
-                          color: context.adaptiveTextSecondary,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          l10n.albumColors,
+                        child: Text(
+                          mode.labelFor(l10n),
                           style: TextStyle(
                             fontFamily: 'GoogleSansFlex',
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: context.adaptiveTextPrimary,
+                            fontSize: 14,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? AppColors.textPrimary
+                                : context.adaptiveTextSecondary,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: AlbumColorMode.values.map((mode) {
-                        final isSelected = colorMode == mode;
-                        return GestureDetector(
-                          onTap: () {
-                            ref
-                                .read(albumColorModeProvider.notifier)
-                                .setMode(mode);
-                          },
-                          child: AnimatedContainer(
-                            duration: AppConstants.animationFast,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.accent.withValues(alpha: 0.14)
-                                  : AppColors.glassBackground,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.accent.withValues(alpha: 0.6)
-                                    : AppColors.glassBorder,
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              mode.labelFor(l10n),
-                              style: TextStyle(
-                                fontFamily: 'GoogleSansFlex',
-                                fontSize: 14,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isSelected
-                                    ? AppColors.textPrimary
-                                    : context.adaptiveTextSecondary,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
+                      ),
+                    );
+                  }).toList(),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              header,
+              const SizedBox(height: 12),
+              Flexible(
+                child: isWide
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: math.min(340.0, constraints.maxWidth * 0.38),
+                            child: SingleChildScrollView(child: preview),
+                          ),
+                          Expanded(child: settings),
+                        ],
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          preview,
+                          const SizedBox(height: 12),
+                          Divider(height: 1, color: AppColors.glassBorder),
+                          Flexible(child: settings),
+                        ],
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -707,13 +713,15 @@ class _PlayerCustomizationGroup extends StatelessWidget {
             children: [
               Icon(icon, size: 18, color: context.adaptiveTextSecondary),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontFamily: 'GoogleSansFlex',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: context.adaptiveTextPrimary,
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: 'GoogleSansFlex',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: context.adaptiveTextPrimary,
+                  ),
                 ),
               ),
             ],
@@ -744,13 +752,15 @@ class _PlayerCustomizationToggle extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontFamily: 'GoogleSansFlex',
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: context.adaptiveTextPrimary,
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontFamily: 'GoogleSansFlex',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: context.adaptiveTextPrimary,
+              ),
             ),
           ),
           Switch(
@@ -793,15 +803,18 @@ class _PlayerCustomizationSlider extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontFamily: 'GoogleSansFlex',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: context.adaptiveTextPrimary,
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: 'GoogleSansFlex',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: context.adaptiveTextPrimary,
+                  ),
                 ),
               ),
+              const SizedBox(width: 12),
               Text(
                 valueLabel,
                 style: TextStyle(
@@ -894,17 +907,19 @@ class _PlayerBackgroundStyleSelector extends StatelessWidget {
                           : context.adaptiveTextSecondary,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      style.labelFor(l10n),
-                      style: TextStyle(
-                        fontFamily: 'GoogleSansFlex',
-                        fontSize: 12,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: isSelected
-                            ? AppColors.textPrimary
-                            : context.adaptiveTextSecondary,
+                    Flexible(
+                      child: Text(
+                        style.labelFor(l10n),
+                        style: TextStyle(
+                          fontFamily: 'GoogleSansFlex',
+                          fontSize: 12,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? AppColors.textPrimary
+                              : context.adaptiveTextSecondary,
+                        ),
                       ),
                     ),
                   ],

@@ -239,7 +239,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                   SelectionSetting(
                     icon: icon,
                     title: mode.labelFor(l10n.englishForFilipino),
-                    subtitle: mode.description,
+                    subtitle: mode.descriptionFor(l10n),
                     selected: isSelected,
                     onTap: () {
                       ref
@@ -258,7 +258,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               SelectionSetting(
                 icon: LucideIcons.audioWaveform,
                 title: ProgressBarStyle.waveform.labelFor(l10n.englishForFilipino),
-                subtitle: ProgressBarStyle.waveform.description,
+                subtitle: ProgressBarStyle.waveform.descriptionFor(l10n),
                 selected: progressBarStyle == ProgressBarStyle.waveform,
                 onTap: () {
                   ref
@@ -270,7 +270,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
               SelectionSetting(
                 icon: LucideIcons.minus,
                 title: ProgressBarStyle.line.labelFor(l10n.englishForFilipino),
-                subtitle: ProgressBarStyle.line.description,
+                subtitle: ProgressBarStyle.line.descriptionFor(l10n),
                 selected: progressBarStyle == ProgressBarStyle.line,
                 onTap: () {
                   ref
@@ -348,7 +348,7 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                   SelectionSetting(
                     icon: LucideIcons.palette,
                     title: mode.labelFor(l10n.englishForFilipino),
-                    subtitle: mode.description,
+                    subtitle: mode.descriptionFor(l10n),
                     selected: isSelected,
                     onTap: () {
                       ref
