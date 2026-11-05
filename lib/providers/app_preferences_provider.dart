@@ -207,6 +207,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setImmersiveAutoFullViewSeconds(value);
   }
 
+  Future<void> setImmersiveBackgroundStyle(String value) async {
+    if (state.immersiveBackgroundStyle == value) return;
+    state = state.copyWith(immersiveBackgroundStyle: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setImmersiveBackgroundStyle(value);
+  }
+
   Future<void> setVisualizerAnimationStyle(String value) async {
     if (state.visualizerAnimationStyle == value) return;
     state = state.copyWith(visualizerAnimationStyle: value);

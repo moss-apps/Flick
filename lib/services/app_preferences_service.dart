@@ -22,6 +22,7 @@ class AppPreferences {
   final bool fastIndexEnabled;
   final int fastIndexTimeoutSeconds;
   final int immersiveAutoFullViewSeconds;
+  final String immersiveBackgroundStyle;
   final String visualizerAnimationStyle;
   final String visualizerFrequencyMode;
   final String visualizerMovementMode;
@@ -141,6 +142,7 @@ class AppPreferences {
     this.fastIndexEnabled = true,
     this.fastIndexTimeoutSeconds = 3,
     this.immersiveAutoFullViewSeconds = 0,
+    this.immersiveBackgroundStyle = 'color_gradient',
     this.visualizerAnimationStyle = 'bars',
     this.visualizerFrequencyMode = 'full',
     this.visualizerMovementMode = 'bouncy',
@@ -261,6 +263,7 @@ class AppPreferences {
     bool? fastIndexEnabled,
     int? fastIndexTimeoutSeconds,
     int? immersiveAutoFullViewSeconds,
+    String? immersiveBackgroundStyle,
     String? visualizerAnimationStyle,
     String? visualizerFrequencyMode,
     String? visualizerMovementMode,
@@ -386,6 +389,8 @@ class AppPreferences {
           fastIndexTimeoutSeconds ?? this.fastIndexTimeoutSeconds,
       immersiveAutoFullViewSeconds:
           immersiveAutoFullViewSeconds ?? this.immersiveAutoFullViewSeconds,
+      immersiveBackgroundStyle:
+          immersiveBackgroundStyle ?? this.immersiveBackgroundStyle,
       visualizerAnimationStyle:
           visualizerAnimationStyle ?? this.visualizerAnimationStyle,
       visualizerFrequencyMode:
@@ -555,6 +560,7 @@ class AppPreferencesService {
   static const _fastIndexEnabledKey = 'fast_index_enabled';
   static const _fastIndexTimeoutKey = 'fast_index_timeout_seconds';
   static const _immersiveAutoFullViewKey = 'immersive_auto_full_view_seconds';
+  static const _immersiveBackgroundStyleKey = 'immersive_background_style';
   static const _visualizerAnimationStyleKey = 'visualizer_animation_style';
   static const _visualizerFrequencyModeKey = 'visualizer_frequency_mode';
   static const _visualizerMovementModeKey = 'visualizer_movement_mode';
@@ -696,6 +702,8 @@ class AppPreferencesService {
       fastIndexTimeoutSeconds: prefs.getInt(_fastIndexTimeoutKey) ?? 3,
       immersiveAutoFullViewSeconds:
           prefs.getInt(_immersiveAutoFullViewKey) ?? 0,
+      immersiveBackgroundStyle:
+          prefs.getString(_immersiveBackgroundStyleKey) ?? 'color_gradient',
       visualizerAnimationStyle:
           prefs.getString(_visualizerAnimationStyleKey) ?? 'bars',
       visualizerFrequencyMode:
@@ -1106,6 +1114,16 @@ class AppPreferencesService {
   Future<void> setImmersiveAutoFullViewSeconds(int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_immersiveAutoFullViewKey, value);
+  }
+
+  Future<String> getImmersiveBackgroundStyle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_immersiveBackgroundStyleKey) ?? 'color_gradient';
+  }
+
+  Future<void> setImmersiveBackgroundStyle(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_immersiveBackgroundStyleKey, value);
   }
 
   Future<String> getVisualizerAnimationStyle() async {

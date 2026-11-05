@@ -207,4 +207,44 @@ void main() {
       expect(prefs.getBool('onboarding_completed'), isTrue);
     });
   }
+
+  test('immersive background defaults to the color gradient', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    container.read(appPreferencesProvider);
+    await pumpEventQueue();
+    expect(
+      container.read(appPreferencesProvider).immersiveBackgroundStyle,
+      'color_gradient',
+    );
+  });
+
+  test(
+    'immersive blur gradient survives reopening the preferences',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(appPreferencesProvider);
+      await pumpEventQueue();
+      await container
+          .read(appPreferencesProvider.notifier)
+          .setImmersiveBackgroundStyle('blur_gradient');
+      expect(
+        container.read(appPreferencesProvider).immersiveBackgroundStyle,
+        'blur_gradient',
+      );
+
+      final restored = ProviderContainer();
+      addTearDown(restored.dispose);
+      restored.read(appPreferencesProvider);
+      await pumpEventQueue();
+      expect(
+        restored.read(appPreferencesProvider).immersiveBackgroundStyle,
+        'blur_gradient',
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('immersive_background_style'), 'blur_gradient');
+    },
+  );
 }
