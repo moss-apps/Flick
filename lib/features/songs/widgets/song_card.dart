@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/models/song.dart';
@@ -87,10 +88,40 @@ class _SongCardState extends State<SongCard> {
   bool _queuedFlash = false;
   bool _favoriteFlash = false;
 
+  /// Retained card face. Orbit motion changes only scale/opacity, so keeping
+  /// this subtree identical between animation ticks avoids rebuilding the
+  /// artwork, gradients and text on every frame.
+  Widget? _cardFace;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Inherited widgets may have changed (theme, media query, etc.).
+    _cardFace = null;
+  }
+
+  @override
+  void didUpdateWidget(covariant SongCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Song equality compares only the id, so use identity here: metadata or
+    // artwork for the same id must refresh the retained face.
+    if (!identical(oldWidget.song, widget.song) ||
+        oldWidget.isSelected != widget.isSelected ||
+        oldWidget.isSelectionMode != widget.isSelectionMode ||
+        oldWidget.isMultiSelected != widget.isMultiSelected ||
+        oldWidget.artSizeBase != widget.artSizeBase ||
+        oldWidget.artSizeLarge != widget.artSizeLarge ||
+        oldWidget.artResolutionMultiplier != widget.artResolutionMultiplier ||
+        oldWidget.artworkAbove != widget.artworkAbove) {
+      _cardFace = null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final artSize =
         widget.isSelected ? widget.artSizeLarge : widget.artSizeBase;
+    final cardFace = _cardFace ??= _buildCardFace(artSize);
 
     final cardWidth = widget.width ??
         MediaQuery.sizeOf(context).width * widget.cardWidthRatio;
@@ -172,17 +203,19 @@ class _SongCardState extends State<SongCard> {
       onHorizontalDragUpdate: dragUpdate,
       onHorizontalDragEnd: dragEnd,
       onHorizontalDragCancel: dragCancel,
-      child: RepaintBoundary(
-        child: Transform.scale(
-          scale: widget.scale.isFinite ? widget.scale : 1.0,
-          child: Opacity(
-            opacity: widget.opacity.isFinite ? widget.opacity.clamp(0.0, 1.0) : 1.0,
+      // Keep the changing scale/opacity outside the retained artwork: the
+      // RepaintBoundary caches the card face while the motion above it moves.
+      child: Transform.scale(
+        scale: widget.scale.isFinite ? widget.scale : 1.0,
+        child: Opacity(
+          opacity: widget.opacity.isFinite ? widget.opacity.clamp(0.0, 1.0) : 1.0,
+          child: RepaintBoundary(
             child: SizedBox(
               width: cardWidth,
               height: cardHeight,
               child: showSwipeOverlay
-                  ? _buildSwipeStack(cardWidth, artSize)
-                  : _buildCardFace(artSize),
+                  ? _buildSwipeStack(cardWidth, cardFace)
+                  : cardFace,
             ),
           ),
         ),
@@ -247,129 +280,113 @@ class _SongCardState extends State<SongCard> {
   Widget _buildArtworkCard(double artSize) {
     return Semantics(
       selected: widget.isSelected || widget.isMultiSelected,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        child: ColoredBox(
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
           color: AppColors.surface,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final enlargedText =
-                  MediaQuery.textScalerOf(context).scale(14) > 19;
-              final showArtwork =
-                  constraints.maxHeight > (enlargedText ? 150 : 100);
-              final text = Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          border: Border.all(color: AppColors.glassBorder),
+        ),
+        padding: const EdgeInsets.all(8),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Short stages keep the artwork instead of collapsing to a text
+            // overlay. The footer stays one line per field and scrolls only
+            // when enlarged text needs more room than the card can give it.
+            final footerMaxHeight = constraints.maxHeight * 0.45;
+            return Stack(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      widget.song.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'GoogleSansFlex',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          AppConstants.radiusMd,
+                        ),
+                        child: _buildRawImage(
+                          widget.song.albumArt ?? '',
+                          audioSourcePath: widget.song.filePath,
+                          artSize: math.max(
+                            artSize,
+                            constraints.maxWidth,
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.song.artist,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'GoogleSansFlex',
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    const SizedBox(height: 10),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: footerMaxHeight),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.song.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'GoogleSansFlex',
+                                fontFamilyFallback: AppTheme.fontFamilyFallback,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                height: 1.15,
+                                letterSpacing: -0.1,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.song.artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'GoogleSansFlex',
+                                fontFamilyFallback: AppTheme.fontFamilyFallback,
+                                fontSize: 12,
+                                height: 1.2,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
-              );
-              if (!showArtwork) {
-                // A short window still shows the music, not a row of text-only
-                // cards. Overlay the identity instead of squeezing out the art.
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _buildAlbumWithGradient(artSize),
-                    const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Color(0x33000000), Color(0xE6000000)],
-                        ),
+                if (widget.isSelectionMode)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
                       ),
-                    ),
-                    Align(
-                      alignment: Alignment.bottomLeft,
-                      child: SingleChildScrollView(child: text),
-                    ),
-                    if (widget.isSelectionMode)
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Icon(
-                          widget.isMultiSelected
-                              ? Icons.check_circle_rounded
-                              : Icons.radio_button_unchecked_rounded,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                  ],
-                );
-              }
-              return Stack(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (showArtwork)
-                        Expanded(
-                          child: _buildRawImage(
-                            widget.song.albumArt ?? '',
-                            audioSourcePath: widget.song.filePath,
-                            artSize: math.max(artSize, constraints.maxWidth),
-                          ),
-                        ),
-                      if (showArtwork)
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxHeight: constraints.maxHeight * 0.55,
-                          ),
-                          child: SingleChildScrollView(child: text),
-                        )
-                      else
-                        Expanded(child: SingleChildScrollView(child: text)),
-                    ],
-                  ),
-                  if (widget.isSelectionMode)
-                    Positioned(
-                      top: 8,
-                      right: 8,
                       child: Icon(
                         widget.isMultiSelected
                             ? Icons.check_circle_rounded
                             : Icons.radio_button_unchecked_rounded,
-                        color: AppColors.textPrimary,
+                        color: widget.isMultiSelected
+                            ? AppColors.accent
+                            : AppColors.textPrimary,
+                        size: 18,
                       ),
                     ),
-                ],
-              );
-            },
-          ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildSwipeStack(double cardWidth, double artSize) {
+  Widget _buildSwipeStack(double cardWidth, Widget cardFace) {
     final queueProgress = (-_dragDx / 110).clamp(0.0, 1.0);
     final favoriteProgress = (_dragDx / 110).clamp(0.0, 1.0);
     final isFlashing = _queuedFlash || _favoriteFlash;
@@ -458,7 +475,7 @@ class _SongCardState extends State<SongCard> {
                       ]
                     : null,
               ),
-              child: _buildCardFace(artSize),
+              child: cardFace,
             ),
           ),
         ),

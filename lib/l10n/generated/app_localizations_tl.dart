@@ -4283,6 +4283,12 @@ class AppLocalizationsTl extends AppLocalizations {
   String get labelOrganization => 'Label / Organisasyon';
 
   @override
+  String get landscape => 'Landscape';
+
+  @override
+  String get landscapeLayoutReset => 'Na-reset ang landscape layout';
+
+  @override
   String get language => 'Wika';
 
   @override
@@ -5486,7 +5492,18 @@ class AppLocalizationsTl extends AppLocalizations {
   String get orbital => 'Orbital';
 
   @override
-  String get orbitalSettingsReset => 'Na-reset ang mga pagsasaayos ng Orbital';
+  String get orbitLandscapeHint =>
+      'Ginagamit kapag mas malapad kaysa matangkad ang window ng app.';
+
+  @override
+  String get orbitLayoutProfile => 'Profile ng layout';
+
+  @override
+  String get orbitPortraitHint =>
+      'Ginagamit kapag mas matangkad kaysa lapad ang window ng app.';
+
+  @override
+  String get orbitSharedVisuals => 'Mga shared na visual';
 
   @override
   String get otherPlaylists => 'Iba pang talaan ng kanta';
@@ -5875,6 +5892,12 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get pleaseEnterYourListenbrainzUserToken =>
       'Ilagay ang iyong ListenBrainz user token.';
+
+  @override
+  String get portrait => 'Portrait';
+
+  @override
+  String get portraitLayoutReset => 'Na-reset ang portrait layout';
 
   @override
   String posterPreviewPlays(Object arg1, Object arg2) {
@@ -6412,8 +6435,8 @@ class AppLocalizationsTl extends AppLocalizations {
       'Restore the selected progress bar style to its default size.';
 
   @override
-  String get restoreTheOriginalOrbitalLayout =>
-      'Ibalik ang orihinal na ayos ng Orbital';
+  String get restoreThisProfilesOrbitLayout =>
+      'Ibalik ang orihinal na orbit layout ng profile na ito';
 
   @override
   String results(Object arg1) {

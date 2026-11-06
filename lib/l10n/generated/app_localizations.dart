@@ -7199,6 +7199,18 @@ abstract class AppLocalizations {
   /// **'Label / Organization'**
   String get labelOrganization;
 
+  /// Orbit settings profile for windows that are wider than they are tall.
+  ///
+  /// In en, this message translates to:
+  /// **'Landscape'**
+  String get landscape;
+
+  /// Confirmation shown after resetting the landscape orbit layout.
+  ///
+  /// In en, this message translates to:
+  /// **'Landscape layout reset'**
+  String get landscapeLayoutReset;
+
   /// Settings entry label and the title of the language picker.
   ///
   /// In en, this message translates to:
@@ -9286,11 +9298,29 @@ abstract class AppLocalizations {
   /// **'Orbital'**
   String get orbital;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:205
+  /// Explains when the landscape orbit profile is applied.
   ///
   /// In en, this message translates to:
-  /// **'Orbital settings reset'**
-  String get orbitalSettingsReset;
+  /// **'Used when the app window is wider than it is tall.'**
+  String get orbitLandscapeHint;
+
+  /// Header for choosing the portrait or landscape orbit profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Layout Profile'**
+  String get orbitLayoutProfile;
+
+  /// Explains when the portrait orbit profile is applied.
+  ///
+  /// In en, this message translates to:
+  /// **'Used when the app window is taller than it is wide.'**
+  String get orbitPortraitHint;
+
+  /// Header for orbit visuals shared by both orientation profiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared Visuals'**
+  String get orbitSharedVisuals;
 
   /// lib/features/playlists/screens/playlist_detail_screen.dart:604
   ///
@@ -9909,6 +9939,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please enter your ListenBrainz user token.'**
   String get pleaseEnterYourListenbrainzUserToken;
+
+  /// Orbit settings profile for windows that are taller than they are wide.
+  ///
+  /// In en, this message translates to:
+  /// **'Portrait'**
+  String get portrait;
+
+  /// Confirmation shown after resetting the portrait orbit layout.
+  ///
+  /// In en, this message translates to:
+  /// **'Portrait layout reset'**
+  String get portraitLayoutReset;
 
   /// lib/features/recap/screens/replay_studio_screen.dart:423
   ///
@@ -10822,11 +10864,11 @@ abstract class AppLocalizations {
   /// **'Restore the selected progress bar style to its default size.'**
   String get restoreDefaultProgressBarSize;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:200
+  /// Subtitle for resetting only the selected orbit profile.
   ///
   /// In en, this message translates to:
-  /// **'Restore the original orbital layout'**
-  String get restoreTheOriginalOrbitalLayout;
+  /// **'Restore this profile\'s original orbit layout'**
+  String get restoreThisProfilesOrbitLayout;
 
   /// lib/features/artists/screens/artists_screen.dart:510
   ///

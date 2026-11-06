@@ -4231,6 +4231,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labelOrganization => 'Label / Organization';
 
   @override
+  String get landscape => 'Landscape';
+
+  @override
+  String get landscapeLayoutReset => 'Landscape layout reset';
+
+  @override
   String get language => 'Language';
 
   @override
@@ -5427,7 +5433,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orbital => 'Orbital';
 
   @override
-  String get orbitalSettingsReset => 'Orbital settings reset';
+  String get orbitLandscapeHint =>
+      'Used when the app window is wider than it is tall.';
+
+  @override
+  String get orbitLayoutProfile => 'Layout Profile';
+
+  @override
+  String get orbitPortraitHint =>
+      'Used when the app window is taller than it is wide.';
+
+  @override
+  String get orbitSharedVisuals => 'Shared Visuals';
 
   @override
   String get otherPlaylists => 'Other Playlists';
@@ -5811,6 +5828,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pleaseEnterYourListenbrainzUserToken =>
       'Please enter your ListenBrainz user token.';
+
+  @override
+  String get portrait => 'Portrait';
+
+  @override
+  String get portraitLayoutReset => 'Portrait layout reset';
 
   @override
   String posterPreviewPlays(Object arg1, Object arg2) {
@@ -6342,8 +6365,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Restore the selected progress bar style to its default size.';
 
   @override
-  String get restoreTheOriginalOrbitalLayout =>
-      'Restore the original orbital layout';
+  String get restoreThisProfilesOrbitLayout =>
+      'Restore this profile\'s original orbit layout';
 
   @override
   String results(Object arg1) {

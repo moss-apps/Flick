@@ -572,6 +572,10 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
       LucideIcons.orbit,
       (id) => OrbitSettingsScreen(initialSection: id),
       sections: [
+        _section('orbitLayoutProfile', l10n.orbitLayoutProfile, [
+          ('portrait', l10n.portrait),
+          ('landscape', l10n.landscape),
+        ]),
         _section('geometry', l10n.geometry, [
           ('curvature', l10n.curvature),
           ('verticalPosition', l10n.verticalPosition),

@@ -12,7 +12,10 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/mini_player_config_provider.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/widgets/common/embedded_mini_player.dart';
+import 'package:flick/widgets/common/landscape_mini_player_dock.dart';
 import 'package:flick/widgets/common/landscape_side_mini_player.dart';
+import 'package:flick/widgets/navigation/bottom_bar_geometry.dart';
 
 const _song = Song(
   id: 'side-player-track',
@@ -45,6 +48,7 @@ Widget _host(
   ProviderContainer container, {
   required bool animationsEnabled,
   double height = 360,
+  Widget child = const LandscapeSideMiniPlayer(),
 }) => UncontrolledProviderScope(
   container: container,
   child: MaterialApp(
@@ -62,10 +66,7 @@ Widget _host(
           alignment: Alignment.centerRight,
           child: SizedBox(
             height: height,
-            child: TickerMode(
-              enabled: animationsEnabled,
-              child: const LandscapeSideMiniPlayer(),
-            ),
+            child: TickerMode(enabled: animationsEnabled, child: child),
           ),
         ),
       ),
@@ -280,4 +281,72 @@ void main() {
     );
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  for (final separated in [false, true]) {
+    testWidgets('dock preserves real player layouts, separated: $separated', (
+      tester,
+    ) async {
+      final player = _Player();
+      addTearDown(player.dispose);
+      final container = _container(player);
+      await container
+          .read(miniPlayerConfigProvider.notifier)
+          .update(
+            (config) =>
+                config.copyWith(height: 72, navigationGap: 20, textScale: 1.8),
+          );
+
+      Future<void> show(bool sideDocked) => tester.pumpWidget(
+        _host(
+          container,
+          animationsEnabled: true,
+          child: Builder(
+            builder: (context) {
+              final config = container.read(miniPlayerConfigProvider);
+              return LandscapeMiniPlayerDock(
+                sideDocked: sideDocked,
+                bottomPlayerHeight:
+                    BottomBarGeometry.miniPlayerHeight(context, config) +
+                    12 +
+                    (separated ? config.navigationGap : 8),
+                bottomPlayer: EmbeddedMiniPlayer(separated: separated),
+                sidePlayer: const LandscapeSideMiniPlayer(),
+              );
+            },
+          ),
+        ),
+      );
+
+      await show(false);
+      await tester.pump();
+      final bottomSurface = tester.getRect(
+        find.byKey(const ValueKey('mini_player_surface')),
+      );
+      expect(bottomSurface.height, 72);
+
+      await show(true);
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(find.byType(EmbeddedMiniPlayer), findsOneWidget);
+      expect(find.byType(LandscapeSideMiniPlayer), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('mini_player_surface'))),
+        bottomSurface.size,
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.pump(const Duration(milliseconds: 140));
+      expect(find.byType(EmbeddedMiniPlayer), findsNothing);
+      expect(tester.getSize(find.byType(LandscapeSideMiniPlayer)).width, 64);
+
+      await show(false);
+      await tester.pump(const Duration(milliseconds: 220));
+      expect(find.byType(LandscapeSideMiniPlayer), findsNothing);
+      expect(
+        tester.getRect(find.byKey(const ValueKey('mini_player_surface'))),
+        bottomSurface,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
 }

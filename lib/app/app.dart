@@ -37,6 +37,7 @@ import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
 import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flick/features/onboarding/widgets/tutorial_overlay.dart';
 import 'package:flick/widgets/common/embedded_mini_player.dart';
+import 'package:flick/widgets/common/landscape_mini_player_dock.dart';
 import 'package:flick/widgets/common/landscape_side_mini_player.dart';
 import 'package:flick/widgets/navigation/bottom_bar_geometry.dart';
 import 'package:flick/providers/mini_player_config_provider.dart';
@@ -794,11 +795,13 @@ class _MainShellState extends ConsumerState<MainShell>
       math.max(0.0, screenSize.width - railWidth),
       screenSize.height,
     );
+    final useCompactLandscapeDock =
+        useSideNavigation &&
+        AdaptiveLayout.useCompactLandscapeMiniPlayer(contentSize);
     final currentIndex = ref.watch(navigationIndexProvider);
     final songsViewMode = ref.watch(songsViewModeProvider);
     final sideMiniPlayerCandidate =
-        useSideNavigation &&
-        AdaptiveLayout.useCompactLandscapeMiniPlayer(contentSize) &&
+        useCompactLandscapeDock &&
         currentIndex == NavBarButton.songs.pageIndex &&
         songsViewMode == SongViewMode.orbit;
     // Only listen to the auto-disposed library provider while the orbit is on
@@ -912,63 +915,35 @@ class _MainShellState extends ConsumerState<MainShell>
                                             navBarConfigProvider,
                                           );
                                           final order = _getPageOrder(cfg);
-                                          return Padding(
-                                            padding: EdgeInsets.only(
-                                              bottom: nestedBottomInset,
-                                            ),
-                                            child: PageView(
-                                              controller: _pageController,
-                                              physics:
-                                                  const ClampingScrollPhysics(),
-                                              onPageChanged: (position) {
-                                                final currentConfig = ref.read(
-                                                  navBarConfigProvider,
-                                                );
-                                                final currentOrder =
-                                                    _getPageOrder(
-                                                      currentConfig,
-                                                    );
-                                                if (position < 0 ||
-                                                    position >=
-                                                        currentOrder.length) {
-                                                  return;
-                                                }
+                                          return PageView(
+                                            controller: _pageController,
+                                            physics:
+                                                const ClampingScrollPhysics(),
+                                            onPageChanged: (position) {
+                                              final currentConfig = ref.read(
+                                                navBarConfigProvider,
+                                              );
+                                              final currentOrder =
+                                                  _getPageOrder(currentConfig);
+                                              if (position < 0 ||
+                                                  position >=
+                                                      currentOrder.length) {
+                                                return;
+                                              }
+                                              if (_programmaticPageTarget ==
+                                                      null &&
+                                                  position != _lastHapticPage) {
+                                                AppHaptics.selection();
+                                              }
+                                              _lastHapticPage = position;
+                                              final enabledCount = currentConfig
+                                                  .orderedButtons
+                                                  .length;
+                                              if (position >= enabledCount) {
                                                 if (_programmaticPageTarget ==
-                                                        null &&
-                                                    position !=
-                                                        _lastHapticPage) {
-                                                  AppHaptics.selection();
-                                                }
-                                                _lastHapticPage = position;
-                                                final enabledCount =
-                                                    currentConfig
-                                                        .orderedButtons
-                                                        .length;
-                                                if (position >= enabledCount) {
-                                                  if (_programmaticPageTarget ==
-                                                      position) {
-                                                    _programmaticPageTarget =
-                                                        null;
-                                                    final pageIndex =
-                                                        currentOrder[position]
-                                                            .pageIndex;
-                                                    if (ref.read(
-                                                          navigationIndexProvider,
-                                                        ) !=
-                                                        pageIndex) {
-                                                      ref
-                                                          .read(
-                                                            navigationIndexProvider
-                                                                .notifier,
-                                                          )
-                                                          .setIndex(pageIndex);
-                                                    }
-                                                    return;
-                                                  }
-                                                  if (_programmaticPageTarget !=
-                                                      null) {
-                                                    return;
-                                                  }
+                                                    position) {
+                                                  _programmaticPageTarget =
+                                                      null;
                                                   final pageIndex =
                                                       currentOrder[position]
                                                           .pageIndex;
@@ -985,10 +960,9 @@ class _MainShellState extends ConsumerState<MainShell>
                                                   }
                                                   return;
                                                 }
-                                                if (_programmaticPageTarget ==
-                                                    position) {
-                                                  _programmaticPageTarget =
-                                                      null;
+                                                if (_programmaticPageTarget !=
+                                                    null) {
+                                                  return;
                                                 }
                                                 final pageIndex =
                                                     currentOrder[position]
@@ -1004,15 +978,43 @@ class _MainShellState extends ConsumerState<MainShell>
                                                       )
                                                       .setIndex(pageIndex);
                                                 }
-                                              },
-                                              children: order.map((button) {
-                                                return _buildTab(
+                                                return;
+                                              }
+                                              if (_programmaticPageTarget ==
+                                                  position) {
+                                                _programmaticPageTarget = null;
+                                              }
+                                              final pageIndex =
+                                                  currentOrder[position]
+                                                      .pageIndex;
+                                              if (ref.read(
+                                                    navigationIndexProvider,
+                                                  ) !=
+                                                  pageIndex) {
+                                                ref
+                                                    .read(
+                                                      navigationIndexProvider
+                                                          .notifier,
+                                                    )
+                                                    .setIndex(pageIndex);
+                                              }
+                                            },
+                                            children: order.map((button) {
+                                              return Padding(
+                                                padding: EdgeInsets.only(
+                                                  bottom: nestedBottomInset,
+                                                ),
+                                                child: _buildTab(
                                                   tabIndex: button.pageIndex,
                                                   currentIndex: currentIdx,
-                                                  child: _buildScreen(button),
-                                                );
-                                              }).toList(),
-                                            ),
+                                                  child: _buildScreen(
+                                                    button,
+                                                    pathOverflowBottom:
+                                                        nestedBottomInset,
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
                                           );
                                         },
                                       ),
@@ -1027,6 +1029,18 @@ class _MainShellState extends ConsumerState<MainShell>
                         },
                       ),
                     ),
+
+                    // Tab pages are full-height so the orbit ribbon can continue
+                    // behind the bottom overlays. Keep the newly exposed strip
+                    // from paging the PageView; the bars sit above this blocker.
+                    if (nestedBottomInset > 0)
+                      Positioned(
+                        left: useSideNavigation ? railWidth : 0,
+                        right: 0,
+                        bottom: 0,
+                        height: nestedBottomInset,
+                        child: const AbsorbPointer(child: SizedBox.expand()),
+                      ),
 
                     // Wide windows use a side rail; portrait keeps the bottom bar.
                     if (useSideNavigation)
@@ -1057,9 +1071,30 @@ class _MainShellState extends ConsumerState<MainShell>
                         ),
                       ),
 
-                    // In rail mode the mini player owns the bottom of the content
-                    // area, not the full window width.
-                    if (useSideNavigation && !useOrbitSideMiniPlayer)
+                    // Only short landscape windows animate between the bottom
+                    // bar and orbit strip. Keep the dock mounted across tabs.
+                    if (useCompactLandscapeDock)
+                      Positioned.fill(
+                        key: const ValueKey('landscape_mini_player_dock'),
+                        left: railWidth,
+                        child: LandscapeMiniPlayerDock(
+                          sideDocked: useOrbitSideMiniPlayer,
+                          bottomPlayerHeight:
+                              BottomBarGeometry.miniPlayerHeight(
+                                context,
+                                miniConfig,
+                              ) +
+                              12 +
+                              (separated ? miniConfig.navigationGap : 8),
+                          bottomPlayer: EmbeddedMiniPlayer(
+                            collapsed: false,
+                            separated: separated,
+                          ),
+                          sidePlayer: const LandscapeSideMiniPlayer(),
+                        ),
+                      )
+                    else if (useSideNavigation)
+                      // Larger windows retain their static bottom mini player.
                       Positioned(
                         left: railWidth,
                         right: 0,
@@ -1073,22 +1108,6 @@ class _MainShellState extends ConsumerState<MainShell>
                               collapsed: false,
                               separated: separated,
                             ),
-                          ),
-                        ),
-                      ),
-
-                    // Compact landscape orbit moves the mini player to the right
-                    // edge so the orbit stage keeps the full window height.
-                    if (useOrbitSideMiniPlayer)
-                      Positioned(
-                        right: 6,
-                        top: 0,
-                        bottom: 0,
-                        child: SafeArea(
-                          left: false,
-                          child: TutorialTargetAnchor(
-                            target: TutorialTarget.miniPlayer,
-                            child: const LandscapeSideMiniPlayer(),
                           ),
                         ),
                       ),
@@ -1123,7 +1142,7 @@ class _MainShellState extends ConsumerState<MainShell>
     return [...config.orderedButtons, ...disabledEssentials];
   }
 
-  Widget _buildScreen(NavBarButton button) {
+  Widget _buildScreen(NavBarButton button, {double pathOverflowBottom = 0}) {
     return switch (button) {
       NavBarButton.menu => MenuScreen(
         key: const ValueKey('menu'),
@@ -1133,6 +1152,7 @@ class _MainShellState extends ConsumerState<MainShell>
       ),
       NavBarButton.songs => SongsScreen(
         key: const ValueKey('songs'),
+        pathOverflowBottom: pathOverflowBottom,
         onNavigationRequested: (index) {
           ref.read(navigationIndexProvider.notifier).setIndex(index);
         },
