@@ -46,13 +46,17 @@ void main() {
           Size(520, 320),
           Size(640, 360),
           Size(891, 411),
+          Size(960, 479),
         ]) {
           expect(AdaptiveLayout.useCompactLandscapeMiniPlayer(size), isTrue);
         }
         for (final size in const [
           Size(360, 640),
           Size(640, 480),
+          Size(960, 480),
+          Size(1024, 600),
           Size(1280, 650),
+          Size(1280, 800),
         ]) {
           expect(AdaptiveLayout.useCompactLandscapeMiniPlayer(size), isFalse);
         }
