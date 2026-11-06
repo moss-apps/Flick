@@ -276,13 +276,33 @@ class SmbService implements NetworkSourceService {
     final key = (server.id, remoteId);
     final job = _downloads.putIfAbsent(key, () => _SmbDownload());
     if (onProgress != null) job.listeners.add(onProgress);
-    job.future ??= _download(server, remoteId, extension, job);
+    // Tie map cleanup to the transfer itself, not to whichever caller happens
+    // to stop waiting first. A caller can bail out (e.g. a UI progress
+    // callback throws, or the screen is disposed) while the shared transfer is
+    // still running; dropping the map entry there would let the next caller
+    // start a second download for the same file.
+    job.future ??= _download(server, remoteId, extension, job).whenComplete(() {
+      if (identical(_downloads[key], job)) _downloads.remove(key);
+    });
     try {
-      if (onProgress != null && job.progress != null) onProgress(job.progress!);
+      final progress = job.progress;
+      if (onProgress != null && progress != null) {
+        _notifyProgress(onProgress, progress);
+      }
       return await job.future!;
     } finally {
       if (onProgress != null) job.listeners.remove(onProgress);
-      if (identical(_downloads[key], job)) _downloads.remove(key);
+    }
+  }
+
+  /// Progress callbacks belong to the UI, never to the transfer. Letting one
+  /// throw would abort the shared download and delete a file other callers are
+  /// waiting on.
+  void _notifyProgress(void Function(double) listener, double progress) {
+    try {
+      listener(progress);
+    } catch (_) {
+      /* A broken progress listener must not fail playback. */
     }
   }
 
@@ -295,6 +315,9 @@ class SmbService implements NetworkSourceService {
     // Old versions wrote interrupted transfers to the final filename. A new
     // SMB-only key bypasses those entries without wiping other protocols/data.
     final cacheId = 'smb-v2:$remoteId';
+    // Callers may omit the extension (prefetch) or pass a different case.
+    // Derive it from the remote name so every caller resolves the same file.
+    final cacheExtension = _cacheExtension(extension, remoteId);
     String? destPath;
     final clock = Stopwatch()..start();
     var received = 0;
@@ -303,11 +326,15 @@ class SmbService implements NetworkSourceService {
       final cached = await _cache.getPath(
         server.id,
         cacheId,
-        extension: extension,
+        extension: cacheExtension,
       );
       if (cached != null) return cached;
       final s = _parseServer(server);
-      destPath = await _cache.pathFor(server.id, cacheId, extension: extension);
+      destPath = await _cache.pathFor(
+        server.id,
+        cacheId,
+        extension: cacheExtension,
+      );
       var complete = false;
       await for (final p in _downloader(
         host: s.host,
@@ -327,14 +354,21 @@ class SmbService implements NetworkSourceService {
         if (total > 0) {
           job.progress = received / total;
           for (final listener in List.of(job.listeners)) {
-            listener(job.progress!);
+            _notifyProgress(listener, job.progress!);
           }
         }
       }
       if (!complete || await File(destPath).length() != total) {
         throw const SmbFailure('download', 'incomplete');
       }
-      await _cache.completeDownload(destPath);
+      // The download is already complete and playable. Cache accounting is
+      // best-effort: a failure to evict old entries must not turn a successful
+      // transfer into a failed playback.
+      try {
+        await _cache.completeDownload(destPath);
+      } catch (_) {
+        AppLog.instance.add('SMB stage=cache code=storage result=failed');
+      }
       AppLog.instance.add(
         'SMB stage=download result=ok received=$received total=$total elapsed_ms=${clock.elapsedMilliseconds}',
       );
@@ -372,6 +406,15 @@ class SmbService implements NetworkSourceService {
     final s = _parseServer(server);
     final user = server.username ?? '';
     final pass = _password(server);
+
+    // Remember the sizes of already-listed rows so a replaced file invalidates
+    // its cached bytes as well as its metadata. SMB listings expose size only.
+    final previousSizes = <String, int>{};
+    for (final song in await _repo.getSongsByRemoteServer(server.id)) {
+      final remoteId = song.remoteId;
+      final size = song.fileSize;
+      if (remoteId != null && size != null) previousSizes[remoteId] = size;
+    }
 
     // Collect file entries grouped by parent directory (for per-folder
     // cover/audio classification), yielding progress as the walk streams in.
@@ -430,6 +473,20 @@ class SmbService implements NetworkSourceService {
             ),
           )
           .toList();
+      // Drop bytes cached for a file whose size changed so playback cannot
+      // serve the previous version. Do this before persisting the new size:
+      // if the process stops in between, the next sync still sees the old
+      // listing size and repeats the cleanup instead of accepting stale bytes.
+      for (final e in songEntries) {
+        final previous = previousSizes[e.path];
+        if (previous != null && previous != e.size.toInt()) {
+          try {
+            await _cache.remove(server.id, 'smb-v2:${e.path}');
+          } catch (_) {
+            AppLog.instance.add('SMB stage=cache code=storage result=failed');
+          }
+        }
+      }
       await _repo.upsertSmbSongs(entities);
       syncedRemoteIds.addAll(entities.map((e) => e.remoteId!));
       songsFound += entities.length;
@@ -498,8 +555,32 @@ class SmbService implements NetworkSourceService {
 
   String? _extension(String name) {
     final dot = name.lastIndexOf('.');
-    if (dot <= 0) return null;
+    if (dot <= 0 || dot == name.length - 1) return null;
     return name.substring(dot + 1).toLowerCase();
+  }
+
+  /// Prefer the caller's extension, but normalize it and fall back to the
+  /// remote filename. This keeps `.bin` out of the cache when a caller omits
+  /// the hint, and lets callers that pass `FLAC` share the file cached as
+  /// `flac` instead of downloading it twice.
+  String? _cacheExtension(String? extension, String remoteId) {
+    String? clean(String? value) {
+      var candidate = value?.trim().toLowerCase();
+      if (candidate == null) return null;
+      candidate = candidate.replaceFirst(RegExp(r'^\.+'), '');
+      if (candidate.isEmpty ||
+          candidate == 'unknown' ||
+          !RegExp(r'^[a-z0-9]+$').hasMatch(candidate)) {
+        return null;
+      }
+      return candidate;
+    }
+
+    final provided = clean(extension);
+    if (provided != null) return provided;
+    final slash = remoteId.lastIndexOf('/');
+    final name = slash >= 0 ? remoteId.substring(slash + 1) : remoteId;
+    return clean(_extension(name));
   }
 
   String _lastPathSegment(String path) {

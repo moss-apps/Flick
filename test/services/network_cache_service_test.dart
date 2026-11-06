@@ -114,4 +114,25 @@ void main() {
     expect(await staging.exists(), isTrue);
     expect(await oldStylePart.exists(), isTrue);
   });
+
+  test(
+    'remove drops every extension for one song and leaves staging alone',
+    () async {
+      final flac = await service.stash(1, 'songA', [1], extension: 'flac');
+      final dsf = await service.stash(1, 'songA', [2], extension: 'dsf');
+      final other = await service.stash(1, 'songB', [3], extension: 'flac');
+      final dest = await service.pathFor(1, 'songA', extension: 'flac');
+      final staging = File(
+        '${File(dest).parent.path}/.${File(dest).uri.pathSegments.last}.1.part',
+      );
+      await staging.writeAsBytes([9]);
+
+      await service.remove(1, 'songA');
+
+      expect(await File(flac).exists(), isFalse);
+      expect(await File(dsf).exists(), isFalse);
+      expect(await staging.exists(), isTrue);
+      expect(await File(other).exists(), isTrue);
+    },
+  );
 }

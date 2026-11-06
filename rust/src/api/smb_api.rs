@@ -1,15 +1,41 @@
 use crate::frb_generated::StreamSink;
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 
-// Only allowlisted stage/code pairs cross the bridge. smb2 errors can contain
-// hostnames, account names and remote paths; never attach them as error sources.
-fn failure(stage: &str, error: smb2::Error) -> anyhow::Error {
+/// Refuse to recurse indefinitely through junctions/DFS links that point back
+/// into the share. Real music libraries are far shallower than this.
+const MAX_DIRECTORY_DEPTH: usize = 64;
+
+/// A child directory disappearing or being unreadable must not fail the whole
+/// library sync. The configured root still fails loudly: that is the address
+/// the user typed and the one they need to fix.
+fn skippable_subdirectory_error(error: &smb2::Error) -> bool {
     use smb2::ErrorKind;
-    let code = match error.kind() {
+    matches!(
+        error.kind(),
+        ErrorKind::AccessDenied
+            | ErrorKind::NotFound
+            | ErrorKind::NotADirectory
+            | ErrorKind::InvalidName
+            | ErrorKind::Unsupported
+    )
+}
+
+/// The root is the address the user typed, so its failure must propagate. Only
+/// errors from directories discovered below it are safe to skip.
+fn should_skip_directory_error(root_listed: bool, error: &smb2::Error) -> bool {
+    root_listed && skippable_subdirectory_error(error)
+}
+
+/// Only allowlisted stage/code pairs cross the bridge. smb2 errors can contain
+/// hostnames, account names and remote paths; never attach them as error sources.
+fn error_code(error: &smb2::Error) -> &'static str {
+    use smb2::ErrorKind;
+    match error.kind() {
         ErrorKind::AuthRequired => "auth",
         ErrorKind::SigningRequired => "signing",
         ErrorKind::AccessDenied => "denied",
@@ -18,8 +44,31 @@ fn failure(stage: &str, error: smb2::Error) -> anyhow::Error {
         ErrorKind::ConnectionLost | ErrorKind::SessionExpired => "connection",
         ErrorKind::Io => "connection",
         _ => "protocol",
-    };
-    anyhow::anyhow!("SMB stage={} code={}", stage, code)
+    }
+}
+
+fn failure(stage: &str, error: smb2::Error) -> anyhow::Error {
+    anyhow::anyhow!("SMB stage={} code={}", stage, error_code(&error))
+}
+
+/// Shared client configuration. `smb2::connect`'s shorthand is a five-second,
+/// no-reconnect client; a share on a waking NAS, or a Wi-Fi roam between
+/// tracks, should recover in place instead of failing the whole transfer.
+fn client_config(host: &str, port: u16, user: &str, pass: &str) -> smb2::ClientConfig {
+    smb2::ClientConfig {
+        addr: addr(host, port),
+        username: user.to_string(),
+        password: pass.to_string(),
+        timeout: Duration::from_secs(15),
+        auto_reconnect: true,
+        ..Default::default()
+    }
+}
+
+async fn connect(host: &str, port: u16, user: &str, pass: &str) -> anyhow::Result<smb2::SmbClient> {
+    smb2::SmbClient::connect(client_config(host, port, user, pass))
+        .await
+        .map_err(|e| failure("connect", e))
 }
 
 /// Same-directory staging file. Drop cleans up on error, stream cancellation,
@@ -114,9 +163,7 @@ pub async fn smb_ping(
     pass: String,
     root_path: String,
 ) -> anyhow::Result<()> {
-    let mut client = smb2::connect(&addr(&host, port), &user, &pass)
-        .await
-        .map_err(|e| failure("connect", e))?;
+    let mut client = connect(&host, port, &user, &pass).await?;
     let mut tree = client
         .connect_share(&share)
         .await
@@ -131,6 +178,12 @@ pub async fn smb_ping(
 /// BFS walk of `root_path` (relative to the share) pushing one [SmbEntry] per
 /// file or directory. `root_path` of "" lists the share root. One connection,
 /// reused across directories.
+///
+/// A child directory that is unreadable or vanished during the walk is skipped
+/// instead of aborting the scan; Windows shares commonly contain things like
+/// `System Volume Information` that even a valid account cannot list. Failing
+/// to list the configured root itself is still an error, since that is the
+/// address the user needs to correct.
 pub async fn smb_list_share(
     host: String,
     port: u16,
@@ -140,22 +193,31 @@ pub async fn smb_list_share(
     root_path: String,
     sink: StreamSink<SmbEntry>,
 ) -> anyhow::Result<()> {
-    let mut client = smb2::connect(&addr(&host, port), &user, &pass)
-        .await
-        .map_err(|e| failure("connect", e))?;
+    let mut client = connect(&host, port, &user, &pass).await?;
     let mut tree = client
         .connect_share(&share)
         .await
         .map_err(|e| failure("share", e))?;
 
-    let mut queue: VecDeque<String> = VecDeque::new();
-    queue.push_back(root_path);
+    let mut queue: VecDeque<(String, usize)> = VecDeque::new();
+    let mut visited: HashSet<String> = HashSet::new();
+    visited.insert(root_path.clone());
+    queue.push_back((root_path, 0));
+    let mut root_listed = false;
+    let mut skipped = 0_u32;
 
-    while let Some(dir) = queue.pop_front() {
-        let entries = client
-            .list_directory(&mut tree, &dir)
-            .await
-            .map_err(|e| failure("root", e))?;
+    while let Some((dir, depth)) = queue.pop_front() {
+        let entries = match client.list_directory(&mut tree, &dir).await {
+            Ok(entries) => entries,
+            Err(e) if should_skip_directory_error(root_listed, &e) => {
+                skipped += 1;
+                continue;
+            }
+            Err(e) => {
+                return Err(failure(if root_listed { "read" } else { "root" }, e));
+            }
+        };
+        root_listed = true;
         for e in entries {
             if e.name == "." || e.name == ".." {
                 continue;
@@ -173,14 +235,27 @@ pub async fn smb_list_share(
             })
             .map_err(|_| anyhow::anyhow!("SMB stage=root code=cancelled"))?;
             if e.is_directory {
-                queue.push_back(child_path);
+                if depth >= MAX_DIRECTORY_DEPTH || !visited.insert(child_path.clone()) {
+                    skipped += 1;
+                    continue;
+                }
+                queue.push_back((child_path, depth + 1));
             }
         }
+    }
+    if skipped > 0 {
+        // Numeric only: never log share, directory or file names.
+        log::info!("SMB stage=root result=partial skipped={skipped}");
     }
     Ok(())
 }
 
 /// Read a full (small) file into memory — cover art and tiny sidecars.
+///
+/// Uses the pipelined reader rather than `read_file`: the latter is a single
+/// READ and fails with `FileTooLargeForSingleRead` when the file exceeds the
+/// server's MaxReadSize (as small as 64 KiB on some NAS firmware). Folder art
+/// routinely exceeds that, which made SMB covers fail on those servers.
 pub async fn smb_read_file(
     host: String,
     port: u16,
@@ -189,15 +264,13 @@ pub async fn smb_read_file(
     user: String,
     pass: String,
 ) -> anyhow::Result<Vec<u8>> {
-    let mut client = smb2::connect(&addr(&host, port), &user, &pass)
-        .await
-        .map_err(|e| failure("connect", e))?;
+    let mut client = connect(&host, port, &user, &pass).await?;
     let mut tree = client
         .connect_share(&share)
         .await
         .map_err(|e| failure("share", e))?;
     let bytes = client
-        .read_file(&mut tree, &path)
+        .read_file_pipelined(&mut tree, &path)
         .await
         .map_err(|e| failure("read", e))?;
     Ok(bytes)
@@ -216,9 +289,7 @@ pub async fn smb_download_file(
     dest_path: String,
     sink: StreamSink<SmbProgress>,
 ) -> anyhow::Result<()> {
-    let mut client = smb2::connect(&addr(&host, port), &user, &pass)
-        .await
-        .map_err(|e| failure("connect", e))?;
+    let mut client = connect(&host, port, &user, &pass).await?;
     let tree = client
         .connect_share(&share)
         .await
@@ -261,10 +332,14 @@ pub async fn smb_download_file(
 
 #[cfg(test)]
 mod tests {
-    use super::{addr, failure, PendingDownload};
+    use super::{
+        addr, client_config, failure, should_skip_directory_error, skippable_subdirectory_error,
+        PendingDownload,
+    };
     use std::io::Write;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::Duration;
 
     fn test_dir() -> PathBuf {
         static ID: AtomicU64 = AtomicU64::new(0);
@@ -355,5 +430,43 @@ mod tests {
         assert_eq!(addr("[fd00::1]", 445), "[fd00::1]:445");
         assert_eq!(addr("192.168.1.10", 445), "192.168.1.10:445");
         assert_eq!(addr("nas.local", 1445), "nas.local:1445");
+    }
+
+    #[test]
+    fn unreadable_child_directories_are_skippable_but_connection_loss_is_not() {
+        use smb2::types::status::NtStatus;
+        use smb2::types::Command;
+
+        let denied = smb2::Error::Protocol {
+            status: NtStatus::ACCESS_DENIED,
+            command: Command::QueryDirectory,
+        };
+        assert!(skippable_subdirectory_error(&denied));
+        assert!(!should_skip_directory_error(false, &denied));
+        assert!(should_skip_directory_error(true, &denied));
+
+        let vanished = smb2::Error::Protocol {
+            status: NtStatus::OBJECT_NAME_NOT_FOUND,
+            command: Command::Create,
+        };
+        assert!(skippable_subdirectory_error(&vanished));
+        assert!(should_skip_directory_error(true, &vanished));
+
+        assert!(!skippable_subdirectory_error(&smb2::Error::Disconnected));
+        assert!(!skippable_subdirectory_error(&smb2::Error::Timeout));
+        assert!(!should_skip_directory_error(
+            true,
+            &smb2::Error::Disconnected
+        ));
+    }
+
+    #[test]
+    fn client_config_keeps_credentials_and_allows_reconnect() {
+        let config = client_config("nas.local", 1445, "user", "pass");
+        assert_eq!(config.addr, "nas.local:1445");
+        assert_eq!(config.username, "user");
+        assert_eq!(config.password, "pass");
+        assert!(config.auto_reconnect);
+        assert_eq!(config.timeout, Duration::from_secs(15));
     }
 }
