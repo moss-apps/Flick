@@ -109,6 +109,34 @@ void main() {
     },
   );
 
+  testWidgets('landscape card keeps artwork above the song footer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SongCard(
+              song: _song,
+              width: 220,
+              height: 110,
+              artSizeBase: 70,
+              artworkAbove: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(CachedImageWidget), findsOneWidget);
+    final art = tester.getRect(find.byType(CachedImageWidget));
+    final title = tester.getRect(find.text('Original title'));
+    final artist = tester.getRect(find.text('Original artist'));
+    expect(art.bottom, lessThanOrEqualTo(title.top));
+    expect(title.bottom, lessThanOrEqualTo(artist.top));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('selection and artwork preferences refresh the retained face', (
     tester,
   ) async {
