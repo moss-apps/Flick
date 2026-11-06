@@ -94,9 +94,7 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setShowUsbVolumeOnMenu(bool value) async {
     if (state.showUsbVolumeOnMenu == value) return;
     state = state.copyWith(showUsbVolumeOnMenu: value);
-    await ref
-        .read(appPreferencesServiceProvider)
-        .setShowUsbVolumeOnMenu(value);
+    await ref.read(appPreferencesServiceProvider).setShowUsbVolumeOnMenu(value);
   }
 
   Future<void> setShowUsbVolumeOnSettings(bool value) async {
@@ -408,7 +406,9 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setWidgetCompactBgOpacity(int value) async {
     if (state.widgetCompactBgOpacity == value) return;
     state = state.copyWith(widgetCompactBgOpacity: value);
-    await ref.read(appPreferencesServiceProvider).setWidgetCompactBgOpacity(value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setWidgetCompactBgOpacity(value);
   }
 
   Future<void> setWidgetCompactShowAlbumArt(bool value) async {
@@ -492,9 +492,7 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setLeftTopActionButton(String value) async {
     if (state.leftTopActionButton == value) return;
     state = state.copyWith(leftTopActionButton: value);
-    await ref
-        .read(appPreferencesServiceProvider)
-        .setLeftTopActionButton(value);
+    await ref.read(appPreferencesServiceProvider).setLeftTopActionButton(value);
   }
 
   Future<void> setRightTopActionButton(String value) async {
@@ -522,9 +520,7 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setGlanceCardMinimized(bool value) async {
     if (state.glanceCardMinimized == value) return;
     state = state.copyWith(glanceCardMinimized: value);
-    await ref
-        .read(appPreferencesServiceProvider)
-        .setGlanceCardMinimized(value);
+    await ref.read(appPreferencesServiceProvider).setGlanceCardMinimized(value);
   }
 
   Future<void> setReplaceAlbumWithBitPerfectCapsule(bool value) async {
@@ -538,7 +534,9 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setAlbumsStretchArtwork(bool value) async {
     if (state.albumsStretchArtwork == value) return;
     state = state.copyWith(albumsStretchArtwork: value);
-    await ref.read(appPreferencesServiceProvider).setAlbumsStretchArtwork(value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setAlbumsStretchArtwork(value);
   }
 
   Future<void> setAnimatedAlbumArt(bool value) async {
@@ -700,9 +698,7 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setBtLdacBitsPerSample(int value) async {
     if (state.btLdacBitsPerSample == value) return;
     state = state.copyWith(btLdacBitsPerSample: value);
-    await ref
-        .read(appPreferencesServiceProvider)
-        .setBtLdacBitsPerSample(value);
+    await ref.read(appPreferencesServiceProvider).setBtLdacBitsPerSample(value);
   }
 
   Future<void> setFloatingPlayerEnabled(bool value) async {
@@ -794,9 +790,7 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
   Future<void> setOrbitCardWidthRatio(double value) async {
     if (state.orbitCardWidthRatio == value) return;
     state = state.copyWith(orbitCardWidthRatio: value);
-    await ref
-        .read(appPreferencesServiceProvider)
-        .setOrbitCardWidthRatio(value);
+    await ref.read(appPreferencesServiceProvider).setOrbitCardWidthRatio(value);
   }
 
   Future<void> setOrbitArtResolutionMultiplier(double value) async {
@@ -817,6 +811,60 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     if (state.orbitShowGlow == value) return;
     state = state.copyWith(orbitShowGlow: value);
     await ref.read(appPreferencesServiceProvider).setOrbitShowGlow(value);
+  }
+
+  Future<void> setOrbitLandscapeRadiusRatio(double value) async {
+    if (state.orbitLandscapeRadiusRatio == value) return;
+    state = state.copyWith(orbitLandscapeRadiusRatio: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setOrbitLandscapeRadiusRatio(value);
+  }
+
+  Future<void> setOrbitLandscapeCenterYRatio(double value) async {
+    if (state.orbitLandscapeCenterYRatio == value) return;
+    state = state.copyWith(orbitLandscapeCenterYRatio: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setOrbitLandscapeCenterYRatio(value);
+  }
+
+  Future<void> setOrbitLandscapeItemSpacing(double value) async {
+    if (state.orbitLandscapeItemSpacing == value) return;
+    state = state.copyWith(orbitLandscapeItemSpacing: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setOrbitLandscapeItemSpacing(value);
+  }
+
+  Future<void> setOrbitLandscapeSelectedScale(double value) async {
+    if (state.orbitLandscapeSelectedScale == value) return;
+    state = state.copyWith(orbitLandscapeSelectedScale: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setOrbitLandscapeSelectedScale(value);
+  }
+
+  Future<void> setOrbitLandscapeDepth(double value) async {
+    if (state.orbitLandscapeDepth == value) return;
+    state = state.copyWith(orbitLandscapeDepth: value);
+    await ref.read(appPreferencesServiceProvider).setOrbitLandscapeDepth(value);
+  }
+
+  Future<void> setOrbitLandscapeVisibleItems(int value) async {
+    if (state.orbitLandscapeVisibleItems == value) return;
+    state = state.copyWith(orbitLandscapeVisibleItems: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setOrbitLandscapeVisibleItems(value);
+  }
+
+  Future<void> setOrbitLandscapeCardWidthRatio(double value) async {
+    if (state.orbitLandscapeCardWidthRatio == value) return;
+    state = state.copyWith(orbitLandscapeCardWidthRatio: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setOrbitLandscapeCardWidthRatio(value);
   }
 
   Future<void> setStreaksEnabled(bool value) async {
@@ -861,6 +909,34 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
         .setSongTileThumbnailMode(value);
   }
 
+  Future<void> resetOrbitLayout({required bool landscape}) async {
+    if (landscape) {
+      state = state.copyWith(
+        orbitLandscapeRadiusRatio: 1.0,
+        orbitLandscapeCenterYRatio: 0.48,
+        orbitLandscapeItemSpacing: 0.28,
+        orbitLandscapeSelectedScale: 1.25,
+        orbitLandscapeDepth: 0.75,
+        orbitLandscapeVisibleItems: 5,
+        orbitLandscapeCardWidthRatio: 0.68,
+      );
+      await ref.read(appPreferencesServiceProvider).clearOrbitLandscapeLayout();
+      return;
+    }
+    state = state.copyWith(
+      orbitRadiusRatio: 1.0,
+      orbitCenterOffsetRatio: -0.5,
+      orbitCenterYRatio: 0.42,
+      orbitItemSpacing: 0.28,
+      orbitSelectedScale: 1.25,
+      orbitDepth: 0.75,
+      orbitVisibleItems: 5,
+      orbitCardArtSize: 64.0,
+      orbitCardWidthRatio: 0.68,
+    );
+    await ref.read(appPreferencesServiceProvider).clearOrbitPortraitLayout();
+  }
+
   Future<void> resetOrbitSettings() async {
     state = state.copyWith(
       orbitRadiusRatio: 1.0,
@@ -875,6 +951,13 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
       orbitArtResolutionMultiplier: 2.0,
       orbitShowPath: true,
       orbitShowGlow: true,
+      orbitLandscapeRadiusRatio: 1.0,
+      orbitLandscapeCenterYRatio: 0.48,
+      orbitLandscapeItemSpacing: 0.28,
+      orbitLandscapeSelectedScale: 1.25,
+      orbitLandscapeDepth: 0.75,
+      orbitLandscapeVisibleItems: 5,
+      orbitLandscapeCardWidthRatio: 0.68,
     );
     await ref.read(appPreferencesServiceProvider).clearOrbitSettings();
   }

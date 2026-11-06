@@ -107,12 +107,20 @@ class AppPreferences {
   final double orbitArtResolutionMultiplier;
   final bool orbitShowPath;
   final bool orbitShowGlow;
+  final double orbitLandscapeRadiusRatio;
+  final double orbitLandscapeCenterYRatio;
+  final double orbitLandscapeItemSpacing;
+  final double orbitLandscapeSelectedScale;
+  final double orbitLandscapeDepth;
+  final int orbitLandscapeVisibleItems;
+  final double orbitLandscapeCardWidthRatio;
   final bool streaksEnabled;
   final bool showMoreFromArtist;
   final bool showMoreArtists;
   final bool detailHeaderArtExpanded;
   final bool detailHeaderCenteredTitle;
-  final String songTileThumbnailMode; // 'artwork', 'trackNumber', or 'trackNumberOnArt'
+  final String
+  songTileThumbnailMode; // 'artwork', 'trackNumber', or 'trackNumberOnArt'
   final bool extendedVolumeEnabled;
   final String replayGainMode; // 'off', 'track', or 'album'
   final String lyricsTextAlign; // 'left', 'center', or 'right'
@@ -227,6 +235,13 @@ class AppPreferences {
     this.orbitArtResolutionMultiplier = 2.0,
     this.orbitShowPath = true,
     this.orbitShowGlow = true,
+    this.orbitLandscapeRadiusRatio = 1.0,
+    this.orbitLandscapeCenterYRatio = 0.48,
+    this.orbitLandscapeItemSpacing = 0.28,
+    this.orbitLandscapeSelectedScale = 1.25,
+    this.orbitLandscapeDepth = 0.75,
+    this.orbitLandscapeVisibleItems = 5,
+    this.orbitLandscapeCardWidthRatio = 0.68,
     this.streaksEnabled = true,
     this.showMoreFromArtist = true,
     this.showMoreArtists = true,
@@ -348,6 +363,13 @@ class AppPreferences {
     double? orbitArtResolutionMultiplier,
     bool? orbitShowPath,
     bool? orbitShowGlow,
+    double? orbitLandscapeRadiusRatio,
+    double? orbitLandscapeCenterYRatio,
+    double? orbitLandscapeItemSpacing,
+    double? orbitLandscapeSelectedScale,
+    double? orbitLandscapeDepth,
+    int? orbitLandscapeVisibleItems,
+    double? orbitLandscapeCardWidthRatio,
     bool? streaksEnabled,
     bool? showMoreFromArtist,
     bool? showMoreArtists,
@@ -373,8 +395,7 @@ class AppPreferences {
       showBrowseMore: showBrowseMore ?? this.showBrowseMore,
       showQuickAccess: showQuickAccess ?? this.showQuickAccess,
       showEngineSelector: showEngineSelector ?? this.showEngineSelector,
-      showUsbVolumeOnMenu:
-          showUsbVolumeOnMenu ?? this.showUsbVolumeOnMenu,
+      showUsbVolumeOnMenu: showUsbVolumeOnMenu ?? this.showUsbVolumeOnMenu,
       showUsbVolumeOnSettings:
           showUsbVolumeOnSettings ?? this.showUsbVolumeOnSettings,
       crossfadeEnabled: crossfadeEnabled ?? this.crossfadeEnabled,
@@ -454,8 +475,7 @@ class AppPreferences {
       replaceAlbumWithBitPerfectCapsule:
           replaceAlbumWithBitPerfectCapsule ??
           this.replaceAlbumWithBitPerfectCapsule,
-      albumsStretchArtwork:
-          albumsStretchArtwork ?? this.albumsStretchArtwork,
+      albumsStretchArtwork: albumsStretchArtwork ?? this.albumsStretchArtwork,
       animatedAlbumArt: animatedAlbumArt ?? this.animatedAlbumArt,
       folderGridPageSize: folderGridPageSize ?? this.folderGridPageSize,
       lastSeenChangelogVersion:
@@ -481,26 +501,21 @@ class AppPreferences {
           pauseOnUsbDacDisconnect ?? this.pauseOnUsbDacDisconnect,
       pauseOnBluetoothConnect:
           pauseOnBluetoothConnect ?? this.pauseOnBluetoothConnect,
-      pauseOnUsbDacConnect:
-          pauseOnUsbDacConnect ?? this.pauseOnUsbDacConnect,
+      pauseOnUsbDacConnect: pauseOnUsbDacConnect ?? this.pauseOnUsbDacConnect,
       preferredBluetoothDevice:
           preferredBluetoothDevice ?? this.preferredBluetoothDevice,
       btPreferredCodec: btPreferredCodec ?? this.btPreferredCodec,
       btLdacBitrate: btLdacBitrate ?? this.btLdacBitrate,
-      btAbsoluteVolumeSync:
-          btAbsoluteVolumeSync ?? this.btAbsoluteVolumeSync,
-      btEnableCodecControl:
-          btEnableCodecControl ?? this.btEnableCodecControl,
+      btAbsoluteVolumeSync: btAbsoluteVolumeSync ?? this.btAbsoluteVolumeSync,
+      btEnableCodecControl: btEnableCodecControl ?? this.btEnableCodecControl,
       btSampleRate: btSampleRate ?? this.btSampleRate,
-      btLdacBitsPerSample:
-          btLdacBitsPerSample ?? this.btLdacBitsPerSample,
+      btLdacBitsPerSample: btLdacBitsPerSample ?? this.btLdacBitsPerSample,
       floatingPlayerEnabled:
           floatingPlayerEnabled ?? this.floatingPlayerEnabled,
       floatingIslandEnabled:
           floatingIslandEnabled ?? this.floatingIslandEnabled,
       autoFocusSearch: autoFocusSearch ?? this.autoFocusSearch,
-      searchPlaybackMode:
-          searchPlaybackMode ?? this.searchPlaybackMode,
+      searchPlaybackMode: searchPlaybackMode ?? this.searchPlaybackMode,
       refreshRateMode: refreshRateMode ?? this.refreshRateMode,
       visualizerEnabled: visualizerEnabled ?? this.visualizerEnabled,
       orbitRadiusRatio: orbitRadiusRatio ?? this.orbitRadiusRatio,
@@ -517,6 +532,19 @@ class AppPreferences {
           orbitArtResolutionMultiplier ?? this.orbitArtResolutionMultiplier,
       orbitShowPath: orbitShowPath ?? this.orbitShowPath,
       orbitShowGlow: orbitShowGlow ?? this.orbitShowGlow,
+      orbitLandscapeRadiusRatio:
+          orbitLandscapeRadiusRatio ?? this.orbitLandscapeRadiusRatio,
+      orbitLandscapeCenterYRatio:
+          orbitLandscapeCenterYRatio ?? this.orbitLandscapeCenterYRatio,
+      orbitLandscapeItemSpacing:
+          orbitLandscapeItemSpacing ?? this.orbitLandscapeItemSpacing,
+      orbitLandscapeSelectedScale:
+          orbitLandscapeSelectedScale ?? this.orbitLandscapeSelectedScale,
+      orbitLandscapeDepth: orbitLandscapeDepth ?? this.orbitLandscapeDepth,
+      orbitLandscapeVisibleItems:
+          orbitLandscapeVisibleItems ?? this.orbitLandscapeVisibleItems,
+      orbitLandscapeCardWidthRatio:
+          orbitLandscapeCardWidthRatio ?? this.orbitLandscapeCardWidthRatio,
       streaksEnabled: streaksEnabled ?? this.streaksEnabled,
       showMoreFromArtist: showMoreFromArtist ?? this.showMoreFromArtist,
       showMoreArtists: showMoreArtists ?? this.showMoreArtists,
@@ -609,6 +637,7 @@ class AppPreferencesService {
   static const _animatedAlbumArtKey = 'album_animated_art';
   static const _folderGridPageSizeKey = 'folder_grid_page_size';
   static const _lastSeenChangelogVersionKey = 'last_seen_changelog_version';
+
   /// UI language. A locale tag such as 'zh_CN', or 'system' to follow the device.
   static const _appLocaleKey = 'app_locale';
   static const _baybayinHeadingsKey = 'baybayin_headings';
@@ -656,6 +685,16 @@ class AppPreferencesService {
       'orbit_art_resolution_multiplier';
   static const _orbitShowPathKey = 'orbit_show_path';
   static const _orbitShowGlowKey = 'orbit_show_glow';
+  static const _orbitLandscapeRadiusRatioKey = 'orbit_landscape_radius_ratio';
+  static const _orbitLandscapeCenterYRatioKey =
+      'orbit_landscape_center_y_ratio';
+  static const _orbitLandscapeItemSpacingKey = 'orbit_landscape_item_spacing';
+  static const _orbitLandscapeSelectedScaleKey =
+      'orbit_landscape_selected_scale';
+  static const _orbitLandscapeDepthKey = 'orbit_landscape_depth';
+  static const _orbitLandscapeVisibleItemsKey = 'orbit_landscape_visible_items';
+  static const _orbitLandscapeCardWidthRatioKey =
+      'orbit_landscape_card_width_ratio';
   static const _streaksEnabledKey = 'streaks_enabled';
   static const _showMoreFromArtistKey = 'album_show_more_from_artist';
   static const _showMoreArtistsKey = 'album_show_more_artists';
@@ -743,14 +782,12 @@ class AppPreferencesService {
           prefs.getString(_widgetFlagshipAccentKey) ?? 'white',
       widgetFlagshipShowArtist:
           prefs.getBool(_widgetFlagshipShowArtistKey) ?? true,
-      widgetCompactBgOpacity:
-          prefs.getInt(_widgetCompactBgOpacityKey) ?? 3,
+      widgetCompactBgOpacity: prefs.getInt(_widgetCompactBgOpacityKey) ?? 3,
       widgetCompactShowAlbumArt:
           prefs.getBool(_widgetCompactShowAlbumArtKey) ?? true,
       widgetCompactShowArtist:
           prefs.getBool(_widgetCompactShowArtistKey) ?? true,
-      widgetCompactAccent:
-          prefs.getString(_widgetCompactAccentKey) ?? 'white',
+      widgetCompactAccent: prefs.getString(_widgetCompactAccentKey) ?? 'white',
       widgetTextScale: prefs.getDouble(_widgetTextScaleKey) ?? 1.0,
       widgetFlagshipTextScale:
           prefs.getDouble(_widgetFlagshipTextScaleKey) ?? 1.0,
@@ -761,17 +798,14 @@ class AppPreferencesService {
           prefs.getBool(_lyricsMatchAudioFilenameKey) ?? false,
       leftActionButton: prefs.getString(_leftActionButtonKey) ?? 'lyrics',
       rightActionButton: prefs.getString(_rightActionButtonKey) ?? 'favorites',
-      leftTopActionButton:
-          prefs.getString(_leftTopActionButtonKey) ?? 'none',
-      rightTopActionButton:
-          prefs.getString(_rightTopActionButtonKey) ?? 'none',
+      leftTopActionButton: prefs.getString(_leftTopActionButtonKey) ?? 'none',
+      rightTopActionButton: prefs.getString(_rightTopActionButtonKey) ?? 'none',
       welcomeCardDismissed: prefs.getBool(_welcomeCardDismissedKey) ?? false,
       glanceCardHidden: prefs.getBool(_glanceCardHiddenKey) ?? false,
       glanceCardMinimized: prefs.getBool(_glanceCardMinimizedKey) ?? false,
       replaceAlbumWithBitPerfectCapsule:
           prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false,
-      albumsStretchArtwork:
-          prefs.getBool(_albumsStretchArtworkKey) ?? false,
+      albumsStretchArtwork: prefs.getBool(_albumsStretchArtworkKey) ?? false,
       animatedAlbumArt: prefs.getBool(_animatedAlbumArtKey) ?? true,
       folderGridPageSize: prefs.getInt(_folderGridPageSizeKey) ?? 8,
       lastSeenChangelogVersion: prefs.getString(_lastSeenChangelogVersionKey),
@@ -784,8 +818,7 @@ class AppPreferencesService {
       separateMiniPlayerFromNavBar:
           prefs.getBool(_separateMiniPlayerFromNavBarKey) ?? false,
       keepPlayingOnQuit: prefs.getBool(_keepPlayingOnQuitKey) ?? false,
-      priorityAnchorEnabled:
-          prefs.getBool(_priorityAnchorEnabledKey) ?? true,
+      priorityAnchorEnabled: prefs.getBool(_priorityAnchorEnabledKey) ?? true,
       motionArtDuringBitPerfect:
           prefs.getBool(_motionArtDuringBitPerfectKey) ?? false,
       pauseOnBluetoothDisconnect:
@@ -796,25 +829,19 @@ class AppPreferencesService {
           prefs.getBool(_pauseOnUsbDacDisconnectKey) ?? true,
       pauseOnBluetoothConnect:
           prefs.getBool(_pauseOnBluetoothConnectKey) ?? false,
-      pauseOnUsbDacConnect:
-          prefs.getBool(_pauseOnUsbDacConnectKey) ?? false,
+      pauseOnUsbDacConnect: prefs.getBool(_pauseOnUsbDacConnectKey) ?? false,
       preferredBluetoothDevice:
           prefs.getString(_preferredBluetoothDeviceKey) ?? '',
       btPreferredCodec: prefs.getInt(_btPreferredCodecKey) ?? -1,
       btLdacBitrate: prefs.getString(_btLdacBitrateKey) ?? 'adaptive',
-      btAbsoluteVolumeSync:
-          prefs.getBool(_btAbsoluteVolumeSyncKey) ?? false,
-      btEnableCodecControl:
-          prefs.getBool(_btEnableCodecControlKey) ?? false,
+      btAbsoluteVolumeSync: prefs.getBool(_btAbsoluteVolumeSyncKey) ?? false,
+      btEnableCodecControl: prefs.getBool(_btEnableCodecControlKey) ?? false,
       btSampleRate: prefs.getInt(_btSampleRateKey) ?? 0,
       btLdacBitsPerSample: prefs.getInt(_btLdacBitsPerSampleKey) ?? 0,
-      floatingPlayerEnabled:
-          prefs.getBool(_floatingPlayerEnabledKey) ?? false,
-      floatingIslandEnabled:
-          prefs.getBool(_floatingIslandEnabledKey) ?? false,
+      floatingPlayerEnabled: prefs.getBool(_floatingPlayerEnabledKey) ?? false,
+      floatingIslandEnabled: prefs.getBool(_floatingIslandEnabledKey) ?? false,
       autoFocusSearch: prefs.getBool(_autoFocusSearchKey) ?? false,
-      searchPlaybackMode:
-          prefs.getString(_searchPlaybackModeKey) ?? 'results',
+      searchPlaybackMode: prefs.getString(_searchPlaybackModeKey) ?? 'results',
       refreshRateMode: await _resolveRefreshRateMode(prefs),
       visualizerEnabled: prefs.getBool(_visualizerEnabledKey) ?? true,
       orbitRadiusRatio: prefs.getDouble(_orbitRadiusRatioKey) ?? 1.0,
@@ -831,6 +858,19 @@ class AppPreferencesService {
           prefs.getDouble(_orbitArtResolutionMultiplierKey) ?? 2.0,
       orbitShowPath: prefs.getBool(_orbitShowPathKey) ?? true,
       orbitShowGlow: prefs.getBool(_orbitShowGlowKey) ?? true,
+      orbitLandscapeRadiusRatio:
+          prefs.getDouble(_orbitLandscapeRadiusRatioKey) ?? 1.0,
+      orbitLandscapeCenterYRatio:
+          prefs.getDouble(_orbitLandscapeCenterYRatioKey) ?? 0.48,
+      orbitLandscapeItemSpacing:
+          prefs.getDouble(_orbitLandscapeItemSpacingKey) ?? 0.28,
+      orbitLandscapeSelectedScale:
+          prefs.getDouble(_orbitLandscapeSelectedScaleKey) ?? 1.25,
+      orbitLandscapeDepth: prefs.getDouble(_orbitLandscapeDepthKey) ?? 0.75,
+      orbitLandscapeVisibleItems:
+          prefs.getInt(_orbitLandscapeVisibleItemsKey) ?? 5,
+      orbitLandscapeCardWidthRatio:
+          prefs.getDouble(_orbitLandscapeCardWidthRatioKey) ?? 0.68,
       streaksEnabled: prefs.getBool(_streaksEnabledKey) ?? true,
       showMoreFromArtist: prefs.getBool(_showMoreFromArtistKey) ?? true,
       showMoreArtists: prefs.getBool(_showMoreArtistsKey) ?? true,
@@ -840,8 +880,7 @@ class AppPreferencesService {
           prefs.getBool(_detailHeaderCenteredTitleKey) ?? false,
       songTileThumbnailMode:
           prefs.getString(_songTileThumbnailModeKey) ?? 'artwork',
-      extendedVolumeEnabled:
-          prefs.getBool(_extendedVolumeEnabledKey) ?? false,
+      extendedVolumeEnabled: prefs.getBool(_extendedVolumeEnabledKey) ?? false,
       replayGainMode: prefs.getString(_replayGainModeKey) ?? 'off',
       lyricsTextAlign: prefs.getString(_lyricsTextAlignKey) ?? 'center',
       karaokeEnabled: prefs.getBool(_lyricsKaraokeEnabledKey) ?? true,
@@ -1939,6 +1978,41 @@ class AppPreferencesService {
     await prefs.setBool(_orbitShowGlowKey, value);
   }
 
+  Future<void> setOrbitLandscapeRadiusRatio(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitLandscapeRadiusRatioKey, value);
+  }
+
+  Future<void> setOrbitLandscapeCenterYRatio(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitLandscapeCenterYRatioKey, value);
+  }
+
+  Future<void> setOrbitLandscapeItemSpacing(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitLandscapeItemSpacingKey, value);
+  }
+
+  Future<void> setOrbitLandscapeSelectedScale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitLandscapeSelectedScaleKey, value);
+  }
+
+  Future<void> setOrbitLandscapeDepth(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitLandscapeDepthKey, value);
+  }
+
+  Future<void> setOrbitLandscapeVisibleItems(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_orbitLandscapeVisibleItemsKey, value);
+  }
+
+  Future<void> setOrbitLandscapeCardWidthRatio(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_orbitLandscapeCardWidthRatioKey, value);
+  }
+
   Future<bool> getStreaksEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_streaksEnabledKey) ?? true;
@@ -1999,7 +2073,7 @@ class AppPreferencesService {
     await prefs.setString(_songTileThumbnailModeKey, value);
   }
 
-  Future<void> clearOrbitSettings() async {
+  Future<void> clearOrbitPortraitLayout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_orbitRadiusRatioKey);
     await prefs.remove(_orbitCenterOffsetRatioKey);
@@ -2010,6 +2084,23 @@ class AppPreferencesService {
     await prefs.remove(_orbitVisibleItemsKey);
     await prefs.remove(_orbitCardArtSizeKey);
     await prefs.remove(_orbitCardWidthRatioKey);
+  }
+
+  Future<void> clearOrbitLandscapeLayout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_orbitLandscapeRadiusRatioKey);
+    await prefs.remove(_orbitLandscapeCenterYRatioKey);
+    await prefs.remove(_orbitLandscapeItemSpacingKey);
+    await prefs.remove(_orbitLandscapeSelectedScaleKey);
+    await prefs.remove(_orbitLandscapeDepthKey);
+    await prefs.remove(_orbitLandscapeVisibleItemsKey);
+    await prefs.remove(_orbitLandscapeCardWidthRatioKey);
+  }
+
+  Future<void> clearOrbitSettings() async {
+    await clearOrbitPortraitLayout();
+    await clearOrbitLandscapeLayout();
+    final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_orbitArtResolutionMultiplierKey);
     await prefs.remove(_orbitShowPathKey);
     await prefs.remove(_orbitShowGlowKey);
