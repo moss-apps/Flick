@@ -10,10 +10,15 @@ permission for every file or successful decoding/output.
 Library sync treats the configured root as mandatory but skips an unreadable or
 vanished child directory (common on Windows shares: `System Volume
 Information`, per-user folders, or a folder deleted mid-scan) instead of
-aborting the whole sync. Directory identities are de-duplicated and recursion is
-depth-capped so junction/DFS loops cannot run forever. Cover-art reads use the
-pipelined reader, so images larger than the server's single-READ limit still
-load.
+aborting the whole sync. If the walk is interrupted before it finishes, the
+entries already listed are imported, but stale rows are not purged and the scan
+still reports failure so the next attempt can complete it. Directory identities
+are de-duplicated and recursion is depth-capped so junction/DFS loops cannot
+run forever. Cover-art reads use the pipelined reader, so images larger than the
+server's single-READ limit still load.
+
+Username fields accept `DOMAIN\user` and `user@domain`; the native client
+receives the account and domain separately, matching a Windows client.
 
 Downloads use a same-directory hidden staging file, verify the server's byte
 count, then close and atomically rename it. Dart also requires the completion
@@ -70,6 +75,9 @@ posting addresses, share names or credentials.
 4. Interrupt Wi-Fi mid-download, restore it and retry **without clearing app
    data**. No partial file should play. Repeat with next-track prefetch running
    while manually selecting that track; both callers should use one transfer.
+   Also interrupt a library sync and confirm already-listed tracks stay while
+   the UI still reports the failure; a later successful sync must purge stale
+   rows normally.
 5. Upgrade from a build with a failed SMB transfer. The old cache file must not
    be reused. Check subsequent cache hits and cache-cap eviction.
 6. Fail file decoding/output deliberately; the playback banner should distinguish

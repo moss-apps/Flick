@@ -51,14 +51,34 @@ fn failure(stage: &str, error: smb2::Error) -> anyhow::Error {
     anyhow::anyhow!("SMB stage={} code={}", stage, error_code(&error))
 }
 
+/// `smb2` takes the account name and domain separately. Users commonly type
+/// `DOMAIN\user` or `user@domain` into the single username field; split those
+/// forms so NTLM receives the pieces a Windows client would send. Plain local
+/// accounts pass through unchanged.
+fn split_account(user: &str) -> (&str, &str) {
+    if let Some((domain, account)) = user.split_once('\\') {
+        if !domain.is_empty() && !account.is_empty() {
+            return (account, domain);
+        }
+    }
+    if let Some((account, domain)) = user.split_once('@') {
+        if !account.is_empty() && !domain.is_empty() {
+            return (account, domain);
+        }
+    }
+    (user, "")
+}
+
 /// Shared client configuration. `smb2::connect`'s shorthand is a five-second,
 /// no-reconnect client; a share on a waking NAS, or a Wi-Fi roam between
 /// tracks, should recover in place instead of failing the whole transfer.
 fn client_config(host: &str, port: u16, user: &str, pass: &str) -> smb2::ClientConfig {
+    let (account, domain) = split_account(user);
     smb2::ClientConfig {
         addr: addr(host, port),
-        username: user.to_string(),
+        username: account.to_string(),
         password: pass.to_string(),
+        domain: domain.to_string(),
         timeout: Duration::from_secs(15),
         auto_reconnect: true,
         ..Default::default()
@@ -334,7 +354,7 @@ pub async fn smb_download_file(
 mod tests {
     use super::{
         addr, client_config, failure, should_skip_directory_error, skippable_subdirectory_error,
-        PendingDownload,
+        split_account, PendingDownload,
     };
     use std::io::Write;
     use std::path::PathBuf;
@@ -466,7 +486,25 @@ mod tests {
         assert_eq!(config.addr, "nas.local:1445");
         assert_eq!(config.username, "user");
         assert_eq!(config.password, "pass");
+        assert_eq!(config.domain, "");
         assert!(config.auto_reconnect);
         assert_eq!(config.timeout, Duration::from_secs(15));
+    }
+
+    #[test]
+    fn account_formats_split_domain_and_user() {
+        assert_eq!(split_account("alice"), ("alice", ""));
+        assert_eq!(split_account(r"CORP\alice"), ("alice", "CORP"));
+        assert_eq!(
+            split_account("alice@corp.example"),
+            ("alice", "corp.example")
+        );
+        assert_eq!(split_account(""), ("", ""));
+        assert_eq!(split_account(r"DOMAIN\"), (r"DOMAIN\", ""));
+        assert_eq!(split_account(r"\alice"), (r"\alice", ""));
+
+        let config = client_config("nas.local", 445, r"CORP\alice", "pass");
+        assert_eq!(config.username, "alice");
+        assert_eq!(config.domain, "CORP");
     }
 }

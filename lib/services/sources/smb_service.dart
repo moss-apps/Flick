@@ -420,28 +420,40 @@ class SmbService implements NetworkSourceService {
     // cover/audio classification), yielding progress as the walk streams in.
     final byDir = <String, List<SmbEntry>>{};
     var totalEntries = 0;
-    await for (final entry in smbListShare(
-      host: s.host,
-      port: s.port,
-      share: s.share,
-      user: user,
-      pass: pass,
-      rootPath: s.rootPath,
-    )) {
-      totalEntries++;
-      if (!entry.isDir) {
-        final parent = _parentDir(entry.path);
-        (byDir[parent] ??= <SmbEntry>[]).add(entry);
+    Object? walkError;
+    StackTrace? walkStackTrace;
+    try {
+      await for (final entry in smbListShare(
+        host: s.host,
+        port: s.port,
+        share: s.share,
+        user: user,
+        pass: pass,
+        rootPath: s.rootPath,
+      )) {
+        totalEntries++;
+        if (!entry.isDir) {
+          final parent = _parentDir(entry.path);
+          (byDir[parent] ??= <SmbEntry>[]).add(entry);
+        }
+        if (totalEntries % 500 == 0) {
+          yield ScanProgress(
+            songsFound: 0,
+            totalFiles: totalEntries,
+            filesProcessed: totalEntries,
+            phase: 'Syncing ${server.label}',
+            currentFile: entry.name,
+          );
+        }
       }
-      if (totalEntries % 500 == 0) {
-        yield ScanProgress(
-          songsFound: 0,
-          totalFiles: totalEntries,
-          filesProcessed: totalEntries,
-          phase: 'Syncing ${server.label}',
-          currentFile: entry.name,
-        );
-      }
+    } catch (e, stackTrace) {
+      // A connection drop halfway through the tree must not throw away the
+      // entries already collected. Import them below, but never purge rows we
+      // simply did not reach, then surface the incomplete scan to the caller.
+      walkError = e;
+      walkStackTrace = stackTrace;
+      final failure = SmbFailure.from(e);
+      AppLog.instance.add('$failure result=partial entries=$totalEntries');
     }
 
     final syncedRemoteIds = <String>{};
@@ -490,6 +502,12 @@ class SmbService implements NetworkSourceService {
       await _repo.upsertSmbSongs(entities);
       syncedRemoteIds.addAll(entities.map((e) => e.remoteId!));
       songsFound += entities.length;
+    }
+
+    if (walkError != null) {
+      // Imported rows stay; no purge or lastSyncedAt stamp for an incomplete
+      // walk, because unseen files are not stale.
+      Error.throwWithStackTrace(walkError, walkStackTrace!);
     }
 
     await purgeAndStampNetworkSync(server, syncedRemoteIds);
