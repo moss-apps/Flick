@@ -5606,7 +5606,7 @@ class PlayerService {
       }
     }
 
-    final nextPath = await _resolveRustPath(nextSong);
+    final nextPath = await _resolveGaplessNextPath(nextSong);
     if (nextPath != null) {
       await _rustAudioService.setReplayGainDefault(
         await _computeReplayGainDbFor(nextSong),
@@ -5627,6 +5627,26 @@ class PlayerService {
       _debugLog(
         '[crossfade] queue skipped: no playable path for ${nextSong.title}',
       );
+    }
+  }
+
+  /// Resolve the next local path without letting an unawaited gapless
+  /// preparation task throw. Network sources (notably SMB) download on this
+  /// path; a failed transfer must leave the current track untouched and be
+  /// reported like any other SMB playback failure.
+  Future<String?> _resolveGaplessNextPath(Song nextSong) async {
+    try {
+      return await _resolveRustPath(nextSong);
+    } on SmbFailure catch (failure) {
+      _debugLog(
+        '[crossfade] next-track SMB prepare failed: '
+        '${failure.stage}/${failure.code}',
+      );
+      _reportSmbPlaybackFailure(failure);
+      return null;
+    } catch (e) {
+      _debugLog('[crossfade] next-track path resolve failed: $e');
+      return null;
     }
   }
 

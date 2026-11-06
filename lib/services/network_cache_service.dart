@@ -58,9 +58,16 @@ class NetworkCacheService {
     final file = File(p.join(serverDir.path, fileName));
     if (!await file.exists()) return null;
 
+    // The file can be evicted (or removed by Android's cache manager) between
+    // the existence check and the LRU touch. Treat that as a miss so callers
+    // re-download instead of handing playback a path that no longer exists.
     final now = DateTime.now();
-    if (file.lastModifiedSync() != now) {
-      await file.setLastModified(now);
+    try {
+      if (file.lastModifiedSync() != now) {
+        await file.setLastModified(now);
+      }
+    } on FileSystemException {
+      return null;
     }
     return file.path;
   }
@@ -122,6 +129,28 @@ class NetworkCacheService {
   /// Staging files are hidden and excluded from lookup and eviction.
   Future<void> completeDownload(String path) =>
       _evictIfOverCap(protect: File(path));
+
+  /// Drop cached copies for (server, remoteId), across all extensions. Used
+  /// when a remote file changes so the next play cannot reuse stale bytes.
+  /// Staging files are left alone: they belong to an in-flight downloader and
+  /// are never lookup candidates.
+  Future<void> remove(int remoteServerId, String remoteId) async {
+    final serverDir = Directory(
+      p.join((await _root()).path, '$remoteServerId'),
+    );
+    if (!await serverDir.exists()) return;
+
+    final prefix = '${_hash(remoteServerId, remoteId)}.';
+    await for (final entry in serverDir.list()) {
+      if (entry is! File) continue;
+      if (!p.basename(entry.path).startsWith(prefix)) continue;
+      try {
+        await entry.delete();
+      } on FileSystemException {
+        /* Another caller may have removed or locked it; best effort. */
+      }
+    }
+  }
 
   // ponytail: full O(n) size scan per eviction; track running totals only
   // if a server with a huge cache ever shows up on profile.
