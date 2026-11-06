@@ -625,12 +625,16 @@ class _OrbitScrollState extends State<OrbitScroll>
 
       items.add(
         Positioned(
+          // Key the direct Stack child, not SongCard: as the visible window
+          // and back-to-front order advance, keeping the key here lets a
+          // surviving song's card State (and retained artwork) move between
+          // position slots instead of being disposed and rebuilt.
+          key: ValueKey(widget.songs[actualIndex].id),
           left: transform.position.x,
           top: transform.position.y,
           child: FractionalTranslation(
             translation: const Offset(-0.5, -0.5),
             child: SongCard(
-              key: ValueKey(widget.songs[actualIndex].id),
               song: widget.songs[actualIndex],
               scale: transform.scale,
               opacity: transform.opacity,

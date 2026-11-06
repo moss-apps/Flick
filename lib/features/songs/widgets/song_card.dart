@@ -87,10 +87,40 @@ class _SongCardState extends State<SongCard> {
   bool _queuedFlash = false;
   bool _favoriteFlash = false;
 
+  /// Retained card face. Orbit motion changes only scale/opacity, so keeping
+  /// this subtree identical between animation ticks avoids rebuilding the
+  /// artwork, gradients and text on every frame.
+  Widget? _cardFace;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Inherited widgets may have changed (theme, media query, etc.).
+    _cardFace = null;
+  }
+
+  @override
+  void didUpdateWidget(covariant SongCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Song equality compares only the id, so use identity here: metadata or
+    // artwork for the same id must refresh the retained face.
+    if (!identical(oldWidget.song, widget.song) ||
+        oldWidget.isSelected != widget.isSelected ||
+        oldWidget.isSelectionMode != widget.isSelectionMode ||
+        oldWidget.isMultiSelected != widget.isMultiSelected ||
+        oldWidget.artSizeBase != widget.artSizeBase ||
+        oldWidget.artSizeLarge != widget.artSizeLarge ||
+        oldWidget.artResolutionMultiplier != widget.artResolutionMultiplier ||
+        oldWidget.artworkAbove != widget.artworkAbove) {
+      _cardFace = null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final artSize =
         widget.isSelected ? widget.artSizeLarge : widget.artSizeBase;
+    final cardFace = _cardFace ??= _buildCardFace(artSize);
 
     final cardWidth = widget.width ??
         MediaQuery.sizeOf(context).width * widget.cardWidthRatio;
@@ -172,17 +202,19 @@ class _SongCardState extends State<SongCard> {
       onHorizontalDragUpdate: dragUpdate,
       onHorizontalDragEnd: dragEnd,
       onHorizontalDragCancel: dragCancel,
-      child: RepaintBoundary(
-        child: Transform.scale(
-          scale: widget.scale.isFinite ? widget.scale : 1.0,
-          child: Opacity(
-            opacity: widget.opacity.isFinite ? widget.opacity.clamp(0.0, 1.0) : 1.0,
+      // Keep the changing scale/opacity outside the retained artwork: the
+      // RepaintBoundary caches the card face while the motion above it moves.
+      child: Transform.scale(
+        scale: widget.scale.isFinite ? widget.scale : 1.0,
+        child: Opacity(
+          opacity: widget.opacity.isFinite ? widget.opacity.clamp(0.0, 1.0) : 1.0,
+          child: RepaintBoundary(
             child: SizedBox(
               width: cardWidth,
               height: cardHeight,
               child: showSwipeOverlay
-                  ? _buildSwipeStack(cardWidth, artSize)
-                  : _buildCardFace(artSize),
+                  ? _buildSwipeStack(cardWidth, cardFace)
+                  : cardFace,
             ),
           ),
         ),
@@ -369,7 +401,7 @@ class _SongCardState extends State<SongCard> {
     );
   }
 
-  Widget _buildSwipeStack(double cardWidth, double artSize) {
+  Widget _buildSwipeStack(double cardWidth, Widget cardFace) {
     final queueProgress = (-_dragDx / 110).clamp(0.0, 1.0);
     final favoriteProgress = (_dragDx / 110).clamp(0.0, 1.0);
     final isFlashing = _queuedFlash || _favoriteFlash;
@@ -458,7 +490,7 @@ class _SongCardState extends State<SongCard> {
                       ]
                     : null,
               ),
-              child: _buildCardFace(artSize),
+              child: cardFace,
             ),
           ),
         ),

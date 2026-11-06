@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flick/features/songs/widgets/orbit_scroll.dart';
 import 'package:flick/features/songs/widgets/song_card.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/widgets/common/cached_image_widget.dart';
 
 final _songs = List.generate(
   40,
@@ -155,6 +156,46 @@ void main() {
     );
     expect(card.song.id, 'orbit-24');
     expect(card.artworkAbove, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('songs retain card and artwork state as the orbit advances', (
+    tester,
+  ) async {
+    setView(tester, const Size(411, 900));
+    final pages = PageController();
+    final orbit = OrbitScrollController();
+    addTearDown(pages.dispose);
+    await tester.pumpWidget(host(pages, orbit: orbit, axis: Axis.vertical));
+
+    final cardStates = <String, State>{};
+    final imageStates = <String, State>{};
+    for (final element in find.byType(SongCard).evaluate()) {
+      final card = element.widget as SongCard;
+      final finder = find.byWidget(card);
+      cardStates[card.song.id] = tester.state(finder);
+      imageStates[card.song.id] = tester.state(
+        find.descendant(of: finder, matching: find.byType(CachedImageWidget)),
+      );
+    }
+
+    orbit.jumpToIndex(16, animate: false);
+    await tester.pump();
+    var retained = 0;
+    for (final element in find.byType(SongCard).evaluate()) {
+      final card = element.widget as SongCard;
+      if (!cardStates.containsKey(card.song.id)) continue;
+      final finder = find.byWidget(card);
+      expect(tester.state(finder), same(cardStates[card.song.id]));
+      expect(
+        tester.state(
+          find.descendant(of: finder, matching: find.byType(CachedImageWidget)),
+        ),
+        same(imageStates[card.song.id]),
+      );
+      retained++;
+    }
+    expect(retained, greaterThan(1));
     expect(tester.takeException(), isNull);
   });
 
