@@ -5542,6 +5542,14 @@
   "@labelOrganization": {
     "description": "lib/features/songs/widgets/song_actions_bottom_sheet.dart:699"
   },
+  "landscape": "Landscape",
+  "@landscape": {
+    "description": "Orbit settings profile for windows that are wider than they are tall."
+  },
+  "landscapeLayoutReset": "Landscape layout reset",
+  "@landscapeLayoutReset": {
+    "description": "Confirmation shown after resetting the landscape orbit layout."
+  },
   "language": "Language",
   "@language": {
     "description": "Settings entry label and the title of the language picker."
@@ -7159,9 +7167,21 @@
   "@orbital": {
     "description": "lib/models/song_view_mode.dart:17"
   },
-  "orbitalSettingsReset": "Orbital settings reset",
-  "@orbitalSettingsReset": {
-    "description": "lib/features/settings/screens/orbit_settings_screen.dart:205"
+  "orbitLandscapeHint": "Used when the app window is wider than it is tall.",
+  "@orbitLandscapeHint": {
+    "description": "Explains when the landscape orbit profile is applied."
+  },
+  "orbitLayoutProfile": "Layout Profile",
+  "@orbitLayoutProfile": {
+    "description": "Header for choosing the portrait or landscape orbit profile."
+  },
+  "orbitPortraitHint": "Used when the app window is taller than it is wide.",
+  "@orbitPortraitHint": {
+    "description": "Explains when the portrait orbit profile is applied."
+  },
+  "orbitSharedVisuals": "Shared Visuals",
+  "@orbitSharedVisuals": {
+    "description": "Header for orbit visuals shared by both orientation profiles."
   },
   "otherPlaylists": "Other Playlists",
   "@otherPlaylists": {
@@ -7619,6 +7639,14 @@
   "pleaseEnterYourListenbrainzUserToken": "Please enter your ListenBrainz user token.",
   "@pleaseEnterYourListenbrainzUserToken": {
     "description": "lib/features/settings/widgets/listenbrainz_settings_tile.dart:584"
+  },
+  "portrait": "Portrait",
+  "@portrait": {
+    "description": "Orbit settings profile for windows that are taller than they are wide."
+  },
+  "portraitLayoutReset": "Portrait layout reset",
+  "@portraitLayoutReset": {
+    "description": "Confirmation shown after resetting the portrait orbit layout."
   },
   "posterPreviewPlays": "{arg1} poster preview. {arg2} plays.",
   "@posterPreviewPlays": {
@@ -8360,9 +8388,9 @@
   "@restoreDefaultProgressBarSize": {
     "description": "lib/features/settings/screens/ui_customization_settings_screen.dart"
   },
-  "restoreTheOriginalOrbitalLayout": "Restore the original orbital layout",
-  "@restoreTheOriginalOrbitalLayout": {
-    "description": "lib/features/settings/screens/orbit_settings_screen.dart:200"
+  "restoreThisProfilesOrbitLayout": "Restore this profile's original orbit layout",
+  "@restoreThisProfilesOrbitLayout": {
+    "description": "Subtitle for resetting only the selected orbit profile."
   },
   "results": "Results ({arg1})",
   "@results": {

@@ -3931,6 +3931,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get labelOrganization => '厂牌 / 组织';
 
   @override
+  String get landscape => '横屏';
+
+  @override
+  String get landscapeLayoutReset => '横屏布局已重置';
+
+  @override
   String get language => '语言';
 
   @override
@@ -5070,7 +5076,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get orbital => 'Orbital';
 
   @override
-  String get orbitalSettingsReset => '轨道设置已重置';
+  String get orbitLandscapeHint => '当应用窗口宽大于高时使用。';
+
+  @override
+  String get orbitLayoutProfile => '布局配置';
+
+  @override
+  String get orbitPortraitHint => '当应用窗口高大于宽时使用。';
+
+  @override
+  String get orbitSharedVisuals => '共享视觉效果';
 
   @override
   String get otherPlaylists => '其他播放列表';
@@ -5403,6 +5418,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pleaseEnterYourListenbrainzUserToken => '请输入你的 ListenBrainz 用户令牌。';
+
+  @override
+  String get portrait => '竖屏';
+
+  @override
+  String get portraitLayoutReset => '竖屏布局已重置';
 
   @override
   String posterPreviewPlays(Object arg1, Object arg2) {
@@ -5911,7 +5932,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restoreDefaultProgressBarSize => '将所选进度条样式恢复为默认大小。';
 
   @override
-  String get restoreTheOriginalOrbitalLayout => '恢复原始轨道布局';
+  String get restoreThisProfilesOrbitLayout => '恢复此配置的原始轨道布局';
 
   @override
   String results(Object arg1) {
