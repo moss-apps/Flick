@@ -53,7 +53,16 @@ class SongsScreen extends ConsumerStatefulWidget {
   /// Callback when navigation to a different tab is requested from full player
   final ValueChanged<int>? onNavigationRequested;
 
-  const SongsScreen({super.key, this.onNavigationRequested});
+  /// Height of the shell's bottom overlay that the orbit ribbon may paint
+  /// through. Kept separate from the card stage so the cards stay clear of the
+  /// mini player and navigation bar.
+  final double pathOverflowBottom;
+
+  const SongsScreen({
+    super.key,
+    this.onNavigationRequested,
+    this.pathOverflowBottom = 0,
+  });
 
   @override
   ConsumerState<SongsScreen> createState() => _SongsScreenState();
@@ -142,6 +151,15 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         AdaptiveLayout.useCompactLandscapeMiniPlayer(
           MediaQuery.sizeOf(context),
         );
+    final safePadding = MediaQuery.paddingOf(context);
+    final orbitSideOverflow = EdgeInsets.only(
+      left: safePadding.left,
+      right:
+          safePadding.right +
+          (reserveSideMiniPlayer
+              ? AdaptiveLayout.sideMiniPlayerContentInset
+              : 0),
+    );
     final swipeActionsEnabled = ref
         .watch(appPreferencesProvider)
         .swipeActionsEnabled;
@@ -338,6 +356,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                         navBarVisible,
                         swipeActionsEnabled,
                         appPrefs.fastIndexEnabled,
+                        orbitSideOverflow,
                       );
                     },
                   ),
@@ -357,11 +376,12 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     bool isBottomBarVisible,
     bool swipeActionsEnabled,
     bool fastIndexEnabled,
+    EdgeInsets orbitSideOverflow,
   ) {
     final overlayRailVisible = fastIndexEnabled && _fastIndexVisible;
     final content = viewMode == SongViewMode.list
         ? _buildListView(songs, swipeActionsEnabled, overlayRailVisible)
-        : _buildOrbitView(songs, swipeActionsEnabled);
+        : _buildOrbitView(songs, swipeActionsEnabled, orbitSideOverflow);
 
     if (tokenToIndexMap.isEmpty) {
       return content;
@@ -430,7 +450,11 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     );
   }
 
-  Widget _buildOrbitView(List<Song> songs, bool swipeActionsEnabled) {
+  Widget _buildOrbitView(
+    List<Song> songs,
+    bool swipeActionsEnabled,
+    EdgeInsets sideOverflow,
+  ) {
     final orbit = ref.watch(appPreferencesProvider);
     final landscape = AdaptiveLayout.isWide(MediaQuery.sizeOf(context));
     return GestureDetector(
@@ -476,6 +500,11 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         artResolutionMultiplier: orbit.orbitArtResolutionMultiplier,
         showPath: orbit.orbitShowPath,
         showGlow: orbit.orbitShowGlow,
+        // The shell overlays the mini player and navigation bar on the stage.
+        // The ribbon may continue through that reserved strip; the card stage
+        // stays above it.
+        pathOverflowBottom: widget.pathOverflowBottom,
+        horizontalPaintOverflow: sideOverflow,
         onSelectedIndexChanged: (index) {
           if (!mounted) return;
           _showFastIndexOverlay();

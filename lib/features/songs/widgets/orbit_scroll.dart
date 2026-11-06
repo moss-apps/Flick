@@ -75,6 +75,15 @@ class OrbitScroll extends StatefulWidget {
   final bool showPath;
   final bool showGlow;
 
+  /// Extra bottom room the path ribbon may paint through without letting the
+  /// card stage or gesture surface move into the bottom bars.
+  final double pathOverflowBottom;
+
+  /// Side space reserved by the parent for safe areas and the mini player.
+  /// Landscape cards and ribbon paint through it, but gestures stay in the
+  /// inset music viewport so navigation and player controls keep their targets.
+  final EdgeInsets horizontalPaintOverflow;
+
   const OrbitScroll({
     super.key,
     required this.songs,
@@ -100,6 +109,8 @@ class OrbitScroll extends StatefulWidget {
     this.artResolutionMultiplier = 2.0,
     this.showPath = true,
     this.showGlow = true,
+    this.pathOverflowBottom = 0.0,
+    this.horizontalPaintOverflow = EdgeInsets.zero,
   });
 
   @override
@@ -108,6 +119,8 @@ class OrbitScroll extends StatefulWidget {
 
 class _OrbitScrollState extends State<OrbitScroll>
     with SingleTickerProviderStateMixin {
+  static const double _landscapeNavigationGutter = 28;
+
   late AnimationController _controller;
 
   // The physics state — notifier drives only the song items rebuild
@@ -419,8 +432,20 @@ class _OrbitScrollState extends State<OrbitScroll>
   @override
   Widget build(BuildContext context) {
     final horizontal = widget.scrollDirection == Axis.horizontal;
+    final sideOverflow = horizontal
+        ? EdgeInsets.only(
+            left:
+                _landscapeNavigationGutter +
+                math.max(0.0, widget.horizontalPaintOverflow.left),
+            right:
+                _landscapeNavigationGutter +
+                math.max(0.0, widget.horizontalPaintOverflow.right),
+          )
+        : EdgeInsets.zero;
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontal ? 28 : 0),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontal ? _landscapeNavigationGutter : 0,
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = constraints.biggest;
@@ -472,42 +497,66 @@ class _OrbitScrollState extends State<OrbitScroll>
             onHorizontalDragEnd: horizontal ? _onDragEnd : null,
             onHorizontalDragCancel: horizontal ? _onDragCancel : null,
             behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: Colors.transparent,
+            child: SizedBox.expand(
               child: Stack(
-                clipBehavior: Clip.hardEdge,
+                // Paint through the side gutters, not above the stage. Only
+                // the ribbon also continues into the bottom-bar inset.
+                clipBehavior: Clip.none,
                 children: [
-                  // Background glow
-                  if (widget.showGlow)
-                    _buildSelectionGlow(
-                      orbitCenterX,
-                      orbitCenterY,
-                      orbitRadius,
-                    ),
+                  const Positioned.fill(
+                    child: ColoredBox(color: Colors.transparent),
+                  ),
 
                   // Path
                   if (widget.showPath)
-                    _buildOrbitPath(orbitCenterX, orbitCenterY, orbitRadius),
+                    _buildOrbitPath(
+                      orbitCenterX,
+                      orbitCenterY,
+                      orbitRadius,
+                      sideOverflow,
+                    ),
 
-                  // Songs — only rebuilds when scroll offset changes
-                  ValueListenableBuilder<double>(
-                    valueListenable: _scrollOffset,
-                    builder: (context, _, __) {
-                      return SizedBox.expand(
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: _buildSongItems(
-                            orbitCenterX,
-                            orbitCenterY,
-                            orbitRadius,
-                            cardWidth: horizontal ? landscapeCardWidth : null,
-                            cardHeight: horizontal ? landscapeCardHeight : null,
+                  // Cards reach the viewport's side edges while keeping the
+                  // original top/bottom limits and inset gesture surface.
+                  Positioned.fill(
+                    child: ClipRect(
+                      clipper: _OrbitStageClipper(sideOverflow),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          if (widget.showGlow)
+                            _buildSelectionGlow(
+                              orbitCenterX,
+                              orbitCenterY,
+                              orbitRadius,
+                            ),
+                          // Songs — only rebuilds when scroll offset changes
+                          Positioned.fill(
+                            child: ValueListenableBuilder<double>(
+                              valueListenable: _scrollOffset,
+                              builder: (context, _, __) {
+                                return SizedBox.expand(
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: _buildSongItems(
+                                      orbitCenterX,
+                                      orbitCenterY,
+                                      orbitRadius,
+                                      cardWidth: horizontal
+                                          ? landscapeCardWidth
+                                          : null,
+                                      cardHeight: horizontal
+                                          ? landscapeCardHeight
+                                          : null,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -554,17 +603,32 @@ class _OrbitScrollState extends State<OrbitScroll>
     );
   }
 
-  Widget _buildOrbitPath(double centerX, double centerY, double radius) {
-    return RepaintBoundary(
+  Widget _buildOrbitPath(
+    double centerX,
+    double centerY,
+    double radius,
+    EdgeInsets sideOverflow,
+  ) {
+    final path = RepaintBoundary(
       child: CustomPaint(
         size: Size.infinite,
         painter: _OrbitPathPainter(
-          centerX: centerX,
+          centerX: centerX + sideOverflow.left,
           centerY: centerY,
           radius: radius,
           horizontal: widget.scrollDirection == Axis.horizontal,
         ),
       ),
+    );
+    final overflow = math.max(0.0, widget.pathOverflowBottom);
+    // Give the cached path the full paint width, not the padded gesture width.
+    // Its top still starts below the header/search; only its bottom overflows.
+    return Positioned(
+      left: -sideOverflow.left,
+      top: 0,
+      right: -sideOverflow.right,
+      bottom: -overflow,
+      child: ClipRect(child: path),
     );
   }
 
@@ -754,6 +818,26 @@ class _OrbitScrollState extends State<OrbitScroll>
   }
 }
 
+/// Expand only the horizontal paint clip, without changing card geometry or
+/// hit testing in the inset music viewport.
+class _OrbitStageClipper extends CustomClipper<Rect> {
+  final EdgeInsets overflow;
+
+  const _OrbitStageClipper(this.overflow);
+
+  @override
+  Rect getClip(Size size) => Rect.fromLTRB(
+    -overflow.left,
+    0,
+    size.width + overflow.right,
+    size.height,
+  );
+
+  @override
+  bool shouldReclip(covariant _OrbitStageClipper oldClipper) =>
+      overflow != oldClipper.overflow;
+}
+
 class _Position {
   final double x;
   final double y;
@@ -788,25 +872,56 @@ class _OrbitPathPainter extends CustomPainter {
     this.horizontal = false,
   });
 
+  /// Painted once per geometry change: this painter has no animation input, so
+  /// scrolling never repaints the ribbon. It is a full ring rather than a fixed
+  /// arc, so the visible ribbon always runs out of the viewport instead of
+  /// stopping at a chosen angle. The inner edge starts fully transparent, which
+  /// removes the hard cut where the shading meets the page background.
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.glassBorder.withValues(alpha: 0.15)
+    if (radius <= 0) return;
+
+    final center = Offset(centerX, centerY);
+
+    // Band width tracks the orbit so the treatment holds together from the
+    // compact portrait arc to the wide tablet sweep.
+    final bandWidth = (radius * 0.18).clamp(56.0, 120.0);
+    final outerRadius = radius + bandWidth / 2;
+    final innerRadius = math.max(0.0, radius - bandWidth / 2);
+    final outerRect = Rect.fromCircle(center: center, radius: outerRadius);
+    final innerStop = outerRadius == 0
+        ? 0.0
+        : (innerRadius / outerRadius).clamp(0.0, 1.0);
+
+    // Radial, not linear: the band is a surface, so it reads brightest along
+    // its outer rim and dissolves to nothing toward the orbit's interior. The
+    // leading transparent stop is the difference between a surface and a cut.
+    final bandPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+      ..strokeWidth = outerRadius - innerRadius
+      ..shader = RadialGradient(
+        colors: [
+          AppColors.accent.withValues(alpha: 0.0),
+          if (innerStop > 0) AppColors.accent.withValues(alpha: 0.0),
+          AppColors.accent.withValues(alpha: 0.04),
+          AppColors.accent.withValues(alpha: 0.07),
+        ],
+        stops: [
+          0.0,
+          if (innerStop > 0) innerStop,
+          innerStop + (1 - innerStop) * 0.55,
+          1.0,
+        ],
+      ).createShader(outerRect);
+    canvas.drawCircle(center, (innerRadius + outerRadius) / 2, bandPaint);
 
-    final rect = Rect.fromCircle(
-      center: Offset(centerX, centerY),
-      radius: radius,
-    );
-
-    canvas.drawArc(
-      rect,
-      horizontal ? -math.pi / 2 - math.pi / 2.5 : -math.pi / 2.5,
-      2 * math.pi / 2.5,
-      false,
-      paint,
-    );
+    // A single lit rim defines the edge the shading falls away from. It is
+    // drawn on a full circle for the same reason as the band.
+    final rimPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0
+      ..color = AppColors.accent.withValues(alpha: 0.24);
+    canvas.drawCircle(center, outerRadius - 0.5, rimPaint);
   }
 
   @override

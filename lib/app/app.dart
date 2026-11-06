@@ -912,63 +912,35 @@ class _MainShellState extends ConsumerState<MainShell>
                                             navBarConfigProvider,
                                           );
                                           final order = _getPageOrder(cfg);
-                                          return Padding(
-                                            padding: EdgeInsets.only(
-                                              bottom: nestedBottomInset,
-                                            ),
-                                            child: PageView(
-                                              controller: _pageController,
-                                              physics:
-                                                  const ClampingScrollPhysics(),
-                                              onPageChanged: (position) {
-                                                final currentConfig = ref.read(
-                                                  navBarConfigProvider,
-                                                );
-                                                final currentOrder =
-                                                    _getPageOrder(
-                                                      currentConfig,
-                                                    );
-                                                if (position < 0 ||
-                                                    position >=
-                                                        currentOrder.length) {
-                                                  return;
-                                                }
+                                          return PageView(
+                                            controller: _pageController,
+                                            physics:
+                                                const ClampingScrollPhysics(),
+                                            onPageChanged: (position) {
+                                              final currentConfig = ref.read(
+                                                navBarConfigProvider,
+                                              );
+                                              final currentOrder =
+                                                  _getPageOrder(currentConfig);
+                                              if (position < 0 ||
+                                                  position >=
+                                                      currentOrder.length) {
+                                                return;
+                                              }
+                                              if (_programmaticPageTarget ==
+                                                      null &&
+                                                  position != _lastHapticPage) {
+                                                AppHaptics.selection();
+                                              }
+                                              _lastHapticPage = position;
+                                              final enabledCount = currentConfig
+                                                  .orderedButtons
+                                                  .length;
+                                              if (position >= enabledCount) {
                                                 if (_programmaticPageTarget ==
-                                                        null &&
-                                                    position !=
-                                                        _lastHapticPage) {
-                                                  AppHaptics.selection();
-                                                }
-                                                _lastHapticPage = position;
-                                                final enabledCount =
-                                                    currentConfig
-                                                        .orderedButtons
-                                                        .length;
-                                                if (position >= enabledCount) {
-                                                  if (_programmaticPageTarget ==
-                                                      position) {
-                                                    _programmaticPageTarget =
-                                                        null;
-                                                    final pageIndex =
-                                                        currentOrder[position]
-                                                            .pageIndex;
-                                                    if (ref.read(
-                                                          navigationIndexProvider,
-                                                        ) !=
-                                                        pageIndex) {
-                                                      ref
-                                                          .read(
-                                                            navigationIndexProvider
-                                                                .notifier,
-                                                          )
-                                                          .setIndex(pageIndex);
-                                                    }
-                                                    return;
-                                                  }
-                                                  if (_programmaticPageTarget !=
-                                                      null) {
-                                                    return;
-                                                  }
+                                                    position) {
+                                                  _programmaticPageTarget =
+                                                      null;
                                                   final pageIndex =
                                                       currentOrder[position]
                                                           .pageIndex;
@@ -985,10 +957,9 @@ class _MainShellState extends ConsumerState<MainShell>
                                                   }
                                                   return;
                                                 }
-                                                if (_programmaticPageTarget ==
-                                                    position) {
-                                                  _programmaticPageTarget =
-                                                      null;
+                                                if (_programmaticPageTarget !=
+                                                    null) {
+                                                  return;
                                                 }
                                                 final pageIndex =
                                                     currentOrder[position]
@@ -1004,15 +975,43 @@ class _MainShellState extends ConsumerState<MainShell>
                                                       )
                                                       .setIndex(pageIndex);
                                                 }
-                                              },
-                                              children: order.map((button) {
-                                                return _buildTab(
+                                                return;
+                                              }
+                                              if (_programmaticPageTarget ==
+                                                  position) {
+                                                _programmaticPageTarget = null;
+                                              }
+                                              final pageIndex =
+                                                  currentOrder[position]
+                                                      .pageIndex;
+                                              if (ref.read(
+                                                    navigationIndexProvider,
+                                                  ) !=
+                                                  pageIndex) {
+                                                ref
+                                                    .read(
+                                                      navigationIndexProvider
+                                                          .notifier,
+                                                    )
+                                                    .setIndex(pageIndex);
+                                              }
+                                            },
+                                            children: order.map((button) {
+                                              return Padding(
+                                                padding: EdgeInsets.only(
+                                                  bottom: nestedBottomInset,
+                                                ),
+                                                child: _buildTab(
                                                   tabIndex: button.pageIndex,
                                                   currentIndex: currentIdx,
-                                                  child: _buildScreen(button),
-                                                );
-                                              }).toList(),
-                                            ),
+                                                  child: _buildScreen(
+                                                    button,
+                                                    pathOverflowBottom:
+                                                        nestedBottomInset,
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
                                           );
                                         },
                                       ),
@@ -1027,6 +1026,18 @@ class _MainShellState extends ConsumerState<MainShell>
                         },
                       ),
                     ),
+
+                    // Tab pages are full-height so the orbit ribbon can continue
+                    // behind the bottom overlays. Keep the newly exposed strip
+                    // from paging the PageView; the bars sit above this blocker.
+                    if (nestedBottomInset > 0)
+                      Positioned(
+                        left: useSideNavigation ? railWidth : 0,
+                        right: 0,
+                        bottom: 0,
+                        height: nestedBottomInset,
+                        child: const AbsorbPointer(child: SizedBox.expand()),
+                      ),
 
                     // Wide windows use a side rail; portrait keeps the bottom bar.
                     if (useSideNavigation)
@@ -1123,7 +1134,7 @@ class _MainShellState extends ConsumerState<MainShell>
     return [...config.orderedButtons, ...disabledEssentials];
   }
 
-  Widget _buildScreen(NavBarButton button) {
+  Widget _buildScreen(NavBarButton button, {double pathOverflowBottom = 0}) {
     return switch (button) {
       NavBarButton.menu => MenuScreen(
         key: const ValueKey('menu'),
@@ -1133,6 +1144,7 @@ class _MainShellState extends ConsumerState<MainShell>
       ),
       NavBarButton.songs => SongsScreen(
         key: const ValueKey('songs'),
+        pathOverflowBottom: pathOverflowBottom,
         onNavigationRequested: (index) {
           ref.read(navigationIndexProvider.notifier).setIndex(index);
         },
