@@ -431,16 +431,32 @@ class _OrbitScrollState extends State<OrbitScroll>
           }
           // Phone landscape leaves a much shorter stage than a tablet. Keep
           // the same orbit metaphor, but lift and shrink it so the flanking
-          // cards are not pushed off the bottom of the window.
+          // cards are not pushed off the bottom of the window. The lift is a
+          // runtime fit only; the saved landscape preference is never rewritten.
           final compactHorizontal = horizontal && size.height < 420;
           final orbitRadius = horizontal
-              ? size.width * widget.radiusRatio.clamp(0.6, 1.4)
+              ? size.width * widget.radiusRatio.clamp(0.5, 2.0)
               : size.width * widget.radiusRatio;
           final orbitCenterX = horizontal
               ? size.width / 2
               : size.width * widget.centerOffsetRatio;
+          final landscapeCardHeight = horizontal
+              ? _landscapeCardHeight(size, compactHorizontal)
+              : 0.0;
+          final landscapeCardWidth = horizontal
+              ? _landscapeCardWidth(
+                  size,
+                  landscapeCardHeight,
+                  compactHorizontal,
+                )
+              : 0.0;
           final orbitCenterY = horizontal
-              ? size.height * (compactHorizontal ? 0.44 : 0.48) + orbitRadius
+              ? _landscapeFocalCenterY(
+                  size,
+                  orbitRadius,
+                  landscapeCardHeight,
+                  compactHorizontal,
+                )
               : size.height * widget.centerYRatio;
           _dragExtent = horizontal
               ? (size.width * 0.28).clamp(140.0, 280.0)
@@ -486,6 +502,8 @@ class _OrbitScrollState extends State<OrbitScroll>
                             orbitCenterX,
                             orbitCenterY,
                             orbitRadius,
+                            cardWidth: horizontal ? landscapeCardWidth : null,
+                            cardHeight: horizontal ? landscapeCardHeight : null,
                           ),
                         ),
                       );
@@ -550,27 +568,56 @@ class _OrbitScrollState extends State<OrbitScroll>
     );
   }
 
-  List<Widget> _buildSongItems(double centerX, double centerY, double radius) {
+  /// Unscaled card height for a horizontal (landscape) orbit. The selected
+  /// card is multiplied by [OrbitScroll.selectedScale] at paint time, so this
+  /// value is divided by that scale to keep the focused card fitting the stage.
+  double _landscapeCardHeight(Size size, bool compact) {
+    final cardScale = math.max(1.0, widget.selectedScale);
+    return compact
+        ? size.height * 0.72 / cardScale
+        : math.min(380.0, size.height * 0.85) / cardScale;
+  }
+
+  double _landscapeCardWidth(Size size, double cardHeight, bool compact) {
+    final cardScale = math.max(1.0, widget.selectedScale);
+    final viewportCardWidth =
+        size.width * widget.cardWidthRatio * 0.5 / cardScale;
+    return compact
+        ? math.min(viewportCardWidth, cardHeight * 1.05).clamp(88.0, 280.0)
+        : viewportCardWidth.clamp(160.0, 280.0);
+  }
+
+  /// The horizontal orbit circle sits below the visible arc. `centerYRatio`
+  /// names the focal song's vertical position, then the runtime clamp keeps
+  /// that song's full scaled height inside the stage.
+  double _landscapeFocalCenterY(
+    Size size,
+    double radius,
+    double cardHeight,
+    bool compact,
+  ) {
+    final cardScale = math.max(1.0, widget.selectedScale);
+    final selectedCardHeight = cardHeight * cardScale;
+    final focalRatio = widget.centerYRatio - (compact ? 0.04 : 0.0);
+    final desiredFocalY = size.height * focalRatio;
+    final minFocalY = selectedCardHeight / 2 + 8;
+    final maxFocalY = size.height - selectedCardHeight / 2 - 8;
+    final focalY = maxFocalY < minFocalY
+        ? size.height / 2
+        : desiredFocalY.clamp(minFocalY, maxFocalY);
+    return focalY + radius;
+  }
+
+  List<Widget> _buildSongItems(
+    double centerX,
+    double centerY,
+    double radius, {
+    double? cardWidth,
+    double? cardHeight,
+  }) {
     final List<Widget> items = [];
 
     final horizontal = widget.scrollDirection == Axis.horizontal;
-    final compactHorizontal = horizontal && _layoutSize!.height < 420;
-    final cardScale = math.max(1.0, widget.selectedScale);
-    final viewportCardWidth =
-        (_layoutSize!.width * widget.cardWidthRatio * 0.5) / cardScale;
-    final compactCardHeight = _layoutSize!.height * 0.72 / cardScale;
-    final cardWidth = horizontal
-        ? compactHorizontal
-              ? math
-                    .min(viewportCardWidth, compactCardHeight * 1.05)
-                    .clamp(88.0, 280.0)
-              : viewportCardWidth.clamp(160.0, 280.0)
-        : null;
-    final cardHeight = horizontal
-        ? compactHorizontal
-              ? compactCardHeight
-              : math.min(380.0, _layoutSize!.height * 0.85) / cardScale
-        : null;
 
     final centerIndex = _scrollOffset.value.round();
 
@@ -606,7 +653,7 @@ class _OrbitScrollState extends State<OrbitScroll>
         } else {
           scale = distantScale - (distanceFromCenter - 2.0) * 0.12;
         }
-        scale = scale.clamp(0.0, 1.25);
+        scale = scale.clamp(0.0, math.max(1.25, widget.selectedScale));
 
         if (scale < 0.1) continue;
 
