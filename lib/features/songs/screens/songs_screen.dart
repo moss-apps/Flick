@@ -432,6 +432,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
 
   Widget _buildOrbitView(List<Song> songs, bool swipeActionsEnabled) {
     final orbit = ref.watch(appPreferencesProvider);
+    final landscape = AdaptiveLayout.isWide(MediaQuery.sizeOf(context));
     return GestureDetector(
       onLongPress: () {
         if (_selectionMode) return;
@@ -444,25 +445,34 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         }
       },
       child: OrbitScroll(
-        scrollDirection:
-            MediaQuery.sizeOf(context).width > MediaQuery.sizeOf(context).height
-            ? Axis.horizontal
-            : Axis.vertical,
+        scrollDirection: landscape ? Axis.horizontal : Axis.vertical,
         controller: _orbitScrollController,
         songs: songs,
         selectedIndex: _selectedIndex.clamp(0, songs.length - 1).toInt(),
         swipeActionsEnabled: swipeActionsEnabled && !_selectionMode,
         isSelectionMode: _selectionMode,
         selectedIds: _selectedIds,
-        radiusRatio: orbit.orbitRadiusRatio,
+        radiusRatio: landscape
+            ? orbit.orbitLandscapeRadiusRatio
+            : orbit.orbitRadiusRatio,
         centerOffsetRatio: orbit.orbitCenterOffsetRatio,
-        centerYRatio: orbit.orbitCenterYRatio,
-        itemSpacing: orbit.orbitItemSpacing,
-        selectedScale: orbit.orbitSelectedScale,
-        depth: orbit.orbitDepth,
-        visibleItems: orbit.orbitVisibleItems,
+        centerYRatio: landscape
+            ? orbit.orbitLandscapeCenterYRatio
+            : orbit.orbitCenterYRatio,
+        itemSpacing: landscape
+            ? orbit.orbitLandscapeItemSpacing
+            : orbit.orbitItemSpacing,
+        selectedScale: landscape
+            ? orbit.orbitLandscapeSelectedScale
+            : orbit.orbitSelectedScale,
+        depth: landscape ? orbit.orbitLandscapeDepth : orbit.orbitDepth,
+        visibleItems: landscape
+            ? orbit.orbitLandscapeVisibleItems
+            : orbit.orbitVisibleItems,
         cardArtSize: orbit.orbitCardArtSize,
-        cardWidthRatio: orbit.orbitCardWidthRatio,
+        cardWidthRatio: landscape
+            ? orbit.orbitLandscapeCardWidthRatio
+            : orbit.orbitCardWidthRatio,
         artResolutionMultiplier: orbit.orbitArtResolutionMultiplier,
         showPath: orbit.orbitShowPath,
         showGlow: orbit.orbitShowGlow,
