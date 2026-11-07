@@ -413,9 +413,17 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
           ('lastFm', l10n.lastFm),
           ('listenbrainz', l10n.listenbrainz),
         ], keywords: 'scrobble scrobbling last.fm listenbrainz login'),
-        _section('metadata', l10n.metadata, [
-          ('autoIdentifyUntaggedAlbums', l10n.autoIdentifyUntaggedAlbums),
-        ], keywords: 'apple music album identification tags'),
+        _section(
+          'metadata',
+          l10n.metadata,
+          [
+            ('onlineArtistAlbumInformation', l10n.onlineArtistAlbumInformation),
+            ('autoIdentifyUntaggedAlbums', l10n.autoIdentifyUntaggedAlbums),
+          ],
+          keywords:
+              'apple music artist information biography similar artists '
+              'top songs album notes portrait identification tags',
+        ),
       ],
     ),
     for (var tab = 0; tab < 4; tab++)
