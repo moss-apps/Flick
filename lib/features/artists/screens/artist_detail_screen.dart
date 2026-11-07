@@ -155,21 +155,30 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
     await _applyAppleMusicArtistArt();
   }
 
+  Future<bool> _pageInfoEnabled() async {
+    final cached = ref.read(appleMusicPageInfoEnabledProvider).value;
+    if (cached != null) return cached;
+    return ref.read(appleMusicSettingsProvider).pageInfoEnabled();
+  }
+
   /// Last-resort artist image: the Apple Music page image, downloaded once and
   /// saved to the artist repository so it stays offline afterwards.
   Future<void> _applyAppleMusicArtistArt() async {
     if (_artistArt != null && _artistArt!.isNotEmpty) return;
+    if (!await _pageInfoEnabled() || !mounted) return;
 
     final data = await ref.read(
       appleMusicArtistProvider(widget.artistName).future,
     );
     final imageUrl = data?.info?.imageUrl;
-    if (!mounted || imageUrl == null || imageUrl.isEmpty) return;
+    if (!await _pageInfoEnabled() || !mounted) return;
+    if (imageUrl == null || imageUrl.isEmpty) return;
 
-    final bytes = await AppleMusicMetadataService.instance.fetchArtworkBytes(
-      imageUrl,
-    );
-    if (!mounted || bytes == null) return;
+    final bytes = await ref
+        .read(appleMusicMetadataServiceProvider)
+        .fetchArtworkBytes(imageUrl);
+    // The toggle may have been switched off while the portrait was in flight.
+    if (!await _pageInfoEnabled() || !mounted || bytes == null) return;
 
     try {
       final support = await getApplicationSupportDirectory();
@@ -178,7 +187,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
       final name = widget.artistName.hashCode.toRadixString(16);
       final file = File('${dir.path}/$name.jpg');
       await file.writeAsBytes(bytes);
-      if (!mounted) return;
+      if (!await _pageInfoEnabled() || !mounted) return;
       setState(() {
         _artistArt = file.path;
         _artistArtSourcePath = null;
@@ -426,9 +435,11 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
   }
 
   void _showMore() {
-    final appleMusic = ref
-        .read(appleMusicArtistProvider(widget.artistName))
-        .value;
+    final pageInfoEnabled =
+        ref.read(appleMusicPageInfoEnabledProvider).value ?? true;
+    final appleMusic = pageInfoEnabled
+        ? ref.read(appleMusicArtistProvider(widget.artistName)).value
+        : null;
     DetailMoreSheet.show(
       context,
       items: [
@@ -444,17 +455,18 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
           label: l10n.englishForFilipino.addToPlaylist,
           onTap: () => AddToPlaylistSheet.showSongs(context, widget.songs),
         ),
-        if (appleMusic != null)
+        if (pageInfoEnabled && appleMusic != null)
           DetailMoreSheetItem(
             icon: LucideIcons.externalLink,
             label: l10n.englishForFilipino.openInAppleMusic,
             onTap: () => _openAppleMusic(_artistAppleMusicUri(appleMusic)),
           ),
-        DetailMoreSheetItem(
-          icon: LucideIcons.refreshCw,
-          label: l10n.englishForFilipino.refreshAppleMusic,
-          onTap: _refreshAppleMusic,
-        ),
+        if (pageInfoEnabled)
+          DetailMoreSheetItem(
+            icon: LucideIcons.refreshCw,
+            label: l10n.englishForFilipino.refreshAppleMusic,
+            onTap: _refreshAppleMusic,
+          ),
         DetailMoreSheetItem(
           icon: LucideIcons.moonStar,
           label: l10n.englishForFilipino.sleepTimer,
@@ -588,9 +600,12 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen>
       builder: (context, animatedBg, _) {
       final resolvedBg = animatedBg ?? AppColors.background;
       final prefs = ref.watch(appPreferencesProvider);
-      final appleMusic = ref
+      final pageInfoEnabled =
+          ref.watch(appleMusicPageInfoEnabledProvider).value ?? true;
+      final remoteArtist = ref
           .watch(appleMusicArtistProvider(widget.artistName))
           .value;
+      final appleMusic = pageInfoEnabled ? remoteArtist : null;
       final appleBio = appleMusic?.info?.biography?.trim();
       final similarArtists =
           appleMusic?.info?.similarArtists ??
