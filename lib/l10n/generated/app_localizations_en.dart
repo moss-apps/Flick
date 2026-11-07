@@ -5363,6 +5363,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingWelcomeTitle => 'Welcome to\nFlick Player';
 
   @override
+  String get onlineArtistAlbumInformation =>
+      'Online artist & album information';
+
+  @override
   String get onlineResults => 'Online Results';
 
   @override
@@ -6879,6 +6883,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get showAlbumArtworkOnTheMini =>
       'Show album artwork on the mini player';
+
+  @override
+  String get showAppleMusicBiographiesRecommendationsAnd =>
+      'Show Apple Music biographies, similar artists, top songs, album notes, and artist portraits.';
 
   @override
   String get showArtist => 'Show artist';

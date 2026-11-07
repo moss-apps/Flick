@@ -7079,6 +7079,10 @@
   "@onboardingWelcomeTitle": {
     "description": "lib/features/onboarding/screens/onboarding_screen.dart:30"
   },
+  "onlineArtistAlbumInformation": "Online artist & album information",
+  "@onlineArtistAlbumInformation": {
+    "description": "lib/features/settings/widgets/apple_music_settings_tile.dart"
+  },
   "onlineResults": "Online Results",
   "@onlineResults": {
     "description": "lib/features/songs/widgets/album_art_picker_bottom_sheet.dart:365"
@@ -9061,6 +9065,10 @@
   "showAlbumArtworkOnTheMini": "Show album artwork on the mini player",
   "@showAlbumArtworkOnTheMini": {
     "description": "lib/features/settings/screens/widget_settings_screen.dart:201"
+  },
+  "showAppleMusicBiographiesRecommendationsAnd": "Show Apple Music biographies, similar artists, top songs, album notes, and artist portraits.",
+  "@showAppleMusicBiographiesRecommendationsAnd": {
+    "description": "lib/features/settings/widgets/apple_music_settings_tile.dart"
   },
   "showArtist": "Show artist",
   "@showArtist": {
