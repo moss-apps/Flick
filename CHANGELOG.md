@@ -8,6 +8,7 @@
 - **Calmer motion and chrome** — the staggered entrance skips to the final frame under reduced motion, decorative art is excluded from the accessibility tree, and route-scoped system-bar styling keeps icon contrast correct after light screens are popped.
 
 ### Settings & Navigation
+- **Online artist and album information toggle** — Settings → Integrations → Metadata can hide Apple Music biographies, similar artists, top songs, album notes, and new artist-portrait downloads on artist and album pages. The preference is independent of post-scan album identification, and existing saved portraits, local descriptions, and library artwork stay untouched.
 - **Bottom Bar Width** — a new 70–100% slider in Settings → Interface → Bottom Bar scales the navigation bar inward from its usual margins and centers it, while keeping each item at least 44 dp; reset returns to full width.
 - **Mini player as its own card** — the mini player now always sits above the frosted navigation bar instead of merging into it, aligns to the standard bar width, and keeps its gradient, border, and shadow in separated and collapsed layouts.
 

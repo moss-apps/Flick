@@ -367,11 +367,15 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
   }
 
   void _showMore() {
-    final appleMusic = ref
-        .read(
-          appleMusicAlbumProvider((widget.albumName, widget.albumArtist)),
-        )
-        .value;
+    final pageInfoEnabled =
+        ref.read(appleMusicPageInfoEnabledProvider).value ?? true;
+    final appleMusic = pageInfoEnabled
+        ? ref
+              .read(
+                appleMusicAlbumProvider((widget.albumName, widget.albumArtist)),
+              )
+              .value
+        : null;
     DetailMoreSheet.show(
       context,
       items: [
@@ -397,17 +401,18 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
             initialAlbum: widget.albumName,
           ),
         ),
-        if (appleMusic != null)
+        if (pageInfoEnabled && appleMusic != null)
           DetailMoreSheetItem(
             icon: LucideIcons.externalLink,
             label: l10n.englishForFilipino.openInAppleMusic,
             onTap: () => _openAppleMusic(_albumAppleMusicUri(appleMusic)),
           ),
-        DetailMoreSheetItem(
-          icon: LucideIcons.refreshCw,
-          label: l10n.englishForFilipino.refreshAppleMusic,
-          onTap: _refreshAppleMusic,
-        ),
+        if (pageInfoEnabled)
+          DetailMoreSheetItem(
+            icon: LucideIcons.refreshCw,
+            label: l10n.englishForFilipino.refreshAppleMusic,
+            onTap: _refreshAppleMusic,
+          ),
         DetailMoreSheetItem(
           icon: LucideIcons.moonStar,
           label: l10n.englishForFilipino.sleepTimer,
@@ -502,11 +507,14 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
       builder: (context, animatedBg, _) {
         final resolvedBg = animatedBg ?? AppColors.background;
         final prefs = ref.watch(appPreferencesProvider);
-        final appleMusic = ref
+        final pageInfoEnabled =
+            ref.watch(appleMusicPageInfoEnabledProvider).value ?? true;
+        final remoteAlbum = ref
             .watch(
               appleMusicAlbumProvider((widget.albumName, widget.albumArtist)),
             )
             .value;
+        final appleMusic = pageInfoEnabled ? remoteAlbum : null;
         final albumNotes = appleMusic?.notes?.trim();
         return Stack(
           children: [

@@ -57,6 +57,117 @@ final class AppleMusicMetadataServiceProvider
 String _$appleMusicMetadataServiceHash() =>
     r'2ba21aa8053b9fe91c8c014b245bebf32b2a3dab';
 
+@ProviderFor(appleMusicSettings)
+final appleMusicSettingsProvider = AppleMusicSettingsProvider._();
+
+final class AppleMusicSettingsProvider
+    extends
+        $FunctionalProvider<
+          AppleMusicSettings,
+          AppleMusicSettings,
+          AppleMusicSettings
+        >
+    with $Provider<AppleMusicSettings> {
+  AppleMusicSettingsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'appleMusicSettingsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$appleMusicSettingsHash();
+
+  @$internal
+  @override
+  $ProviderElement<AppleMusicSettings> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AppleMusicSettings create(Ref ref) {
+    return appleMusicSettings(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AppleMusicSettings value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AppleMusicSettings>(value),
+    );
+  }
+}
+
+String _$appleMusicSettingsHash() =>
+    r'9503a051107dd9de72c031eed153abdaa98269f7';
+
+/// Whether artist and album pages may load Apple Music page information.
+/// Keep-alive so the persisted preference is read once and shared by every
+/// open detail page and the settings toggle.
+
+@ProviderFor(AppleMusicPageInfoEnabledNotifier)
+final appleMusicPageInfoEnabledProvider =
+    AppleMusicPageInfoEnabledNotifierProvider._();
+
+/// Whether artist and album pages may load Apple Music page information.
+/// Keep-alive so the persisted preference is read once and shared by every
+/// open detail page and the settings toggle.
+final class AppleMusicPageInfoEnabledNotifierProvider
+    extends $AsyncNotifierProvider<AppleMusicPageInfoEnabledNotifier, bool> {
+  /// Whether artist and album pages may load Apple Music page information.
+  /// Keep-alive so the persisted preference is read once and shared by every
+  /// open detail page and the settings toggle.
+  AppleMusicPageInfoEnabledNotifierProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'appleMusicPageInfoEnabledProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() =>
+      _$appleMusicPageInfoEnabledNotifierHash();
+
+  @$internal
+  @override
+  AppleMusicPageInfoEnabledNotifier create() =>
+      AppleMusicPageInfoEnabledNotifier();
+}
+
+String _$appleMusicPageInfoEnabledNotifierHash() =>
+    r'46b6964c43c7874f976f0eea5377dc9edcbd25ed';
+
+/// Whether artist and album pages may load Apple Music page information.
+/// Keep-alive so the persisted preference is read once and shared by every
+/// open detail page and the settings toggle.
+
+abstract class _$AppleMusicPageInfoEnabledNotifier
+    extends $AsyncNotifier<bool> {
+  FutureOr<bool> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<bool>, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<bool>, bool>,
+              AsyncValue<bool>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}
+
 /// Apple Music metadata for an artist page. Auto-disposes when the page
 /// closes; durable caching lives in [AppleMusicMetadataService].
 
@@ -111,7 +222,7 @@ final class AppleMusicArtistNotifierProvider
 }
 
 String _$appleMusicArtistNotifierHash() =>
-    r'8ac727b9403b1a687fffeda9de0f249d557e6743';
+    r'b1e56596d9893d13855ba17ca517bf7e0c69a583';
 
 /// Apple Music metadata for an artist page. Auto-disposes when the page
 /// closes; durable caching lives in [AppleMusicMetadataService].
@@ -222,7 +333,7 @@ final class AppleMusicAlbumNotifierProvider
 }
 
 String _$appleMusicAlbumNotifierHash() =>
-    r'0575473b3d0b18f286ea326914c98e96f832d90a';
+    r'52f048d76d305e098089c2ea3d3d39b5cb2ac23a';
 
 /// Apple Music metadata for an album page, keyed by `(album, artist)`.
 

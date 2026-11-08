@@ -5420,6 +5420,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String get onboardingWelcomeTitle => 'Kumusta! Greetings from Flick!';
 
   @override
+  String get onlineArtistAlbumInformation =>
+      'Impormasyon sa artist at album online';
+
+  @override
   String get onlineResults => 'Mga resulta online';
 
   @override
@@ -6957,6 +6961,10 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get showAlbumArtworkOnTheMini =>
       'Ipakita ang larawan ng album sa mini player';
+
+  @override
+  String get showAppleMusicBiographiesRecommendationsAnd =>
+      'Ipakita ang talambuhay, katulad na artist, nangungunang kanta, tala ng album, at larawan ng artist mula sa Apple Music.';
 
   @override
   String get showArtist => 'Ipakita ang kumanta';

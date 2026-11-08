@@ -5010,6 +5010,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onboardingWelcomeTitle => '欢迎使用\nFlick 播放器';
 
   @override
+  String get onlineArtistAlbumInformation => '在线歌手与专辑信息';
+
+  @override
   String get onlineResults => '在线结果';
 
   @override
@@ -6410,6 +6413,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get showAlbumArtworkOnTheMini => '在迷你播放器上显示专辑封面';
+
+  @override
+  String get showAppleMusicBiographiesRecommendationsAnd =>
+      '显示 Apple Music 的简介、相似歌手、热门歌曲、专辑介绍和歌手照片。';
 
   @override
   String get showArtist => '显示艺术家';

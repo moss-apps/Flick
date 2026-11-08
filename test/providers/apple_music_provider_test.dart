@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flick/providers/apple_music_provider.dart';
 import 'package:flick/services/apple_music/apple_music_cache.dart';
@@ -52,9 +54,12 @@ const _albumNotesHtml =
     '<script id="serialized-server-data">{"data":[{"data":{"sections":[{"items":[{"modalPresentationDescriptor":{"paragraphText":"A trip hop landmark."}}]}]}}]}</script>';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Directory cacheDir;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     cacheDir = await Directory.systemTemp.createTemp('apple_music_provider_');
   });
 
@@ -70,9 +75,7 @@ void main() {
       cache: AppleMusicCache.forDirectory(cacheDir),
     );
     return ProviderContainer(
-      overrides: [
-        appleMusicMetadataServiceProvider.overrideWithValue(service),
-      ],
+      overrides: [appleMusicMetadataServiceProvider.overrideWithValue(service)],
     );
   }
 
@@ -226,4 +229,177 @@ void main() {
     expect(data?.notes, 'A trip hop landmark.');
     expect(data?.tracks.single.trackName, 'Mysterons');
   });
+
+  test('page information disabled: build makes no requests', () async {
+    SharedPreferences.setMockInitialValues({
+      'apple_music_page_info_enabled': false,
+    });
+    var requests = 0;
+    final client = MockClient((request) async {
+      requests++;
+      return _json({}, 404);
+    });
+    final container = containerWith(client);
+    addTearDown(container.dispose);
+
+    final provider = appleMusicArtistProvider('Portishead');
+    final sub = container.listen(provider, (_, __) {});
+    addTearDown(sub.close);
+
+    expect(await container.read(provider.future), isNull);
+    expect(requests, 0);
+  });
+
+  test('album page information disabled: build makes no requests', () async {
+    SharedPreferences.setMockInitialValues({
+      'apple_music_page_info_enabled': false,
+    });
+    var requests = 0;
+    final client = MockClient((request) async {
+      requests++;
+      return _json({}, 404);
+    });
+    final container = containerWith(client);
+    addTearDown(container.dispose);
+
+    final provider = appleMusicAlbumProvider(('Dummy', 'Portishead'));
+    final sub = container.listen(provider, (_, __) {});
+    addTearDown(sub.close);
+
+    expect(await container.read(provider.future), isNull);
+    expect(requests, 0);
+  });
+
+  test(
+    'disabling page information hides cached data and blocks refresh',
+    () async {
+      var requests = 0;
+      final client = MockClient((request) async {
+        requests++;
+        if (request.url.path == '/search') {
+          return _json({
+            'resultCount': 1,
+            'results': [_artistResult()],
+          });
+        }
+        if (request.url.path == '/lookup') {
+          return _json({
+            'resultCount': 1,
+            'results': [_trackResult('Glory Box')],
+          });
+        }
+        return _json({}, 404);
+      });
+      final container = containerWith(client);
+      addTearDown(container.dispose);
+
+      final provider = appleMusicArtistProvider('Portishead');
+      final sub = container.listen(provider, (_, __) {});
+      addTearDown(sub.close);
+
+      await container.read(provider.future);
+      final loadedRequests = requests;
+      expect(container.read(provider).value, isNotNull);
+
+      await container
+          .read(appleMusicPageInfoEnabledProvider.notifier)
+          .setEnabled(false);
+      expect(await container.read(provider.future), isNull);
+
+      final updated = await container.read(provider.notifier).refresh();
+      expect(updated, isFalse);
+      expect(requests, loadedRequests);
+      expect(container.read(provider).value, isNull);
+    },
+  );
+
+  test('re-enabling page information resumes from cache', () async {
+    var requests = 0;
+    final client = MockClient((request) async {
+      requests++;
+      if (request.url.path == '/search') {
+        return _json({
+          'resultCount': 1,
+          'results': [_artistResult()],
+        });
+      }
+      if (request.url.path == '/lookup') {
+        return _json({
+          'resultCount': 1,
+          'results': [_trackResult('Glory Box')],
+        });
+      }
+      return _json({}, 404);
+    });
+    final container = containerWith(client);
+    addTearDown(container.dispose);
+
+    final provider = appleMusicArtistProvider('Portishead');
+    final sub = container.listen(provider, (_, __) {});
+    addTearDown(sub.close);
+
+    await container.read(provider.future);
+    final loadedRequests = requests;
+
+    final settings = container.read(appleMusicPageInfoEnabledProvider.notifier);
+    await settings.setEnabled(false);
+    expect(await container.read(provider.future), isNull);
+
+    await settings.setEnabled(true);
+    final data = await container.read(provider.future);
+    expect(data?.topSongs.single.trackName, 'Glory Box');
+    expect(requests, loadedRequests);
+  });
+
+  test(
+    'disabling page information during refresh discards the late result',
+    () async {
+      final pending = Completer<http.Response>();
+      var searchCalls = 0;
+      final client = MockClient((request) async {
+        if (request.url.path == '/search') {
+          searchCalls++;
+          if (searchCalls > 1) return pending.future;
+          return _json({
+            'resultCount': 1,
+            'results': [_artistResult()],
+          });
+        }
+        if (request.url.path == '/lookup') {
+          return _json({
+            'resultCount': 1,
+            'results': [_trackResult('Glory Box')],
+          });
+        }
+        return _json({}, 404);
+      });
+      final container = containerWith(client);
+      addTearDown(container.dispose);
+
+      final provider = appleMusicArtistProvider('Portishead');
+      final sub = container.listen(provider, (_, __) {});
+      addTearDown(sub.close);
+
+      await container.read(provider.future);
+      final refresh = container.read(provider.notifier).refresh();
+      for (var i = 0; i < 100 && searchCalls < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+      expect(searchCalls, 2);
+
+      await container
+          .read(appleMusicPageInfoEnabledProvider.notifier)
+          .setEnabled(false);
+      pending.complete(
+        _json({
+          'resultCount': 1,
+          'results': [_artistResult()],
+        }),
+      );
+
+      expect(await refresh, isFalse);
+      expect(await container.read(provider.future), isNull);
+      expect(container.read(provider).value, isNull);
+    },
+  );
 }

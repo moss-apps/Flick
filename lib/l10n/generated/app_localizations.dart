@@ -9166,6 +9166,12 @@ abstract class AppLocalizations {
   /// **'Welcome to\nFlick Player'**
   String get onboardingWelcomeTitle;
 
+  /// lib/features/settings/widgets/apple_music_settings_tile.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Online artist & album information'**
+  String get onlineArtistAlbumInformation;
+
   /// lib/features/songs/widgets/album_art_picker_bottom_sheet.dart:365
   ///
   /// In en, this message translates to:
@@ -11757,6 +11763,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show album artwork on the mini player'**
   String get showAlbumArtworkOnTheMini;
+
+  /// lib/features/settings/widgets/apple_music_settings_tile.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Show Apple Music biographies, similar artists, top songs, album notes, and artist portraits.'**
+  String get showAppleMusicBiographiesRecommendationsAnd;
 
   /// lib/features/player/widgets/player_layout_sheet.dart:256
   ///
