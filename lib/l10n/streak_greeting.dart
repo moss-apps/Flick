@@ -9,10 +9,19 @@ const taglishStreakGreetings = <String>[
   'Handa mo na earphones mo ulit. Hahaha.',
   'Hobby mo talaga music, maem?',
   'Share your music with?',
-  'Baka mamaya puro ka relapse ha?',
 ];
 
-String randomTaglishStreakGreeting([Random? random]) {
+/// Template for the day-count greeting. The popup fills in the active streak.
+const taglishStreakDaysGreetingTemplate = '{days} days na ha? Keep it up!';
+
+String taglishStreakDaysGreeting(int streak) =>
+    taglishStreakDaysGreetingTemplate.replaceFirst('{days}', '$streak');
+
+String randomTaglishStreakGreeting(int streak, [Random? random]) {
   final source = random ?? Random();
-  return taglishStreakGreetings[source.nextInt(taglishStreakGreetings.length)];
+  final index = source.nextInt(taglishStreakGreetings.length + 1);
+  if (index == taglishStreakGreetings.length) {
+    return taglishStreakDaysGreeting(streak);
+  }
+  return taglishStreakGreetings[index];
 }

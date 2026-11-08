@@ -1,4 +1,44 @@
 {
+  "tourCore": "Find & play music",
+  "tourLibrary": "Library tools",
+  "tourPlayer": "Player & queue",
+  "tourAppearance": "Make Flick yours",
+  "tourAudio": "Audio & output",
+  "tourGuides": "Explore guides",
+  "tourPickerBody": "Choose a short guide. Try the real controls, or continue at your own pace.",
+  "tourWelcomeTitle": "Your music, one step away",
+  "tourWelcomeBody": "Find a song, play it, and meet your player. You can use the real controls, continue without trying them, or leave at any time.",
+  "tourAddBody": "No music yet? Open Library settings and choose Add music folder. Scanning may take a while. Cancel, deny permission, or continue without adding anything — you can return later.",
+  "tourSearchBody": "Type a song or artist into the highlighted search field. Search lives in its own tab when you add it to your navigation. Continue if you would rather browse.",
+  "tourPlayTitle": "Pick something to play",
+  "tourPlayBody": "Tap a song you want to hear. The guide moves on when playback starts. Nothing starts automatically; if music is unavailable or playback fails, you can still continue.",
+  "tourMiniBody": "The mini player follows your music. Tap it to open the full player, or use Open player below. A song must be loaded first; you can continue without one.",
+  "tourFullBody": "Use the player to pause, skip, and seek. Queue, lyrics, and other actions depend on your chosen layout. The guide will not change your volume, queue, or audio settings.",
+  "tourFinishTitle": "Take it from here",
+  "tourFinishBody": "Done closes this guide. Explore another guide whenever you like, or find them again in Settings → App info → Interactive Tutorial.",
+  "tourSortBody": "Open the highlighted sort control to explore sorting and filters. Opening it is enough for this guide; no need to change your library view.",
+  "tourActionsBody": "Long-press a song for its actions, including Play next, queue, and song information. Opening the menu does not change your queue. Continue if there are no songs yet.",
+  "tourPlaylistsBody": "Find Playlists in the library menu or your customized navigation. Use a song’s actions to add it to a playlist. Read the playlist guide for the full workflow.",
+  "tourQueueBody": "Open Queue from the full player to see upcoming songs. Its button depends on your layout. You can look without reordering or removing anything.",
+  "tourLyricsBody": "Open Lyrics in the full player if your layout includes it. Lyrics are not available for every song. Continue or read the manual if the control or lyrics are unavailable.",
+  "tourNavBody": "Long-press the navigation bar to customize it, or open Navigation settings below. Choose your own tabs and order; this guide never changes them for you.",
+  "tourPlayerLayoutTitle": "A player that fits you",
+  "tourLayoutBody": "Explore Player layout to choose how your player looks and which actions it shows. Changes are optional and yours to make.",
+  "tourOutputTitle": "Know your output",
+  "tourOutputBody": "Audio settings show the available output paths. USB DAC and device hi-res support depend on connected hardware. This guide does not enable a mode or promise bit-perfect output; check the player’s output indicator.",
+  "tourDspTitle": "Shape sound deliberately",
+  "tourDspBody": "The equalizer and other DSP tools are optional. Processing changes the signal and can conflict with bit-perfect goals. Explore the controls without enabling anything, and check the manual before changing your audio path.",
+  "tourNotNow": "Not now",
+  "tourEnd": "End tour",
+  "tourStart": "Start tour",
+  "tourContinue": "Continue",
+  "tourUseCurrent": "Use the current song",
+  "tourReadMore": "Read this in the manual",
+  "tourOpenNavigation": "Open Navigation settings",
+  "tourOpenLayout": "Open Player layout",
+  "tourOpenAudio": "Open Audio settings",
+  "tourActionConfirmed": "Got it. On to the next step.",
+  "tourUnavailable": "Control not visible? You can continue, or use the manual below.",
   "filipinoDonationNote": "Thank you for supporting Flick.",
   "@filipinoDonationNote": {
     "description": "Personal note shown only in the Taglish locale, above the donation cards."
@@ -3053,10 +3093,6 @@
   "@customWidth": {
     "description": "lib/features/settings/widgets/mini_player_customization.dart:90"
   },
-  "customizeAudioDisplayNavigationAnd": "Customize audio, display, navigation, and integrations.",
-  "@customizeAudioDisplayNavigationAnd": {
-    "description": "lib/providers/tutorial_provider.dart:44"
-  },
   "customizeBottomBar": "Customize Bottom Bar",
   "@customizeBottomBar": {
     "description": "lib/widgets/navigation/flick_nav_bar.dart:463"
@@ -5707,10 +5743,6 @@
   "@letOboePickTheBestApi": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:662"
   },
-  "letSTakeAQuickTour": "Let's take a quick tour of your new music player.",
-  "@letSTakeAQuickTour": {
-    "description": "lib/providers/tutorial_provider.dart:8"
-  },
   "letTheSystemDecideBestBattery": "Let the system decide — best battery life",
   "@letTheSystemDecideBestBattery": {
     "description": "lib/features/settings/screens/interface_settings_screen.dart:212"
@@ -8217,10 +8249,6 @@
   "@renamePreset": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:437"
   },
-  "reorderFilterAndShuffleFromThis": "Reorder, filter, and shuffle from this header.",
-  "@reorderFilterAndShuffleFromThis": {
-    "description": "lib/providers/tutorial_provider.dart:28"
-  },
   "repeat": "Repeat: {arg1}",
   "@repeat": {
     "description": "lib/features/player/widgets/player_controls.dart:218",
@@ -8772,10 +8800,6 @@
   "@search": {
     "description": "lib/providers/tutorial_provider.dart:21"
   },
-  "searchAcrossSongsArtistsAndAlbums": "Search across songs, artists, and albums instantly.",
-  "@searchAcrossSongsArtistsAndAlbums": {
-    "description": "lib/providers/tutorial_provider.dart:22"
-  },
   "searchAgain": "Search Again",
   "@searchAgain": {
     "description": "lib/features/albums/widgets/identify_album_sheet.dart:241"
@@ -9263,10 +9287,6 @@
   "shownWhenThereIsRoomBeside": "Shown when there is room beside the controls",
   "@shownWhenThereIsRoomBeside": {
     "description": "lib/features/settings/widgets/mini_player_customization.dart:153"
-  },
-  "showsWhatSPlayingTapTo": "Shows what's playing. Tap to open the full player.",
-  "@showsWhatSPlayingTapTo": {
-    "description": "lib/providers/tutorial_provider.dart:39"
   },
   "shuffle": "Shuffle",
   "@shuffle": {
@@ -9878,10 +9898,6 @@
       }
     }
   },
-  "songsTab": "Songs Tab",
-  "@songsTab": {
-    "description": "lib/providers/tutorial_provider.dart:16"
-  },
   "songsU2022Albums": "{arg1} songs • {uniqueAlbums} albums",
   "@songsU2022Albums": {
     "description": "lib/features/artists/screens/artists_screen.dart:675",
@@ -10316,25 +10332,13 @@
   "@tapEditTextTopRight": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:661"
   },
-  "tapIconsToSwitchTabsLong": "Tap icons to switch tabs. Long-press to customize the bar.",
-  "@tapIconsToSwitchTabsLong": {
-    "description": "lib/providers/tutorial_provider.dart:12"
-  },
   "tapTheHeartIconOnAny": "Tap the heart icon on any song\nto add it to your favorites",
   "@tapTheHeartIconOnAny": {
     "description": "lib/features/favorites/screens/favorites_screen.dart:361"
   },
-  "tapTheMiniPlayerForWaveform": "Tap the mini player for waveform seekbar, EQ, lyrics, and visualizer.",
-  "@tapTheMiniPlayerForWaveform": {
-    "description": "lib/providers/tutorial_provider.dart:50"
-  },
   "tapToInspect12602280Png": "Tap to inspect · 1260 × 2280 PNG",
   "@tapToInspect12602280Png": {
     "description": "lib/features/recap/screens/replay_studio_screen.dart:450"
-  },
-  "tapToPlayLongPressFor": "Tap to play, long-press for options (queue, play next, info).",
-  "@tapToPlayLongPressFor": {
-    "description": "lib/providers/tutorial_provider.dart:34"
   },
   "tapToPreview": "Tap to preview",
   "@tapToPreview": {
@@ -10394,10 +10398,6 @@
   "textSize2": "Text Size",
   "@textSize2": {
     "description": "lib/features/settings/screens/player_layout_settings_screen.dart:132"
-  },
-  "thatSTheTour": "That's the tour!",
-  "@thatSTheTour": {
-    "description": "lib/providers/tutorial_provider.dart:53"
   },
   "theAppDoesNotKnowinglyCollect": "The app does not knowingly collect any information from anyone, regardless of age.",
   "@theAppDoesNotKnowinglyCollect": {
@@ -11516,10 +11516,6 @@
   "@waitingForPlayback": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1110"
   },
-  "wantEveryControlDocumentedOpenThe": "Want every control documented? Open the in-app Manual anytime from Settings → Help & Manual.",
-  "@wantEveryControlDocumentedOpenThe": {
-    "description": "lib/providers/tutorial_provider.dart:55"
-  },
   "was": "was: {arg1}",
   "@was": {
     "description": "lib/features/albums/widgets/identify_album_sheet.dart:537",
@@ -11585,10 +11581,6 @@
   "welcomeToFlick": "Welcome to Flick!",
   "@welcomeToFlick": {
     "description": "lib/features/menu/screens/menu_screen.dart:305"
-  },
-  "welcomeToFlick2": "Welcome to Flick",
-  "@welcomeToFlick2": {
-    "description": "lib/providers/tutorial_provider.dart:7"
   },
   "whatItShows": "What it shows",
   "@whatItShows": {
@@ -11895,10 +11887,6 @@
   "yourWeeklyRecapAppearsOnceYou": "Your weekly recap appears once you start listening this week.",
   "@yourWeeklyRecapAppearsOnceYou": {
     "description": "lib/data/repositories/recently_played_repository.dart:35"
-  },
-  "yourWholeLibraryLivesHereTap": "Your whole library lives here. Tap any song to play it.",
-  "@yourWholeLibraryLivesHereTap": {
-    "description": "lib/providers/tutorial_provider.dart:17"
   },
   "yourYearlyRecapFillsInAs": "Your yearly recap fills in as you keep listening throughout the year.",
   "@yourYearlyRecapFillsInAs": {

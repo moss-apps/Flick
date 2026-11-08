@@ -39,13 +39,14 @@ class _StreakPopupState extends State<StreakPopup>
   late final AnimationController _pulse;
   late final AnimationController _flame;
 
-  /// One supplied Taglish greeting per opening. Kept for English and Chinese
-  /// too, but only shown when the copy role is Filipino.
-  late final String _taglishGreeting = randomTaglishStreakGreeting();
+  /// One greeting per opening. Kept for English and Chinese too, but only
+  /// shown when the copy role is Filipino.
+  late final String _taglishGreeting;
 
   @override
   void initState() {
     super.initState();
+    _taglishGreeting = randomTaglishStreakGreeting(widget.streak);
     _reveal = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
