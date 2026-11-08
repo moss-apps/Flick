@@ -130,6 +130,7 @@ class NavigationHelper {
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             const QueueScreen(),
+        settings: const RouteSettings(name: '/queue'),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           if (AppConstants.animationNormal == Duration.zero) {
             return child;

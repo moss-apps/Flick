@@ -952,6 +952,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
+        if (ref.read(tutorialProvider).active) {
+          ref.read(tutorialProvider.notifier).skip();
+          return;
+        }
         _close(context);
       },
       child: Scaffold(

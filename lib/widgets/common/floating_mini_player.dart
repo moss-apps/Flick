@@ -122,6 +122,7 @@ class _FloatingMiniPlayerState extends ConsumerState<FloatingMiniPlayer>
           },
           transitionDuration: const Duration(milliseconds: 300),
           opaque: false,
+          settings: const RouteSettings(name: '/full_player'),
           barrierColor: Colors.black,
         ),
       );

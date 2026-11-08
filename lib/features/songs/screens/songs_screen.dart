@@ -243,6 +243,11 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                               _selectedIndex = 0;
                               _lastSyncedSong = null;
                             });
+                            if (value.trim().isNotEmpty) {
+                              ref
+                                  .read(tutorialProvider.notifier)
+                                  .onAction(TutorialAction.searchUsed);
+                            }
                           },
                         ),
                       ),
@@ -253,112 +258,117 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
 
                 // Content based on async state
                 Expanded(
-                  child: songsAsync.when(
-                    loading: () => _buildLoadingState(),
-                    error: (error, stack) => _buildErrorState(error),
-                    data: (songsState) {
-                      final isAlbumMode =
-                          songsState.sortOption == SongSortOption.album;
-                      final allSongs = songsState.sortedSongs;
-                      var songs = allSongs;
-                      if (_cachedSongs != songsState.songs) {
-                        _cachedSongs = songsState.songs;
-                        _lastSyncedSong = null;
-                      }
-
-                      if (_searchQuery.isNotEmpty) {
-                        songs = songs.where((song) {
-                          return song.title.toLowerCase().contains(
-                                _searchQuery,
-                              ) ||
-                              song.artist.toLowerCase().contains(_searchQuery);
-                        }).toList();
-                      }
-                      _cachedDisplaySongs = songs;
-
-                      if (!isAlbumMode) {
-                        _wasInAlbumMode = false;
-                        final sig =
-                            '${songs.length}:${songs.isNotEmpty ? songs.first.id : ''}';
-                        if (sig != _listPaginationSignature) {
-                          _listPaginationSignature = sig;
-                          _resetListPagination();
+                  child: TutorialTargetAnchor(
+                    target: TutorialTarget.songLibrary,
+                    child: songsAsync.when(
+                      loading: () => _buildLoadingState(),
+                      error: (error, stack) => _buildErrorState(error),
+                      data: (songsState) {
+                        final isAlbumMode =
+                            songsState.sortOption == SongSortOption.album;
+                        final allSongs = songsState.sortedSongs;
+                        var songs = allSongs;
+                        if (_cachedSongs != songsState.songs) {
+                          _cachedSongs = songsState.songs;
+                          _lastSyncedSong = null;
                         }
-                      }
 
-                      if (songs.isEmpty && _searchQuery.isEmpty) {
-                        return _buildEmptyState();
-                      }
-
-                      if (songs.isEmpty && _searchQuery.isNotEmpty) {
-                        return _buildNoSearchResultsState();
-                      }
-
-                      if (isAlbumMode) {
-                        if (!_wasInAlbumMode) {
-                          _wasInAlbumMode = true;
-                          _visibleAlbumCount = _getAlbumPageSize();
-                          _albumPaginationSignature = '';
-                        }
-                        final albumGroups = songsState.albumGroups;
                         if (_searchQuery.isNotEmpty) {
-                          final filteredGroups = <AlbumGroup>[];
-                          for (final group in albumGroups) {
-                            final filtered = group.songs.where((song) {
-                              return song.title.toLowerCase().contains(
-                                    _searchQuery,
-                                  ) ||
-                                  song.artist.toLowerCase().contains(
-                                    _searchQuery,
-                                  );
-                            }).toList();
-                            if (filtered.isNotEmpty) {
-                              filteredGroups.add(
-                                AlbumGroup(
-                                  key: group.key,
-                                  albumName: group.albumName,
-                                  albumArtist: group.albumArtist,
-                                  songs: filtered,
-                                ),
-                              );
-                            }
-                          }
-                          if (filteredGroups.isEmpty) {
-                            return _buildNoSearchResultsState();
-                          }
-                          return _buildAlbumGridView(filteredGroups);
+                          songs = songs.where((song) {
+                            return song.title.toLowerCase().contains(
+                                  _searchQuery,
+                                ) ||
+                                song.artist.toLowerCase().contains(
+                                  _searchQuery,
+                                );
+                          }).toList();
                         }
-                        if (albumGroups.isEmpty) {
+                        _cachedDisplaySongs = songs;
+
+                        if (!isAlbumMode) {
+                          _wasInAlbumMode = false;
+                          final sig =
+                              '${songs.length}:${songs.isNotEmpty ? songs.first.id : ''}';
+                          if (sig != _listPaginationSignature) {
+                            _listPaginationSignature = sig;
+                            _resetListPagination();
+                          }
+                        }
+
+                        if (songs.isEmpty && _searchQuery.isEmpty) {
                           return _buildEmptyState();
                         }
-                        return _buildAlbumGridView(albumGroups);
-                      }
 
-                      _alignCurrentSongAfterSongsLoad(songs);
+                        if (songs.isEmpty && _searchQuery.isNotEmpty) {
+                          return _buildNoSearchResultsState();
+                        }
 
-                      if (_selectedIndex >= songs.length) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) {
-                            setState(() => _selectedIndex = 0);
+                        if (isAlbumMode) {
+                          if (!_wasInAlbumMode) {
+                            _wasInAlbumMode = true;
+                            _visibleAlbumCount = _getAlbumPageSize();
+                            _albumPaginationSignature = '';
                           }
-                        });
-                      }
+                          final albumGroups = songsState.albumGroups;
+                          if (_searchQuery.isNotEmpty) {
+                            final filteredGroups = <AlbumGroup>[];
+                            for (final group in albumGroups) {
+                              final filtered = group.songs.where((song) {
+                                return song.title.toLowerCase().contains(
+                                      _searchQuery,
+                                    ) ||
+                                    song.artist.toLowerCase().contains(
+                                      _searchQuery,
+                                    );
+                              }).toList();
+                              if (filtered.isNotEmpty) {
+                                filteredGroups.add(
+                                  AlbumGroup(
+                                    key: group.key,
+                                    albumName: group.albumName,
+                                    albumArtist: group.albumArtist,
+                                    songs: filtered,
+                                  ),
+                                );
+                              }
+                            }
+                            if (filteredGroups.isEmpty) {
+                              return _buildNoSearchResultsState();
+                            }
+                            return _buildAlbumGridView(filteredGroups);
+                          }
+                          if (albumGroups.isEmpty) {
+                            return _buildEmptyState();
+                          }
+                          return _buildAlbumGridView(albumGroups);
+                        }
 
-                      _syncSelectedTokenForIndex(songs, _selectedIndex);
+                        _alignCurrentSongAfterSongsLoad(songs);
 
-                      final tokenToIndexMap = _buildFastIndexMap(songs);
-                      final appPrefs = ref.watch(appPreferencesProvider);
+                        if (_selectedIndex >= songs.length) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              setState(() => _selectedIndex = 0);
+                            }
+                          });
+                        }
 
-                      return _buildSongsView(
-                        songs,
-                        viewMode,
-                        tokenToIndexMap,
-                        navBarVisible,
-                        swipeActionsEnabled,
-                        appPrefs.fastIndexEnabled,
-                        orbitSideOverflow,
-                      );
-                    },
+                        _syncSelectedTokenForIndex(songs, _selectedIndex);
+
+                        final tokenToIndexMap = _buildFastIndexMap(songs);
+                        final appPrefs = ref.watch(appPreferencesProvider);
+
+                        return _buildSongsView(
+                          songs,
+                          viewMode,
+                          tokenToIndexMap,
+                          navBarVisible,
+                          swipeActionsEnabled,
+                          appPrefs.fastIndexEnabled,
+                          orbitSideOverflow,
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -2263,6 +2273,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         });
       },
     );
+    ref.read(tutorialProvider.notifier).onAction(TutorialAction.sortOpened);
   }
 
   Future<void> _shufflePlayFromLibrary(

@@ -35,6 +35,7 @@ import 'package:flick/services/permission_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/widgets/common/vinyl_record.dart';
 import 'package:flick/l10n/settings_l10n.dart';
+import 'package:flick/features/onboarding/tutorial_targets.dart';
 
 class LibrarySettingsScreen extends ConsumerStatefulWidget {
   const LibrarySettingsScreen({super.key, this.initialSection});
@@ -449,6 +450,8 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   Future<void> _addFolder() async {
+    final tutorial = ref.read(tutorialProvider.notifier);
+    tutorial.setPaused(true);
     try {
       final permissionService = PermissionService();
       final hasPermission = await permissionService.hasStoragePermission();
@@ -470,6 +473,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       }
 
       final folder = await _folderService.addFolder();
+      tutorial.setPaused(false);
       if (folder != null) {
         await _loadLibraryData();
         await _scanFolder(folder.uri, folder.displayName);
@@ -488,6 +492,11 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         ScaffoldMessenger.of(
           context,
         ).showFlickSnackBar(SnackBar(content: Text(l10n.failedToAddFolder(e))));
+      }
+    } finally {
+      tutorial.setPaused(false);
+      if (mounted) {
+        if (_songCount > 0) tutorial.onAction(TutorialAction.libraryReady);
       }
     }
   }
@@ -2108,11 +2117,14 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       : const SizedBox.shrink(),
                 ),
               ),
-              ActionButton(
-                icon: LucideIcons.folderPlus,
-                title: l10n.englishForFilipino.addMusicFolder,
-                subtitle: l10n.selectAFolderToScan,
-                onTap: _isScanning ? null : _addFolder,
+              TutorialTargetAnchor(
+                target: TutorialTarget.addMusicFolder,
+                child: ActionButton(
+                  icon: LucideIcons.folderPlus,
+                  title: l10n.englishForFilipino.addMusicFolder,
+                  subtitle: l10n.selectAFolderToScan,
+                  onTap: _isScanning ? null : _addFolder,
+                ),
               ),
               if (_folders.isNotEmpty) ...[
                 const SettingsDivider(),
