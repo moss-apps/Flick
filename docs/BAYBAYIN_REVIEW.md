@@ -3,9 +3,10 @@
 **Draft, not linguistically verified.** The Filipino reviewer decides whether
 the wording is natural and the Baybayin spelling is correct. Passing tests does
 not approve a translation. The 2,507-message Latin resource, eleven curated
-Baybayin labels, fifteen native-speaker-supplied Taglish hooks and six streak
-greetings remain drafts for review. The latest corrections are screen-specific,
-not a global replacement of Filipino with English.
+Baybayin labels, fifteen native-speaker-supplied Taglish hooks, five fixed
+streak greetings and one day-count streak greeting remain drafts for review. The
+latest corrections are screen-specific, not a global replacement of Filipino
+with English.
 
 ## Try it
 
@@ -105,7 +106,8 @@ subsequently turning them off survives a restart.
   CSV/TXT recaps are always English regardless of UI language.
 - The streak popup keeps its count label and both buttons in English
   (`N day streak`, `Continue`, `Don't show again today`). Its message is one of
-  six Taglish greetings chosen at random each time the popup opens.
+  five fixed Taglish greetings or a day-count line, chosen at random each time
+  the popup opens.
 - The Milestones screen, category names, progress units, dates, locked sheet and
   celebration card are English in Taglish. The streak banner and its
   **Current Streak** label are English too; the streak popup's greeting keeps
@@ -223,9 +225,10 @@ stability, locale isolation, review coverage and layout.
 ## Filipino-only streak greetings
 
 The launch-day streak popup keeps its visible count label and both buttons in
-English under Taglish. Its message is one of the six native-speaker-supplied
-Taglish lines below, chosen at random each time the popup opens. English and
-Chinese keep their existing tier-specific messages.
+English under Taglish. Its message is one of the five fixed
+native-speaker-supplied Taglish lines below or a line that fills in the current
+streak, chosen at random each time the popup opens. English and Chinese keep
+their existing tier-specific messages.
 
 | Original Taglish greeting | Status |
 |---|---|
@@ -234,7 +237,7 @@ Chinese keep their existing tier-specific messages.
 | Handa mo na earphones mo ulit. Hahaha. | draft |
 | Hobby mo talaga music, maem? | draft |
 | Share your music with? | draft |
-| Baka mamaya puro ka relapse ha? | draft |
+| {days} days na ha? Keep it up! | draft |
 
 Edit `lib/l10n/streak_greeting.dart` and the corresponding rows together.
 
@@ -342,8 +345,8 @@ host widget renders with bundled fonts, not a substitute for Android hardware.
 
 Before removing the experimental/draft notices, the Filipino reviewer should:
 
-- [ ] Review Latin Filipino wording, all eleven Baybayin spellings, home hooks
-      and the six streak greetings.
+- [ ] Review Latin Filipino wording, all eleven Baybayin spellings, home hooks,
+      the five fixed streak greetings and the day-count streak line.
 - [ ] Test Android API 26 and a current Android version, including bold text,
       combining/final marks, narrow widths and large system font sizes.
 - [ ] Switch Taglish ↔ English ↔ Chinese and enable/disable headings live.
@@ -375,7 +378,7 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
       verify actual Filipino pronunciation rather than assuming language support.
 - [ ] Check home hooks across time boundaries and day changes, including long
       hooks at enlarged text settings. Confirm the streak popup rotates through
-      all six lines and fits the longest greeting.
+      the five fixed lines and the day-count line and fits the longest greeting.
 - [ ] Check native dialogs, notifications and home-screen widgets separately for
       Latin Filipino font support, clipping and stale strings after switching.
 

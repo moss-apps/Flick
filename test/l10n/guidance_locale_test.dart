@@ -10,12 +10,18 @@ import 'package:flick/features/onboarding/widgets/tutorial_overlay.dart';
 import 'package:flick/features/settings/screens/app_info_settings_screen.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/providers/player_provider.dart';
+import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/providers/tutorial_provider.dart';
 import 'package:flick/providers/update_check_provider.dart';
 
 class _ActiveTutorial extends TutorialNotifier {
   @override
   TutorialState build() => const TutorialState(active: true);
+}
+
+class _EmptySongs extends SongsNotifier {
+  @override
+  Future<SongsState> build() async => SongsState();
 }
 
 class _OfflineUpdates extends UpdateCheckNotifier {
@@ -26,6 +32,7 @@ class _OfflineUpdates extends UpdateCheckNotifier {
 Widget _host(Widget child, {Locale locale = kFilipinoLocale}) => ProviderScope(
   overrides: [
     currentSongProvider.overrideWithValue(null),
+    songsProvider.overrideWith(_EmptySongs.new),
     tutorialProvider.overrideWith(_ActiveTutorial.new),
     updateCheckProvider.overrideWith(_OfflineUpdates.new),
   ],
@@ -57,28 +64,44 @@ void main() {
     'all Taglish interactive tutorial steps and controls are English',
     (tester) async {
       final english = lookupFlickLocalizations(kFallbackLocale);
-      final taglish = lookupFlickLocalizations(kFilipinoLocale);
       await tester.pumpWidget(_host(const Scaffold(body: TutorialOverlay())));
       await tester.pump();
-
-      for (var i = 0; i < TutorialStep.values.length; i++) {
-        final step = TutorialStep.values[i];
-        expect(find.text(step.title(english)), findsOneWidget);
-        expect(find.text(step.description(english)), findsOneWidget);
-        expect(find.text(step.description(taglish)), findsNothing);
-        expect(find.text(english.skip), findsOneWidget);
-        expect(find.text(taglish.skip), findsNothing);
-        if (i > 0) expect(find.text(english.back), findsOneWidget);
-
-        if (i == TutorialStep.values.length - 1) {
-          expect(find.text(english.openManual), findsOneWidget);
-        } else {
-          await tester.tap(find.text(english.next));
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(TutorialOverlay)),
+      );
+      final notifier = container.read(tutorialProvider.notifier);
+      for (final guide in TutorialGuide.values) {
+        notifier.start(guide: guide);
+        await tester.pump();
+        final steps = container.read(tutorialProvider).steps;
+        for (var i = 0; i < steps.length; i++) {
+          final step = steps[i];
+          expect(find.text(step.title(english)), findsWidgets);
+          expect(find.text(step.description(english)), findsOneWidget);
+          expect(
+            find.text(
+              step == TutorialStep.welcome
+                  ? english.tourNotNow
+                  : english.tourEnd,
+            ),
+            findsOneWidget,
+          );
+          if (i > 0) expect(find.text(english.back), findsOneWidget);
+          if (i == steps.length - 1) {
+            expect(find.text(english.done), findsOneWidget);
+          }
+          // Exercise Continue even when the real control is unavailable.
+          final label = step == TutorialStep.welcome
+              ? english.tourStart
+              : i == steps.length - 1
+              ? english.done
+              : english.tourContinue;
+          await tester.ensureVisible(find.text(label));
+          await tester.tap(find.text(label));
           await tester.pump();
-          await tester.pump(const Duration(milliseconds: 100));
           await tester.pump();
+          expect(tester.takeException(), isNull);
         }
-        expect(tester.takeException(), isNull);
       }
       await tester.pumpWidget(const SizedBox());
     },

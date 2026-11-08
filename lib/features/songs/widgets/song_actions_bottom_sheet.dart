@@ -45,7 +45,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
     VoidCallback? onSelect,
     VoidCallback? onRemoveFromPlaylist,
   }) {
-    return showModalBottomSheet(
+    final sheet = showModalBottomSheet<void>(
       useRootNavigator: true,
       context: context,
       isScrollControlled: true,
@@ -59,6 +59,10 @@ class SongActionsBottomSheet extends ConsumerWidget {
         ),
       ),
     );
+    ProviderScope.containerOf(context)
+        .read(tutorialProvider.notifier)
+        .onAction(TutorialAction.songActionsOpened);
+    return sheet;
   }
 
   @override

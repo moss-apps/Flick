@@ -101,6 +101,246 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @tourCore.
+  ///
+  /// In en, this message translates to:
+  /// **'Find & play music'**
+  String get tourCore;
+
+  /// No description provided for @tourLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library tools'**
+  String get tourLibrary;
+
+  /// No description provided for @tourPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Player & queue'**
+  String get tourPlayer;
+
+  /// No description provided for @tourAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Make Flick yours'**
+  String get tourAppearance;
+
+  /// No description provided for @tourAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio & output'**
+  String get tourAudio;
+
+  /// No description provided for @tourGuides.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore guides'**
+  String get tourGuides;
+
+  /// No description provided for @tourPickerBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a short guide. Try the real controls, or continue at your own pace.'**
+  String get tourPickerBody;
+
+  /// No description provided for @tourWelcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your music, one step away'**
+  String get tourWelcomeTitle;
+
+  /// No description provided for @tourWelcomeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Find a song, play it, and meet your player. You can use the real controls, continue without trying them, or leave at any time.'**
+  String get tourWelcomeBody;
+
+  /// No description provided for @tourAddBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No music yet? Open Library settings and choose Add music folder. Scanning may take a while. Cancel, deny permission, or continue without adding anything — you can return later.'**
+  String get tourAddBody;
+
+  /// No description provided for @tourSearchBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a song or artist into the highlighted search field. Search lives in its own tab when you add it to your navigation. Continue if you would rather browse.'**
+  String get tourSearchBody;
+
+  /// No description provided for @tourPlayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick something to play'**
+  String get tourPlayTitle;
+
+  /// No description provided for @tourPlayBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a song you want to hear. The guide moves on when playback starts. Nothing starts automatically; if music is unavailable or playback fails, you can still continue.'**
+  String get tourPlayBody;
+
+  /// No description provided for @tourMiniBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The mini player follows your music. Tap it to open the full player, or use Open player below. A song must be loaded first; you can continue without one.'**
+  String get tourMiniBody;
+
+  /// No description provided for @tourFullBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the player to pause, skip, and seek. Queue, lyrics, and other actions depend on your chosen layout. The guide will not change your volume, queue, or audio settings.'**
+  String get tourFullBody;
+
+  /// No description provided for @tourFinishTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Take it from here'**
+  String get tourFinishTitle;
+
+  /// No description provided for @tourFinishBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Done closes this guide. Explore another guide whenever you like, or find them again in Settings → App info → Interactive Tutorial.'**
+  String get tourFinishBody;
+
+  /// No description provided for @tourSortBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the highlighted sort control to explore sorting and filters. Opening it is enough for this guide; no need to change your library view.'**
+  String get tourSortBody;
+
+  /// No description provided for @tourActionsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press a song for its actions, including Play next, queue, and song information. Opening the menu does not change your queue. Continue if there are no songs yet.'**
+  String get tourActionsBody;
+
+  /// No description provided for @tourPlaylistsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Find Playlists in the library menu or your customized navigation. Use a song’s actions to add it to a playlist. Read the playlist guide for the full workflow.'**
+  String get tourPlaylistsBody;
+
+  /// No description provided for @tourQueueBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Queue from the full player to see upcoming songs. Its button depends on your layout. You can look without reordering or removing anything.'**
+  String get tourQueueBody;
+
+  /// No description provided for @tourLyricsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Lyrics in the full player if your layout includes it. Lyrics are not available for every song. Continue or read the manual if the control or lyrics are unavailable.'**
+  String get tourLyricsBody;
+
+  /// No description provided for @tourNavBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press the navigation bar to customize it, or open Navigation settings below. Choose your own tabs and order; this guide never changes them for you.'**
+  String get tourNavBody;
+
+  /// No description provided for @tourPlayerLayoutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A player that fits you'**
+  String get tourPlayerLayoutTitle;
+
+  /// No description provided for @tourLayoutBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore Player layout to choose how your player looks and which actions it shows. Changes are optional and yours to make.'**
+  String get tourLayoutBody;
+
+  /// No description provided for @tourOutputTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Know your output'**
+  String get tourOutputTitle;
+
+  /// No description provided for @tourOutputBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio settings show the available output paths. USB DAC and device hi-res support depend on connected hardware. This guide does not enable a mode or promise bit-perfect output; check the player’s output indicator.'**
+  String get tourOutputBody;
+
+  /// No description provided for @tourDspTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shape sound deliberately'**
+  String get tourDspTitle;
+
+  /// No description provided for @tourDspBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The equalizer and other DSP tools are optional. Processing changes the signal and can conflict with bit-perfect goals. Explore the controls without enabling anything, and check the manual before changing your audio path.'**
+  String get tourDspBody;
+
+  /// No description provided for @tourNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get tourNotNow;
+
+  /// No description provided for @tourEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'End tour'**
+  String get tourEnd;
+
+  /// No description provided for @tourStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start tour'**
+  String get tourStart;
+
+  /// No description provided for @tourContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get tourContinue;
+
+  /// No description provided for @tourUseCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the current song'**
+  String get tourUseCurrent;
+
+  /// No description provided for @tourReadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Read this in the manual'**
+  String get tourReadMore;
+
+  /// No description provided for @tourOpenNavigation.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Navigation settings'**
+  String get tourOpenNavigation;
+
+  /// No description provided for @tourOpenLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Player layout'**
+  String get tourOpenLayout;
+
+  /// No description provided for @tourOpenAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Audio settings'**
+  String get tourOpenAudio;
+
+  /// No description provided for @tourActionConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it. On to the next step.'**
+  String get tourActionConfirmed;
+
+  /// No description provided for @tourUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Control not visible? You can continue, or use the manual below.'**
+  String get tourUnavailable;
+
   /// Personal note shown only in the Taglish locale, above the donation cards.
   ///
   /// In en, this message translates to:
@@ -4181,12 +4421,6 @@ abstract class AppLocalizations {
   /// **'Custom Width'**
   String get customWidth;
 
-  /// lib/providers/tutorial_provider.dart:44
-  ///
-  /// In en, this message translates to:
-  /// **'Customize audio, display, navigation, and integrations.'**
-  String get customizeAudioDisplayNavigationAnd;
-
   /// lib/widgets/navigation/flick_nav_bar.dart:463
   ///
   /// In en, this message translates to:
@@ -7439,12 +7673,6 @@ abstract class AppLocalizations {
   /// **'Let Oboe pick the best API. AAudio first, then OpenSL ES fallback.'**
   String get letOboePickTheBestApi;
 
-  /// lib/providers/tutorial_provider.dart:8
-  ///
-  /// In en, this message translates to:
-  /// **'Let\'s take a quick tour of your new music player.'**
-  String get letSTakeAQuickTour;
-
   /// lib/features/settings/screens/interface_settings_screen.dart:212
   ///
   /// In en, this message translates to:
@@ -10630,12 +10858,6 @@ abstract class AppLocalizations {
   /// **'Rename Preset'**
   String get renamePreset;
 
-  /// lib/providers/tutorial_provider.dart:28
-  ///
-  /// In en, this message translates to:
-  /// **'Reorder, filter, and shuffle from this header.'**
-  String get reorderFilterAndShuffleFromThis;
-
   /// lib/features/player/widgets/player_controls.dart:218
   ///
   /// In en, this message translates to:
@@ -11380,12 +11602,6 @@ abstract class AppLocalizations {
   /// **'Search'**
   String get search;
 
-  /// lib/providers/tutorial_provider.dart:22
-  ///
-  /// In en, this message translates to:
-  /// **'Search across songs, artists, and albums instantly.'**
-  String get searchAcrossSongsArtistsAndAlbums;
-
   /// lib/features/albums/widgets/identify_album_sheet.dart:241
   ///
   /// In en, this message translates to:
@@ -12033,12 +12249,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shown when there is room beside the controls'**
   String get shownWhenThereIsRoomBeside;
-
-  /// lib/providers/tutorial_provider.dart:39
-  ///
-  /// In en, this message translates to:
-  /// **'Shows what\'s playing. Tap to open the full player.'**
-  String get showsWhatSPlayingTapTo;
 
   /// lib/widgets/common/detail_header.dart:267
   ///
@@ -12814,12 +13024,6 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{{count} song in your rotation} other{{count} songs in your rotation}}'**
   String songsInRotation(int count);
 
-  /// lib/providers/tutorial_provider.dart:16
-  ///
-  /// In en, this message translates to:
-  /// **'Songs Tab'**
-  String get songsTab;
-
   /// lib/features/artists/screens/artists_screen.dart:675
   ///
   /// In en, this message translates to:
@@ -13414,35 +13618,17 @@ abstract class AppLocalizations {
   /// **'1. Tap \"Edit Text\" (top right) and paste the lyrics — one line per row.\n2. Play the song.\n3. Pick the current line in the Lines list.\n4. Tap \"Stamp & Next\" when you hear that line.\n5. Save when done.'**
   String get tapEditTextTopRight;
 
-  /// lib/providers/tutorial_provider.dart:12
-  ///
-  /// In en, this message translates to:
-  /// **'Tap icons to switch tabs. Long-press to customize the bar.'**
-  String get tapIconsToSwitchTabsLong;
-
   /// lib/features/favorites/screens/favorites_screen.dart:361
   ///
   /// In en, this message translates to:
   /// **'Tap the heart icon on any song\nto add it to your favorites'**
   String get tapTheHeartIconOnAny;
 
-  /// lib/providers/tutorial_provider.dart:50
-  ///
-  /// In en, this message translates to:
-  /// **'Tap the mini player for waveform seekbar, EQ, lyrics, and visualizer.'**
-  String get tapTheMiniPlayerForWaveform;
-
   /// lib/features/recap/screens/replay_studio_screen.dart:450
   ///
   /// In en, this message translates to:
   /// **'Tap to inspect · 1260 × 2280 PNG'**
   String get tapToInspect12602280Png;
-
-  /// lib/providers/tutorial_provider.dart:34
-  ///
-  /// In en, this message translates to:
-  /// **'Tap to play, long-press for options (queue, play next, info).'**
-  String get tapToPlayLongPressFor;
 
   /// lib/features/player/widgets/online_lyrics_search_sheet.dart:955
   ///
@@ -13509,12 +13695,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Text Size'**
   String get textSize2;
-
-  /// lib/providers/tutorial_provider.dart:53
-  ///
-  /// In en, this message translates to:
-  /// **'That\'s the tour!'**
-  String get thatSTheTour;
 
   /// lib/features/settings/screens/privacy_policy_screen.dart:81
   ///
@@ -14906,12 +15086,6 @@ abstract class AppLocalizations {
   /// **'Waiting for playback'**
   String get waitingForPlayback;
 
-  /// lib/providers/tutorial_provider.dart:55
-  ///
-  /// In en, this message translates to:
-  /// **'Want every control documented? Open the in-app Manual anytime from Settings → Help & Manual.'**
-  String get wantEveryControlDocumentedOpenThe;
-
   /// lib/features/albums/widgets/identify_album_sheet.dart:537
   ///
   /// In en, this message translates to:
@@ -14983,12 +15157,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Welcome to Flick!'**
   String get welcomeToFlick;
-
-  /// lib/providers/tutorial_provider.dart:7
-  ///
-  /// In en, this message translates to:
-  /// **'Welcome to Flick'**
-  String get welcomeToFlick2;
 
   /// lib/features/manual/data/manual_data.dart
   ///
@@ -15379,12 +15547,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your weekly recap appears once you start listening this week.'**
   String get yourWeeklyRecapAppearsOnceYou;
-
-  /// lib/providers/tutorial_provider.dart:17
-  ///
-  /// In en, this message translates to:
-  /// **'Your whole library lives here. Tap any song to play it.'**
-  String get yourWholeLibraryLivesHereTap;
 
   /// lib/data/repositories/recently_played_repository.dart:39
   ///

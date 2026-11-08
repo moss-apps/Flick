@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
@@ -64,6 +65,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final q = value.trim();
       if (mounted && q != _debouncedQuery) {
         setState(() => _debouncedQuery = q);
+        ref.read(tutorialProvider.notifier).onAction(TutorialAction.searchUsed);
       }
     });
   }
@@ -131,15 +133,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                   ],
                 ),
-                child: GlassSearchBar(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  autofocus: autoFocus,
-                  textInputAction: TextInputAction.search,
-                  hintText: l10n.searchSongsArtistsAlbums,
-                  showBackground: false,
-                  onChanged: _onSearchChanged,
-                  onClear: _clearSearch,
+                child: TutorialTargetAnchor(
+                  target: TutorialTarget.songsSearchBar,
+                  child: GlassSearchBar(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    autofocus: autoFocus,
+                    textInputAction: TextInputAction.search,
+                    hintText: l10n.searchSongsArtistsAlbums,
+                    showBackground: false,
+                    onChanged: _onSearchChanged,
+                    onClear: _clearSearch,
+                  ),
                 ),
               ),
             ),
@@ -163,14 +168,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ),
             Expanded(
-              child: !hasInput
-                  ? _buildEmptyState(context)
-                  : _buildResultsArea(
-                      context,
-                      hasQuery: hasQuery,
-                      resultsAsync: resultsAsync,
-                      enabled: enabled,
-                    ),
+              child: TutorialTargetAnchor(
+                target: TutorialTarget.songLibrary,
+                child: !hasInput
+                    ? _buildEmptyState(context)
+                    : _buildResultsArea(
+                        context,
+                        hasQuery: hasQuery,
+                        resultsAsync: resultsAsync,
+                        enabled: enabled,
+                      ),
+              ),
             ),
           ],
         ),

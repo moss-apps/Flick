@@ -79,6 +79,18 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
   @override
   Widget build(BuildContext context) {
     final currentSong = ref.watch(currentSongProvider);
+    // Put a deep-linked section first so it is built even in a lazy list.
+    // The normal manual keeps its established reading order.
+    final sections = widget.initialSection == null
+        ? kManualSections
+        : [
+            ...kManualSections.where(
+              (section) => section.id == widget.initialSection,
+            ),
+            ...kManualSections.where(
+              (section) => section.id != widget.initialSection,
+            ),
+          ];
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -100,9 +112,9 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
                             horizontal: AppConstants.spacingMd,
                             vertical: AppConstants.spacingMd,
                           ),
-                          itemCount: kManualSections.length,
+                          itemCount: sections.length,
                           itemBuilder: (context, i) {
-                            final section = kManualSections[i];
+                            final section = sections[i];
                             final initiallyExpanded =
                                 widget.initialSection == section.id;
                             return _ManualSectionCard(

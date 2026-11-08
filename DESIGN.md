@@ -76,6 +76,8 @@ Flick's poster visual system combines Replay color fields, large branded type, b
 
 Scope is the onboarding/Replay-derived poster visual system only. Standard player, library, and settings screens retain their existing Material dark theme in `lib/core/theme/app_theme.dart`. Onboarding page order and exact compositions belong to `.impeccable/surfaces/onboarding-screens-onboarding-screen-dart-eb866e34.md`, not universal design rules.
 
+Interactive tutorial guidance is separately scoped in `.impeccable/surfaces/tutorial-guidance.md`: compact Material tooltips with a restrained acid accent, not full-screen posters. It preserves the five welcome pages and the surrounding app theme.
+
 The frozen implementation includes the reviewed font-wrapping fix. The handoff reports 25 passing onboarding tests using bundled fonts, including English/Taglish whole-word regressions at 320 × 568 with 2x text, and a clean targeted analyzer. The full suite has an unrelated Isar binary mismatch. Review PNGs are supplementary Flutter widget renders, not device screenshots or shipping assets. Native Android sign-off remains blocked: the emulator did not boot, the user's phone was untouched, and the final native gate is not closed.
 
 **Key Characteristics:**

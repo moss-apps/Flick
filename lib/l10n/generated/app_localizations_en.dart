@@ -9,6 +9,144 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get tourCore => 'Find & play music';
+
+  @override
+  String get tourLibrary => 'Library tools';
+
+  @override
+  String get tourPlayer => 'Player & queue';
+
+  @override
+  String get tourAppearance => 'Make Flick yours';
+
+  @override
+  String get tourAudio => 'Audio & output';
+
+  @override
+  String get tourGuides => 'Explore guides';
+
+  @override
+  String get tourPickerBody =>
+      'Choose a short guide. Try the real controls, or continue at your own pace.';
+
+  @override
+  String get tourWelcomeTitle => 'Your music, one step away';
+
+  @override
+  String get tourWelcomeBody =>
+      'Find a song, play it, and meet your player. You can use the real controls, continue without trying them, or leave at any time.';
+
+  @override
+  String get tourAddBody =>
+      'No music yet? Open Library settings and choose Add music folder. Scanning may take a while. Cancel, deny permission, or continue without adding anything — you can return later.';
+
+  @override
+  String get tourSearchBody =>
+      'Type a song or artist into the highlighted search field. Search lives in its own tab when you add it to your navigation. Continue if you would rather browse.';
+
+  @override
+  String get tourPlayTitle => 'Pick something to play';
+
+  @override
+  String get tourPlayBody =>
+      'Tap a song you want to hear. The guide moves on when playback starts. Nothing starts automatically; if music is unavailable or playback fails, you can still continue.';
+
+  @override
+  String get tourMiniBody =>
+      'The mini player follows your music. Tap it to open the full player, or use Open player below. A song must be loaded first; you can continue without one.';
+
+  @override
+  String get tourFullBody =>
+      'Use the player to pause, skip, and seek. Queue, lyrics, and other actions depend on your chosen layout. The guide will not change your volume, queue, or audio settings.';
+
+  @override
+  String get tourFinishTitle => 'Take it from here';
+
+  @override
+  String get tourFinishBody =>
+      'Done closes this guide. Explore another guide whenever you like, or find them again in Settings → App info → Interactive Tutorial.';
+
+  @override
+  String get tourSortBody =>
+      'Open the highlighted sort control to explore sorting and filters. Opening it is enough for this guide; no need to change your library view.';
+
+  @override
+  String get tourActionsBody =>
+      'Long-press a song for its actions, including Play next, queue, and song information. Opening the menu does not change your queue. Continue if there are no songs yet.';
+
+  @override
+  String get tourPlaylistsBody =>
+      'Find Playlists in the library menu or your customized navigation. Use a song’s actions to add it to a playlist. Read the playlist guide for the full workflow.';
+
+  @override
+  String get tourQueueBody =>
+      'Open Queue from the full player to see upcoming songs. Its button depends on your layout. You can look without reordering or removing anything.';
+
+  @override
+  String get tourLyricsBody =>
+      'Open Lyrics in the full player if your layout includes it. Lyrics are not available for every song. Continue or read the manual if the control or lyrics are unavailable.';
+
+  @override
+  String get tourNavBody =>
+      'Long-press the navigation bar to customize it, or open Navigation settings below. Choose your own tabs and order; this guide never changes them for you.';
+
+  @override
+  String get tourPlayerLayoutTitle => 'A player that fits you';
+
+  @override
+  String get tourLayoutBody =>
+      'Explore Player layout to choose how your player looks and which actions it shows. Changes are optional and yours to make.';
+
+  @override
+  String get tourOutputTitle => 'Know your output';
+
+  @override
+  String get tourOutputBody =>
+      'Audio settings show the available output paths. USB DAC and device hi-res support depend on connected hardware. This guide does not enable a mode or promise bit-perfect output; check the player’s output indicator.';
+
+  @override
+  String get tourDspTitle => 'Shape sound deliberately';
+
+  @override
+  String get tourDspBody =>
+      'The equalizer and other DSP tools are optional. Processing changes the signal and can conflict with bit-perfect goals. Explore the controls without enabling anything, and check the manual before changing your audio path.';
+
+  @override
+  String get tourNotNow => 'Not now';
+
+  @override
+  String get tourEnd => 'End tour';
+
+  @override
+  String get tourStart => 'Start tour';
+
+  @override
+  String get tourContinue => 'Continue';
+
+  @override
+  String get tourUseCurrent => 'Use the current song';
+
+  @override
+  String get tourReadMore => 'Read this in the manual';
+
+  @override
+  String get tourOpenNavigation => 'Open Navigation settings';
+
+  @override
+  String get tourOpenLayout => 'Open Player layout';
+
+  @override
+  String get tourOpenAudio => 'Open Audio settings';
+
+  @override
+  String get tourActionConfirmed => 'Got it. On to the next step.';
+
+  @override
+  String get tourUnavailable =>
+      'Control not visible? You can continue, or use the manual below.';
+
+  @override
   String get filipinoDonationNote => 'Thank you for supporting Flick.';
 
   @override
@@ -2412,10 +2550,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customWidth => 'Custom Width';
 
   @override
-  String get customizeAudioDisplayNavigationAnd =>
-      'Customize audio, display, navigation, and integrations.';
-
-  @override
   String get customizeBottomBar => 'Customize Bottom Bar';
 
   @override
@@ -4364,10 +4498,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Let Oboe pick the best API. AAudio first, then OpenSL ES fallback.';
 
   @override
-  String get letSTakeAQuickTour =>
-      'Let\'s take a quick tour of your new music player.';
-
-  @override
   String get letTheSystemDecideBestBattery =>
       'Let the system decide — best battery life';
 
@@ -6235,10 +6365,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get renamePreset => 'Rename Preset';
 
   @override
-  String get reorderFilterAndShuffleFromThis =>
-      'Reorder, filter, and shuffle from this header.';
-
-  @override
   String repeat(Object arg1) {
     return 'Repeat: $arg1';
   }
@@ -6657,10 +6783,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get search => 'Search';
 
   @override
-  String get searchAcrossSongsArtistsAndAlbums =>
-      'Search across songs, artists, and albums instantly.';
-
-  @override
   String get searchAgain => 'Search Again';
 
   @override
@@ -7046,10 +7168,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get shownWhenThereIsRoomBeside =>
       'Shown when there is room beside the controls';
-
-  @override
-  String get showsWhatSPlayingTapTo =>
-      'Shows what\'s playing. Tap to open the full player.';
 
   @override
   String get shuffle => 'Shuffle';
@@ -7561,9 +7679,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get songsTab => 'Songs Tab';
-
-  @override
   String songsU2022Albums(Object arg1, Object uniqueAlbums) {
     return '$arg1 songs • $uniqueAlbums albums';
   }
@@ -7912,23 +8027,11 @@ class AppLocalizationsEn extends AppLocalizations {
       '1. Tap \"Edit Text\" (top right) and paste the lyrics — one line per row.\n2. Play the song.\n3. Pick the current line in the Lines list.\n4. Tap \"Stamp & Next\" when you hear that line.\n5. Save when done.';
 
   @override
-  String get tapIconsToSwitchTabsLong =>
-      'Tap icons to switch tabs. Long-press to customize the bar.';
-
-  @override
   String get tapTheHeartIconOnAny =>
       'Tap the heart icon on any song\nto add it to your favorites';
 
   @override
-  String get tapTheMiniPlayerForWaveform =>
-      'Tap the mini player for waveform seekbar, EQ, lyrics, and visualizer.';
-
-  @override
   String get tapToInspect12602280Png => 'Tap to inspect · 1260 × 2280 PNG';
-
-  @override
-  String get tapToPlayLongPressFor =>
-      'Tap to play, long-press for options (queue, play next, info).';
 
   @override
   String get tapToPreview => 'Tap to preview';
@@ -7968,9 +8071,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get textSize2 => 'Text Size';
-
-  @override
-  String get thatSTheTour => 'That\'s the tour!';
 
   @override
   String get theAppDoesNotKnowinglyCollect =>
@@ -8814,10 +8914,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get waitingForPlayback => 'Waiting for playback';
 
   @override
-  String get wantEveryControlDocumentedOpenThe =>
-      'Want every control documented? Open the in-app Manual anytime from Settings → Help & Manual.';
-
-  @override
   String was(Object arg1) {
     return 'was: $arg1';
   }
@@ -8877,9 +8973,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get welcomeToFlick => 'Welcome to Flick!';
-
-  @override
-  String get welcomeToFlick2 => 'Welcome to Flick';
 
   @override
   String get whatItShows => 'What it shows';
@@ -9110,10 +9203,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get yourWeeklyRecapAppearsOnceYou =>
       'Your weekly recap appears once you start listening this week.';
-
-  @override
-  String get yourWholeLibraryLivesHereTap =>
-      'Your whole library lives here. Tap any song to play it.';
 
   @override
   String get yourYearlyRecapFillsInAs =>

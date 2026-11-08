@@ -723,7 +723,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
                 title: l10n.englishForFilipino.interactiveTutorial,
                 subtitle: l10n.stepByStepWalkthroughOfThe,
                 onTap: () {
-                  ref.read(tutorialProvider.notifier).start();
+                  ref.read(tutorialProvider.notifier).showPicker();
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
               ),

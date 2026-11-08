@@ -9,6 +9,138 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get tourCore => '查找和播放音乐';
+
+  @override
+  String get tourLibrary => '音乐库工具';
+
+  @override
+  String get tourPlayer => '播放器和队列';
+
+  @override
+  String get tourAppearance => '打造你的 Flick';
+
+  @override
+  String get tourAudio => '音频和输出';
+
+  @override
+  String get tourGuides => '探索指南';
+
+  @override
+  String get tourPickerBody => '选择一个简短指南。试用真实控件，或按自己的节奏继续。';
+
+  @override
+  String get tourWelcomeTitle => '离你的音乐，只差一步';
+
+  @override
+  String get tourWelcomeBody => '找一首歌，播放它，再认识一下播放器。你可以操作真实控件，也可以直接继续，或随时退出。';
+
+  @override
+  String get tourAddBody =>
+      '还没有音乐？打开音乐库设置，选择「添加音乐文件夹」。扫描可能需要一些时间。取消、拒绝权限或直接继续都没关系，稍后可以再来。';
+
+  @override
+  String get tourSearchBody =>
+      '在高亮的搜索框中输入歌曲或歌手。若导航栏已添加搜索，搜索会位于独立标签页。想直接浏览也可以继续。';
+
+  @override
+  String get tourPlayTitle => '选一首想听的歌';
+
+  @override
+  String get tourPlayBody =>
+      '点按你想听的歌曲。播放成功后，指南会进入下一步。不会自动开始播放；没有音乐或播放失败时，也可以继续。';
+
+  @override
+  String get tourMiniBody =>
+      '迷你播放器随音乐出现。点按它可打开完整播放器，也可以使用下方按钮。需要先加载一首歌；没有歌曲也可以继续。';
+
+  @override
+  String get tourFullBody =>
+      '在播放器中暂停、切歌和调整进度。队列、歌词及其他操作取决于你选择的布局。指南不会更改音量、队列或音频设置。';
+
+  @override
+  String get tourFinishTitle => '接下来，交给你';
+
+  @override
+  String get tourFinishBody =>
+      '点按「完成」关闭指南。你可以探索其他指南，也可以随时前往 设置 → 应用信息 → 交互式教程 再次查看。';
+
+  @override
+  String get tourSortBody => '打开高亮的排序控件，了解排序和筛选。只需打开即可，无须更改音乐库视图。';
+
+  @override
+  String get tourActionsBody =>
+      '长按歌曲可查看下一首播放、队列和歌曲信息等操作。仅打开菜单不会更改队列。没有歌曲时可以继续。';
+
+  @override
+  String get tourPlaylistsBody =>
+      '在音乐库菜单或自定义导航中找到播放列表。通过歌曲操作将其加入播放列表。完整操作可查看播放列表指南。';
+
+  @override
+  String get tourQueueBody =>
+      '从完整播放器打开队列，查看即将播放的歌曲。按钮位置取决于布局。你可以仅查看，不必调整顺序或移除歌曲。';
+
+  @override
+  String get tourLyricsBody =>
+      '如果布局中有歌词按钮，可在完整播放器中打开。并非每首歌都有歌词。控件或歌词不可用时，可以继续或阅读手册。';
+
+  @override
+  String get tourNavBody => '长按导航栏进行自定义，或使用下方按钮打开导航设置。标签和顺序由你决定，指南不会替你更改。';
+
+  @override
+  String get tourPlayerLayoutTitle => '适合你的播放器';
+
+  @override
+  String get tourLayoutBody => '在播放器布局中选择外观和显示的操作。是否更改，完全由你决定。';
+
+  @override
+  String get tourOutputTitle => '了解音频输出';
+
+  @override
+  String get tourOutputBody =>
+      '音频设置显示可用的输出路径。USB DAC 和设备高解析度支持取决于硬件。指南不会启用模式，也不保证位完美输出；请查看播放器的输出指示。';
+
+  @override
+  String get tourDspTitle => '有意识地调整声音';
+
+  @override
+  String get tourDspBody =>
+      '均衡器和其他 DSP 工具均为可选。信号处理会改变音频，可能与位完美目标冲突。你可以只查看控件，不启用任何功能；更改音频路径前请先阅读手册。';
+
+  @override
+  String get tourNotNow => '暂时不用';
+
+  @override
+  String get tourEnd => '结束教程';
+
+  @override
+  String get tourStart => '开始教程';
+
+  @override
+  String get tourContinue => '继续';
+
+  @override
+  String get tourUseCurrent => '使用当前歌曲';
+
+  @override
+  String get tourReadMore => '在手册中阅读此节';
+
+  @override
+  String get tourOpenNavigation => '打开导航设置';
+
+  @override
+  String get tourOpenLayout => '打开播放器布局';
+
+  @override
+  String get tourOpenAudio => '打开音频设置';
+
+  @override
+  String get tourActionConfirmed => '操作成功，进入下一步。';
+
+  @override
+  String get tourUnavailable => '看不到控件？可以继续，或查看下方手册。';
+
+  @override
   String get filipinoDonationNote => '感谢你支持 Flick。';
 
   @override
@@ -2231,9 +2363,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get customWidth => '自定义宽度';
 
   @override
-  String get customizeAudioDisplayNavigationAnd => '自定义音频、显示、导航与集成。';
-
-  @override
   String get customizeBottomBar => '自定义底部栏';
 
   @override
@@ -4054,9 +4183,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '由 Oboe 自动选择最佳 API。优先 AAudio，其次回退到 OpenSL ES。';
 
   @override
-  String get letSTakeAQuickTour => '快速了解你的新音乐播放器。';
-
-  @override
   String get letTheSystemDecideBestBattery => '由系统决定——最省电';
 
   @override
@@ -5808,9 +5934,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get renamePreset => '重命名预设';
 
   @override
-  String get reorderFilterAndShuffleFromThis => '在此标题栏可重新排序、筛选和随机播放。';
-
-  @override
   String repeat(Object arg1) {
     return '循环：$arg1';
   }
@@ -6207,9 +6330,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get search => '搜索';
 
   @override
-  String get searchAcrossSongsArtistsAndAlbums => '即时搜索歌曲、艺术家和专辑。';
-
-  @override
   String get searchAgain => '重新搜索';
 
   @override
@@ -6555,9 +6675,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get shownWhenThereIsRoomBeside => '控件旁边有空间时显示';
-
-  @override
-  String get showsWhatSPlayingTapTo => '显示当前播放内容，点按打开完整播放器。';
 
   @override
   String get shuffle => '随机播放';
@@ -6997,9 +7114,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get songsTab => '歌曲标签页';
-
-  @override
   String songsU2022Albums(Object arg1, Object uniqueAlbums) {
     return '$arg1 首歌曲 • $uniqueAlbums 张专辑';
   }
@@ -7317,19 +7431,10 @@ class AppLocalizationsZh extends AppLocalizations {
       '1. 点右上角「编辑文本」，把歌词粘贴进来——一行一句。\n2. 播放这首歌。\n3. 在「歌词行」列表里选中当前这一行。\n4. 听到那一句时点「打点并下一句」。\n5. 完成后保存。';
 
   @override
-  String get tapIconsToSwitchTabsLong => '点按图标切换标签页，长按可自定义导航栏。';
-
-  @override
   String get tapTheHeartIconOnAny => '点按任意歌曲上的爱心图标\n即可加入收藏';
 
   @override
-  String get tapTheMiniPlayerForWaveform => '点按迷你播放器，打开波形进度条、均衡器、歌词和可视化效果。';
-
-  @override
   String get tapToInspect12602280Png => '点击查看 · 1260 × 2280 PNG';
-
-  @override
-  String get tapToPlayLongPressFor => '点按播放，长按查看更多选项（播放队列、下一首播放、信息）。';
 
   @override
   String get tapToPreview => '点按预览';
@@ -7369,9 +7474,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get textSize2 => '文字大小';
-
-  @override
-  String get thatSTheTour => '导览到此结束！';
 
   @override
   String get theAppDoesNotKnowinglyCollect => '本应用不会在任何年龄段有意收集任何人的任何信息。';
@@ -8166,10 +8268,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get waitingForPlayback => '等待播放';
 
   @override
-  String get wantEveryControlDocumentedOpenThe =>
-      '想了解每个控件的说明？随时可从「设置 → 帮助与手册」打开应用内手册。';
-
-  @override
   String was(Object arg1) {
     return '原为：$arg1';
   }
@@ -8210,9 +8308,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get welcomeToFlick => '欢迎使用 Flick！';
-
-  @override
-  String get welcomeToFlick2 => '欢迎使用 Flick';
 
   @override
   String get whatItShows => '显示内容';
@@ -8429,9 +8524,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get yourWeeklyRecapAppearsOnceYou => '本周开始收听，你的每周回顾就会出现。';
-
-  @override
-  String get yourWholeLibraryLivesHereTap => '你的整个音乐库都在这里，点按任意歌曲即可播放。';
 
   @override
   String get yourYearlyRecapFillsInAs => '随着你全年持续收听，你的年度回顾会逐渐充实。';

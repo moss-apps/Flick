@@ -1,6 +1,7 @@
 // The streak popup's Taglish copy is screen-specific: the count label and both
-// buttons stay English, while the message rotates through six supplied lines.
-// These checks do not certify the Tagalog wording.
+// buttons stay English, while the message rotates through five supplied lines
+// and one line that includes the current streak. These checks do not certify
+// the Tagalog wording.
 import 'dart:io';
 import 'dart:math';
 
@@ -48,12 +49,16 @@ Finder _streakCount(int streak, String dayStreakLabel) => find.descendant(
   matching: find.text('$streak'),
 );
 
+bool _isTaglishGreeting(String text) =>
+    taglishStreakGreetings.contains(text) ||
+    RegExp(r'^\d+ days na ha\? Keep it up!$').hasMatch(text);
+
 String _visibleGreeting(WidgetTester tester) {
   final texts = tester
       .widgetList<Text>(find.byType(Text))
       .map((text) => text.data)
       .whereType<String>()
-      .where(taglishStreakGreetings.contains)
+      .where(_isTaglishGreeting)
       .toList();
   expect(texts, hasLength(1));
   return texts.single;
@@ -61,7 +66,7 @@ String _visibleGreeting(WidgetTester tester) {
 
 void main() {
   test(
-    'the six supplied Taglish streak greetings are verbatim, random and documented',
+    'the five supplied Taglish streak greetings and day-count line are verbatim, random and documented',
     () {
       expect(taglishStreakGreetings, <String>[
         'Uy oh, may nagbabalik!',
@@ -69,20 +74,28 @@ void main() {
         'Handa mo na earphones mo ulit. Hahaha.',
         'Hobby mo talaga music, maem?',
         'Share your music with?',
-        'Baka mamaya puro ka relapse ha?',
       ]);
+      expect(
+        taglishStreakDaysGreetingTemplate,
+        '{days} days na ha? Keep it up!',
+      );
+      expect(taglishStreakDaysGreeting(12), '12 days na ha? Keep it up!');
 
       final seen = <String>{};
       final random = Random(7);
       for (var i = 0; i < 120; i++) {
-        seen.add(randomTaglishStreakGreeting(random));
+        seen.add(randomTaglishStreakGreeting(8, random));
       }
-      expect(seen, taglishStreakGreetings.toSet());
+      expect(seen, {...taglishStreakGreetings, taglishStreakDaysGreeting(8)});
 
       final review = File('docs/BAYBAYIN_REVIEW.md').readAsStringSync();
       for (final greeting in taglishStreakGreetings) {
         expect(review, contains('| $greeting | draft |'));
       }
+      expect(
+        review,
+        contains('| $taglishStreakDaysGreetingTemplate | draft |'),
+      );
     },
   );
 
@@ -109,7 +122,10 @@ void main() {
         expect(find.text(taglish.aWeekAndCountingYourDedication), findsNothing);
         expect(find.text(taglish.incredibleOverAMonthOfDaily), findsNothing);
 
-        expect(_visibleGreeting(tester), isIn(taglishStreakGreetings));
+        expect(
+          _visibleGreeting(tester),
+          isIn([...taglishStreakGreetings, taglishStreakDaysGreeting(streak)]),
+        );
         await _disposeStreak(tester);
       }
     },
@@ -133,7 +149,7 @@ void main() {
           .widgetList<Text>(find.byType(Text))
           .map((text) => text.data)
           .whereType<String>()
-          .where(taglishStreakGreetings.contains),
+          .where(_isTaglishGreeting),
       isEmpty,
     );
 

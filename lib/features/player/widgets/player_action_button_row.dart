@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flick/widgets/common/flick_snackbar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -301,17 +302,20 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       case PlayerActionButton.none:
         return const SizedBox.shrink();
       case PlayerActionButton.lyrics:
-        return _buildLyricsButton(
-          context: context,
-          actionPadding: actionPadding,
-          actionRadius: actionRadius,
-          actionIconSize: actionIconSize,
-          inactiveBg: inactiveBg,
-          inactiveBorder: inactiveBorder,
-          albumColor: albumColor,
-          accentBlend: accentBlend,
-          hasAlbumTint: hasAlbumTint,
-          lyricsMode: lyricsMode,
+        return TutorialTargetAnchor(
+          target: TutorialTarget.playerLyrics,
+          child: _buildLyricsButton(
+            context: context,
+            actionPadding: actionPadding,
+            actionRadius: actionRadius,
+            actionIconSize: actionIconSize,
+            inactiveBg: inactiveBg,
+            inactiveBorder: inactiveBorder,
+            albumColor: albumColor,
+            accentBlend: accentBlend,
+            hasAlbumTint: hasAlbumTint,
+            lyricsMode: lyricsMode,
+          ),
         );
       case PlayerActionButton.favorites:
         if (song.isExternal) {
@@ -360,16 +364,19 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
           accentBlend: accentBlend,
         );
       case PlayerActionButton.queue:
-        return _buildQueueButton(
-          context: context,
-          actionPadding: actionPadding,
-          actionRadius: actionRadius,
-          actionIconSize: actionIconSize,
-          inactiveBg: inactiveBg,
-          inactiveBorder: inactiveBorder,
-          albumColor: albumColor,
-          accentBlend: accentBlend,
-          hasAlbumTint: hasAlbumTint,
+        return TutorialTargetAnchor(
+          target: TutorialTarget.playerQueue,
+          child: _buildQueueButton(
+            context: context,
+            actionPadding: actionPadding,
+            actionRadius: actionRadius,
+            actionIconSize: actionIconSize,
+            inactiveBg: inactiveBg,
+            inactiveBorder: inactiveBorder,
+            albumColor: albumColor,
+            accentBlend: accentBlend,
+            hasAlbumTint: hasAlbumTint,
+          ),
         );
       case PlayerActionButton.sleepTimer:
         return _buildSleepTimerButton(
@@ -452,7 +459,14 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     return Tooltip(
       message: lyricsMode ? l10n.hideLyrics : l10n.showLyrics,
       child: GestureDetector(
-        onTap: () => widget.onToggleLyrics(),
+        onTap: () {
+          widget.onToggleLyrics();
+          if (!lyricsMode) {
+            ref
+                .read(tutorialProvider.notifier)
+                .onAction(TutorialAction.lyricsOpened);
+          }
+        },
         child: Container(
           padding: actionPadding,
           decoration: widget.compact
