@@ -222,7 +222,7 @@ final class AppleMusicArtistNotifierProvider
 }
 
 String _$appleMusicArtistNotifierHash() =>
-    r'fa6ee9bc6d45283d8abf79ebed7d33d14ce0a3aa';
+    r'b1e56596d9893d13855ba17ca517bf7e0c69a583';
 
 /// Apple Music metadata for an artist page. Auto-disposes when the page
 /// closes; durable caching lives in [AppleMusicMetadataService].
@@ -333,7 +333,7 @@ final class AppleMusicAlbumNotifierProvider
 }
 
 String _$appleMusicAlbumNotifierHash() =>
-    r'a222c85b96de92ec5fee4b0a0eb49773d37ccaa7';
+    r'52f048d76d305e098089c2ea3d3d39b5cb2ac23a';
 
 /// Apple Music metadata for an album page, keyed by `(album, artist)`.
 
