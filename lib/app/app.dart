@@ -35,6 +35,7 @@ import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
 import 'package:flick/features/onboarding/tutorial_targets.dart';
+import 'package:flick/features/onboarding/tutorial_navigation.dart';
 import 'package:flick/features/onboarding/widgets/tutorial_overlay.dart';
 import 'package:flick/widgets/common/embedded_mini_player.dart';
 import 'package:flick/widgets/common/landscape_mini_player_dock.dart';
@@ -75,6 +76,7 @@ class FlickPlayerApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.darkTheme,
           navigatorKey: rootNavigatorKey,
+          navigatorObservers: [tutorialNavigation.root],
           localizationsDelegates: kAppLocalizationsDelegates,
           supportedLocales: kSupportedLocales,
           localeResolutionCallback: resolveAppLocale,
@@ -101,7 +103,9 @@ class FlickPlayerApp extends StatelessWidget {
                           (preferences) => preferences.connectionNoticesEnabled,
                         ),
                       ),
-                      child: child ?? const SizedBox.shrink(),
+                      child: TutorialHost(
+                        child: child ?? const SizedBox.shrink(),
+                      ),
                     ),
                   ),
             );
@@ -461,6 +465,7 @@ class _MainShellState extends ConsumerState<MainShell>
       appPreferencesProvider,
       (previous, next) {
         if (!mounted) return;
+        if (ref.read(tutorialProvider).active) return;
         final notifier = ref.read(whatsNewProvider.notifier);
         notifier.evaluate();
         final pending = ref.read(whatsNewProvider).pendingEntry;
@@ -749,6 +754,11 @@ class _MainShellState extends ConsumerState<MainShell>
   void _handleBackPress(bool didPop, dynamic result) {
     if (didPop) return;
 
+    if (ref.read(tutorialProvider).active && tutorialNavigation.visible) {
+      ref.read(tutorialProvider.notifier).skip();
+      return;
+    }
+
     // Back events only reach the root navigator; detail screens pushed on
     // the nested tab navigator must be popped here manually.
     final nested = nestedNavigatorKey.currentState;
@@ -898,7 +908,10 @@ class _MainShellState extends ConsumerState<MainShell>
                             child: Navigator(
                               key: nestedNavigatorKey,
                               initialRoute: '/',
-                              observers: [_navBarVisibilityObserver],
+                              observers: [
+                                _navBarVisibilityObserver,
+                                tutorialNavigation.nested,
+                              ],
                               onGenerateRoute: (settings) {
                                 if (settings.name == '/') {
                                   return PageRouteBuilder<void>(
@@ -1117,9 +1130,6 @@ class _MainShellState extends ConsumerState<MainShell>
 
                     // Pinned scan/preload progress bubble (overlay minimized)
                     const Positioned.fill(child: FloatingScanProgress()),
-
-                    // Interactive tutorial overlay
-                    const Positioned.fill(child: TutorialOverlay()),
 
                     // USB DAC attach → auto bit-perfect switch (decline-aware)
                     const UsbBitPerfectPrompt(),
