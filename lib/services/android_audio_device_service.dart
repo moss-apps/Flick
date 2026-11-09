@@ -14,6 +14,11 @@ class AndroidPlaybackDeviceInfo {
     required this.model,
     this.routeType,
     this.routeLabel,
+    this.hasWiredAudioRoute = false,
+    this.physicalOutputType,
+    this.physicalOutputId,
+    this.physicalOutputConnectionId,
+    this.physicalOutputLabel,
   });
 
   final bool hasUsbDac;
@@ -22,12 +27,47 @@ class AndroidPlaybackDeviceInfo {
   final String model;
   final String? routeType;
   final String? routeLabel;
+  final bool hasWiredAudioRoute;
+  final String? physicalOutputType;
+  final String? physicalOutputId;
+  final String? physicalOutputConnectionId;
+  final String? physicalOutputLabel;
 
   bool get isUsbRoute => routeType == 'usb';
   bool get isInternalRoute => routeType == 'internal';
   bool get isWiredRoute => routeType == 'wired';
   bool get isBluetoothRoute => routeType == 'bluetooth';
   bool get isDockRoute => routeType == 'dock';
+
+  /// True whenever an external output exists, even if Android has not routed
+  /// audio to it yet or the app has no USB permission.
+  bool get hasPhysicalOutput =>
+      hasUsbDac ||
+      hasAttachedUac2Device ||
+      hasWiredAudioRoute ||
+      isUsbRoute ||
+      isWiredRoute ||
+      isDockRoute;
+
+  /// Stable identity for one physical connection. Repeated AudioDeviceCallback
+  /// events for the same output must not re-apply the safety ceiling.
+  String? get physicalOutputKey {
+    if (!hasPhysicalOutput) return null;
+    final kind =
+        hasUsbDac ||
+            hasAttachedUac2Device ||
+            physicalOutputType == 'usb' ||
+            isUsbRoute
+        ? 'usb'
+        : physicalOutputType ?? routeType ?? 'physical';
+    final id =
+        physicalOutputConnectionId ??
+        physicalOutputId ??
+        physicalOutputLabel ??
+        routeLabel;
+    return id == null || id.isEmpty ? kind : '$kind:$id';
+  }
+
   bool get looksLikeUsbAudioRoute {
     final summary = routeSummary.toLowerCase();
     return summary.contains('usb') || summary.contains('dac');
@@ -70,6 +110,11 @@ class AndroidPlaybackDeviceInfo {
       model: raw['model'] as String? ?? '',
       routeType: raw['routeType'] as String?,
       routeLabel: raw['routeLabel'] as String?,
+      hasWiredAudioRoute: raw['hasWiredAudioRoute'] == true,
+      physicalOutputType: raw['physicalOutputType']?.toString(),
+      physicalOutputId: raw['physicalOutputId']?.toString(),
+      physicalOutputConnectionId: raw['physicalOutputConnectionId']?.toString(),
+      physicalOutputLabel: raw['physicalOutputLabel']?.toString(),
     );
   }
 

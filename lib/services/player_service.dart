@@ -469,6 +469,7 @@ class PlayerService {
     required AudioSessionManager sessionManager,
     required Uac2Service uac2Service,
     RustAudioService? rustAudioService,
+    AndroidAudioEngine? androidAudioEngine,
     bool directUsb = false,
   }) : _uac2Service = uac2Service,
        _rustAudioService = rustAudioService ?? RustAudioService(),
@@ -476,9 +477,11 @@ class PlayerService {
     _sessionManager = sessionManager;
     _playbackManager = AudioEngineManager();
     _audioInitialized = true;
+    _androidEngine = androidAudioEngine;
   }
 
   just_audio.AudioPlayer? _justAudioPlayer;
+  AndroidAudioEngine? _androidEngine;
   // Cached crossfade curve index (0..3) for synchronous reads inside the
   // just_audio engine's config provider; refreshed from prefs on load/change.
   int _crossfadeCurveIndex = 0;
@@ -595,10 +598,22 @@ class PlayerService {
   int _usbHardwareVolumeRevision = 0;
   Future<bool>? _usbVolumeSafetyPause;
   final ValueNotifier<bool> usbVolumeSafetyBlockedNotifier = ValueNotifier(false);
+  String? _physicalOutputGuardKey;
+  bool _physicalOutputGuardApplied = false;
+  AudioEngineType? _physicalOutputGuardMode;
+  int _physicalOutputGuardGeneration = 0;
+  Future<void>? _physicalOutputGuardInFlight;
+  int _physicalOutputGuardInFlightGeneration = 0;
+  bool _physicalOutputVolumeSafetyBlocked = false;
+  bool _physicalOutputSoftwareVolumeActive = false;
 
   /// Default volume for bit-perfect mode (25 %, safety level).
   /// Mapped to ~0.01 linear gain by Rust's volume_to_gain curve.
   static const double _bitPerfectDefaultVolume = 0.25;
+
+  /// One-shot ceiling for every newly connected headphone/DAC on the normal
+  /// (non-direct-USB) paths.
+  static const double _physicalOutputSafetyVolume = _bitPerfectDefaultVolume;
 
   double get currentVolume => _currentVolume;
 
@@ -780,7 +795,9 @@ class PlayerService {
       );
     });
     AndroidAudioDeviceService.instance.deviceInfoNotifier.addListener(() {
+      final info = AndroidAudioDeviceService.instance.deviceInfoNotifier.value;
       unawaited(_refreshAudioOutputDiagnostics(reason: 'audio route changed'));
+      unawaited(_maybeApplyPhysicalOutputGuard(info));
     });
     _uac2Service.bitPerfectEnabledNotifier.addListener(() {
       unawaited(_handleBitPerfectPreferenceChanged());
@@ -854,6 +871,13 @@ class PlayerService {
       _,
     ) async {
       _usbDacVolumeRestore.reset();
+      if (_audioInitialized && _isDirectUsbPath) {
+        try {
+          await _restoreUsbDacVolumeBeforePlayback(currentEngineType);
+        } catch (error) {
+          _debugLog('[VolFlow] USB attach volume restore failed: $error');
+        }
+      }
       if (!isPlayingNotifier.value) return;
       final enabled = await _appPreferencesService.getPauseOnUsbDacConnect();
       if (enabled) pause();
@@ -981,6 +1005,7 @@ class PlayerService {
   }
 
   Future<void> _handleBitPerfectPreferenceChanged() async {
+    await _waitForPhysicalOutputVolumeGuard();
     // When USB DAC bit-perfect is turned off, also turn off DAP bit-perfect
     // so the DAC receives non-bit-perfect data.
     if (!_uac2Service.isBitPerfectEnabledSync &&
@@ -1008,7 +1033,7 @@ class PlayerService {
     } else {
       final player = _justAudioPlayer;
       if (player != null) {
-        await player.setVolume(_currentVolume);
+        await _setAndroidPlayerVolume(_currentVolume);
         await player.setSpeed(playbackSpeedNotifier.value);
       }
     }
@@ -1901,6 +1926,10 @@ class PlayerService {
       _playbackManager.publishIdleState(_sessionManager.selectedMode);
       _audioInitialized = true;
       await _refreshAudioOutputDiagnostics(reason: 'audio initialized');
+      if (Platform.isAndroid) {
+        final info = await AndroidAudioDeviceService.instance.refresh();
+        await _maybeApplyPhysicalOutputGuard(info, force: true);
+      }
     } finally {
       _audioInitInFlight = null;
     }
@@ -2031,6 +2060,7 @@ class PlayerService {
   static const double _duckVolumeScale = 0.2;
 
   Future<void> _setDucked(bool ducked) async {
+    await _waitForPhysicalOutputVolumeGuard();
     if (_isDucked == ducked) return;
     _isDucked = ducked;
     try {
@@ -2038,7 +2068,7 @@ class PlayerService {
         await _reconcileVolumeForTier(_determineCurrentTier());
       } else {
         final volume = _currentVolume * (ducked ? _duckVolumeScale : 1.0);
-        await _justAudioPlayer?.setVolume(volume);
+        await _setAndroidPlayerVolume(volume);
       }
     } catch (e) {
       _debugLog('[AudioFocus] Failed to ${ducked ? 'apply' : 'lift'} duck: $e');
@@ -2088,6 +2118,16 @@ class PlayerService {
     return player;
   }
 
+  Future<void> _setAndroidPlayerVolume(double volume) async {
+    final engine = _androidEngine;
+    if (engine != null) {
+      // The engine owns both crossfade slots and their shared ramp gain.
+      await engine.setVolume(volume);
+    } else {
+      await _justAudioPlayer?.setVolume(volume);
+    }
+  }
+
   Future<void> _configureAndroidPlayer(just_audio.AudioPlayer player) async {
     if (_justAudioPlayer != player) {
       _justAudioPlayer = player;
@@ -2114,6 +2154,7 @@ class PlayerService {
       sourceBuilder: _buildAudioSourceForSong,
       playlistProvider: () => List<Song>.unmodifiable(_playlist),
       configurePlayer: _configureAndroidPlayer,
+      onActivePlayerChanged: (player) => _justAudioPlayer = player,
       disposeEngine: _disposeAndroidEngine,
       shouldSuppressTrackSync: () =>
           _suppressSequenceStateUpdates || _isRebuildingPlaylist,
@@ -2139,6 +2180,7 @@ class PlayerService {
       if (_usingRustBackend) return;
       unawaited(_onSongFinished());
     };
+    _androidEngine = engine;
     return engine;
   }
 
@@ -2354,6 +2396,7 @@ class PlayerService {
       _usbHardwareVolumeReadyFor = _uac2Service.currentDeviceStatus?.device;
       _usbHardwareVolumeRevision++;
       _usbSoftwareVolumeUsed = false;
+      _physicalOutputSoftwareVolumeActive = false;
       usbVolumeSafetyBlockedNotifier.value = false;
       _usbVolumeSafetyPause = null;
       _usbDacVolumeRestore.reset();
@@ -2605,6 +2648,8 @@ class PlayerService {
     AudioEngineType? playbackMode,
     bool? passthroughActive,
   }) async {
+    await _waitForPhysicalOutputVolumeGuard();
+    if (_physicalOutputVolumeSafetyBlocked) return;
     volumeTierNotifier.value = tier;
     final directUsb = (Platform.isAndroid || _testDirectUsb) &&
         (playbackMode ?? currentEngineType) == AudioEngineType.usbDacExperimental;
@@ -2716,25 +2761,43 @@ class PlayerService {
         if (usbVolumeSafetyBlockedNotifier.value) {
           throw UsbDacVolumeRestoreError('DAC hardware volume is unavailable');
         }
-        _currentVolume = settings.software;
+        // A normal-route connection guard (or existing USB software gain)
+        // remains authoritative across a permission/engine handoff. Restoring
+        // a remembered higher software level must not undo that attenuation.
+        final preserveSoftwareVolume =
+            _usbSoftwareVolumeUsed ||
+            _physicalOutputSoftwareVolumeActive ||
+            _currentVolume == 0.0;
+        _currentVolume = preserveSoftwareVolume
+            ? math.min(_currentVolume, settings.software)
+            : settings.software;
         return;
       }
 
       final authorityHandoff =
           _usbSoftwareVolumeUsed ||
+          _physicalOutputSoftwareVolumeActive ||
           (_usbHardwareVolumeReadyFor != device && isPlayingNotifier.value);
+      final preserveSoftwareMute =
+          _currentVolume == 0.0 &&
+          (_usbSoftwareVolumeUsed ||
+              _physicalOutputSoftwareVolumeActive ||
+              _usbHardwareVolumeReadyFor != device);
       final useLowDefault =
           settings.hardware == null ||
           authorityHandoff ||
           usbVolumeSafetyBlockedNotifier.value;
-      if (authorityHandoff) {
+      if (authorityHandoff || preserveSoftwareMute) {
         // An authority change must not remove software attenuation live. A
         // low, verified restore replaces the old mandatory slider gesture.
         await _blockUsbVolumeForSafety();
         ensureCurrent();
       }
-      var targetVolume =
-          settings.hardware ?? Uac2PreferencesService.defaultUsbDacVolume;
+      // Only exact mute transfers between software and hardware authority;
+      // the same nonzero percentage need not mean the same acoustic level.
+      var targetVolume = _currentVolume == 0.0
+          ? 0.0
+          : settings.hardware ?? Uac2PreferencesService.defaultUsbDacVolume;
       if (useLowDefault) {
         targetVolume = math.min(
           targetVolume,
@@ -2792,6 +2855,21 @@ class PlayerService {
         await _blockUsbVolumeForSafety();
         throw UsbDacVolumeRestoreError('DAC volume readback is unavailable');
       }
+      // Normalized hardware 0% is only the bottom of the DAC's attenuation
+      // range, not necessarily silence. Preserve an app mute using a verified
+      // hardware mute, or keep the transport paused (also safe for DSD/DoP).
+      if (preserveSoftwareMute && appliedStatus.muted != true) {
+        final muted = await _uac2Service.setMute(true);
+        ensureCurrent();
+        final mutedStatus = _uac2Service.currentDeviceStatus;
+        if (!muted ||
+            mutedStatus?.device != device ||
+            mutedStatus?.volumeMode != Uac2VolumeMode.hardware ||
+            mutedStatus?.muted != true) {
+          await _blockUsbVolumeForSafety();
+          throw UsbDacVolumeRestoreError('could not preserve the app mute');
+        }
+      }
       await _preferencesService.setUsbVolumeForDevice(
         device,
         appliedVolume,
@@ -2811,6 +2889,10 @@ class PlayerService {
         await _blockUsbVolumeForSafety();
         throw UsbDacVolumeRestoreError('DAC volume authority changed');
       }
+      if (preserveSoftwareMute && finalStatus?.muted != true) {
+        await _blockUsbVolumeForSafety();
+        throw UsbDacVolumeRestoreError('DAC mute changed during handoff');
+      }
       _debugLog(
         '[VolFlow] Hardware restore verified: $appliedVolume, '
         'lowDefault=$useLowDefault',
@@ -2819,6 +2901,7 @@ class PlayerService {
       _usbHardwareVolumeReadyFor = device;
       _usbHardwareVolumeRevision++;
       _usbSoftwareVolumeUsed = false;
+      _physicalOutputSoftwareVolumeActive = false;
       _hwVolumeFailed = false;
       usbVolumeSafetyBlockedNotifier.value = false;
       _usbVolumeSafetyPause = null;
@@ -2842,6 +2925,200 @@ class PlayerService {
     if (usbVolumeSafetyBlockedNotifier.value) {
       throw UsbDacVolumeRestoreError('DAC volume authority changed');
     }
+  }
+
+  @visibleForTesting
+  Future<void> handlePlaybackDeviceInfoForTesting(
+    AndroidPlaybackDeviceInfo info, {
+    bool force = false,
+  }) => _maybeApplyPhysicalOutputGuard(info, force: force);
+
+  /// Apply the low-volume ceiling once per physical connection. [force] is for
+  /// the initial launch probe. Only a successful application consumes the guard;
+  /// Play/resume and duplicate callbacks wait for the same in-flight write.
+  Future<void> _maybeApplyPhysicalOutputGuard(
+    AndroidPlaybackDeviceInfo info, {
+    bool force = false,
+  }) async {
+    if (!info.hasPhysicalOutput) {
+      // AndroidAudioDeviceService emits the [unknown] placeholder when a
+      // platform refresh fails. Keep the key so that transient failure cannot
+      // re-lower a volume the user raised on the same connection.
+      if (!identical(info, AndroidPlaybackDeviceInfo.unknown)) {
+        _physicalOutputGuardKey = null;
+        _physicalOutputGuardGeneration++;
+        _physicalOutputGuardApplied = false;
+        _physicalOutputSoftwareVolumeActive = false;
+        _physicalOutputVolumeSafetyBlocked = false;
+      }
+      return;
+    }
+    final key = info.physicalOutputKey;
+    if (key == null) return;
+    if (key != _physicalOutputGuardKey) {
+      _physicalOutputGuardKey = key;
+      _physicalOutputGuardGeneration++;
+      _physicalOutputGuardApplied = false;
+      _physicalOutputSoftwareVolumeActive = false;
+    }
+    final inFlight = _physicalOutputGuardInFlight;
+    if (inFlight != null) {
+      final inFlightGeneration = _physicalOutputGuardInFlightGeneration;
+      await inFlight;
+      // A replacement output must wait for the previous device's write, then
+      // apply its own guard rather than accepting the stale completion.
+      if (inFlightGeneration != _physicalOutputGuardGeneration &&
+          key == _physicalOutputGuardKey) {
+        await _maybeApplyPhysicalOutputGuard(info, force: force);
+      }
+      return;
+    }
+    if (!force &&
+        _physicalOutputGuardApplied &&
+        _physicalOutputGuardMode == currentEngineType) {
+      return;
+    }
+    final future = _runPhysicalOutputGuard(_physicalOutputGuardGeneration);
+    _physicalOutputGuardInFlight = future;
+    _physicalOutputGuardInFlightGeneration = _physicalOutputGuardGeneration;
+    try {
+      await future;
+    } finally {
+      if (identical(_physicalOutputGuardInFlight, future)) {
+        _physicalOutputGuardInFlight = null;
+      }
+    }
+  }
+
+  Future<void> _runPhysicalOutputGuard(int generation) async {
+    final mode = currentEngineType;
+    try {
+      final applied = await _applyPhysicalOutputSafetyVolume(
+        generation: generation,
+      );
+      if (generation != _physicalOutputGuardGeneration) return;
+      _physicalOutputGuardApplied = applied;
+      _physicalOutputGuardMode = mode;
+      if (applied) _physicalOutputVolumeSafetyBlocked = false;
+    } catch (error) {
+      if (generation != _physicalOutputGuardGeneration) return;
+      _physicalOutputGuardApplied = false;
+      _physicalOutputVolumeSafetyBlocked = true;
+      _debugLog('[VolFlow] Physical output volume guard failed: $error');
+      // Do not keep playing at the previous gain, or queue behind the Play
+      // request that is waiting for this guard. Stop the live transport now.
+      _wasPlayingBeforeAudioInterruption = false;
+      try {
+        if (_usingRustBackend) {
+          await _rustAudioService.pause();
+        } else if (_androidEngine != null) {
+          await _androidEngine!.pause();
+        } else {
+          await _justAudioPlayer?.pause();
+        }
+      } catch (pauseError) {
+        _debugLog('[VolFlow] Physical output safety pause failed: $pauseError');
+        try {
+          if (_usingRustBackend) {
+            await _rustAudioService.stop();
+          } else if (_androidEngine != null) {
+            await _androidEngine!.stop();
+          } else {
+            await _justAudioPlayer?.stop();
+          }
+        } catch (stopError) {
+          _debugLog('[VolFlow] Physical output safety stop failed: $stopError');
+        }
+      }
+      isPlayingNotifier.value = false;
+      _updatePriorityAnchor();
+    }
+  }
+
+  @visibleForTesting
+  Future<void> ensurePhysicalOutputVolumeForTesting(
+    AndroidPlaybackDeviceInfo info,
+  ) => _ensurePhysicalOutputVolumeBeforePlayback(info: info);
+
+  Future<void> _waitForPhysicalOutputVolumeGuard() async {
+    while (_physicalOutputGuardInFlight != null) {
+      await _physicalOutputGuardInFlight;
+    }
+  }
+
+  Future<void> _ensurePhysicalOutputVolumeBeforePlayback({
+    AndroidPlaybackDeviceInfo? info,
+  }) async {
+    await _maybeApplyPhysicalOutputGuard(
+      info ?? AndroidAudioDeviceService.instance.deviceInfoNotifier.value,
+    );
+    if (_physicalOutputVolumeSafetyBlocked) {
+      throw StateError('Could not apply the physical output safety volume');
+    }
+  }
+
+  Future<bool> _applyPhysicalOutputSafetyVolume({int? generation}) async {
+    if (!_audioInitialized || _castingService.isActive) return false;
+    if (_isDirectUsbPath) {
+      // Direct USB has its own verified hardware-volume restore; a software
+      // ceiling would double-attenuate or silently corrupt the stream.
+      await _restoreUsbDacVolumeBeforePlayback(currentEngineType);
+      return true;
+    }
+
+    final tier = _determineCurrentTier();
+    if (tier == VolumeTier.unavailable || _isPassthroughActive) {
+      _debugLog(
+        '[VolFlow] Physical output guard skipped: bit-perfect volume unavailable',
+      );
+      return false;
+    }
+    if (tier == VolumeTier.hardware) {
+      // The direct USB path was handled above. Other hardware authorities
+      // (DAP internal hi-res) keep their existing restore path.
+      _debugLog(
+        '[VolFlow] Physical output guard skipped: hardware volume authority',
+      );
+      return false;
+    }
+
+    final target = math.min(_currentVolume, _physicalOutputSafetyVolume);
+    // If this physical output later becomes a direct-USB session, the restore
+    // must treat the app attenuation as an authority handoff and use the low
+    // verified hardware default instead of a remembered higher DAC level.
+    volumeTierNotifier.value = tier;
+    switch (tier) {
+      case VolumeTier.software:
+        if (_usingRustBackend && _rustAudioService.isInitialized) {
+          await _rustAudioService.setVolume(
+            _isDucked
+                ? attenuateSoftwareVolume(target, _duckVolumeScale)
+                : target,
+          );
+        }
+        await _reconcileSystemVolumeBoost(0.0);
+        break;
+      case VolumeTier.system:
+        final effective = math.min(target, 1.0) * _replayGainState.linear;
+        await _setAndroidPlayerVolume(
+          math.min(effective, 1.0) * (_isDucked ? _duckVolumeScale : 1.0),
+        );
+        await _reconcileSystemVolumeBoost(effective);
+        break;
+      case VolumeTier.hardware:
+      case VolumeTier.unavailable:
+        break;
+    }
+    if (generation != null && generation != _physicalOutputGuardGeneration) {
+      return false;
+    }
+    _currentVolume = target;
+    _usbSoftwareVolumeUsed = true;
+    _physicalOutputSoftwareVolumeActive = true;
+    // Deliberately do not persist this safety level: it belongs to this
+    // physical connection only, and the user may raise it immediately.
+    _debugLog('[VolFlow] Physical output safety volume applied: $target');
+    return true;
   }
 
   /// Prefer [primary], then the current-song notifier, then the last engine
@@ -4909,6 +5186,7 @@ class PlayerService {
   }
 
   Future<void> _disposeAndroidEngine() async {
+    _androidEngine = null;
     final player = _justAudioPlayer;
     if (player == null) return;
 
@@ -5402,6 +5680,7 @@ class PlayerService {
 
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
+    await _ensurePhysicalOutputVolumeBeforePlayback();
     final loadingGen = ++_networkLoadingGen;
     try {
       _debugLog(
@@ -5478,6 +5757,9 @@ class PlayerService {
           // spawned source is stamped with this track's gain.
           await _refreshReplayGainForSong(song, pushSpawnDefault: true);
         }
+        // Engine preparation can change volume authority after the first
+        // preflight (including a direct-USB fallback).
+        await _ensurePhysicalOutputVolumeBeforePlayback();
         await _runWithSuppressedSequenceStateUpdates(() async {
           await _playbackManager.playTrack(song);
         });
@@ -5833,6 +6115,7 @@ class PlayerService {
       return;
     }
     await initAudio();
+    await _ensurePhysicalOutputVolumeBeforePlayback();
 
     final song = currentSongNotifier.value ?? _songAtCurrentIndex();
     if (song == null || song.filePath == null) {
@@ -5852,6 +6135,7 @@ class PlayerService {
     // A matching prepared engine may be reused without re-running its policy.
     // Retry a low DAC level if a previous control failure held playback.
     await _restoreUsbVolumeForResume(activeEngine, song: song);
+    await _ensurePhysicalOutputVolumeBeforePlayback();
 
     final latestState = _playbackManager.latestState;
     final canResumeDirectly =
@@ -6043,6 +6327,9 @@ class PlayerService {
       initializeNewEngine: true,
       reason: 'direct USB startup refused',
     );
+    // The failed direct engine may have held full-scale output. Enforce the
+    // physical-output ceiling before the fallback route starts playing.
+    await _applyPhysicalOutputSafetyVolume();
 
     if (song != null) {
       await _prepareImmediatePlaybackAsset(song);
@@ -6153,6 +6440,7 @@ class PlayerService {
           initializeNewEngine: true,
           reason: 'rust audio engine command channel dead',
         );
+        await _applyPhysicalOutputSafetyVolume();
       }
 
       if (song != null) {
@@ -6565,6 +6853,8 @@ class PlayerService {
   // ==================== Volume ====================
 
   Future<void> setVolume(double volume) async {
+    // A user adjustment follows (rather than racing) the one-shot safety write.
+    await _waitForPhysicalOutputVolumeGuard();
     if (!volume.isFinite || _switchingDsdForVolume) return;
     final tier = _determineCurrentTier();
     final tierSupportsBoost = _extendedVolumeEnabled &&
@@ -6625,16 +6915,13 @@ class PlayerService {
         await _reconcileSystemVolumeBoost(0.0);
         break;
       case VolumeTier.system:
-        final player = _justAudioPlayer;
         final effective =
             math.min(clampedVolume, 1.0) * _replayGainState.linear;
-        if (player != null) {
-          // ExoPlayer clamps at 1.0; the boost portion (>1.0, from extended
-          // volume and/or ReplayGain) is applied via Android LoudnessEnhancer.
-          await player.setVolume(
-            math.min(effective, 1.0) * (_isDucked ? _duckVolumeScale : 1.0),
-          );
-        }
+        // ExoPlayer clamps at 1.0; the boost portion (>1.0, from extended
+        // volume and/or ReplayGain) is applied via Android LoudnessEnhancer.
+        await _setAndroidPlayerVolume(
+          math.min(effective, 1.0) * (_isDucked ? _duckVolumeScale : 1.0),
+        );
         _rememberSoftwareVolume(clampedVolume);
         await _reconcileSystemVolumeBoost(effective);
         break;
@@ -6727,6 +7014,7 @@ class PlayerService {
   /// Fold [_replayGainState] into the just_audio (system tier) volume and
   /// LoudnessEnhancer boost for [song].
   Future<void> _applyReplayGainForSystemTier(Song? song) async {
+    await _waitForPhysicalOutputVolumeGuard();
     await _refreshReplayGainForSong(song);
     if (_determineCurrentTier() != VolumeTier.system) return;
     final player = _justAudioPlayer;
@@ -6734,7 +7022,9 @@ class PlayerService {
     final effective =
         math.min(_currentVolume.clamp(0.0, 1.0), 1.0) * _replayGainState.linear;
     try {
-      await player.setVolume(math.min(effective, 1.0));
+      await _setAndroidPlayerVolume(
+        math.min(effective, 1.0) * (_isDucked ? _duckVolumeScale : 1.0),
+      );
     } catch (e) {
       _debugLog('[RG] system-volume fold failed: $e');
     }
