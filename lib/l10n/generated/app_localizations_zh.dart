@@ -5205,6 +5205,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get orbital => 'Orbital';
 
   @override
+  String get orbitHeaderBoundaryBody =>
+      '轨道卡片和轨道路径始终位于媒体库标题与搜索栏下方。向上移动轨道时，会在此边界处被裁切。';
+
+  @override
+  String get orbitHeaderBoundaryTitle => '轨道止于媒体库顶栏';
+
+  @override
   String get orbitLandscapeHint => '当应用窗口宽大于高时使用。';
 
   @override
@@ -5212,6 +5219,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get orbitPortraitHint => '当应用窗口高大于宽时使用。';
+
+  @override
+  String get orbitPreviewHide => '隐藏预览';
+
+  @override
+  String get orbitPreviewHint => '滑动即可浏览。不会播放、加入队列或更改收藏。';
+
+  @override
+  String get orbitPreviewShow => '显示预览';
 
   @override
   String get orbitSharedVisuals => '共享视觉效果';
@@ -7144,6 +7160,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get spaceOdyssey => '太空漫游';
+
+  @override
+  String get spanishDraftDescription => '拉丁美洲西班牙语，翻译草稿待母语使用者审核。';
 
   @override
   String get spatialTime => '空间与时间';

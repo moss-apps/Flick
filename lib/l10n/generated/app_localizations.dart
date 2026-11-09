@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
+import 'app_localizations_es.dart';
 import 'app_localizations_tl.dart';
 import 'app_localizations_zh.dart';
 
@@ -96,6 +97,7 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
+    Locale('es'),
     Locale('tl'),
     Locale.fromSubtags(languageCode: 'tl', scriptCode: 'Tglg'),
     Locale('zh'),
@@ -9532,6 +9534,18 @@ abstract class AppLocalizations {
   /// **'Orbital'**
   String get orbital;
 
+  /// Explains that orbit cards and the path stay below the library header and search bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Orbital cards and the orbit path stay below the Your Library heading and search bar. Raising the orbit clips it at this boundary.'**
+  String get orbitHeaderBoundaryBody;
+
+  /// Title of the notice about the orbit's top boundary.
+  ///
+  /// In en, this message translates to:
+  /// **'Orbit stops at the library header'**
+  String get orbitHeaderBoundaryTitle;
+
   /// Explains when the landscape orbit profile is applied.
   ///
   /// In en, this message translates to:
@@ -9549,6 +9563,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Used when the app window is taller than it is wide.'**
   String get orbitPortraitHint;
+
+  /// Tooltip for collapsing the orbit preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide preview'**
+  String get orbitPreviewHide;
+
+  /// Explains that the orbit preview is browse-only.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe to browse. Nothing plays, queues, or changes your favorites.'**
+  String get orbitPreviewHint;
+
+  /// Tooltip for expanding the orbit preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Show preview'**
+  String get orbitPreviewShow;
 
   /// Header for orbit visuals shared by both orientation profiles.
   ///
@@ -13084,6 +13116,12 @@ abstract class AppLocalizations {
   /// **'Space Odyssey'**
   String get spaceOdyssey;
 
+  /// Language selector notice that the Latin American Spanish translation is a draft awaiting native-speaker review.
+  ///
+  /// In en, this message translates to:
+  /// **'Latin American Spanish. Draft translation pending native-speaker review.'**
+  String get spanishDraftDescription;
+
   /// lib/features/settings/screens/equalizer_screen.dart:3548
   ///
   /// In en, this message translates to:
@@ -15566,7 +15604,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'tl', 'zh'].contains(locale.languageCode);
+      <String>['en', 'es', 'tl', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -15589,6 +15627,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();
+    case 'es':
+      return AppLocalizationsEs();
     case 'tl':
       return AppLocalizationsTl();
     case 'zh':

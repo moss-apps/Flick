@@ -661,11 +661,15 @@ class SettingsScaffold extends ConsumerWidget {
     required this.title,
     required this.body,
     this.initialSection,
+    this.pinnedHeader,
   });
 
   final String title;
   final Widget body;
   final String? initialSection;
+
+  /// Optional content that stays visible above the scrollable body.
+  final Widget? pinnedHeader;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -690,6 +694,7 @@ class SettingsScaffold extends ConsumerWidget {
               children: [
                 _SettingsBackHeader(title: title),
                 const SizedBox(height: AppConstants.spacingMd),
+                ?pinnedHeader,
                 Expanded(
                   child: SettingsScrollTarget(
                     initialSection: initialSection,

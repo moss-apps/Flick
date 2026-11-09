@@ -5567,6 +5567,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orbital => 'Orbital';
 
   @override
+  String get orbitHeaderBoundaryBody =>
+      'Orbital cards and the orbit path stay below the Your Library heading and search bar. Raising the orbit clips it at this boundary.';
+
+  @override
+  String get orbitHeaderBoundaryTitle => 'Orbit stops at the library header';
+
+  @override
   String get orbitLandscapeHint =>
       'Used when the app window is wider than it is tall.';
 
@@ -5576,6 +5583,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get orbitPortraitHint =>
       'Used when the app window is taller than it is wide.';
+
+  @override
+  String get orbitPreviewHide => 'Hide preview';
+
+  @override
+  String get orbitPreviewHint =>
+      'Swipe to browse. Nothing plays, queues, or changes your favorites.';
+
+  @override
+  String get orbitPreviewShow => 'Show preview';
 
   @override
   String get orbitSharedVisuals => 'Shared Visuals';
@@ -7710,6 +7727,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get spaceOdyssey => 'Space Odyssey';
+
+  @override
+  String get spanishDraftDescription =>
+      'Latin American Spanish. Draft translation pending native-speaker review.';
 
   @override
   String get spatialTime => 'Spatial & Time';

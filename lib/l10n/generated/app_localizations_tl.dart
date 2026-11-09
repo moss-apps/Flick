@@ -5626,6 +5626,14 @@ class AppLocalizationsTl extends AppLocalizations {
   String get orbital => 'Orbital';
 
   @override
+  String get orbitHeaderBoundaryBody =>
+      'Ang mga orbital card at orbit path ay nananatili sa ilalim ng Your Library heading at search bar. Kapag itinaas ang orbit, napuputol ito sa hangganang ito.';
+
+  @override
+  String get orbitHeaderBoundaryTitle =>
+      'Humihinto ang orbit sa library header';
+
+  @override
   String get orbitLandscapeHint =>
       'Ginagamit kapag mas malapad kaysa matangkad ang window ng app.';
 
@@ -5635,6 +5643,16 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get orbitPortraitHint =>
       'Ginagamit kapag mas matangkad kaysa lapad ang window ng app.';
+
+  @override
+  String get orbitPreviewHide => 'Itago ang preview';
+
+  @override
+  String get orbitPreviewHint =>
+      'Mag-swipe upang mag-browse. Walang tumutugtog, naidadagdag sa queue, o nababago sa mga paborito.';
+
+  @override
+  String get orbitPreviewShow => 'Ipakita ang preview';
 
   @override
   String get orbitSharedVisuals => 'Mga shared na visual';
@@ -7793,6 +7811,10 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get spaceOdyssey => 'Paglalakbay sa kalawakan';
+
+  @override
+  String get spanishDraftDescription =>
+      'Latin American Spanish. Draft copy para sa review ng native speaker.';
 
   @override
   String get spatialTime => 'Espasyo at oras';

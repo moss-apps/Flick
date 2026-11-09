@@ -238,6 +238,13 @@ void main() {
           );
           expect(_option('Taglish'), findsOneWidget);
           expect(_option('English'), findsOneWidget);
+          expect(_option('Español (Latinoamérica)'), findsOneWidget);
+          expect(
+            tester
+                .widget<SelectionSetting>(_option('Español (Latinoamérica)'))
+                .subtitle,
+            l10n.englishForFilipino.spanishDraftDescription,
+          );
           expect(
             find.byType(ToggleSetting),
             locale == kFilipinoLocale ? findsOneWidget : findsNothing,
@@ -257,6 +264,64 @@ void main() {
       }
     }
   });
+
+  testWidgets(
+    'Spanish draft selection persists and keeps English and system reachable',
+    (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final dispatcher = tester.binding.platformDispatcher;
+      dispatcher.localesTestValue = [const Locale('es', 'MX')];
+      addTearDown(dispatcher.clearLocalesTestValue);
+      _setSize(tester, 320);
+      await LocaleController.instance.select(const Locale('en'));
+      await tester.pumpWidget(_app(_languagePage(), scale: 2));
+      await tester.pumpAndSettle();
+      final spanishOption = _option('Español (Latinoamérica)');
+      expect(
+        tester.widget<SelectionSetting>(spanishOption).subtitle,
+        'Latin American Spanish. Draft translation pending native-speaker review.',
+      );
+
+      await tester.ensureVisible(spanishOption);
+      await tester.tap(spanishOption);
+      await tester.pumpAndSettle();
+      expect(LocaleController.instance.value, const Locale('es'));
+      expect(l10n.language, 'Idioma');
+      expect(tester.widget<SelectionSetting>(spanishOption).selected, isTrue);
+      expect(
+        tester.widget<SelectionSetting>(spanishOption).subtitle,
+        'Español latinoamericano. Traducción preliminar pendiente de revisión '
+        'por hablantes nativos.',
+      );
+      expect(find.byType(ToggleSetting), findsNothing);
+      LocaleController.instance.value = null;
+      await LocaleController.instance.load();
+      await tester.pumpAndSettle();
+      expect(LocaleController.instance.value, const Locale('es'));
+      expect(l10n.language, 'Idioma');
+
+      await tester.ensureVisible(_option('English'));
+      await tester.tap(_option('English'));
+      await tester.pumpAndSettle();
+      expect(l10n.language, 'Language');
+      expect(tester.widget<SelectionSetting>(spanishOption).selected, isFalse);
+
+      await tester.ensureVisible(_option('System default'));
+      await tester.tap(_option('System default'));
+      await tester.pumpAndSettle();
+      expect(LocaleController.instance.followsSystem, isTrue);
+      expect(l10n.language, 'Idioma');
+      expect(tester.widget<SelectionSetting>(spanishOption).selected, isFalse);
+      expect(
+        tester
+            .widget<SelectionSetting>(_option('Predeterminado del sistema'))
+            .selected,
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'Taglish selector and independent script switch retain the English escape',

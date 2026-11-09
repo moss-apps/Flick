@@ -321,7 +321,8 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
           'language',
           l10n.language,
           [],
-          keywords: 'locale english chinese taglish filipino baybayin',
+          keywords:
+              'locale english chinese spanish español espanol latinoamérica latinoamerica taglish filipino baybayin',
         ),
         SettingsSearchSection('interfaceLabel', l10n.interfaceLabel, [
           SettingsSearchItem('animations', l10n.animations),
@@ -583,6 +584,7 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
         _section('orbitLayoutProfile', l10n.orbitLayoutProfile, [
           ('portrait', l10n.portrait),
           ('landscape', l10n.landscape),
+          ('orbitHeaderBoundaryTitle', l10n.orbitHeaderBoundaryTitle),
         ]),
         _section('geometry', l10n.geometry, [
           ('curvature', l10n.curvature),

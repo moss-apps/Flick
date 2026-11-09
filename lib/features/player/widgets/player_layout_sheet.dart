@@ -85,13 +85,15 @@ class _PlayerLayoutSheetState extends ConsumerState<PlayerLayoutSheet> {
                   color: context.adaptiveTextSecondary,
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  l10n.playerLayout,
-                  style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: context.adaptiveTextPrimary,
+                Expanded(
+                  child: Text(
+                    l10n.playerLayout,
+                    style: TextStyle(
+                      fontFamily: 'GoogleSansFlex',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: context.adaptiveTextPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -1543,17 +1545,19 @@ class _PlayerActionButtonSelector extends StatelessWidget {
                           : context.adaptiveTextSecondary,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      action.labelFor(l10n),
-                      style: TextStyle(
-                        fontFamily: 'GoogleSansFlex',
-                        fontSize: 12,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: isSelected
-                            ? AppColors.textPrimary
-                            : context.adaptiveTextSecondary,
+                    Flexible(
+                      child: Text(
+                        action.labelFor(l10n),
+                        style: TextStyle(
+                          fontFamily: 'GoogleSansFlex',
+                          fontSize: 12,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? AppColors.textPrimary
+                              : context.adaptiveTextSecondary,
+                        ),
                       ),
                     ),
                   ],

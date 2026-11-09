@@ -7203,6 +7203,14 @@
   "@orbital": {
     "description": "lib/models/song_view_mode.dart:17"
   },
+  "orbitHeaderBoundaryBody": "Orbital cards and the orbit path stay below the Your Library heading and search bar. Raising the orbit clips it at this boundary.",
+  "@orbitHeaderBoundaryBody": {
+    "description": "Explains that orbit cards and the path stay below the library header and search bar."
+  },
+  "orbitHeaderBoundaryTitle": "Orbit stops at the library header",
+  "@orbitHeaderBoundaryTitle": {
+    "description": "Title of the notice about the orbit's top boundary."
+  },
   "orbitLandscapeHint": "Used when the app window is wider than it is tall.",
   "@orbitLandscapeHint": {
     "description": "Explains when the landscape orbit profile is applied."
@@ -7214,6 +7222,18 @@
   "orbitPortraitHint": "Used when the app window is taller than it is wide.",
   "@orbitPortraitHint": {
     "description": "Explains when the portrait orbit profile is applied."
+  },
+  "orbitPreviewHide": "Hide preview",
+  "@orbitPreviewHide": {
+    "description": "Tooltip for collapsing the orbit preview."
+  },
+  "orbitPreviewHint": "Swipe to browse. Nothing plays, queues, or changes your favorites.",
+  "@orbitPreviewHint": {
+    "description": "Explains that the orbit preview is browse-only."
+  },
+  "orbitPreviewShow": "Show preview",
+  "@orbitPreviewShow": {
+    "description": "Tooltip for expanding the orbit preview."
   },
   "orbitSharedVisuals": "Shared Visuals",
   "@orbitSharedVisuals": {
@@ -9945,6 +9965,10 @@
   "spaceOdyssey": "Space Odyssey",
   "@spaceOdyssey": {
     "description": "lib/models/song.dart:326"
+  },
+  "spanishDraftDescription": "Latin American Spanish. Draft translation pending native-speaker review.",
+  "@spanishDraftDescription": {
+    "description": "Language selector notice that the Latin American Spanish translation is a draft awaiting native-speaker review."
   },
   "spatialTime": "Spatial & Time",
   "@spatialTime": {

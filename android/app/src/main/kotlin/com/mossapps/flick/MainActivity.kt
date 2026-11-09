@@ -4667,6 +4667,23 @@ class MainActivity: FlutterActivity() {
         )
     }
 
+    private fun isPhysicalAudioOutput(device: AudioDeviceInfo): Boolean {
+        return when (device.type) {
+            AudioDeviceInfo.TYPE_USB_DEVICE,
+            AudioDeviceInfo.TYPE_USB_HEADSET,
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+            AudioDeviceInfo.TYPE_LINE_ANALOG,
+            AudioDeviceInfo.TYPE_LINE_DIGITAL,
+            AudioDeviceInfo.TYPE_AUX_LINE,
+            AudioDeviceInfo.TYPE_HDMI,
+            AudioDeviceInfo.TYPE_HDMI_ARC,
+            AudioDeviceInfo.TYPE_HDMI_EARC,
+            AudioDeviceInfo.TYPE_DOCK -> true
+            else -> false
+        }
+    }
+
     private fun getPlaybackDeviceInfo(): Map<String, Any?> {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         val outputs = if (audioManager != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -4678,18 +4695,47 @@ class MainActivity: FlutterActivity() {
             device.type == AudioDeviceInfo.TYPE_USB_DEVICE ||
                 device.type == AudioDeviceInfo.TYPE_USB_HEADSET
         }
+        val physicalOutputs = outputs.filter { device -> isPhysicalAudioOutput(device) }
+        val preferredPhysicalOutput = physicalOutputs.minByOrNull { device ->
+            outputRoutePriority(device.type)
+        }
+        val hasWiredAudioRoute = physicalOutputs.any { device ->
+            routeTypeForAudioDevice(device.type) == "wired"
+        }
         val route = describeCurrentOutputRoute(audioManager)
         val usbManager = getSystemService(Context.USB_SERVICE) as? UsbManager
-        val hasAttachedUac2Device = usbManager
+        val attachedUac2Device = usbManager
             ?.deviceList
             ?.values
-            ?.any { device -> isLikelyUsbAudioDevice(device, route["routeLabel"] as? String) }
-            ?: false
+            ?.firstOrNull { device -> isLikelyUsbAudioDevice(device, route["routeLabel"] as? String) }
+        val hasAttachedUac2Device = attachedUac2Device != null
+        val physicalOutputType = preferredPhysicalOutput
+            ?.let { device -> routeTypeForAudioDevice(device.type) }
+            ?: if (hasAttachedUac2Device) "usb" else null
+        val physicalOutputId = preferredPhysicalOutput?.id?.toString()
+            ?: attachedUac2Device?.deviceName
+        // Android can expose (or remove) its managed audio route after the USB
+        // broadcast. Keep the physical connection identity independent of that
+        // route's AudioDeviceInfo.id, including when libusb owns the device.
+        val physicalOutputConnectionId = attachedUac2Device?.deviceName
+            ?: preferredPhysicalOutput?.id?.toString()
+        val physicalOutputLabel = preferredPhysicalOutput?.productName
+            ?.toString()
+            ?.takeIf { it.isNotBlank() }
+            ?: attachedUac2Device?.productName
+                ?.takeIf { it.isNotBlank() }
+            ?: (route["routeLabel"] as? String)
 
         return mapOf(
             "hasUsbDac" to (hasUsbAudioRoute || hasAttachedUac2Device),
             "hasUsbAudioRoute" to hasUsbAudioRoute,
             "hasAttachedUac2Device" to hasAttachedUac2Device,
+            "hasWiredAudioRoute" to hasWiredAudioRoute,
+            "hasPhysicalOutput" to (physicalOutputs.isNotEmpty() || hasAttachedUac2Device),
+            "physicalOutputType" to physicalOutputType,
+            "physicalOutputId" to physicalOutputId,
+            "physicalOutputConnectionId" to physicalOutputConnectionId,
+            "physicalOutputLabel" to physicalOutputLabel,
             "manufacturer" to Build.MANUFACTURER,
             "model" to Build.MODEL,
             "routeType" to route["routeType"],
@@ -5583,10 +5629,12 @@ class MainActivity: FlutterActivity() {
                 // (e.g. re-pin from speaker to the 3.5mm jack when headphones
                 // are plugged in mid-playback).
                 priorityAnchorService.updateRouteDevice()
+                audioDeviceChannel?.invokeMethod("onPlaybackDevicesChanged", null)
             }
 
             override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
                 priorityAnchorService.updateRouteDevice()
+                audioDeviceChannel?.invokeMethod("onPlaybackDevicesChanged", null)
             }
         }
         try {

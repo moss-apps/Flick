@@ -174,10 +174,12 @@ class DetailHeader extends StatelessWidget {
                                 color: context.adaptiveTextSecondary,
                               ),
                               const SizedBox(width: AppConstants.spacingXxs),
-                              Text(
-                                losslessLabel ?? context.l10n.lossless,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: context.adaptiveTextTertiary),
+                              Flexible(
+                                child: Text(
+                                  losslessLabel ?? context.l10n.lossless,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: context.adaptiveTextTertiary),
+                                ),
                               ),
                               const SizedBox(width: AppConstants.spacingSm),
                             ],

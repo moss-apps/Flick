@@ -165,6 +165,25 @@ void main() {
     },
   );
 
+  test('Spanish language names find the language setting in every locale', () {
+    for (final locale in kSupportedLocales) {
+      LocaleController.instance.bindLocale(locale);
+      final pages = buildSettingsSearchCatalog();
+      for (final query in ['spanish', 'español', 'espanol', 'latinoamérica']) {
+        final results = searchSettings(query, pages);
+        expect(
+          results.any(
+            (result) =>
+                result.page.id == 'interface_settings' &&
+                result.matches.any((match) => match.section.id == 'language'),
+          ),
+          isTrue,
+          reason: '$locale: $query',
+        );
+      }
+    }
+  });
+
   test(
     'localized titles are rebuilt while navigation IDs remain unchanged',
     () {
