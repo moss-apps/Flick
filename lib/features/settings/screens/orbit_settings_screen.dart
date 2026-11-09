@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/adaptive_layout.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
+import 'package:flick/features/settings/widgets/orbit_preview.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
@@ -64,6 +65,7 @@ class _OrbitSettingsScreenState extends ConsumerState<OrbitSettingsScreen> {
     return SettingsScaffold(
       title: l10n.englishForFilipino.customizeOrbital,
       initialSection: widget.initialSection,
+      pinnedHeader: OrbitPreview(landscape: _landscape),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -91,6 +93,16 @@ class _OrbitSettingsScreenState extends ConsumerState<OrbitSettingsScreen> {
                 onTap: () {
                   setState(() => _profile = _OrbitLayoutProfile.landscape);
                 },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
+          SettingsCard(
+            children: [
+              InfoSetting(
+                icon: LucideIcons.panelTop,
+                title: l10n.englishForFilipino.orbitHeaderBoundaryTitle,
+                subtitle: l10n.englishForFilipino.orbitHeaderBoundaryBody,
               ),
             ],
           ),
