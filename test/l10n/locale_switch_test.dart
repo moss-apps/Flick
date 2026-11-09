@@ -96,6 +96,67 @@ void main() {
     expect(find.text('Flick Replay'), findsOneWidget);
   });
 
+  testWidgets('Spanish switches widgets, global copy and built-in controls', (
+    tester,
+  ) async {
+    await LocaleController.instance.select(const Locale('en'));
+    await tester.pumpWidget(_app());
+    expect(find.text('Language'), findsOneWidget);
+
+    await LocaleController.instance.select(const Locale('es'));
+    await tester.pumpAndSettle();
+    expect(l10n.localeName, 'es');
+    expect(l10n.language, 'Idioma');
+    expect(l10n.englishForFilipino.language, 'Idioma');
+    expect(find.text('Idioma'), findsOneWidget);
+    expect(find.text('Language'), findsNothing);
+    final context = tester.element(find.text('Idioma'));
+    expect(Localizations.localeOf(context), const Locale('es'));
+    expect(MaterialLocalizations.of(context).cancelButtonLabel, 'Cancelar');
+
+    await LocaleController.instance.select(const Locale('en'));
+    await tester.pumpAndSettle();
+    expect(l10n.language, 'Language');
+    expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Idioma'), findsNothing);
+  });
+
+  test('Spanish regional locales use the Latin American Spanish resource', () {
+    for (final requested in const [
+      Locale('es'),
+      Locale('es', 'MX'),
+      Locale('es', '419'),
+      Locale('es', 'ES'),
+      Locale.fromSubtags(languageCode: 'es', scriptCode: 'Latn'),
+    ]) {
+      expect(resolveSupportedLocale(requested), const Locale('es'));
+      expect(
+        resolveAppLocale(requested, kSupportedLocales),
+        const Locale('es'),
+      );
+      expect(lookupFlickLocalizations(requested).language, 'Idioma');
+    }
+    expect(kSupportedLocales, contains(const Locale('es')));
+  });
+
+  test(
+    'Spanish selection persists and restores without enabling Baybayin',
+    () async {
+      final controller = LocaleController.instance;
+      final preferences = AppPreferencesService();
+      await controller.select(const Locale('es', 'MX'));
+      expect(controller.value, const Locale('es'));
+      expect(await preferences.getAppLocale(), 'es');
+
+      controller.value = null;
+      await controller.load();
+      expect(controller.value, const Locale('es'));
+      expect(controller.baybayinHeadings, isFalse);
+      controller.bindLocale(controller.effectiveLocale);
+      expect(l10n.language, 'Idioma');
+    },
+  );
+
   test(
     'Filipino aliases resolve to the Latin UI, never the script resource',
     () {
@@ -117,7 +178,7 @@ void main() {
           ),
           kFilipinoLocale,
         ),
-        (Locale('es'), kFallbackLocale),
+        (Locale('fr'), kFallbackLocale),
       ];
       for (final (requested, expected) in cases) {
         expect(resolveSupportedLocale(requested), expected);
@@ -190,6 +251,10 @@ void main() {
         'en_US': Locale('en'),
         'zh_CN': Locale('zh', 'CN'),
         'zh_TW': Locale('zh', 'CN'),
+        'es': Locale('es'),
+        'es_MX': Locale('es'),
+        'es-419': Locale('es'),
+        'ES_latn_mx': Locale('es'),
         'tl_Tglg': kFilipinoLocale,
         'tl-Tglg-PH': kFilipinoLocale,
         'TL_tglg_ph': kFilipinoLocale,
@@ -237,6 +302,35 @@ void main() {
         Localizations.localeOf(tester.element(find.text('Wika'))),
         kFilipinoLocale,
       );
+    }
+  });
+
+  testWidgets('system Spanish regional locales reach startup and widgets', (
+    tester,
+  ) async {
+    final dispatcher = tester.binding.platformDispatcher;
+    addTearDown(dispatcher.clearLocalesTestValue);
+    for (final deviceLocale in const [
+      Locale('es'),
+      Locale('es', 'MX'),
+      Locale('es', '419'),
+    ]) {
+      dispatcher.localesTestValue = [deviceLocale];
+      LocaleController.instance.value = null;
+      LocaleController.instance.bindLocale(
+        LocaleController.instance.effectiveLocale,
+      );
+      expect(l10n.language, 'Idioma');
+      await tester.pumpWidget(_app());
+      await tester.pumpAndSettle();
+      expect(l10n.localeName, 'es');
+      expect(find.text('Idioma'), findsOneWidget);
+      expect(
+        Localizations.localeOf(tester.element(find.text('Idioma'))),
+        const Locale('es'),
+      );
+      expect(LocaleController.instance.followsSystem, isTrue);
+      expect(LocaleController.instance.baybayinHeadings, isFalse);
     }
   });
 
