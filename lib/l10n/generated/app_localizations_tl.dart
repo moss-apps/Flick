@@ -1015,6 +1015,27 @@ class AppLocalizationsTl extends AppLocalizations {
   String get blurGradient => 'Gradient ng blur';
 
   @override
+  String get blurGradientHint =>
+      'Ang blurred na artwork ay dahan-dahang lumalapit sa detalye ng kanta.';
+
+  @override
+  String get blackGradient => 'Black gradient';
+
+  @override
+  String get blackGradientHint =>
+      'Malalim na black scrim para sa classic na itsura.';
+
+  @override
+  String get albumArtColorGradient => 'Kulay ng album art';
+
+  @override
+  String get albumArtColorGradientHint =>
+      'Kulayan ang card gamit ang mga kulay mula sa cover.';
+
+  @override
+  String get cardBackground => 'Background ng card';
+
+  @override
   String get colorGradient => 'Gradient ng kulay';
 
   @override
@@ -5627,11 +5648,11 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get orbitHeaderBoundaryBody =>
-      'Ang mga orbital card at orbit path ay nananatili sa ilalim ng Your Library heading at search bar. Kapag itinaas ang orbit, napuputol ito sa hangganang ito.';
+      'Maaaring dumaan ang mga orbital card at ang path sa likod ng Your Library heading at search bar. Nananatili sila sa loob ng Songs screen at naka-clip sa mga gilid nito.';
 
   @override
   String get orbitHeaderBoundaryTitle =>
-      'Humihinto ang orbit sa library header';
+      'Dumadaan ang orbit sa likod ng library header';
 
   @override
   String get orbitLandscapeHint =>

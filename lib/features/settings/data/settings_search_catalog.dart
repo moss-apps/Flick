@@ -600,6 +600,11 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
           ('selectedSize', l10n.selectedSize),
           ('depth', l10n.depth),
         ]),
+        _section('cardBackground', l10n.cardBackground, [
+          ('blurGradient', l10n.blurGradient),
+          ('blackGradient', l10n.blackGradient),
+          ('albumArtColorGradient', l10n.albumArtColorGradient),
+        ]),
         _section('artResolution', l10n.artResolution, [
           ('low', l10n.low),
           ('medium', l10n.medium),

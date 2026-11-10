@@ -1002,6 +1002,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get blurGradient => 'Blur gradient';
 
   @override
+  String get blurGradientHint =>
+      'Blurred artwork fades toward the song details.';
+
+  @override
+  String get blackGradient => 'Black gradient';
+
+  @override
+  String get blackGradientHint => 'A deep black scrim keeps the classic look.';
+
+  @override
+  String get albumArtColorGradient => 'Album art color';
+
+  @override
+  String get albumArtColorGradientHint =>
+      'Tint the card with colors sampled from the cover.';
+
+  @override
+  String get cardBackground => 'Card background';
+
+  @override
   String get colorGradient => 'Color gradient';
 
   @override
@@ -5568,10 +5588,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orbitHeaderBoundaryBody =>
-      'Orbital cards and the orbit path stay below the Your Library heading and search bar. Raising the orbit clips it at this boundary.';
+      'Orbit cards and the path can pass behind the Your Library heading and search bar. They stay inside the Songs screen and are clipped at its edges.';
 
   @override
-  String get orbitHeaderBoundaryTitle => 'Orbit stops at the library header';
+  String get orbitHeaderBoundaryTitle =>
+      'Orbit passes behind the library header';
 
   @override
   String get orbitLandscapeHint =>

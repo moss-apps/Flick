@@ -107,6 +107,10 @@ class AppPreferences {
   final double orbitArtResolutionMultiplier;
   final bool orbitShowPath;
   final bool orbitShowGlow;
+
+  /// One of 'blur_gradient', 'black_gradient', or 'album_color_gradient'.
+  final String orbitCardBackgroundStyle;
+
   final double orbitLandscapeRadiusRatio;
   final double orbitLandscapeCenterYRatio;
   final double orbitLandscapeItemSpacing;
@@ -235,6 +239,7 @@ class AppPreferences {
     this.orbitArtResolutionMultiplier = 2.0,
     this.orbitShowPath = true,
     this.orbitShowGlow = true,
+    this.orbitCardBackgroundStyle = 'black_gradient',
     this.orbitLandscapeRadiusRatio = 1.0,
     this.orbitLandscapeCenterYRatio = 0.48,
     this.orbitLandscapeItemSpacing = 0.28,
@@ -363,6 +368,7 @@ class AppPreferences {
     double? orbitArtResolutionMultiplier,
     bool? orbitShowPath,
     bool? orbitShowGlow,
+    String? orbitCardBackgroundStyle,
     double? orbitLandscapeRadiusRatio,
     double? orbitLandscapeCenterYRatio,
     double? orbitLandscapeItemSpacing,
@@ -532,6 +538,8 @@ class AppPreferences {
           orbitArtResolutionMultiplier ?? this.orbitArtResolutionMultiplier,
       orbitShowPath: orbitShowPath ?? this.orbitShowPath,
       orbitShowGlow: orbitShowGlow ?? this.orbitShowGlow,
+      orbitCardBackgroundStyle:
+          orbitCardBackgroundStyle ?? this.orbitCardBackgroundStyle,
       orbitLandscapeRadiusRatio:
           orbitLandscapeRadiusRatio ?? this.orbitLandscapeRadiusRatio,
       orbitLandscapeCenterYRatio:
@@ -685,6 +693,7 @@ class AppPreferencesService {
       'orbit_art_resolution_multiplier';
   static const _orbitShowPathKey = 'orbit_show_path';
   static const _orbitShowGlowKey = 'orbit_show_glow';
+  static const _orbitCardBackgroundStyleKey = 'orbit_card_background_style';
   static const _orbitLandscapeRadiusRatioKey = 'orbit_landscape_radius_ratio';
   static const _orbitLandscapeCenterYRatioKey =
       'orbit_landscape_center_y_ratio';
@@ -858,6 +867,8 @@ class AppPreferencesService {
           prefs.getDouble(_orbitArtResolutionMultiplierKey) ?? 2.0,
       orbitShowPath: prefs.getBool(_orbitShowPathKey) ?? true,
       orbitShowGlow: prefs.getBool(_orbitShowGlowKey) ?? true,
+      orbitCardBackgroundStyle:
+          prefs.getString(_orbitCardBackgroundStyleKey) ?? 'black_gradient',
       orbitLandscapeRadiusRatio:
           prefs.getDouble(_orbitLandscapeRadiusRatioKey) ?? 1.0,
       orbitLandscapeCenterYRatio:
@@ -1978,6 +1989,11 @@ class AppPreferencesService {
     await prefs.setBool(_orbitShowGlowKey, value);
   }
 
+  Future<void> setOrbitCardBackgroundStyle(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_orbitCardBackgroundStyleKey, value);
+  }
+
   Future<void> setOrbitLandscapeRadiusRatio(double value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_orbitLandscapeRadiusRatioKey, value);
@@ -2084,6 +2100,7 @@ class AppPreferencesService {
     await prefs.remove(_orbitVisibleItemsKey);
     await prefs.remove(_orbitCardArtSizeKey);
     await prefs.remove(_orbitCardWidthRatioKey);
+    await prefs.remove(_orbitCardBackgroundStyleKey);
   }
 
   Future<void> clearOrbitLandscapeLayout() async {

@@ -53,7 +53,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_host(scale: 0.9, opacity: 0.8));
-    final imageFinder = find.byType(CachedImageWidget);
+    final imageFinder = find.byType(CachedImageWidget).first;
     final image = tester.widget<CachedImageWidget>(imageFinder);
     final imageState = tester.state(imageFinder);
     final boundaryFinder = find.descendant(
@@ -83,7 +83,7 @@ void main() {
     'same-ID metadata and artwork updates refresh the retained face',
     (tester) async {
       await tester.pumpWidget(_host());
-      final imageFinder = find.byType(CachedImageWidget);
+      final imageFinder = find.byType(CachedImageWidget).first;
       final originalImage = tester.widget<CachedImageWidget>(imageFinder);
       final imageState = tester.state(imageFinder);
       final edited = _song.copyWith(
@@ -141,7 +141,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_host());
-    final imageFinder = find.byType(CachedImageWidget);
+    final imageFinder = find.byType(CachedImageWidget).first;
     final imageState = tester.state(imageFinder);
     expect(tester.widget<CachedImageWidget>(imageFinder).thumbnailWidth, 105);
 

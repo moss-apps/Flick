@@ -6,7 +6,12 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/app_haptics.dart';
+import 'package:flick/models/orbit_card_background_style.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/features/player/widgets/album_color_helpers.dart';
+import 'package:flick/features/songs/widgets/orbit_card_blur.dart';
+import 'package:flick/services/album_art_service.dart';
+import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -58,6 +63,9 @@ class SongCard extends StatefulWidget {
   final double? height;
   final bool artworkAbove;
 
+  /// Background treatment used by the portrait card face.
+  final OrbitCardBackgroundStyle backgroundStyle;
+
   const SongCard({
     super.key,
     required this.song,
@@ -77,6 +85,7 @@ class SongCard extends StatefulWidget {
     this.width,
     this.height,
     this.artworkAbove = false,
+    this.backgroundStyle = OrbitCardBackgroundStyle.blackGradient,
   });
 
   @override
@@ -93,6 +102,17 @@ class _SongCardState extends State<SongCard> {
   /// artwork, gradients and text on every frame.
   Widget? _cardFace;
 
+  /// Resolves the per-card tint for [OrbitCardBackgroundStyle.albumColorGradient].
+  /// The future is rebuilt only when the song or background style changes; the
+  /// service caches extracted colors, so later resolutions are instant.
+  late Future<Color?> _albumColorFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _albumColorFuture = _resolveAlbumColor();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -105,16 +125,41 @@ class _SongCardState extends State<SongCard> {
     super.didUpdateWidget(oldWidget);
     // Song equality compares only the id, so use identity here: metadata or
     // artwork for the same id must refresh the retained face.
-    if (!identical(oldWidget.song, widget.song) ||
+    final songChanged = !identical(oldWidget.song, widget.song);
+    if (songChanged ||
         oldWidget.isSelected != widget.isSelected ||
         oldWidget.isSelectionMode != widget.isSelectionMode ||
         oldWidget.isMultiSelected != widget.isMultiSelected ||
         oldWidget.artSizeBase != widget.artSizeBase ||
         oldWidget.artSizeLarge != widget.artSizeLarge ||
         oldWidget.artResolutionMultiplier != widget.artResolutionMultiplier ||
-        oldWidget.artworkAbove != widget.artworkAbove) {
+        oldWidget.artworkAbove != widget.artworkAbove ||
+        oldWidget.backgroundStyle != widget.backgroundStyle) {
       _cardFace = null;
     }
+    if (songChanged ||
+        oldWidget.artworkAbove != widget.artworkAbove ||
+        oldWidget.backgroundStyle != widget.backgroundStyle) {
+      _albumColorFuture = _resolveAlbumColor();
+    }
+  }
+
+  Future<Color?> _resolveAlbumColor() {
+    if (widget.artworkAbove ||
+        widget.backgroundStyle != OrbitCardBackgroundStyle.albumColorGradient) {
+      return Future<Color?>.value(null);
+    }
+    final song = widget.song;
+    return () async {
+      // Resolve embedded or folder artwork before sampling; the service keeps
+      // the expensive extraction off the layout path and caches the result.
+      final path = await AlbumArtService.instance.resolveArtworkPath(
+        existingPath: song.albumArt,
+        audioSourcePath: song.filePath ?? '',
+      );
+      if (path == null) return null;
+      return ColorExtractionService().extractDominantColor(path);
+    }();
   }
 
   @override
@@ -229,21 +274,9 @@ class _SongCardState extends State<SongCard> {
       borderRadius: const BorderRadius.all(Radius.circular(AppConstants.radiusLg)),
       child: Stack(
         children: [
-          Positioned.fill(child: _buildAlbumWithGradient(artSize)),
+          Positioned.fill(child: _buildPortraitBackground(artSize)),
           Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusLg)),
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    Colors.transparent,
-                    Color(0xD9000000),
-                  ],
-                  stops: [0.25, 0.70],
-                ),
-              ),
+            child: Padding(
               padding: const EdgeInsets.all(AppConstants.spacingMd),
               child: Row(
                 children: [
@@ -483,7 +516,97 @@ class _SongCardState extends State<SongCard> {
     );
   }
 
-  Widget _buildAlbumWithGradient(double size) {
+  Widget _buildPortraitBackground(double size) {
+    switch (widget.backgroundStyle) {
+      case OrbitCardBackgroundStyle.blurGradient:
+        return _buildBlurPortraitBackground(size);
+      case OrbitCardBackgroundStyle.albumColorGradient:
+        return FutureBuilder<Color?>(
+          future: _albumColorFuture,
+          builder: (context, snapshot) {
+            return _buildAlbumColorPortraitBackground(size, snapshot.data);
+          },
+        );
+      case OrbitCardBackgroundStyle.blackGradient:
+        return _buildBlackPortraitBackground(size);
+    }
+  }
+
+  Widget _buildBlackPortraitBackground(double size) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _buildRawImage(
+          widget.song.albumArt ?? '',
+          audioSourcePath: widget.song.filePath,
+          fit: BoxFit.cover,
+          artSize: size,
+        ),
+        // Keep the original two-pass black fade for the legacy style.
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)],
+              stops: const [0.5, 1.0],
+            ),
+          ),
+        ),
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Colors.transparent, Color(0xD9000000)],
+              stops: [0.25, 0.70],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBlurPortraitBackground(double size) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _buildRawImage(
+          widget.song.albumArt ?? '',
+          audioSourcePath: widget.song.filePath,
+          fit: BoxFit.cover,
+          artSize: size,
+        ),
+        // The blur and fade are baked once into a small cached image, so orbit
+        // motion draws a plain texture instead of rerunning a live filter. The
+        // sharp artwork above keeps its independent decode resolution.
+        OrbitCardBlur(
+          imagePath: widget.song.albumArt,
+          audioSourcePath: widget.song.filePath,
+        ),
+        // Lighter than the black style so the blurred cover stays visible.
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                Colors.transparent,
+                Colors.black.withValues(alpha: 0.56),
+                Colors.black.withValues(alpha: 0.8),
+              ],
+              stops: const [0.22, 0.58, 0.9],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlbumColorPortraitBackground(double size, Color? albumColor) {
+    if (albumColor == null) return _buildBlackPortraitBackground(size);
+
+    final tint = albumSurface(albumColor, 0.5);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -498,8 +621,27 @@ class _SongCardState extends State<SongCard> {
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)],
-              stops: const [0.5, 1.0],
+              colors: [
+                Colors.transparent,
+                tint.withValues(alpha: 0.55),
+                tint.withValues(alpha: 0.95),
+              ],
+              stops: const [0.2, 0.55, 0.88],
+            ),
+          ),
+        ),
+        // Darken the tint just enough for white metadata on bright covers.
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                Colors.transparent,
+                Colors.black.withValues(alpha: 0.12),
+                Colors.black.withValues(alpha: 0.3),
+              ],
+              stops: const [0.45, 0.7, 1.0],
             ),
           ),
         ),

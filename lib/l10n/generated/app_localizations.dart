@@ -1777,6 +1777,42 @@ abstract class AppLocalizations {
   /// **'Blur gradient'**
   String get blurGradient;
 
+  /// No description provided for @blurGradientHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Blurred artwork fades toward the song details.'**
+  String get blurGradientHint;
+
+  /// No description provided for @blackGradient.
+  ///
+  /// In en, this message translates to:
+  /// **'Black gradient'**
+  String get blackGradient;
+
+  /// No description provided for @blackGradientHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A deep black scrim keeps the classic look.'**
+  String get blackGradientHint;
+
+  /// No description provided for @albumArtColorGradient.
+  ///
+  /// In en, this message translates to:
+  /// **'Album art color'**
+  String get albumArtColorGradient;
+
+  /// No description provided for @albumArtColorGradientHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tint the card with colors sampled from the cover.'**
+  String get albumArtColorGradientHint;
+
+  /// No description provided for @cardBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Card background'**
+  String get cardBackground;
+
   /// No description provided for @colorGradient.
   ///
   /// In en, this message translates to:
@@ -9534,16 +9570,16 @@ abstract class AppLocalizations {
   /// **'Orbital'**
   String get orbital;
 
-  /// Explains that orbit cards and the path stay below the library header and search bar.
+  /// Explains that orbit cards and the path can pass behind the library header and search bar, but stay inside the Songs screen.
   ///
   /// In en, this message translates to:
-  /// **'Orbital cards and the orbit path stay below the Your Library heading and search bar. Raising the orbit clips it at this boundary.'**
+  /// **'Orbit cards and the path can pass behind the Your Library heading and search bar. They stay inside the Songs screen and are clipped at its edges.'**
   String get orbitHeaderBoundaryBody;
 
-  /// Title of the notice about the orbit's top boundary.
+  /// Title of the notice about the orbit passing behind the library header.
   ///
   /// In en, this message translates to:
-  /// **'Orbit stops at the library header'**
+  /// **'Orbit passes behind the library header'**
   String get orbitHeaderBoundaryTitle;
 
   /// Explains when the landscape orbit profile is applied.

@@ -928,6 +928,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get blurGradient => '模糊渐变';
 
   @override
+  String get blurGradientHint => '模糊的封面渐渐过渡到歌曲信息。';
+
+  @override
+  String get blackGradient => '黑色渐变';
+
+  @override
+  String get blackGradientHint => '深黑色遮罩，保留经典外观。';
+
+  @override
+  String get albumArtColorGradient => '封面颜色';
+
+  @override
+  String get albumArtColorGradientHint => '用封面提取的颜色为卡片着色。';
+
+  @override
+  String get cardBackground => '卡片背景';
+
+  @override
   String get colorGradient => '色彩渐变';
 
   @override
@@ -5206,10 +5224,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get orbitHeaderBoundaryBody =>
-      '轨道卡片和轨道路径始终位于媒体库标题与搜索栏下方。向上移动轨道时，会在此边界处被裁切。';
+      '轨道卡片和轨道路径可以穿过媒体库标题与搜索栏后方。它们只保留在“歌曲”屏幕内，并在屏幕边缘被裁切。';
 
   @override
-  String get orbitHeaderBoundaryTitle => '轨道止于媒体库顶栏';
+  String get orbitHeaderBoundaryTitle => '轨道从媒体库顶栏后方穿过';
 
   @override
   String get orbitLandscapeHint => '当应用窗口宽大于高时使用。';

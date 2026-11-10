@@ -1154,6 +1154,12 @@
     "description": "lib/features/settings/screens/widget_settings_screen.dart:155"
   },
   "blurGradient": "Blur gradient",
+  "blurGradientHint": "Blurred artwork fades toward the song details.",
+  "blackGradient": "Black gradient",
+  "blackGradientHint": "A deep black scrim keeps the classic look.",
+  "albumArtColorGradient": "Album art color",
+  "albumArtColorGradientHint": "Tint the card with colors sampled from the cover.",
+  "cardBackground": "Card background",
   "colorGradient": "Color gradient",
   "backgroundOpacity": "Background Opacity",
   "@backgroundOpacity": {
@@ -7203,13 +7209,13 @@
   "@orbital": {
     "description": "lib/models/song_view_mode.dart:17"
   },
-  "orbitHeaderBoundaryBody": "Orbital cards and the orbit path stay below the Your Library heading and search bar. Raising the orbit clips it at this boundary.",
+  "orbitHeaderBoundaryBody": "Orbit cards and the path can pass behind the Your Library heading and search bar. They stay inside the Songs screen and are clipped at its edges.",
   "@orbitHeaderBoundaryBody": {
-    "description": "Explains that orbit cards and the path stay below the library header and search bar."
+    "description": "Explains that orbit cards and the path can pass behind the library header and search bar, but stay inside the Songs screen."
   },
-  "orbitHeaderBoundaryTitle": "Orbit stops at the library header",
+  "orbitHeaderBoundaryTitle": "Orbit passes behind the library header",
   "@orbitHeaderBoundaryTitle": {
-    "description": "Title of the notice about the orbit's top boundary."
+    "description": "Title of the notice about the orbit passing behind the library header."
   },
   "orbitLandscapeHint": "Used when the app window is wider than it is tall.",
   "@orbitLandscapeHint": {

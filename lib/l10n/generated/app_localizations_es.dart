@@ -1015,6 +1015,27 @@ class AppLocalizationsEs extends AppLocalizations {
   String get blurGradient => 'Degradado difuminado';
 
   @override
+  String get blurGradientHint =>
+      'La portada difuminada se funde hacia los detalles de la canción.';
+
+  @override
+  String get blackGradient => 'Degradado negro';
+
+  @override
+  String get blackGradientHint =>
+      'Un velo negro profundo mantiene el aspecto clásico.';
+
+  @override
+  String get albumArtColorGradient => 'Color de la portada';
+
+  @override
+  String get albumArtColorGradientHint =>
+      'Tiñe la tarjeta con colores tomados de la portada.';
+
+  @override
+  String get cardBackground => 'Fondo de la tarjeta';
+
+  @override
   String get colorGradient => 'Degradado de color';
 
   @override
@@ -5638,11 +5659,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get orbitHeaderBoundaryBody =>
-      'Las tarjetas orbitales y la trayectoria de la órbita permanecen debajo del encabezado Tu biblioteca y de la barra de búsqueda. Si elevas la órbita, se recorta en este límite.';
+      'Las tarjetas orbitales y la trayectoria pueden pasar detrás del encabezado Tu biblioteca y de la barra de búsqueda. Permanecen dentro de la pantalla de Canciones y se recortan en sus bordes.';
 
   @override
   String get orbitHeaderBoundaryTitle =>
-      'La órbita se detiene en la cabecera de la biblioteca';
+      'La órbita pasa detrás de la cabecera de la biblioteca';
 
   @override
   String get orbitLandscapeHint =>

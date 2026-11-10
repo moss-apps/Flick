@@ -6,8 +6,11 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/utils/app_haptics.dart';
+import 'package:flick/models/orbit_card_background_style.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/features/songs/widgets/song_card.dart';
+import 'package:flick/services/orbit_card_blur_image.dart';
+import 'package:flick/services/orbit_card_blur_preloader.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 
 class OrbitScrollController {
@@ -74,10 +77,16 @@ class OrbitScroll extends StatefulWidget {
   final double artResolutionMultiplier;
   final bool showPath;
   final bool showGlow;
+  final OrbitCardBackgroundStyle cardBackgroundStyle;
 
   /// Extra bottom room the path ribbon may paint through without letting the
   /// card stage or gesture surface move into the bottom bars.
   final double pathOverflowBottom;
+
+  /// Paint-only room above the stage for the path and cards. The orbit keeps
+  /// its geometry and gesture surface; the parent is responsible for clipping
+  /// this overflow at the screen boundary.
+  final double paintOverflowTop;
 
   /// Side space reserved by the parent for safe areas and the mini player.
   /// Landscape cards and ribbon paint through it, but gestures stay in the
@@ -109,7 +118,9 @@ class OrbitScroll extends StatefulWidget {
     this.artResolutionMultiplier = 2.0,
     this.showPath = true,
     this.showGlow = true,
+    this.cardBackgroundStyle = OrbitCardBackgroundStyle.blackGradient,
     this.pathOverflowBottom = 0.0,
+    this.paintOverflowTop = 0.0,
     this.horizontalPaintOverflow = EdgeInsets.zero,
   });
 
@@ -139,6 +150,8 @@ class _OrbitScrollState extends State<OrbitScroll>
   Size? _layoutSize;
   double _dragExtent = 90.0;
   int _animationGeneration = 0;
+  late final _blurPreloader = OrbitCardBlurPreloader(preload: _precacheBlur);
+  bool _blurPreloadScheduled = false;
 
   // Cache for transform calculations (bounded)
   final Map<int, _Position> _positionCache = {};
@@ -213,6 +226,7 @@ class _OrbitScrollState extends State<OrbitScroll>
   @override
   void dispose() {
     _animationGeneration++;
+    _blurPreloader.dispose();
     widget.controller?._detach();
     _controller.dispose();
     _scrollOffset.dispose();
@@ -283,6 +297,9 @@ class _OrbitScrollState extends State<OrbitScroll>
       if (_artworkGateHeld) {
         _artworkGateHeld = false;
         pauseArtworkExtraction(false);
+        // Retry lookahead covers that needed extraction during the fling.
+        _blurPreloader.clear();
+        _scheduleBlurPreload();
       }
     });
   }
@@ -514,13 +531,17 @@ class _OrbitScrollState extends State<OrbitScroll>
                       orbitCenterY,
                       orbitRadius,
                       sideOverflow,
+                      widget.paintOverflowTop,
                     ),
 
                   // Cards reach the viewport's side edges while keeping the
                   // original top/bottom limits and inset gesture surface.
                   Positioned.fill(
                     child: ClipRect(
-                      clipper: _OrbitStageClipper(sideOverflow),
+                      clipper: _OrbitStageClipper(
+                        sideOverflow,
+                        widget.paintOverflowTop,
+                      ),
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -577,6 +598,58 @@ class _OrbitScrollState extends State<OrbitScroll>
     );
   }
 
+  void _scheduleBlurPreload() {
+    if (_blurPreloadScheduled) return;
+    _blurPreloadScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _blurPreloadScheduled = false;
+      if (!mounted) return;
+      if (widget.scrollDirection != Axis.vertical ||
+          widget.cardBackgroundStyle != OrbitCardBackgroundStyle.blurGradient) {
+        _blurPreloader.clear();
+        return;
+      }
+      // Match SongCard's unscaled portrait bounds so both consumers resolve to
+      // the same ImageCache key; sharp-art resolution remains independent.
+      unawaited(
+        _blurPreloader.update(
+          songs: widget.songs,
+          centerIndex: _scrollOffset.value.round(),
+          visibleItems: widget.visibleItems,
+          cardSize: Size(
+            MediaQuery.sizeOf(context).width * widget.cardWidthRatio,
+            130,
+          ),
+        ),
+      );
+    });
+    // The settle timer can request a retry after the final animation frame.
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _precacheBlur(Song song, Size cardSize) async {
+    var path = await OrbitCardBlurArtwork.resolveLocalPath(
+      imagePath: song.albumArt,
+      audioSourcePath: song.filePath,
+    );
+    if (!mounted) return;
+    if (path == null && !artworkExtractionPaused) {
+      path = await OrbitCardBlurArtwork.resolvePath(
+        imagePath: song.albumArt,
+        audioSourcePath: song.filePath,
+      );
+    }
+    if (!mounted || path == null) return;
+    await precacheImage(
+      OrbitCardBlurImage(path: path, cardSize: cardSize),
+      context,
+      onError: (_, _) => OrbitCardBlurArtwork.forget(
+        imagePath: song.albumArt,
+        audioSourcePath: song.filePath,
+      ),
+    );
+  }
+
   Widget _buildSelectionGlow(double centerX, double centerY, double radius) {
     final horizontal = widget.scrollDirection == Axis.horizontal;
     final x = horizontal ? centerX : centerX + radius;
@@ -608,26 +681,29 @@ class _OrbitScrollState extends State<OrbitScroll>
     double centerY,
     double radius,
     EdgeInsets sideOverflow,
+    double topOverflow,
   ) {
+    final bottomOverflow = math.max(0.0, widget.pathOverflowBottom);
+    final top = math.max(0.0, topOverflow);
     final path = RepaintBoundary(
       child: CustomPaint(
         size: Size.infinite,
         painter: _OrbitPathPainter(
           centerX: centerX + sideOverflow.left,
-          centerY: centerY,
+          centerY: centerY + top,
           radius: radius,
           horizontal: widget.scrollDirection == Axis.horizontal,
         ),
       ),
     );
-    final overflow = math.max(0.0, widget.pathOverflowBottom);
     // Give the cached path the full paint width, not the padded gesture width.
-    // Its top still starts below the header/search; only its bottom overflows.
+    // It can continue past the stage on every side; the parent clips it at the
+    // screen boundary.
     return Positioned(
       left: -sideOverflow.left,
-      top: 0,
+      top: -top,
       right: -sideOverflow.right,
-      bottom: -overflow,
+      bottom: -bottomOverflow,
       child: ClipRect(child: path),
     );
   }
@@ -680,6 +756,8 @@ class _OrbitScrollState extends State<OrbitScroll>
     double? cardHeight,
   }) {
     final List<Widget> items = [];
+
+    _scheduleBlurPreload();
 
     final horizontal = widget.scrollDirection == Axis.horizontal;
 
@@ -766,6 +844,7 @@ class _OrbitScrollState extends State<OrbitScroll>
               width: cardWidth,
               height: cardHeight,
               artResolutionMultiplier: widget.artResolutionMultiplier,
+              backgroundStyle: widget.cardBackgroundStyle,
               onTap: () {
                 AppHaptics.tap();
                 _animateTo(actualIndex.toDouble());
@@ -822,20 +901,21 @@ class _OrbitScrollState extends State<OrbitScroll>
 /// hit testing in the inset music viewport.
 class _OrbitStageClipper extends CustomClipper<Rect> {
   final EdgeInsets overflow;
+  final double topOverflow;
 
-  const _OrbitStageClipper(this.overflow);
+  const _OrbitStageClipper(this.overflow, this.topOverflow);
 
   @override
   Rect getClip(Size size) => Rect.fromLTRB(
     -overflow.left,
-    0,
+    -math.max(0.0, topOverflow),
     size.width + overflow.right,
     size.height,
   );
 
   @override
   bool shouldReclip(covariant _OrbitStageClipper oldClipper) =>
-      overflow != oldClipper.overflow;
+      overflow != oldClipper.overflow || topOverflow != oldClipper.topOverflow;
 }
 
 class _Position {

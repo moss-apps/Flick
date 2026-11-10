@@ -149,6 +149,27 @@ int _paintedPixels(Uint8List pixels, int width, Rect area) {
   return count;
 }
 
+int _changedPixels(
+  Uint8List before,
+  Uint8List after,
+  int width,
+  Rect area,
+) {
+  var count = 0;
+  for (var y = area.top.ceil(); y < area.bottom.floor(); y++) {
+    for (var x = area.left.ceil(); x < area.right.floor(); x++) {
+      final index = (y * width + x) * 4;
+      for (var channel = 0; channel < 3; channel++) {
+        if ((before[index + channel] - after[index + channel]).abs() > 2) {
+          count++;
+          break;
+        }
+      }
+    }
+  }
+  return count;
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -207,9 +228,19 @@ void main() {
         expect(changed, greaterThan(3), reason: 'ribbon must reach x=$x');
       }
       expect(
-        withPath.sublist(0, stage.top.floor() * width * 4),
-        withoutPath.sublist(0, stage.top.floor() * width * 4),
-        reason: 'the wider ribbon must not bleed into the header/search',
+        _changedPixels(
+          withoutPath,
+          withPath,
+          width,
+          Rect.fromLTRB(
+            0,
+            0,
+            AdaptiveLayout.navigationRailWidth,
+            height.toDouble(),
+          ),
+        ),
+        0,
+        reason: 'the ribbon must stay inside the Songs page',
       );
       expect(
         tester
@@ -223,6 +254,45 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('portrait orbit paints behind the library header', (tester) async {
+    final container = await _pumpScreen(
+      tester,
+      const Size(411, 900),
+      railWidth: 0,
+    );
+    final prefs =
+        container.read(appPreferencesProvider.notifier) as _OrbitPreferences;
+    prefs.update(path: true);
+    await tester.pumpAndSettle();
+
+    final stage = tester.getRect(find.byType(OrbitScroll));
+    final cardTops = [
+      for (var i = 0; i < find.byType(SongCard).evaluate().length; i++)
+        tester.getRect(find.byType(SongCard).at(i)).top,
+    ];
+    expect(
+      cardTops.any((top) => top < stage.top),
+      isTrue,
+      reason: 'the top orbit card should paint into the header area',
+    );
+
+    final withPath = await _pixels(tester, 'portrait_overlap');
+    prefs.update(path: false);
+    await tester.pumpAndSettle();
+    final withoutPath = await _pixels(tester, 'portrait_overlap_without_path');
+    expect(
+      _changedPixels(
+        withoutPath,
+        withPath,
+        411,
+        Rect.fromLTRB(0, 0, 411, stage.top),
+      ),
+      greaterThan(100),
+      reason: 'the orbit path should be visible behind the header/search',
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('portrait ribbon still paints through the shell bottom inset', (
     tester,

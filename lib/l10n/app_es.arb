@@ -1154,6 +1154,12 @@
     "description": "lib/features/settings/screens/widget_settings_screen.dart:155"
   },
   "blurGradient": "Degradado difuminado",
+  "blurGradientHint": "La portada difuminada se funde hacia los detalles de la canción.",
+  "blackGradient": "Degradado negro",
+  "blackGradientHint": "Un velo negro profundo mantiene el aspecto clásico.",
+  "albumArtColorGradient": "Color de la portada",
+  "albumArtColorGradientHint": "Tiñe la tarjeta con colores tomados de la portada.",
+  "cardBackground": "Fondo de la tarjeta",
   "colorGradient": "Degradado de color",
   "backgroundOpacity": "Opacidad del fondo",
   "@backgroundOpacity": {
@@ -7203,13 +7209,13 @@
   "@orbital": {
     "description": "lib/models/song_view_mode.dart:17"
   },
-  "orbitHeaderBoundaryBody": "Las tarjetas orbitales y la trayectoria de la órbita permanecen debajo del encabezado Tu biblioteca y de la barra de búsqueda. Si elevas la órbita, se recorta en este límite.",
+  "orbitHeaderBoundaryBody": "Las tarjetas orbitales y la trayectoria pueden pasar detrás del encabezado Tu biblioteca y de la barra de búsqueda. Permanecen dentro de la pantalla de Canciones y se recortan en sus bordes.",
   "@orbitHeaderBoundaryBody": {
-    "description": "Explains that orbit cards and the path stay below the library header and search bar."
+    "description": "Explains that orbit cards and the path can pass behind the library header and search bar, but stay inside the Songs screen."
   },
-  "orbitHeaderBoundaryTitle": "La órbita se detiene en la cabecera de la biblioteca",
+  "orbitHeaderBoundaryTitle": "La órbita pasa detrás de la cabecera de la biblioteca",
   "@orbitHeaderBoundaryTitle": {
-    "description": "Title of the notice about the orbit's top boundary."
+    "description": "Title of the notice about the orbit passing behind the library header."
   },
   "orbitLandscapeHint": "Se usa cuando la ventana de la app es más ancha que alta.",
   "@orbitLandscapeHint": {

@@ -8,6 +8,7 @@ import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/features/settings/widgets/orbit_preview.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/l10n/settings_l10n.dart';
+import 'package:flick/models/orbit_card_background_style.dart';
 
 enum _OrbitLayoutProfile { portrait, landscape }
 
@@ -32,9 +33,11 @@ class _OrbitSettingsScreenState extends ConsumerState<OrbitSettingsScreen> {
     super.didChangeDependencies();
     if (_profileInitialized) return;
     _profileInitialized = true;
-    _profile = AdaptiveLayout.isWide(MediaQuery.sizeOf(context))
-        ? _OrbitLayoutProfile.landscape
-        : _OrbitLayoutProfile.portrait;
+    _profile =
+        widget.initialSection == 'cardBackground' ||
+            !AdaptiveLayout.isWide(MediaQuery.sizeOf(context))
+        ? _OrbitLayoutProfile.portrait
+        : _OrbitLayoutProfile.landscape;
   }
 
   @override
@@ -61,6 +64,9 @@ class _OrbitSettingsScreenState extends ConsumerState<OrbitSettingsScreen> {
     final cardWidthRatio = _landscape
         ? prefs.orbitLandscapeCardWidthRatio
         : prefs.orbitCardWidthRatio;
+    final cardBackgroundStyle = OrbitCardBackgroundStyleX.fromStorageValue(
+      prefs.orbitCardBackgroundStyle,
+    );
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.customizeOrbital,
@@ -249,6 +255,53 @@ class _OrbitSettingsScreenState extends ConsumerState<OrbitSettingsScreen> {
               ),
             ],
           ),
+          const SizedBox(height: AppConstants.spacingLg),
+          if (!_landscape) ...[
+            SettingsSectionHeader(
+              l10n.englishForFilipino.cardBackground,
+              tag: l10n.englishForFilipino.portrait,
+              sectionId: 'cardBackground',
+            ),
+            SettingsCard(
+              children: [
+                SelectionSetting(
+                  icon: LucideIcons.aperture,
+                  title: l10n.englishForFilipino.blurGradient,
+                  subtitle: l10n.englishForFilipino.blurGradientHint,
+                  selected:
+                      cardBackgroundStyle ==
+                      OrbitCardBackgroundStyle.blurGradient,
+                  onTap: () => notifier.setOrbitCardBackgroundStyle(
+                    OrbitCardBackgroundStyle.blurGradient.storageValue,
+                  ),
+                ),
+                const SettingsDivider(),
+                SelectionSetting(
+                  icon: LucideIcons.circle,
+                  title: l10n.englishForFilipino.blackGradient,
+                  subtitle: l10n.englishForFilipino.blackGradientHint,
+                  selected:
+                      cardBackgroundStyle ==
+                      OrbitCardBackgroundStyle.blackGradient,
+                  onTap: () => notifier.setOrbitCardBackgroundStyle(
+                    OrbitCardBackgroundStyle.blackGradient.storageValue,
+                  ),
+                ),
+                const SettingsDivider(),
+                SelectionSetting(
+                  icon: LucideIcons.palette,
+                  title: l10n.englishForFilipino.albumArtColorGradient,
+                  subtitle: l10n.englishForFilipino.albumArtColorGradientHint,
+                  selected:
+                      cardBackgroundStyle ==
+                      OrbitCardBackgroundStyle.albumColorGradient,
+                  onTap: () => notifier.setOrbitCardBackgroundStyle(
+                    OrbitCardBackgroundStyle.albumColorGradient.storageValue,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: AppConstants.spacingLg),
           SettingsSectionHeader(
             l10n.englishForFilipino.artResolution,
