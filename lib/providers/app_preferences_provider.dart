@@ -813,6 +813,14 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setOrbitShowGlow(value);
   }
 
+  Future<void> setOrbitCardBackgroundStyle(String value) async {
+    if (state.orbitCardBackgroundStyle == value) return;
+    state = state.copyWith(orbitCardBackgroundStyle: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setOrbitCardBackgroundStyle(value);
+  }
+
   Future<void> setOrbitLandscapeRadiusRatio(double value) async {
     if (state.orbitLandscapeRadiusRatio == value) return;
     state = state.copyWith(orbitLandscapeRadiusRatio: value);
@@ -933,6 +941,7 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
       orbitVisibleItems: 5,
       orbitCardArtSize: 64.0,
       orbitCardWidthRatio: 0.68,
+      orbitCardBackgroundStyle: 'black_gradient',
     );
     await ref.read(appPreferencesServiceProvider).clearOrbitPortraitLayout();
   }
@@ -951,6 +960,7 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
       orbitArtResolutionMultiplier: 2.0,
       orbitShowPath: true,
       orbitShowGlow: true,
+      orbitCardBackgroundStyle: 'black_gradient',
       orbitLandscapeRadiusRatio: 1.0,
       orbitLandscapeCenterYRatio: 0.48,
       orbitLandscapeItemSpacing: 0.28,
