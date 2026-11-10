@@ -10,6 +10,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/songs/widgets/orbit_scroll.dart';
 import 'package:flick/l10n/settings_l10n.dart';
+import 'package:flick/models/orbit_card_background_style.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
@@ -423,6 +424,9 @@ class _PreviewOrbit extends StatelessWidget {
       artResolutionMultiplier: prefs.orbitArtResolutionMultiplier,
       showPath: prefs.orbitShowPath,
       showGlow: prefs.orbitShowGlow,
+      cardBackgroundStyle: OrbitCardBackgroundStyleX.fromStorageValue(
+        prefs.orbitCardBackgroundStyle,
+      ),
       swipeActionsEnabled: false,
       isSelectionMode: false,
       onSelectedIndexChanged: onSelectedIndexChanged,
