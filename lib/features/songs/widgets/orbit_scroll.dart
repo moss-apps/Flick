@@ -79,6 +79,11 @@ class OrbitScroll extends StatefulWidget {
   /// card stage or gesture surface move into the bottom bars.
   final double pathOverflowBottom;
 
+  /// Paint-only room above the stage for the path and cards. The orbit keeps
+  /// its geometry and gesture surface; the parent is responsible for clipping
+  /// this overflow at the screen boundary.
+  final double paintOverflowTop;
+
   /// Side space reserved by the parent for safe areas and the mini player.
   /// Landscape cards and ribbon paint through it, but gestures stay in the
   /// inset music viewport so navigation and player controls keep their targets.
@@ -110,6 +115,7 @@ class OrbitScroll extends StatefulWidget {
     this.showPath = true,
     this.showGlow = true,
     this.pathOverflowBottom = 0.0,
+    this.paintOverflowTop = 0.0,
     this.horizontalPaintOverflow = EdgeInsets.zero,
   });
 
@@ -514,13 +520,17 @@ class _OrbitScrollState extends State<OrbitScroll>
                       orbitCenterY,
                       orbitRadius,
                       sideOverflow,
+                      widget.paintOverflowTop,
                     ),
 
                   // Cards reach the viewport's side edges while keeping the
                   // original top/bottom limits and inset gesture surface.
                   Positioned.fill(
                     child: ClipRect(
-                      clipper: _OrbitStageClipper(sideOverflow),
+                      clipper: _OrbitStageClipper(
+                        sideOverflow,
+                        widget.paintOverflowTop,
+                      ),
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -608,26 +618,29 @@ class _OrbitScrollState extends State<OrbitScroll>
     double centerY,
     double radius,
     EdgeInsets sideOverflow,
+    double topOverflow,
   ) {
+    final bottomOverflow = math.max(0.0, widget.pathOverflowBottom);
+    final top = math.max(0.0, topOverflow);
     final path = RepaintBoundary(
       child: CustomPaint(
         size: Size.infinite,
         painter: _OrbitPathPainter(
           centerX: centerX + sideOverflow.left,
-          centerY: centerY,
+          centerY: centerY + top,
           radius: radius,
           horizontal: widget.scrollDirection == Axis.horizontal,
         ),
       ),
     );
-    final overflow = math.max(0.0, widget.pathOverflowBottom);
     // Give the cached path the full paint width, not the padded gesture width.
-    // Its top still starts below the header/search; only its bottom overflows.
+    // It can continue past the stage on every side; the parent clips it at the
+    // screen boundary.
     return Positioned(
       left: -sideOverflow.left,
-      top: 0,
+      top: -top,
       right: -sideOverflow.right,
-      bottom: -overflow,
+      bottom: -bottomOverflow,
       child: ClipRect(child: path),
     );
   }
@@ -822,20 +835,21 @@ class _OrbitScrollState extends State<OrbitScroll>
 /// hit testing in the inset music viewport.
 class _OrbitStageClipper extends CustomClipper<Rect> {
   final EdgeInsets overflow;
+  final double topOverflow;
 
-  const _OrbitStageClipper(this.overflow);
+  const _OrbitStageClipper(this.overflow, this.topOverflow);
 
   @override
   Rect getClip(Size size) => Rect.fromLTRB(
     -overflow.left,
-    0,
+    -math.max(0.0, topOverflow),
     size.width + overflow.right,
     size.height,
   );
 
   @override
   bool shouldReclip(covariant _OrbitStageClipper oldClipper) =>
-      overflow != oldClipper.overflow;
+      overflow != oldClipper.overflow || topOverflow != oldClipper.topOverflow;
 }
 
 class _Position {
