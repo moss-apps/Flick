@@ -6,8 +6,11 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/utils/app_haptics.dart';
+import 'package:flick/models/orbit_card_background_style.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/features/songs/widgets/song_card.dart';
+import 'package:flick/services/orbit_card_blur_image.dart';
+import 'package:flick/services/orbit_card_blur_preloader.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 
 class OrbitScrollController {
@@ -74,6 +77,7 @@ class OrbitScroll extends StatefulWidget {
   final double artResolutionMultiplier;
   final bool showPath;
   final bool showGlow;
+  final OrbitCardBackgroundStyle cardBackgroundStyle;
 
   /// Extra bottom room the path ribbon may paint through without letting the
   /// card stage or gesture surface move into the bottom bars.
@@ -114,6 +118,7 @@ class OrbitScroll extends StatefulWidget {
     this.artResolutionMultiplier = 2.0,
     this.showPath = true,
     this.showGlow = true,
+    this.cardBackgroundStyle = OrbitCardBackgroundStyle.blackGradient,
     this.pathOverflowBottom = 0.0,
     this.paintOverflowTop = 0.0,
     this.horizontalPaintOverflow = EdgeInsets.zero,
@@ -145,6 +150,8 @@ class _OrbitScrollState extends State<OrbitScroll>
   Size? _layoutSize;
   double _dragExtent = 90.0;
   int _animationGeneration = 0;
+  late final _blurPreloader = OrbitCardBlurPreloader(preload: _precacheBlur);
+  bool _blurPreloadScheduled = false;
 
   // Cache for transform calculations (bounded)
   final Map<int, _Position> _positionCache = {};
@@ -219,6 +226,7 @@ class _OrbitScrollState extends State<OrbitScroll>
   @override
   void dispose() {
     _animationGeneration++;
+    _blurPreloader.dispose();
     widget.controller?._detach();
     _controller.dispose();
     _scrollOffset.dispose();
@@ -289,6 +297,9 @@ class _OrbitScrollState extends State<OrbitScroll>
       if (_artworkGateHeld) {
         _artworkGateHeld = false;
         pauseArtworkExtraction(false);
+        // Retry lookahead covers that needed extraction during the fling.
+        _blurPreloader.clear();
+        _scheduleBlurPreload();
       }
     });
   }
@@ -587,6 +598,58 @@ class _OrbitScrollState extends State<OrbitScroll>
     );
   }
 
+  void _scheduleBlurPreload() {
+    if (_blurPreloadScheduled) return;
+    _blurPreloadScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _blurPreloadScheduled = false;
+      if (!mounted) return;
+      if (widget.scrollDirection != Axis.vertical ||
+          widget.cardBackgroundStyle != OrbitCardBackgroundStyle.blurGradient) {
+        _blurPreloader.clear();
+        return;
+      }
+      // Match SongCard's unscaled portrait bounds so both consumers resolve to
+      // the same ImageCache key; sharp-art resolution remains independent.
+      unawaited(
+        _blurPreloader.update(
+          songs: widget.songs,
+          centerIndex: _scrollOffset.value.round(),
+          visibleItems: widget.visibleItems,
+          cardSize: Size(
+            MediaQuery.sizeOf(context).width * widget.cardWidthRatio,
+            130,
+          ),
+        ),
+      );
+    });
+    // The settle timer can request a retry after the final animation frame.
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _precacheBlur(Song song, Size cardSize) async {
+    var path = await OrbitCardBlurArtwork.resolveLocalPath(
+      imagePath: song.albumArt,
+      audioSourcePath: song.filePath,
+    );
+    if (!mounted) return;
+    if (path == null && !artworkExtractionPaused) {
+      path = await OrbitCardBlurArtwork.resolvePath(
+        imagePath: song.albumArt,
+        audioSourcePath: song.filePath,
+      );
+    }
+    if (!mounted || path == null) return;
+    await precacheImage(
+      OrbitCardBlurImage(path: path, cardSize: cardSize),
+      context,
+      onError: (_, _) => OrbitCardBlurArtwork.forget(
+        imagePath: song.albumArt,
+        audioSourcePath: song.filePath,
+      ),
+    );
+  }
+
   Widget _buildSelectionGlow(double centerX, double centerY, double radius) {
     final horizontal = widget.scrollDirection == Axis.horizontal;
     final x = horizontal ? centerX : centerX + radius;
@@ -694,6 +757,8 @@ class _OrbitScrollState extends State<OrbitScroll>
   }) {
     final List<Widget> items = [];
 
+    _scheduleBlurPreload();
+
     final horizontal = widget.scrollDirection == Axis.horizontal;
 
     final centerIndex = _scrollOffset.value.round();
@@ -779,6 +844,7 @@ class _OrbitScrollState extends State<OrbitScroll>
               width: cardWidth,
               height: cardHeight,
               artResolutionMultiplier: widget.artResolutionMultiplier,
+              backgroundStyle: widget.cardBackgroundStyle,
               onTap: () {
                 AppHaptics.tap();
                 _animateTo(actualIndex.toDouble());
