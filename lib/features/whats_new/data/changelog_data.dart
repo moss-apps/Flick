@@ -44,6 +44,63 @@ class ChangelogSubsection {
 /// automatically surface the entry whose `version` equals `kAppVersion`.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
+    version: '0.23.2-beta.4',
+    date: '2026-11-10',
+    sections: [
+      ChangelogSection(
+        title: 'Localization',
+        bullets: [
+          '**Español (Latinoamérica)** — Latin American Spanish joins the language picker as a draft pending native-speaker review. System Spanish locales (including `es_MX` and `es_419`) resolve to the same `es` copy, search keywords are translated, and the choice persists across restarts; the Taglish Baybayin switch does not apply to Spanish.',
+          '**Taglish UI Customization** — Track Thumbnails, Progress Bar, and Album Colors stay in English under Taglish, matching the rest of the English-role catalog.',
+          '**Day-count streak greeting** — the Taglish streak popup now rotates five fixed greetings plus a line that fills in the current streak length.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Interactive Tutorial',
+        bullets: [
+          '**Route-aware guides with a picker** — the single spotlight tour is now five guides: Core, Library, Player, Appearance, and Audio. Each keeps its own completed or dismissed state, can be started from the tutorial picker or Settings → App info → Interactive Tutorial, and deep-links into the relevant manual section.',
+          '**Real actions advance steps** — highlights follow actual navigation and playback, ignore zero-size or off-route widgets, and let library, search, sort, queue, and lyrics actions complete the current step. Back skips the guide, modals and permission pickers suspend it, and What\'s New waits until the tutorial closes.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Landscape & Adaptive Layout',
+        bullets: [
+          '**Landscape unlocked** — Flick no longer forces portrait. Layouts key off window size: wide windows get a scrollable side navigation rail and side mini player, the full player splits into stage and controls, and bottom sheets use the full window and scroll under large text and the keyboard.',
+          '**Animated mini player dock** — in short landscape windows the mini player glides between the bottom bar and the compact orbit strip, keeping both layouts mounted, muting and ignoring input on the inactive side, and snapping under reduced motion.',
+          '**Landscape orbit** — orbit geometry, card count, size, depth, spacing, and focal position are persisted independently from portrait, with a profile selector and per-profile reset in Orbit settings.',
+          '**Edge-to-edge orbit** — the ribbon and cards paint behind the library header, search bar, mini player, and navigation bar while staying clipped to the Songs screen; card faces are cached so motion keeps decoded artwork.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Orbit & Customization',
+        bullets: [
+          '**Card background styles** — Orbit settings gains a Card Background selector for Blur gradient, Black gradient, and Album-color gradient. Blurred covers are rasterized once, cached, and preloaded for a moving lookahead window instead of live-filtered while scrolling.',
+          '**Live orbit preview** — a browse-only preview stays pinned at the top of Orbit settings, tracks every layout change, expands, and opens full screen without touching playback or the queue.',
+          '**Progress bar size** — UI Customization now exposes Waveform height and Line thickness sliders with a live preview and per-style reset; painted bars scale while keeping a 48 dp touch target.',
+          '**Immersive background style** — Player Layout adds a Blur gradient option that renders un-scrimmed blurred artwork fading into the foreground, mirrored in the immersive and full-screen previews.',
+          '**Song card polish** — cards use a padded glass border, keep artwork above a scrollable one-line footer, and use a smaller accent-aware selection indicator; detail headers keep lossless and long translated labels from overflowing.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Metadata & Library',
+        bullets: [
+          '**SAF metadata write-back** — on content:// libraries, the metadata editor stages a private copy for the Rust tagger and streams edits back over the original document. Providers that reject `"wt"` truncation fall back to `"w"`, stale edit copies are pruned after 24 hours, and missing files or lost permission surface localized errors.',
+          '**Online artist and album information toggle** — Settings → Integrations → Metadata can hide Apple Music biographies, similar artists, top songs, album notes, and new artist-portrait downloads. The preference is independent of post-scan album identification, defaults to on, and late provider results cannot restore hidden content.',
+          'Apple Music provider hashes were regenerated for the current provider schema.',
+        ],
+      ),
+      ChangelogSection(
+        title: 'Audio & Diagnostics',
+        bullets: [
+          '**Physical output volume guard** — wired and analog outputs, with an attached UAC2 DAC as fallback, get a safety volume ceiling once per connection on the standard engine. The shared gain path keeps the ceiling through crossfade ramps and player swaps, blocks manual changes until the guard settles, restores DAC volume on attach, and retries failed safety writes.',
+          '**Live DSP and output telemetry** — Diagnostics now reports PCM and managed-output callback counts and durations, overruns and xruns, lock misses, starved samples, skipped DSP stages, peak/clipping, and non-finite samples. Callback-safe atomics, a seqlock for playback progress, lock-free stage mirrors, and a coalesced EQ mailbox keep the audio thread from locking or logging.',
+          '**SMB account formats and interrupted syncs** — `DOMAIN\\user` and `user@domain` usernames now reach NTLM split into the account and domain a Windows client would send. If a library walk is interrupted, already-listed tracks are imported, stale rows are not purged, and the failure still surfaces so the next sync can finish the job.',
+          '**SMB sync and playback resilience** — unreadable or vanished child folders no longer abort a scan, directory loops are depth-capped, duplicate paths are skipped, and large folder art reads through the pipelined reader. A failing progress callback cannot cancel a shared transfer or start a duplicate download, cache accounting keeps a completed file, a changed remote file invalidates its cached bytes, and next-track failures report cleanly.',
+        ],
+      ),
+    ],
+  ),
+  ChangelogEntry(
     version: '0.23.1-beta.3',
     date: '2026-11-04',
     sections: [
