@@ -31,6 +31,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/models/nav_bar_config.dart';
+import 'package:flick/models/orbit_card_background_style.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
@@ -502,6 +503,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         artResolutionMultiplier: orbit.orbitArtResolutionMultiplier,
         showPath: orbit.orbitShowPath,
         showGlow: orbit.orbitShowGlow,
+        cardBackgroundStyle: OrbitCardBackgroundStyleX.fromStorageValue(
+          orbit.orbitCardBackgroundStyle,
+        ),
         // The shell overlays the mini player and navigation bar on the stage.
         // The ribbon may continue through that reserved strip; the card stage
         // stays above it.
