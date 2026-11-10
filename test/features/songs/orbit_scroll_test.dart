@@ -189,7 +189,12 @@ void main() {
       final finder = find.byWidget(card);
       cardStates[card.song.id] = tester.state(finder);
       imageStates[card.song.id] = tester.state(
-        find.descendant(of: finder, matching: find.byType(CachedImageWidget)),
+        find
+            .descendant(
+              of: finder,
+              matching: find.byType(CachedImageWidget),
+            )
+            .first,
       );
     }
 
@@ -203,7 +208,12 @@ void main() {
       expect(tester.state(finder), same(cardStates[card.song.id]));
       expect(
         tester.state(
-          find.descendant(of: finder, matching: find.byType(CachedImageWidget)),
+          find
+              .descendant(
+                of: finder,
+                matching: find.byType(CachedImageWidget),
+              )
+              .first,
         ),
         same(imageStates[card.song.id]),
       );

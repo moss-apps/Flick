@@ -8,6 +8,7 @@ import 'package:flick/features/settings/screens/orbit_settings_screen.dart';
 import 'package:flick/features/songs/widgets/orbit_scroll.dart';
 import 'package:flick/features/songs/widgets/song_card.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/models/orbit_card_background_style.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/app_preferences_service.dart';
@@ -99,6 +100,43 @@ void main() {
       tester.widget<OrbitScroll>(find.byType(OrbitScroll)).scrollDirection,
       Axis.horizontal,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('portrait card background selector follows preference', (
+    tester,
+  ) async {
+    await _pumpScreen(tester);
+    final copy = lookupFlickLocalizations(kFallbackLocale);
+
+    expect(
+      tester
+          .widget<OrbitScroll>(find.byType(OrbitScroll))
+          .cardBackgroundStyle,
+      OrbitCardBackgroundStyle.blackGradient,
+    );
+    expect(find.text(copy.cardBackground.toUpperCase()), findsOneWidget);
+    expect(find.text(copy.blackGradient), findsOneWidget);
+    expect(find.text(copy.albumArtColorGradient), findsOneWidget);
+
+    await tester.ensureVisible(find.text(copy.albumArtColorGradient));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(copy.albumArtColorGradient));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<OrbitScroll>(find.byType(OrbitScroll))
+          .cardBackgroundStyle,
+      OrbitCardBackgroundStyle.albumColorGradient,
+    );
+
+    await tester.ensureVisible(find.text(copy.landscape));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(copy.landscape));
+    await tester.pumpAndSettle();
+
+    expect(find.text(copy.albumArtColorGradient), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

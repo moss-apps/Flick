@@ -29,8 +29,25 @@ void main() {
       expect(prefs.orbitLandscapeDepth, 0.75);
       expect(prefs.orbitLandscapeVisibleItems, 5);
       expect(prefs.orbitLandscapeCardWidthRatio, 0.68);
+      expect(prefs.orbitCardBackgroundStyle, 'black_gradient');
     },
   );
+
+  test('an explicitly chosen background survives the default change', () async {
+    SharedPreferences.setMockInitialValues({
+      'orbit_card_background_style': 'blur_gradient',
+    });
+
+    final container = await newContainer();
+    expect(
+      container.read(appPreferencesProvider).orbitCardBackgroundStyle,
+      'blur_gradient',
+    );
+
+    // Loading must not rewrite a stored choice to the new default.
+    final stored = await SharedPreferences.getInstance();
+    expect(stored.getString('orbit_card_background_style'), 'blur_gradient');
+  });
 
   test('portrait and landscape layouts persist independently', () async {
     final container = await newContainer();
@@ -43,6 +60,7 @@ void main() {
     await notifier.setOrbitDepth(0.5);
     await notifier.setOrbitVisibleItems(7);
     await notifier.setOrbitCardWidthRatio(0.58);
+    await notifier.setOrbitCardBackgroundStyle('album_color_gradient');
 
     await notifier.setOrbitLandscapeRadiusRatio(1.36);
     await notifier.setOrbitLandscapeCenterYRatio(0.56);
@@ -61,6 +79,7 @@ void main() {
     expect(prefs.orbitDepth, 0.5);
     expect(prefs.orbitVisibleItems, 7);
     expect(prefs.orbitCardWidthRatio, 0.58);
+    expect(prefs.orbitCardBackgroundStyle, 'album_color_gradient');
     expect(prefs.orbitLandscapeRadiusRatio, 1.36);
     expect(prefs.orbitLandscapeCenterYRatio, 0.56);
     expect(prefs.orbitLandscapeItemSpacing, 0.41);
@@ -107,6 +126,7 @@ void main() {
       await notifier.setOrbitLandscapeRadiusRatio(1.36);
       await notifier.setOrbitLandscapeCenterYRatio(0.56);
       await notifier.setOrbitLandscapeVisibleItems(9);
+      await notifier.setOrbitCardBackgroundStyle('black_gradient');
       await notifier.setOrbitArtResolutionMultiplier(3.0);
       await notifier.setOrbitShowPath(false);
       await notifier.setOrbitShowGlow(false);
@@ -123,6 +143,7 @@ void main() {
       expect(prefs.orbitLandscapeCardWidthRatio, 0.68);
       expect(prefs.orbitRadiusRatio, 0.82);
       expect(prefs.orbitVisibleItems, 7);
+      expect(prefs.orbitCardBackgroundStyle, 'black_gradient');
       expect(prefs.orbitArtResolutionMultiplier, 3.0);
       expect(prefs.orbitShowPath, isFalse);
       expect(prefs.orbitShowGlow, isFalse);
@@ -145,12 +166,14 @@ void main() {
       expect(prefs.orbitVisibleItems, 5);
       expect(prefs.orbitCardArtSize, 64.0);
       expect(prefs.orbitCardWidthRatio, 0.68);
+      expect(prefs.orbitCardBackgroundStyle, 'black_gradient');
       expect(prefs.orbitLandscapeRadiusRatio, 1.0);
       expect(prefs.orbitArtResolutionMultiplier, 3.0);
 
       stored = await SharedPreferences.getInstance();
       expect(stored.getDouble('orbit_radius_ratio'), isNull);
       expect(stored.getDouble('orbit_landscape_radius_ratio'), isNull);
+      expect(stored.getString('orbit_card_background_style'), isNull);
       expect(stored.getDouble('orbit_art_resolution_multiplier'), 3.0);
     },
   );
