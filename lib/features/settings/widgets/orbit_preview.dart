@@ -17,9 +17,10 @@ import 'package:flick/services/app_preferences_service.dart';
 
 /// Live, browse-only preview of the orbit settings.
 ///
-/// The preview paints the library header above the orbit so the top boundary
-/// is visible while the controls below change. Tapping cards only moves the
-/// preview's focus; it never starts playback or changes the queue.
+/// The preview paints the library header above the orbit so the overlap and
+/// screen-edge clipping are visible while the controls below change. Tapping
+/// cards only moves the preview's focus; it never starts playback or changes
+/// the queue.
 class OrbitPreview extends ConsumerStatefulWidget {
   const OrbitPreview({super.key, required this.landscape});
 
@@ -353,22 +354,19 @@ class _VirtualLibraryPreview extends StatelessWidget {
               // around it still honors the user's text scale.
               textScaler: TextScaler.noScaling,
             ),
-            child: Column(
-              children: [
-                _PreviewLibraryHeader(
-                  songCount: songs.length,
-                  compact: landscape,
-                ),
-                Expanded(
-                  child: _PreviewOrbit(
-                    landscape: landscape,
-                    prefs: prefs,
-                    songs: songs,
-                    selectedIndex: selectedIndex,
-                    onSelectedIndexChanged: onSelectedIndexChanged,
-                  ),
-                ),
-              ],
+            child: _PreviewHeaderOverlay(
+              header: _PreviewLibraryHeader(
+                songCount: songs.length,
+                compact: landscape,
+              ),
+              content: _PreviewOrbit(
+                landscape: landscape,
+                prefs: prefs,
+                songs: songs,
+                selectedIndex: selectedIndex,
+                onSelectedIndexChanged: onSelectedIndexChanged,
+                paintOverflowTop: size.width * 2,
+              ),
             ),
           ),
         ),
@@ -384,6 +382,7 @@ class _PreviewOrbit extends StatelessWidget {
     required this.songs,
     required this.selectedIndex,
     required this.onSelectedIndexChanged,
+    required this.paintOverflowTop,
   });
 
   final bool landscape;
@@ -391,10 +390,12 @@ class _PreviewOrbit extends StatelessWidget {
   final List<Song> songs;
   final int selectedIndex;
   final ValueChanged<int> onSelectedIndexChanged;
+  final double paintOverflowTop;
 
   @override
   Widget build(BuildContext context) {
     return OrbitScroll(
+      paintOverflowTop: paintOverflowTop,
       songs: songs,
       selectedIndex: selectedIndex,
       scrollDirection: landscape ? Axis.horizontal : Axis.vertical,
@@ -469,19 +470,26 @@ class _FullScreenOrbitPreviewState extends State<_FullScreenOrbitPreview> {
           child: Column(
             children: [
               _FullScreenPreviewHeader(landscape: widget.landscape),
-              _PreviewLibraryHeader(
-                songCount: widget.songs.length,
-                compact: MediaQuery.sizeOf(context).height < 500,
-              ),
               Expanded(
-                child: SizedBox.expand(
-                  key: const Key('orbit_preview_fullscreen'),
-                  child: _PreviewOrbit(
-                    landscape: widget.landscape,
-                    prefs: widget.prefs,
-                    songs: widget.songs,
-                    selectedIndex: _selectedIndex,
-                    onSelectedIndexChanged: _select,
+                // Keep the orbit's upward paint inside the preview stage so it
+                // never crosses the preview chrome or escapes the route.
+                child: ClipRect(
+                  child: _PreviewHeaderOverlay(
+                    header: _PreviewLibraryHeader(
+                      songCount: widget.songs.length,
+                      compact: MediaQuery.sizeOf(context).height < 500,
+                    ),
+                    content: SizedBox.expand(
+                      key: const Key('orbit_preview_fullscreen'),
+                      child: _PreviewOrbit(
+                        landscape: widget.landscape,
+                        prefs: widget.prefs,
+                        songs: widget.songs,
+                        selectedIndex: _selectedIndex,
+                        onSelectedIndexChanged: _select,
+                        paintOverflowTop: MediaQuery.sizeOf(context).width * 2,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -714,4 +722,48 @@ class _PreviewHeaderButton extends StatelessWidget {
       child: Icon(icon, size: iconSize, color: AppColors.textSecondary),
     );
   }
+}
+
+enum _PreviewLayoutSlot { content, header }
+
+/// Lays out the miniature library below its header but paints the orbit first,
+/// so the header stays readable while the orbit passes behind it.
+class _PreviewHeaderOverlay extends StatelessWidget {
+  const _PreviewHeaderOverlay({required this.header, required this.content});
+
+  final Widget header;
+  final Widget content;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomMultiChildLayout(
+      delegate: _PreviewHeaderOverlayDelegate(),
+      children: [
+        LayoutId(id: _PreviewLayoutSlot.content, child: content),
+        LayoutId(id: _PreviewLayoutSlot.header, child: header),
+      ],
+    );
+  }
+}
+
+class _PreviewHeaderOverlayDelegate extends MultiChildLayoutDelegate {
+  @override
+  void performLayout(Size size) {
+    final headerSize = layoutChild(
+      _PreviewLayoutSlot.header,
+      BoxConstraints(minWidth: size.width, maxWidth: size.width),
+    );
+    positionChild(_PreviewLayoutSlot.header, Offset.zero);
+
+    final contentHeight = math.max(0.0, size.height - headerSize.height);
+    layoutChild(
+      _PreviewLayoutSlot.content,
+      BoxConstraints.tightFor(width: size.width, height: contentHeight),
+    );
+    positionChild(_PreviewLayoutSlot.content, Offset(0, headerSize.height));
+  }
+
+  @override
+  bool shouldRelayout(covariant _PreviewHeaderOverlayDelegate oldDelegate) =>
+      false;
 }
