@@ -9534,16 +9534,16 @@ abstract class AppLocalizations {
   /// **'Orbital'**
   String get orbital;
 
-  /// Explains that orbit cards and the path stay below the library header and search bar.
+  /// Explains that orbit cards and the path can pass behind the library header and search bar, but stay inside the Songs screen.
   ///
   /// In en, this message translates to:
-  /// **'Orbital cards and the orbit path stay below the Your Library heading and search bar. Raising the orbit clips it at this boundary.'**
+  /// **'Orbit cards and the path can pass behind the Your Library heading and search bar. They stay inside the Songs screen and are clipped at its edges.'**
   String get orbitHeaderBoundaryBody;
 
-  /// Title of the notice about the orbit's top boundary.
+  /// Title of the notice about the orbit passing behind the library header.
   ///
   /// In en, this message translates to:
-  /// **'Orbit stops at the library header'**
+  /// **'Orbit passes behind the library header'**
   String get orbitHeaderBoundaryTitle;
 
   /// Explains when the landscape orbit profile is applied.

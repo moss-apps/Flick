@@ -5638,11 +5638,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get orbitHeaderBoundaryBody =>
-      'Las tarjetas orbitales y la trayectoria de la órbita permanecen debajo del encabezado Tu biblioteca y de la barra de búsqueda. Si elevas la órbita, se recorta en este límite.';
+      'Las tarjetas orbitales y la trayectoria pueden pasar detrás del encabezado Tu biblioteca y de la barra de búsqueda. Permanecen dentro de la pantalla de Canciones y se recortan en sus bordes.';
 
   @override
   String get orbitHeaderBoundaryTitle =>
-      'La órbita se detiene en la cabecera de la biblioteca';
+      'La órbita pasa detrás de la cabecera de la biblioteca';
 
   @override
   String get orbitLandscapeHint =>

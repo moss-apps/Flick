@@ -5568,10 +5568,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orbitHeaderBoundaryBody =>
-      'Orbital cards and the orbit path stay below the Your Library heading and search bar. Raising the orbit clips it at this boundary.';
+      'Orbit cards and the path can pass behind the Your Library heading and search bar. They stay inside the Songs screen and are clipped at its edges.';
 
   @override
-  String get orbitHeaderBoundaryTitle => 'Orbit stops at the library header';
+  String get orbitHeaderBoundaryTitle =>
+      'Orbit passes behind the library header';
 
   @override
   String get orbitLandscapeHint =>

@@ -5627,11 +5627,11 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get orbitHeaderBoundaryBody =>
-      'Ang mga orbital card at orbit path ay nananatili sa ilalim ng Your Library heading at search bar. Kapag itinaas ang orbit, napuputol ito sa hangganang ito.';
+      'Maaaring dumaan ang mga orbital card at ang path sa likod ng Your Library heading at search bar. Nananatili sila sa loob ng Songs screen at naka-clip sa mga gilid nito.';
 
   @override
   String get orbitHeaderBoundaryTitle =>
-      'Humihinto ang orbit sa library header';
+      'Dumadaan ang orbit sa likod ng library header';
 
   @override
   String get orbitLandscapeHint =>
