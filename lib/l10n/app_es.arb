@@ -1154,6 +1154,12 @@
     "description": "lib/features/settings/screens/widget_settings_screen.dart:155"
   },
   "blurGradient": "Degradado difuminado",
+  "blurGradientHint": "La portada difuminada se funde hacia los detalles de la canción.",
+  "blackGradient": "Degradado negro",
+  "blackGradientHint": "Un velo negro profundo mantiene el aspecto clásico.",
+  "albumArtColorGradient": "Color de la portada",
+  "albumArtColorGradientHint": "Tiñe la tarjeta con colores tomados de la portada.",
+  "cardBackground": "Fondo de la tarjeta",
   "colorGradient": "Degradado de color",
   "backgroundOpacity": "Opacidad del fondo",
   "@backgroundOpacity": {

@@ -1154,6 +1154,12 @@
     "description": "lib/features/settings/screens/widget_settings_screen.dart:155"
   },
   "blurGradient": "Blur gradient",
+  "blurGradientHint": "Blurred artwork fades toward the song details.",
+  "blackGradient": "Black gradient",
+  "blackGradientHint": "A deep black scrim keeps the classic look.",
+  "albumArtColorGradient": "Album art color",
+  "albumArtColorGradientHint": "Tint the card with colors sampled from the cover.",
+  "cardBackground": "Card background",
   "colorGradient": "Color gradient",
   "backgroundOpacity": "Background Opacity",
   "@backgroundOpacity": {

@@ -1015,6 +1015,27 @@ class AppLocalizationsTl extends AppLocalizations {
   String get blurGradient => 'Gradient ng blur';
 
   @override
+  String get blurGradientHint =>
+      'Ang blurred na artwork ay dahan-dahang lumalapit sa detalye ng kanta.';
+
+  @override
+  String get blackGradient => 'Black gradient';
+
+  @override
+  String get blackGradientHint =>
+      'Malalim na black scrim para sa classic na itsura.';
+
+  @override
+  String get albumArtColorGradient => 'Kulay ng album art';
+
+  @override
+  String get albumArtColorGradientHint =>
+      'Kulayan ang card gamit ang mga kulay mula sa cover.';
+
+  @override
+  String get cardBackground => 'Background ng card';
+
+  @override
   String get colorGradient => 'Gradient ng kulay';
 
   @override

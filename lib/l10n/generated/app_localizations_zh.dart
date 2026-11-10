@@ -928,6 +928,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get blurGradient => '模糊渐变';
 
   @override
+  String get blurGradientHint => '模糊的封面渐渐过渡到歌曲信息。';
+
+  @override
+  String get blackGradient => '黑色渐变';
+
+  @override
+  String get blackGradientHint => '深黑色遮罩，保留经典外观。';
+
+  @override
+  String get albumArtColorGradient => '封面颜色';
+
+  @override
+  String get albumArtColorGradientHint => '用封面提取的颜色为卡片着色。';
+
+  @override
+  String get cardBackground => '卡片背景';
+
+  @override
   String get colorGradient => '色彩渐变';
 
   @override

@@ -1002,6 +1002,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get blurGradient => 'Blur gradient';
 
   @override
+  String get blurGradientHint =>
+      'Blurred artwork fades toward the song details.';
+
+  @override
+  String get blackGradient => 'Black gradient';
+
+  @override
+  String get blackGradientHint => 'A deep black scrim keeps the classic look.';
+
+  @override
+  String get albumArtColorGradient => 'Album art color';
+
+  @override
+  String get albumArtColorGradientHint =>
+      'Tint the card with colors sampled from the cover.';
+
+  @override
+  String get cardBackground => 'Card background';
+
+  @override
   String get colorGradient => 'Color gradient';
 
   @override

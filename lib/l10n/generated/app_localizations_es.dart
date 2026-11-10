@@ -1015,6 +1015,27 @@ class AppLocalizationsEs extends AppLocalizations {
   String get blurGradient => 'Degradado difuminado';
 
   @override
+  String get blurGradientHint =>
+      'La portada difuminada se funde hacia los detalles de la canción.';
+
+  @override
+  String get blackGradient => 'Degradado negro';
+
+  @override
+  String get blackGradientHint =>
+      'Un velo negro profundo mantiene el aspecto clásico.';
+
+  @override
+  String get albumArtColorGradient => 'Color de la portada';
+
+  @override
+  String get albumArtColorGradientHint =>
+      'Tiñe la tarjeta con colores tomados de la portada.';
+
+  @override
+  String get cardBackground => 'Fondo de la tarjeta';
+
+  @override
   String get colorGradient => 'Degradado de color';
 
   @override
