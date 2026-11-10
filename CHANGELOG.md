@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.23.2-beta.4 (2026-11-10)
+
+### Localization
+- **Español (Latinoamérica)** — Latin American Spanish joins the language picker as a draft pending native-speaker review. System Spanish locales (including `es_MX` and `es_419`) resolve to the same `es` copy, search keywords are translated, and the choice persists across restarts; the Taglish Baybayin switch does not apply to Spanish.
+- **Taglish UI Customization** — Track Thumbnails, Progress Bar, and Album Colors stay in English under Taglish, matching the rest of the English-role catalog.
+- **Day-count streak greeting** — the Taglish streak popup now rotates five fixed greetings plus a line that fills in the current streak length.
+
+### Interactive Tutorial
+- **Route-aware guides with a picker** — the single spotlight tour is now five guides: Core, Library, Player, Appearance, and Audio. Each keeps its own completed or dismissed state, can be started from the tutorial picker or Settings → App info → Interactive Tutorial, and deep-links into the relevant manual section.
+- **Real actions advance steps** — highlights follow actual navigation and playback, ignore zero-size or off-route widgets, and let library, search, sort, queue, and lyrics actions complete the current step. Back skips the guide, modals and permission pickers suspend it, and What's New waits until the tutorial closes.
+
+### Landscape & Adaptive Layout
+- **Landscape unlocked** — Flick no longer forces portrait. Layouts key off window size: wide windows get a scrollable side navigation rail and side mini player, the full player splits into stage and controls, and bottom sheets use the full window and scroll under large text and the keyboard.
+- **Animated mini player dock** — in short landscape windows the mini player glides between the bottom bar and the compact orbit strip, keeping both layouts mounted, muting and ignoring input on the inactive side, and snapping under reduced motion.
+- **Landscape orbit** — orbit geometry, card count, size, depth, spacing, and focal position are persisted independently from portrait, with a profile selector and per-profile reset in Orbit settings.
+- **Edge-to-edge orbit** — the ribbon and cards paint behind the library header, search bar, mini player, and navigation bar while staying clipped to the Songs screen; card faces are cached so motion keeps decoded artwork.
+
+### Orbit & Customization
+- **Card background styles** — Orbit settings gains a Card Background selector for Blur gradient, Black gradient, and Album-color gradient. Blurred covers are rasterized once, cached, and preloaded for a moving lookahead window instead of live-filtered while scrolling.
+- **Live orbit preview** — a browse-only preview stays pinned at the top of Orbit settings, tracks every layout change, expands, and opens full screen without touching playback or the queue.
+- **Progress bar size** — UI Customization now exposes Waveform height and Line thickness sliders with a live preview and per-style reset; painted bars scale while keeping a 48 dp touch target.
+- **Immersive background style** — Player Layout adds a Blur gradient option that renders un-scrimmed blurred artwork fading into the foreground, mirrored in the immersive and full-screen previews.
+- **Song card polish** — cards use a padded glass border, keep artwork above a scrollable one-line footer, and use a smaller accent-aware selection indicator; detail headers keep lossless and long translated labels from overflowing.
+
+### Metadata & Library
+- **SAF metadata write-back** — on content:// libraries, the metadata editor stages a private copy for the Rust tagger and streams edits back over the original document. Providers that reject `"wt"` truncation fall back to `"w"`, stale edit copies are pruned after 24 hours, and missing files or lost permission surface localized errors.
+- **Online artist and album information toggle** — Settings → Integrations → Metadata can hide Apple Music biographies, similar artists, top songs, album notes, and new artist-portrait downloads. The preference is independent of post-scan album identification, defaults to on, and late provider results cannot restore hidden content.
+- Apple Music provider hashes were regenerated for the current provider schema.
+
+### Audio & Diagnostics
+- **Physical output volume guard** — wired and analog outputs, with an attached UAC2 DAC as fallback, get a safety volume ceiling once per connection on the standard engine. The shared gain path keeps the ceiling through crossfade ramps and player swaps, blocks manual changes until the guard settles, restores DAC volume on attach, and retries failed safety writes.
+- **Live DSP and output telemetry** — Diagnostics now reports PCM and managed-output callback counts and durations, overruns and xruns, lock misses, starved samples, skipped DSP stages, peak/clipping, and non-finite samples. Callback-safe atomics, a seqlock for playback progress, lock-free stage mirrors, and a coalesced EQ mailbox keep the audio thread from locking or logging.
+- **SMB account formats and interrupted syncs** — `DOMAIN\user` and `user@domain` usernames now reach NTLM split into the account and domain a Windows client would send. If a library walk is interrupted, already-listed tracks are imported, stale rows are not purged, and the failure still surfaces so the next sync can finish the job.
+- **SMB sync resilience** — an unreadable or vanished child folder no longer aborts the whole library scan; directory loops are depth-capped and duplicate paths are skipped. Folder art larger than the server's single-READ limit now loads through the pipelined reader.
+- **SMB playback robustness** — a failing progress callback can no longer cancel a shared transfer or start a duplicate download, cache accounting failures no longer discard a completed file, a disappearing cache entry is treated as a miss, a changed remote file invalidates its cached bytes on resync, and a failed next-track download reports cleanly instead of throwing in the background.
+
 ## 0.23.1-beta.3 (2026-11-04)
 
 ### Onboarding
@@ -8,7 +44,6 @@
 - **Calmer motion and chrome** — the staggered entrance skips to the final frame under reduced motion, decorative art is excluded from the accessibility tree, and route-scoped system-bar styling keeps icon contrast correct after light screens are popped.
 
 ### Settings & Navigation
-- **Online artist and album information toggle** — Settings → Integrations → Metadata can hide Apple Music biographies, similar artists, top songs, album notes, and new artist-portrait downloads on artist and album pages. The preference is independent of post-scan album identification, and existing saved portraits, local descriptions, and library artwork stay untouched.
 - **Bottom Bar Width** — a new 70–100% slider in Settings → Interface → Bottom Bar scales the navigation bar inward from its usual margins and centers it, while keeping each item at least 44 dp; reset returns to full width.
 - **Mini player as its own card** — the mini player now always sits above the frosted navigation bar instead of merging into it, aligns to the standard bar width, and keeps its gradient, border, and shadow in separated and collapsed layouts.
 
@@ -24,9 +59,6 @@
 - **ISO completion diagnostics** — strict per-packet validation now records a bounded snapshot of packet lengths, transfer slots, and the selected wire format on the first mismatch, without accepting packets more loosely. This is diagnostic groundwork for #354, not a compatibility workaround.
 
 ### Network & SMB
-- **SMB account formats and interrupted syncs** — usernames in `DOMAIN\user` or `user@domain` form now reach NTLM split into the account and domain a Windows client would send. If a library walk is interrupted, already-listed tracks are imported, stale rows are not purged, and the failure still surfaces so the next sync can finish the job.
-- **SMB sync resilience** — an unreadable or vanished child folder no longer aborts the whole library scan; directory loops are depth-capped and duplicate paths are skipped. Folder art larger than the server's single-READ limit now loads through the pipelined reader.
-- **SMB playback robustness** — a failing progress callback can no longer cancel a shared transfer or start a duplicate download, cache accounting failures no longer discard a completed file, a disappearing cache entry is treated as a miss, a changed remote file invalidates its cached bytes on resync, and a failed next-track download reports cleanly instead of throwing in the background.
 - **Atomic SMB downloads** — playback, next-track prefetch, and gapless preparation for the same file share one transfer. Downloads publish only after the native completion event, a consistent byte count, and a matching on-disk length; short, cancelled, and incomplete transfers delete their staging file and stay retryable.
 - **Cache safety** — SMB entries move to a new `smb-v2:` key so files left by older builds are bypassed without clearing app data, and staging and `.part` files are excluded from lookup, eviction, and the cache cap.
 - **Privacy-safe failures** — SMB errors resolve to allowlisted stage/code pairs and localized copy; hostnames, account names, shares, and paths are never echoed into logs or banners. URL parsing decodes escapes once and rejects embedded credentials, unsupported schemes, query/fragment data, and out-of-range ports; Test Connection probes the configured root.
