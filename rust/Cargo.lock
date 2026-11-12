@@ -1978,6 +1978,7 @@ dependencies = [
  "opus-sys",
  "parking_lot",
  "rayon",
+ "realfft",
  "ringbuf",
  "rubato",
  "rusb",

@@ -411,13 +411,13 @@ pub fn take_pending_crossfeed() -> Option<u8> {
     }
 }
 
-fn with_audio_engine<T>(
+pub(crate) fn with_audio_engine<T>(
     f: impl FnOnce(&crate::audio::engine::AudioEngineHandle) -> Result<T, String>,
 ) -> Result<T, String> {
     ENGINE_MANAGER.with_rust_handle(f)
 }
 
-fn read_audio_engine<T>(
+pub(crate) fn read_audio_engine<T>(
     f: impl FnOnce(&crate::audio::engine::AudioEngineHandle) -> T,
 ) -> Option<T> {
     ENGINE_MANAGER.read_rust_handle(f)
