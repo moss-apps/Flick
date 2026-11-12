@@ -40,6 +40,7 @@ class PlayerActionButtonRow extends ConsumerStatefulWidget {
   final FavoritesService favoritesService;
   final VoidCallback onToggleLyrics;
   final void Function(bool) onToggleVisualization;
+  final bool visualizerUnavailable;
   final void Function(BuildContext) onOpenQueue;
   final GlobalKey usbVolumeButtonKey;
   final void Function(BuildContext) onShowUsbVolumePopup;
@@ -63,6 +64,7 @@ class PlayerActionButtonRow extends ConsumerStatefulWidget {
     required this.favoritesService,
     required this.onToggleLyrics,
     required this.onToggleVisualization,
+    this.visualizerUnavailable = false,
     required this.onOpenQueue,
     required this.usbVolumeButtonKey,
     required this.onShowUsbVolumePopup,
@@ -593,12 +595,35 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
                     color: isVisMode ? visActiveBorder : inactiveBorder,
                   ),
                 ),
-          child: Icon(
-            Icons.graphic_eq_rounded,
-            color: widget.compact && isVisMode
-                ? visActiveColor
-                : Colors.white.withValues(alpha: 0.96),
-            size: actionIconSize,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.graphic_eq_rounded,
+                color: widget.compact && isVisMode
+                    ? visActiveColor
+                    : Colors.white.withValues(alpha: 0.96),
+                size: actionIconSize,
+              ),
+              if (widget.visualizerUnavailable)
+                Positioned(
+                  right: -4,
+                  bottom: -4,
+                  child: Container(
+                    padding: const EdgeInsets.all(1.5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.lock_rounded,
+                      size: actionIconSize * 0.45,
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

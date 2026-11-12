@@ -35,11 +35,15 @@ class BitPerfectIndicator extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final diagnostics = ref.watch(audioOutputDiagnosticsProvider);
-    final prefs = ref.watch(appPreferencesProvider);
+    final replaceAlbumWithBitPerfectCapsule = ref.watch(
+      appPreferencesProvider.select(
+        (prefs) => prefs.replaceAlbumWithBitPerfectCapsule,
+      ),
+    );
 
     final state = _resolveState(
       diagnostics,
-      suppressVerified: prefs.replaceAlbumWithBitPerfectCapsule,
+      suppressVerified: replaceAlbumWithBitPerfectCapsule,
     );
     final label = _getSongQuality(song);
 
@@ -305,7 +309,13 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
                   ? const SizedBox(width: double.infinity, height: 0)
                   : Padding(
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: _buildInfoRows(context),
+                      // Diagnostics change a few times a second. Keep those
+                      // rebuilds inside the rows so the page view, visualizer
+                      // and open/close animations are not rebuilt with them.
+                      child: Consumer(
+                        builder: (context, rowsRef, _) =>
+                            _buildInfoRows(context, rowsRef),
+                      ),
                     ),
             ),
             // Page view: animated height + decoration.
@@ -537,7 +547,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     );
   }
 
-  Widget _buildInfoRows(BuildContext context) {
+  Widget _buildInfoRows(BuildContext context, WidgetRef ref) {
     final rows = <Widget>[];
     final d = ref.watch(audioOutputDiagnosticsProvider) ?? widget.diagnostics;
 
@@ -894,13 +904,18 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     return PageView(
       controller: _pageController,
       children: [
-        AudioVisualizer(
-          playerService: widget.playerService,
-          animationStyle: prefs.visualizerAnimationStyle,
-          frequencyMode: prefs.visualizerFrequencyMode,
-          movementMode: prefs.visualizerMovementMode,
-          albumColor: albumColor,
-          enabled: prefs.visualizerEnabled,
+        // The spectrum page keeps its state while the user reads reports, but
+        // it must not keep painting at display rate offscreen.
+        TickerMode(
+          enabled: _currentPage == 0,
+          child: AudioVisualizer(
+            playerService: widget.playerService,
+            animationStyle: prefs.visualizerAnimationStyle,
+            frequencyMode: prefs.visualizerFrequencyMode,
+            movementMode: prefs.visualizerMovementMode,
+            albumColor: albumColor,
+            enabled: prefs.visualizerEnabled,
+          ),
         ),
         for (final page in AudioSignalReportPage.values)
           AudioSignalReport(

@@ -1626,6 +1626,9 @@ class AppLocalizationsTl extends AppLocalizations {
   String get comingSoon => 'Malapit na';
 
   @override
+  String get comment => 'Komento';
+
+  @override
   String get compatibility => 'Pagkakatugma';
 
   @override
@@ -8982,6 +8985,76 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get visualizerAlbumColorsDescription =>
       'Sundin ang mga kulay ng pabalat; monochrome kapag walang magagamit';
+
+  @override
+  String get visualizerAnimationsOffApp =>
+      'Nakapatay ang mga galaw sa Flick. Buksan ito sa Mga Setting → Interface → Mga galaw para gumalaw ang visualizer.';
+
+  @override
+  String get visualizerAnimationsOffSystem =>
+      'Naka-on ang “Remove animations” sa accessibility settings ng Android. Mananatiling still ang visualizer hanggang muling buksan ang mga galaw.';
+
+  @override
+  String get visualizerAnimationsOffTitle => 'Nakapahinga ang visualizer';
+
+  @override
+  String get visualizerUnavailableBitPerfectTitle =>
+      'Hindi available ang visualizer sa bit-perfect mode';
+
+  @override
+  String get visualizerUnavailableBitPerfectBody =>
+      'Direktang ipinapadala ng bit-perfect ang orihinal na audio sa iyong DAC, kaya walang processed stream na masusuri ang Flick. Lumipat sa High Quality Engine para magamit ang live visualizer.';
+
+  @override
+  String get visualizerSwitchToHighQuality => 'Lumipat sa High Quality Engine';
+
+  @override
+  String get visualizerKeepBitPerfect => 'Panatilihin ang bit-perfect';
+
+  @override
+  String get visualizerSourceLiveFft => 'Pinagmulan: Live FFT (Rust)';
+
+  @override
+  String get visualizerSourceRustBody =>
+      'Kinakalkula mula sa PCM stream ng High Quality engine. Hindi kailangan ang pahintulot sa mikropono.';
+
+  @override
+  String get visualizerSourceLiveAndroid => 'Pinagmulan: Live (Android)';
+
+  @override
+  String get visualizerSourceUnavailable => 'Pinagmulan: Hindi available';
+
+  @override
+  String get visualizerSourceDsdUnavailable =>
+      'Pinagmulan: Hindi available sa DSD';
+
+  @override
+  String get visualizerStandardMicTitle =>
+      'Kailangan ng pahintulot sa mikropono';
+
+  @override
+  String get visualizerStandardMicBody =>
+      'Binabasa ng visualizer ng Android ang output mix ng Standard Engine. Hindi nagre-record o nag-iimbak ng audio ang Flick. Gumagamit ang High Quality Engine ng sariling FFT ng Flick at hindi kailangan ang pahintulot na ito.';
+
+  @override
+  String get visualizerUnavailableDsdTitle =>
+      'Hindi available ang visualizer para sa DSD';
+
+  @override
+  String get visualizerUnavailableDsdBody =>
+      'Direktang ipinapadala ang native at DoP DSD sa iyong DAC, kaya walang PCM stream na masusuri. Babalik ang visualizer sa mga PCM track.';
+
+  @override
+  String get visualizerPermissionDenied =>
+      'Tinanggihan ang pahintulot sa mikropono. Hindi mababasa ng visualizer ng Android ang Standard Engine output kung wala ito.';
+
+  @override
+  String get visualizerPausedBitPerfect =>
+      'Nakapahinga ang visualizer para sa bit-perfect output.';
+
+  @override
+  String get visualizerPausedDsd =>
+      'Nakapahinga ang visualizer habang nagpe-play ng DSD.';
 
   @override
   String get visualizerBlocks => 'Kumukupas na mga bloke';

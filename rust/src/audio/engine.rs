@@ -22,6 +22,7 @@ use crate::audio::source::{
     AudioSource, PlaybackRange, SourceIdentity, SourceInfo, SourceProvider,
 };
 use crate::audio::strategy::OutputStrategy;
+use crate::audio::visualizer::{VisualizerFrame, VisualizerTap};
 #[cfg(target_os = "android")]
 use crate::audio::strategy::{select_strategy_excluded, DeviceCaps, TrackInfo};
 #[cfg(target_os = "android")]
@@ -374,6 +375,9 @@ pub struct AudioCallbackData {
     /// and speed scratch buffers stay in range even when a Bluetooth mixer
     /// hands out huge bursts.
     dsp_burst_frames_cap: AtomicUsize,
+    /// Read-only PCM tap for the live visualizer. Inactive until Dart asks for
+    /// bars, so it costs one relaxed atomic load per callback otherwise.
+    visualizer: VisualizerTap,
 }
 
 impl AudioCallbackData {
@@ -475,6 +479,7 @@ impl AudioCallbackData {
             oboe_burst_frames_max: AtomicU32::new(0),
             oboe_burst_chunked_count: AtomicU64::new(0),
             dsp_burst_frames_cap: AtomicUsize::new((buffer_size / channels.max(1)).max(1)),
+            visualizer: VisualizerTap::new(sample_rate, channels),
         }
     }
 
@@ -487,6 +492,23 @@ impl AudioCallbackData {
             2 => EngineDsdMode::Native,
             _ => EngineDsdMode::Pcm,
         }
+    }
+
+    /// Feed final PCM to the visualizer tap. Native DSD and DoP carry raw DSD
+    /// bytes/words rather than PCM, so they are never tapped.
+    #[inline]
+    pub(crate) fn capture_visualizer(&self, output: &[f32]) {
+        if self.engine_dsd_mode() == EngineDsdMode::Pcm {
+            self.visualizer.push(output, self.channels);
+        }
+    }
+
+    pub(crate) fn visualizer_frame(&self) -> Option<VisualizerFrame> {
+        self.visualizer.frame()
+    }
+
+    pub(crate) fn set_visualizer_active(&self, active: bool) {
+        self.visualizer.set_active(active);
     }
 
     /// Managed by the DSD native backend around its render thread (see
@@ -973,6 +995,7 @@ impl AudioCallbackData {
         let mut shifter = PitchShifter::new(sample_rate, self.channels);
         shifter.set_semitones(semitones);
         *self.pitch_shifter.lock() = shifter;
+        self.visualizer.reconfigure(sample_rate);
     }
 }
 
@@ -1149,6 +1172,17 @@ impl AudioEngineHandle {
     /// Check if the engine is currently in DoP (DSD over PCM) mode.
     pub fn is_dop(&self) -> bool {
         self.callback_data.is_dop()
+    }
+
+    /// Latest real PCM spectrum, or None when the tap has no data yet.
+    pub fn visualizer_frame(&self) -> Option<VisualizerFrame> {
+        self.callback_data.visualizer_frame()
+    }
+
+    /// Start or stop feeding the visualizer tap. Inactive capture costs one
+    /// relaxed atomic load per callback and never allocates.
+    pub fn set_visualizer_active(&self, active: bool) {
+        self.callback_data.set_visualizer_active(active);
     }
 
     /// Skip to next track with crossfade.
@@ -4132,6 +4166,7 @@ pub(crate) fn audio_callback(
             data.fill_silence(&mut output[read..]);
         }
         data.publish_progress_snapshot(&sources);
+        data.capture_visualizer(output);
         return;
     }
 
@@ -4354,6 +4389,7 @@ pub(crate) fn audio_callback(
     drop(crossfader);
     drop(sources);
     process_dsp_effects(data, output, channels, volume);
+    data.capture_visualizer(output);
 }
 
 /// Command processing loop running in the audio thread.

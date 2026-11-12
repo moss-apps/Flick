@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
+import 'package:flick/providers/visualizer_source_provider.dart';
+import 'package:flick/services/visualizer_source.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
@@ -16,6 +18,10 @@ class VisualizerSettingsScreen extends ConsumerWidget {
     final prefs = ref.watch(appPreferencesProvider);
     final notifier = ref.read(appPreferencesProvider.notifier);
     final l10n = context.l10n.englishForFilipino;
+    final systemReducedMotion = MediaQuery.disableAnimationsOf(context);
+    final sourceMode = ref.watch(
+      visualizerSourceProvider.select((source) => source.mode),
+    );
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.visualizer,
@@ -23,7 +29,56 @@ class VisualizerSettingsScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionHeader(l10n.englishForFilipino.visualizer, sectionId: 'visualizer'),
+          if (systemReducedMotion || !prefs.animationsEnabled) ...[
+            SettingsCard(
+              children: [
+                InfoSetting(
+                  icon: LucideIcons.info,
+                  title: l10n.englishForFilipino.visualizerAnimationsOffTitle,
+                  subtitle: !prefs.animationsEnabled
+                      ? l10n.englishForFilipino.visualizerAnimationsOffApp
+                      : l10n.englishForFilipino.visualizerAnimationsOffSystem,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppConstants.spacingLg),
+          ],
+          SettingsCard(
+            children: [
+              InfoSetting(
+                icon: switch (sourceMode) {
+                  VisualizerSourceMode.android => LucideIcons.mic,
+                  VisualizerSourceMode.rustFft => LucideIcons.activity,
+                  _ => LucideIcons.lock,
+                },
+                title: switch (sourceMode) {
+                  VisualizerSourceMode.rustFft =>
+                    l10n.englishForFilipino.visualizerSourceLiveFft,
+                  VisualizerSourceMode.android =>
+                    l10n.englishForFilipino.visualizerSourceLiveAndroid,
+                  VisualizerSourceMode.dsdUnavailable =>
+                    l10n.englishForFilipino.visualizerSourceDsdUnavailable,
+                  VisualizerSourceMode.unavailable =>
+                    l10n.englishForFilipino.visualizerSourceUnavailable,
+                },
+                subtitle: switch (sourceMode) {
+                  VisualizerSourceMode.rustFft =>
+                    l10n.englishForFilipino.visualizerSourceRustBody,
+                  VisualizerSourceMode.android =>
+                    l10n.englishForFilipino.visualizerStandardMicBody,
+                  VisualizerSourceMode.dsdUnavailable =>
+                    l10n.englishForFilipino.visualizerUnavailableDsdBody,
+                  VisualizerSourceMode.unavailable =>
+                    l10n.englishForFilipino.visualizerUnavailableBitPerfectBody,
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
+          SettingsSectionHeader(
+            l10n.englishForFilipino.visualizer,
+            sectionId: 'visualizer',
+          ),
           SettingsCard(
             children: [
               ToggleSetting(
@@ -36,7 +91,10 @@ class VisualizerSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.visualizerColors, sectionId: 'visualizerColors'),
+          SettingsSectionHeader(
+            l10n.englishForFilipino.visualizerColors,
+            sectionId: 'visualizerColors',
+          ),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -65,7 +123,10 @@ class VisualizerSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.animationStyle, sectionId: 'animationStyle'),
+          SettingsSectionHeader(
+            l10n.englishForFilipino.animationStyle,
+            sectionId: 'animationStyle',
+          ),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -119,7 +180,10 @@ class VisualizerSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.frequencyFocus, sectionId: 'frequencyFocus'),
+          SettingsSectionHeader(
+            l10n.englishForFilipino.frequencyFocus,
+            sectionId: 'frequencyFocus',
+          ),
           SettingsCard(
             children: [
               SelectionSetting(
@@ -164,7 +228,10 @@ class VisualizerSettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.englishForFilipino.movement, sectionId: 'movement'),
+          SettingsSectionHeader(
+            l10n.englishForFilipino.movement,
+            sectionId: 'movement',
+          ),
           SettingsCard(
             children: [
               SelectionSetting(

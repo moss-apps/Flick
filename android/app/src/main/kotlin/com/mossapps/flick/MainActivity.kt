@@ -5233,11 +5233,17 @@ class MainActivity: FlutterActivity() {
     
     private fun attachVisualizer(sessionId: Int): Boolean {
         return try {
-            detachVisualizer()
+            // Release only the old effect. Do NOT call detachVisualizer() here:
+            // it also clears visualizerEventSink, and reattaching on a session
+            // change would then leave the live EventChannel with no sink.
+            visualizer?.enabled = false
+            visualizer?.release()
+            visualizer = null
             if (sessionId <= 0) {
                 Log.w("Visualizer", "Invalid audio session ID: $sessionId")
                 return false
             }
+            val captureRateMilliHz = visualizerCaptureRateMilliHz(Visualizer.getMaxCaptureRate())
             val viz = Visualizer(sessionId).apply {
                 val captureSizeRange = Visualizer.getCaptureSizeRange()
                 val targetSize = captureSizeRange[1].coerceAtMost(512)
@@ -5254,17 +5260,24 @@ class MainActivity: FlutterActivity() {
                             fft: ByteArray?,
                             samplingRate: Int
                         ) {
-                            fft?.let { visualizerEventSink?.success(it) }
+                            fft?.let {
+                                visualizerEventSink?.success(
+                                    mapOf(
+                                        "fft" to it,
+                                        "samplingRate" to samplingRate
+                                    )
+                                )
+                            }
                         }
                     },
-                    30, // ~33 fps
+                    captureRateMilliHz, // 30 fps = 30,000 mHz, capped to the device limit.
                     false,
                     true
                 )
                 enabled = true
             }
             visualizer = viz
-            Log.i("Visualizer", "Attached to session $sessionId with capture size ${viz.captureSize}")
+            Log.i("Visualizer", "Attached to session $sessionId with capture size ${viz.captureSize} at ${captureRateMilliHz}mHz")
             true
         } catch (e: Exception) {
             Log.e("Visualizer", "Failed to attach visualizer: ${e.message}", e)

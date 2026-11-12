@@ -23,6 +23,7 @@ import 'package:flick/providers/player_provider.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/widgets/common/song_file_tag_extras.dart';
 
 const _song = Song(
   id: 'player-song-1',
@@ -235,6 +236,7 @@ void main() {
     await tester.pumpWidget(_host(const SongMetadataSheet(song: _song)));
     await tester.pumpAndSettle();
 
+    expect(find.byType(SongFileTagExtras), findsOneWidget);
     for (final copy in [
       en.songMetadata,
       en.title,

@@ -13,12 +13,11 @@ import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
-import 'package:flick/services/metadata_editor_service.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/services/player_service.dart';
-import 'package:flick/src/rust/api/metadata_editor.dart' as rust_metadata;
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
+import 'package:flick/widgets/common/song_file_tag_extras.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flick/l10n/english_l10n.dart';
@@ -633,7 +632,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
                           l10n.disc,
                           song.discNumber!.toString(),
                         ),
-                      _buildFileTagExtras(sheetContext),
+                      SongFileTagExtras(song: song),
                       _buildMetadataRow(
                         sheetContext,
                         l10n.duration,
@@ -668,46 +667,6 @@ class SongActionsBottomSheet extends ConsumerWidget {
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  /// Read-only rows for tags that live in the file but not in the library DB
-  /// (full recording date, copyright, label/organization). Read on demand
-  /// straight from the file; hidden when unavailable.
-  Widget _buildFileTagExtras(BuildContext context) {
-    final path = song.filePath;
-    final canReadFileTags = path != null &&
-        path.isNotEmpty &&
-        !path.startsWith('content://') &&
-        song.startOffsetMs == null &&
-        !song.isExternal;
-    if (!canReadFileTags) return const SizedBox.shrink();
-
-    return FutureBuilder<rust_metadata.TagReadResult?>(
-      future: MetadataEditorService.instance.readTags(path),
-      builder: (context, snapshot) {
-        final tags = snapshot.data;
-        if (tags == null) return const SizedBox.shrink();
-        final date = tags.date?.trim();
-        final copyright = tags.copyright?.trim();
-        final label = tags.label?.trim();
-        // A bare "2024" recording date duplicates the Year row above.
-        final hasFullDate = date != null && date.isNotEmpty && date.length > 4;
-        final hasCopyright = copyright != null && copyright.isNotEmpty;
-        final hasLabel = label != null && label.isNotEmpty;
-        if (!hasFullDate && !hasCopyright && !hasLabel) {
-          return const SizedBox.shrink();
-        }
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (hasFullDate) _buildMetadataRow(context, l10n.date, date),
-            if (hasCopyright) _buildMetadataRow(context, l10n.copyright, copyright),
-            if (hasLabel) _buildMetadataRow(context, l10n.labelOrganization, label),
-          ],
         );
       },
     );

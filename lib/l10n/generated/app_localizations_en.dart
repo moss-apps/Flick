@@ -1607,6 +1607,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get comingSoon => 'Coming Soon';
 
   @override
+  String get comment => 'Comment';
+
+  @override
   String get compatibility => 'Compatibility';
 
   @override
@@ -8880,6 +8883,72 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get visualizerAlbumColorsDescription =>
       'Follow the album cover colors; monochrome when unavailable';
+
+  @override
+  String get visualizerAnimationsOffApp =>
+      'Animations are off in Flick. Turn them on in Settings → Interface → Animations to animate the visualizer.';
+
+  @override
+  String get visualizerAnimationsOffSystem =>
+      '“Remove animations” is on in Android accessibility settings. The visualizer stays still until animations are turned back on.';
+
+  @override
+  String get visualizerAnimationsOffTitle => 'Visualizer is paused';
+
+  @override
+  String get visualizerUnavailableBitPerfectTitle =>
+      'Visualizer unavailable in bit-perfect mode';
+
+  @override
+  String get visualizerUnavailableBitPerfectBody =>
+      'Bit-perfect sends the original audio directly to your DAC, so Flick has no processed stream to analyze. Switch to High Quality Engine to use the live visualizer.';
+
+  @override
+  String get visualizerSwitchToHighQuality => 'Switch to High Quality Engine';
+
+  @override
+  String get visualizerKeepBitPerfect => 'Keep bit-perfect';
+
+  @override
+  String get visualizerSourceLiveFft => 'Source: Live FFT (Rust)';
+
+  @override
+  String get visualizerSourceRustBody =>
+      'Computed from the High Quality engine\'s PCM stream. No microphone permission is needed.';
+
+  @override
+  String get visualizerSourceLiveAndroid => 'Source: Live (Android)';
+
+  @override
+  String get visualizerSourceUnavailable => 'Source: Unavailable';
+
+  @override
+  String get visualizerSourceDsdUnavailable => 'Source: Unavailable for DSD';
+
+  @override
+  String get visualizerStandardMicTitle => 'Microphone permission needed';
+
+  @override
+  String get visualizerStandardMicBody =>
+      'Android\'s visualizer reads the Standard Engine\'s output mix. Flick does not record or store audio. High Quality Engine uses Flick\'s own FFT and does not need this permission.';
+
+  @override
+  String get visualizerUnavailableDsdTitle => 'Visualizer unavailable for DSD';
+
+  @override
+  String get visualizerUnavailableDsdBody =>
+      'Native and DoP DSD are sent directly to your DAC, so there is no PCM stream to analyze. The visualizer returns for PCM tracks.';
+
+  @override
+  String get visualizerPermissionDenied =>
+      'Microphone permission was denied. Android\'s visualizer cannot read the Standard Engine output without it.';
+
+  @override
+  String get visualizerPausedBitPerfect =>
+      'Visualizer paused for bit-perfect output.';
+
+  @override
+  String get visualizerPausedDsd => 'Visualizer paused for DSD playback.';
 
   @override
   String get visualizerBlocks => 'Fading Blocks';

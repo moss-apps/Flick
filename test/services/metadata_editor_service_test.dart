@@ -358,23 +358,68 @@ void main() {
     'readTags stages a content URI into cache and removes the copy',
     () async {
       final readStage = stagedFile('read.flac');
+      const fileTags = rust_metadata.TagReadResult(
+        comment: 'SAF reference note\nSecond line 日本語',
+      );
 
       onChannelCall = (call) async {
         expect(call.method, 'stageContentUriForEdit');
+        expect((call.arguments as Map)['uri'], contentUri);
         return {'path': readStage.path, 'reason': null};
       };
 
       final service = MetadataEditorService.forTesting(
         readTagFile: (path) async {
           expect(path, readStage.path);
-          return readBack;
+          return fileTags;
         },
       );
 
       final result = await service.readTags(contentUri);
 
-      expect(result, readBack);
+      expect(result, fileTags);
+      expect(result?.comment, 'SAF reference note\nSecond line 日本語');
       expect(readStage.existsSync(), isFalse);
+      expect(channelCalls.single.method, 'stageContentUriForEdit');
+    },
+  );
+
+  test('readTags removes the staged copy when the tag reader fails', () async {
+    final readStage = stagedFile('unreadable.opus');
+    onChannelCall = (call) async {
+      expect(call.method, 'stageContentUriForEdit');
+      return {'path': readStage.path, 'reason': null};
+    };
+    final service = MetadataEditorService.forTesting(
+      readTagFile: (path) async {
+        expect(path, readStage.path);
+        expect(readStage.existsSync(), isTrue);
+        throw StateError('Unreadable tags');
+      },
+    );
+
+    expect(await service.readTags(contentUri), isNull);
+    expect(readStage.existsSync(), isFalse);
+    expect(channelCalls.single.method, 'stageContentUriForEdit');
+  });
+
+  test(
+    'readTags skips the reader when content URI staging is denied',
+    () async {
+      onChannelCall = (call) async {
+        expect(call.method, 'stageContentUriForEdit');
+        return {'path': null, 'reason': 'no_access'};
+      };
+      var reads = 0;
+      final service = MetadataEditorService.forTesting(
+        readTagFile: (path) async {
+          reads++;
+          return readBack;
+        },
+      );
+
+      expect(await service.readTags(contentUri), isNull);
+      expect(reads, 0);
       expect(channelCalls.single.method, 'stageContentUriForEdit');
     },
   );

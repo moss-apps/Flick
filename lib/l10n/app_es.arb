@@ -1969,6 +1969,10 @@
   "@comingSoon": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1664"
   },
+  "comment": "Comentario",
+  "@comment": {
+    "description": "Metadata sheet row label for the file's read-only COMMENT tag."
+  },
   "compatibility": "Compatibilidad",
   "@compatibility": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1213"
@@ -11477,6 +11481,25 @@
     "description": "lib/features/settings/screens/bottom_bar_settings_screen.dart:36"
   },
   "visualizerAlbumColorsDescription": "Seguir los colores de la portada; usar monocromo si no están disponibles",
+  "visualizerAnimationsOffApp": "Las animaciones están desactivadas en Flick. Actívalas en Ajustes → Interfaz → Animaciones para que el visualizador se mueva.",
+  "visualizerAnimationsOffSystem": "La opción «Quitar animaciones» está activada en los ajustes de accesibilidad de Android. El visualizador permanecerá quieto hasta que vuelvas a activar las animaciones.",
+  "visualizerAnimationsOffTitle": "Visualizador en pausa",
+  "visualizerUnavailableBitPerfectTitle": "Visualizador no disponible en modo bit-perfect",
+  "visualizerUnavailableBitPerfectBody": "El modo bit-perfect envía el audio original directamente a tu DAC, así que Flick no tiene un flujo procesado que analizar. Cambia al Motor de Alta Calidad para usar el visualizador en vivo.",
+  "visualizerSwitchToHighQuality": "Cambiar al Motor de Alta Calidad",
+  "visualizerKeepBitPerfect": "Mantener bit-perfect",
+  "visualizerSourceLiveFft": "Fuente: FFT en vivo (Rust)",
+  "visualizerSourceRustBody": "Se calcula a partir del flujo PCM del motor High Quality. No necesita permiso de micrófono.",
+  "visualizerSourceLiveAndroid": "Fuente: En vivo (Android)",
+  "visualizerSourceUnavailable": "Fuente: No disponible",
+  "visualizerSourceDsdUnavailable": "Fuente: No disponible para DSD",
+  "visualizerStandardMicTitle": "Se necesita permiso de micrófono",
+  "visualizerStandardMicBody": "El visualizador de Android lee la mezcla de salida del Motor Estándar. Flick no graba ni almacena audio. El Motor de Alta Calidad usa la FFT propia de Flick y no necesita este permiso.",
+  "visualizerUnavailableDsdTitle": "Visualizador no disponible para DSD",
+  "visualizerUnavailableDsdBody": "El DSD nativo y DoP se envían directamente a tu DAC, así que no hay un flujo PCM que analizar. El visualizador vuelve con pistas PCM.",
+  "visualizerPermissionDenied": "Se denegó el permiso de micrófono. El visualizador de Android no puede leer la salida del Motor Estándar sin él.",
+  "visualizerPausedBitPerfect": "Visualizador pausado por la salida bit-perfect.",
+  "visualizerPausedDsd": "Visualizador pausado durante la reproducción DSD.",
   "visualizerBlocks": "Bloques que se desvanecen",
   "visualizerBlocksDescription": "Barras segmentadas con estelas que se desvanecen suavemente",
   "visualizerColors": "Colores",

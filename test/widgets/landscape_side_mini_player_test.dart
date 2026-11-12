@@ -12,6 +12,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/mini_player_config_provider.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/visualizer_source.dart';
 import 'package:flick/widgets/common/embedded_mini_player.dart';
 import 'package:flick/widgets/common/landscape_mini_player_dock.dart';
 import 'package:flick/widgets/common/landscape_side_mini_player.dart';
@@ -42,6 +43,29 @@ class _Player extends Fake implements PlayerService {
     currentSongNotifier.dispose();
     usingRustBackendNotifier.dispose();
   }
+}
+
+class _FakeVisualizerSource extends VisualizerSource {
+  @override
+  VisualizerSourceMode get mode => VisualizerSourceMode.rustFft;
+
+  @override
+  List<double>? get bars => null;
+
+  @override
+  bool get isAvailable => true;
+
+  @override
+  bool get needsPermission => false;
+
+  @override
+  Future<bool> prepare() async => true;
+
+  @override
+  void acquire() {}
+
+  @override
+  void release() {}
 }
 
 Widget _host(
@@ -77,6 +101,7 @@ Widget _host(
 ProviderContainer _container(_Player player) {
   final container = ProviderContainer(
     overrides: [
+      visualizerSourceProvider.overrideWith((ref) => _FakeVisualizerSource()),
       currentSongProvider.overrideWithValue(_song),
       isPlayingProvider.overrideWithValue(true),
       progressProvider.overrideWithValue(0.42),

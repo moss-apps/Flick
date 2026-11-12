@@ -1626,6 +1626,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get comingSoon => 'Muy pronto';
 
   @override
+  String get comment => 'Comentario';
+
+  @override
   String get compatibility => 'Compatibilidad';
 
   @override
@@ -8992,6 +8995,75 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get visualizerAlbumColorsDescription =>
       'Seguir los colores de la portada; usar monocromo si no están disponibles';
+
+  @override
+  String get visualizerAnimationsOffApp =>
+      'Las animaciones están desactivadas en Flick. Actívalas en Ajustes → Interfaz → Animaciones para que el visualizador se mueva.';
+
+  @override
+  String get visualizerAnimationsOffSystem =>
+      'La opción «Quitar animaciones» está activada en los ajustes de accesibilidad de Android. El visualizador permanecerá quieto hasta que vuelvas a activar las animaciones.';
+
+  @override
+  String get visualizerAnimationsOffTitle => 'Visualizador en pausa';
+
+  @override
+  String get visualizerUnavailableBitPerfectTitle =>
+      'Visualizador no disponible en modo bit-perfect';
+
+  @override
+  String get visualizerUnavailableBitPerfectBody =>
+      'El modo bit-perfect envía el audio original directamente a tu DAC, así que Flick no tiene un flujo procesado que analizar. Cambia al Motor de Alta Calidad para usar el visualizador en vivo.';
+
+  @override
+  String get visualizerSwitchToHighQuality =>
+      'Cambiar al Motor de Alta Calidad';
+
+  @override
+  String get visualizerKeepBitPerfect => 'Mantener bit-perfect';
+
+  @override
+  String get visualizerSourceLiveFft => 'Fuente: FFT en vivo (Rust)';
+
+  @override
+  String get visualizerSourceRustBody =>
+      'Se calcula a partir del flujo PCM del motor High Quality. No necesita permiso de micrófono.';
+
+  @override
+  String get visualizerSourceLiveAndroid => 'Fuente: En vivo (Android)';
+
+  @override
+  String get visualizerSourceUnavailable => 'Fuente: No disponible';
+
+  @override
+  String get visualizerSourceDsdUnavailable => 'Fuente: No disponible para DSD';
+
+  @override
+  String get visualizerStandardMicTitle => 'Se necesita permiso de micrófono';
+
+  @override
+  String get visualizerStandardMicBody =>
+      'El visualizador de Android lee la mezcla de salida del Motor Estándar. Flick no graba ni almacena audio. El Motor de Alta Calidad usa la FFT propia de Flick y no necesita este permiso.';
+
+  @override
+  String get visualizerUnavailableDsdTitle =>
+      'Visualizador no disponible para DSD';
+
+  @override
+  String get visualizerUnavailableDsdBody =>
+      'El DSD nativo y DoP se envían directamente a tu DAC, así que no hay un flujo PCM que analizar. El visualizador vuelve con pistas PCM.';
+
+  @override
+  String get visualizerPermissionDenied =>
+      'Se denegó el permiso de micrófono. El visualizador de Android no puede leer la salida del Motor Estándar sin él.';
+
+  @override
+  String get visualizerPausedBitPerfect =>
+      'Visualizador pausado por la salida bit-perfect.';
+
+  @override
+  String get visualizerPausedDsd =>
+      'Visualizador pausado durante la reproducción DSD.';
 
   @override
   String get visualizerBlocks => 'Bloques que se desvanecen';

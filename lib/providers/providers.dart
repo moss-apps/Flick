@@ -14,6 +14,7 @@ export 'navigation_provider.dart';
 export 'playlist_provider.dart';
 export 'songs_view_mode_provider.dart';
 export 'uac2_provider.dart';
+export 'visualizer_source_provider.dart';
 export 'auto_sync_provider.dart';
 export 'library_warmup_provider.dart';
 export 'duplicate_cleaner_provider.dart';

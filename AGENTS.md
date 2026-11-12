@@ -21,6 +21,11 @@ cargo test --lib --manifest-path rust/Cargo.toml
 flutter run --flavor full
 ```
 
+## Installation and hardware tests
+
+- The user handles app installation and hardware testing. Do not install, launch, restart, or drive tests on a connected device unless explicitly requested.
+- Run local automated checks yourself. Tell the user when a rebuild is needed with `flutter run --release --flavor full`, and distinguish local verification from user-confirmed hardware results.
+
 ## Invariants (do not violate)
 
 - **Bit-perfect / native format output is the goal.** Never silently resample or truncate; do not route everything through one container for convenience.

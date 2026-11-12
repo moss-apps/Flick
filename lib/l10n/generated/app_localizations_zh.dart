@@ -1506,6 +1506,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get comingSoon => '即将推出';
 
   @override
+  String get comment => '评论';
+
+  @override
   String get compatibility => '兼容性';
 
   @override
@@ -8234,6 +8237,69 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get visualizerAlbumColorsDescription => '跟随专辑封面颜色；无封面颜色时使用单色';
+
+  @override
+  String get visualizerAnimationsOffApp =>
+      'Flick 中的动画已关闭。请在“设置 → 界面 → 动画”中开启，让可视化动起来。';
+
+  @override
+  String get visualizerAnimationsOffSystem =>
+      'Android 辅助功能中已开启“移除动画”。在重新开启动画前，可视化将保持静止。';
+
+  @override
+  String get visualizerAnimationsOffTitle => '可视化已暂停';
+
+  @override
+  String get visualizerUnavailableBitPerfectTitle => '位完美模式下可视化不可用';
+
+  @override
+  String get visualizerUnavailableBitPerfectBody =>
+      '位完美模式会将原始音频直接发送到 DAC，因此 Flick 没有可分析的已处理音频流。切换到高品质引擎即可使用实时可视化。';
+
+  @override
+  String get visualizerSwitchToHighQuality => '切换到高品质引擎';
+
+  @override
+  String get visualizerKeepBitPerfect => '保留位完美';
+
+  @override
+  String get visualizerSourceLiveFft => '来源：实时 FFT（Rust）';
+
+  @override
+  String get visualizerSourceRustBody => '根据 High Quality 引擎的 PCM 流计算，无需麦克风权限。';
+
+  @override
+  String get visualizerSourceLiveAndroid => '来源：实时（Android）';
+
+  @override
+  String get visualizerSourceUnavailable => '来源：不可用';
+
+  @override
+  String get visualizerSourceDsdUnavailable => '来源：DSD 不可用';
+
+  @override
+  String get visualizerStandardMicTitle => '需要麦克风权限';
+
+  @override
+  String get visualizerStandardMicBody =>
+      'Android 可视化会读取标准引擎的输出混音。Flick 不会录制或存储音频。高品质引擎使用 Flick 自己的 FFT，不需要此权限。';
+
+  @override
+  String get visualizerUnavailableDsdTitle => 'DSD 无法使用可视化';
+
+  @override
+  String get visualizerUnavailableDsdBody =>
+      '原生 DSD 和 DoP 会直接发送到 DAC，因此没有可分析的 PCM 流。播放 PCM 曲目时可视化会恢复。';
+
+  @override
+  String get visualizerPermissionDenied =>
+      '麦克风权限被拒绝。没有该权限，Android 可视化无法读取标准引擎输出。';
+
+  @override
+  String get visualizerPausedBitPerfect => '位完美输出已暂停可视化。';
+
+  @override
+  String get visualizerPausedDsd => '播放 DSD 时可视化已暂停。';
 
   @override
   String get visualizerBlocks => '渐隐方块';

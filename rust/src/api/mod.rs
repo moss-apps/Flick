@@ -8,3 +8,4 @@ pub mod scanner;
 pub mod smb_api;
 pub mod simple;
 pub mod uac2_api;
+pub mod visualizer_api;
