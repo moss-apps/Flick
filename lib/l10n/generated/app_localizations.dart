@@ -15046,6 +15046,120 @@ abstract class AppLocalizations {
   /// **'Follow the album cover colors; monochrome when unavailable'**
   String get visualizerAlbumColorsDescription;
 
+  /// No description provided for @visualizerAnimationsOffApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Animations are off in Flick. Turn them on in Settings → Interface → Animations to animate the visualizer.'**
+  String get visualizerAnimationsOffApp;
+
+  /// No description provided for @visualizerAnimationsOffSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'“Remove animations” is on in Android accessibility settings. The visualizer stays still until animations are turned back on.'**
+  String get visualizerAnimationsOffSystem;
+
+  /// No description provided for @visualizerAnimationsOffTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Visualizer is paused'**
+  String get visualizerAnimationsOffTitle;
+
+  /// No description provided for @visualizerUnavailableBitPerfectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Visualizer unavailable in bit-perfect mode'**
+  String get visualizerUnavailableBitPerfectTitle;
+
+  /// No description provided for @visualizerUnavailableBitPerfectBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Bit-perfect sends the original audio directly to your DAC, so Flick has no processed stream to analyze. Switch to High Quality Engine to use the live visualizer.'**
+  String get visualizerUnavailableBitPerfectBody;
+
+  /// No description provided for @visualizerSwitchToHighQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to High Quality Engine'**
+  String get visualizerSwitchToHighQuality;
+
+  /// No description provided for @visualizerKeepBitPerfect.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep bit-perfect'**
+  String get visualizerKeepBitPerfect;
+
+  /// No description provided for @visualizerSourceLiveFft.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: Live FFT (Rust)'**
+  String get visualizerSourceLiveFft;
+
+  /// No description provided for @visualizerSourceRustBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Computed from the High Quality engine\'s PCM stream. No microphone permission is needed.'**
+  String get visualizerSourceRustBody;
+
+  /// No description provided for @visualizerSourceLiveAndroid.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: Live (Android)'**
+  String get visualizerSourceLiveAndroid;
+
+  /// No description provided for @visualizerSourceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: Unavailable'**
+  String get visualizerSourceUnavailable;
+
+  /// No description provided for @visualizerSourceDsdUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: Unavailable for DSD'**
+  String get visualizerSourceDsdUnavailable;
+
+  /// No description provided for @visualizerStandardMicTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone permission needed'**
+  String get visualizerStandardMicTitle;
+
+  /// No description provided for @visualizerStandardMicBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Android\'s visualizer reads the Standard Engine\'s output mix. Flick does not record or store audio. High Quality Engine uses Flick\'s own FFT and does not need this permission.'**
+  String get visualizerStandardMicBody;
+
+  /// No description provided for @visualizerUnavailableDsdTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Visualizer unavailable for DSD'**
+  String get visualizerUnavailableDsdTitle;
+
+  /// No description provided for @visualizerUnavailableDsdBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Native and DoP DSD are sent directly to your DAC, so there is no PCM stream to analyze. The visualizer returns for PCM tracks.'**
+  String get visualizerUnavailableDsdBody;
+
+  /// No description provided for @visualizerPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone permission was denied. Android\'s visualizer cannot read the Standard Engine output without it.'**
+  String get visualizerPermissionDenied;
+
+  /// No description provided for @visualizerPausedBitPerfect.
+  ///
+  /// In en, this message translates to:
+  /// **'Visualizer paused for bit-perfect output.'**
+  String get visualizerPausedBitPerfect;
+
+  /// No description provided for @visualizerPausedDsd.
+  ///
+  /// In en, this message translates to:
+  /// **'Visualizer paused for DSD playback.'**
+  String get visualizerPausedDsd;
+
   /// No description provided for @visualizerBlocks.
   ///
   /// In en, this message translates to:

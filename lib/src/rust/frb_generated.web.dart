@@ -16,6 +16,7 @@ import 'api/scanner.dart';
 import 'api/simple.dart';
 import 'api/smb_api.dart';
 import 'api/uac2_api.dart';
+import 'api/visualizer_api.dart';
 import 'audio/crossfader.dart';
 import 'audio/dsd_engine/dsd.dart';
 import 'audio/engine.dart';
@@ -169,6 +170,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_box_autoadd_usize(dynamic raw);
 
   @protected
+  VisualizerBars dco_decode_box_autoadd_visualizer_bars(dynamic raw);
+
+  @protected
   CrossfadeCurve dco_decode_crossfade_curve(dynamic raw);
 
   @protected
@@ -297,6 +301,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt? dco_decode_opt_box_autoadd_usize(dynamic raw);
 
   @protected
+  VisualizerBars? dco_decode_opt_box_autoadd_visualizer_bars(dynamic raw);
+
+  @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -382,6 +389,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
+
+  @protected
+  VisualizerBars dco_decode_visualizer_bars(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -564,6 +574,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_box_autoadd_usize(SseDeserializer deserializer);
 
   @protected
+  VisualizerBars sse_decode_box_autoadd_visualizer_bars(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   CrossfadeCurve sse_decode_crossfade_curve(SseDeserializer deserializer);
 
   @protected
@@ -714,6 +729,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt? sse_decode_opt_box_autoadd_usize(SseDeserializer deserializer);
 
   @protected
+  VisualizerBars? sse_decode_opt_box_autoadd_visualizer_bars(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -809,6 +829,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
+
+  @protected
+  VisualizerBars sse_decode_visualizer_bars(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -1027,6 +1050,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_usize(BigInt self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_visualizer_bars(
+    VisualizerBars self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_crossfade_curve(
     CrossfadeCurve self,
     SseSerializer serializer,
@@ -1210,6 +1239,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_usize(BigInt? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_visualizer_bars(
+    VisualizerBars? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
     SseSerializer serializer,
@@ -1334,6 +1369,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_visualizer_bars(
+    VisualizerBars self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class

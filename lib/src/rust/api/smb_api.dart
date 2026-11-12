@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `addr`, `commit`, `create`, `failure`
+// These functions are ignored because they are not marked as `pub`: `addr`, `client_config`, `commit`, `connect`, `create`, `error_code`, `failure`, `should_skip_directory_error`, `skippable_subdirectory_error`, `split_account`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `PendingDownload`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `drop`, `fmt`, `fmt`
 
@@ -31,6 +31,12 @@ Future<void> smbPing({
 /// BFS walk of `root_path` (relative to the share) pushing one [SmbEntry] per
 /// file or directory. `root_path` of "" lists the share root. One connection,
 /// reused across directories.
+///
+/// A child directory that is unreadable or vanished during the walk is skipped
+/// instead of aborting the scan; Windows shares commonly contain things like
+/// `System Volume Information` that even a valid account cannot list. Failing
+/// to list the configured root itself is still an error, since that is the
+/// address the user needs to correct.
 Stream<SmbEntry> smbListShare({
   required String host,
   required int port,
@@ -48,6 +54,11 @@ Stream<SmbEntry> smbListShare({
 );
 
 /// Read a full (small) file into memory — cover art and tiny sidecars.
+///
+/// Uses the pipelined reader rather than `read_file`: the latter is a single
+/// READ and fails with `FileTooLargeForSingleRead` when the file exceeds the
+/// server's MaxReadSize (as small as 64 KiB on some NAS firmware). Folder art
+/// routinely exceeds that, which made SMB covers fail on those servers.
 Future<Uint8List> smbReadFile({
   required String host,
   required int port,

@@ -13,6 +13,7 @@ import 'api/scanner.dart';
 import 'api/simple.dart';
 import 'api/smb_api.dart';
 import 'api/uac2_api.dart';
+import 'api/visualizer_api.dart';
 import 'audio/crossfader.dart';
 import 'audio/dsd_engine/dsd.dart';
 import 'audio/engine.dart';
@@ -80,7 +81,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 497249984;
+  int get rustContentHash => 939316206;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -512,6 +513,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<bool> crateApiUac2ApiUac2StopStreaming();
+
+  Future<VisualizerBars?> crateApiVisualizerApiVisualizerGetBars();
+
+  Future<bool> crateApiVisualizerApiVisualizerSetActive({required bool active});
 
   Future<void> crateApiReplaygainWriteReplaygainTags({
     required String path,
@@ -4347,6 +4352,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "uac2_stop_streaming", argNames: []);
 
   @override
+  Future<VisualizerBars?> crateApiVisualizerApiVisualizerGetBars() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 127,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_visualizer_bars,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiVisualizerApiVisualizerGetBarsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiVisualizerApiVisualizerGetBarsConstMeta =>
+      const TaskConstMeta(debugName: "visualizer_get_bars", argNames: []);
+
+  @override
+  Future<bool> crateApiVisualizerApiVisualizerSetActive({
+    required bool active,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(active, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 128,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiVisualizerApiVisualizerSetActiveConstMeta,
+        argValues: [active],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiVisualizerApiVisualizerSetActiveConstMeta =>
+      const TaskConstMeta(
+        debugName: "visualizer_set_active",
+        argNames: ["active"],
+      );
+
+  @override
   Future<void> crateApiReplaygainWriteReplaygainTags({
     required String path,
     required ReplayGainTagFields fields,
@@ -4360,7 +4425,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 127,
+            funcId: 129,
             port: port_,
           );
         },
@@ -4395,7 +4460,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 128,
+            funcId: 130,
             port: port_,
           );
         },
@@ -4432,7 +4497,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 129,
+            funcId: 131,
             port: port_,
           );
         },
@@ -4847,6 +4912,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VisualizerBars dco_decode_box_autoadd_visualizer_bars(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_visualizer_bars(raw);
+  }
+
+  @protected
   CrossfadeCurve dco_decode_crossfade_curve(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return CrossfadeCurve.values[raw as int];
@@ -5112,6 +5183,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt? dco_decode_opt_box_autoadd_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_usize(raw);
+  }
+
+  @protected
+  VisualizerBars? dco_decode_opt_box_autoadd_visualizer_bars(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_visualizer_bars(raw);
   }
 
   @protected
@@ -5445,6 +5522,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt dco_decode_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeU64(raw);
+  }
+
+  @protected
+  VisualizerBars dco_decode_visualizer_bars(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return VisualizerBars(
+      bars: dco_decode_list_prim_f_32_strict(arr[0]),
+      sampleRate: dco_decode_u_32(arr[1]),
+      sequence: dco_decode_u_64(arr[2]),
+    );
   }
 
   @protected
@@ -5930,6 +6020,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VisualizerBars sse_decode_box_autoadd_visualizer_bars(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_visualizer_bars(deserializer));
+  }
+
+  @protected
   CrossfadeCurve sse_decode_crossfade_curve(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
@@ -6355,6 +6453,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VisualizerBars? sse_decode_opt_box_autoadd_visualizer_bars(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_visualizer_bars(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -6702,6 +6813,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
+  VisualizerBars sse_decode_visualizer_bars(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_bars = sse_decode_list_prim_f_32_strict(deserializer);
+    var var_sampleRate = sse_decode_u_32(deserializer);
+    var var_sequence = sse_decode_u_64(deserializer);
+    return VisualizerBars(
+      bars: var_bars,
+      sampleRate: var_sampleRate,
+      sequence: var_sequence,
+    );
   }
 
   @protected
@@ -7168,6 +7292,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_visualizer_bars(
+    VisualizerBars self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_visualizer_bars(self, serializer);
+  }
+
+  @protected
   void sse_encode_crossfade_curve(
     CrossfadeCurve self,
     SseSerializer serializer,
@@ -7586,6 +7719,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_visualizer_bars(
+    VisualizerBars? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_visualizer_bars(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
     SseSerializer serializer,
@@ -7861,5 +8007,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_visualizer_bars(
+    VisualizerBars self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_prim_f_32_strict(self.bars, serializer);
+    sse_encode_u_32(self.sampleRate, serializer);
+    sse_encode_u_64(self.sequence, serializer);
   }
 }
