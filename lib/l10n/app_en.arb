@@ -1969,6 +1969,10 @@
   "@comingSoon": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1664"
   },
+  "comment": "Comment",
+  "@comment": {
+    "description": "Metadata sheet row label for the file's read-only COMMENT tag."
+  },
   "compatibility": "Compatibility",
   "@compatibility": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1213"

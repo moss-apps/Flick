@@ -1626,6 +1626,9 @@ class AppLocalizationsTl extends AppLocalizations {
   String get comingSoon => 'Malapit na';
 
   @override
+  String get comment => 'Komento';
+
+  @override
   String get compatibility => 'Pagkakatugma';
 
   @override

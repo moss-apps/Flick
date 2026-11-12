@@ -1626,6 +1626,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get comingSoon => 'Muy pronto';
 
   @override
+  String get comment => 'Comentario';
+
+  @override
   String get compatibility => 'Compatibilidad';
 
   @override

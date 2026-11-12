@@ -1506,6 +1506,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get comingSoon => '即将推出';
 
   @override
+  String get comment => '评论';
+
+  @override
   String get compatibility => '兼容性';
 
   @override

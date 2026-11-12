@@ -13,6 +13,7 @@ import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/providers/player_provider.dart';
+import 'package:flick/widgets/common/song_file_tag_extras.dart';
 
 const _song = Song(
   id: 'song-1',
@@ -161,6 +162,42 @@ void main() {
     expect(find.text(en.cancel), findsOneWidget);
     expect(find.text(tl.discardChanges2), findsNothing);
     expect(find.text(tl.cancel), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('library metadata sheet mounts read-only file tags', (
+    tester,
+  ) async {
+    _setLargePhone(tester);
+    final en = lookupFlickLocalizations(kFallbackLocale);
+    await tester.pumpWidget(
+      _host(
+        Builder(
+          builder: (context) => Center(
+            child: TextButton(
+              onPressed: () => showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => SongActionsBottomSheet(
+                  song: _song,
+                  rootContext: context,
+                  onSelect: () {},
+                ),
+              ),
+              child: const Text('Open actions'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(en.viewMetadata));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SongFileTagExtras), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

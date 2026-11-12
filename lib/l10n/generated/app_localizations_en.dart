@@ -1607,6 +1607,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get comingSoon => 'Coming Soon';
 
   @override
+  String get comment => 'Comment';
+
+  @override
   String get compatibility => 'Compatibility';
 
   @override

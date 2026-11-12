@@ -2815,6 +2815,12 @@ abstract class AppLocalizations {
   /// **'Coming Soon'**
   String get comingSoon;
 
+  /// Metadata sheet row label for the file's read-only COMMENT tag.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment'**
+  String get comment;
+
   /// lib/features/settings/screens/uac2_preferences_screen.dart:1213
   ///
   /// In en, this message translates to:
