@@ -23,6 +23,7 @@ import 'package:flick/features/player/widgets/lyrics_mode_waveform_strip.dart';
 import 'package:flick/features/player/widgets/inline_lyrics_panel.dart';
 import 'package:flick/features/player/widgets/album_color_helpers.dart';
 import 'package:flick/models/album_color_mode.dart';
+import 'package:flick/models/audio_engine_type.dart';
 import 'package:flick/models/immersive_background_style.dart';
 import 'package:flick/models/player_screen_mode.dart';
 import 'package:flick/models/player_action_button.dart';
@@ -32,6 +33,8 @@ import 'package:flick/services/external_playback_service.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_screen_mode_preference_service.dart';
+import 'package:flick/services/uac2_preferences_service.dart';
+import 'package:flick/services/visualizer_source.dart';
 import 'package:flick/widgets/common/animated_album_art.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
@@ -40,6 +43,7 @@ import 'package:flick/widgets/uac2/uac2_error_notification.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/utils/app_haptics.dart';
+import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/widgets/common/baybayin_text.dart';
 
@@ -125,6 +129,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       }
     });
     _playerService.currentSongNotifier.addListener(_handleCurrentSongChanged);
+    _playerService.initializedPlaybackModeNotifier.addListener(
+      _handleVisualizerAvailabilityChanged,
+    );
+    _playerService.selectedPlaybackModeNotifier.addListener(
+      _handleVisualizerAvailabilityChanged,
+    );
+    _playerService.bitPerfectProcessingLockedNotifier.addListener(
+      _handleVisualizerAvailabilityChanged,
+    );
     _playerService.favoriteNotificationToggleNotifier.addListener(
       _handleFavoriteToggledFromNotification,
     );
@@ -143,6 +156,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   void dispose() {
     _playerService.currentSongNotifier.removeListener(
       _handleCurrentSongChanged,
+    );
+    _playerService.initializedPlaybackModeNotifier.removeListener(
+      _handleVisualizerAvailabilityChanged,
+    );
+    _playerService.selectedPlaybackModeNotifier.removeListener(
+      _handleVisualizerAvailabilityChanged,
+    );
+    _playerService.bitPerfectProcessingLockedNotifier.removeListener(
+      _handleVisualizerAvailabilityChanged,
     );
     _playerService.favoriteNotificationToggleNotifier.removeListener(
       _handleFavoriteToggledFromNotification,
@@ -164,6 +186,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     }
     _updateTopBarTextMeasurement(_playerService.currentSongNotifier.value);
     _refreshImmersiveFullViewTimer();
+    _handleVisualizerAvailabilityChanged();
   }
 
   void _handleFavoriteToggledFromNotification() {
@@ -245,6 +268,172 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       _isLyricsMode = nextLyricsMode;
     });
     _refreshImmersiveFullViewTimer();
+  }
+
+  Future<void> _handleToggleVisualization(bool value) async {
+    if (!value) {
+      _setVisualizationMode(false);
+      return;
+    }
+    final source = ref.read(visualizerSourceProvider);
+    if (source.mode == VisualizerSourceMode.unavailable ||
+        source.mode == VisualizerSourceMode.dsdUnavailable) {
+      await _showVisualizerUnavailableSheet(source.mode);
+      return;
+    }
+    if (source.needsPermission) {
+      final l10n = context.l10n.englishForFilipino;
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.visualizerStandardMicTitle),
+          content: Text(l10n.visualizerStandardMicBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n.continueLabel),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true || !mounted) return;
+    }
+    final ready = await source.prepare();
+    if (!ready) {
+      if (mounted) {
+        _showVisualizerSnack(
+          context.l10n.englishForFilipino.visualizerPermissionDenied,
+        );
+      }
+      return;
+    }
+    if (mounted) _setVisualizationMode(true);
+  }
+
+  Future<void> _showVisualizerUnavailableSheet(
+    VisualizerSourceMode mode,
+  ) async {
+    final l10n = context.l10n.englishForFilipino;
+    final isDsd = mode == VisualizerSourceMode.dsdUnavailable;
+    final title = isDsd
+        ? l10n.visualizerUnavailableDsdTitle
+        : l10n.visualizerUnavailableBitPerfectTitle;
+    final body = isDsd
+        ? l10n.visualizerUnavailableDsdBody
+        : l10n.visualizerUnavailableBitPerfectBody;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(LucideIcons.lock, size: 30, color: AppColors.accent),
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  body,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                if (!isDsd) ...[
+                  FilledButton(
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      unawaited(_switchToHighQualityForVisualizer());
+                    },
+                    child: Text(l10n.visualizerSwitchToHighQuality),
+                  ),
+                  const SizedBox(height: 6),
+                ],
+                TextButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  child: Text(
+                    isDsd ? l10n.close : l10n.visualizerKeepBitPerfect,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _switchToHighQualityForVisualizer() async {
+    final l10n = context.l10n.englishForFilipino;
+    final engine = _playerService.currentEngineType;
+    final wasUsbBitPerfect =
+        engine == AudioEngineType.usbDacExperimental &&
+        _playerService.isBitPerfectModeEnabled;
+    final wasDapBitPerfect =
+        engine == AudioEngineType.dapInternalHighRes &&
+        _playerService.isBitPerfectModeEnabled;
+    try {
+      await _playerService.setAudioEnginePreference(
+        AudioEnginePreference.rustOboe,
+      );
+      if (wasUsbBitPerfect) {
+        await ref.read(uac2ServiceProvider).setBitPerfectEnabled(false);
+        ref.invalidate(uac2BitPerfectEnabledProvider);
+        ref.invalidate(uac2ExclusiveDacModeProvider);
+      }
+      if (wasDapBitPerfect) {
+        await _playerService.setDapBitPerfectEnabled(false);
+      }
+      ref.invalidate(audioEnginePreferenceProvider);
+      if (!mounted) return;
+      _showVisualizerSnack(
+        '${l10n.restartRequired} ${l10n.yourNewAudioEngineIsReady}',
+      );
+    } catch (e) {
+      devLog('[Visualizer] failed to switch engine: $e');
+      if (mounted) {
+        _showVisualizerSnack(l10n.visualizerPermissionDenied);
+      }
+    }
+  }
+
+  void _showVisualizerSnack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _handleVisualizerAvailabilityChanged() {
+    if (!mounted || !_isVisualizationMode) return;
+    final engine = _playerService.currentEngineType;
+    final dsd = _playerService.isCurrentTrackDoP;
+    final blocked =
+        engine == AudioEngineType.usbDacExperimental ||
+        engine == AudioEngineType.dapInternalHighRes ||
+        dsd;
+    if (!blocked) return;
+    setState(() => _isVisualizationMode = false);
+    final l10n = context.l10n.englishForFilipino;
+    _showVisualizerSnack(
+      dsd ? l10n.visualizerPausedDsd : l10n.visualizerPausedBitPerfect,
+    );
   }
 
   void _handleImmersiveSceneTap() {
@@ -760,7 +949,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   song: song,
                   isVisualizationMode: _isVisualizationMode,
                   onShowLyrics: () => _setLyricsMode(true),
-                  onToggleVisualization: (v) => _setVisualizationMode(v),
+                  onToggleVisualization: _handleToggleVisualization,
                   onShowPlayerLayout: (ctx) => PlayerLayoutSheet.show(
                     ctx,
                     playerService: _playerService,
@@ -1061,6 +1250,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   ) {
     final visualizationMode =
         _isVisualizationMode && appPrefs.visualizerEnabled;
+    final visualizerMode = ref.watch(
+      visualizerSourceProvider.select((source) => source.mode),
+    );
 
     // Shared action-row builder for stages and the pinned overlay. The
     // landscape pane passes `compact: true` for a single short row.
@@ -1093,7 +1285,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         playerService: _playerService,
         favoritesService: _favoritesService,
         onToggleLyrics: () => setState(() => _isLyricsMode = !lm),
-        onToggleVisualization: (v) => _setVisualizationMode(v),
+        onToggleVisualization: _handleToggleVisualization,
+        visualizerUnavailable:
+            visualizerMode == VisualizerSourceMode.unavailable ||
+            visualizerMode == VisualizerSourceMode.dsdUnavailable,
         onOpenQueue: (ctx) => _navigation.openQueue(ctx),
         usbVolumeButtonKey: _usbVolumeButtonKey,
         onShowUsbVolumePopup: (ctx) => _showUsbVolumePopup(ctx),
