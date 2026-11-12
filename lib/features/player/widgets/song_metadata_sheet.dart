@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
+import 'package:flick/widgets/common/song_file_tag_extras.dart';
 import 'package:flick/l10n/english_l10n.dart';
 
 class SongMetadataSheet extends StatelessWidget {
@@ -80,6 +81,7 @@ class SongMetadataSheet extends StatelessWidget {
             ),
           if (song.discNumber != null)
             _buildMetadataRow(context, l10n.disc, song.discNumber!.toString()),
+          SongFileTagExtras(song: song),
           if (song.filePath != null)
             _buildMetadataRow(context, l10n.filePath, song.filePath!),
         ],
