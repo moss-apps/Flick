@@ -85,13 +85,15 @@ void main() {
       'supportFlick',
       'logs',
     };
-    // Transient update states are information, not independently addressable settings.
+    // Transient update and playback states are information, not independently
+    // addressable settings.
     const statusKeys = {
       'checkingForUpdates',
       'updateAvailable',
       'couldNotCheckForUpdates',
       'offline',
       'noUpdateAvailable',
+      'visualizerAnimationsOffTitle',
     };
     for (final stem
         in pages
