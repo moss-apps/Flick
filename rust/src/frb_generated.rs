@@ -5483,6 +5483,7 @@ impl SseDecode for crate::api::metadata_editor::TagReadResult {
         let mut var_date = <Option<String>>::sse_decode(deserializer);
         let mut var_copyright = <Option<String>>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
+        let mut var_comment = <Option<String>>::sse_decode(deserializer);
         return crate::api::metadata_editor::TagReadResult {
             title: var_title,
             artist: var_artist,
@@ -5495,6 +5496,7 @@ impl SseDecode for crate::api::metadata_editor::TagReadResult {
             date: var_date,
             copyright: var_copyright,
             label: var_label,
+            comment: var_comment,
         };
     }
 }
@@ -6809,6 +6811,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::metadata_editor::TagReadResul
             self.date.into_into_dart().into_dart(),
             self.copyright.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
+            self.comment.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7810,6 +7813,7 @@ impl SseEncode for crate::api::metadata_editor::TagReadResult {
         <Option<String>>::sse_encode(self.date, serializer);
         <Option<String>>::sse_encode(self.copyright, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
+        <Option<String>>::sse_encode(self.comment, serializer);
     }
 }
 

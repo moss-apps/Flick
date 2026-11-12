@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_tag_fields`, `id3_text_frame`, `read_dsd_id3_tag`, `tag_read_result_from_id3`
+// These functions are ignored because they are not marked as `pub`: `apply_tag_fields`, `id3_text_frame`, `join_tag_values`, `read_dsd_id3_tag`, `tag_read_result_from_id3`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`
 
 Future<TagReadResult> readTags({required String path}) =>
@@ -89,6 +89,7 @@ class TagReadResult {
   final String? date;
   final String? copyright;
   final String? label;
+  final String? comment;
 
   const TagReadResult({
     this.title,
@@ -102,6 +103,7 @@ class TagReadResult {
     this.date,
     this.copyright,
     this.label,
+    this.comment,
   });
 
   @override
@@ -116,7 +118,8 @@ class TagReadResult {
       discNumber.hashCode ^
       date.hashCode ^
       copyright.hashCode ^
-      label.hashCode;
+      label.hashCode ^
+      comment.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -133,7 +136,8 @@ class TagReadResult {
           discNumber == other.discNumber &&
           date == other.date &&
           copyright == other.copyright &&
-          label == other.label;
+          label == other.label &&
+          comment == other.comment;
 }
 
 class TagWriteResult {

@@ -5299,8 +5299,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TagReadResult dco_decode_tag_read_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return TagReadResult(
       title: dco_decode_opt_String(arr[0]),
       artist: dco_decode_opt_String(arr[1]),
@@ -5313,6 +5313,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       date: dco_decode_opt_String(arr[8]),
       copyright: dco_decode_opt_String(arr[9]),
       label: dco_decode_opt_String(arr[10]),
+      comment: dco_decode_opt_String(arr[11]),
     );
   }
 
@@ -6546,6 +6547,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_date = sse_decode_opt_String(deserializer);
     var var_copyright = sse_decode_opt_String(deserializer);
     var var_label = sse_decode_opt_String(deserializer);
+    var var_comment = sse_decode_opt_String(deserializer);
     return TagReadResult(
       title: var_title,
       artist: var_artist,
@@ -6558,6 +6560,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       date: var_date,
       copyright: var_copyright,
       label: var_label,
+      comment: var_comment,
     );
   }
 
@@ -7742,6 +7745,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.date, serializer);
     sse_encode_opt_String(self.copyright, serializer);
     sse_encode_opt_String(self.label, serializer);
+    sse_encode_opt_String(self.comment, serializer);
   }
 
   @protected

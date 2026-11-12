@@ -27,6 +27,7 @@ pub struct TagReadResult {
     pub date: Option<String>,
     pub copyright: Option<String>,
     pub label: Option<String>,
+    pub comment: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,6 +77,7 @@ pub fn read_tags(path: String) -> Result<TagReadResult, String> {
                 .get_string(ItemKey::CopyrightMessage)
                 .map(|s| s.to_string()),
             label: t.get_string(ItemKey::Label).map(|s| s.to_string()),
+            comment: join_tag_values(t.get_strings(ItemKey::Comment)),
         }),
         None => Ok(TagReadResult {
             title: None,
@@ -89,8 +91,20 @@ pub fn read_tags(path: String) -> Result<TagReadResult, String> {
             date: None,
             copyright: None,
             label: None,
+            comment: None,
         }),
     }
+}
+
+/// Joins every non-empty value for a tag, keeping line breaks inside a value.
+/// Multiple comments become separate paragraphs instead of being dropped.
+fn join_tag_values<'a>(values: impl Iterator<Item = &'a str>) -> Option<String> {
+    let joined = values
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    (!joined.is_empty()).then_some(joined)
 }
 
 pub fn write_tags(path: String, fields: TagEditFields) -> Result<TagWriteResult, String> {
@@ -220,6 +234,12 @@ fn tag_read_result_from_id3(tag: &id3::Tag) -> TagReadResult {
         date: tag.date_recorded().map(|t| t.to_string()),
         copyright: id3_text_frame(tag, "TCOP"),
         label: id3_text_frame(tag, "TPUB"),
+        comment: join_tag_values(tag.frames().filter(|f| f.id() == "COMM").filter_map(|f| {
+            match f.content() {
+                id3::Content::Comment(comment) => Some(comment.text.as_str()),
+                _ => None,
+            }
+        })),
     }
 }
 
@@ -315,6 +335,50 @@ mod tests {
         std::fs::write(path, bytes).unwrap();
     }
 
+    /// Hand-builds a minimal Ogg Opus stream: an OpusHead page followed by an
+    /// OpusTags page carrying `comments` as "KEY=value" pairs.
+    fn write_minimal_opus(path: &Path, comments: &[&str]) {
+        fn ogg_page(header_type: u8, sequence: u32, packet: &[u8]) -> Vec<u8> {
+            assert!(packet.len() < 255);
+            let mut bytes = Vec::new();
+            bytes.extend_from_slice(b"OggS");
+            bytes.push(0); // version
+            bytes.push(header_type);
+            bytes.extend_from_slice(&0u64.to_le_bytes()); // granule position
+            bytes.extend_from_slice(&1u32.to_le_bytes()); // stream serial
+            bytes.extend_from_slice(&sequence.to_le_bytes());
+            bytes.extend_from_slice(&0u32.to_le_bytes()); // checksum
+            bytes.push(1); // one segment
+            bytes.push(packet.len() as u8);
+            bytes.extend_from_slice(packet);
+            bytes
+        }
+
+        let mut opus_head = Vec::new();
+        opus_head.extend_from_slice(b"OpusHead");
+        opus_head.push(1); // version
+        opus_head.push(2); // channels
+        opus_head.extend_from_slice(&0u16.to_le_bytes()); // pre-skip
+        opus_head.extend_from_slice(&48000u32.to_le_bytes());
+        opus_head.extend_from_slice(&0i16.to_le_bytes()); // output gain
+        opus_head.push(0); // mapping family
+
+        let mut opus_tags = Vec::new();
+        opus_tags.extend_from_slice(b"OpusTags");
+        let vendor = b"flick-test";
+        opus_tags.extend_from_slice(&(vendor.len() as u32).to_le_bytes());
+        opus_tags.extend_from_slice(vendor);
+        opus_tags.extend_from_slice(&(comments.len() as u32).to_le_bytes());
+        for comment in comments {
+            opus_tags.extend_from_slice(&(comment.len() as u32).to_le_bytes());
+            opus_tags.extend_from_slice(comment.as_bytes());
+        }
+
+        let mut bytes = ogg_page(0x02, 0, &opus_head);
+        bytes.extend_from_slice(&ogg_page(0x00, 1, &opus_tags));
+        std::fs::write(path, bytes).unwrap();
+    }
+
     /// Hand-builds a minimal PCM WAV with no tag chunk at all.
     fn write_minimal_wav(path: &Path) {
         let sample_rate: u32 = 8000;
@@ -352,6 +416,7 @@ mod tests {
 
         let before = read_tags(path.to_string_lossy().to_string()).unwrap();
         assert!(before.title.is_none());
+        assert!(before.comment.is_none());
 
         let result = write_tags(
             path.to_string_lossy().to_string(),
@@ -397,6 +462,7 @@ mod tests {
                 "DATE=2024-03-15",
                 "COPYRIGHT=2024 Test Label",
                 "LABEL=Test Label",
+                "COMMENT=Reference note",
                 "TRACKNUMBER=7",
                 "DISCNUMBER=2",
             ],
@@ -413,8 +479,169 @@ mod tests {
         assert_eq!(tags.date.as_deref(), Some("2024-03-15"));
         assert_eq!(tags.copyright.as_deref(), Some("2024 Test Label"));
         assert_eq!(tags.label.as_deref(), Some("Test Label"));
+        assert_eq!(tags.comment.as_deref(), Some("Reference note"));
         assert_eq!(tags.track_number, Some(7));
         assert_eq!(tags.disc_number, Some(2));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_tags_reads_opus_comment() {
+        let dir = std::env::temp_dir().join(format!("flick_opus_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("sample.opus");
+        write_minimal_opus(
+            &path,
+            &[
+                "TITLE=Opus Title",
+                "COMMENT=Reference note for the opus file",
+            ],
+        );
+
+        let original = std::fs::read(&path).unwrap();
+        let tags = read_tags(path.to_string_lossy().to_string()).unwrap();
+
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        assert_eq!(tags.title.as_deref(), Some("Opus Title"));
+        assert_eq!(
+            tags.comment.as_deref(),
+            Some("Reference note for the opus file")
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_tags_keeps_multiple_comments_and_line_breaks() {
+        let dir = std::env::temp_dir().join(format!("flick_comment_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let comments = [
+            "COMMENT=Line one\nLine two",
+            "COMMENT=   ",
+            "COMMENT=Second note ünïcode 日本語",
+        ];
+        for extension in ["flac", "opus"] {
+            let path = dir.join(format!("sample.{extension}"));
+            if extension == "flac" {
+                write_minimal_flac(&path, &comments);
+            } else {
+                write_minimal_opus(&path, &comments);
+            }
+
+            let tags = read_tags(path.to_string_lossy().to_string()).unwrap();
+
+            assert_eq!(
+                tags.comment.as_deref(),
+                Some("Line one\nLine two\n\nSecond note ünïcode 日本語"),
+                "{extension}"
+            );
+        }
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_tags_ignores_absent_blank_and_description_only_opus_comments() {
+        let dir = std::env::temp_dir().join(format!("flick_no_comment_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("sample.opus");
+        for comments in [
+            vec![],
+            vec!["COMMENT= \t\r\n"],
+            vec!["DESCRIPTION=This is not a COMMENT tag"],
+        ] {
+            write_minimal_opus(&path, &comments);
+            let tags = read_tags(path.to_string_lossy().to_string()).unwrap();
+            assert!(tags.comment.is_none(), "{comments:?}");
+        }
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_tags_reads_mp3_comments() {
+        use id3::TagLike;
+
+        let mut tag = id3::Tag::new();
+        tag.set_title("Mp3 Title");
+        for (description, text) in [("", "First note"), ("Reference", "Second note 日本語")] {
+            tag.add_frame(id3::Frame::with_content(
+                "COMM",
+                id3::Content::Comment(id3::frame::Comment {
+                    lang: "eng".into(),
+                    description: description.into(),
+                    text: text.into(),
+                }),
+            ));
+        }
+        let mut bytes = Vec::new();
+        tag.write_to(&mut bytes, id3::Version::Id3v24).unwrap();
+        // Four MPEG-1 Layer III frames at 128 kbps / 44.1 kHz.
+        let mut frame = vec![0u8; 417];
+        frame[..4].copy_from_slice(&[0xff, 0xfb, 0x90, 0x64]);
+        for _ in 0..4 {
+            bytes.extend_from_slice(&frame);
+        }
+
+        let dir = std::env::temp_dir().join(format!("flick_mp3_comment_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("sample.mp3");
+        std::fs::write(&path, bytes).unwrap();
+        let tags = read_tags(path.to_string_lossy().to_string()).unwrap();
+
+        assert_eq!(tags.title.as_deref(), Some("Mp3 Title"));
+        assert_eq!(
+            tags.comment.as_deref(),
+            Some("First note\n\nSecond note 日本語")
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_tags_reads_dsf_comments() {
+        let mut tag = id3::Tag::new();
+        use id3::TagLike;
+        tag.set_title("Dsf Title");
+        tag.add_frame(id3::Frame::with_content(
+            "COMM",
+            id3::Content::Comment(id3::frame::Comment {
+                lang: "eng".into(),
+                description: String::new(),
+                text: "Dsf note\nSecond line".into(),
+            }),
+        ));
+        let mut id3_bytes = Vec::new();
+        tag.write_to(&mut id3_bytes, id3::Version::Id3v24).unwrap();
+
+        // DSF header + fmt + data, followed by the ID3 metadata at byte 96.
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"DSD ");
+        bytes.extend_from_slice(&28u64.to_le_bytes());
+        bytes.extend_from_slice(&(96 + id3_bytes.len() as u64).to_le_bytes());
+        bytes.extend_from_slice(&96u64.to_le_bytes());
+        bytes.extend_from_slice(b"fmt ");
+        bytes.extend_from_slice(&52u64.to_le_bytes());
+        for field in [1u32, 0, 2, 2, 2_822_400, 1] {
+            bytes.extend_from_slice(&field.to_le_bytes());
+        }
+        bytes.extend_from_slice(&16u64.to_le_bytes()); // samples per channel
+        bytes.extend_from_slice(&4096u32.to_le_bytes()); // block size
+        bytes.extend_from_slice(&0u32.to_le_bytes()); // reserved
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&16u64.to_le_bytes());
+        bytes.extend_from_slice(&[0x69; 4]);
+        bytes.extend_from_slice(&id3_bytes);
+
+        let dir = std::env::temp_dir().join(format!("flick_dsf_comment_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("sample.dsf");
+        std::fs::write(&path, bytes).unwrap();
+        let tags = read_tags(path.to_string_lossy().to_string()).unwrap();
+
+        assert_eq!(tags.title.as_deref(), Some("Dsf Title"));
+        assert_eq!(tags.comment.as_deref(), Some("Dsf note\nSecond line"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -441,6 +668,14 @@ mod tests {
         });
         tag.set_text("TCOP", "2021 Dsd Label");
         tag.set_text("TPUB", "Dsd Label");
+        tag.add_frame(id3::Frame::with_content(
+            "COMM",
+            id3::Content::Comment(id3::frame::Comment {
+                lang: "eng".into(),
+                description: String::new(),
+                text: "Dsd note".into(),
+            }),
+        ));
         let mut id3_bytes = Vec::new();
         tag.write_to(&mut id3_bytes, id3::Version::Id3v24).unwrap();
 
@@ -472,6 +707,7 @@ mod tests {
         assert_eq!(tags.date.as_deref(), Some("2021-06-01"));
         assert_eq!(tags.copyright.as_deref(), Some("2021 Dsd Label"));
         assert_eq!(tags.label.as_deref(), Some("Dsd Label"));
+        assert_eq!(tags.comment.as_deref(), Some("Dsd note"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }
