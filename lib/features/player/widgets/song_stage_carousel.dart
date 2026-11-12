@@ -53,7 +53,13 @@ class SongStageCarouselState extends State<SongStageCarousel>
 
   late AnimationController _controller;
   late Animation<double> _animation;
-  double _dragOffset = 0.0;
+
+  /// Drives only the slide transforms, so drag frames never rebuild the
+  /// (potentially three) player stages or their visualizers.
+  final ValueNotifier<double> _offset = ValueNotifier<double>(0.0);
+
+  double get _dragOffset => _offset.value;
+  set _dragOffset(double value) => _offset.value = value;
   double _animStartOffset = 0.0;
   double _animTargetOffset = 0.0;
   bool _isDragging = false;
@@ -76,9 +82,7 @@ class SongStageCarouselState extends State<SongStageCarousel>
     _animation = Tween<double>(begin: 0, end: 0).animate(_controller);
     _controller.addListener(() {
       if (_isAnimating) {
-        setState(() {
-          _dragOffset = _animation.value;
-        });
+        _dragOffset = _animation.value;
       }
     });
     _stableCurrent = widget.currentSong;
@@ -133,6 +137,7 @@ class SongStageCarouselState extends State<SongStageCarousel>
 
   @override
   void dispose() {
+    _offset.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -229,12 +234,9 @@ class SongStageCarouselState extends State<SongStageCarousel>
       }
     }
 
-    setState(() {
-      _dragOffset += delta;
-      // Clamp to not fly infinitely.
-      final maxOffset = width * 1.1;
-      _dragOffset = _dragOffset.clamp(-maxOffset, maxOffset);
-    });
+    // Clamp to not fly infinitely.
+    final maxOffset = width * 1.1;
+    _dragOffset = (_dragOffset + delta).clamp(-maxOffset, maxOffset);
   }
 
   Future<void> _handleDragEnd(DragEndDetails details) async {
@@ -329,24 +331,41 @@ class SongStageCarouselState extends State<SongStageCarousel>
             onHorizontalDragUpdate: _handleDragUpdate,
             onHorizontalDragEnd: _handleDragEnd,
             onHorizontalDragCancel: _handleDragCancel,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (prevStage != null)
-                  Transform.translate(
-                    offset: Offset(-width + _dragOffset, 0),
-                    child: SizedBox(width: width, child: prevStage),
-                  ),
-                if (nextStage != null)
-                  Transform.translate(
-                    offset: Offset(width + _dragOffset, 0),
-                    child: SizedBox(width: width, child: nextStage),
-                  ),
-                Transform.translate(
-                  offset: Offset(_dragOffset, 0),
-                  child: SizedBox(width: width, child: currentStage),
-                ),
-              ],
+            child: ValueListenableBuilder<double>(
+              valueListenable: _offset,
+              builder: (context, dragOffset, _) {
+                // A clipped neighbour is invisible, but animation and source
+                // acquisition would otherwise keep running for all three
+                // stages. TickerMode lets AudioVisualizer release the shared
+                // capture as soon as the stage is fully offscreen.
+                final revealPrev = dragOffset > 0.5;
+                final revealNext = dragOffset < -0.5;
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (prevStage != null)
+                      TickerMode(
+                        enabled: revealPrev,
+                        child: Transform.translate(
+                          offset: Offset(-width + dragOffset, 0),
+                          child: SizedBox(width: width, child: prevStage),
+                        ),
+                      ),
+                    if (nextStage != null)
+                      TickerMode(
+                        enabled: revealNext,
+                        child: Transform.translate(
+                          offset: Offset(width + dragOffset, 0),
+                          child: SizedBox(width: width, child: nextStage),
+                        ),
+                      ),
+                    Transform.translate(
+                      offset: Offset(dragOffset, 0),
+                      child: SizedBox(width: width, child: currentStage),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         );
