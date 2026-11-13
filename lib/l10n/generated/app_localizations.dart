@@ -103,6 +103,72 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @lockScreenVisualizerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock-screen visualizer'**
+  String get lockScreenVisualizerTitle;
+
+  /// No description provided for @lockScreenVisualizerDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Show only a smooth, full-screen visualizer on pure black over the lock screen. AOD-style, not system AOD. Your device stays locked. Does not open automatically.'**
+  String get lockScreenVisualizerDescription;
+
+  /// No description provided for @lockScreenVisualizerOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open visualizer screen'**
+  String get lockScreenVisualizerOpen;
+
+  /// No description provided for @lockScreenVisualizerInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Open here, then lock and wake your phone. Uses your visualizer style, colors, frequency and movement. Tap or use Back to close. Normal screen timeout still applies; no animation on system AOD.'**
+  String get lockScreenVisualizerInstructions;
+
+  /// No description provided for @lockScreenVisualizerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap or use Back to close. Your device stays locked. This view does not animate on system AOD.'**
+  String get lockScreenVisualizerHint;
+
+  /// No description provided for @lockScreenVisualizerNoTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Play a song in Flick to see its spectrum.'**
+  String get lockScreenVisualizerNoTrack;
+
+  /// No description provided for @lockScreenVisualizerPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback paused'**
+  String get lockScreenVisualizerPaused;
+
+  /// No description provided for @lockScreenVisualizerOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open. Keep Flick unlocked, use Standard or High Quality PCM, and allow microphone access if requested.'**
+  String get lockScreenVisualizerOpenFailed;
+
+  /// No description provided for @lockScreenVisualizerSimulatedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulated AOD (experimental)'**
+  String get lockScreenVisualizerSimulatedTitle;
+
+  /// No description provided for @lockScreenVisualizerSimulatedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Wakes the display when you lock it while a song is playing and shows the same visualizer. This is not the system AOD: the screen stays on, uses more battery, and needs Display over other apps. Stops after 30 minutes or on low battery.'**
+  String get lockScreenVisualizerSimulatedDescription;
+
+  /// No description provided for @lockScreenVisualizerSimulatedPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Display over other apps in system settings to use Simulated AOD.'**
+  String get lockScreenVisualizerSimulatedPermission;
+
   /// No description provided for @tourCore.
   ///
   /// In en, this message translates to:

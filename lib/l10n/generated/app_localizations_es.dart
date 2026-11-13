@@ -9,6 +9,47 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get lockScreenVisualizerTitle => 'Visualizador en pantalla de bloqueo';
+
+  @override
+  String get lockScreenVisualizerDescription =>
+      'Muestra solo un visualizador fluido a pantalla completa sobre negro puro, encima del bloqueo. Estilo AOD, no AOD del sistema. El dispositivo sigue bloqueado. No se abre automáticamente.';
+
+  @override
+  String get lockScreenVisualizerOpen => 'Abrir pantalla del visualizador';
+
+  @override
+  String get lockScreenVisualizerInstructions =>
+      'Ábrelo aquí, luego bloquea y activa la pantalla. Usa tu estilo, colores, frecuencia y movimiento. Toca o pulsa Atrás para cerrar. Se mantiene el apagado normal de pantalla; no hay animación en el AOD del sistema.';
+
+  @override
+  String get lockScreenVisualizerHint =>
+      'Toca o pulsa Atrás para cerrar. El dispositivo sigue bloqueado. No se anima en el AOD del sistema.';
+
+  @override
+  String get lockScreenVisualizerNoTrack =>
+      'Reproduce una canción en Flick para ver su espectro.';
+
+  @override
+  String get lockScreenVisualizerPaused => 'Reproducción en pausa';
+
+  @override
+  String get lockScreenVisualizerOpenFailed =>
+      'No se pudo abrir. Mantén Flick desbloqueado, usa el motor Estándar o PCM de Alta calidad y permite el micrófono si se solicita.';
+
+  @override
+  String get lockScreenVisualizerSimulatedTitle =>
+      'AOD simulado (experimental)';
+
+  @override
+  String get lockScreenVisualizerSimulatedDescription =>
+      'Enciende la pantalla al bloquear el dispositivo mientras suena una canción y muestra el mismo visualizador. No es el AOD del sistema: la pantalla permanece encendida, consume más batería y requiere Mostrar sobre otras apps. Se detiene a los 30 minutos o con batería baja.';
+
+  @override
+  String get lockScreenVisualizerSimulatedPermission =>
+      'Permite Mostrar sobre otras apps en los ajustes del sistema para usar el AOD simulado.';
+
+  @override
   String get tourCore => 'Buscar y reproducir música';
 
   @override
