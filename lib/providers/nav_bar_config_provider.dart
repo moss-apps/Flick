@@ -44,7 +44,9 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
       barSizeFactor: prefs.getDouble(_sizeKey) ?? 1.0,
       buttonSpacingFactor: prefs.getDouble(_spacingKey) ?? 1.0,
       iconSizeFactor: prefs.getDouble(_iconSizeKey) ?? 1.0,
-      showLabels: prefs.getBool(_showLabelsKey) ?? true,
+      showLabels:
+          prefs.getBool(_showLabelsKey) ??
+          NavBarConfig.defaultConfig.showLabels,
       widthFraction: (prefs.getDouble(_widthFractionKey) ?? 1.0).clamp(
         0.7,
         1.0,

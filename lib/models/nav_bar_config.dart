@@ -10,7 +10,8 @@ enum NavBarButton {
   folders(5, LucideIcons.folder),
   playlists(6, LucideIcons.listMusic),
   favorites(7, LucideIcons.heart),
-  search(8, LucideIcons.search);
+  search(8, LucideIcons.search),
+  equalizer(9, LucideIcons.slidersHorizontal);
 
   const NavBarButton(this.pageIndex, this.icon);
 
@@ -29,8 +30,10 @@ class NavBarConfig {
 
   static const allButtons = [
     NavBarButton.menu,
+    NavBarButton.equalizer,
     NavBarButton.songs,
     NavBarButton.settings,
+    NavBarButton.search,
   ];
 
   const NavBarConfig({
@@ -39,7 +42,7 @@ class NavBarConfig {
     this.barSizeFactor = 1.0,
     this.buttonSpacingFactor = 1.0,
     this.iconSizeFactor = 1.0,
-    this.showLabels = true,
+    this.showLabels = false,
     this.widthFraction = 1.0,
   });
 
