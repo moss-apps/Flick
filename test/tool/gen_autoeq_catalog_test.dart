@@ -27,9 +27,7 @@ void main() {
   late List<String> options;
 
   setUp(() async {
-    temporary = await Directory(
-      '/tmp/opencode',
-    ).createTemp('flick-autoeq-test-');
+    temporary = await Directory.systemTemp.createTemp('flick-autoeq-test-');
     cache = '${temporary.path}/cache';
     output = '${temporary.path}/output';
     lock = '${temporary.path}/lock.json';
