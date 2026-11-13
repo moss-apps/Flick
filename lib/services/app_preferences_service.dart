@@ -95,6 +95,8 @@ class AppPreferences {
   final String searchPlaybackMode; // 'results', 'library', or 'queue'
   final String refreshRateMode; // 'high', 'standard', 'adaptive'
   final bool visualizerEnabled;
+  final bool lockScreenVisualizerEnabled;
+  final bool simulatedAodEnabled;
   final double orbitRadiusRatio;
   final double orbitCenterOffsetRatio;
   final double orbitCenterYRatio;
@@ -227,6 +229,8 @@ class AppPreferences {
     this.searchPlaybackMode = 'results',
     this.refreshRateMode = 'adaptive',
     this.visualizerEnabled = true,
+    this.lockScreenVisualizerEnabled = false,
+    this.simulatedAodEnabled = false,
     this.orbitRadiusRatio = 1.0,
     this.orbitCenterOffsetRatio = -0.5,
     this.orbitCenterYRatio = 0.42,
@@ -356,6 +360,8 @@ class AppPreferences {
     String? searchPlaybackMode,
     String? refreshRateMode,
     bool? visualizerEnabled,
+    bool? lockScreenVisualizerEnabled,
+    bool? simulatedAodEnabled,
     double? orbitRadiusRatio,
     double? orbitCenterOffsetRatio,
     double? orbitCenterYRatio,
@@ -524,6 +530,9 @@ class AppPreferences {
       searchPlaybackMode: searchPlaybackMode ?? this.searchPlaybackMode,
       refreshRateMode: refreshRateMode ?? this.refreshRateMode,
       visualizerEnabled: visualizerEnabled ?? this.visualizerEnabled,
+      lockScreenVisualizerEnabled:
+          lockScreenVisualizerEnabled ?? this.lockScreenVisualizerEnabled,
+      simulatedAodEnabled: simulatedAodEnabled ?? this.simulatedAodEnabled,
       orbitRadiusRatio: orbitRadiusRatio ?? this.orbitRadiusRatio,
       orbitCenterOffsetRatio:
           orbitCenterOffsetRatio ?? this.orbitCenterOffsetRatio,
@@ -680,6 +689,9 @@ class AppPreferencesService {
   static const _searchPlaybackModeKey = 'app_search_playback_mode';
   static const _refreshRateModeKey = 'app_refresh_rate_mode';
   static const _visualizerEnabledKey = 'visualizer_enabled';
+  static const _lockScreenVisualizerEnabledKey =
+      'lock_screen_visualizer_enabled';
+  static const _simulatedAodEnabledKey = 'simulated_aod_enabled';
   static const _orbitRadiusRatioKey = 'orbit_radius_ratio';
   static const _orbitCenterOffsetRatioKey = 'orbit_center_offset_ratio';
   static const _orbitCenterYRatioKey = 'orbit_center_y_ratio';
@@ -853,6 +865,9 @@ class AppPreferencesService {
       searchPlaybackMode: prefs.getString(_searchPlaybackModeKey) ?? 'results',
       refreshRateMode: await _resolveRefreshRateMode(prefs),
       visualizerEnabled: prefs.getBool(_visualizerEnabledKey) ?? true,
+      lockScreenVisualizerEnabled:
+          prefs.getBool(_lockScreenVisualizerEnabledKey) ?? false,
+      simulatedAodEnabled: prefs.getBool(_simulatedAodEnabledKey) ?? false,
       orbitRadiusRatio: prefs.getDouble(_orbitRadiusRatioKey) ?? 1.0,
       orbitCenterOffsetRatio:
           prefs.getDouble(_orbitCenterOffsetRatioKey) ?? -0.5,
@@ -1927,6 +1942,16 @@ class AppPreferencesService {
   Future<void> setVisualizerEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_visualizerEnabledKey, value);
+  }
+
+  Future<void> setLockScreenVisualizerEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_lockScreenVisualizerEnabledKey, value);
+  }
+
+  Future<void> setSimulatedAodEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_simulatedAodEnabledKey, value);
   }
 
   Future<void> setOrbitRadiusRatio(double value) async {
