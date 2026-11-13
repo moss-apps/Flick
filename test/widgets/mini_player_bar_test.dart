@@ -488,12 +488,15 @@ void main() {
     expect(preferences.separateMiniPlayerFromNavBar, isTrue);
     expect(preferences.miniPlayerSwipeAction, 'switchSongs');
     final stored = await SharedPreferences.getInstance();
-    expect(stored.getString('nav_bar_buttons'), 'menu,songs,settings');
+    expect(
+      stored.getString('nav_bar_buttons'),
+      'menu,equalizer,songs,settings,search',
+    );
     expect(stored.getString('nav_bar_hidden'), '');
     expect(stored.getDouble('nav_bar_size'), 1);
     expect(stored.getDouble('nav_bar_spacing'), 1);
     expect(stored.getDouble('nav_bar_icon_size'), 1);
-    expect(stored.getBool('nav_bar_show_labels'), isTrue);
+    expect(stored.getBool('nav_bar_show_labels'), isFalse);
     expect(stored.getDouble('nav_bar_width_fraction'), 1);
     expect(stored.getBool('bottom_bar_auto_collapse_enabled'), isFalse);
     expect(stored.getInt('bottom_bar_auto_collapse_seconds'), 5);
