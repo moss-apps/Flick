@@ -926,6 +926,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoeqHeadphones2 => 'AutoEQ 耳机';
 
   @override
+  String get autoeqOnlineSearchFailed => '无法加载在线预设。内置预设仍可离线使用；请检查型号名称或网络连接。';
+
+  @override
   String get automatic => '自动';
 
   @override
@@ -5088,9 +5091,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get notAvailableInBitPerfectMode => '位完美模式下不可用';
 
   @override
-  String get notFoundOnlineTryADifferent => '在线未找到。请换个拼写再试。';
-
-  @override
   String get notGrantedEnableSoScansCover =>
       '未授予 —— 启用后扫描可覆盖系统索引可能跳过的 DSD/DSF/WavPack 文件';
 
@@ -7892,9 +7892,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get turnOff432HzTuningTo2 => '关闭 432 Hz 调音才能使用交叉馈送';
 
   @override
-  String get typeABrandAndModelTo => '输入品牌与型号以在线搜索。';
-
-  @override
   String get u162ByteSubslotsLlRr => 'U16 — 2 字节子槽，LL|RR';
 
   @override
@@ -8666,6 +8663,34 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get yourWeeklyRecapAppearsOnceYou => '本周开始收听，你的每周回顾就会出现。';
+
+  @override
+  String get eqPresetUnsupportedSettings => '此预设使用了不支持的数值、滤波器类型或频段数量。';
+
+  @override
+  String eqPresetInvalidFilter(String line) {
+    return '无效的滤波器行：$line';
+  }
+
+  @override
+  String eqPresetUnsupportedFilter(String type) {
+    return '不支持的滤波器类型：$type';
+  }
+
+  @override
+  String eqPresetDuplicateFilter(String number) {
+    return '滤波器编号重复：$number';
+  }
+
+  @override
+  String eqPresetMissingGain(String number) {
+    return '滤波器 $number 缺少增益值。';
+  }
+
+  @override
+  String eqPresetValueAdjusted(String field, String value, String adjusted) {
+    return '$field：$value 已调整为 $adjusted';
+  }
 
   @override
   String get yourYearlyRecapFillsInAs => '随着你全年持续收听，你的年度回顾会逐渐充实。';

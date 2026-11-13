@@ -1014,6 +1014,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String get autoeqHeadphones2 => 'Mga headphone ng AutoEQ';
 
   @override
+  String get autoeqOnlineSearchFailed =>
+      'Hindi ma-load ang online preset. Gumagana pa rin ang mga kasamang preset offline; tingnan ang model o koneksyon.';
+
+  @override
   String get automatic => 'Awtomatiko';
 
   @override
@@ -5501,10 +5505,6 @@ class AppLocalizationsTl extends AppLocalizations {
       'Hindi magagamit sa bit-perfect mode';
 
   @override
-  String get notFoundOnlineTryADifferent =>
-      'Hindi nahanap online. Subukan ang ibang baybay.';
-
-  @override
   String get notGrantedEnableSoScansCover =>
       'Hindi pa pinapayagan — i-on upang maisama sa pag-scan ang DSD/DSF/WavPack na maaaring malaktawan ng system index';
 
@@ -8613,10 +8613,6 @@ class AppLocalizationsTl extends AppLocalizations {
       'I-off ang 432 Hz tuning upang magamit ang crossfeed';
 
   @override
-  String get typeABrandAndModelTo =>
-      'I-type ang tatak at modelo upang maghanap online.';
-
-  @override
   String get u162ByteSubslotsLlRr => 'U16 — 2-byte subslot, LL|RR';
 
   @override
@@ -9466,6 +9462,35 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get yourWeeklyRecapAppearsOnceYou =>
       'Lilitaw ang iyong lingguhang buod kapag nagsimula kang makinig ngayong linggo.';
+
+  @override
+  String get eqPresetUnsupportedSettings =>
+      'May mga value, uri ng filter, o bilang ng band sa preset na ito na hindi suportado.';
+
+  @override
+  String eqPresetInvalidFilter(String line) {
+    return 'Hindi valid ang linya ng filter: $line';
+  }
+
+  @override
+  String eqPresetUnsupportedFilter(String type) {
+    return 'Hindi suportadong uri ng filter: $type';
+  }
+
+  @override
+  String eqPresetDuplicateFilter(String number) {
+    return 'Naulit ang numero ng filter: $number';
+  }
+
+  @override
+  String eqPresetMissingGain(String number) {
+    return 'Walang gain value ang filter $number.';
+  }
+
+  @override
+  String eqPresetValueAdjusted(String field, String value, String adjusted) {
+    return '$field: inayos ang $value sa $adjusted';
+  }
 
   @override
   String get yourYearlyRecapFillsInAs =>
