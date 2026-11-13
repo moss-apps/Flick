@@ -4,17 +4,73 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/visualizer_source_provider.dart';
+import 'package:flick/providers/lock_screen_visualizer_provider.dart';
+import 'package:flick/services/floating_player_service.dart';
 import 'package:flick/services/visualizer_source.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/l10n/settings_l10n.dart';
+import 'package:flick/widgets/common/flick_snackbar.dart';
 
-class VisualizerSettingsScreen extends ConsumerWidget {
+class VisualizerSettingsScreen extends ConsumerStatefulWidget {
   const VisualizerSettingsScreen({super.key, this.initialSection});
 
   final String? initialSection;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VisualizerSettingsScreen> createState() =>
+      _VisualizerSettingsScreenState();
+}
+
+class _VisualizerSettingsScreenState
+    extends ConsumerState<VisualizerSettingsScreen> {
+  bool _opening = false;
+
+  Future<void> _openLockScreenVisualizer() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    final opened = await ref.read(lockScreenVisualizerProvider).open();
+    if (!mounted) return;
+    setState(() => _opening = false);
+    if (!opened) {
+      ScaffoldMessenger.of(context).showFlickSnackBar(
+        SnackBar(content: Text(context.l10n.lockScreenVisualizerOpenFailed)),
+      );
+    }
+  }
+
+  Future<void> _setLockScreenEnabled(bool value) async {
+    final notifier = ref.read(appPreferencesProvider.notifier);
+    await notifier.setLockScreenVisualizerEnabled(value);
+    if (!value) await notifier.setSimulatedAodEnabled(false);
+  }
+
+  Future<void> _setSimulatedAod(bool value) async {
+    final notifier = ref.read(appPreferencesProvider.notifier);
+    if (!value) {
+      await notifier.setSimulatedAodEnabled(false);
+      return;
+    }
+    final overlay = FloatingPlayerService();
+    final allowed =
+        await overlay.canDrawOverlays() || await overlay.requestPermission();
+    if (!mounted) return;
+    if (!allowed) {
+      ScaffoldMessenger.of(context).showFlickSnackBar(
+        SnackBar(
+          content: Text(context.l10n.lockScreenVisualizerSimulatedPermission),
+        ),
+      );
+      return;
+    }
+    // The experimental mode is a superset of the explicit viewer.
+    if (!ref.read(appPreferencesProvider).lockScreenVisualizerEnabled) {
+      await notifier.setLockScreenVisualizerEnabled(true);
+    }
+    await notifier.setSimulatedAodEnabled(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final prefs = ref.watch(appPreferencesProvider);
     final notifier = ref.read(appPreferencesProvider.notifier);
     final l10n = context.l10n.englishForFilipino;
@@ -25,7 +81,7 @@ class VisualizerSettingsScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.visualizer,
-      initialSection: initialSection,
+      initialSection: widget.initialSection,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -87,6 +143,44 @@ class VisualizerSettingsScreen extends ConsumerWidget {
                 subtitle: l10n.showTheAudioVisualizerOffSaves,
                 value: prefs.visualizerEnabled,
                 onChanged: (value) => notifier.setVisualizerEnabled(value),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
+          SettingsSectionHeader(
+            l10n.lockScreenVisualizerTitle,
+            sectionId: 'lockScreenVisualizerTitle',
+          ),
+          SettingsCard(
+            children: [
+              ToggleSetting(
+                icon: LucideIcons.lock,
+                title: l10n.lockScreenVisualizerTitle,
+                subtitle: l10n.lockScreenVisualizerDescription,
+                value: prefs.lockScreenVisualizerEnabled,
+                onChanged: _setLockScreenEnabled,
+              ),
+              const SettingsDivider(),
+              ActionButton(
+                icon: LucideIcons.externalLink,
+                title: l10n.lockScreenVisualizerOpen,
+                subtitle: l10n.lockScreenVisualizerInstructions,
+                onTap:
+                    prefs.lockScreenVisualizerEnabled &&
+                        !_opening &&
+                        (sourceMode == VisualizerSourceMode.rustFft ||
+                            sourceMode == VisualizerSourceMode.android)
+                    ? _openLockScreenVisualizer
+                    : null,
+              ),
+              if (_opening) const LinearProgressIndicator(),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.moon,
+                title: l10n.lockScreenVisualizerSimulatedTitle,
+                subtitle: l10n.lockScreenVisualizerSimulatedDescription,
+                value: prefs.simulatedAodEnabled,
+                onChanged: _setSimulatedAod,
               ),
             ],
           ),

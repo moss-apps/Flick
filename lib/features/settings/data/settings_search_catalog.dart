@@ -547,6 +547,14 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
         _section('visualizer', l10n.visualizer, [
           ('visualizer', l10n.visualizer),
         ]),
+        _section('lockScreenVisualizerTitle', l10n.lockScreenVisualizerTitle, [
+          ('lockScreenVisualizerTitle', l10n.lockScreenVisualizerTitle),
+          ('lockScreenVisualizerOpen', l10n.lockScreenVisualizerOpen),
+          (
+            'lockScreenVisualizerSimulatedTitle',
+            l10n.lockScreenVisualizerSimulatedTitle,
+          ),
+        ]),
         _section('visualizerColors', l10n.visualizerColors, [
           ('albumArt', l10n.albumArt),
           ('visualizerRainbow', l10n.visualizerRainbow),

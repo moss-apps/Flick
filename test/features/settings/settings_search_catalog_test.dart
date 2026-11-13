@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flick/features/settings/data/settings_search.dart';
 import 'package:flick/features/settings/data/settings_search_catalog.dart';
 import 'package:flick/features/settings/screens/equalizer_screen.dart';
+import 'package:flick/features/settings/screens/visualizer_settings_screen.dart';
 import 'package:flick/features/settings/screens/widget_settings_screen.dart';
 import 'package:flick/l10n/l10n.dart';
 
@@ -185,6 +186,24 @@ void main() {
       }
     }
   });
+
+  test(
+    'lock-screen visualizer search opens its settings section, not the viewer',
+    () {
+      final results = searchSettings(
+        'lock screen',
+        buildSettingsSearchCatalog(),
+      );
+      final result = results.singleWhere(
+        (result) => result.page.id == 'visualizer_settings',
+      );
+      final section = result.matches.first.section;
+      expect(section.id, 'lockScreenVisualizerTitle');
+      final screen =
+          result.page.buildPage(section.id) as VisualizerSettingsScreen;
+      expect(screen.initialSection, section.id);
+    },
+  );
 
   test(
     'localized titles are rebuilt while navigation IDs remain unchanged',
