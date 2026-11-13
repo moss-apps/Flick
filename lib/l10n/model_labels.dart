@@ -103,6 +103,7 @@ extension NavBarButtonL10n on NavBarButton {
     NavBarButton.playlists => l10n.playlists,
     NavBarButton.favorites => l10n.favorites,
     NavBarButton.search => l10n.search,
+    NavBarButton.equalizer => l10n.equalizer,
   };
 }
 

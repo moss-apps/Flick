@@ -1001,6 +1001,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autoeqHeadphones2 => 'AutoEQ Headphones';
 
   @override
+  String get autoeqOnlineSearchFailed =>
+      'Couldn\'t load an online preset. Bundled presets still work offline; check the model name or connection.';
+
+  @override
   String get automatic => 'Automatic';
 
   @override
@@ -5443,10 +5447,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Not available in bit-perfect mode';
 
   @override
-  String get notFoundOnlineTryADifferent =>
-      'Not found online. Try a different spelling.';
-
-  @override
   String get notGrantedEnableSoScansCover =>
       'Not granted — enable so scans cover DSD/DSF/WavPack files the system index may skip';
 
@@ -8515,9 +8515,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get turnOff432HzTuningTo2 => 'Turn off 432 Hz tuning to use crossfeed';
 
   @override
-  String get typeABrandAndModelTo => 'Type a brand and model to search online.';
-
-  @override
   String get u162ByteSubslotsLlRr => 'U16 — 2-byte subslots, LL|RR';
 
   @override
@@ -9355,6 +9352,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get yourWeeklyRecapAppearsOnceYou =>
       'Your weekly recap appears once you start listening this week.';
+
+  @override
+  String get eqPresetUnsupportedSettings =>
+      'This preset uses unsupported values, filter types, or band counts.';
+
+  @override
+  String eqPresetInvalidFilter(String line) {
+    return 'Invalid filter line: $line';
+  }
+
+  @override
+  String eqPresetUnsupportedFilter(String type) {
+    return 'Unsupported filter type: $type';
+  }
+
+  @override
+  String eqPresetDuplicateFilter(String number) {
+    return 'Duplicate filter number: $number';
+  }
+
+  @override
+  String eqPresetMissingGain(String number) {
+    return 'Filter $number is missing its gain value.';
+  }
+
+  @override
+  String eqPresetValueAdjusted(String field, String value, String adjusted) {
+    return '$field: $value adjusted to $adjusted';
+  }
 
   @override
   String get yourYearlyRecapFillsInAs =>

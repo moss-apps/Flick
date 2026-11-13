@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flick/models/eq_limits.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 
 /// RBJ biquad magnitude response, mirroring `rust/src/audio/equalizer.rs`.
@@ -29,7 +30,7 @@ class EqResponseService {
     final fs = sampleRateHz ?? activeSampleRateHz;
     final nyq = fs * 0.5;
     final f0 = band.frequencyHz.clamp(1.0, nyq * 0.99).toDouble();
-    final q = band.q.clamp(0.2, 20.0).toDouble();
+    final q = band.q.clamp(EqLimits.minQ, EqLimits.maxQ).toDouble();
 
     final w0 = 2.0 * math.pi * f0 / fs;
     final cosW0 = math.cos(w0);

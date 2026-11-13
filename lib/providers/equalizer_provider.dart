@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flick/models/eq_limits.dart';
 import 'package:flick/services/eq_response_service.dart';
 import 'package:flick/services/equalizer_service.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -306,7 +307,7 @@ class ParametricBand {
   final bool enabled;
   final double frequencyHz; // 20..20000
   final double gainDb; // -20..+20 (UI range)
-  final double q; // 0.2..20
+  final double q; // 0.1..20
   final ParametricBandType type;
 
   const ParametricBand({
@@ -585,12 +586,12 @@ final eqGraphRepaintControllerProvider = Provider<EqGraphRepaintController>((
 });
 
 class EqualizerNotifier extends Notifier<EqualizerState> {
-  static const double gainMinDb = -20.0;
-  static const double gainMaxDb = 20.0;
-  static const double qMin = 0.2;
-  static const double qMax = 20.0;
-  static const double preampMinDb = -24.0;
-  static const double preampMaxDb = 24.0;
+  static const double gainMinDb = EqLimits.minGainDb;
+  static const double gainMaxDb = EqLimits.maxGainDb;
+  static const double qMin = EqLimits.minQ;
+  static const double qMax = EqLimits.maxQ;
+  static const double preampMinDb = EqLimits.minPreampDb;
+  static const double preampMaxDb = EqLimits.maxPreampDb;
   static const double compressorThresholdMinDb = -36.0;
   static const double compressorThresholdMaxDb = 0.0;
   static const double compressorRatioMin = 1.0;
@@ -625,7 +626,7 @@ class EqualizerNotifier extends Notifier<EqualizerState> {
   static const double fxWidthMax = 2.0;
   static const double convolverMixMin = 0.0;
   static const double convolverMixMax = 1.0;
-  static const int maxParametricBands = 31;
+  static const int maxParametricBands = EqLimits.maxBands;
 
   static const String _eqStateKey = 'eq_state_v1';
 

@@ -1111,6 +1111,10 @@
   "@autoeqHeadphones2": {
     "description": "lib/features/settings/screens/widgets/autoeq_search_sheet.dart:188"
   },
+  "autoeqOnlineSearchFailed": "Couldn't load an online preset. Bundled presets still work offline; check the model name or connection.",
+  "@autoeqOnlineSearchFailed": {
+    "description": "Inline feedback when AutoEq online lookup cannot load a preset."
+  },
   "automatic": "Automatic",
   "@automatic": {
     "description": "lib/features/settings/screens/bluetooth_settings_screen.dart:311"
@@ -6996,10 +7000,6 @@
   "@notAvailableInBitPerfectMode": {
     "description": "lib/features/settings/screens/audio_settings_screen.dart:308"
   },
-  "notFoundOnlineTryADifferent": "Not found online. Try a different spelling.",
-  "@notFoundOnlineTryADifferent": {
-    "description": "lib/features/settings/screens/widgets/autoeq_search_sheet.dart:123"
-  },
   "notGrantedEnableSoScansCover": "Not granted — enable so scans cover DSD/DSF/WavPack files the system index may skip",
   "@notGrantedEnableSoScansCover": {
     "description": "lib/features/settings/screens/library_settings_screen.dart:1888"
@@ -10937,10 +10937,6 @@
   "@turnOff432HzTuningTo2": {
     "description": "lib/features/settings/screens/audio_settings_screen.dart:421"
   },
-  "typeABrandAndModelTo": "Type a brand and model to search online.",
-  "@typeABrandAndModelTo": {
-    "description": "lib/features/settings/screens/widgets/autoeq_search_sheet.dart:94"
-  },
   "u162ByteSubslotsLlRr": "U16 — 2-byte subslots, LL|RR",
   "@u162ByteSubslotsLlRr": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1735"
@@ -11951,6 +11947,34 @@
   "yourWeeklyRecapAppearsOnceYou": "Your weekly recap appears once you start listening this week.",
   "@yourWeeklyRecapAppearsOnceYou": {
     "description": "lib/data/repositories/recently_played_repository.dart:35"
+  },
+  "eqPresetUnsupportedSettings": "This preset uses unsupported values, filter types, or band counts.",
+  "@eqPresetUnsupportedSettings": {
+    "description": "Shown when a manual EQ preset import cannot be represented safely."
+  },
+  "eqPresetInvalidFilter": "Invalid filter line: {line}",
+  "@eqPresetInvalidFilter": {
+    "placeholders": {"line": {"type": "String"}}
+  },
+  "eqPresetUnsupportedFilter": "Unsupported filter type: {type}",
+  "@eqPresetUnsupportedFilter": {
+    "placeholders": {"type": {"type": "String"}}
+  },
+  "eqPresetDuplicateFilter": "Duplicate filter number: {number}",
+  "@eqPresetDuplicateFilter": {
+    "placeholders": {"number": {"type": "String"}}
+  },
+  "eqPresetMissingGain": "Filter {number} is missing its gain value.",
+  "@eqPresetMissingGain": {
+    "placeholders": {"number": {"type": "String"}}
+  },
+  "eqPresetValueAdjusted": "{field}: {value} adjusted to {adjusted}",
+  "@eqPresetValueAdjusted": {
+    "placeholders": {
+      "field": {"type": "String"},
+      "value": {"type": "String"},
+      "adjusted": {"type": "String"}
+    }
   },
   "yourYearlyRecapFillsInAs": "Your yearly recap fills in as you keep listening throughout the year.",
   "@yourYearlyRecapFillsInAs": {

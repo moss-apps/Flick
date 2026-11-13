@@ -1,0 +1,9 @@
+{
+  "repository": "jaakkopasanen/AutoEq",
+  "revision": "7ae0f56d53074872b028649617a22bbb4232feb7",
+  "inputs": {
+    "results/README.md": "3efd4a0876bc9422eea633970ca08cfd3eb222c5f7d85ca1706826b593455ffd",
+    "dbtools/manufacturers.tsv": "953a090e233633e94c7abf36707d397627d58aa67df8811a15861e1cf2f098d5",
+    "LICENSE": "a6e96e96a51b5bd7df0b926c325f7cef267064bc4b3c013a61a7565521a6a77a"
+  }
+}

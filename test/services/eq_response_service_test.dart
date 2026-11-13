@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flick/providers/equalizer_provider.dart';
+import 'package:flick/services/autoeq_catalog_service.dart';
 import 'package:flick/services/eq_response_service.dart';
 
 void main() {
@@ -102,7 +106,11 @@ void main() {
   test('summed response clamps to the provided bounds', () {
     final bands = [band(gainDb: 10), band(gainDb: 10)];
     expect(
-      EqResponseService.responseDbAtHz(hz: 1000, bands: bands, sampleRateHz: fs),
+      EqResponseService.responseDbAtHz(
+        hz: 1000,
+        bands: bands,
+        sampleRateHz: fs,
+      ),
       closeTo(12.0, 0.01),
     );
     expect(
@@ -131,4 +139,48 @@ void main() {
     );
     expect(at44, closeTo(at48, 0.05));
   });
+
+  test(
+    'matches independent AutoEq response including low Q, shelves and preamp',
+    () {
+      final reference =
+          jsonDecode(
+                File(
+                  'test/fixtures/autoeq/response_reference.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+      final frequencies = (reference['frequenciesHz'] as List).cast<num>();
+      for (final profile in reference['profiles'] as List) {
+        final entry = AutoEqEntry.fromJson({
+          'id': 'reference',
+          'b': 'Test',
+          'm': profile['name'],
+          't': 'over-ear',
+          's': 'synthetic',
+          'pa': profile['preampDb'],
+          'g': profile['g'],
+        });
+        for (final response in profile['responses'] as List) {
+          for (var i = 0; i < frequencies.length; i++) {
+            final result =
+                entry.preampDb +
+                EqResponseService.responseDbAtHz(
+                  hz: frequencies[i].toDouble(),
+                  bands: entry.bands,
+                  sampleRateHz: (response['sampleRateHz'] as num).toDouble(),
+                  minDb: -120,
+                  maxDb: 120,
+                );
+            expect(
+              result,
+              closeTo((response['db'][i] as num).toDouble(), 0.00001),
+              reason:
+                  '${profile['name']} at ${response['sampleRateHz']} Hz / ${frequencies[i]} Hz',
+            );
+          }
+        }
+      }
+    },
+  );
 }

@@ -187,6 +187,12 @@ bool _messageIsRendered(String src) {
 /// `FormatException('Preset file is empty.')` is shown to the user by the
 /// equalizer's import handler. Only the first kind belongs here.
 const Map<String, String> _internalAssertionPaths = <String, String>{
+  'lib/services/autoeq_catalog_service.dart':
+      'bundled asset integrity diagnostics; online parser failures are caught '
+      'and the picker shows its existing localized not-found message',
+  'lib/services/autoeq_format.dart':
+      'strict upstream data diagnostics shared with the dev-only generator; '
+      'never rendered by the app; manual user import uses EqPresetFileService',
   'lib/services/alac_converter_service.dart':
       'native session state assertions; failures are logged, the UI shows its '
       'own l10n string',

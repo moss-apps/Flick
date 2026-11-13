@@ -1013,6 +1013,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get autoeqHeadphones2 => 'Audífonos AutoEQ';
 
   @override
+  String get autoeqOnlineSearchFailed =>
+      'No se pudo cargar un preajuste en línea. Los preajustes incluidos siguen funcionando sin conexión; comprueba el modelo o la conexión.';
+
+  @override
   String get automatic => 'Automático';
 
   @override
@@ -5514,10 +5518,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'No disponible en modo bit perfecto';
 
   @override
-  String get notFoundOnlineTryADifferent =>
-      'No se encontró en línea. Prueba con otra forma de escribirlo.';
-
-  @override
   String get notGrantedEnableSoScansCover =>
       'Permiso no concedido: actívalo para que el análisis incluya archivos DSD, DSF y WavPack que el índice del sistema podría omitir';
 
@@ -8625,10 +8625,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Desactiva la afinación a 432 Hz para usar la mezcla entre canales';
 
   @override
-  String get typeABrandAndModelTo =>
-      'Escribe la marca y el modelo para buscar en línea.';
-
-  @override
   String get u162ByteSubslotsLlRr => 'U16: subranuras de 2 bytes, LL|RR';
 
   @override
@@ -9475,6 +9471,35 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get yourWeeklyRecapAppearsOnceYou =>
       'Tu resumen semanal aparecerá cuando empieces a escuchar música esta semana.';
+
+  @override
+  String get eqPresetUnsupportedSettings =>
+      'Este preajuste usa valores, tipos de filtro o cantidades de bandas no compatibles.';
+
+  @override
+  String eqPresetInvalidFilter(String line) {
+    return 'Línea de filtro no válida: $line';
+  }
+
+  @override
+  String eqPresetUnsupportedFilter(String type) {
+    return 'Tipo de filtro no compatible: $type';
+  }
+
+  @override
+  String eqPresetDuplicateFilter(String number) {
+    return 'Número de filtro duplicado: $number';
+  }
+
+  @override
+  String eqPresetMissingGain(String number) {
+    return 'Falta el valor de ganancia del filtro $number.';
+  }
+
+  @override
+  String eqPresetValueAdjusted(String field, String value, String adjusted) {
+    return '$field: $value ajustado a $adjusted';
+  }
 
   @override
   String get yourYearlyRecapFillsInAs =>

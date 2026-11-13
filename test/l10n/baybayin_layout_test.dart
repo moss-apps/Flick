@@ -678,7 +678,7 @@ void main() {
                             enabledButtons: NavBarButton.values,
                             showLabels: true,
                           )
-                        : NavBarConfig.defaultConfig,
+                        : NavBarConfig.defaultConfig.copyWith(showLabels: true),
                     currentIndex: 1,
                     onTap: (_) {},
                     showMiniPlayer: true,

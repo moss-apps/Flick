@@ -48,6 +48,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull, reason: 'textScale=$scale');
+      expect(find.byIcon(LucideIcons.slidersHorizontal), findsOneWidget);
       expect(find.byIcon(LucideIcons.search), findsOneWidget);
 
       await tester.ensureVisible(find.byIcon(LucideIcons.search));

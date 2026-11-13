@@ -106,4 +106,87 @@ Filter 2: ON PK Fc 1000 Hz Gain -2.0 dB Q 1.000
     expect(result.warnings, isEmpty);
     expect(result.preset.parametricBands.single.q, 8.0);
   });
+
+  test('TXT and JSON preserve broad AutoEq filters without warnings', () {
+    const text = '''
+Preamp: -7.123 dB
+Filter 1: ON LSC Fc 105 Hz Gain 6.4 dB Q 0.700
+Filter 2: ON PK Fc 205.25 Hz Gain -12.2 dB Q 0.180
+Filter 3: ON HSC Fc 10000 Hz Gain -2.1 dB Q 0.190
+''';
+    final imported = service.parseFileText(text: text, fileName: 'broad.txt');
+    expect(imported.warnings, isEmpty);
+    expect(imported.preset.preampDb, -7.123);
+    expect(imported.preset.parametricBands[1].q, 0.18);
+    expect(imported.preset.parametricBands.last.q, 0.19);
+    final restored = service.parseFileText(
+      text: service.toJsonText(imported.preset),
+      fileName: 'broad.json',
+    );
+    expect(restored.warnings, isEmpty);
+    expect(restored.preset.toJson(), imported.preset.toJson());
+  });
+
+  test(
+    'JSON import reports all supported-range adjustments including preamp',
+    () {
+      final result = service.parseFileText(
+        text: jsonEncode({
+          'mode': 'parametric',
+          'preampDb': -30,
+          'parametricBands': [
+            {'type': 'peaking', 'frequencyHz': 500000, 'gainDb': 24, 'q': 30},
+          ],
+        }),
+        fileName: 'extreme.json',
+      );
+      expect(result.warnings, hasLength(4));
+      expect(result.preset.preampDb, -24);
+      expect(result.preset.parametricBands.single.frequencyHz, 20000);
+      expect(result.preset.parametricBands.single.gainDb, 20);
+      expect(result.preset.parametricBands.single.q, 20);
+    },
+  );
+
+  test('TXT preamp adjustment is reported', () {
+    final result = service.parseFileText(
+      text: 'Preamp: -30 dB\nFilter 1: ON PK Fc 1000 Hz Gain 1 dB Q 1',
+      fileName: 'preamp.txt',
+    );
+    expect(result.warnings, hasLength(1));
+    expect(result.preset.preampDb, -24);
+  });
+
+  test(
+    'rejects unknown types, missing gain, duplicates and oversized presets',
+    () {
+      for (final text in [
+        'Filter 1: ON PK Fc 1000 Hz Q 1',
+        'Filter 1: ON UNKNOWN Fc 1000 Hz Gain 1 dB Q 1',
+        'Filter 1: ON PK Fc 1000 Hz Gain 1 dB Q 1\nFilter 1: ON PK Fc 2000 Hz Gain 1 dB Q 1',
+        List.generate(
+          32,
+          (i) => 'Filter ${i + 1}: ON PK Fc 1000 Hz Gain 1 dB Q 1',
+        ).join('\n'),
+        jsonEncode({
+          'mode': 'parametric',
+          'parametricBands': [
+            {'type': 'mystery'},
+          ],
+        }),
+        jsonEncode({
+          'mode': 'parametric',
+          'parametricBands': List.generate(32, (_) => {'type': 'peaking'}),
+        }),
+        jsonEncode({'mode': 'parametric', 'parametricBands': []}),
+        '{"mode":"parametric","parametricBands":[{"type":"peaking","q":1e999}]}',
+      ]) {
+        expect(
+          () => service.parseFileText(text: text, fileName: 'bad'),
+          throwsFormatException,
+          reason: text,
+        );
+      }
+    },
+  );
 }

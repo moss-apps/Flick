@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flick/models/eq_limits.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/services/eq_preset_service.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -90,12 +91,105 @@ class EqPresetFileService {
       if (decoded is! Map) {
         throw FormatException(l10n.expectedAJsonObject);
       }
-      final preset = EqPreset.fromJson(decoded.cast<String, dynamic>());
+      final json = decoded.cast<String, dynamic>();
+      final mode = json['mode'];
+      if (mode != null && !EqMode.values.any((value) => value.name == mode)) {
+        throw FormatException(l10n.eqPresetUnsupportedSettings);
+      }
+      final rawBands = json['parametricBands'];
+      if (rawBands != null) {
+        if (rawBands is! List || rawBands.length > EqLimits.maxBands) {
+          throw FormatException(l10n.eqPresetUnsupportedSettings);
+        }
+        for (final band in rawBands) {
+          if (band is! Map ||
+              !ParametricBandType.values.any(
+                (type) => type.name == band['type'],
+              )) {
+            throw FormatException(l10n.eqPresetUnsupportedSettings);
+          }
+        }
+      }
+      if (mode == EqMode.parametric.name &&
+          (rawBands is! List || rawBands.isEmpty)) {
+        throw FormatException(l10n.noFiltersFoundInPresetFile);
+      }
+      final preset = EqPreset.fromJson(json);
+      if (preset.graphicGainsDb.length !=
+          EqualizerState.defaultGraphicFrequenciesHz.length) {
+        throw FormatException(l10n.eqPresetUnsupportedSettings);
+      }
+      final warnings = <String>[];
+      double adjust(double value, double min, double max, String label) {
+        _requireFinite(value);
+        final clamped = value.clamp(min, max).toDouble();
+        if (clamped != value) {
+          warnings.add(_adjustmentWarning(label, value, clamped));
+        }
+        return clamped;
+      }
+
       return EqPresetImportResult(
         preset: preset.copyWith(
           name: preset.name.trim().isEmpty ? normalizedName : preset.name,
+          preampDb: adjust(
+            preset.preampDb,
+            EqLimits.minPreampDb,
+            EqLimits.maxPreampDb,
+            '${l10n.preamp} (dB)',
+          ),
+          graphicGainsDb: List.unmodifiable([
+            for (var i = 0; i < preset.graphicGainsDb.length; i++)
+              adjust(
+                preset.graphicGainsDb[i],
+                EqLimits.minGainDb,
+                EqLimits.maxGainDb,
+                '${l10n.graphicEq} · ${l10n.band} ${i + 1} (dB)',
+              ),
+          ]),
+          parametricBands: List.unmodifiable([
+            for (var i = 0; i < preset.parametricBands.length; i++)
+              preset.parametricBands[i].copyWith(
+                frequencyHz: adjust(
+                  preset.parametricBands[i].frequencyHz,
+                  EqLimits.minFrequencyHz,
+                  EqLimits.maxFrequencyHz,
+                  '${l10n.filter} ${i + 1} · ${l10n.frequency} (Hz)',
+                ),
+                gainDb: adjust(
+                  preset.parametricBands[i].gainDb,
+                  EqLimits.minGainDb,
+                  EqLimits.maxGainDb,
+                  '${l10n.filter} ${i + 1} · ${l10n.gain} (dB)',
+                ),
+                q: adjust(
+                  preset.parametricBands[i].q,
+                  EqLimits.minQ,
+                  EqLimits.maxQ,
+                  '${l10n.filter} ${i + 1} · Q',
+                ),
+              ),
+          ]),
+          bassDb: adjust(
+            preset.bassDb,
+            EqLimits.minGainDb,
+            EqLimits.maxGainDb,
+            '${l10n.bass} (dB)',
+          ),
+          midDb: adjust(
+            preset.midDb,
+            EqLimits.minGainDb,
+            EqLimits.maxGainDb,
+            '${l10n.mid} (dB)',
+          ),
+          trebleDb: adjust(
+            preset.trebleDb,
+            EqLimits.minGainDb,
+            EqLimits.maxGainDb,
+            '${l10n.treble} (dB)',
+          ),
         ),
-        warnings: const [],
+        warnings: List.unmodifiable(warnings),
       );
     }
 
@@ -125,39 +219,62 @@ class EqPresetFileService {
     }
 
     final warnings = <String>[];
+    _requireFinite(preampDb);
+    final clampedPreamp = preampDb
+        .clamp(EqLimits.minPreampDb, EqLimits.maxPreampDb)
+        .toDouble();
+    if (clampedPreamp != preampDb) {
+      warnings.add(
+        _adjustmentWarning('${l10n.preamp} (dB)', preampDb, clampedPreamp),
+      );
+    }
+    preampDb = clampedPreamp;
     final bands = <ParametricBand>[];
+    final filterNumbers = <int>{};
     for (var i = lineIndex; i < lines.length; i++) {
       final line = lines[i];
       final match = _filterLinePattern.firstMatch(line);
       if (match == null) {
-        throw FormatException('Invalid filter line: $line');
+        throw FormatException(l10n.eqPresetInvalidFilter(line));
       }
 
       final filterNumber = match.group(1)!;
+      if (!filterNumbers.add(int.parse(filterNumber))) {
+        throw FormatException(l10n.eqPresetDuplicateFilter(filterNumber));
+      }
       final typeCode = match.group(3)!.toUpperCase();
       final type = _codeToBandType[typeCode];
       if (type == null) {
-        throw FormatException('Unsupported filter type: $typeCode');
+        throw FormatException(l10n.eqPresetUnsupportedFilter(typeCode));
       }
 
       final rawFreq = double.parse(match.group(4)!);
       final clampedFreq = _clampFrequency(rawFreq);
       if (clampedFreq != rawFreq) {
         warnings.add(
-          'Filter $filterNumber: frequency ${_formatValue(rawFreq)} Hz '
-          'adjusted to ${_formatValue(clampedFreq)} Hz',
+          _adjustmentWarning(
+            '${l10n.filter} $filterNumber · ${l10n.frequency} (Hz)',
+            rawFreq,
+            clampedFreq,
+          ),
         );
       }
 
       final gainMatch = match.group(5);
+      if (type.supportsGain && gainMatch == null) {
+        throw FormatException(l10n.eqPresetMissingGain(filterNumber));
+      }
       var gainDb = 0.0;
       if (type.supportsGain && gainMatch != null) {
         final rawGain = double.parse(gainMatch);
         gainDb = _clampGain(rawGain);
         if (gainDb != rawGain) {
           warnings.add(
-            'Filter $filterNumber: gain ${_formatValue(rawGain)} dB '
-            'adjusted to ${_formatValue(gainDb)} dB',
+            _adjustmentWarning(
+              '${l10n.filter} $filterNumber · ${l10n.gain} (dB)',
+              rawGain,
+              gainDb,
+            ),
           );
         }
       }
@@ -166,8 +283,11 @@ class EqPresetFileService {
       final clampedQ = _clampQ(rawQ);
       if (clampedQ != rawQ) {
         warnings.add(
-          'Filter $filterNumber: Q ${_formatValue(rawQ)} '
-          'adjusted to ${_formatValue(clampedQ)}',
+          _adjustmentWarning(
+            '${l10n.filter} $filterNumber · Q',
+            rawQ,
+            clampedQ,
+          ),
         );
       }
 
@@ -184,6 +304,9 @@ class EqPresetFileService {
 
     if (bands.isEmpty) {
       throw FormatException(l10n.noFiltersFoundInPresetFile);
+    }
+    if (bands.length > EqLimits.maxBands) {
+      throw FormatException(l10n.eqPresetUnsupportedSettings);
     }
 
     return EqPresetImportResult(
@@ -240,16 +363,39 @@ class EqPresetFileService {
   }
 
   static double _clampFrequency(double value) {
-    return value.clamp(20.0, 20000.0).toDouble();
+    _requireFinite(value);
+    return value
+        .clamp(EqLimits.minFrequencyHz, EqLimits.maxFrequencyHz)
+        .toDouble();
   }
 
   static double _clampGain(double value) {
+    _requireFinite(value);
     return value
         .clamp(EqualizerNotifier.gainMinDb, EqualizerNotifier.gainMaxDb)
         .toDouble();
   }
 
   static double _clampQ(double value) {
-    return value.clamp(EqualizerNotifier.qMin, EqualizerNotifier.qMax).toDouble();
+    _requireFinite(value);
+    return value
+        .clamp(EqualizerNotifier.qMin, EqualizerNotifier.qMax)
+        .toDouble();
   }
+
+  static void _requireFinite(double value) {
+    if (!value.isFinite) {
+      throw FormatException(l10n.eqPresetUnsupportedSettings);
+    }
+  }
+
+  static String _adjustmentWarning(
+    String field,
+    double value,
+    double adjusted,
+  ) => l10n.eqPresetValueAdjusted(
+    field,
+    _formatValue(value),
+    _formatValue(adjusted),
+  );
 }

@@ -11,6 +11,7 @@ import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/features/songs/screens/songs_screen.dart';
 import 'package:flick/features/songs/widgets/sort_filter_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/models/playlist.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/models/song_view_mode.dart';
@@ -53,6 +54,17 @@ class _ListViewMode extends SongsViewModeNotifier {
   SongViewMode build() => SongViewMode.list;
 }
 
+class _NavBarWithoutSearch extends NavBarConfigNotifier {
+  @override
+  NavBarConfig build() => const NavBarConfig(
+    enabledButtons: [
+      NavBarButton.menu,
+      NavBarButton.songs,
+      NavBarButton.settings,
+    ],
+  );
+}
+
 class _FixturePlaylists extends PlaylistsNotifier {
   _FixturePlaylists(this.fail);
 
@@ -83,6 +95,7 @@ Widget _host(
     songsProvider.overrideWith(() => _FixtureSongs(sort)),
     songsViewModeProvider.overrideWith(_ListViewMode.new),
     playlistsProvider.overrideWith(() => _FixturePlaylists(playlistError)),
+    navBarConfigProvider.overrideWith(_NavBarWithoutSearch.new),
     currentSongProvider.overrideWithValue(null),
     isCastingProvider.overrideWithValue(false),
   ],

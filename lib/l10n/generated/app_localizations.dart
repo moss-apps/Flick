@@ -1765,6 +1765,12 @@ abstract class AppLocalizations {
   /// **'AutoEQ Headphones'**
   String get autoeqHeadphones2;
 
+  /// Inline feedback when AutoEq online lookup cannot load a preset.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load an online preset. Bundled presets still work offline; check the model name or connection.'**
+  String get autoeqOnlineSearchFailed;
+
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:311
   ///
   /// In en, this message translates to:
@@ -9300,12 +9306,6 @@ abstract class AppLocalizations {
   /// **'Not available in bit-perfect mode'**
   String get notAvailableInBitPerfectMode;
 
-  /// lib/features/settings/screens/widgets/autoeq_search_sheet.dart:123
-  ///
-  /// In en, this message translates to:
-  /// **'Not found online. Try a different spelling.'**
-  String get notFoundOnlineTryADifferent;
-
   /// lib/features/settings/screens/library_settings_screen.dart:1888
   ///
   /// In en, this message translates to:
@@ -14428,12 +14428,6 @@ abstract class AppLocalizations {
   /// **'Turn off 432 Hz tuning to use crossfeed'**
   String get turnOff432HzTuningTo2;
 
-  /// lib/features/settings/screens/widgets/autoeq_search_sheet.dart:94
-  ///
-  /// In en, this message translates to:
-  /// **'Type a brand and model to search online.'**
-  String get typeABrandAndModelTo;
-
   /// lib/features/settings/screens/uac2_preferences_screen.dart:1735
   ///
   /// In en, this message translates to:
@@ -15807,6 +15801,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your weekly recap appears once you start listening this week.'**
   String get yourWeeklyRecapAppearsOnceYou;
+
+  /// Shown when a manual EQ preset import cannot be represented safely.
+  ///
+  /// In en, this message translates to:
+  /// **'This preset uses unsupported values, filter types, or band counts.'**
+  String get eqPresetUnsupportedSettings;
+
+  /// No description provided for @eqPresetInvalidFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid filter line: {line}'**
+  String eqPresetInvalidFilter(String line);
+
+  /// No description provided for @eqPresetUnsupportedFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported filter type: {type}'**
+  String eqPresetUnsupportedFilter(String type);
+
+  /// No description provided for @eqPresetDuplicateFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate filter number: {number}'**
+  String eqPresetDuplicateFilter(String number);
+
+  /// No description provided for @eqPresetMissingGain.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter {number} is missing its gain value.'**
+  String eqPresetMissingGain(String number);
+
+  /// No description provided for @eqPresetValueAdjusted.
+  ///
+  /// In en, this message translates to:
+  /// **'{field}: {value} adjusted to {adjusted}'**
+  String eqPresetValueAdjusted(String field, String value, String adjusted);
 
   /// lib/data/repositories/recently_played_repository.dart:39
   ///
