@@ -7,6 +7,17 @@ import 'package:flick/providers/nav_bar_config_provider.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('defaults match the shipped bottom bar layout', () {
+    expect(NavBarConfig.defaultConfig.enabledButtons, [
+      NavBarButton.menu,
+      NavBarButton.equalizer,
+      NavBarButton.songs,
+      NavBarButton.settings,
+      NavBarButton.search,
+    ]);
+    expect(NavBarConfig.defaultConfig.showLabels, isFalse);
+  });
+
   test('reset during startup wins over saved navigation settings', () async {
     SharedPreferences.setMockInitialValues({
       'nav_bar_buttons': 'albums,settings',
@@ -34,7 +45,7 @@ void main() {
     expect(restored.barSizeFactor, 1);
     expect(restored.buttonSpacingFactor, 1);
     expect(restored.iconSizeFactor, 1);
-    expect(restored.showLabels, isTrue);
+    expect(restored.showLabels, isFalse);
     expect(restored.widthFraction, 1);
   });
 

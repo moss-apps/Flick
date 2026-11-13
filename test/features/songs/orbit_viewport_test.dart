@@ -9,6 +9,7 @@ import 'package:flick/features/songs/screens/songs_screen.dart';
 import 'package:flick/features/songs/widgets/orbit_scroll.dart';
 import 'package:flick/features/songs/widgets/song_card.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/app_preferences_service.dart';
@@ -48,6 +49,17 @@ class _OrbitPreferences extends AppPreferencesNotifier {
   void update({bool? path, double? depth}) {
     state = state.copyWith(orbitShowPath: path, orbitLandscapeDepth: depth);
   }
+}
+
+class _NavBarWithoutSearch extends NavBarConfigNotifier {
+  @override
+  NavBarConfig build() => const NavBarConfig(
+    enabledButtons: [
+      NavBarButton.menu,
+      NavBarButton.songs,
+      NavBarButton.settings,
+    ],
+  );
 }
 
 const _shotKey = ValueKey('orbit_viewport_screenshot');
@@ -90,6 +102,7 @@ Future<ProviderContainer> _pumpScreen(
       overrides: [
         songsProvider.overrideWith(_OrbitSongs.new),
         appPreferencesProvider.overrideWith(_OrbitPreferences.new),
+        navBarConfigProvider.overrideWith(_NavBarWithoutSearch.new),
         currentSongProvider.overrideWith((ref) => _songs[15]),
         isCastingProvider.overrideWith((ref) => false),
       ],
