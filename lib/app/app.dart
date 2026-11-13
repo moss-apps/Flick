@@ -32,6 +32,7 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/widgets/navigation/flick_nav_bar.dart';
 import 'package:flick/providers/equalizer_provider.dart';
+import 'package:flick/providers/lock_screen_visualizer_provider.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
 import 'package:flick/features/onboarding/tutorial_targets.dart';
@@ -90,24 +91,26 @@ class FlickPlayerApp extends StatelessWidget {
             // service-layer strings resolve consistently with the widget layer.
             LocaleController.instance.bind(AppLocalizations.of(context));
             return Consumer(
-              builder: (context, ref, _) =>
-                  AnnotatedRegion<SystemUiOverlayStyle>(
-                    // App-wide fallback. A route that paints a light surface
-                    // (the onboarding pages) declares its own region; once it
-                    // is gone this one takes over again instead of leaving the
-                    // old icon brightness behind.
-                    value: AppSystemUi.standard,
-                    child: ConnectionNoticeHost(
-                      showNotice: ref.watch(
-                        appPreferencesProvider.select(
-                          (preferences) => preferences.connectionNoticesEnabled,
-                        ),
-                      ),
-                      child: TutorialHost(
-                        child: child ?? const SizedBox.shrink(),
+              builder: (context, ref, _) {
+                ref.watch(lockScreenVisualizerProvider);
+                return AnnotatedRegion<SystemUiOverlayStyle>(
+                  // App-wide fallback. A route that paints a light surface
+                  // (the onboarding pages) declares its own region; once it
+                  // is gone this one takes over again instead of leaving the
+                  // old icon brightness behind.
+                  value: AppSystemUi.standard,
+                  child: ConnectionNoticeHost(
+                    showNotice: ref.watch(
+                      appPreferencesProvider.select(
+                        (preferences) => preferences.connectionNoticesEnabled,
                       ),
                     ),
+                    child: TutorialHost(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                   ),
+                );
+              },
             );
           },
         );
