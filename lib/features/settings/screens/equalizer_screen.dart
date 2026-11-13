@@ -35,10 +35,14 @@ import 'package:flick/l10n/settings_l10n.dart';
 enum _PresetFileFormat { json, txt }
 
 class EqualizerScreen extends ConsumerStatefulWidget {
-  const EqualizerScreen({super.key, this.initialPage = 0})
-      : assert(initialPage >= 0 && initialPage < 3);
+  const EqualizerScreen({
+    super.key,
+    this.initialPage = 0,
+    this.showBackButton = true,
+  }) : assert(initialPage >= 0 && initialPage < 3);
 
   final int initialPage;
+  final bool showBackButton;
 
   @override
   ConsumerState<EqualizerScreen> createState() => _EqualizerScreenState();
@@ -87,6 +91,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
       subtitle: activePresetName != null ? l10n.preset(activePresetName) : null,
       onBack: () => Navigator.of(context).pop(),
       onPresets: _showPresetsBottomSheet,
+      showBackButton: widget.showBackButton,
     );
     final tabs = _EffectsTabBar(
       selectedIndex: _currentPage,
@@ -1123,12 +1128,14 @@ class _Header extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onBack;
   final VoidCallback onPresets;
+  final bool showBackButton;
 
   const _Header({
     required this.title,
     required this.onBack,
     required this.onPresets,
     this.subtitle,
+    this.showBackButton = true,
   });
 
   @override
@@ -1140,16 +1147,18 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: Icon(
-              LucideIcons.chevronLeft,
-              color: context.adaptiveTextPrimary,
-              size: context.responsiveIcon(AppConstants.iconSizeMd),
+          if (showBackButton) ...[
+            IconButton(
+              icon: Icon(
+                LucideIcons.chevronLeft,
+                color: context.adaptiveTextPrimary,
+                size: context.responsiveIcon(AppConstants.iconSizeMd),
+              ),
+              onPressed: onBack,
+              visualDensity: VisualDensity.compact,
             ),
-            onPressed: onBack,
-            visualDensity: VisualDensity.compact,
-          ),
-          const SizedBox(width: AppConstants.spacingMd),
+            const SizedBox(width: AppConstants.spacingMd),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -15,6 +15,7 @@ import 'package:flick/features/songs/screens/songs_screen.dart';
 import 'package:flick/features/menu/screens/menu_screen.dart';
 import 'package:flick/features/settings/screens/settings_screen.dart';
 import 'package:flick/features/settings/screens/bottom_bar_settings_screen.dart';
+import 'package:flick/features/settings/screens/equalizer_screen.dart';
 import 'package:flick/features/settings/screens/support_flick_screen.dart';
 import 'package:flick/features/albums/screens/albums_screen.dart';
 import 'package:flick/features/artists/screens/artists_screen.dart';
@@ -1181,6 +1182,10 @@ class _MainShellState extends ConsumerState<MainShell>
         key: ValueKey('favorites'),
       ),
       NavBarButton.search => const SearchScreen(key: ValueKey('search')),
+      NavBarButton.equalizer => const EqualizerScreen(
+        key: ValueKey('equalizer'),
+        showBackButton: false,
+      ),
     };
   }
 

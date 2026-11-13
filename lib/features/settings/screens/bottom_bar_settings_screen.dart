@@ -185,7 +185,7 @@ class BottomBarSettingsScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (enabledCount > 4) ...[
+          if (enabledCount > 4 && config.showLabels) ...[
             const SizedBox(height: AppConstants.spacingLg),
             Container(
               width: double.infinity,
