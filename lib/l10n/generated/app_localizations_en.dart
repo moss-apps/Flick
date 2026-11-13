@@ -9,6 +9,47 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get lockScreenVisualizerTitle => 'Lock-screen visualizer';
+
+  @override
+  String get lockScreenVisualizerDescription =>
+      'Show only a smooth, full-screen visualizer on pure black over the lock screen. AOD-style, not system AOD. Your device stays locked. Does not open automatically.';
+
+  @override
+  String get lockScreenVisualizerOpen => 'Open visualizer screen';
+
+  @override
+  String get lockScreenVisualizerInstructions =>
+      'Open here, then lock and wake your phone. Uses your visualizer style, colors, frequency and movement. Tap or use Back to close. Normal screen timeout still applies; no animation on system AOD.';
+
+  @override
+  String get lockScreenVisualizerHint =>
+      'Tap or use Back to close. Your device stays locked. This view does not animate on system AOD.';
+
+  @override
+  String get lockScreenVisualizerNoTrack =>
+      'Play a song in Flick to see its spectrum.';
+
+  @override
+  String get lockScreenVisualizerPaused => 'Playback paused';
+
+  @override
+  String get lockScreenVisualizerOpenFailed =>
+      'Could not open. Keep Flick unlocked, use Standard or High Quality PCM, and allow microphone access if requested.';
+
+  @override
+  String get lockScreenVisualizerSimulatedTitle =>
+      'Simulated AOD (experimental)';
+
+  @override
+  String get lockScreenVisualizerSimulatedDescription =>
+      'Wakes the display when you lock it while a song is playing and shows the same visualizer. This is not the system AOD: the screen stays on, uses more battery, and needs Display over other apps. Stops after 30 minutes or on low battery.';
+
+  @override
+  String get lockScreenVisualizerSimulatedPermission =>
+      'Allow Display over other apps in system settings to use Simulated AOD.';
+
+  @override
   String get tourCore => 'Find & play music';
 
   @override

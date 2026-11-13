@@ -9,6 +9,45 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get lockScreenVisualizerTitle => '锁屏可视化';
+
+  @override
+  String get lockScreenVisualizerDescription =>
+      '在锁屏上方仅显示纯黑背景的流畅全屏可视化。外观类似息屏显示，但不是系统息屏显示。设备仍保持锁定，不会自动打开。';
+
+  @override
+  String get lockScreenVisualizerOpen => '打开可视化页面';
+
+  @override
+  String get lockScreenVisualizerInstructions =>
+      '在此打开，然后锁定并唤醒手机。沿用可视化样式、颜色、频率和动态。轻点屏幕或返回即可关闭。屏幕仍会正常超时关闭，不会在系统息屏显示中播放动画。';
+
+  @override
+  String get lockScreenVisualizerHint =>
+      '轻点屏幕或返回即可关闭，设备仍保持锁定。此页面不会在系统息屏显示中播放动画。';
+
+  @override
+  String get lockScreenVisualizerNoTrack => '在 Flick 中播放歌曲以查看频谱。';
+
+  @override
+  String get lockScreenVisualizerPaused => '播放已暂停';
+
+  @override
+  String get lockScreenVisualizerOpenFailed =>
+      '无法打开。请保持 Flick 处于解锁状态，使用标准引擎或高品质 PCM，并在提示时允许麦克风权限。';
+
+  @override
+  String get lockScreenVisualizerSimulatedTitle => '模拟息屏显示（实验性）';
+
+  @override
+  String get lockScreenVisualizerSimulatedDescription =>
+      '锁屏且正在播放歌曲时点亮屏幕并显示相同的可视化。这不是系统息屏显示：屏幕会保持亮起、更耗电，并需要“显示在其他应用上层”权限。30 分钟后或电量低时停止。';
+
+  @override
+  String get lockScreenVisualizerSimulatedPermission =>
+      '请在系统设置中允许“显示在其他应用上层”以使用模拟息屏显示。';
+
+  @override
   String get tourCore => '查找和播放音乐';
 
   @override

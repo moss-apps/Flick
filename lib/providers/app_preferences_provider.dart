@@ -737,6 +737,22 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     await ref.read(appPreferencesServiceProvider).setVisualizerEnabled(value);
   }
 
+  Future<void> setLockScreenVisualizerEnabled(bool value) async {
+    await loaded;
+    if (!ref.mounted || state.lockScreenVisualizerEnabled == value) return;
+    state = state.copyWith(lockScreenVisualizerEnabled: value);
+    await ref
+        .read(appPreferencesServiceProvider)
+        .setLockScreenVisualizerEnabled(value);
+  }
+
+  Future<void> setSimulatedAodEnabled(bool value) async {
+    await loaded;
+    if (!ref.mounted || state.simulatedAodEnabled == value) return;
+    state = state.copyWith(simulatedAodEnabled: value);
+    await ref.read(appPreferencesServiceProvider).setSimulatedAodEnabled(value);
+  }
+
   Future<void> setOrbitRadiusRatio(double value) async {
     if (state.orbitRadiusRatio == value) return;
     state = state.copyWith(orbitRadiusRatio: value);

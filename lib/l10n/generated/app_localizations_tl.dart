@@ -9,6 +9,47 @@ class AppLocalizationsTl extends AppLocalizations {
   AppLocalizationsTl([String locale = 'tl']) : super(locale);
 
   @override
+  String get lockScreenVisualizerTitle => 'Lock-screen visualizer';
+
+  @override
+  String get lockScreenVisualizerDescription =>
+      'Smooth na full-screen visualizer lang sa purong itim sa ibabaw ng lock screen. AOD-style, hindi system AOD. Naka-lock pa rin ang device. Hindi ito kusang bubukas.';
+
+  @override
+  String get lockScreenVisualizerOpen => 'Open visualizer screen';
+
+  @override
+  String get lockScreenVisualizerInstructions =>
+      'Buksan dito, saka i-lock at gisingin ang phone. Susundin ang visualizer style, colors, frequency at movement mo. I-tap o mag-Back para isara. Normal pa rin ang screen timeout; walang animation sa system AOD.';
+
+  @override
+  String get lockScreenVisualizerHint =>
+      'I-tap o mag-Back para isara. Naka-lock pa rin ang device. Walang animation sa system AOD.';
+
+  @override
+  String get lockScreenVisualizerNoTrack =>
+      'Mag-play ng kanta sa Flick para makita ang spectrum.';
+
+  @override
+  String get lockScreenVisualizerPaused => 'Naka-pause ang playback';
+
+  @override
+  String get lockScreenVisualizerOpenFailed =>
+      'Hindi mabuksan. Panatilihing unlocked ang Flick, gamitin ang Standard o High Quality PCM, at payagan ang microphone access kapag hiningi.';
+
+  @override
+  String get lockScreenVisualizerSimulatedTitle =>
+      'Simulated AOD (experimental)';
+
+  @override
+  String get lockScreenVisualizerSimulatedDescription =>
+      'Binubuhay ang display kapag ni-lock mo habang tumutugtog ang kanta at ipinapakita ang parehong visualizer. Hindi ito system AOD: nananatiling bukas ang screen, mas malakas sa battery, at kailangan ang Display over other apps. Humihinto pagkalipas ng 30 minuto o kapag low battery.';
+
+  @override
+  String get lockScreenVisualizerSimulatedPermission =>
+      'Payagan ang Display over other apps sa system settings para magamit ang Simulated AOD.';
+
+  @override
   String get tourCore => 'Find & play music';
 
   @override
