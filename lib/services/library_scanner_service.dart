@@ -290,6 +290,60 @@ class LibraryScannerService {
     return null;
   }
 
+  /// Directory of [filePath] relative to the actual [scanRootPath], using
+  /// on-disk names. Returns '' when the file sits directly under the root and
+  /// null when [filePath] is not a raw path inside [scanRootPath] (a content
+  /// URI, another volume, or an unrelated prefix). Recording this at scan
+  /// time avoids guessing the root from volume-id conventions later.
+  /// Pure; unit-tested.
+  static String? relativeFolderPathFor(String scanRootPath, String? filePath) {
+    if (filePath == null) return null;
+    final root = _normalizedRawScanPath(scanRootPath);
+    final file = _normalizedRawScanPath(filePath);
+    if (root == null || file == null) return null;
+    if (file == root) return '';
+
+    final prefix = root.endsWith('/') ? root : '$root/';
+    if (!file.startsWith(prefix)) return null;
+
+    final relative = file.substring(prefix.length);
+    final slash = relative.lastIndexOf('/');
+    return slash < 0 ? '' : relative.substring(0, slash);
+  }
+
+  static String? _normalizedRawScanPath(String path) {
+    final raw = rawPathFromFileUri(path);
+    if (raw == null) return null;
+    var normalized = raw.replaceAll('\\', '/').replaceAll(RegExp('/+'), '/');
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    return normalized;
+  }
+
+  /// Selects rows whose recorded folder path is missing or stale, and updates
+  /// only that field. Ids, metadata, and local edits are untouched, so callers
+  /// can upsert the returned batch without recreating library entries.
+  /// Discovered paths may also be keyed by their confirmed MediaStore URI.
+  /// Pure apart from mutating [SongEntity.relativeFolderPath]; unit-tested.
+  static List<SongEntity> folderPathBackfillFor({
+    required Iterable<SongEntity> songs,
+    required Map<String, String> expectedByFilePath,
+    Set<int> excludedIds = const {},
+  }) {
+    final batch = <SongEntity>[];
+    for (final song in songs) {
+      if (excludedIds.contains(song.id)) continue;
+      final expected =
+          expectedByFilePath[song.filePath] ??
+          expectedByFilePath[song.mediaStoreUri];
+      if (expected == null || song.relativeFolderPath == expected) continue;
+      song.relativeFolderPath = expected;
+      batch.add(song);
+    }
+    return batch;
+  }
+
   /// Scan a single folder using appropriate method for platform.
   Stream<ScanProgress> scanFolder(
     String folderUri,
@@ -659,6 +713,31 @@ class LibraryScannerService {
       rawExistingMap.remove(song.filePath);
     }
 
+    // Same legacy repair as the SAF path: unchanged rows are skipped below,
+    // so record the path from the actual scan root before that skip. Keep the
+    // discovered MediaStore URI as an alias for legacy content/file-URI rows.
+    final filteredSongIds = filteredExistingSongs
+        .map((song) => song.id)
+        .toSet();
+    final expectedRelativeByPath = <String, String>{};
+    for (final file in mediaStoreFiles) {
+      final filePath = file.filePath;
+      if (filePath == null) continue;
+      final expected = relativeFolderPathFor(folderPath, filePath);
+      if (expected != null) {
+        expectedRelativeByPath[filePath] = expected;
+        expectedRelativeByPath[file.uri] = expected;
+      }
+    }
+    final folderPathBackfill = folderPathBackfillFor(
+      songs: existingSongs,
+      expectedByFilePath: expectedRelativeByPath,
+      excludedIds: filteredSongIds,
+    );
+    if (folderPathBackfill.isNotEmpty) {
+      await _songRepository.upsertSongs(folderPathBackfill);
+    }
+
     final scannedByPath = <String, AudioFileInfo>{};
     final scannedByUri = <String, AudioFileInfo>{};
     for (final f in mediaStoreFiles) {
@@ -670,9 +749,6 @@ class LibraryScannerService {
     final allScannedUris = scannedByUri.keys.toSet();
     final allKnownPaths = allScannedPaths.union(allScannedUris);
 
-    final filteredSongIds = filteredExistingSongs
-        .map((song) => song.id)
-        .toSet();
     final idsToDelete = <int>[];
     for (final song in existingSongs) {
       if (filteredSongIds.contains(song.id)) continue;
@@ -770,6 +846,7 @@ class LibraryScannerService {
                 : DateTime.now())
         ..lastModified = DateTime.fromMillisecondsSinceEpoch(file.lastModified)
         ..folderUri = folderUri
+        ..relativeFolderPath = relativeFolderPathFor(folderPath, file.filePath)
         ..fileSize = file.size
         ..albumArtPath = _carriedArtworkPath(
           existing,
@@ -1123,7 +1200,9 @@ class LibraryScannerService {
         existingMap: cueExistingMap,
         ripLog: logMap[audioPath],
         lastModified: DateTime.fromMillisecondsSinceEpoch(file.lastModified),
-        relativeFolderPath: file.relativeFolderPath,
+        relativeFolderPath:
+            file.relativeFolderPath ??
+            relativeFolderPathFor(folderPath, file.filePath),
       );
 
       for (final entity in cueEntities) {
@@ -1437,6 +1516,26 @@ class LibraryScannerService {
       rawExistingMap.remove(song.filePath);
     }
     final fastScanMap = {for (var f in fastScanFiles) f.uri: f};
+
+    // Repair the folder path recorded for rows imported before the SAF walker
+    // persisted it. This must run before the unchanged-row skip below: quick
+    // scans never re-read those rows, so without an explicit backfill legacy
+    // entries keep a null path forever and folder grouping has to guess it
+    // from opaque document ids (issue #283).
+    final filteredSongIds = filteredExistingSongs.map((s) => s.id).toSet();
+    final expectedRelativeByUri = <String, String>{};
+    for (final file in fastScanFiles) {
+      final relative = file.relativeFolderPath;
+      if (relative != null) expectedRelativeByUri[file.uri] = relative;
+    }
+    final folderPathBackfill = folderPathBackfillFor(
+      songs: existingSongs,
+      expectedByFilePath: expectedRelativeByUri,
+      excludedIds: filteredSongIds,
+    );
+    if (folderPathBackfill.isNotEmpty) {
+      await _songRepository.upsertSongs(folderPathBackfill);
+    }
 
     // 2b. Parse CUE and log files
     final cueFiles = fastScanFiles
@@ -1923,6 +2022,25 @@ class LibraryScannerService {
       }
     }
 
+    // Repair rows from scans that predate this field. The Rust stream only
+    // returns new/modified files, so unchanged rows otherwise stay null and
+    // folder grouping has to reconstruct the path from volume conventions.
+    final expectedRelativeByPath = <String, String>{};
+    for (final song in existingMap.values) {
+      final expected = relativeFolderPathFor(scanRootPath, song.filePath);
+      if (expected != null) expectedRelativeByPath[song.filePath] = expected;
+    }
+    final folderPathBackfill = folderPathBackfillFor(
+      // CUE rows share a file path, so existingMap retains only one of them.
+      // Repair every row, without re-inserting songs removed by scan filters.
+      songs: existingSongs,
+      expectedByFilePath: expectedRelativeByPath,
+      excludedIds: filteredExistingSongs.map((song) => song.id).toSet(),
+    );
+    if (folderPathBackfill.isNotEmpty) {
+      await _songRepository.upsertSongs(folderPathBackfill);
+    }
+
     // 2. Stream scan batches from Rust
     int processed = 0;
     int filesAccounted = 0;
@@ -2006,6 +2124,10 @@ class LibraryScannerService {
               metadata.lastModified,
             )
             ..folderUri = folderUri
+            ..relativeFolderPath = relativeFolderPathFor(
+              scanRootPath,
+              metadata.path,
+            )
             ..fileSize = metadata.fileSize.toInt()
             ..albumArtPath = _carriedArtworkPath(
               existing,
@@ -2274,7 +2396,9 @@ class LibraryScannerService {
                 existingMap: cueExistingMap,
                 ripLog: ripLog,
                 lastModified: lastModified,
-                relativeFolderPath: fallbackSource?.relativeFolderPath,
+                relativeFolderPath:
+                    fallbackSource?.relativeFolderPath ??
+                    relativeFolderPathFor(scanRootPath, audioPath),
               );
 
               if (entities.isNotEmpty) {
@@ -3121,7 +3245,11 @@ class LibraryScannerService {
     String audioFileName,
     Map<String, AudioFileInfo> fastScanMap,
   ) {
-    final target = audioFileName.toLowerCase();
+    final target = audioFileName
+        .replaceAll('\\', '/')
+        .split('/')
+        .last
+        .toLowerCase();
     for (final entry in fastScanMap.values) {
       if (entry.name.toLowerCase() == target) {
         return entry.filePath ?? entry.uri;
@@ -3139,15 +3267,16 @@ class LibraryScannerService {
     for (final cue in cueFiles) {
       final content = await _readTextFile(cue.uri);
       if (content == null || content.isEmpty) continue;
-      final sheet = cueService.parseCueSheet(content, cueFilePath: cue.uri);
-      if (sheet == null) continue;
-      final audioUri = _resolveAudioUriFromCue(
-        cue.uri,
-        sheet.audioFile,
-        fastScanMap,
-      );
-      if (audioUri != null) {
-        result[audioUri] = sheet;
+      final sheets = cueService.parseCueSheets(content, cueFilePath: cue.uri);
+      for (final sheet in sheets) {
+        final audioUri = _resolveAudioUriFromCue(
+          cue.uri,
+          sheet.audioFile,
+          fastScanMap,
+        );
+        if (audioUri != null) {
+          result[audioUri] = sheet;
+        }
       }
     }
     return result;
@@ -3192,6 +3321,7 @@ class LibraryScannerService {
       final cueFiles = <String>[];
       final logFiles = <String>[];
       final audioStems = <String, String>{};
+      final audioFilesByDir = <String, Map<String, String>>{};
 
       await for (final entity in dir.list(
         recursive: true,
@@ -3205,6 +3335,10 @@ class LibraryScannerService {
 
         if (_looksLikeSupportedAudioExtension(ext)) {
           audioStems[_fileStem(name).toLowerCase()] = path;
+          final sep = path.lastIndexOf('/');
+          final dirPath = sep == -1 ? '' : path.substring(0, sep);
+          audioFilesByDir.putIfAbsent(dirPath, () => {})[name.toLowerCase()] =
+              path;
         } else if (ext == 'cue') {
           cueFiles.add(path);
         } else if (ext == 'log' || ext == 'txt') {
@@ -3217,13 +3351,16 @@ class LibraryScannerService {
         if (_isCancelled) break;
         final content = await File(path).readAsString().catchError((_) => '');
         if (content.isEmpty) continue;
-        final sheet = cueService.parseCueSheet(content, cueFilePath: path);
-        if (sheet == null) continue;
-        final audioPath = cueService.resolveAudioFilePath(
-          path,
-          sheet.audioFile,
-        );
-        cueMap[audioPath] = sheet;
+        final sheets = cueService.parseCueSheets(content, cueFilePath: path);
+        for (final sheet in sheets) {
+          final audioPath = resolveCueAudioPath(
+            cuePath: path,
+            audioFile: sheet.audioFile,
+            audioFilesByDir: audioFilesByDir,
+          );
+          if (audioPath == null) continue;
+          cueMap[audioPath] = sheet;
+        }
       }
 
       // Parse log files
@@ -3245,10 +3382,43 @@ class LibraryScannerService {
     return (cueMap: cueMap, logMap: result);
   }
 
-  String _fileStem(String fileName) {
+  static String _fileStem(String fileName) {
     final lastDot = fileName.lastIndexOf('.');
     if (lastDot <= 0) return fileName;
     return fileName.substring(0, lastDot);
+  }
+
+  /// Resolve a CUE `FILE` entry to an audio file discovered in the same scan.
+  ///
+  /// Exact names win. A unique same-stem sibling is accepted as well so a
+  /// converted rip with a stale `.wav` entry still binds to its `.flac` file;
+  /// ambiguous or missing names are treated as unresolved instead of creating
+  /// rows for paths that do not exist.
+  @visibleForTesting
+  static String? resolveCueAudioPath({
+    required String cuePath,
+    required String audioFile,
+    required Map<String, Map<String, String>> audioFilesByDir,
+  }) {
+    final resolved = CueFileService().resolveAudioFilePath(cuePath, audioFile);
+    final slash = resolved.lastIndexOf('/');
+    final dir = slash == -1 ? '' : resolved.substring(0, slash);
+    final name = (slash == -1 ? resolved : resolved.substring(slash + 1))
+        .toLowerCase();
+    final files = audioFilesByDir[dir];
+    if (files == null) return null;
+
+    final exact = files[name];
+    if (exact != null) return exact;
+
+    final stem = _fileStem(name);
+    String? match;
+    for (final entry in files.entries) {
+      if (_fileStem(entry.key) != stem) continue;
+      if (match != null) return null;
+      match = entry.value;
+    }
+    return match;
   }
 
   /// Only a successful read can complete the versioned tag backfill.
@@ -3350,7 +3520,12 @@ class LibraryScannerService {
     String? relativeFolderPath,
   }) {
     final entities = <SongEntity>[];
+    final seenStartOffsets = <int>{};
     for (final track in cueSheet.tracks) {
+      // SongEntity is unique on (filePath, startOffsetMs). Malformed sheets can
+      // repeat an INDEX time; keep the first track instead of aborting the
+      // whole bulk upsert with a unique-index violation.
+      if (!seenStartOffsets.add(track.startOffsetMs)) continue;
       final artist = track.performer.trim().isNotEmpty
           ? track.performer.trim()
           : (cueSheet.performer?.trim().isNotEmpty ?? false)
