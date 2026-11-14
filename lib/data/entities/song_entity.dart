@@ -107,10 +107,9 @@ class SongEntity {
   @Index()
   String? folderUri;
 
-  /// Directory path relative to the scanned root, recorded during SAF scans
-  /// using on-disk display names ('Hindi/Album'; '' directly under the root).
-  /// Null when the scan engine did not record it, in which case the path is
-  /// reconstructed from [folderUri]/[filePath] on a best-effort basis.
+  /// Directory path relative to the scanned root, recorded during scans using
+  /// on-disk display names ('Hindi/Album'; '' directly under the root). Null
+  /// when unresolved, including legacy rows not yet backfilled by a scan.
   String? relativeFolderPath;
 
   /// Date the song was added to the library
