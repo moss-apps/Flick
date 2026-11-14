@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flick/data/entities/song_entity.dart';
 import 'package:flick/features/folders/screens/folders_screen.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/services/library_scanner_service.dart';
+import 'package:flick/services/music_folder_service.dart';
 
 Song _song(
   String title,
@@ -145,4 +148,99 @@ void main() {
     expect(subfolders.single.key, 'Albums');
     expect(songs, isEmpty);
   });
+
+  test(
+    'SAF backfill restores an existing flat library with opaque document ids',
+    () {
+      const folderUri =
+          'content://com.android.externalstorage.documents/tree/1234-5678%3AMusic';
+      final discoveredFiles = [
+        AudioFileInfo.fromMap({
+          'uri': 'content://provider/document/root-id',
+          'name': 'Root.flac',
+          'relativeFolderPath': '',
+        }),
+        AudioFileInfo.fromMap({
+          'uri': 'content://provider/document/album-id',
+          'name': 'Album track.flac',
+          'relativeFolderPath': 'Album',
+        }),
+        AudioFileInfo.fromMap({
+          'uri': 'content://provider/document/disc-id',
+          'name': 'Disc track.flac',
+          'relativeFolderPath': 'Album/Disc 1',
+        }),
+        AudioFileInfo.fromMap({
+          'uri': 'content://provider/document/live-id',
+          'name': 'Live track.flac',
+          'relativeFolderPath': 'Live',
+        }),
+      ];
+      final legacySongs = [
+        for (var i = 0; i < discoveredFiles.length; i++)
+          SongEntity()
+            ..id = i + 1
+            ..title = discoveredFiles[i].name
+            ..artist = 'Edited artist'
+            ..dateAdded = DateTime(2026, 1, 1)
+            ..filePath = discoveredFiles[i].uri
+            ..folderUri = folderUri
+            ..hasLocalEdits = true,
+      ];
+      List<Song> visibleSongs() => [
+        for (final song in legacySongs)
+          _song(
+            song.title,
+            song.filePath,
+            folderUri: folderUri,
+            relativeFolderPath: song.relativeFolderPath,
+          ),
+      ];
+
+      final before = groupByImmediateFolder(
+        allSongs: visibleSongs(),
+        folderUri: folderUri,
+      );
+      expect(before.subfolders, isEmpty);
+      expect(before.songs, hasLength(4));
+
+      final expectedPaths = {
+        for (final file in discoveredFiles) file.uri: file.relativeFolderPath!,
+      };
+      final batch = LibraryScannerService.folderPathBackfillFor(
+        songs: legacySongs,
+        expectedByFilePath: expectedPaths,
+      );
+      expect(batch.map((song) => song.id), [1, 2, 3, 4]);
+      expect(legacySongs.every((song) => song.hasLocalEdits), isTrue);
+      expect(
+        legacySongs.map((song) => song.artist),
+        everyElement('Edited artist'),
+      );
+
+      final after = groupByImmediateFolder(
+        allSongs: visibleSongs(),
+        folderUri: folderUri,
+      );
+      expect(after.subfolders.map((folder) => folder.key), ['Album', 'Live']);
+      expect(after.songs.map((song) => song.title), ['Root.flac']);
+      final nested = groupByImmediateFolder(
+        allSongs: visibleSongs(),
+        folderUri: folderUri,
+        prefix: 'Album',
+      );
+      expect(nested.subfolders.single.key, 'Album/Disc 1');
+      expect(nested.songs.map((song) => song.title), ['Album track.flac']);
+      expect(nested.subfolders.single.songs.map((song) => song.title), [
+        'Disc track.flac',
+      ]);
+      expect(
+        LibraryScannerService.folderPathBackfillFor(
+          songs: legacySongs,
+          expectedByFilePath: expectedPaths,
+        ),
+        isEmpty,
+      );
+    },
+  );
 }
