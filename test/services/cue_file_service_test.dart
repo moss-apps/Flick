@@ -31,7 +31,7 @@ void main() {
     });
   });
 
-  group('CueFileService.parseCueSheet', () {
+  group('CueFileService CUE parsing', () {
     test('keeps the first track when it starts at zero', () {
       const cue = '''
 PERFORMER "Artist"
@@ -101,6 +101,78 @@ FILE "album.flac" WAVE
       expect(sheet.tracks.single.title, 'Only');
       expect(sheet.tracks.single.startOffsetMs, 0);
       expect(sheet.tracks.single.endOffsetMs, isNull);
+    });
+
+    test('splits a multi-FILE sheet into one sheet per audio file', () {
+      const cue = '''
+PERFORMER "Artist"
+TITLE "Album"
+FILE "disc1/01.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "One"
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    TITLE "Two"
+    INDEX 01 03:20:00
+FILE "disc1/02.flac" WAVE
+  TRACK 03 AUDIO
+    TITLE "Three"
+    INDEX 01 00:00:00
+''';
+
+      final sheets = service.parseCueSheets(
+        cue,
+        cueFilePath: '/music/album.cue',
+      );
+
+      expect(sheets, hasLength(2));
+      expect(sheets.map((sheet) => sheet.audioFile), [
+        'disc1/01.flac',
+        'disc1/02.flac',
+      ]);
+      expect(sheets.every((sheet) => sheet.title == 'Album'), isTrue);
+      expect(sheets[0].tracks.map((track) => track.trackNumber), [1, 2]);
+      expect(sheets[0].tracks.map((track) => track.startOffsetMs), [0, 200000]);
+      expect(sheets[0].tracks.first.endOffsetMs, 200000);
+      expect(sheets[0].tracks.last.endOffsetMs, isNull);
+      expect(sheets[1].tracks.single.title, 'Three');
+      expect(sheets[1].tracks.single.startOffsetMs, 0);
+      expect(sheets[1].tracks.single.endOffsetMs, isNull);
+    });
+
+    test('parseCueSheet keeps the first block for compatibility', () {
+      const cue = '''
+FILE "one.flac" WAVE
+  TRACK 01 AUDIO
+    INDEX 01 00:00:00
+FILE "two.flac" WAVE
+  TRACK 02 AUDIO
+    INDEX 01 00:00:00
+''';
+
+      final sheet = service.parseCueSheet(cue, cueFilePath: '/music/a.cue');
+
+      expect(sheet?.audioFile, 'one.flac');
+      expect(sheet?.tracks.single.trackNumber, 1);
+    });
+
+    test('resolves relative audio paths and normalizes separators', () {
+      expect(
+        service.resolveAudioFilePath('/music/album.cue', 'album.flac'),
+        '/music/album.flac',
+      );
+      expect(
+        service.resolveAudioFilePath('/music/album.cue', 'disc1/01.flac'),
+        '/music/disc1/01.flac',
+      );
+      expect(
+        service.resolveAudioFilePath('/music/album.cue', r'disc1\01.flac'),
+        '/music/disc1/01.flac',
+      );
+      expect(
+        service.resolveAudioFilePath('/music/album.cue', '/sdcard/01.flac'),
+        '/sdcard/01.flac',
+      );
     });
 
     test('parses CRLF sheets with a BOM and global metadata', () {
