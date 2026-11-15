@@ -712,8 +712,10 @@ class RustAudioService {
       if (event == null) break;
 
       event.when(
-        stateChanged: (state) {
-          final newState = _parseState(state);
+        stateChanged: (_) {
+          // Events are queued; a Playing event from before a completed pause
+          // must not revive the UI/priority anchor after output was suspended.
+          final newState = _parseState(rust_audio.audioGetState());
           if (stateNotifier.value != newState) {
             stateNotifier.value = newState;
           }

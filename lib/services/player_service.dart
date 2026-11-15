@@ -453,6 +453,8 @@ class PlayerService {
   PlayerService._internal()
     : _uac2Service = Uac2Service.instance,
       _rustAudioService = RustAudioService(),
+      _audioSessionActivationOverride = null,
+      _interruptionResumerOverride = null,
       _testDirectUsb = false {
     _playbackManager = AudioEngineManager();
     _sessionManager = AudioSessionManager(
@@ -470,12 +472,17 @@ class PlayerService {
     required Uac2Service uac2Service,
     RustAudioService? rustAudioService,
     AndroidAudioEngine? androidAudioEngine,
+    AudioEngineManager? playbackManager,
+    Future<bool> Function(bool active)? audioSessionActivation,
+    Future<void> Function()? interruptionResumer,
     bool directUsb = false,
   }) : _uac2Service = uac2Service,
        _rustAudioService = rustAudioService ?? RustAudioService(),
+       _audioSessionActivationOverride = audioSessionActivation,
+       _interruptionResumerOverride = interruptionResumer,
        _testDirectUsb = directUsb {
     _sessionManager = sessionManager;
-    _playbackManager = AudioEngineManager();
+    _playbackManager = playbackManager ?? AudioEngineManager();
     _audioInitialized = true;
     _androidEngine = androidAudioEngine;
   }
@@ -503,6 +510,8 @@ class PlayerService {
   final SongRepository _songRepository = SongRepository();
   final PlaylistService _playlistService = PlaylistService();
   final RustAudioService _rustAudioService;
+  final Future<bool> Function(bool active)? _audioSessionActivationOverride;
+  final Future<void> Function()? _interruptionResumerOverride;
   final bool _testDirectUsb;
   final Uac2Service _uac2Service;
   final CastingService _castingService = CastingService.instance;
@@ -568,6 +577,7 @@ class PlayerService {
   bool _rustListenersAttached = false;
   bool _audioSessionConfigured = false;
   bool _wasPlayingBeforeAudioInterruption = false;
+  int _audioInterruptionGeneration = 0;
   bool _isDucked = false;
   VoidCallback? _rustStateListener;
   VoidCallback? _rustPositionListener;
@@ -1936,33 +1946,47 @@ class PlayerService {
   }
 
   Future<void> _deactivateAndroidAudioSession() async {
-    if (!Platform.isAndroid || !_audioSessionConfigured) {
+    if (_audioSessionActivationOverride == null &&
+        (!Platform.isAndroid || !_audioSessionConfigured)) {
       return;
     }
 
     // Any in-flight interruption state is irrelevant once we release focus.
     _wasPlayingBeforeAudioInterruption = false;
-    _isDucked = false;
+    // Restore the actual gain too, otherwise a manual pause during ducking
+    // can leave the next resume stuck at notification volume.
+    if (_isDucked) await _setDucked(false);
 
     try {
-      final session = await AudioSession.instance;
-      await session.setActive(false);
+      await _setAudioSessionActive(false);
     } catch (e) {
       _debugLog('[AudioFocus] Failed to deactivate Android audio session: $e');
     }
   }
 
-  Future<void> _activateAudioSessionForRustEngine() async {
-    if (!Platform.isAndroid) return;
-    await _configureAndroidAudioSession();
+  Future<bool> _setAudioSessionActive(bool active) async {
+    final override = _audioSessionActivationOverride;
+    if (override != null) return override(active);
+    final session = await AudioSession.instance;
+    return session.setActive(active);
+  }
+
+  Future<bool> _activateAudioSessionForRustEngine() async {
+    if (!Platform.isAndroid && _audioSessionActivationOverride == null) {
+      return true;
+    }
+    if (_audioSessionActivationOverride == null) {
+      await _configureAndroidAudioSession();
+    }
     try {
-      final session = await AudioSession.instance;
-      final granted = await session.setActive(true);
+      final granted = await _setAudioSessionActive(true);
       _debugLog('[AudioFocus] Rust engine focus request granted=$granted');
+      return granted;
     } catch (e) {
       _debugLog(
         '[AudioFocus] Failed to activate audio session for Rust engine: $e',
       );
+      return false;
     }
   }
 
@@ -2017,17 +2041,26 @@ class PlayerService {
     );
 
     if (event.begin) {
+      _audioInterruptionGeneration++;
       if (event.type == AudioInterruptionType.duck &&
           duckOnInterruptionNotifier.value) {
         // Transient loss (notification sound): dip volume, keep playing.
         if (isPlayingNotifier.value) {
-          unawaited(_setDucked(true));
+          unawaited(
+            _enqueuePlaybackRequest(() async {
+              if (isPlayingNotifier.value) await _setDucked(true);
+            }),
+          );
         }
         return;
       }
       if (isPlayingNotifier.value) {
         _wasPlayingBeforeAudioInterruption = true;
-        unawaited(_pauseInternal());
+        unawaited(
+          _enqueuePlaybackRequest(
+            () => _pauseInternal(releaseAudioFocus: false),
+          ),
+        );
       }
       return;
     }
@@ -2035,24 +2068,31 @@ class PlayerService {
     // Interruption ended. Only resume if we were actually playing when it
     // started; otherwise a manual pause during the interruption would cause
     // an unwanted auto-resume.
-    if (event.type == AudioInterruptionType.duck && _isDucked) {
-      unawaited(_setDucked(false));
+    if (event.type == AudioInterruptionType.unknown) {
+      _wasPlayingBeforeAudioInterruption = false;
       return;
     }
-    if (!_wasPlayingBeforeAudioInterruption) {
-      return;
-    }
-    _wasPlayingBeforeAudioInterruption = false;
+    final generation = _audioInterruptionGeneration;
+    unawaited(
+      _enqueuePlaybackRequest(() async {
+        if (generation != _audioInterruptionGeneration) return;
+        if (event.type == AudioInterruptionType.duck && _isDucked) {
+          await _setDucked(false);
+          return;
+        }
+        // Check at execution time, not when scheduling: a manual pause or a new
+        // interruption may have cancelled this pending auto-resume.
+        if (!_wasPlayingBeforeAudioInterruption) return;
+        _wasPlayingBeforeAudioInterruption = false;
+        await _resumeAfterAudioInterruption();
+      }),
+    );
+  }
 
-    switch (event.type) {
-      case AudioInterruptionType.pause:
-      case AudioInterruptionType.duck:
-        unawaited(_resumeAfterAudioInterruption());
-      case AudioInterruptionType.unknown:
-        // Permanent focus loss (e.g. another app started long-form playback).
-        // Stay paused and let the user explicitly resume.
-        break;
-    }
+  @visibleForTesting
+  Future<void> handleAudioInterruptionForTesting(AudioInterruptionEvent event) {
+    _onAudioInterruptionEvent(event);
+    return _playRequestQueue;
   }
 
   /// Duck gain relative to the user's volume. 0.2 ≈ -14 dB, enough for
@@ -2076,10 +2116,10 @@ class PlayerService {
   }
 
   Future<void> _resumeAfterAudioInterruption() async {
-    // The audio session may have been deactivated while we were paused
-    // (e.g. by a route change or by the system). Re-activate it before
-    // attempting to resume the Rust engine.
-    await _activateAudioSessionForRustEngine();
+    final override = _interruptionResumerOverride;
+    if (override != null) return override();
+    // RustAudioEngine.play reacquires managed focus; just_audio and direct USB
+    // retain their own focus ownership.
     try {
       await _resumeInternal();
     } catch (e, stackTrace) {
@@ -4376,8 +4416,13 @@ class PlayerService {
     }
   }
 
-  void _stopPlayback() async {
+  void _stopPlayback() {
     _wasPlayingBeforeAudioInterruption = false;
+    _audioInterruptionGeneration++;
+    unawaited(_enqueuePlaybackRequest(_stopPlaybackInternal));
+  }
+
+  Future<void> _stopPlaybackInternal() async {
     _crossfadeUiHandoffFrom = null;
     await _savePosition();
     _positionSaveTimer?.cancel();
@@ -4387,6 +4432,11 @@ class PlayerService {
       await _playbackManager.stop();
     } catch (e) {
       _debugLog('Stop failed: $e');
+    }
+    isPlayingNotifier.value = false;
+    _updatePriorityAnchor();
+    if (currentEngineType != AudioEngineType.usbDacExperimental) {
+      await _deactivateAndroidAudioSession();
     }
     await _refreshAudioOutputDiagnostics(reason: 'playback stopped');
     cancelSleepTimer();
@@ -4778,6 +4828,9 @@ class PlayerService {
       resolvePlaybackPath: _resolveRustPath,
       resolveHttpSource: _resolveRustHttpSource,
       disposeEngine: _disposeUsbEngine,
+      requestAudioFocus: playbackMode == AudioEngineType.usbDacExperimental
+          ? null
+          : _activateAudioSessionForRustEngine,
     );
   }
 
@@ -5293,9 +5346,6 @@ class PlayerService {
         },
       );
       _usingRustBackend = true;
-      if (to != AudioEngineType.usbDacExperimental) {
-        await _activateAudioSessionForRustEngine();
-      }
       await _reconcileVolumeForTier(_determineCurrentTier());
     } else {
       await _playbackManager.ensureEngine(
@@ -6069,12 +6119,13 @@ class PlayerService {
     _debugLog('[PlayerService] pause() called');
     // Manual pause cancels any pending auto-resume from a transient focus
     // loss; otherwise the next notification's end event restarts playback.
-    // The interruption handler calls _pauseInternal directly, not here.
+    // Interruption pauses bypass this manual cancellation path.
     _wasPlayingBeforeAudioInterruption = false;
+    _audioInterruptionGeneration++;
     return _enqueuePlaybackRequest(_pauseInternal);
   }
 
-  Future<void> _pauseInternal() async {
+  Future<void> _pauseInternal({bool releaseAudioFocus = true}) async {
     if (_castingService.isActive) {
       await _castingService.delegatePause();
       return;
@@ -6092,12 +6143,20 @@ class PlayerService {
       _debugLog(
         '[Playback] pause(): no engine attached, returning after optimistic update',
       );
+      if (releaseAudioFocus &&
+          currentEngineType != AudioEngineType.usbDacExperimental) {
+        await _deactivateAndroidAudioSession();
+      }
       return;
     }
     try {
       await _playbackManager.pause();
     } catch (e) {
       _debugLog('Pause failed: $e');
+    }
+    if (releaseAudioFocus &&
+        currentEngineType != AudioEngineType.usbDacExperimental) {
+      await _deactivateAndroidAudioSession();
     }
     await _refreshAudioOutputDiagnostics(
       reason: 'playback paused',

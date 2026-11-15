@@ -21,12 +21,14 @@ class RustAudioEngine implements AudioEngine {
     required RustPlaybackPathResolver resolvePlaybackPath,
     required RustEngineDisposer disposeEngine,
     RustHttpSourceResolver? resolveHttpSource,
-  })  : _playbackMode = playbackMode,
-        _rustAudioService = rustAudioService,
-        _ensureInitialized = ensureInitialized,
-        _resolvePlaybackPath = resolvePlaybackPath,
-        _disposeEngine = disposeEngine,
-        _resolveHttpSource = resolveHttpSource;
+    Future<bool> Function()? requestAudioFocus,
+  }) : _playbackMode = playbackMode,
+       _rustAudioService = rustAudioService,
+       _ensureInitialized = ensureInitialized,
+       _resolvePlaybackPath = resolvePlaybackPath,
+       _disposeEngine = disposeEngine,
+       _resolveHttpSource = resolveHttpSource,
+       _requestAudioFocus = requestAudioFocus;
 
   final AudioEngineType _playbackMode;
   final RustAudioService _rustAudioService;
@@ -34,6 +36,7 @@ class RustAudioEngine implements AudioEngine {
   final RustPlaybackPathResolver _resolvePlaybackPath;
   final RustEngineDisposer _disposeEngine;
   final RustHttpSourceResolver? _resolveHttpSource;
+  final Future<bool> Function()? _requestAudioFocus;
 
   final StreamController<PlaybackState> _controller =
       StreamController<PlaybackState>.broadcast();
@@ -147,13 +150,25 @@ class RustAudioEngine implements AudioEngine {
           'RustAudioEngine.play() was called before load(track) prepared a source',
         );
       }
+    }
+    // Focus belongs to playback, not engine creation: a paused engine is often
+    // reused, and prewarming one must not take audio away from another device.
+    final requestAudioFocus = _requestAudioFocus;
+    if (requestAudioFocus != null && !await requestAudioFocus()) return;
+    if (track == null) {
       await _rustAudioService.resume();
+      _emit(_state.copyWith(isPlaying: true));
       return;
     }
 
     final rustState = _rustAudioService.stateNotifier.value;
     if (rustState == RustPlaybackState.paused && !_needsFreshPlay) {
       await _rustAudioService.resume();
+      // The Rust state notifier may already report playing (e.g. switching
+      // tracks without an intervening pause), so its listener will not fire.
+      // Reflect the accepted resume here or the UI stays paused while the
+      // engine is actually playing.
+      _emit(_state.copyWith(isPlaying: true));
       final pendingSeek = _pendingSeekPosition;
       if (pendingSeek != null && pendingSeek > Duration.zero) {
         await _rustAudioService.seek(pendingSeek);
@@ -181,6 +196,9 @@ class RustAudioEngine implements AudioEngine {
                   ? null
                   : track.endOffsetMs! / 1000,
             );
+            // A track switch while already playing leaves the Rust state
+            // notifier unchanged, so sync the engine's UI state explicitly.
+            _emit(_state.copyWith(isPlaying: true));
             await _applyInitialSeekAfterStart();
             return;
           } catch (e) {
@@ -211,6 +229,9 @@ class RustAudioEngine implements AudioEngine {
           : track.startOffsetMs! / 1000,
       endSecs: track.endOffsetMs == null ? null : track.endOffsetMs! / 1000,
     );
+    // See the HTTP path above: switching tracks during playback does not
+    // change the native state string, so emit the accepted play here.
+    _emit(_state.copyWith(isPlaying: true));
     await _applyInitialSeekAfterStart();
   }
 
