@@ -34,6 +34,8 @@ pub mod fx;
 pub mod http_source;
 pub mod ir_loader;
 pub mod manager;
+#[cfg(any(target_os = "android", test))]
+mod managed_stream_lifecycle;
 pub mod opus_decoder;
 pub mod audiotrack_direct;
 pub mod pitch_shifter;

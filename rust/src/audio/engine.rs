@@ -17,6 +17,8 @@ use crate::audio::dynamics::DynamicsChain;
 use crate::audio::crossfeed::{Crossfeed, CrossfeedLevel};
 use crate::audio::equalizer::{EqBandSpec, EqParams, Equalizer};
 use crate::audio::fx::SpatialFx;
+#[cfg(target_os = "android")]
+use crate::audio::managed_stream_lifecycle::{ManagedOutputStream, ManagedStreamLifecycle};
 use crate::audio::pitch_shifter::PitchShifter;
 use crate::audio::source::{
     AudioSource, PlaybackRange, SourceIdentity, SourceInfo, SourceProvider,
@@ -42,9 +44,9 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 #[cfg(target_os = "android")]
 use oboe::{
     AudioApi, AudioDeviceDirection, AudioDeviceInfo, AudioDeviceType, AudioFormat,
-    AudioOutputCallback, AudioOutputStreamSafe, AudioStream, AudioStreamAsync, AudioStreamBase,
-    AudioStreamSafe, ChannelCount, ContentType, DataCallbackResult, Output, PerformanceMode,
-    SampleRateConversionQuality, SharingMode, Stereo, Usage,
+    AudioOutputCallback, AudioOutputStream, AudioOutputStreamSafe, AudioStream, AudioStreamAsync,
+    AudioStreamBase, AudioStreamSafe, ChannelCount, ContentType, DataCallbackResult, Output,
+    PerformanceMode, SampleRateConversionQuality, SharingMode, Stereo, Usage,
 };
 use parking_lot::Mutex;
 use serde::Serialize;
@@ -1081,16 +1083,21 @@ impl AudioEngineHandle {
         self.send_command(AudioCommand::Play { path })
     }
 
-    /// Play a track using a pre-created source and decoder thread.
+    /// Play a track using a pre-created source and decoder thread. The returned
+    /// receiver fires once the command thread installs the source, so callers
+    /// can wait outside the engine-manager lock before reporting "playing".
     pub fn play_prepared(
         &self,
         source: AudioSource,
         decoder_handle: DecoderHandle,
-    ) -> Result<(), String> {
+    ) -> Result<Receiver<()>, String> {
+        let (completed, completion) = bounded(1);
         self.send_command(AudioCommand::PlayPrepared {
             source,
             decoder_handle,
-        })
+            completed,
+        })?;
+        Ok(completion)
     }
 
     /// Queue the next track for gapless playback.
@@ -1110,19 +1117,26 @@ impl AudioEngineHandle {
         })
     }
 
-    /// Pause playback.
-    pub fn pause(&self) -> Result<(), String> {
-        self.send_command(AudioCommand::Pause)
+    /// Queue pause. Wait for completion outside the manager lock so synchronous
+    /// state/progress reads cannot block the Dart isolate on an Oboe transition.
+    pub fn pause(&self) -> Result<Receiver<()>, String> {
+        let (completed, completion) = bounded(1);
+        self.send_command(AudioCommand::Pause { completed })?;
+        Ok(completion)
     }
 
-    /// Resume playback.
-    pub fn resume(&self) -> Result<(), String> {
-        self.send_command(AudioCommand::Resume)
+    /// Resume playback, returning the native state-change acknowledgment.
+    pub fn resume(&self) -> Result<Receiver<()>, String> {
+        let (completed, completion) = bounded(1);
+        self.send_command(AudioCommand::Resume { completed })?;
+        Ok(completion)
     }
 
-    /// Stop playback.
-    pub fn stop(&self) -> Result<(), String> {
-        self.send_command(AudioCommand::Stop)
+    /// Queue stop, returning the native output completion acknowledgment.
+    pub fn stop(&self) -> Result<Receiver<()>, String> {
+        let (completed, completion) = bounded(1);
+        self.send_command(AudioCommand::Stop { completed })?;
+        Ok(completion)
     }
 
     /// Seek to a position.
@@ -1856,6 +1870,15 @@ impl AndroidManagedStream {
         }
     }
 
+    fn pause(&mut self) -> Result<(), oboe::Error> {
+        match &mut self.kind {
+            AndroidManagedStreamKind::F32(s) => s.pause(),
+            AndroidManagedStreamKind::I32(s) => s.pause(),
+            AndroidManagedStreamKind::I32Pcm(s) => s.pause(),
+            AndroidManagedStreamKind::I16(s) => s.pause(),
+        }
+    }
+
     fn stop(&mut self) -> Result<(), oboe::Error> {
         match &mut self.kind {
             AndroidManagedStreamKind::F32(s) => s.stop(),
@@ -1866,6 +1889,39 @@ impl AndroidManagedStream {
     }
 }
 
+#[cfg(target_os = "android")]
+impl ManagedOutputStream for AndroidManagedStream {
+    fn start(&mut self) -> Result<(), String> {
+        AndroidManagedStream::start(self).map_err(|error| error.to_string())
+    }
+
+    fn pause(&mut self) -> Result<(), String> {
+        AndroidManagedStream::pause(self).map_err(|error| error.to_string())
+    }
+
+    fn stop(&mut self) {
+        let _ = AndroidManagedStream::stop(self);
+    }
+}
+
+/// Also exercised by the host command-loop tests; no platform calls occur in
+/// the callback. Native output is controlled only from this command thread.
+trait ManagedOutputSupervisor {
+    fn update(&mut self, playback_active: bool, shutdown: &AtomicBool);
+}
+
+fn update_managed_output(
+    supervisor: &mut Option<&mut dyn ManagedOutputSupervisor>,
+    callback_data: &AudioCallbackData,
+    shutdown: &AtomicBool,
+) {
+    if let Some(supervisor) = supervisor.as_mut() {
+        let playback_active =
+            !callback_data.is_paused() && callback_data.sources.lock().current().is_some();
+        supervisor.update(playback_active, shutdown);
+    }
+}
+
 /// Owns the Android-managed Oboe output stream and reopens it when the system
 /// tears it down (audio focus loss, phone call, route change). The shared
 /// `AudioCallbackData` keeps the current source's read position and the decoder
@@ -1873,7 +1929,7 @@ impl AndroidManagedStream {
 /// interrupted instead of jumping to another time.
 #[cfg(target_os = "android")]
 struct ManagedStreamSupervisor {
-    stream: Option<AndroidManagedStream>,
+    output: ManagedStreamLifecycle<AndroidManagedStream>,
     callback_data: Arc<AudioCallbackData>,
     event_tx: Sender<AudioEvent>,
     target_sample_rate: u32,
@@ -1895,8 +1951,11 @@ impl ManagedStreamSupervisor {
         use_integer: bool,
         audio_api_pref: AudioApiPreference,
     ) -> Self {
+        // Exclusive DAP and raw DSD/DoP transports retain their wire keepalive.
+        // Only shared PCM should relinquish Android's active media output.
+        let keep_alive = prefer_exclusive || callback_data.engine_dsd_mode() != EngineDsdMode::Pcm;
         Self {
-            stream: Some(stream),
+            output: ManagedStreamLifecycle::new(stream, keep_alive),
             callback_data,
             event_tx,
             target_sample_rate,
@@ -1908,73 +1967,58 @@ impl ManagedStreamSupervisor {
         }
     }
 
-    fn start(&mut self) -> Result<(), oboe::Error> {
-        match self.stream.as_mut() {
-            Some(s) => s.start(),
-            None => Ok(()),
-        }
-    }
-
     fn stop(&mut self) {
-        if let Some(mut s) = self.stream.take() {
-            let _ = s.stop();
-        }
+        self.output.close();
     }
 
-    /// Drop the disconnected stream and open a fresh one with the same
-    /// parameters. The source position is untouched, so the new stream
-    /// continues from the interrupted sample.
-    fn poll_restart(&mut self, shutdown: &AtomicBool) {
-        if let Some(stream) = self.stream.as_mut() {
-            stream.note_telemetry(&self.callback_data);
-        }
-        if !self.callback_data.stream_restart_requested() {
-            return;
-        }
+    fn reconcile(&mut self, playback_active: bool, shutdown: &AtomicBool) {
         if shutdown.load(Ordering::Acquire) {
             return;
         }
-        if let Some(until) = self.next_retry {
-            if std::time::Instant::now() < until {
-                return;
+        // A per-track raw override can also enable wire silence after engine
+        // creation; never apply shared-PCM suspension to that transport.
+        let playback_active = playback_active
+            || self.callback_data.dop_wire_silence.load(Ordering::Relaxed)
+            || self.callback_data.dsd_wire_silence.load(Ordering::Relaxed);
+        if let Some(stream) = self.output.stream_mut() {
+            stream.note_telemetry(&self.callback_data);
+        }
+
+        // Backoff applies to starting/reopening, never to pausing. A disconnect
+        // while paused can close the old output but must not start a new one.
+        if self.output.should_run(playback_active) {
+            if let Some(until) = self.next_retry {
+                if std::time::Instant::now() < until {
+                    return;
+                }
             }
         }
-        self.callback_data.clear_stream_restart_request();
-
-        if let Some(mut old) = self.stream.take() {
-            let _ = old.stop();
+        let disconnected = self.callback_data.stream_restart_requested();
+        if disconnected {
+            self.callback_data.clear_stream_restart_request();
         }
 
-        log::info!(
-            "[ENGINE] Reopening Oboe output stream after interruption to resume at the interrupted position"
-        );
-        match open_android_output_stream(
-            Arc::clone(&self.callback_data),
-            self.event_tx.clone(),
-            self.target_sample_rate,
-            self.prefer_exclusive,
-            self.use_integer,
-            self.audio_api_pref,
-        ) {
-            Ok(mut new_stream) => match new_stream.start() {
-                Ok(()) => {
-                    self.reopen_failures = 0;
-                    self.next_retry = None;
-                    self.stream = Some(new_stream);
-                    log::info!(
-                        "[ENGINE] Oboe stream reopened; playback resumes from the interrupted position"
-                    );
-                }
-                Err(error) => {
-                    log::warn!(
-                        "[ENGINE] Reopened Oboe stream failed to start: {} (will retry)",
-                        error
-                    );
-                    self.schedule_backoff();
-                }
-            },
+        let result = self.output.reconcile(playback_active, disconnected, || {
+            log::info!("[ENGINE] Reopening Oboe output at the retained source position");
+            open_android_output_stream(
+                Arc::clone(&self.callback_data),
+                self.event_tx.clone(),
+                self.target_sample_rate,
+                self.prefer_exclusive,
+                self.use_integer,
+                self.audio_api_pref,
+            )
+        });
+        match result {
+            Ok(()) => {
+                self.reopen_failures = 0;
+                self.next_retry = None;
+            }
             Err(error) => {
-                log::warn!("[ENGINE] Oboe stream reopen failed: {} (will retry)", error);
+                log::warn!(
+                    "[ENGINE] Managed output transition failed: {} (will retry on playback)",
+                    error
+                );
                 self.schedule_backoff();
             }
         }
@@ -1994,8 +2038,12 @@ impl ManagedStreamSupervisor {
     }
 }
 
-#[cfg(not(target_os = "android"))]
-struct ManagedStreamSupervisor;
+#[cfg(target_os = "android")]
+impl ManagedOutputSupervisor for ManagedStreamSupervisor {
+    fn update(&mut self, playback_active: bool, shutdown: &AtomicBool) {
+        self.reconcile(playback_active, shutdown);
+    }
+}
 
 #[cfg(target_os = "android")]
 pub fn create_audio_engine(
@@ -2915,17 +2963,6 @@ pub fn create_audio_engine(
                     return;
                 }
             };
-
-            if let Err(error) = supervisor.start() {
-                dev_eprintln!("Failed to start Android managed output stream: {}", error);
-                let _ = event_tx.try_send(AudioEvent::Error {
-                    message: format!(
-                        "Failed to start Android managed output stream: {}",
-                        error
-                    ),
-                });
-                return;
-            }
 
             command_processing_loop(
                 command_rx,
@@ -4402,8 +4439,7 @@ fn command_processing_loop(
     decoders: Arc<Mutex<Vec<DecoderHandle>>>,
     sample_rate: u32,
     shutdown: Arc<AtomicBool>,
-    #[cfg_attr(not(target_os = "android"), allow(unused_mut, unused_variables))]
-    mut supervisor: Option<&mut ManagedStreamSupervisor>,
+    mut supervisor: Option<&mut dyn ManagedOutputSupervisor>,
 ) {
     // Throttles the near-end diagnostic to one line per approach so a
     // successor that never becomes ready is visible without log spam.
@@ -4414,14 +4450,7 @@ fn command_processing_loop(
             break;
         }
 
-        // Reopen the Oboe stream if it was disconnected by an interruption
-        // (audio focus loss, phone call, route change). The in-memory source
-        // keeps its read position, so playback resumes exactly where it left
-        // off instead of jumping to another time.
-        #[cfg(target_os = "android")]
-        if let Some(supervisor) = supervisor.as_mut() {
-            supervisor.poll_restart(&shutdown);
-        }
+        update_managed_output(&mut supervisor, &callback_data, &shutdown);
 
         // Check for finished tracks
         while let Ok(source) = finished_rx.try_recv() {
@@ -4457,6 +4486,7 @@ fn command_processing_loop(
                 if sources.current().is_none() {
                     drop(sources);
                     state.store(PlaybackState::Stopped as u8, Ordering::Relaxed);
+                    update_managed_output(&mut supervisor, &callback_data, &shutdown);
                     let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Stopped));
                 }
             }
@@ -4478,6 +4508,7 @@ fn command_processing_loop(
                     AudioCommand::PlayPrepared {
                         source,
                         decoder_handle,
+                        completed,
                     } => {
                         handle_play_prepared(
                             source,
@@ -4488,6 +4519,7 @@ fn command_processing_loop(
                             &event_tx,
                             sample_rate,
                         );
+                        let _ = completed.try_send(());
                     }
                     AudioCommand::QueueNext { path } => {
                         handle_queue_next(path, &callback_data, &decoders, &event_tx, sample_rate);
@@ -4503,7 +4535,8 @@ fn command_processing_loop(
                             &decoders,
                         );
                     }
-                    AudioCommand::Pause => {
+                    AudioCommand::Pause { completed } => {
+                        // When the queue has ended, the current source is
                         // empty and state is already Stopped (see the track-ended
                         // handler above). Blindly flipping to Paused here leaves
                         // resume (audio_resume) silently "playing" nothing, which
@@ -4513,16 +4546,26 @@ fn command_processing_loop(
                         if has_source {
                             callback_data.set_paused(true);
                             state.store(PlaybackState::Paused as u8, Ordering::Relaxed);
+                        }
+                        update_managed_output(&mut supervisor, &callback_data, &shutdown);
+                        if has_source {
                             let _ = event_tx
                                 .try_send(AudioEvent::StateChanged(PlaybackState::Paused));
                         }
+                        let _ = completed.try_send(());
                     }
-                    AudioCommand::Resume => {
-                        callback_data.set_paused(false);
-                        state.store(PlaybackState::Playing as u8, Ordering::Relaxed);
-                        let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Playing));
+                    AudioCommand::Resume { completed } => {
+                        let has_source = callback_data.sources.lock().current().is_some();
+                        if has_source {
+                            callback_data.set_paused(false);
+                            state.store(PlaybackState::Playing as u8, Ordering::Relaxed);
+                            update_managed_output(&mut supervisor, &callback_data, &shutdown);
+                            let _ = event_tx
+                                .try_send(AudioEvent::StateChanged(PlaybackState::Playing));
+                        }
+                        let _ = completed.try_send(());
                     }
-                    AudioCommand::Stop => {
+                    AudioCommand::Stop { completed } => {
                         {
                             let mut sources = callback_data.sources.lock();
                             sources.stop();
@@ -4532,7 +4575,9 @@ fn command_processing_loop(
                         callback_data.pitch_shifter.lock().reset();
                         callback_data.crossfade_active.store(false, Ordering::Relaxed);
                         state.store(PlaybackState::Stopped as u8, Ordering::Relaxed);
+                        update_managed_output(&mut supervisor, &callback_data, &shutdown);
                         let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Stopped));
+                        let _ = completed.try_send(());
                     }
                     AudioCommand::Seek { position_secs } => {
                         handle_seek(
@@ -4764,6 +4809,8 @@ fn command_processing_loop(
                 break;
             }
         }
+
+        update_managed_output(&mut supervisor, &callback_data, &shutdown);
 
         // Report the successor as ready only once it actually holds audio:
         // install time is not readiness, and a stale "ready" makes the Dart
@@ -6160,6 +6207,222 @@ mod tests {
             fade.start();
         }
         data.crossfade_active.store(true, Ordering::Relaxed);
+    }
+
+    struct RecordingManagedOutput {
+        active: Option<bool>,
+        transitions: Sender<bool>,
+    }
+
+    impl ManagedOutputSupervisor for RecordingManagedOutput {
+        fn update(&mut self, playback_active: bool, _shutdown: &AtomicBool) {
+            if self.active != Some(playback_active) {
+                self.active = Some(playback_active);
+                self.transitions.try_send(playback_active).unwrap();
+            }
+        }
+    }
+
+    #[test]
+    fn managed_pause_acknowledges_suspension_and_keeps_position_queue_and_fade() {
+        let (data, finished_rx) = build_callback_data_with_finished(48_000, 2);
+        let data = Arc::new(data);
+        let source = build_source(&[0.1; 100], 48_000, 2);
+        source.set_position_secs(0.25);
+        data.sources.lock().set_current(source);
+        data.sources.lock().queue_next(build_source(&[0.2; 100], 48_000, 2));
+        start_test_fade(&data);
+        let state = Arc::new(AtomicU8::new(PlaybackState::Crossfading as u8));
+        let (command_tx, command_rx) = bounded(8);
+        let (event_tx, _event_rx) = bounded(32);
+        let callback_event_tx = event_tx.clone();
+        let (transition_tx, transition_rx) = bounded(16);
+        let thread_data = data.clone();
+        let thread_state = state.clone();
+        let thread = std::thread::spawn(move || {
+            let mut output = RecordingManagedOutput {
+                active: None,
+                transitions: transition_tx,
+            };
+            command_processing_loop(
+                command_rx,
+                finished_rx,
+                event_tx,
+                thread_data,
+                thread_state,
+                Arc::new(Mutex::new(Vec::new())),
+                48_000,
+                Arc::new(AtomicBool::new(false)),
+                Some(&mut output),
+            );
+        });
+        let timeout = std::time::Duration::from_secs(2);
+        assert!(transition_rx.recv_timeout(timeout).unwrap());
+
+        let (completed, completion) = bounded(1);
+        command_tx.send(AudioCommand::Pause { completed }).unwrap();
+        completion.recv_timeout(timeout).unwrap();
+        assert!(!transition_rx
+            .try_recv()
+            .expect("output suspended before pause completes"));
+        assert_eq!(state.load(Ordering::Relaxed), PlaybackState::Paused as u8);
+        {
+            let sources = data.sources.lock();
+            assert_eq!(sources.current().unwrap().position_secs(), 0.25);
+            assert!(sources.has_next());
+        }
+        assert!(data.crossfader.lock().is_active());
+        let mut silence = [1.0f32; 8];
+        audio_callback(&mut silence, &data, &callback_event_tx);
+        assert_eq!(silence, [0.0; 8]);
+        assert_eq!(data.sources.lock().current().unwrap().position_secs(), 0.25);
+
+        let (completed, completion) = bounded(1);
+        command_tx.send(AudioCommand::Resume { completed }).unwrap();
+        completion.recv_timeout(timeout).unwrap();
+        assert_eq!(state.load(Ordering::Relaxed), PlaybackState::Playing as u8);
+        assert!(transition_rx.recv_timeout(timeout).unwrap());
+        assert!(!data.is_paused());
+        let (completed, completion) = bounded(1);
+        command_tx.send(AudioCommand::Stop { completed }).unwrap();
+        completion.recv_timeout(timeout).unwrap();
+        assert!(!transition_rx.try_recv().unwrap());
+
+        // Resume without a source must not reactivate a silent media stream.
+        let (completed, completion) = bounded(1);
+        command_tx.send(AudioCommand::Resume { completed }).unwrap();
+        completion.recv_timeout(timeout).unwrap();
+        let (completed, completion) = bounded(1);
+        command_tx.send(AudioCommand::Pause { completed }).unwrap();
+        completion.recv_timeout(timeout).unwrap();
+        assert!(transition_rx.try_recv().is_err());
+        assert_eq!(state.load(Ordering::Relaxed), PlaybackState::Stopped as u8);
+        command_tx.send(AudioCommand::Shutdown).unwrap();
+        thread.join().unwrap();
+    }
+
+    #[test]
+    fn managed_fresh_and_prepared_play_restart_output_after_stop() {
+        let (path, unused_path) = seek_test_fixtures("managed_play");
+        let (data, finished_rx) = build_callback_data_with_finished(48_000, 2);
+        let data = Arc::new(data);
+        let thread_data = data.clone();
+        let (command_tx, command_rx) = bounded(8);
+        let (event_tx, _event_rx) = bounded(32);
+        let (transition_tx, transition_rx) = bounded(16);
+        let state = Arc::new(AtomicU8::new(PlaybackState::Idle as u8));
+        let thread_state = state.clone();
+        let thread = std::thread::spawn(move || {
+            let mut output = RecordingManagedOutput {
+                active: None,
+                transitions: transition_tx,
+            };
+            command_processing_loop(
+                command_rx,
+                finished_rx,
+                event_tx,
+                thread_data,
+                thread_state,
+                Arc::new(Mutex::new(Vec::new())),
+                48_000,
+                Arc::new(AtomicBool::new(false)),
+                Some(&mut output),
+            );
+        });
+        let timeout = std::time::Duration::from_secs(2);
+        assert!(!transition_rx.recv_timeout(timeout).unwrap());
+        command_tx
+            .send(AudioCommand::Play { path: path.clone() })
+            .unwrap();
+        assert!(transition_rx.recv_timeout(timeout).unwrap());
+        let (completed, completion) = bounded(1);
+        command_tx.send(AudioCommand::Stop { completed }).unwrap();
+        completion.recv_timeout(timeout).unwrap();
+        assert!(!transition_rx.try_recv().unwrap());
+
+        let (source, decoder_handle) = spawn_decoder(path.clone(), 48_000, 2, None, &data).unwrap();
+        let (completed, completion) = bounded(1);
+        command_tx
+            .send(AudioCommand::PlayPrepared {
+                source,
+                decoder_handle,
+                completed,
+            })
+            .unwrap();
+        completion.recv_timeout(timeout).unwrap();
+        assert_eq!(state.load(Ordering::Relaxed), PlaybackState::Playing as u8);
+        // A pause requested immediately after play returns must take effect
+        // once, even if the managed output is still finishing its startup.
+        let (completed, completion) = bounded(1);
+        command_tx.send(AudioCommand::Pause { completed }).unwrap();
+        completion.recv_timeout(timeout).unwrap();
+        assert_eq!(state.load(Ordering::Relaxed), PlaybackState::Paused as u8);
+        assert!(data.is_paused());
+        assert!(transition_rx.recv_timeout(timeout).unwrap());
+        assert!(!transition_rx.recv_timeout(timeout).unwrap());
+        command_tx.send(AudioCommand::Shutdown).unwrap();
+        thread.join().unwrap();
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(unused_path);
+    }
+
+    #[test]
+    fn managed_output_stays_active_through_gapless_and_suspends_at_queue_end() {
+        let (data, finished_rx) = build_callback_data_with_finished(48_000, 2);
+        let data = Arc::new(data);
+        data.sources
+            .lock()
+            .set_current(build_source(&[0.1; 100], 48_000, 2));
+        data.sources
+            .lock()
+            .queue_next(build_source(&[0.2; 100], 48_000, 2));
+        let thread_data = data.clone();
+        let (command_tx, command_rx) = bounded(8);
+        let (event_tx, event_rx) = bounded(32);
+        let (transition_tx, transition_rx) = bounded(16);
+        let thread = std::thread::spawn(move || {
+            let mut output = RecordingManagedOutput {
+                active: None,
+                transitions: transition_tx,
+            };
+            command_processing_loop(
+                command_rx,
+                finished_rx,
+                event_tx,
+                thread_data,
+                Arc::new(AtomicU8::new(PlaybackState::Playing as u8)),
+                Arc::new(Mutex::new(Vec::new())),
+                48_000,
+                Arc::new(AtomicBool::new(false)),
+                Some(&mut output),
+            );
+        });
+        let timeout = std::time::Duration::from_secs(2);
+        assert!(transition_rx.recv_timeout(timeout).unwrap());
+
+        let finished = data.sources.lock().advance_to_next().unwrap();
+        data.finished_tracks.send(finished).unwrap();
+        while !matches!(
+            event_rx.recv_timeout(timeout).unwrap(),
+            AudioEvent::TrackEnded { .. }
+        ) {}
+        assert!(
+            transition_rx.try_recv().is_err(),
+            "gapless must not pause output"
+        );
+        assert!(data.sources.lock().current().is_some());
+
+        let finished = data.sources.lock().advance_to_next().unwrap();
+        data.finished_tracks.send(finished).unwrap();
+        while !matches!(
+            event_rx.recv_timeout(timeout).unwrap(),
+            AudioEvent::StateChanged(PlaybackState::Stopped)
+        ) {}
+        assert!(!transition_rx
+            .try_recv()
+            .expect("queue end must suspend output"));
+        command_tx.send(AudioCommand::Shutdown).unwrap();
+        thread.join().unwrap();
     }
 
     #[test]
