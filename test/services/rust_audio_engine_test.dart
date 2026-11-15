@@ -21,7 +21,21 @@ class FakeRustAudioService implements RustAudioService {
   final plays = <PlayCall>[];
   final httpPlays = <PlayCall>[];
   final seeks = <Duration>[];
+  @override
+  String? currentPath;
   bool failHttp = false;
+  int resumes = 0;
+
+  @override
+  Future<void> pause() async {
+    stateNotifier.value = RustPlaybackState.paused;
+  }
+
+  @override
+  Future<void> resume() async {
+    resumes++;
+    stateNotifier.value = RustPlaybackState.playing;
+  }
 
   @override
   Future<void> play(String path, {double? startSecs, double? endSecs}) async {
@@ -161,5 +175,118 @@ void main() {
     expect(states.last.position, const Duration(seconds: 3));
     expect(states.last.duration, const Duration(milliseconds: 18001));
     await subscription.cancel();
+  });
+
+  test('track switch during playback restores the playing UI state', () async {
+    final states = <PlaybackState>[];
+    final subscription = engine.playbackStateStream.listen(states.add);
+    await engine.load(track());
+    await engine.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(states.last.isPlaying, isTrue);
+
+    // The native stream never stopped, so play() does not change the Rust
+    // state notifier; the engine must still emit the accepted playing state.
+    await engine.load(track(start: 13000, end: 31000));
+    await Future<void>.delayed(Duration.zero);
+    expect(states.last.isPlaying, isFalse);
+    await engine.play();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(service.stateNotifier.value, RustPlaybackState.playing);
+    expect(states.last.isPlaying, isTrue);
+    await subscription.cancel();
+  });
+
+  group('managed audio focus', () {
+    late bool granted;
+    late int requests;
+    late bool useHttp;
+
+    setUp(() async {
+      await engine.dispose();
+      granted = true;
+      requests = 0;
+      useHttp = true;
+      engine = RustAudioEngine(
+        playbackMode: AudioEngineType.rustOboe,
+        rustAudioService: service,
+        ensureInitialized: () async {},
+        resolvePlaybackPath: (song) async => song.filePath,
+        resolveHttpSource: (_) async {
+          if (!useHttp) return null;
+          return (
+            url: 'https://example.test/album.flac',
+            headers: const <String, String>{},
+          );
+        },
+        disposeEngine: () async {},
+        requestAudioFocus: () async {
+          requests++;
+          expect(service.stateNotifier.value, isNot(RustPlaybackState.playing));
+          return granted;
+        },
+      );
+    });
+
+    test('play without a source does not acquire focus', () async {
+      await expectLater(engine.play(), throwsStateError);
+      expect(requests, 0);
+    });
+
+    for (final http in [false, true]) {
+      test(
+        'loading does not acquire focus and denied play can be retried, HTTP=$http',
+        () async {
+          useHttp = http;
+          await engine.load(track());
+          expect(requests, 0);
+          granted = false;
+          await engine.play();
+          expect(service.plays, isEmpty);
+          expect(service.httpPlays, isEmpty);
+          expect(service.resumes, 0);
+
+          granted = true;
+          await engine.play();
+          expect(requests, 2);
+          expect(service.httpPlays, http ? hasLength(1) : isEmpty);
+          expect(service.plays, http ? isEmpty : hasLength(1));
+        },
+      );
+    }
+
+    test(
+      'every resume reacquires focus without reloading or seeking',
+      () async {
+        await engine.load(track());
+        await engine.play();
+        service.positionNotifier.value = const Duration(seconds: 7);
+        await engine.pause();
+        granted = false;
+        await engine.play();
+        expect(service.resumes, 0);
+        expect(service.stateNotifier.value, RustPlaybackState.paused);
+
+        granted = true;
+        await engine.play();
+        expect(requests, 3);
+        expect(service.resumes, 1);
+        expect(service.httpPlays, hasLength(1));
+        expect(service.seeks, isEmpty);
+        expect(service.positionNotifier.value, const Duration(seconds: 7));
+      },
+    );
+
+    test('a fresh track on a reused engine also requests focus', () async {
+      await engine.load(track());
+      await engine.play();
+      await engine.pause();
+      await engine.load(track(start: 13000, end: 31000));
+      await engine.play();
+      expect(requests, 2);
+      expect(service.httpPlays, hasLength(2));
+      expect(service.resumes, 0);
+    });
   });
 }
