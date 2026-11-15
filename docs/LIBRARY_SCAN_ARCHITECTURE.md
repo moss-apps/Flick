@@ -37,6 +37,7 @@ The decision is pure and unit-tested (`test/services/library_scanner_routing_tes
 - `queryMediaStoreDeletions()` — files removed since last scan
 - Differential sync: only `NEW`/`MODIFIED` entries proceed to metadata extraction
 - Background pass: `_enrichMediaStoreSidecarsInBackground()` parses CUE sheets and rip logs
+- Multi-FILE CUE sheets are split per `FILE` block and each block resolves to a discovered audio file in its own directory (unique same-stem fallback for converted `.wav` → `.flac` rips), so one-track-per-file sheets never collapse onto the final file path
 
 ### Tier 2 — Rust File Scanner (Legacy)
 
@@ -179,6 +180,12 @@ Both share `_scanFolderAndroid`'s prefix: traverse → diff → compute new/modi
 **Enrichment (`_enrichSafMetadataInBackground`)** — real tags via `MediaMetadataRetriever` in chunks; full ignore filter (deletes too-short entries); technical fields (`durationMs`/`bitrate`/`bitDepth`/`sampleRate`/`metadataComplete`) always refreshed; text fields refreshed only if `!hasLocalEdits`.
 
 **Accurate (`_scanFolderAndroid`, `deferMetadata: false`)** — deep scans: foreground `MediaMetadataRetriever` loop before returning, so CUE splitting and duration filtering complete up front.
+
+### Folder-path recording (`SongEntity.relativeFolderPath`)
+
+Folder browsing groups songs by their immediate directory under the selected root. Every engine records that path at scan time: SAF uses the walker's `relativePath`; MediaStore and Rust derive it from the resolved filesystem root with `relativeFolderPathFor()`. `''` means directly under the scan root; `null` means unresolved.
+
+Before the unchanged-file skip, each Android scan also backfills this field on existing rows. Libraries imported before the field existed therefore repair in place on the next ordinary rescan, preserving row ids and local edits.
 
 
 
