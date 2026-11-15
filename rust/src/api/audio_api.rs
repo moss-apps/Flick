@@ -1405,10 +1405,11 @@ pub fn audio_play(
                 DsdDecoderThread::spawn(path, effective_mode, output_sample_rate, output_channels)
                     .map_err(|e| format!("Failed to decode DSD: {}", e))?;
             let is_raw = matches!(effective_mode, DsdOutputMode::Dop | DsdOutputMode::Native);
-            with_audio_engine(|handle| {
+            let completion = with_audio_engine(|handle| {
                 handle.set_dop_override(is_raw)?;
                 handle.play_prepared(source, DecoderHandle::Dsd(thread))
-            })
+            })?;
+            wait_for_native_completion(completion, "Audio play")
         }
         crate::audio::decoder_handle::FileType::WavPack => {
             clear_dsd_track_rate();
@@ -1424,6 +1425,7 @@ pub fn audio_play(
                 engine.set_dop_override(false)?;
                 engine.play_prepared(source, handle)
             })
+            .and_then(|completion| wait_for_native_completion(completion, "Audio play"))
         }
         crate::audio::decoder_handle::FileType::Standard => {
             clear_dsd_track_rate();
@@ -1459,6 +1461,7 @@ pub fn audio_play(
                 handle.set_dop_override(false)?;
                 handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
             })
+            .and_then(|completion| wait_for_native_completion(completion, "Audio play"))
         }
     }
 }
@@ -1706,6 +1709,7 @@ pub fn audio_play_from_http(
         handle.set_dop_override(false)?;
         handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
     })
+    .and_then(|completion| wait_for_native_completion(completion, "Audio play"))
 }
 
 /// Queue a remote HTTP stream as the next track for gapless playback.
@@ -1791,18 +1795,35 @@ pub fn audio_queue_next_from_http(
 
 /// Pause playback.
 pub fn audio_pause() -> Result<(), String> {
-    with_audio_engine(|handle| handle.pause())
+    let completion = with_audio_engine(|handle| handle.pause())?;
+    // FRB waits on its worker, without holding the engine manager lock. Focus
+    // must not be abandoned until native output has actually suspended.
+    wait_for_native_completion(completion, "Audio pause")
 }
 
 /// Resume playback after pause.
 pub fn audio_resume() -> Result<(), String> {
-    with_audio_engine(|handle| handle.resume())
+    let completion = with_audio_engine(|handle| handle.resume())?;
+    // The Dart progress timer reads the cached native state every 50 ms. Wait
+    // until `Resume` has been applied so the optimistic "playing" state cannot
+    // be overwritten by a stale "paused" snapshot.
+    wait_for_native_completion(completion, "Audio resume")
 }
 
 /// Stop playback completely.
 pub fn audio_stop() -> Result<(), String> {
     clear_dsd_track_rate();
-    with_audio_engine(|handle| handle.stop())
+    let completion = with_audio_engine(|handle| handle.stop())?;
+    wait_for_native_completion(completion, "Audio stop")
+}
+
+fn wait_for_native_completion(
+    completion: crossbeam_channel::Receiver<()>,
+    action: &str,
+) -> Result<(), String> {
+    completion
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .map_err(|error| format!("{action} did not complete: {error}"))
 }
 
 /// Seek to a position in the current track.

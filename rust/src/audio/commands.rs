@@ -12,10 +12,12 @@ use std::path::PathBuf;
 pub enum AudioCommand {
     /// Load and play a track immediately
     Play { path: PathBuf },
-    /// Load and play a track using a pre-probed decoder/source pair.
+    /// Load and play a track using a pre-probed decoder/source pair, then
+    /// acknowledge that the engine has left the previous playback state.
     PlayPrepared {
         source: AudioSource,
         decoder_handle: DecoderHandle,
+        completed: crossbeam_channel::Sender<()>,
     },
     /// Queue a track for gapless playback (starts when current ends)
     QueueNext { path: PathBuf },
@@ -24,12 +26,18 @@ pub enum AudioCommand {
         source: AudioSource,
         decoder_handle: DecoderHandle,
     },
-    /// Pause playback (maintains position)
-    Pause,
-    /// Resume playback from paused position
-    Resume,
+    /// Pause playback (maintains position), acknowledging output suspension.
+    Pause {
+        completed: crossbeam_channel::Sender<()>,
+    },
+    /// Resume playback from paused position, acknowledging the state change.
+    Resume {
+        completed: crossbeam_channel::Sender<()>,
+    },
     /// Stop playback completely and clear buffers
-    Stop,
+    Stop {
+        completed: crossbeam_channel::Sender<()>,
+    },
     /// Seek to a position in seconds
     Seek { position_secs: f64 },
     /// Set the main volume (0.0 to 1.0)

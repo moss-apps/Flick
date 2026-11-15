@@ -23,6 +23,9 @@ class CueTrack {
 }
 
 /// Parsed CUE sheet.
+///
+/// A sheet with multiple `FILE` blocks yields one [CueSheet] per block:
+/// [audioFile] is that block's file and [tracks] holds only its tracks.
 class CueSheet {
   final String? performer;
   final String? title;
@@ -76,8 +79,12 @@ class CueFileService {
     caseSensitive: false,
   );
 
-  /// Parse a CUE sheet from raw text.
-  CueSheet? parseCueSheet(String content, {required String cueFilePath}) {
+  /// Parse every `FILE` block in [content].
+  ///
+  /// Tracks and end offsets stay inside their own block. Collapsing them onto
+  /// the last file would give every track the same `(filePath, startOffsetMs)`
+  /// key for one-track-per-file rips and violate the song unique index.
+  List<CueSheet> parseCueSheets(String content, {required String cueFilePath}) {
     final lines = content
         .replaceAll('\r\n', '\n')
         .replaceAll('\r', '\n')
@@ -88,13 +95,52 @@ class CueFileService {
     String? globalTitle;
     String? globalDate;
     String? globalGenre;
-    String? currentAudioFile;
+    _CueFileBlock? currentFile;
 
-    final tracks = <CueTrack>[];
+    final sheets = <CueSheet>[];
     String? currentTrackTitle;
     String? currentTrackPerformer;
     int? currentTrackNumber;
     int? currentTrackIndexMs;
+
+    void finishTrack() {
+      final block = currentFile;
+      final trackNumber = currentTrackNumber;
+      final startOffsetMs = currentTrackIndexMs;
+      if (block != null && trackNumber != null && startOffsetMs != null) {
+        block.tracks.add(
+          CueTrack(
+            trackNumber: trackNumber,
+            title: currentTrackTitle ?? 'Track $trackNumber',
+            performer: currentTrackPerformer ?? globalPerformer ?? '',
+            startOffsetMs: startOffsetMs,
+            endOffsetMs: null,
+          ),
+        );
+      }
+      currentTrackNumber = null;
+      currentTrackTitle = null;
+      currentTrackPerformer = null;
+      currentTrackIndexMs = null;
+    }
+
+    void finishFile() {
+      finishTrack();
+      final block = currentFile;
+      if (block != null && block.tracks.isNotEmpty) {
+        sheets.add(
+          CueSheet(
+            performer: globalPerformer,
+            title: globalTitle,
+            date: globalDate,
+            genre: globalGenre,
+            audioFile: block.audioFile,
+            tracks: _withEndOffsets(block.tracks),
+          ),
+        );
+      }
+      currentFile = null;
+    }
 
     for (var raw in lines) {
       final line = raw.trim();
@@ -102,7 +148,8 @@ class CueFileService {
 
       final fileMatch = _filePattern.firstMatch(line);
       if (fileMatch != null) {
-        currentAudioFile = fileMatch.group(1);
+        finishFile();
+        currentFile = _CueFileBlock(fileMatch.group(1)!);
         continue;
       }
 
@@ -146,22 +193,8 @@ class CueFileService {
 
       final trackMatch = _trackPattern.firstMatch(line);
       if (trackMatch != null) {
-        // Finalize previous track
-        if (currentTrackNumber != null && currentTrackIndexMs != null) {
-          tracks.add(
-            CueTrack(
-              trackNumber: currentTrackNumber,
-              title: currentTrackTitle ?? 'Track $currentTrackNumber',
-              performer: currentTrackPerformer ?? globalPerformer ?? '',
-              startOffsetMs: currentTrackIndexMs,
-              endOffsetMs: null,
-            ),
-          );
-        }
+        finishTrack();
         currentTrackNumber = int.tryParse(trackMatch.group(1) ?? '');
-        currentTrackTitle = null;
-        currentTrackPerformer = null;
-        currentTrackIndexMs = null;
         continue;
       }
 
@@ -181,52 +214,52 @@ class CueFileService {
       }
     }
 
-    // Finalize last track
-    if (currentTrackNumber != null && currentTrackIndexMs != null) {
-      tracks.add(
+    finishFile();
+    return sheets;
+  }
+
+  /// Parse the first `FILE` block.
+  ///
+  /// Kept for callers that only need the common single-image sheet; use
+  /// [parseCueSheets] when the sheet may reference more than one audio file.
+  CueSheet? parseCueSheet(String content, {required String cueFilePath}) {
+    final sheets = parseCueSheets(content, cueFilePath: cueFilePath);
+    return sheets.isEmpty ? null : sheets.first;
+  }
+
+  List<CueTrack> _withEndOffsets(List<CueTrack> tracks) {
+    return [
+      for (var i = 0; i < tracks.length; i++)
         CueTrack(
-          trackNumber: currentTrackNumber,
-          title: currentTrackTitle ?? 'Track $currentTrackNumber',
-          performer: currentTrackPerformer ?? globalPerformer ?? '',
-          startOffsetMs: currentTrackIndexMs,
-          endOffsetMs: null,
+          trackNumber: tracks[i].trackNumber,
+          title: tracks[i].title,
+          performer: tracks[i].performer,
+          startOffsetMs: tracks[i].startOffsetMs,
+          endOffsetMs: i + 1 < tracks.length
+              ? tracks[i + 1].startOffsetMs
+              : null,
         ),
-      );
-    }
-
-    // Compute end offsets from next track starts
-    for (var i = 0; i < tracks.length - 1; i++) {
-      tracks[i] = CueTrack(
-        trackNumber: tracks[i].trackNumber,
-        title: tracks[i].title,
-        performer: tracks[i].performer,
-        startOffsetMs: tracks[i].startOffsetMs,
-        endOffsetMs: tracks[i + 1].startOffsetMs,
-      );
-    }
-
-    if (currentAudioFile == null || tracks.isEmpty) {
-      return null;
-    }
-
-    return CueSheet(
-      performer: globalPerformer,
-      title: globalTitle,
-      date: globalDate,
-      genre: globalGenre,
-      audioFile: currentAudioFile,
-      tracks: tracks,
-    );
+    ];
   }
 
   /// Resolve the audio file path relative to the CUE file.
+  ///
+  /// Relative paths (including subdirectories) are joined to the CUE's
+  /// directory. Backslashes are normalized to `/` because Android paths use
+  /// them even when the sheet was authored on Windows.
   String resolveAudioFilePath(String cueFilePath, String audioFile) {
-    if (audioFile.contains('/') || audioFile.contains('\\')) {
-      return audioFile;
-    }
-    final separator = cueFilePath.contains('\\') ? '\\' : '/';
-    final lastSep = cueFilePath.lastIndexOf(separator);
-    if (lastSep == -1) return audioFile;
-    return cueFilePath.substring(0, lastSep + 1) + audioFile;
+    final normalizedAudio = audioFile.replaceAll('\\', '/');
+    if (normalizedAudio.startsWith('/')) return normalizedAudio;
+    final normalizedCue = cueFilePath.replaceAll('\\', '/');
+    final lastSep = normalizedCue.lastIndexOf('/');
+    if (lastSep == -1) return normalizedAudio;
+    return '${normalizedCue.substring(0, lastSep + 1)}$normalizedAudio';
   }
+}
+
+class _CueFileBlock {
+  final String audioFile;
+  final List<CueTrack> tracks = [];
+
+  _CueFileBlock(this.audioFile);
 }
