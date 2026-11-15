@@ -92,8 +92,8 @@ class AudioFileInfo {
 
   /// Directory path relative to the scanned root, recorded by the SAF walker
   /// using on-disk display names ('Hindi/Album'; '' directly under the root).
-  /// Null when the source cannot provide it (MediaStore, Rust walks), in which
-  /// case callers reconstruct the path from URIs instead.
+  /// Null when the source cannot provide it (MediaStore, Rust walks); the
+  /// scanner records it from the resolved scan root in that case.
   final String? relativeFolderPath;
 
   AudioFileInfo({
