@@ -100,6 +100,17 @@ const _song = Song(
   bitDepth: 16,
 );
 
+const _songB = Song(
+  id: 'checkpoint-song-b',
+  title: 'Checkpoint Song B',
+  artist: 'Test Artist',
+  duration: Duration(minutes: 4),
+  fileType: 'FLAC',
+  filePath: '/tmp/checkpoint-song-b.flac',
+  sampleRate: 44100,
+  bitDepth: 16,
+);
+
 String _isarCorePath() {
   final override = Platform.environment['ISAR_CORE_LIB'];
   if (override != null) return override;
@@ -279,5 +290,54 @@ void main() {
     } finally {
       player.stopPositionSaveTimerForTesting();
     }
+  });
+
+  testWidgets('checkpoints only rewrite playlist JSON when it changes', (
+    tester,
+  ) async {
+    final player = createPlayer();
+    player.setPlaybackContextForTesting([_song, _songB], currentIndex: 0);
+    player.isPlayingNotifier.value = true;
+    player.positionNotifier.value = const Duration(milliseconds: 1000);
+
+    await player.persistLastPlayed();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(jsonDecode(prefs.getString('last_played_playlist_song_ids')!), [
+      _song.id,
+      _songB.id,
+    ]);
+    expect(prefs.getInt('last_played_playlist_index'), 0);
+
+    await prefs.setString('last_played_playlist_song_ids', '["sentinel"]');
+    await prefs.setInt('last_played_playlist_index', 9);
+
+    // Position-only checkpoint keeps the playlist JSON and index untouched.
+    player.positionNotifier.value = const Duration(milliseconds: 6000);
+    await player.persistLastPlayed();
+    expect(prefs.getString('last_played_playlist_song_ids'), '["sentinel"]');
+    expect(prefs.getInt('last_played_playlist_index'), 9);
+    expect(await _savedPositionMs(), 6000);
+
+    // A track change writes only the index.
+    player.setCurrentIndexForTesting(1);
+    await player.persistLastPlayed();
+    expect(prefs.getString('last_played_playlist_song_ids'), '["sentinel"]');
+    expect(prefs.getInt('last_played_playlist_index'), 1);
+
+    // Restore index 0, then remove the second queue item.
+    player.setCurrentIndexForTesting(0);
+    await player.persistLastPlayed();
+    expect(prefs.getString('last_played_playlist_song_ids'), '["sentinel"]');
+    expect(prefs.getInt('last_played_playlist_index'), 0);
+
+    await player.removeFromUpNext(0);
+    await player.persistLastPlayed();
+    expect(jsonDecode(prefs.getString('last_played_playlist_song_ids')!), [
+      _song.id,
+    ]);
+
+    // Drain the queue-change debounce scheduled by removeFromUpNext.
+    await tester.pump(const Duration(milliseconds: 200));
   });
 }

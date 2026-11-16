@@ -7572,6 +7572,18 @@ class PlayerService {
   }
 
   @visibleForTesting
+  void setPlaybackContextForTesting(
+    List<Song> songs, {
+    int currentIndex = 0,
+  }) {
+    _replacePlaybackContext(songs);
+    _setCurrentIndex(currentIndex);
+  }
+
+  @visibleForTesting
+  void setCurrentIndexForTesting(int index) => _setCurrentIndex(index);
+
+  @visibleForTesting
   bool get isPositionSaveTimerRunning => _positionSaveTimer?.isActive ?? false;
 
   @visibleForTesting
