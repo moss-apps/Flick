@@ -83,6 +83,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   double _dragOffset = 0.0;
   DateTime _lastDragUpdate = DateTime.now();
   static const double _backGestureEdgeWidth = 32.0;
+  static const Duration _positionThrottleInterval = Duration(milliseconds: 250);
 
   late final ValueNotifier<Duration> _throttledPositionNotifier;
   final ValueNotifier<Duration> _zeroPosition = ValueNotifier(Duration.zero);
@@ -118,9 +119,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     _throttledPositionNotifier = ValueNotifier(
       _playerService.positionNotifier.value,
     );
-    _positionThrottleTimer = Timer.periodic(const Duration(milliseconds: 50), (
-      timer,
-    ) {
+    _positionThrottleTimer = Timer.periodic(_positionThrottleInterval, (timer) {
       if (mounted) {
         final newPosition = _playerService.positionNotifier.value;
         if (_throttledPositionNotifier.value != newPosition) {
@@ -1636,7 +1635,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                     ),
                                     child: ValueListenableBuilder<Duration>(
                                       valueListenable:
-                                          _playerService.positionNotifier,
+                                          _throttledPositionNotifier,
                                       builder: (context, position, _) {
                                         return ValueListenableBuilder<Duration>(
                                           valueListenable:
@@ -1694,6 +1693,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   playerService: _playerService,
                   formatDuration: formatDuration,
                   currentSong: song,
+                  positionNotifier: _throttledPositionNotifier,
                   onPrevious: _animateToPreviousSong,
                   onNext: _animateToNextSong,
                   timelineHorizontalPadding:
@@ -1904,7 +1904,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   if (_isLyricsMode) ...[
                     const SizedBox(height: 6),
                     ValueListenableBuilder<Duration>(
-                      valueListenable: _playerService.positionNotifier,
+                      valueListenable: _throttledPositionNotifier,
                       builder: (context, position, _) {
                         return ValueListenableBuilder<Duration>(
                           valueListenable: _playerService.durationNotifier,
@@ -1928,6 +1928,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                     playerService: _playerService,
                     formatDuration: formatDuration,
                     currentSong: song,
+                    positionNotifier: _throttledPositionNotifier,
                     onPrevious: _animateToPreviousSong,
                     onNext: _animateToNextSong,
                     timelineHorizontalPadding: 4,
