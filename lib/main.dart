@@ -30,6 +30,8 @@ Future<void> main() async {
 
   await AppLog.instance.initializePersistence();
   await Uac2PreferencesService().initializeDeveloperModeCache();
+  // Follows developer mode and installs the frame-timing callback only while
+  // it is enabled, so normal use pays no per-frame collection cost.
   FrameTimingsMonitor.instance.start();
 
   // Resolve the UI language before anything can produce a user-visible string.
