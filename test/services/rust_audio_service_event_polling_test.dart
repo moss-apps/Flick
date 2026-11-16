@@ -31,4 +31,35 @@ void main() {
       }
     });
   });
+
+  group('RustAudioService state refresh fallback', () {
+    test('waits for the slow interval before rereading engine state', () {
+      expect(
+        RustAudioService.isStateRefreshFallbackDue(Duration.zero),
+        isFalse,
+      );
+      expect(
+        RustAudioService.isStateRefreshFallbackDue(
+          const Duration(milliseconds: 1999),
+        ),
+        isFalse,
+      );
+      expect(
+        RustAudioService.isStateRefreshFallbackDue(const Duration(seconds: 2)),
+        isTrue,
+      );
+    });
+
+    test('is slower than every event polling cadence', () {
+      for (final state in RustPlaybackState.values) {
+        expect(
+          RustAudioService.isStateRefreshFallbackDue(
+            RustAudioService.eventPollIntervalForState(state),
+          ),
+          isFalse,
+          reason: '$state event polling must not trigger the fallback',
+        );
+      }
+    });
+  });
 }

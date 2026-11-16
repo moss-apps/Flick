@@ -59,9 +59,15 @@ class RustAudioService {
   static const _activeEventPollInterval = Duration(milliseconds: 50);
   static const _idleEventPollInterval = Duration(milliseconds: 500);
 
+  /// Slow safety net for a dropped `stateChanged` event. Normal state updates
+  /// arrive through the event poll; this only rereads the engine after no
+  /// state refresh has happened for this long.
+  static const _stateRefreshFallbackInterval = Duration(seconds: 2);
+
   Timer? _progressTimer;
   Timer? _eventPollTimer;
   Duration? _eventPollInterval;
+  final Stopwatch _stateRefreshClock = Stopwatch();
   bool _initialized = false;
   bool _highResModeEnabled = false;
   SourceIdentity? _currentSource;
@@ -116,7 +122,10 @@ class RustAudioService {
       _initialized = true;
       devLog('Rust audio engine manager initialized');
 
-      // Start event polling
+      // Start event polling and the slow state-refresh fallback clock.
+      _stateRefreshClock
+        ..reset()
+        ..start();
       _startEventPolling();
       return true;
     } catch (e) {
@@ -601,6 +610,9 @@ class RustAudioService {
 
     _stopProgressUpdates();
     _stopEventPolling();
+    _stateRefreshClock
+      ..stop()
+      ..reset();
     await rust_audio.audioShutdown();
     _initialized = false;
   }
@@ -608,10 +620,8 @@ class RustAudioService {
   /// Start periodic progress updates.
   ///
   /// Note: Uses background timer (not during build) to avoid blocking UI.
-  /// The Rust getters (audioGetProgress, audioGetState) are designed to be
-  /// cheap read-only operations that return cached state - no blocking I/O.
-  /// If progress updates ever cause frame drops, the Rust side should batch
-  /// state into a single struct to reduce FFI call overhead.
+  /// Each tick reads only audioGetProgress(); playback state changes arrive
+  /// as audioPollEvent stateChanged events, with a slow fallback refresh.
   void _startProgressUpdates({bool fast = true}) {
     _stopProgressUpdates();
 
@@ -637,7 +647,6 @@ class RustAudioService {
     if (progress != null) {
       final positionSecs = progress.positionSecs;
       if (!positionSecs.isFinite || positionSecs < 0) {
-        _updateState();
         return;
       }
       final newPositionMs = (positionSecs * 1000).round();
@@ -671,15 +680,37 @@ class RustAudioService {
         bufferLevelNotifier.value = newBufferLevel;
       }
     }
-
-    // Also update state
-    _updateState();
+    // Playback state is event-driven; _refreshStateIfFallbackDue() repairs a
+    // missed transition without adding an FFI call to every progress tick.
   }
 
   /// Update playback state from the Rust engine.
-  void _updateState() {
-    final stateStr = rust_audio.audioGetState();
-    _setPlaybackState(_parseState(stateStr));
+  ///
+  /// [stopProgressWhenInactive] is set by event-driven and fallback refreshes.
+  /// Command paths leave the progress timer alone because they explicitly
+  /// start or stop it around the command.
+  void _updateState({bool stopProgressWhenInactive = false}) {
+    final nextState = _parseState(rust_audio.audioGetState());
+    _setPlaybackState(nextState);
+    if (stopProgressWhenInactive &&
+        (nextState == RustPlaybackState.stopped ||
+            nextState == RustPlaybackState.idle)) {
+      _stopProgressUpdates();
+    }
+    _stateRefreshClock.reset();
+  }
+
+  /// Whether the slow state-refresh fallback is due.
+  ///
+  /// Events drive normal state updates; this only repairs a missed transition.
+  @visibleForTesting
+  static bool isStateRefreshFallbackDue(Duration elapsed) =>
+      elapsed >= _stateRefreshFallbackInterval;
+
+  /// Repair a dropped state transition without polling state on every tick.
+  void _refreshStateIfFallbackDue() {
+    if (!isStateRefreshFallbackDue(_stateRefreshClock.elapsed)) return;
+    _updateState(stopProgressWhenInactive: true);
   }
 
   /// Update the public state and keep the event-poll cadence in sync.
@@ -742,6 +773,7 @@ class RustAudioService {
     _eventPollInterval = interval;
     _eventPollTimer = Timer.periodic(interval, (_) {
       _pollEvents();
+      _refreshStateIfFallbackDue();
     });
   }
 
@@ -762,14 +794,9 @@ class RustAudioService {
         stateChanged: (_) {
           // Events are queued; a Playing event from before a completed pause
           // must not revive the UI/priority anchor after output was suspended.
-          final newState = _parseState(rust_audio.audioGetState());
-          _setPlaybackState(newState);
-
-          // Handle state transitions
-          if (newState == RustPlaybackState.stopped ||
-              newState == RustPlaybackState.idle) {
-            _stopProgressUpdates();
-          }
+          // _updateState reads the authoritative state and stops progress when
+          // the engine is no longer active.
+          _updateState(stopProgressWhenInactive: true);
         },
         progress: (positionSecs, durationSecs, bufferLevel) {
           final newPositionMs = (positionSecs * 1000).round();
@@ -833,6 +860,9 @@ class RustAudioService {
   void dispose() {
     _stopProgressUpdates();
     _stopEventPolling();
+    _stateRefreshClock
+      ..stop()
+      ..reset();
     stateNotifier.dispose();
     positionNotifier.dispose();
     durationNotifier.dispose();
