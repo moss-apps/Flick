@@ -8,12 +8,14 @@ import 'package:flick/features/player/widgets/player_controls.dart';
 
 class _PlaybackTimeRow extends StatelessWidget {
   final PlayerService playerService;
+  final ValueNotifier<Duration> positionNotifier;
   final String Function(Duration) formatDuration;
   final Song? currentSong;
   final double horizontalPadding;
 
   const _PlaybackTimeRow({
     required this.playerService,
+    required this.positionNotifier,
     required this.formatDuration,
     required this.currentSong,
     this.horizontalPadding = 0,
@@ -22,7 +24,7 @@ class _PlaybackTimeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<Duration>(
-      valueListenable: playerService.positionNotifier,
+      valueListenable: positionNotifier,
       builder: (context, position, _) {
         return ValueListenableBuilder<Duration>(
           valueListenable: playerService.durationNotifier,
@@ -175,6 +177,7 @@ class _LyricsModeWaveformStripState extends State<LyricsModeWaveformStrip>
             SizedBox(height: context.responsive(4.0, 6.0, 8.0)),
             _PlaybackTimeRow(
               playerService: widget.playerService,
+              positionNotifier: widget.positionNotifier,
               formatDuration: widget.formatDuration,
               currentSong: widget.currentSong,
               horizontalPadding: widget.horizontalPadding,

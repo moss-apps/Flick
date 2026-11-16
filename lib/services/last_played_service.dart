@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 
@@ -13,6 +14,11 @@ class LastPlayedService {
   static const String _lastWasPlayingKey = 'last_played_was_playing';
 
   final SongRepository _songRepository;
+
+  /// Last playlist context written to preferences, used to avoid rewriting an
+  /// unchanged JSON array on every position checkpoint.
+  List<String>? _lastPersistedPlaylistSongIds;
+  int? _lastPersistedPlaylistIndex;
 
   LastPlayedService({SongRepository? songRepository})
     : _songRepository = songRepository ?? SongRepository();
@@ -33,18 +39,39 @@ class LastPlayedService {
     await prefs.setInt(_lastPositionKey, position.inMilliseconds);
     await prefs.setBool(_lastWasPlayingKey, wasPlaying);
 
-    if (playlistSongIds != null && playlistSongIds.isNotEmpty) {
-      await prefs.setString(
-        _lastPlaylistSongIdsKey,
-        jsonEncode(playlistSongIds),
-      );
-      if (currentIndex != null && currentIndex >= 0) {
-        await prefs.setInt(_lastPlaylistIndexKey, currentIndex);
-      }
-    } else {
-      // Clear stale playlist context when no playlist is active
+    final ids = playlistSongIds ?? const <String>[];
+    final previousIds = _lastPersistedPlaylistSongIds;
+    final playlistChanged =
+        previousIds == null || !listEquals(ids, previousIds);
+
+    if (ids.isEmpty) {
+      if (!playlistChanged) return;
+      // Clear stale playlist context when no playlist is active.
       await prefs.remove(_lastPlaylistSongIdsKey);
       await prefs.remove(_lastPlaylistIndexKey);
+      _lastPersistedPlaylistSongIds = const <String>[];
+      _lastPersistedPlaylistIndex = null;
+      return;
+    }
+
+    if (playlistChanged) {
+      await prefs.setString(_lastPlaylistSongIdsKey, jsonEncode(ids));
+      final validIndex = currentIndex != null && currentIndex >= 0
+          ? currentIndex
+          : null;
+      if (validIndex != null) {
+        await prefs.setInt(_lastPlaylistIndexKey, validIndex);
+      }
+      _lastPersistedPlaylistSongIds = List<String>.unmodifiable(ids);
+      _lastPersistedPlaylistIndex = validIndex;
+      return;
+    }
+
+    if (currentIndex != null &&
+        currentIndex >= 0 &&
+        currentIndex != _lastPersistedPlaylistIndex) {
+      await prefs.setInt(_lastPlaylistIndexKey, currentIndex);
+      _lastPersistedPlaylistIndex = currentIndex;
     }
   }
 
@@ -127,5 +154,7 @@ class LastPlayedService {
     await prefs.remove(_lastPlaylistSongIdsKey);
     await prefs.remove(_lastPlaylistIndexKey);
     await prefs.remove(_lastWasPlayingKey);
+    _lastPersistedPlaylistSongIds = null;
+    _lastPersistedPlaylistIndex = null;
   }
 }

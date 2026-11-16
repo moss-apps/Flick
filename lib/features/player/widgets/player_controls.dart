@@ -18,6 +18,9 @@ class PlayerControls extends StatelessWidget {
   final PlayerService playerService;
   final String Function(Duration) formatDuration;
   final Song? currentSong;
+
+  /// Playback clock used for the time labels. Defaults to the engine clock.
+  final ValueNotifier<Duration>? positionNotifier;
   final Future<void> Function() onPrevious;
   final Future<void> Function() onNext;
   final double timelineHorizontalPadding;
@@ -33,6 +36,7 @@ class PlayerControls extends StatelessWidget {
     required this.playerService,
     required this.formatDuration,
     required this.currentSong,
+    this.positionNotifier,
     required this.onPrevious,
     required this.onNext,
     this.timelineHorizontalPadding = 0,
@@ -60,7 +64,7 @@ class PlayerControls extends StatelessWidget {
 
     return RepaintBoundary(
       child: ValueListenableBuilder<Duration>(
-        valueListenable: playerService.positionNotifier,
+        valueListenable: positionNotifier ?? playerService.positionNotifier,
         builder: (context, position, _) {
           return ValueListenableBuilder<Duration>(
             valueListenable: playerService.durationNotifier,
