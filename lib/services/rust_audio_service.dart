@@ -56,8 +56,12 @@ class RustAudioService {
   void Function(SourceIdentity source)? onNextTrackReady;
   void Function(String message)? onError;
 
+  static const _activeEventPollInterval = Duration(milliseconds: 50);
+  static const _idleEventPollInterval = Duration(milliseconds: 500);
+
   Timer? _progressTimer;
   Timer? _eventPollTimer;
+  Duration? _eventPollInterval;
   bool _initialized = false;
   bool _highResModeEnabled = false;
   SourceIdentity? _currentSource;
@@ -244,7 +248,9 @@ class RustAudioService {
       return await call();
     } catch (e) {
       if (!_isDeadEngineError(e)) rethrow;
-      devLog('[RustAudio] Command channel dead; respawning engine and retrying');
+      devLog(
+        '[RustAudio] Command channel dead; respawning engine and retrying',
+      );
       await prepareEngine();
       return await call();
     }
@@ -298,6 +304,7 @@ class RustAudioService {
     if (_currentSource != source) _nextSource = null;
     _currentSource = source;
     _startProgressUpdates(fast: true);
+    _updateState();
   }
 
   /// Play a remote audio stream directly over HTTP (range-based, no cache
@@ -326,6 +333,7 @@ class RustAudioService {
     if (_currentSource != source) _nextSource = null;
     _currentSource = source;
     _startProgressUpdates(fast: true);
+    _updateState();
   }
 
   /// Queue the next track for gapless playback.
@@ -465,6 +473,7 @@ class RustAudioService {
     _stopProgressUpdates();
     _currentSource = null;
     _nextSource = null;
+    _updateState();
   }
 
   /// Seek to a position in seconds.
@@ -493,7 +502,9 @@ class RustAudioService {
   /// source keeps its own gain. Used when pre-queueing the next gapless track.
   Future<void> setReplayGainDefault(double gainDb) async {
     if (!_initialized) return;
-    await rust_audio.audioSetReplaygainDefault(gainDb: gainDb.clamp(-60.0, 30.0));
+    await rust_audio.audioSetReplaygainDefault(
+      gainDb: gainDb.clamp(-60.0, 30.0),
+    );
   }
 
   /// Select the callback's base pipeline mode.
@@ -668,7 +679,15 @@ class RustAudioService {
   /// Update playback state from the Rust engine.
   void _updateState() {
     final stateStr = rust_audio.audioGetState();
-    stateNotifier.value = _parseState(stateStr);
+    _setPlaybackState(_parseState(stateStr));
+  }
+
+  /// Update the public state and keep the event-poll cadence in sync.
+  void _setPlaybackState(RustPlaybackState nextState) {
+    if (stateNotifier.value != nextState) {
+      stateNotifier.value = nextState;
+    }
+    _syncEventPolling();
   }
 
   /// Parse state string to enum.
@@ -689,12 +708,39 @@ class RustAudioService {
     }
   }
 
+  /// Event polling cadence for a playback state.
+  ///
+  /// Track-end, crossfade, and error events only matter while the pipeline is
+  /// active. Idle states can back off without affecting progress, which is
+  /// polled separately.
+  @visibleForTesting
+  static Duration eventPollIntervalForState(RustPlaybackState state) {
+    return switch (state) {
+      RustPlaybackState.playing ||
+      RustPlaybackState.buffering ||
+      RustPlaybackState.crossfading => _activeEventPollInterval,
+      RustPlaybackState.paused ||
+      RustPlaybackState.idle ||
+      RustPlaybackState.stopped => _idleEventPollInterval,
+    };
+  }
+
   /// Start polling for events from the Rust engine.
   void _startEventPolling() {
     _stopEventPolling();
+    _syncEventPolling();
+  }
 
-    // Poll for events every 50ms
-    _eventPollTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+  /// Reschedule event polling when the playback state changes cadence.
+  void _syncEventPolling() {
+    if (!_initialized) return;
+
+    final interval = eventPollIntervalForState(stateNotifier.value);
+    if (_eventPollTimer != null && _eventPollInterval == interval) return;
+
+    _eventPollTimer?.cancel();
+    _eventPollInterval = interval;
+    _eventPollTimer = Timer.periodic(interval, (_) {
       _pollEvents();
     });
   }
@@ -703,6 +749,7 @@ class RustAudioService {
   void _stopEventPolling() {
     _eventPollTimer?.cancel();
     _eventPollTimer = null;
+    _eventPollInterval = null;
   }
 
   /// Poll for events from the Rust engine.
@@ -716,9 +763,7 @@ class RustAudioService {
           // Events are queued; a Playing event from before a completed pause
           // must not revive the UI/priority anchor after output was suspended.
           final newState = _parseState(rust_audio.audioGetState());
-          if (stateNotifier.value != newState) {
-            stateNotifier.value = newState;
-          }
+          _setPlaybackState(newState);
 
           // Handle state transitions
           if (newState == RustPlaybackState.stopped ||
