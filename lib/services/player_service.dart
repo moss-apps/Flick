@@ -3983,6 +3983,10 @@ class PlayerService {
       if (isPlayingNotifier.value != state.isPlaying) {
         isPlayingNotifier.value = state.isPlaying;
       }
+      _syncPositionSaveTimerWithPlayback(
+        isPlaying: state.isPlaying,
+        wasPlaying: previous?.isPlaying ?? false,
+      );
       if (!_suppressPositionUpdatesFromEngine &&
           positionNotifier.value != state.position) {
         positionNotifier.value = state.position;
@@ -4258,6 +4262,9 @@ class PlayerService {
       _debugLog('_onSongFinished: stopAfterCurrent, pausing');
       await _pauseInternal();
       await seek(Duration.zero);
+      // Paused checkpoints no longer refresh this; persist the rewind
+      // explicitly instead of leaving the end-of-track position saved.
+      await _savePosition(position: Duration.zero);
       return;
     }
 
@@ -4364,6 +4371,7 @@ class PlayerService {
     if (loopModeNotifier.value == LoopMode.stopAfterCurrent) {
       await _pauseInternal();
       await seek(Duration.zero);
+      await _savePosition(position: Duration.zero);
       return;
     }
 
@@ -4424,8 +4432,8 @@ class PlayerService {
 
   Future<void> _stopPlaybackInternal() async {
     _crossfadeUiHandoffFrom = null;
+    _stopPositionSaveTimer();
     await _savePosition();
-    _positionSaveTimer?.cancel();
     _clearReplayTracking();
     _updatePriorityAnchor();
     try {
@@ -5738,7 +5746,7 @@ class PlayerService {
         '(selected mode: ${_sessionManager.selectedMode.logLabel})',
       );
 
-      _positionSaveTimer?.cancel();
+      _stopPositionSaveTimer();
       clearAbRepeat();
       _crossfadeUiHandoffFrom = null;
 
@@ -6133,35 +6141,47 @@ class PlayerService {
     _debugLog(
       '[Playback] pause() called, hasAttachedEngine=${_playbackManager.hasAttachedEngine}',
     );
-    if (isPlayingNotifier.value) {
+    final wasPlaying = isPlayingNotifier.value;
+    if (wasPlaying) {
       isPlayingNotifier.value = false;
     }
     _updatePriorityAnchor();
-    // If no engine has been attached yet (e.g. pausing a restored-but-not-started
-    // track), there is nothing to pause — the optimistic update above is enough.
-    if (!_playbackManager.hasAttachedEngine) {
-      _debugLog(
-        '[Playback] pause(): no engine attached, returning after optimistic update',
-      );
+    // Stop before the engine pause so a state tick during the transition does
+    // not trigger the external-pause save a second time.
+    _stopPositionSaveTimer();
+    try {
+      // If no engine has been attached yet (e.g. pausing a restored-but-not-started
+      // track), there is nothing to pause — the optimistic update above is enough.
+      if (!_playbackManager.hasAttachedEngine) {
+        _debugLog(
+          '[Playback] pause(): no engine attached, returning after optimistic update',
+        );
+        if (releaseAudioFocus &&
+            currentEngineType != AudioEngineType.usbDacExperimental) {
+          await _deactivateAndroidAudioSession();
+        }
+        return;
+      }
+      try {
+        await _playbackManager.pause();
+      } catch (e) {
+        _debugLog('Pause failed: $e');
+      }
       if (releaseAudioFocus &&
           currentEngineType != AudioEngineType.usbDacExperimental) {
         await _deactivateAndroidAudioSession();
       }
-      return;
+      await _refreshAudioOutputDiagnostics(
+        reason: 'playback paused',
+        activeSong: currentSongNotifier.value,
+      );
+    } finally {
+      // Checkpoints are only useful while the position advances. Persist the
+      // pause point once so a process death still restores it.
+      if (wasPlaying) {
+        await _savePosition();
+      }
     }
-    try {
-      await _playbackManager.pause();
-    } catch (e) {
-      _debugLog('Pause failed: $e');
-    }
-    if (releaseAudioFocus &&
-        currentEngineType != AudioEngineType.usbDacExperimental) {
-      await _deactivateAndroidAudioSession();
-    }
-    await _refreshAudioOutputDiagnostics(
-      reason: 'playback paused',
-      activeSong: currentSongNotifier.value,
-    );
   }
 
   Future<void> resume() {
@@ -6354,7 +6374,9 @@ class PlayerService {
       );
       if (recovered) {
         _debugLog('[Engine] Direct USB startup recovered after retry');
-        _ensurePositionSaveTimer();
+        if (autoResumeAfterFallback) {
+          _ensurePositionSaveTimer();
+        }
         await _refreshAudioOutputDiagnostics(
           reason: 'direct USB retry succeeded',
           activeSong: song,
@@ -6399,7 +6421,9 @@ class PlayerService {
           autoPlay: autoResumeAfterFallback,
         );
       });
-      _ensurePositionSaveTimer();
+      if (autoResumeAfterFallback) {
+        _ensurePositionSaveTimer();
+      }
       await _refreshAudioOutputDiagnostics(
         reason: autoResumeAfterFallback
             ? 'direct USB fallback resumed'
@@ -7504,12 +7528,66 @@ class PlayerService {
   }
 
   void _ensurePositionSaveTimer() {
+    if (_positionSaveTimer?.isActive ?? false) return;
     _positionSaveTimer?.cancel();
+    // Cover a resume that starts inside the prefetch window without waiting
+    // for the first checkpoint tick.
+    _maybePrefetchNextNetworkSong();
     _positionSaveTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      // The state listener normally stops this, but a pause that lands while
+      // playback is being started can precede the timer. Do not checkpoint a
+      // paused session even then.
+      if (!isPlayingNotifier.value) {
+        _stopPositionSaveTimer();
+        return;
+      }
       _savePosition();
       _maybePrefetchNextNetworkSong();
     });
   }
+
+  void _stopPositionSaveTimer() {
+    final timer = _positionSaveTimer;
+    if (timer == null) return;
+    timer.cancel();
+    _positionSaveTimer = null;
+  }
+
+  /// Keeps checkpoints aligned with the engine, including pauses that bypass
+  /// [_pauseInternal] (volume safety, physical-output guard, direct USB).
+  void _syncPositionSaveTimerWithPlayback({
+    required bool isPlaying,
+    required bool wasPlaying,
+  }) {
+    if (isPlaying) {
+      _ensurePositionSaveTimer();
+      return;
+    }
+
+    final wasRunning = _positionSaveTimer != null;
+    _stopPositionSaveTimer();
+    if (wasRunning && wasPlaying) {
+      unawaited(_savePosition());
+    }
+  }
+
+  @visibleForTesting
+  bool get isPositionSaveTimerRunning => _positionSaveTimer?.isActive ?? false;
+
+  @visibleForTesting
+  void startPositionSaveTimerForTesting() => _ensurePositionSaveTimer();
+
+  @visibleForTesting
+  void stopPositionSaveTimerForTesting() => _stopPositionSaveTimer();
+
+  @visibleForTesting
+  void syncPositionSaveTimerForTesting({
+    required bool isPlaying,
+    required bool wasPlaying,
+  }) => _syncPositionSaveTimerWithPlayback(
+    isPlaying: isPlaying,
+    wasPlaying: wasPlaying,
+  );
 
   /// Last song id handed to [RemoteSourceService.prefetch]. Reset whenever the
   /// current track changes so a replayed song re-prefetches its successor.
@@ -7601,7 +7679,7 @@ class PlayerService {
     _playbackDiagnosticsDebounceTimer?.cancel();
     _playbackDiagnosticsDebounceTimer = null;
     _queueDebounceTimer?.cancel();
-    _positionSaveTimer?.cancel();
+    _stopPositionSaveTimer();
     _stopHwVolumeHealthTimer();
     unawaited(_audioFocusSubscription?.cancel());
     unawaited(_bluetoothDeviceEventSubscription?.cancel());
@@ -7745,6 +7823,7 @@ class PlayerService {
     }
     await _pauseInternal();
     await seek(Duration.zero);
+    await _savePosition(position: Duration.zero);
   }
 
   Future<void> _advanceForMode(LoopMode mode) async {
