@@ -1185,6 +1185,7 @@ class _MainShellState extends ConsumerState<MainShell>
       NavBarButton.equalizer => const EqualizerScreen(
         key: ValueKey('equalizer'),
         showBackButton: false,
+        embedded: true,
       ),
     };
   }
