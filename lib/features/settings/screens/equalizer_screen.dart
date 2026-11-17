@@ -39,10 +39,15 @@ class EqualizerScreen extends ConsumerStatefulWidget {
     super.key,
     this.initialPage = 0,
     this.showBackButton = true,
+    this.embedded = false,
   }) : assert(initialPage >= 0 && initialPage < 3);
 
   final int initialPage;
   final bool showBackButton;
+
+  /// When embedded in the bottom-bar pager, horizontal swipes on page content
+  /// belong to the pager. Section swipes stay on the EQ tab bar.
+  final bool embedded;
 
   @override
   ConsumerState<EqualizerScreen> createState() => _EqualizerScreenState();
@@ -68,6 +73,54 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
       _pageDirection = index > _currentPage ? 1 : -1;
       _currentPage = index;
     });
+  }
+
+  void _handleHorizontalDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity < -250) {
+      _switchToPage(_currentPage + 1);
+    } else if (velocity > 250) {
+      _switchToPage(_currentPage - 1);
+    }
+  }
+
+  Widget _buildContent({required bool compact}) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        alignment: Alignment.topCenter,
+        children: [...previousChildren, ?currentChild],
+      ),
+      transitionBuilder: (child, animation) {
+        final incoming = (child.key as ValueKey).value == _currentPage;
+        final beginX = (incoming ? _pageDirection : -_pageDirection).toDouble();
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: Offset(beginX, 0),
+            end: Offset.zero,
+          ).animate(animation),
+          child: FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey(_currentPage),
+        child: switch (_currentPage) {
+          0 => _EqPage(
+            scrollController: _scrollController,
+            graphicGraphKey: _graphicGraphKey,
+            parametricGraphKey: _parametricGraphKey,
+            compact: compact,
+          ),
+          1 => const _DynamicsPage(),
+          _ => const _FxPage(),
+        },
+      ),
+    );
   }
 
   void _showPresetsBottomSheet() {
@@ -97,6 +150,14 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
       selectedIndex: _currentPage,
       onSelected: _switchToPage,
     );
+    final swipeableTabs = widget.embedded
+        ? GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: _handleHorizontalDragEnd,
+            child: tabs,
+          )
+        : tabs;
+    final content = _buildContent(compact: isShortWide);
 
     return Stack(
       children: [
@@ -115,66 +176,23 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                       Expanded(child: header),
                       SizedBox(
                         width: math.min(340.0, size.width * 0.42),
-                        child: tabs,
+                        child: swipeableTabs,
                       ),
                       const SizedBox(width: AppConstants.spacingMd),
                     ],
                   )
                 else ...[
                   header,
-                  tabs,
+                  swipeableTabs,
                   const SizedBox(height: AppConstants.spacingMd),
                 ],
                 Expanded(
-                  child: GestureDetector(
-                    onHorizontalDragEnd: (details) {
-                      final velocity = details.primaryVelocity ?? 0;
-                      if (velocity < -250) {
-                        _switchToPage(_currentPage + 1);
-                      } else if (velocity > 250) {
-                        _switchToPage(_currentPage - 1);
-                      }
-                    },
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      layoutBuilder: (currentChild, previousChildren) => Stack(
-                        alignment: Alignment.topCenter,
-                        children: [...previousChildren, ?currentChild],
-                      ),
-                      transitionBuilder: (child, animation) {
-                        final incoming =
-                            (child.key as ValueKey).value == _currentPage;
-                        final beginX =
-                            (incoming ? _pageDirection : -_pageDirection)
-                                .toDouble();
-                        return SlideTransition(
-                          position: Tween<Offset>(
-                            begin: Offset(beginX, 0),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: FadeTransition(
-                            opacity: animation,
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: KeyedSubtree(
-                        key: ValueKey(_currentPage),
-                        child: switch (_currentPage) {
-                          0 => _EqPage(
-                            scrollController: _scrollController,
-                            graphicGraphKey: _graphicGraphKey,
-                            parametricGraphKey: _parametricGraphKey,
-                            compact: isShortWide,
-                          ),
-                          1 => const _DynamicsPage(),
-                          _ => const _FxPage(),
-                        },
-                      ),
-                    ),
-                  ),
+                  child: widget.embedded
+                      ? content
+                      : GestureDetector(
+                          onHorizontalDragEnd: _handleHorizontalDragEnd,
+                          child: content,
+                        ),
                 ),
               ],
             ),
