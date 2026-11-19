@@ -606,6 +606,9 @@ class PlayerService {
   Uac2DeviceInfo? _usbHardwareVolumeReadyFor;
   bool _usbSoftwareVolumeUsed = false;
   int _usbHardwareVolumeRevision = 0;
+  // Unlike the pause future, this survives a failed stop so older volume work
+  // cannot release a newer safety block after the future has been discarded.
+  int _usbVolumeSafetyGeneration = 0;
   Future<bool>? _usbVolumeSafetyPause;
   final ValueNotifier<bool> usbVolumeSafetyBlockedNotifier = ValueNotifier(false);
   String? _physicalOutputGuardKey;
@@ -644,6 +647,17 @@ class PlayerService {
   /// writes or fails the GET_CUR health check.
   bool _hwVolumeFailed = false;
   int? _hardwareVolumeGeneration;
+
+  /// The hardware generation whose active stream has already been checked
+  /// against [_usbHardwareVolumeVerifiedLevel]. A generation bump while the
+  /// stream is inactive (normal teardown/rebuild) stays pending until that
+  /// same generation actually starts.
+  int? _usbHardwareVolumeCheckedGeneration;
+
+  /// Last DAC level this app wrote and verified. A hardware-generation change
+  /// during normal teardown/rebuild is only unsafe when the new stream is
+  /// active above this level (or its readback is unknown).
+  double? _usbHardwareVolumeVerifiedLevel;
   String? _activeUsbDsdMode;
   String? _activeUsbDsdSongId;
   bool _switchingDsdForVolume = false;
@@ -868,6 +882,9 @@ class PlayerService {
     ) async {
       _usbDacVolumeRestore.reset();
       _usbHardwareVolumeReadyFor = null;
+      _usbHardwareVolumeVerifiedLevel = null;
+      _hardwareVolumeGeneration = null;
+      _usbHardwareVolumeCheckedGeneration = null;
       _usbSoftwareVolumeUsed = false;
       usbVolumeSafetyBlockedNotifier.value = false;
       if (!isPlayingNotifier.value) return;
@@ -991,6 +1008,8 @@ class PlayerService {
     if (status == null) {
       _hwVolumeFailed = false;
       _hardwareVolumeGeneration = null;
+      _usbHardwareVolumeCheckedGeneration = null;
+      _usbHardwareVolumeVerifiedLevel = null;
       _usbDacVolumeRestore.reset();
       _usbHardwareVolumeReadyFor = null;
       _usbSoftwareVolumeUsed = false;
@@ -2434,6 +2453,7 @@ class PlayerService {
         return;
       }
       _usbHardwareVolumeReadyFor = _uac2Service.currentDeviceStatus?.device;
+      _usbHardwareVolumeVerifiedLevel = _currentVolume;
       _usbHardwareVolumeRevision++;
       _usbSoftwareVolumeUsed = false;
       _physicalOutputSoftwareVolumeActive = false;
@@ -2445,14 +2465,36 @@ class PlayerService {
     await _reconcileVolumeForTier(_determineCurrentTier());
   }
 
-  Future<void> _blockUsbVolumeForSafety() async {
+  Future<int?> _blockUsbVolumeForSafety() async {
+    final generation = ++_usbVolumeSafetyGeneration;
     usbVolumeSafetyBlockedNotifier.value = true;
     _usbHardwareVolumeReadyFor = null;
+    _usbHardwareVolumeVerifiedLevel = null;
     _wasPlayingBeforeAudioInterruption = false;
     _stopHwVolumeHealthTimer();
     volumeTierNotifier.value = _determineCurrentTier();
-    _usbVolumeSafetyPause ??= _pauseUsbForVolumeSafety();
-    await _usbVolumeSafetyPause;
+    final pause = _usbVolumeSafetyPause ??= _pauseUsbForVolumeSafety();
+    final safe = await pause;
+    if (!safe && identical(_usbVolumeSafetyPause, pause)) {
+      // A transient engine rebuild can fail pause/stop while leaving the block
+      // in place. Keep the block (and the stop-before-gain rule), but let the
+      // next explicit playback retry against the current transport instead of
+      // replaying this permanently failed future.
+      _usbVolumeSafetyPause = null;
+    }
+    return safe ? generation : null;
+  }
+
+  Future<int?> _confirmUsbVolumeSafety({bool requirePause = false}) async {
+    final generation = _usbVolumeSafetyGeneration;
+    final pause = _usbVolumeSafetyPause;
+    if (pause != null) return (await pause) ? generation : null;
+    if (requirePause || usbVolumeSafetyBlockedNotifier.value) {
+      // A failed stop leaves the block in place but drops its future. Retry
+      // explicitly instead of treating a missing future as a successful stop.
+      return _blockUsbVolumeForSafety();
+    }
+    return generation;
   }
 
   Future<bool> _pauseUsbForVolumeSafety() async {
@@ -2483,26 +2525,25 @@ class PlayerService {
         generation == _usbDacVolumeRestore.connectionGeneration &&
         (!directUsb || _isDirectUsbPath) &&
         device == _uac2Service.currentDeviceStatus?.device;
-    if (directUsb) {
-      if (_usbHardwareVolumeReadyFor != device) {
-        // The explicit choice confirms a new authority, but first stop any
-        // playback still using the old hardware/software combination.
-        await _blockUsbVolumeForSafety();
-      }
-      final pause = _usbVolumeSafetyPause;
-      // Do not raise DAC gain while the transport's safety pause is in flight.
-      if (pause != null && !await pause) return;
-      if (!currentRoute()) return;
-    }
+    // Do not write DAC gain during a safety pause or a change of authority.
+    final safetyGeneration = directUsb
+        ? await _confirmUsbVolumeSafety(
+            requirePause: _usbHardwareVolumeReadyFor != device,
+          )
+        : null;
+    bool currentSafety() =>
+        !directUsb ||
+        (safetyGeneration == _usbVolumeSafetyGeneration && currentRoute());
+    if (!currentSafety()) return;
     final success = await _uac2Service.setVolume(volume);
-    if (directUsb && !currentRoute()) return;
+    if (!currentSafety()) return;
     if (success) {
       _currentVolume = _uac2Service.currentDeviceStatus?.volume ?? _currentVolume;
     } else if (!directUsb && !_isPassthroughActive && _usingRustBackend) {
       await _rustAudioService.setVolume(volume);
       _rememberSoftwareVolume(volume);
     }
-    await _onHwVolumeResult(success);
+    if (currentSafety()) await _onHwVolumeResult(success);
   }
 
   @visibleForTesting
@@ -2517,6 +2558,16 @@ class PlayerService {
     currentEngineType,
     song: currentSongNotifier.value,
   );
+
+  @visibleForTesting
+  Future<void> refreshAudioOutputDiagnosticsForTesting({Song? song}) async {
+    final debugState = await _uac2Service.getAndroidPlaybackDebugState();
+    await _refreshAudioOutputDiagnostics(
+      reason: 'test',
+      activeSong: song ?? currentSongNotifier.value,
+      debugStateOverride: debugState,
+    );
+  }
 
   /// True when the Rust pipeline runs its pure passthrough callback, which
   /// ignores engine volume entirely (bit-perfect guarantee). EQ/tuning,
@@ -2754,10 +2805,17 @@ class PlayerService {
       return;
     }
     final generation = _usbDacVolumeRestore.connectionGeneration;
-    final safetyPause = _usbVolumeSafetyPause;
-    if (safetyPause != null && !await safetyPause) {
-      throw UsbDacVolumeRestoreError('could not stop the transport safely');
+    var safetyGeneration = await _confirmUsbVolumeSafety();
+    void ensureSafetyCurrent() {
+      if (safetyGeneration == null) {
+        throw UsbDacVolumeRestoreError('could not stop the transport safely');
+      }
+      if (safetyGeneration != _usbVolumeSafetyGeneration) {
+        throw UsbDacVolumeRestoreError('DAC volume safety state changed');
+      }
     }
+
+    ensureSafetyCurrent();
     await _uac2Service.refreshAndroidRouteStatus(
       isPlaying: isPlayingNotifier.value,
       hasActiveSong: currentSongNotifier.value != null,
@@ -2765,6 +2823,7 @@ class PlayerService {
     if (generation != _usbDacVolumeRestore.connectionGeneration) {
       throw UsbDacVolumeRestoreError('route changed');
     }
+    ensureSafetyCurrent();
     final status = _uac2Service.currentDeviceStatus;
     if (status == null) {
       throw UsbDacVolumeRestoreError('no route');
@@ -2777,10 +2836,15 @@ class PlayerService {
     final key =
         '${Uac2PreferencesService.usbDeviceVolumeKey(device)}|${tier.name}';
     await _usbDacVolumeRestore.runOnce(key, (ensureCurrent) async {
+      void ensureRestoreCurrent() {
+        ensureCurrent();
+        ensureSafetyCurrent();
+      }
+
       final settings = await _preferencesService.getUsbVolumeSettingsForDevice(
         device,
       );
-      ensureCurrent();
+      ensureRestoreCurrent();
       final currentStatus = _uac2Service.currentDeviceStatus;
       if (currentStatus == null || currentStatus.device != device) {
         throw UsbDacVolumeRestoreError('route changed');
@@ -2830,8 +2894,8 @@ class PlayerService {
       if (authorityHandoff || preserveSoftwareMute) {
         // An authority change must not remove software attenuation live. A
         // low, verified restore replaces the old mandatory slider gesture.
-        await _blockUsbVolumeForSafety();
-        ensureCurrent();
+        safetyGeneration = await _confirmUsbVolumeSafety(requirePause: true);
+        ensureRestoreCurrent();
       }
       // Only exact mute transfers between software and hardware authority;
       // the same nonzero percentage need not mean the same acoustic level.
@@ -2870,7 +2934,7 @@ class PlayerService {
           targetVolume,
           persist: false,
         );
-        ensureCurrent();
+        ensureRestoreCurrent();
         if (!restored) {
           await _blockUsbVolumeForSafety();
           // A real write/readback failure stays stopped, but the next Play
@@ -2900,7 +2964,7 @@ class PlayerService {
       // hardware mute, or keep the transport paused (also safe for DSD/DoP).
       if (preserveSoftwareMute && appliedStatus.muted != true) {
         final muted = await _uac2Service.setMute(true);
-        ensureCurrent();
+        ensureRestoreCurrent();
         final mutedStatus = _uac2Service.currentDeviceStatus;
         if (!muted ||
             mutedStatus?.device != device ||
@@ -2915,11 +2979,7 @@ class PlayerService {
         appliedVolume,
         authority: UsbVolumeAuthority.hardware,
       );
-      final pause = _usbVolumeSafetyPause;
-      if (pause != null && !await pause) {
-        throw UsbDacVolumeRestoreError('could not stop the transport safely');
-      }
-      ensureCurrent();
+      ensureRestoreCurrent();
       final finalStatus = _uac2Service.currentDeviceStatus;
       if (finalStatus?.device != device) {
         throw UsbDacVolumeRestoreError('route changed');
@@ -2937,15 +2997,21 @@ class PlayerService {
         '[VolFlow] Hardware restore verified: $appliedVolume, '
         'lowDefault=$useLowDefault',
       );
-      _currentVolume = appliedVolume;
       _usbHardwareVolumeReadyFor = device;
+      _usbHardwareVolumeVerifiedLevel = appliedVolume;
       _usbHardwareVolumeRevision++;
       _usbSoftwareVolumeUsed = false;
       _physicalOutputSoftwareVolumeActive = false;
       _hwVolumeFailed = false;
-      usbVolumeSafetyBlockedNotifier.value = false;
       _usbVolumeSafetyPause = null;
+      usbVolumeSafetyBlockedNotifier.value = false;
+      _currentVolume = appliedVolume;
     }, force: usbVolumeSafetyBlockedNotifier.value);
+    // runOnce can return a cached result or join another restore. Neither
+    // permits playback if a newer safety block is still in effect.
+    if (usbVolumeSafetyBlockedNotifier.value) {
+      throw UsbDacVolumeRestoreError('DAC volume safety state changed');
+    }
   }
 
   Future<void> _restoreUsbVolumeForResume(
@@ -3195,6 +3261,7 @@ class PlayerService {
   Future<void> _refreshAudioOutputDiagnostics({
     required String reason,
     Song? activeSong,
+    Map<String, dynamic>? debugStateOverride,
   }) async {
     final generation = ++_audioOutputDiagnosticsGeneration;
     final mode = currentEngineType;
@@ -3205,9 +3272,11 @@ class PlayerService {
     final deviceInfo = Platform.isAndroid
         ? AndroidAudioDeviceService.instance.deviceInfoNotifier.value
         : AndroidPlaybackDeviceInfo.unknown;
-    final debugState = Platform.isAndroid
-        ? await _uac2Service.getAndroidPlaybackDebugState()
-        : null;
+    final debugState =
+        debugStateOverride ??
+        (Platform.isAndroid
+            ? await _uac2Service.getAndroidPlaybackDebugState()
+            : null);
     final rustAudioState = _mapValue(debugState?['rustAudioState']);
     final engineState = _mapValue(rustAudioState?['engine']);
     final directUsbState = _mapValue(rustAudioState?['direct_usb']);
@@ -3570,13 +3639,45 @@ class PlayerService {
     _activeUsbDsdSongId = directUsbActive ? song?.id : null;
     final hardwareGeneration = _intValue(directUsbState?['hardware_volume_generation']);
     if (hardwareGeneration != _hardwareVolumeGeneration) {
-      if (_hardwareVolumeGeneration != null &&
-          _usbHardwareVolumeReadyFor != null &&
-          _isDirectUsbPath) {
-        await _blockUsbVolumeForSafety();
-      }
       _hardwareVolumeGeneration = hardwareGeneration;
       _hwVolumeFailed = false;
+    }
+    if (_isDirectUsbPath &&
+        _usbHardwareVolumeReadyFor != null &&
+        hardwareGeneration != null &&
+        hardwareGeneration != _usbHardwareVolumeCheckedGeneration) {
+      // A generation bump also happens during normal teardown/reconfigure.
+      // Leave an inactive generation pending: when the same generation starts,
+      // its actual readback must still be checked against the verified level.
+      final streamActive =
+          _boolValue(
+            directUsbState?['stream_active'] ??
+                directUsbState?['streamActive'],
+          ) ==
+          true;
+      if (streamActive) {
+        _usbHardwareVolumeCheckedGeneration = hardwareGeneration;
+        final hardwareMuted =
+            _boolValue(
+              directUsbState?['hardware_mute_active'] ??
+                  directUsbState?['hardwareMuteActive'],
+            ) ==
+            true;
+        final hardwareLevel = _doubleValue(
+          directUsbState?['hardware_volume_normalized'] ??
+              directUsbState?['hardwareVolumeNormalized'],
+        );
+        final verifiedLevel = _usbHardwareVolumeVerifiedLevel;
+        final unsafe =
+            !hardwareMuted &&
+            (hardwareLevel == null ||
+                !hardwareLevel.isFinite ||
+                verifiedLevel == null ||
+                hardwareLevel > verifiedLevel + 1e-6);
+        if (unsafe) {
+          await _blockUsbVolumeForSafety();
+        }
+      }
     }
 
     audioOutputDiagnosticsNotifier.value = AudioOutputDiagnostics(
@@ -3748,6 +3849,14 @@ class PlayerService {
 
   int? _intValue(dynamic value) {
     return value is num ? value.toInt() : null;
+  }
+
+  double? _doubleValue(dynamic value) {
+    return value is num ? value.toDouble() : null;
+  }
+
+  bool? _boolValue(dynamic value) {
+    return value is bool ? value : null;
   }
 
   bool _isDetectedDapProfile(Map<String, dynamic>? profile) {
