@@ -59,7 +59,9 @@ extension ParametricBandTypeX on ParametricBandType {
     }
   }
 
-  String get qLabel {
+  String get qLabel => qLabelFor(l10n);
+
+  String qLabelFor(AppLocalizations l10n) {
     switch (this) {
       case ParametricBandType.lowShelf:
       case ParametricBandType.highShelf:

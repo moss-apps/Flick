@@ -67,6 +67,9 @@ subsequently turning them off survives a restart.
 - The UI Customization settings screen is English in Taglish for Track
   Thumbnails, Progress Bar and Album Colors, including option names and
   descriptions. English and Chinese keep their own copy.
+- The interactive EQ graph is English in Taglish: title, drag/pinch guidance,
+  detail labels and band families, and the status/mode chips. English and
+  Chinese keep their own copy.
 - The album, artist, playlist and smart-mix three-dot More sheets use English,
   including their **More** header.
 - Album completeness uses English in Taglish: header and grid badges, missing
@@ -305,6 +308,13 @@ flows English without changing the rest of the screen. Format labels accept
 an explicit catalog via `SongFileTypeFilter.displayNameFor`; existing callers
 of `displayName` still use the active locale. Sorting/filtering logic is unchanged.
 
+The interactive EQ graph, `interactive_eq_graph.dart`, imports the English
+shim so its title, guidance, detail labels and status chips are English in
+Taglish. `ParametricBandTypeX.qLabelFor` accepts the caller catalog for the
+Slope/Resonance/Q detail label; the existing `qLabel` getter still follows the
+active locale for other callers. The equalizer settings screen that opens the
+graph already uses `settings_l10n.dart`.
+
 `playlist_detail_screen.dart` builds its header information line through
 `playlist_header_meta.dart` with the English copy role and passes that role's
 `lossless` label into `DetailHeader.losslessLabel`. Other detail screens keep
@@ -362,7 +372,7 @@ Before removing the experimental/draft notices, the Filipino reviewer should:
       its playlist/share/metadata/speed/pitch/sleep/layout sub-interfaces,
       the English Player Layout settings screen and action picker,
       the English UI Customization Track Thumbnails, Progress Bar and Album
-      Colors sections,
+      Colors sections, the English interactive EQ graph,
       the fully English Lyrics Sync Studio,
       the English Milestones surface and playlist cover editor, the English
       playlist detail header information line/lossless indicator, all-English

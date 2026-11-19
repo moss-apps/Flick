@@ -10,7 +10,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/widgets/equalizer/eq_graph_utils.dart' as equtils;
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/l10n/english_l10n.dart';
 
 class InteractiveEqGraphScreen extends ConsumerStatefulWidget {
   final EqMode mode;
@@ -41,8 +41,10 @@ class _InteractiveEqGraphScreenState
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      // The nested navigator inflates the bottom padding by the bottom bar and
+      // mini-player clearance, so the status bar and detail panel stay above
+      // the overlay instead of being covered by it.
       body: SafeArea(
-        bottom: false,
         child: Column(
           children: [
             _buildHeader(),
@@ -262,7 +264,7 @@ class _InteractiveEqGraphScreenState
                         '${band.gainDb >= 0 ? '+' : ''}${band.gainDb.toStringAsFixed(1)} dB',
                   ),
                 _DetailItem(
-                  label: band.type.qLabel,
+                  label: band.type.qLabelFor(l10n),
                   value: band.q.toStringAsFixed(2),
                 ),
               ],
