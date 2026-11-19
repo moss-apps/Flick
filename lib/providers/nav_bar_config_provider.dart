@@ -29,9 +29,12 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
     if (!ref.mounted) return;
 
     final buttonsStr = prefs.getString(_buttonsKey);
-    final buttons = buttonsStr != null
+    final savedButtons = buttonsStr != null
         ? _parseButtons(buttonsStr)
-        : NavBarConfig.allButtons;
+        : const <NavBarButton>[];
+    final buttons = savedButtons.isEmpty
+        ? NavBarConfig.defaultButtons
+        : savedButtons;
 
     final hiddenStr = prefs.getString(_hiddenKey);
     final hidden = hiddenStr != null
@@ -39,7 +42,7 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
         : <NavBarButton>{};
 
     state = NavBarConfig(
-      enabledButtons: buttons.isEmpty ? NavBarConfig.allButtons : buttons,
+      enabledButtons: buttons,
       hidden: hidden,
       barSizeFactor: prefs.getDouble(_sizeKey) ?? 1.0,
       buttonSpacingFactor: prefs.getDouble(_spacingKey) ?? 1.0,
@@ -52,6 +55,21 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
         1.0,
       ),
     );
+
+    // Freeze the resolved layout on first run so a later default change does
+    // not replace a user's bar after an app update. Saved configs are never
+    // rewritten here.
+    if (buttonsStr == null) {
+      await _persist();
+    }
+  }
+
+  /// Mutations must wait for the saved config to load first. Otherwise a
+  /// change made during startup would operate on the default state and then
+  /// persist it over the user's saved layout.
+  Future<bool> _readyForMutation() async {
+    await _ready;
+    return ref.mounted;
   }
 
   List<NavBarButton> _parseButtons(String raw) {
@@ -99,12 +117,14 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
 
   Future<void> setEnabledButtons(List<NavBarButton> buttons) async {
     if (buttons.isEmpty) return;
+    if (!await _readyForMutation()) return;
     if (_buttonsEqual(state.enabledButtons, buttons)) return;
     state = state.copyWith(enabledButtons: buttons);
     await _persist();
   }
 
   Future<void> toggleButton(NavBarButton button) async {
+    if (!await _readyForMutation()) return;
     final updated = List<NavBarButton>.from(state.enabledButtons);
     if (updated.contains(button)) {
       if (updated.length == 1) return;
@@ -117,6 +137,7 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
   }
 
   Future<void> toggleHidden(NavBarButton button) async {
+    if (!await _readyForMutation()) return;
     final updated = Set<NavBarButton>.from(state.hidden);
     if (updated.contains(button)) {
       updated.remove(button);
@@ -128,29 +149,34 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
   }
 
   Future<void> reorderButtons(int oldIndex, int newIndex) async {
+    if (!await _readyForMutation()) return;
     state = state.reorder(oldIndex, newIndex);
     await _persist();
   }
 
   Future<void> setBarSizeFactor(double value) async {
+    if (!await _readyForMutation()) return;
     if (state.barSizeFactor == value) return;
     state = state.copyWith(barSizeFactor: value);
     await _persist();
   }
 
   Future<void> setButtonSpacingFactor(double value) async {
+    if (!await _readyForMutation()) return;
     if (state.buttonSpacingFactor == value) return;
     state = state.copyWith(buttonSpacingFactor: value);
     await _persist();
   }
 
   Future<void> setIconSizeFactor(double value) async {
+    if (!await _readyForMutation()) return;
     if (state.iconSizeFactor == value) return;
     state = state.copyWith(iconSizeFactor: value);
     await _persist();
   }
 
   Future<void> setShowLabels(bool value) async {
+    if (!await _readyForMutation()) return;
     if (state.showLabels == value) return;
     state = state.copyWith(showLabels: value);
     await _persist();
@@ -158,14 +184,14 @@ class NavBarConfigNotifier extends Notifier<NavBarConfig> {
 
   Future<void> setWidthFraction(double value) async {
     final clamped = value.clamp(0.7, 1.0);
+    if (!await _readyForMutation()) return;
     if (state.widthFraction == clamped) return;
     state = state.copyWith(widthFraction: clamped);
     await _persist();
   }
 
   Future<void> reset() async {
-    await _ready;
-    if (!ref.mounted) return;
+    if (!await _readyForMutation()) return;
     state = NavBarConfig.defaultConfig;
     await _persist();
   }

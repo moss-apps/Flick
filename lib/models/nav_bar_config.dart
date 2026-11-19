@@ -28,7 +28,10 @@ class NavBarConfig {
   final bool showLabels;
   final double widthFraction;
 
-  static const allButtons = [
+  /// Layout used only when no saved navigation config exists. Once a user has
+  /// run the app, the resolved layout is persisted so future default changes
+  /// cannot silently rewrite their bottom bar.
+  static const defaultButtons = [
     NavBarButton.menu,
     NavBarButton.equalizer,
     NavBarButton.songs,
@@ -37,7 +40,7 @@ class NavBarConfig {
   ];
 
   const NavBarConfig({
-    this.enabledButtons = allButtons,
+    this.enabledButtons = defaultButtons,
     this.hidden = const {},
     this.barSizeFactor = 1.0,
     this.buttonSpacingFactor = 1.0,
