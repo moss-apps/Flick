@@ -752,6 +752,11 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
           ('openInPlayStore', l10n.openInPlayStore),
           ('downloadUpdate', l10n.downloadUpdate),
         ], keywords: 'check for updates version release'),
+        _section('updateChannel', l10n.updateChannel, [
+          ('updateChannelStable', l10n.updateChannelStable),
+          ('updateChannelBeta', l10n.updateChannelBeta),
+          ('updateChannelBoth', l10n.updateChannelBoth),
+        ], keywords: 'beta prerelease testing channel updates'),
         _section('about', l10n.about, [
           ('aboutFlickPlayer', l10n.aboutFlickPlayer),
           ('buildFlavor', l10n.buildFlavor),

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/services/app_preferences_service.dart';
+import 'package:flick/models/update_channel.dart';
 
 final appPreferencesServiceProvider = Provider<AppPreferencesService>((ref) {
   return AppPreferencesService();
@@ -729,6 +730,13 @@ class AppPreferencesNotifier extends Notifier<AppPreferences> {
     if (state.refreshRateMode == value) return;
     state = state.copyWith(refreshRateMode: value);
     await ref.read(appPreferencesServiceProvider).setRefreshRateMode(value);
+  }
+
+  Future<void> setUpdateChannel(UpdateChannel value) async {
+    await loaded;
+    if (!ref.mounted || state.updateChannel == value) return;
+    state = state.copyWith(updateChannel: value);
+    await ref.read(appPreferencesServiceProvider).setUpdateChannel(value);
   }
 
   Future<void> setVisualizerEnabled(bool value) async {

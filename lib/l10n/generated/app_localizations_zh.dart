@@ -8042,14 +8042,49 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateAvailable => '有可用更新';
 
   @override
-  String get updateAvailableDownloadFromFlickPlayer =>
-      '有可用更新 — 可从 flick-player.site 下载';
-
-  @override
   String get updateAvailableOnThePlayStore => 'Play 商店有可用更新。';
 
   @override
   String get updateNoticeHidden => '已隐藏更新提示。';
+
+  @override
+  String get aNewerFlickBuildOnGithub => 'GitHub 上有更新的 Flick 版本。';
+
+  @override
+  String get betaUpdateAvailable => '有可用的 Beta 更新';
+
+  @override
+  String get betaUpdateSubtitle => '有可用于测试的预发布版本。';
+
+  @override
+  String get downloadBetaUpdate => '下载 Beta 版';
+
+  @override
+  String get getBetaUpdate => '从 GitHub 获取 Beta 版本。';
+
+  @override
+  String get updateAvailableOnGithub => 'GitHub 上有可用更新。';
+
+  @override
+  String get updateChannel => '更新渠道';
+
+  @override
+  String get updateChannelStable => '稳定版';
+
+  @override
+  String get updateChannelStableSubtitle => '仅提供正式发布的 Flick 版本。';
+
+  @override
+  String get updateChannelBeta => '预发布版';
+
+  @override
+  String get updateChannelBetaSubtitle => '仅提供用于测试的 Beta 版本。';
+
+  @override
+  String get updateChannelBoth => '稳定版和预发布版';
+
+  @override
+  String get updateChannelBothSubtitle => '显示两个渠道的更新通知。';
 
   @override
   String updated(Object arg1) {

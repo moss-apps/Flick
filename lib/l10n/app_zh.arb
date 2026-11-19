@@ -2439,7 +2439,6 @@
   "upcomingSong": "{count} 首待播歌曲",
   "update": "更新",
   "updateAvailable": "有可用更新",
-  "updateAvailableDownloadFromFlickPlayer": "有可用更新 — 可从 flick-player.site 下载",
   "updateAvailableOnThePlayStore": "Play 商店有可用更新。",
   "updateNoticeHidden": "已隐藏更新提示。",
   "updated": "更新于 {arg1}",
@@ -2630,5 +2629,18 @@
   "eqPresetDuplicateFilter": "滤波器编号重复：{number}",
   "eqPresetMissingGain": "滤波器 {number} 缺少增益值。",
   "eqPresetValueAdjusted": "{field}：{value} 已调整为 {adjusted}",
-  "yourYearlyRecapFillsInAs": "随着你全年持续收听，你的年度回顾会逐渐充实。"
+  "yourYearlyRecapFillsInAs": "随着你全年持续收听，你的年度回顾会逐渐充实。",
+  "aNewerFlickBuildOnGithub": "GitHub 上有更新的 Flick 版本。",
+  "betaUpdateAvailable": "有可用的 Beta 更新",
+  "betaUpdateSubtitle": "有可用于测试的预发布版本。",
+  "downloadBetaUpdate": "下载 Beta 版",
+  "getBetaUpdate": "从 GitHub 获取 Beta 版本。",
+  "updateAvailableOnGithub": "GitHub 上有可用更新。",
+  "updateChannel": "更新渠道",
+  "updateChannelStable": "稳定版",
+  "updateChannelStableSubtitle": "仅提供正式发布的 Flick 版本。",
+  "updateChannelBeta": "预发布版",
+  "updateChannelBetaSubtitle": "仅提供用于测试的 Beta 版本。",
+  "updateChannelBoth": "稳定版和预发布版",
+  "updateChannelBothSubtitle": "显示两个渠道的更新通知。"
 }

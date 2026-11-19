@@ -11170,10 +11170,6 @@
   "@updateAvailable": {
     "description": "lib/features/menu/screens/menu_screen.dart:1226"
   },
-  "updateAvailableDownloadFromFlickPlayer": "Update available — download from flick-player.site",
-  "@updateAvailableDownloadFromFlickPlayer": {
-    "description": "lib/features/settings/screens/app_info_settings_screen.dart:87"
-  },
   "updateAvailableOnThePlayStore": "Update available on the Play Store.",
   "@updateAvailableOnThePlayStore": {
     "description": "lib/features/settings/screens/app_info_settings_screen.dart:85"
@@ -11181,6 +11177,58 @@
   "updateNoticeHidden": "Update notice hidden.",
   "@updateNoticeHidden": {
     "description": "lib/features/menu/screens/menu_screen.dart:1269"
+  },
+  "aNewerFlickBuildOnGithub": "A newer Flick build is available on GitHub.",
+  "@aNewerFlickBuildOnGithub": {
+    "description": "GitHub update banner for stable releases."
+  },
+  "betaUpdateAvailable": "Beta Update Available",
+  "@betaUpdateAvailable": {
+    "description": "GitHub update banner title for pre-releases."
+  },
+  "betaUpdateSubtitle": "A pre-release build is available for testing.",
+  "@betaUpdateSubtitle": {
+    "description": "Explains that the offered beta build is for testing."
+  },
+  "downloadBetaUpdate": "Download Beta",
+  "@downloadBetaUpdate": {
+    "description": "Action label for downloading a pre-release APK."
+  },
+  "getBetaUpdate": "Get the beta build from GitHub.",
+  "@getBetaUpdate": {
+    "description": "Subtitle for downloading a pre-release APK."
+  },
+  "updateAvailableOnGithub": "Update available on GitHub.",
+  "@updateAvailableOnGithub": {
+    "description": "Toast shown when a GitHub update is available."
+  },
+  "updateChannel": "Update Channel",
+  "@updateChannel": {
+    "description": "Settings section for choosing stable or beta updates."
+  },
+  "updateChannelStable": "Stable releases",
+  "@updateChannelStable": {
+    "description": "Update channel option for stable releases only."
+  },
+  "updateChannelStableSubtitle": "Only offer fully released Flick builds.",
+  "@updateChannelStableSubtitle": {
+    "description": "Explains the stable update channel."
+  },
+  "updateChannelBeta": "Pre-releases",
+  "@updateChannelBeta": {
+    "description": "Update channel option for pre-releases only."
+  },
+  "updateChannelBetaSubtitle": "Only offer beta builds for testing.",
+  "@updateChannelBetaSubtitle": {
+    "description": "Explains the beta update channel."
+  },
+  "updateChannelBoth": "Stable and pre-releases",
+  "@updateChannelBoth": {
+    "description": "Update channel option for both release types."
+  },
+  "updateChannelBothSubtitle": "Show update notices for both channels.",
+  "@updateChannelBothSubtitle": {
+    "description": "Explains the combined update channel."
   },
   "updated": "Updated {arg1}",
   "@updated": {

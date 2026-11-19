@@ -2291,7 +2291,6 @@
   "upcomingSong": "{count, plural, =1{{count} susunod na kanta} other{{count} susunod na kanta}}",
   "update": "I-update",
   "updateAvailable": "Yun oh! May bagong update na naman!",
-  "updateAvailableDownloadFromFlickPlayer": "May bagong update — i-download sa flick-player.site",
   "updateAvailableOnThePlayStore": "May bagong update sa Play Store.",
   "updateNoticeHidden": "Naitago ang abiso ng update.",
   "updated": "Na-update ang {arg1}",
@@ -2622,5 +2621,18 @@
   "eqPresetDuplicateFilter": "Naulit ang numero ng filter: {number}",
   "eqPresetMissingGain": "Walang gain value ang filter {number}.",
   "eqPresetValueAdjusted": "{field}: inayos ang {value} sa {adjusted}",
-  "whenBitPerfectOutputIs": "Kapag active ang bit-perfect output, tingnan ang capsule para makita ang sample rate at bit depth na ipinapadala sa DAC mo."
+  "whenBitPerfectOutputIs": "Kapag active ang bit-perfect output, tingnan ang capsule para makita ang sample rate at bit depth na ipinapadala sa DAC mo.",
+  "aNewerFlickBuildOnGithub": "May mas bagong Flick build sa GitHub.",
+  "betaUpdateAvailable": "May Available na Beta Update",
+  "betaUpdateSubtitle": "May pre-release build na available para sa testing.",
+  "downloadBetaUpdate": "I-download ang Beta",
+  "getBetaUpdate": "Kunin ang beta build mula sa GitHub.",
+  "updateAvailableOnGithub": "May update sa GitHub.",
+  "updateChannel": "Update Channel",
+  "updateChannelStable": "Mga stable release",
+  "updateChannelStableSubtitle": "Mga ganap nang release na Flick build lang ang iaalok.",
+  "updateChannelBeta": "Mga pre-release",
+  "updateChannelBetaSubtitle": "Mga beta build para sa testing lang ang iaalok.",
+  "updateChannelBoth": "Stable at pre-releases",
+  "updateChannelBothSubtitle": "Ipakita ang update notice para sa dalawang channel."
 }

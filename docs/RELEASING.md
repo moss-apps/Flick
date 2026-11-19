@@ -11,7 +11,7 @@ flutter build appbundle --flavor play --release
 ```
 
 - Output: `build/app/outputs/bundle/playRelease/app-play-release.aab`
-- Upload the bundle and bump the version code (current: `0.23.2-beta.4+33`).
+- Upload the bundle and bump the version code (current: `0.23.3-beta.5+34`).
 - The `play` flavor does **not** declare `MANAGE_EXTERNAL_STORAGE`. The
   All Files Access declaration no longer applies to this build — **do not
   resubmit it**. It was rejected twice (see
@@ -30,7 +30,16 @@ flutter build apk --flavor full --release
 - The `full` flavor declares `MANAGE_EXTERNAL_STORAGE` and keeps the Rust
   direct-walk scanner for complete DSD/WavPack coverage
   (`android/app/src/full/AndroidManifest.xml`).
-- Attach the APK to the GitHub release.
+- Attach the APK to the GitHub release. The in-app update checker only
+  offers a release that has an `.apk` asset attached; releases without
+  one are ignored. Upload the `full` APK before publishing.
+- Mark testing builds as a **pre-release** (GitHub flag and/or a
+  `-beta.N` tag). Flick treats semver pre-release tags as beta even when
+  the GitHub flag is off.
+- Users choose **Stable**, **Pre-releases**, or **both** under
+  Settings → App Info → Update Channel. Stable releases are the default;
+  beta notices are opt-in. A `stable` release is a tag without a semver
+  pre-release suffix.
 
 ## Checks before publishing
 
