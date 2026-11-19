@@ -36,6 +36,19 @@ static CURRENT_DSD_TRACK_RATE: AtomicU32 = AtomicU32::new(0);
 /// unknown. Keeps the engine's mode decision and `audio_play` in agreement
 /// for multichannel sources without changing any exported signature.
 static CURRENT_DSD_SOURCE_CHANNELS: AtomicU32 = AtomicU32::new(0);
+/// Bumped whenever the DSD negotiation context changes. `audio_stop` only
+/// retires the context it observed: a concurrent incoming track may install
+/// new DSD metadata while the old transport is still winding down.
+static DSD_CONTEXT_GENERATION: AtomicU32 = AtomicU32::new(0);
+/// Serializes DSD context updates with the stop-side generation check, so a
+/// new track's metadata cannot land between "still current?" and "clear".
+static DSD_CONTEXT_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+fn lock_dsd_context() -> std::sync::MutexGuard<'static, ()> {
+    DSD_CONTEXT_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 static PENDING_VOLUME: AtomicU32 = AtomicU32::new(0);
 
 const PENDING_VOLUME_NONE: u32 = 0xFFFF_FFFF;
@@ -279,7 +292,9 @@ pub(crate) fn effective_dsd_output_mode_for_rate_and_channels(
 }
 
 pub fn set_dsd_track_rate(rate: u32) {
+    let _guard = lock_dsd_context();
     CURRENT_DSD_TRACK_RATE.store(rate, Ordering::Relaxed);
+    DSD_CONTEXT_GENERATION.fetch_add(1, Ordering::AcqRel);
 }
 
 // Why the last native-DSD attempt fell back (SAS offload / ALSA reasons), so
@@ -311,8 +326,25 @@ fn record_dsd_native_failure(error: &str) {
 }
 
 pub fn clear_dsd_track_rate() {
+    let _guard = lock_dsd_context();
+    clear_dsd_context_locked();
+}
+
+fn clear_dsd_context_locked() {
     CURRENT_DSD_TRACK_RATE.store(0, Ordering::Relaxed);
     CURRENT_DSD_SOURCE_CHANNELS.store(0, Ordering::Relaxed);
+    DSD_CONTEXT_GENERATION.fetch_add(1, Ordering::AcqRel);
+}
+
+/// Retire the DSD negotiation context only if no newer track claimed it.
+fn clear_dsd_context_if_generation(expected: u32) -> bool {
+    let _guard = lock_dsd_context();
+    if DSD_CONTEXT_GENERATION.load(Ordering::Acquire) == expected {
+        clear_dsd_context_locked();
+        true
+    } else {
+        false
+    }
 }
 
 pub fn current_dsd_track_rate() -> Option<u32> {
@@ -325,7 +357,9 @@ pub fn current_dsd_track_rate() -> Option<u32> {
 }
 
 pub fn set_dsd_source_channels(channels: u16) {
+    let _guard = lock_dsd_context();
     CURRENT_DSD_SOURCE_CHANNELS.store(u32::from(channels), Ordering::Relaxed);
+    DSD_CONTEXT_GENERATION.fetch_add(1, Ordering::AcqRel);
 }
 
 pub fn current_dsd_source_channels() -> Option<u16> {
@@ -1812,9 +1846,14 @@ pub fn audio_resume() -> Result<(), String> {
 
 /// Stop playback completely.
 pub fn audio_stop() -> Result<(), String> {
-    clear_dsd_track_rate();
+    let context_generation = DSD_CONTEXT_GENERATION.load(Ordering::Acquire);
     let completion = with_audio_engine(|handle| handle.stop())?;
-    wait_for_native_completion(completion, "Audio stop")
+    wait_for_native_completion(completion, "Audio stop")?;
+    // Retire only the context this stop observed. If `audio_play` installed
+    // new DSD metadata while the transport was winding down, clearing here
+    // would make that play open a plain PCM carrier instead of DoP.
+    clear_dsd_context_if_generation(context_generation);
+    Ok(())
 }
 
 fn wait_for_native_completion(
@@ -2093,6 +2132,39 @@ mod tests {
     use crate::audio::crossfader::CrossfadeCurve;
 
     static CROSSFADE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    static DSD_CONTEXT_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn stop_does_not_retire_a_newer_dsd_context() {
+        let _guard = DSD_CONTEXT_TEST_LOCK.lock().unwrap();
+        clear_dsd_track_rate();
+        set_dsd_track_rate(176_400);
+        set_dsd_source_channels(2);
+        let observed = DSD_CONTEXT_GENERATION.load(Ordering::Acquire);
+
+        // A concurrent audio_play installs the next DSD track while the old
+        // transport is still stopping.
+        set_dsd_track_rate(352_800);
+        set_dsd_source_channels(2);
+
+        assert!(!clear_dsd_context_if_generation(observed));
+        assert_eq!(current_dsd_track_rate(), Some(352_800));
+        assert_eq!(current_dsd_source_channels(), Some(2));
+        clear_dsd_track_rate();
+    }
+
+    #[test]
+    fn stop_retires_the_context_it_observed() {
+        let _guard = DSD_CONTEXT_TEST_LOCK.lock().unwrap();
+        clear_dsd_track_rate();
+        set_dsd_track_rate(176_400);
+        set_dsd_source_channels(2);
+        let observed = DSD_CONTEXT_GENERATION.load(Ordering::Acquire);
+
+        assert!(clear_dsd_context_if_generation(observed));
+        assert_eq!(current_dsd_track_rate(), None);
+        assert_eq!(current_dsd_source_channels(), None);
+    }
 
     #[test]
     fn pending_crossfade_round_trip() {

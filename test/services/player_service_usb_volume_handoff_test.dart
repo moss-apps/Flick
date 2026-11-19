@@ -17,6 +17,7 @@ import 'package:flick/services/audio_session_manager.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/rust_audio_service.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
+import 'package:flick/services/usb_dac_volume_restore.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
@@ -102,6 +103,8 @@ class _Session extends Fake implements AudioSessionManager {
   AudioEngineType get selectedMode => selectedModeNotifier.value;
   @override
   AudioEngineType? get initializedMode => initializedModeNotifier.value;
+  @override
+  String? get fallbackReason => null;
 
   @override
   Future<void> syncRouteSelection({required String reason}) async {
@@ -119,6 +122,7 @@ class _Usb extends Fake implements Uac2Service {
 
   bool hardware;
   Completer<void>? permission;
+  Completer<void>? volumeWriteStarted;
   Completer<void>? volumeWrite;
   Completer<bool?>? healthCheck;
   bool activationSucceeds = true;
@@ -126,6 +130,7 @@ class _Usb extends Fake implements Uac2Service {
   bool volumeWritable = true;
   bool hardwareHealthy = true;
   double initialHardwareVolume = 1.0;
+  Map<String, dynamic>? playbackDebugState;
   final writes = <double>[];
   int refreshes = 0;
   Uac2DeviceStatus status = _status(_attachedDevice);
@@ -159,6 +164,8 @@ class _Usb extends Fake implements Uac2Service {
   @override
   Future<bool> setVolume(double volume, {bool persist = true}) async {
     writes.add(volume);
+    volumeWriteStarted?.complete();
+    volumeWriteStarted = null;
     await volumeWrite?.future;
     if (!volumeWriteSucceeds) return false;
     status = status.copyWith(volume: volume);
@@ -175,6 +182,10 @@ class _Usb extends Fake implements Uac2Service {
   @override
   Future<bool?> verifyHardwareVolumeHealth() async =>
       healthCheck == null ? hardwareHealthy : await healthCheck!.future;
+
+  @override
+  Future<Map<String, dynamic>?> getAndroidPlaybackDebugState() async =>
+      playbackDebugState;
 }
 
 class _Rust extends Fake implements RustAudioService {
@@ -890,6 +901,233 @@ void main() {
       },
     );
   }
+
+  test(
+    'a transient safety-stop failure is retried by the next playback',
+    () async {
+      final usb = _Usb(hardware: true);
+      final rust = _Rust()
+        ..pauseFails = true
+        ..stopFails = true;
+      final player = _player(
+        AudioEngineType.usbDacExperimental,
+        usb,
+        rust: rust,
+      );
+      expect(await player.enableUsbDacBitPerfect(), isTrue);
+      rust.commands.clear();
+      usb.writes.clear();
+      usb.volumeWriteSucceeds = false;
+      await player.setVolume(0.8);
+      expect(rust.commands, ['pause', 'stop']);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isTrue);
+
+      // The engine rebuild this stop raced has finished. The next explicit
+      // request must retry instead of replaying the failed future forever.
+      rust.pauseFails = false;
+      rust.stopFails = false;
+      usb.volumeWriteSucceeds = true;
+      await player.setVolume(0.1);
+
+      expect(rust.commands, ['pause', 'stop', 'pause', 1.0]);
+      expect(usb.writes, [0.8, 0.1]);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
+    },
+  );
+
+  test(
+    'a blocked pre-play restore retries the safety stop before writing',
+    () async {
+      final usb = _Usb(hardware: true);
+      final rust = _Rust()
+        ..pauseFails = true
+        ..stopFails = true;
+      final player = _player(
+        AudioEngineType.usbDacExperimental,
+        usb,
+        rust: rust,
+      );
+      expect(await player.enableUsbDacBitPerfect(), isTrue);
+      rust.commands.clear();
+      usb.writes.clear();
+      usb.volumeWriteSucceeds = false;
+      await player.setVolume(0.8);
+      expect(rust.commands, ['pause', 'stop']);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isTrue);
+
+      rust.pauseFails = false;
+      rust.stopFails = false;
+      usb.volumeWriteSucceeds = true;
+      await player.restoreUsbVolumeForTesting();
+
+      expect(rust.commands, ['pause', 'stop', 'pause', 1.0]);
+      expect(usb.writes, [0.8, 0.4]);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
+    },
+  );
+
+  test(
+    'a handoff that cannot stop the transport never writes DAC gain',
+    () async {
+      final usb = _Usb();
+      final rust = _Rust()
+        ..pauseFails = true
+        ..stopFails = true;
+      final player = _player(
+        AudioEngineType.usbDacExperimental,
+        usb,
+        rust: rust,
+      );
+      expect(await player.enableUsbDacBitPerfect(), isTrue);
+      usb.isBitPerfectEnabledSync = false;
+      player.currentSongNotifier.value = _song;
+      await player.reconcileVolumeForTesting();
+      usb.status = _status(
+        _authorizedDevice,
+        hardware: true,
+      ).copyWith(volume: 0.6);
+      rust.commands.clear();
+
+      await expectLater(
+        player.restoreUsbVolumeForTesting(),
+        throwsA(isA<UsbDacVolumeRestoreError>()),
+      );
+      expect(usb.writes, isEmpty);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isTrue);
+
+      // Once the rebuild has actually quiesced, the next explicit attempt
+      // completes the handoff at the capped low level.
+      rust.pauseFails = false;
+      rust.stopFails = false;
+      await player.restoreUsbVolumeForTesting();
+      expect(usb.writes, [0.4]);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
+    },
+  );
+
+  test(
+    'an inactive hardware generation is checked when it becomes active',
+    () async {
+      final usb = _Usb(hardware: true);
+      final rust = _Rust();
+      final player = _player(
+        AudioEngineType.usbDacExperimental,
+        usb,
+        rust: rust,
+      );
+      expect(await player.enableUsbDacBitPerfect(), isTrue);
+      player.currentSongNotifier.value = _song;
+      await player.restoreUsbVolumeForTesting();
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
+      rust.commands.clear();
+
+      Map<String, dynamic> state({required bool active}) => {
+        'rustAudioState': {
+          'engine': {'direct_usb_active': true},
+          'direct_usb': {
+            'hardware_volume_generation': 7,
+            'stream_active': active,
+            'hardware_volume_normalized': 0.9,
+          },
+        },
+      };
+
+      usb.playbackDebugState = state(active: false);
+      await player.refreshAudioOutputDiagnosticsForTesting();
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
+      expect(rust.commands, isNot(contains('pause')));
+
+      // The generation did not change; only the stream became active. It must
+      // still be checked against the verified 0.4 level.
+      usb.playbackDebugState = state(active: true);
+      await player.refreshAudioOutputDiagnosticsForTesting();
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isTrue);
+      expect(rust.commands, contains('pause'));
+    },
+  );
+
+  test(
+    'an older pre-play restore cannot clear a newer failed safety stop',
+    () async {
+      final writeStarted = Completer<void>();
+      final write = Completer<void>();
+      final usb = _Usb(hardware: true)
+        ..status = _status(_authorizedDevice, hardware: true)
+        ..isBitPerfectEnabledSync = true
+        ..volumeWriteStarted = writeStarted
+        ..volumeWrite = write;
+      final rust = _Rust()
+        ..pauseFails = true
+        ..stopFails = true;
+      final player = _player(
+        AudioEngineType.usbDacExperimental,
+        usb,
+        rust: rust,
+      );
+      final restore = expectLater(
+        player.restoreUsbVolumeForTesting(),
+        throwsA(isA<UsbDacVolumeRestoreError>()),
+      );
+      await writeStarted.future;
+      expect(usb.writes, [0.4]);
+
+      // This starts a newer safety stop, which fails before the old readback.
+      await player.setVolume(0.8);
+      expect(rust.commands, ['pause', 'stop']);
+      expect(usb.writes, [0.4]);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isTrue);
+      write.complete();
+      await restore;
+      expect(rust.commands, ['pause', 'stop']);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isTrue);
+
+      // The rejected restore was not cached and only a fresh, confirmed stop
+      // makes the next restore eligible to return control to the DAC.
+      rust.pauseFails = false;
+      rust.stopFails = false;
+      await player.restoreUsbVolumeForTesting();
+      expect(usb.writes, [0.4, 0.4]);
+      expect(rust.commands, ['pause', 'stop', 'pause', 1.0]);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
+    },
+  );
+
+  test(
+    'an older slider write cannot clear a newer failed safety stop',
+    () async {
+      final usb = _Usb(hardware: true);
+      final rust = _Rust();
+      final player = _player(
+        AudioEngineType.usbDacExperimental,
+        usb,
+        rust: rust,
+      );
+      expect(await player.enableUsbDacBitPerfect(), isTrue);
+      rust.commands.clear();
+      rust.pauseFails = true;
+      rust.stopFails = true;
+      final writeStarted = Completer<void>();
+      final write = Completer<void>();
+      usb.volumeWriteStarted = writeStarted;
+      usb.volumeWrite = write;
+      final slider = player.setVolume(0.8);
+      await writeStarted.future;
+
+      // The same DAC loses hardware volume authority during the write.
+      final hardwareStatus = usb.status;
+      usb.status = _status(hardwareStatus.device);
+      await player.reconcileVolumeForTesting();
+      expect(rust.commands, ['pause', 'stop']);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isTrue);
+      usb.status = hardwareStatus;
+      write.complete();
+      await slider;
+
+      expect(rust.commands, ['pause', 'stop']);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isTrue);
+      expect(player.currentVolume, 0.4);
+    },
+  );
 
   test('a late hardware write cannot approve a different DAC', () async {
     final usb = _Usb(hardware: true);
