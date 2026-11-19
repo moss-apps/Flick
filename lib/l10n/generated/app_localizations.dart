@@ -14692,12 +14692,6 @@ abstract class AppLocalizations {
   /// **'Update Available'**
   String get updateAvailable;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:87
-  ///
-  /// In en, this message translates to:
-  /// **'Update available — download from flick-player.site'**
-  String get updateAvailableDownloadFromFlickPlayer;
-
   /// lib/features/settings/screens/app_info_settings_screen.dart:85
   ///
   /// In en, this message translates to:
@@ -14709,6 +14703,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Update notice hidden.'**
   String get updateNoticeHidden;
+
+  /// GitHub update banner for stable releases.
+  ///
+  /// In en, this message translates to:
+  /// **'A newer Flick build is available on GitHub.'**
+  String get aNewerFlickBuildOnGithub;
+
+  /// GitHub update banner title for pre-releases.
+  ///
+  /// In en, this message translates to:
+  /// **'Beta Update Available'**
+  String get betaUpdateAvailable;
+
+  /// Explains that the offered beta build is for testing.
+  ///
+  /// In en, this message translates to:
+  /// **'A pre-release build is available for testing.'**
+  String get betaUpdateSubtitle;
+
+  /// Action label for downloading a pre-release APK.
+  ///
+  /// In en, this message translates to:
+  /// **'Download Beta'**
+  String get downloadBetaUpdate;
+
+  /// Subtitle for downloading a pre-release APK.
+  ///
+  /// In en, this message translates to:
+  /// **'Get the beta build from GitHub.'**
+  String get getBetaUpdate;
+
+  /// Toast shown when a GitHub update is available.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available on GitHub.'**
+  String get updateAvailableOnGithub;
+
+  /// Settings section for choosing stable or beta updates.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Channel'**
+  String get updateChannel;
+
+  /// Update channel option for stable releases only.
+  ///
+  /// In en, this message translates to:
+  /// **'Stable releases'**
+  String get updateChannelStable;
+
+  /// Explains the stable update channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Only offer fully released Flick builds.'**
+  String get updateChannelStableSubtitle;
+
+  /// Update channel option for pre-releases only.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-releases'**
+  String get updateChannelBeta;
+
+  /// Explains the beta update channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Only offer beta builds for testing.'**
+  String get updateChannelBetaSubtitle;
+
+  /// Update channel option for both release types.
+  ///
+  /// In en, this message translates to:
+  /// **'Stable and pre-releases'**
+  String get updateChannelBoth;
+
+  /// Explains the combined update channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show update notices for both channels.'**
+  String get updateChannelBothSubtitle;
 
   /// lib/features/playlists/screens/playlist_detail_screen.dart:438
   ///

@@ -8680,15 +8680,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateAvailable => 'Update Available';
 
   @override
-  String get updateAvailableDownloadFromFlickPlayer =>
-      'Update available — download from flick-player.site';
-
-  @override
   String get updateAvailableOnThePlayStore =>
       'Update available on the Play Store.';
 
   @override
   String get updateNoticeHidden => 'Update notice hidden.';
+
+  @override
+  String get aNewerFlickBuildOnGithub =>
+      'A newer Flick build is available on GitHub.';
+
+  @override
+  String get betaUpdateAvailable => 'Beta Update Available';
+
+  @override
+  String get betaUpdateSubtitle =>
+      'A pre-release build is available for testing.';
+
+  @override
+  String get downloadBetaUpdate => 'Download Beta';
+
+  @override
+  String get getBetaUpdate => 'Get the beta build from GitHub.';
+
+  @override
+  String get updateAvailableOnGithub => 'Update available on GitHub.';
+
+  @override
+  String get updateChannel => 'Update Channel';
+
+  @override
+  String get updateChannelStable => 'Stable releases';
+
+  @override
+  String get updateChannelStableSubtitle =>
+      'Only offer fully released Flick builds.';
+
+  @override
+  String get updateChannelBeta => 'Pre-releases';
+
+  @override
+  String get updateChannelBetaSubtitle => 'Only offer beta builds for testing.';
+
+  @override
+  String get updateChannelBoth => 'Stable and pre-releases';
+
+  @override
+  String get updateChannelBothSubtitle =>
+      'Show update notices for both channels.';
 
   @override
   String updated(Object arg1) {

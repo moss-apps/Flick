@@ -63,7 +63,8 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
   List<RecentlyPlayedEntry> _recentEntries = const [];
   Map<ListeningRecapPeriod, ListeningRecap> _recaps = const {};
   bool _isHistoryLoading = true;
-  bool _showUpdateNotice = true;
+  bool _showStableUpdateNotice = true;
+  bool _showBetaUpdateNotice = true;
   bool _pendingEngineRestart = false;
   Color? _heroDominantColor;
   // The native review keeps general home copy English, with explicit Filipino
@@ -241,6 +242,35 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
       }
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(content: Text(l10n.englishForFilipino.couldNotOpenThePlayStore2(error))),
+      );
+    }
+  }
+
+  Future<void> _openReleaseDownload(String downloadUrl) async {
+    try {
+      var launched = await launchUrl(
+        Uri.parse(downloadUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        launched = await launchUrl(
+          Uri.parse(UpdateCheckNotifier.flickWebsiteDownloadUrl),
+          mode: LaunchMode.externalApplication,
+        );
+      }
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showFlickSnackBar(
+          SnackBar(content: Text(l10n.englishForFilipino.couldNotOpenTheLink)),
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showFlickSnackBar(
+        SnackBar(
+          content: Text(l10n.englishForFilipino.couldNotOpenTheLink2(error)),
+        ),
       );
     }
   }
@@ -641,6 +671,21 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
     final appPreferences = ref.watch(appPreferencesProvider);
     final updateState = ref.watch(updateCheckProvider);
     final enginePreferenceAsync = ref.watch(audioEnginePreferenceProvider);
+    final updateChannel = appPreferences.updateChannel;
+    final stableRelease = updateState.isPlayStoreBuild
+        ? null
+        : updateState.stableRelease;
+    final showStableUpdateNotice =
+        updateChannel.includesStable &&
+        (updateState.isPlayStoreBuild
+            ? updateState.updateAvailable
+            : stableRelease != null) &&
+        _showStableUpdateNotice;
+    final showBetaUpdateNotice =
+        !updateState.isPlayStoreBuild &&
+        updateChannel.includesBeta &&
+        updateState.betaRelease != null &&
+        _showBetaUpdateNotice;
 
     final allSongs = songsAsync.value?.songs ?? const <Song>[];
     final favoriteSongs = favoritesAsync.value?.favoriteSongs ?? const <Song>[];
@@ -759,7 +804,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                         ),
                       ),
                     ),
-                  if (updateState.updateAvailable && _showUpdateNotice)
+                  if (showStableUpdateNotice)
                     SliverToBoxAdapter(
                       child: AnimatedSize(
                         duration: AppConstants.animationNormal,
@@ -776,7 +821,66 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                 AppConstants.spacingLg,
                                 AppConstants.spacingMd,
                               ),
-                              child: _buildUpdateNotice(context),
+                              child: _buildUpdateNotice(
+                                context,
+                                isBeta: false,
+                                title: l10n.updateAvailable,
+                                message: updateState.isPlayStoreBuild
+                                    ? l10n.aNewerFlickBuildIsOn
+                                    : l10n.aNewerFlickBuildOnGithub,
+                                actionLabel: updateState.isPlayStoreBuild
+                                    ? l10n.update
+                                    : l10n.downloadUpdate,
+                                onAction: updateState.isPlayStoreBuild
+                                    ? _openPlayStoreListing
+                                    : () => _openReleaseDownload(
+                                        stableRelease!.downloadUrl,
+                                      ),
+                                onDismiss: () => setState(
+                                  () => _showStableUpdateNotice = false,
+                                ),
+                                onUndo: () => setState(
+                                  () => _showStableUpdateNotice = true,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (showBetaUpdateNotice)
+                    SliverToBoxAdapter(
+                      child: AnimatedSize(
+                        duration: AppConstants.animationNormal,
+                        curve: Curves.easeInOut,
+                        alignment: Alignment.topCenter,
+                        child: FadeTransition(
+                          opacity: _updateNoticeFade,
+                          child: SlideTransition(
+                            position: _updateNoticeSlide,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppConstants.spacingLg,
+                                0,
+                                AppConstants.spacingLg,
+                                AppConstants.spacingMd,
+                              ),
+                              child: _buildUpdateNotice(
+                                context,
+                                isBeta: true,
+                                title: l10n.betaUpdateAvailable,
+                                message: l10n.betaUpdateSubtitle,
+                                actionLabel: l10n.downloadBetaUpdate,
+                                onAction: () => _openReleaseDownload(
+                                  updateState.betaRelease!.downloadUrl,
+                                ),
+                                onDismiss: () => setState(
+                                  () => _showBetaUpdateNotice = false,
+                                ),
+                                onUndo: () => setState(
+                                  () => _showBetaUpdateNotice = true,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -1178,7 +1282,19 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
     );
   }
 
-  Widget _buildUpdateNotice(BuildContext context) {
+  Widget _buildUpdateNotice(
+    BuildContext context, {
+    required bool isBeta,
+    required String title,
+    required String message,
+    required String actionLabel,
+    required VoidCallback onAction,
+    required VoidCallback onDismiss,
+    required VoidCallback onUndo,
+  }) {
+    final gradient = isBeta
+        ? const [Color(0xFF2B1B3A), Color(0xFF17101F)]
+        : const [Color(0xFF3A2A14), Color(0xFF1F160A)];
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppConstants.spacingMd,
@@ -1187,10 +1303,10 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
       decoration: BoxDecoration(
         // ponytail: fixed warm amber gradient to signal "update" without alarm.
         // Independent of album art. Change hue here if branding shifts.
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF3A2A14), Color(0xFF1F160A)],
+          colors: gradient,
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
@@ -1204,8 +1320,8 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
               color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
-              LucideIcons.badgeAlert,
+            child: Icon(
+              isBeta ? LucideIcons.flaskConical : LucideIcons.badgeAlert,
               color: Colors.white,
               size: 16,
             ),
@@ -1216,7 +1332,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  context.l10n.updateAvailable,
+                  title,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -1224,7 +1340,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                 ),
                 const SizedBox(height: AppConstants.spacingXxs),
                 Text(
-                  l10n.aNewerFlickBuildIsOn,
+                  message,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.white.withValues(alpha: 0.8),
                     height: 1.35,
@@ -1235,9 +1351,12 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
           ),
           const SizedBox(width: AppConstants.spacingSm),
           FilledButton.icon(
-            onPressed: _openPlayStoreListing,
-            icon: const Icon(LucideIcons.externalLink, size: 14),
-            label: Text(l10n.update),
+            onPressed: onAction,
+            icon: Icon(
+              isBeta ? LucideIcons.download : LucideIcons.externalLink,
+              size: 14,
+            ),
+            label: Text(actionLabel),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: const Color(0xFF0F1720),
@@ -1253,7 +1372,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
           ),
           IconButton(
             onPressed: () {
-              setState(() => _showUpdateNotice = false);
+              onDismiss();
               ScaffoldMessenger.of(context)
                 .showFlickSnackBar(
                   SnackBar(
@@ -1264,8 +1383,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                     duration: const Duration(seconds: 4),
                     action: SnackBarAction(
                       label: l10n.englishForFilipino.undo,
-                      onPressed: () =>
-                          setState(() => _showUpdateNotice = true),
+                      onPressed: onUndo,
                     ),
                   ),
                 );

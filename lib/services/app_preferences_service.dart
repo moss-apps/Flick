@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/update_channel.dart';
+
 class AppPreferences {
   final bool animationsEnabled;
   final bool hapticsEnabled;
@@ -94,6 +96,7 @@ class AppPreferences {
   final bool autoFocusSearch;
   final String searchPlaybackMode; // 'results', 'library', or 'queue'
   final String refreshRateMode; // 'high', 'standard', 'adaptive'
+  final UpdateChannel updateChannel;
   final bool visualizerEnabled;
   final bool lockScreenVisualizerEnabled;
   final bool simulatedAodEnabled;
@@ -228,6 +231,7 @@ class AppPreferences {
     this.autoFocusSearch = false,
     this.searchPlaybackMode = 'results',
     this.refreshRateMode = 'adaptive',
+    this.updateChannel = UpdateChannel.stable,
     this.visualizerEnabled = true,
     this.lockScreenVisualizerEnabled = false,
     this.simulatedAodEnabled = false,
@@ -359,6 +363,7 @@ class AppPreferences {
     bool? autoFocusSearch,
     String? searchPlaybackMode,
     String? refreshRateMode,
+    UpdateChannel? updateChannel,
     bool? visualizerEnabled,
     bool? lockScreenVisualizerEnabled,
     bool? simulatedAodEnabled,
@@ -529,6 +534,7 @@ class AppPreferences {
       autoFocusSearch: autoFocusSearch ?? this.autoFocusSearch,
       searchPlaybackMode: searchPlaybackMode ?? this.searchPlaybackMode,
       refreshRateMode: refreshRateMode ?? this.refreshRateMode,
+      updateChannel: updateChannel ?? this.updateChannel,
       visualizerEnabled: visualizerEnabled ?? this.visualizerEnabled,
       lockScreenVisualizerEnabled:
           lockScreenVisualizerEnabled ?? this.lockScreenVisualizerEnabled,
@@ -688,6 +694,7 @@ class AppPreferencesService {
   static const _autoFocusSearchKey = 'app_auto_focus_search';
   static const _searchPlaybackModeKey = 'app_search_playback_mode';
   static const _refreshRateModeKey = 'app_refresh_rate_mode';
+  static const _updateChannelKey = 'update_channel';
   static const _visualizerEnabledKey = 'visualizer_enabled';
   static const _lockScreenVisualizerEnabledKey =
       'lock_screen_visualizer_enabled';
@@ -864,6 +871,9 @@ class AppPreferencesService {
       autoFocusSearch: prefs.getBool(_autoFocusSearchKey) ?? false,
       searchPlaybackMode: prefs.getString(_searchPlaybackModeKey) ?? 'results',
       refreshRateMode: await _resolveRefreshRateMode(prefs),
+      updateChannel: UpdateChannel.fromStorage(
+        prefs.getString(_updateChannelKey),
+      ),
       visualizerEnabled: prefs.getBool(_visualizerEnabledKey) ?? true,
       lockScreenVisualizerEnabled:
           prefs.getBool(_lockScreenVisualizerEnabledKey) ?? false,
@@ -1911,6 +1921,16 @@ class AppPreferencesService {
   Future<void> setRefreshRateMode(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_refreshRateModeKey, value);
+  }
+
+  Future<UpdateChannel> getUpdateChannel() async {
+    final prefs = await SharedPreferences.getInstance();
+    return UpdateChannel.fromStorage(prefs.getString(_updateChannelKey));
+  }
+
+  Future<void> setUpdateChannel(UpdateChannel value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_updateChannelKey, value.storageValue);
   }
 
   /// Returns the persisted UI language tag, or 'system' when unset.

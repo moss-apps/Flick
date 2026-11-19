@@ -8777,15 +8777,55 @@ class AppLocalizationsTl extends AppLocalizations {
   String get updateAvailable => 'Yun oh! May bagong update na naman!';
 
   @override
-  String get updateAvailableDownloadFromFlickPlayer =>
-      'May bagong update — i-download sa flick-player.site';
-
-  @override
   String get updateAvailableOnThePlayStore =>
       'May bagong update sa Play Store.';
 
   @override
   String get updateNoticeHidden => 'Naitago ang abiso ng update.';
+
+  @override
+  String get aNewerFlickBuildOnGithub =>
+      'May mas bagong Flick build sa GitHub.';
+
+  @override
+  String get betaUpdateAvailable => 'May Available na Beta Update';
+
+  @override
+  String get betaUpdateSubtitle =>
+      'May pre-release build na available para sa testing.';
+
+  @override
+  String get downloadBetaUpdate => 'I-download ang Beta';
+
+  @override
+  String get getBetaUpdate => 'Kunin ang beta build mula sa GitHub.';
+
+  @override
+  String get updateAvailableOnGithub => 'May update sa GitHub.';
+
+  @override
+  String get updateChannel => 'Update Channel';
+
+  @override
+  String get updateChannelStable => 'Mga stable release';
+
+  @override
+  String get updateChannelStableSubtitle =>
+      'Mga ganap nang release na Flick build lang ang iaalok.';
+
+  @override
+  String get updateChannelBeta => 'Mga pre-release';
+
+  @override
+  String get updateChannelBetaSubtitle =>
+      'Mga beta build para sa testing lang ang iaalok.';
+
+  @override
+  String get updateChannelBoth => 'Stable at pre-releases';
+
+  @override
+  String get updateChannelBothSubtitle =>
+      'Ipakita ang update notice para sa dalawang channel.';
 
   @override
   String updated(Object arg1) {

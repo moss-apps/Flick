@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:in_app_update/in_app_update.dart';
 
 import '../core/constants/app_constants.dart';
+import '../models/update_channel.dart';
+import '../services/github_release_service.dart';
 import 'connectivity_provider.dart';
 import 'package:flick/l10n/l10n.dart';
 
@@ -19,8 +21,8 @@ class UpdateCheckState {
     this.errorMessage,
     this.lastCheckedAt,
     this.isPlayStoreBuild = true,
-    this.downloadUrl,
-    this.latestVersion,
+    this.stableRelease,
+    this.betaRelease,
   });
 
   final bool isOnline;
@@ -30,8 +32,39 @@ class UpdateCheckState {
   final String? errorMessage;
   final DateTime? lastCheckedAt;
   final bool isPlayStoreBuild;
-  final String? downloadUrl;
-  final String? latestVersion;
+  final AppRelease? stableRelease;
+  final AppRelease? betaRelease;
+
+  /// Whether the selected [channel] has an update to offer. Play Store builds
+  /// keep their existing single-channel behavior.
+  bool hasUpdateForChannel(UpdateChannel channel) {
+    if (isPlayStoreBuild) return updateAvailable;
+    return switch (channel) {
+      UpdateChannel.stable => stableRelease != null,
+      UpdateChannel.beta => betaRelease != null,
+      UpdateChannel.both => stableRelease != null || betaRelease != null,
+    };
+  }
+
+  /// The newest release available on [channel], preferring the stable release
+  /// when both channels point at the same version.
+  AppRelease? releaseForChannel(UpdateChannel channel) {
+    return switch (channel) {
+      UpdateChannel.stable => stableRelease,
+      UpdateChannel.beta => betaRelease,
+      UpdateChannel.both => _newestRelease(stableRelease, betaRelease),
+    };
+  }
+
+  static AppRelease? _newestRelease(AppRelease? stable, AppRelease? beta) {
+    if (stable == null) return beta;
+    if (beta == null) return stable;
+    final stableVersion = SemVer.tryParse(stable.version);
+    final betaVersion = SemVer.tryParse(beta.version);
+    if (stableVersion == null) return beta;
+    if (betaVersion == null) return stable;
+    return betaVersion.compareTo(stableVersion) > 0 ? beta : stable;
+  }
 
   UpdateCheckState copyWith({
     bool? isOnline,
@@ -42,10 +75,10 @@ class UpdateCheckState {
     DateTime? lastCheckedAt,
     bool clearErrorMessage = false,
     bool? isPlayStoreBuild,
-    String? downloadUrl,
-    String? latestVersion,
-    bool clearDownloadUrl = false,
-    bool clearLatestVersion = false,
+    AppRelease? stableRelease,
+    AppRelease? betaRelease,
+    bool clearStableRelease = false,
+    bool clearBetaRelease = false,
   }) {
     return UpdateCheckState(
       isOnline: isOnline ?? this.isOnline,
@@ -57,10 +90,10 @@ class UpdateCheckState {
           : errorMessage ?? this.errorMessage,
       lastCheckedAt: lastCheckedAt ?? this.lastCheckedAt,
       isPlayStoreBuild: isPlayStoreBuild ?? this.isPlayStoreBuild,
-      downloadUrl:
-          clearDownloadUrl ? null : downloadUrl ?? this.downloadUrl,
-      latestVersion:
-          clearLatestVersion ? null : latestVersion ?? this.latestVersion,
+      stableRelease: clearStableRelease
+          ? null
+          : stableRelease ?? this.stableRelease,
+      betaRelease: clearBetaRelease ? null : betaRelease ?? this.betaRelease,
     );
   }
 }
@@ -70,11 +103,12 @@ class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
       'https://play.google.com/store/apps/details?id=com.mossapps.flick';
   static const String flickPlayStoreMarketUrl =
       'market://details?id=com.mossapps.flick';
-  static const String flickWebsiteDownloadUrl = 'https://www.flick-player.site/';
+  static const String flickWebsiteDownloadUrl =
+      'https://www.flick-player.site/';
   static const Duration _automaticRefreshCooldown = Duration(minutes: 30);
 
   static final Uri _githubReleasesApiUri = Uri.parse(
-    'https://api.github.com/repos/moss-apps/Flick/releases/latest',
+    GitHubReleaseService.releasesUri,
   );
 
   bool _initialized = false;
@@ -113,9 +147,8 @@ class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
     final isOnline = switch (status) {
       ConnectivityStatus.online => true,
       ConnectivityStatus.offline => false,
-      ConnectivityStatus.unknown => await ref
-          .read(connectivityProvider.notifier)
-          .refresh(),
+      ConnectivityStatus.unknown =>
+        await ref.read(connectivityProvider.notifier).refresh(),
     };
     await _syncConnectivityAndMaybeCheck(isOnline, forceCheck: force);
   }
@@ -168,6 +201,8 @@ class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
             info.updateAvailability == UpdateAvailability.updateAvailable,
         lastCheckedAt: DateTime.now(),
         clearErrorMessage: true,
+        clearStableRelease: true,
+        clearBetaRelease: true,
       );
     } on PlatformException {
       await _checkGitHubForUpdate();
@@ -196,22 +231,22 @@ class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
         throw Exception('GitHub API returned ${response.statusCode}');
       }
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      var tag = (data['tag_name'] as String?)?.trim() ?? '';
-      if (tag.startsWith('v')) {
-        tag = tag.substring(1);
+      final data = jsonDecode(response.body);
+      if (data is! List) {
+        throw const FormatException();
       }
 
-      final isUpdateAvailable = tag.isNotEmpty && tag != kAppVersion;
+      final updates = GitHubReleaseService.selectUpdates(data, kAppVersion);
 
       state = state.copyWith(
         isChecking: false,
         hasChecked: true,
         isPlayStoreBuild: false,
-        updateAvailable: isUpdateAvailable,
-        downloadUrl:
-            isUpdateAvailable ? flickWebsiteDownloadUrl : null,
-        latestVersion: tag.isNotEmpty ? tag : null,
+        updateAvailable: updates.hasUpdates,
+        stableRelease: updates.stable,
+        betaRelease: updates.beta,
+        clearStableRelease: updates.stable == null,
+        clearBetaRelease: updates.beta == null,
         lastCheckedAt: DateTime.now(),
         clearErrorMessage: true,
       );
@@ -221,6 +256,8 @@ class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
         hasChecked: true,
         isPlayStoreBuild: false,
         updateAvailable: false,
+        clearStableRelease: true,
+        clearBetaRelease: true,
         errorMessage: l10n.unableToCheckForUpdatesRight,
         lastCheckedAt: DateTime.now(),
       );

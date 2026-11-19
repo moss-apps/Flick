@@ -18,8 +18,10 @@ import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
 import 'package:flick/features/settings/screens/privacy_policy_screen.dart';
 import 'package:flick/features/settings/screens/support_flick_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
+import 'package:flick/models/update_channel.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/build_info_service.dart';
+import 'package:flick/services/github_release_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
@@ -98,15 +100,16 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     }
 
     final updateState = ref.read(updateCheckProvider);
+    final updateChannel = ref.read(appPreferencesProvider).updateChannel;
     if (!updateState.isOnline) {
       _showToast(l10n.connectToTheInternetToCheck);
       return;
     }
-    if (updateState.updateAvailable) {
+    if (updateState.hasUpdateForChannel(updateChannel)) {
       if (updateState.isPlayStoreBuild) {
         _showToast(l10n.updateAvailableOnThePlayStore);
       } else {
-        _showToast(l10n.updateAvailableDownloadFromFlickPlayer);
+        _showToast(l10n.updateAvailableOnGithub);
       }
       return;
     }
@@ -147,6 +150,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
 
   ({IconData icon, String title, String subtitle}) _getUpdateStatusDetails(
     UpdateCheckState updateState,
+    UpdateChannel channel,
   ) {
     final isPlay = updateState.isPlayStoreBuild;
     if (updateState.isChecking) {
@@ -158,12 +162,14 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
             : l10n.lookingForTheLatestFlickRelease,
       );
     }
-    if (updateState.updateAvailable) {
+    if (updateState.hasUpdateForChannel(channel)) {
       return (
         icon: LucideIcons.badgeAlert,
         title: l10n.englishForFilipino.updateAvailable,
         subtitle: isPlay
             ? l10n.openThePlayStoreToInstall
+            : channel == UpdateChannel.beta
+            ? l10n.betaUpdateSubtitle
             : l10n.downloadTheLatestApkFromFlick,
       );
     }
@@ -199,8 +205,11 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     );
   }
 
-  Widget _buildUpdateStatusTile(UpdateCheckState updateState) {
-    final details = _getUpdateStatusDetails(updateState);
+  Widget _buildUpdateStatusTile(
+    UpdateCheckState updateState,
+    UpdateChannel channel,
+  ) {
+    final details = _getUpdateStatusDetails(updateState, channel);
     return Padding(
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       child: Row(
@@ -275,13 +284,16 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     );
   }
 
-  void _showPatchNotesBottomSheet() {
+  void _showPatchNotesBottomSheet([_PatchNotes? notes]) {
+    final future = notes != null
+        ? Future<_PatchNotes>.value(notes)
+        : _fetchPatchNotes();
     GlassBottomSheet.show(
       context: context,
       title: l10n.englishForFilipino.patchNotes,
       maxHeightRatio: 0.7,
       content: FutureBuilder<_PatchNotes>(
-        future: _fetchPatchNotes(),
+        future: future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return Padding(
@@ -611,9 +623,51 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     }
   }
 
+  List<Widget> _buildGitHubReleaseActions(AppRelease release) {
+    return [
+      const SettingsDivider(),
+      NavigationSetting(
+        icon: LucideIcons.fileText,
+        title: l10n.englishForFilipino.patchNotes,
+        subtitle: l10n.version(release.version),
+        onTap: () => _showPatchNotesBottomSheet(
+          _PatchNotes(
+            title: release.title,
+            body: release.notes.isEmpty
+                ? l10n.noPatchNotesAvailableYet
+                : release.notes,
+            url: release.releaseUrl,
+          ),
+        ),
+      ),
+      const SettingsDivider(),
+      ActionButton(
+        icon: LucideIcons.download,
+        title: release.isPrerelease
+            ? l10n.englishForFilipino.downloadBetaUpdate
+            : l10n.englishForFilipino.downloadUpdate,
+        subtitle: release.isPrerelease
+            ? l10n.getBetaUpdate
+            : l10n.getTheLatestApkFromFlick,
+        onTap: () => _launchUrl(release.downloadUrl),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final updateState = ref.watch(updateCheckProvider);
+    final appPreferences = ref.watch(appPreferencesProvider);
+    final updateChannel = appPreferences.updateChannel;
+    final availableReleases = <AppRelease>[
+      if (!updateState.isPlayStoreBuild) ...[
+        if (updateChannel.includesStable &&
+            updateState.stableRelease != null)
+          updateState.stableRelease!,
+        if (updateChannel.includesBeta && updateState.betaRelease != null)
+          updateState.betaRelease!,
+      ],
+    ];
 
     return SettingsScaffold(
       title: l10n.englishForFilipino.appInfo,
@@ -637,34 +691,69 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
                 onTap: updateState.isChecking ? null : _checkForUpdatesManually,
               ),
               const SettingsDivider(),
-              _buildUpdateStatusTile(updateState),
-              if (updateState.updateAvailable) ...[
+              _buildUpdateStatusTile(updateState, updateChannel),
+              if (availableReleases.isNotEmpty)
+                for (final release in availableReleases)
+                  ..._buildGitHubReleaseActions(release)
+              else if (updateState.updateAvailable &&
+                  updateState.isPlayStoreBuild) ...[
                 const SettingsDivider(),
                 NavigationSetting(
                   icon: LucideIcons.fileText,
                   title: l10n.englishForFilipino.patchNotes,
                   subtitle: l10n.seeWhatIsNewInThis,
-                  onTap: _showPatchNotesBottomSheet,
+                  onTap: () => _showPatchNotesBottomSheet(),
                 ),
                 const SettingsDivider(),
-                if (updateState.isPlayStoreBuild)
-                  ActionButton(
-                    icon: LucideIcons.externalLink,
-                    title: l10n.englishForFilipino.openInPlayStore,
-                    subtitle: l10n.jumpToTheFlickListingAnd,
-                    onTap: _openPlayStoreListing,
-                  )
-                else
-                  ActionButton(
-                    icon: LucideIcons.download,
-                    title: l10n.englishForFilipino.downloadUpdate,
-                    subtitle: l10n.getTheLatestApkFromFlick,
-                    onTap: () =>
-                        _launchUrl(UpdateCheckNotifier.flickWebsiteDownloadUrl),
-                  ),
+                ActionButton(
+                  icon: LucideIcons.externalLink,
+                  title: l10n.englishForFilipino.openInPlayStore,
+                  subtitle: l10n.jumpToTheFlickListingAnd,
+                  onTap: _openPlayStoreListing,
+                ),
               ],
             ],
           ),
+          if (!updateState.isPlayStoreBuild) ...[
+            const SizedBox(height: AppConstants.spacingLg),
+            SettingsSectionHeader(
+              l10n.englishForFilipino.updateChannel,
+              sectionId: 'updateChannel',
+            ),
+            SettingsCard(
+              children: [
+                SelectionSetting(
+                  icon: LucideIcons.badgeCheck,
+                  title: l10n.englishForFilipino.updateChannelStable,
+                  subtitle: l10n.updateChannelStableSubtitle,
+                  selected: updateChannel == UpdateChannel.stable,
+                  onTap: () => ref
+                      .read(appPreferencesProvider.notifier)
+                      .setUpdateChannel(UpdateChannel.stable),
+                ),
+                const SettingsDivider(),
+                SelectionSetting(
+                  icon: LucideIcons.flaskConical,
+                  title: l10n.englishForFilipino.updateChannelBeta,
+                  subtitle: l10n.updateChannelBetaSubtitle,
+                  selected: updateChannel == UpdateChannel.beta,
+                  onTap: () => ref
+                      .read(appPreferencesProvider.notifier)
+                      .setUpdateChannel(UpdateChannel.beta),
+                ),
+                const SettingsDivider(),
+                SelectionSetting(
+                  icon: LucideIcons.layers,
+                  title: l10n.englishForFilipino.updateChannelBoth,
+                  subtitle: l10n.updateChannelBothSubtitle,
+                  selected: updateChannel == UpdateChannel.both,
+                  onTap: () => ref
+                      .read(appPreferencesProvider.notifier)
+                      .setUpdateChannel(UpdateChannel.both),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: AppConstants.spacingLg),
           SettingsSectionHeader(l10n.englishForFilipino.about, sectionId: 'about'),
           SettingsCard(
