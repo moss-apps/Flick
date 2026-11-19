@@ -61,7 +61,6 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.6
   permission_handler: ^13.0.2
-  rive: ^0.14.11
   riverpod_annotation: ^4.0.0
   restart_app: ^1.10.1
   rust_lib_flick_player:
