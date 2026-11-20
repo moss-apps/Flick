@@ -4,6 +4,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/models/audio_output_diagnostics.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/l10n/english_l10n.dart';
+import 'package:flick/features/player/widgets/audio_analysis_sheet.dart';
 
 enum AudioSignalReportPage { source, urb, recorded }
 
@@ -100,6 +101,10 @@ class AudioSignalReport extends StatelessWidget {
         if (report.fields.isNotEmpty) ...[
           const SizedBox(height: 20),
           for (final field in report.fields) _ReportRow(field: field),
+        ],
+        if (page == AudioSignalReportPage.source) ...[
+          const SizedBox(height: 22),
+          _AnalyzeTrackAction(song: song),
         ],
         if (report.buffer != null) ...[
           const SizedBox(height: 22),
@@ -403,6 +408,56 @@ class _ReportRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Entry point for the read-only source-file analysis sheet.
+class _AnalyzeTrackAction extends StatelessWidget {
+  const _AnalyzeTrackAction({required this.song});
+
+  final Song song;
+
+  @override
+  Widget build(BuildContext context) {
+    final unavailableReason = audioAnalysisUnavailableReason(song);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: unavailableReason == null
+                ? () => showAudioAnalysisSheet(context, song)
+                : null,
+            icon: const Icon(Icons.graphic_eq_rounded, size: 18),
+            label: Text(l10n.analyzeTrack),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: context.adaptiveTextPrimary,
+              side: const BorderSide(color: AppColors.glassBorderStrong),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              textStyle: const TextStyle(
+                fontFamily: 'GoogleSansFlex',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          unavailableReason ?? l10n.analyzeTrackDescription,
+          style: TextStyle(
+            fontFamily: 'GoogleSansFlex',
+            fontSize: 12,
+            height: 1.4,
+            color: context.adaptiveTextSecondary,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,8 +1,13 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flick/features/player/widgets/audio_signal_report.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/audio_engine_type.dart';
 import 'package:flick/models/audio_output_diagnostics.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/src/rust/api/audio_analysis.dart';
+import 'package:flick/src/rust/frb_generated.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,6 +20,44 @@ const _song = Song(
   sampleRate: 96000,
   bitDepth: 24,
 );
+
+class _AnalysisApi implements RustLibApi {
+  final jobs = <_AnalysisJob>[];
+
+  @override
+  AudioSourceAnalysisJob crateApiAudioAnalysisCreateSourceAudioAnalysisJob() {
+    final job = _AnalysisJob();
+    jobs.add(job);
+    return job;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _AnalysisJob implements AudioSourceAnalysisJob {
+  final result = Completer<AudioSourceAnalysis>();
+  String? path;
+  bool cancelled = false;
+
+  @override
+  bool isDisposed = false;
+
+  @override
+  Future<AudioSourceAnalysis> analyze({required String path}) {
+    this.path = path;
+    return result.future;
+  }
+
+  @override
+  void cancel() => cancelled = true;
+
+  @override
+  void dispose() => isDisposed = true;
+
+  @override
+  double progress() => 0.5;
+}
 
 const _flags = AudioCapabilityFlags(
   supportsExclusiveUsbOwnership: true,
@@ -109,6 +152,69 @@ void main() {
     expect(find.text('1-bit DSD'), findsOneWidget);
     expect(find.text('DSF · DSD64'), findsOneWidget);
     expect(find.text('Raw PCM'), findsNothing);
+  });
+
+  testWidgets('source analysis can be cancelled and retried', (tester) async {
+    const path = '/music/track.flac';
+    final api = _AnalysisApi();
+    RustLib.initMock(api: api);
+    addTearDown(RustLib.dispose);
+
+    await _mount(
+      tester,
+      page: AudioSignalReportPage.source,
+      song: _song.copyWith(filePath: path),
+    );
+    await tester.scrollUntilVisible(find.text(l10n.analyzeTrack), 120);
+    await tester.tap(find.text(l10n.analyzeTrack));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    final first = api.jobs.single;
+    expect(first.path, path);
+    expect(find.textContaining('50%'), findsOneWidget);
+
+    await tester.tap(find.text(l10n.audioAnalysisCancel));
+    await tester.pump();
+    expect(first.cancelled, isTrue);
+    expect(find.text(l10n.audioAnalysisCancelled), findsOneWidget);
+    await tester.tap(find.text(l10n.audioAnalysisRetry));
+    await tester.pump();
+    expect(api.jobs, hasLength(1));
+
+    final result = AudioSourceAnalysis(
+      status: AudioSourceAnalysisStatus.ok,
+      fileSizeBytes: BigInt.from(42),
+      durationSeconds: 4,
+      channelPeakDb: Float64List.fromList([-1.1]),
+      channelRmsDb: Float64List.fromList([-4.1]),
+      channels: 1,
+      truePeakDb: 2.5,
+      silent: false,
+      clipping: false,
+      clippedSamples: BigInt.zero,
+    );
+    first.result.complete(result);
+    await tester.pump();
+    expect(first.isDisposed, isTrue);
+    expect(api.jobs, hasLength(2));
+    expect(find.text(l10n.audioAnalysisTruePeak), findsNothing);
+
+    final retry = api.jobs.last;
+    expect(retry.path, path);
+    retry.result.complete(result);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text(l10n.audioAnalysisTruePeak),
+      150,
+      scrollable: find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(find.text('+2.5 dBTP'), findsOneWidget);
+    expect(retry.isDisposed, isTrue);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('USB unavailable and snapshot values never invent measurements', (
