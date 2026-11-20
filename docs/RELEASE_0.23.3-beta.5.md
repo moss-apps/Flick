@@ -1,6 +1,6 @@
 # Flick 0.23.3-beta.5
 
-An equalizer tab, live and lock-screen spectrum visualizers, multi-FILE CUE support, file-only metadata, focus-aware playback, and stable/beta update channels — plus a quieter idle app.
+An equalizer tab, read-only source audio analysis with a full-track spectrogram, live and lock-screen spectrum visualizers, multi-FILE CUE support, file-only metadata, focus-aware playback, and stable/beta update channels — plus a quieter idle app.
 
 ## Equalizer
 
@@ -20,6 +20,12 @@ An equalizer tab, live and lock-screen spectrum visualizers, multi-FILE CUE supp
 - **Simulated AOD (experimental)** — an optional mode wakes the dimmed display over the keyguard while a supported song plays and Display over other apps is granted. It stops after 30 minutes, on low battery, pause or stop, an unsupported route, disabled animations, or when the feature is turned off; it is not system AOD and does not use the panel's low-power state.
 - **Shared source and status** — one reference-counted visualizer source is shared by player surfaces and the lock screen. Offscreen stages stop through `TickerMode`, rebuilds no longer restart capture, and settings show the active source plus reduced-motion and unavailable notices.
 
+## Audio Analysis
+
+- **Read-only source analysis** — **Audio Signal Path → Source** now has an **Analyze track** action that decodes the source file separately for measurement. Playback, DSP, tags, and the ReplayGain scanner are untouched. Local mono/stereo files that Symphonia can decode are supported; CUE track ranges, native DSD/WavPack, and document-provider paths report why analysis is unavailable.
+- **Levels, loudness, and tags** — the sheet reports integrated LUFS, loudness range, true peak with headroom, estimated dynamic range, sample clipping, per-channel peak/RMS, crest factor, stereo balance, and side/mid, plus decoded duration, file size, sample rate, channels, bit depth, and leading/trailing silence. An existing ReplayGain tag is shown alongside a suggested −18 LUFS gain for comparison only; it is never applied or written.
+- **Full-track spectrogram** — a log-frequency FFT spectrogram spans 20 Hz to Nyquist with All, Left, and Right views, computed during the same background analysis pass. Decoding shows progress and supports cancel and retry, with specific messages for unsupported formats, multichannel files, unreadable files, empty streams, and busy analysis.
+
 ## Library & Metadata
 
 - **Multi-FILE CUE sheets** — each `FILE` block parses into its own sheet and resolves to an audio file in its own directory, so one-track-per-file rips no longer collapse onto the last file or collide on the song unique index. Stale references fall back to a unique same-stem sibling, directories are stripped from names, relative paths resolve against the CUE directory, and duplicate `INDEX` offsets are skipped.
@@ -31,6 +37,7 @@ An equalizer tab, live and lock-screen spectrum visualizers, multi-FILE CUE supp
 - **Audio focus ownership** — the Rust engine requests focus before play, releases it on manual pause and stop, and serializes interruption pause/resume through the playback queue. An interruption generation prevents a stale end event from resuming after a manual pause or newer interruption, and ducking gain is restored when an interruption ends in stop.
 - **Managed output lifecycle** — shared PCM output relinquishes Android's active media stream on pause and reclaims it on resume, while exclusive and DSD transports keep their stream alive. Play, pause, resume, and stop wait for native completion, the engine manager lock is released while waiting, and state events read native state instead of a queued payload.
 - **Idle and foreground battery work** — engine event polling backs off from 50 ms to 500 ms when paused, idle, or stopped; position checkpoints stop while paused and skip unchanged playlist serialization; progress ticks no longer re-read engine state; full-player position updates throttle at 250 ms; frame timing collection runs only in Developer Mode.
+- **USB and DSD stop safety** — USB volume safety blocks now survive a failed stop and are retried without stale gain, the DAC's verified level is checked against hardware readback when a direct-USB stream starts, and DSD stop retires only the context it observed so a track starting during shutdown keeps its DoP metadata instead of falling back to a plain PCM carrier.
 
 ## Updates
 
@@ -39,11 +46,12 @@ An equalizer tab, live and lock-screen spectrum visualizers, multi-FILE CUE supp
 
 ## Localization
 
-- EQ graph titles, guidance, status chips, and band-family labels, plus file-tag rows, visualizer source and status copy, lock-screen visualizer settings, and update-channel copy, are localized across English, Spanish, Taglish, and Chinese. Taglish keeps interactive EQ labels in English through the existing shim.
+- EQ graph titles, guidance, status chips, and band-family labels, plus file-tag rows, visualizer source and status copy, lock-screen visualizer settings, update-channel copy, and the audio analysis sheet and signal-report entry, are localized across English, Spanish, Taglish, and Chinese. Taglish keeps interactive EQ labels in English through the existing shim.
 
 ## Under the hood
 
-- Removed the unused `rive` dependency and its transitive native packages, pinned `pubspec.lock` resolution for Flutter 3.50 stable, marked Replay Gain as implemented in the feature list, and documented AutoEq maintenance, lock-screen visualizer behavior, CUE and folder-path scanning, and front-end battery work.
+- Removed the unused `rive` dependency and its transitive native packages, pinned `pubspec.lock` resolution for Flutter 3.50 stable, marked Replay Gain as implemented in the feature list, and documented AutoEq maintenance, source-analysis scope, lock-screen visualizer behavior, CUE and folder-path scanning, and front-end battery work.
+- Added the read-only source-analysis job, FFT spectrogram, loudness and true-peak measurements, and generated bindings to the Rust bridge, with tests for analysis and USB/DSD stop safety.
 
 ## Builds & Flavors
 
@@ -54,9 +62,10 @@ An equalizer tab, live and lock-screen spectrum visualizers, multi-FILE CUE supp
 ## Getting Started
 
 1. Equalizer tab: Settings → Interface → Bottom Bar, or tap the equalizer icon in the default bottom bar.
-2. AutoEQ: open the equalizer → Presets → **AutoEQ headphones**; use the cloud button to search upstream for a model that is not bundled.
-3. Visualizer: Settings → Interface → Visualizer → enable **Visualizer**. High Quality playback uses the engine FFT; Standard playback uses Android's Visualizer and asks for microphone permission.
-4. Lock-screen visualizer: Settings → Interface → Visualizer → **Lock-screen visualizer** → **Open visualizer screen**, then lock and wake the phone. Simulated AOD is the experimental toggle below it.
-5. Update channel: Settings → App Info → **Update Channel** → Stable, Pre-releases, or both.
-6. Library repair: run Settings → Library → **Rescan Library** once to split multi-FILE CUE sheets and backfill folder paths on existing rows.
-7. File-only tags: open a song's actions or metadata sheet; comment, full date, copyright, and label appear when the file contains them.
+2. Audio analysis: open the player's **Audio Signal Path** → **Source** → **Analyze track**. CUE tracks, native DSD/WavPack, and document-provider paths show why analysis is unavailable.
+3. AutoEQ: open the equalizer → Presets → **AutoEQ headphones**; use the cloud button to search upstream for a model that is not bundled.
+4. Visualizer: Settings → Interface → Visualizer → enable **Visualizer**. High Quality playback uses the engine FFT; Standard playback uses Android's Visualizer and asks for microphone permission.
+5. Lock-screen visualizer: Settings → Interface → Visualizer → **Lock-screen visualizer** → **Open visualizer screen**, then lock and wake the phone. Simulated AOD is the experimental toggle below it.
+6. Update channel: Settings → App Info → **Update Channel** → Stable, Pre-releases, or both.
+7. Library repair: run Settings → Library → **Rescan Library** once to split multi-FILE CUE sheets and backfill folder paths on existing rows.
+8. File-only tags: open a song's actions or metadata sheet; comment, full date, copyright, and label appear when the file contains them.
