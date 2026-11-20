@@ -9545,184 +9545,185 @@ class AppLocalizationsEs extends AppLocalizations {
       'Tu resumen anual se completa a medida que escuchas música durante el año.';
 
   @override
-  String get audioAnalysis => 'Audio Analysis';
+  String get audioAnalysis => 'Análisis de audio';
 
   @override
   String get audioAnalysisSubtitle =>
-      'Read-only measurements from the source file.';
+      'Mediciones de solo lectura del archivo fuente.';
 
   @override
-  String get analyzeTrack => 'Analyze track';
+  String get analyzeTrack => 'Analizar pista';
 
   @override
   String get analyzeTrackDescription =>
-      'Measure levels, loudness, and spectrum from the source file. Playback and tags are not changed.';
+      'Mide niveles, sonoridad y espectro desde el archivo fuente. La reproducción y las etiquetas no se modifican.';
 
   @override
-  String get audioAnalysisAnalyzing => 'Analyzing…';
+  String get audioAnalysisAnalyzing => 'Analizando…';
 
   @override
-  String get audioAnalysisCancel => 'Cancel';
+  String get audioAnalysisCancel => 'Cancelar';
 
   @override
-  String get audioAnalysisCancelled => 'Analysis cancelled.';
+  String get audioAnalysisCancelled => 'Análisis cancelado.';
 
   @override
   String get audioAnalysisBusy =>
-      'Another track analysis is still running. Try again in a moment.';
+      'Todavía se está analizando otra pista. Inténtalo de nuevo en un momento.';
 
   @override
-  String get audioAnalysisRetry => 'Analyze again';
+  String get audioAnalysisRetry => 'Analizar de nuevo';
 
   @override
   String get audioAnalysisFailed =>
-      'Analysis failed. The file may be unreadable.';
+      'El análisis falló. Es posible que el archivo no se pueda leer.';
 
   @override
   String get audioAnalysisUnsupportedFormat =>
-      'This format is not supported by source analysis yet.';
+      'Este formato aún no es compatible con el análisis de origen.';
 
   @override
   String get audioAnalysisUnsupportedMultichannel =>
-      'Source analysis supports mono and stereo files only.';
+      'El análisis de origen solo admite archivos mono y estéreo.';
 
   @override
   String get audioAnalysisUnavailable =>
-      'Analysis is unavailable for this track.';
+      'El análisis no está disponible para esta pista.';
 
   @override
   String get audioAnalysisNoAudioStream =>
-      'No decodable audio stream was found.';
+      'No se encontró ningún flujo de audio decodificable.';
 
   @override
-  String get audioAnalysisUnreadable => 'The file could not be opened.';
+  String get audioAnalysisUnreadable => 'No se pudo abrir el archivo.';
 
   @override
-  String get audioAnalysisNoSamples => 'The file contains no audio samples.';
+  String get audioAnalysisNoSamples =>
+      'El archivo no contiene muestras de audio.';
 
   @override
   String get audioAnalysisLocalOnly =>
-      'Source analysis is available for local files only.';
+      'El análisis de origen solo está disponible para archivos locales.';
 
   @override
   String get audioAnalysisCueUnsupported =>
-      'CUE tracks are not supported yet. Analyze the source file instead.';
+      'Las pistas CUE aún no son compatibles. Analiza el archivo fuente.';
 
   @override
   String get audioAnalysisDocumentProviderUnsupported =>
-      'Files opened through a document provider cannot be analyzed.';
+      'Los archivos abiertos mediante un proveedor de documentos no se pueden analizar.';
 
   @override
-  String get audioAnalysisFileSection => 'File';
+  String get audioAnalysisFileSection => 'Archivo';
 
   @override
-  String get audioAnalysisLevelsSection => 'Levels';
+  String get audioAnalysisLevelsSection => 'Niveles';
 
   @override
-  String get audioAnalysisLoudnessSection => 'Loudness';
+  String get audioAnalysisLoudnessSection => 'Sonoridad';
 
   @override
-  String get audioAnalysisSilenceSection => 'Silence';
+  String get audioAnalysisSilenceSection => 'Silencio';
 
   @override
   String get audioAnalysisReplayGainSection => 'ReplayGain';
 
   @override
-  String get audioAnalysisSpectrogramSection => 'Spectrogram';
+  String get audioAnalysisSpectrogramSection => 'Espectrograma';
 
   @override
-  String get audioAnalysisDuration => 'Decoded duration';
+  String get audioAnalysisDuration => 'Duración decodificada';
 
   @override
-  String get audioAnalysisFileSize => 'File size';
+  String get audioAnalysisFileSize => 'Tamaño del archivo';
 
   @override
-  String get audioAnalysisPeak => 'Peak';
+  String get audioAnalysisPeak => 'Pico';
 
   @override
   String get audioAnalysisRms => 'RMS';
 
   @override
-  String get audioAnalysisCrest => 'Crest factor';
+  String get audioAnalysisCrest => 'Factor de cresta';
 
   @override
   String get audioAnalysisBalance => 'Balance';
 
   @override
-  String get audioAnalysisSideMid => 'Side / mid';
+  String get audioAnalysisSideMid => 'Lateral / medio';
 
   @override
-  String get audioAnalysisIntegratedLoudness => 'Integrated loudness';
+  String get audioAnalysisIntegratedLoudness => 'Sonoridad integrada';
 
   @override
-  String get audioAnalysisLoudnessRange => 'Loudness range';
+  String get audioAnalysisLoudnessRange => 'Rango de sonoridad';
 
   @override
-  String get audioAnalysisTruePeak => 'True peak';
+  String get audioAnalysisTruePeak => 'Pico real';
 
   @override
-  String get audioAnalysisHeadroom => 'True-peak headroom';
+  String get audioAnalysisHeadroom => 'Margen de pico real';
 
   @override
-  String get audioAnalysisDynamicRange => 'Dynamic range (est.)';
+  String get audioAnalysisDynamicRange => 'Rango dinámico (est.)';
 
   @override
-  String get audioAnalysisSuggestedGain => 'Suggested track gain';
+  String get audioAnalysisSuggestedGain => 'Ganancia sugerida de la pista';
 
   @override
   String audioAnalysisSuggestedGainTarget(String target) {
-    return 'For a $target LUFS target; informational only, never applied.';
+    return 'Para un objetivo de $target LUFS; solo informativo, nunca se aplica.';
   }
 
   @override
-  String get audioAnalysisClipping => 'Sample clipping check';
+  String get audioAnalysisClipping => 'Comprobación de recorte de muestras';
 
   @override
-  String get audioAnalysisClippingNone => 'None';
+  String get audioAnalysisClippingNone => 'Ninguno';
 
   @override
   String audioAnalysisClippingCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count samples at or above full scale',
-      one: '1 sample at or above full scale',
+      other: '$count muestras al nivel máximo o por encima',
+      one: '1 muestra al nivel máximo o por encima',
     );
     return '$_temp0';
   }
 
   @override
-  String get audioAnalysisLeadingSilence => 'Leading silence';
+  String get audioAnalysisLeadingSilence => 'Silencio inicial';
 
   @override
-  String get audioAnalysisTrailingSilence => 'Trailing silence';
+  String get audioAnalysisTrailingSilence => 'Silencio final';
 
   @override
   String get audioAnalysisAllSilent =>
-      'The entire track is below the silence threshold (−60 dBFS).';
+      'Toda la pista está por debajo del umbral de silencio (−60 dBFS).';
 
   @override
-  String get audioAnalysisReplayGainTag => 'Tag gain';
+  String get audioAnalysisReplayGainTag => 'Ganancia de la etiqueta';
 
   @override
-  String get audioAnalysisReplayGainPeak => 'Tag peak';
+  String get audioAnalysisReplayGainPeak => 'Pico de la etiqueta';
 
   @override
-  String get audioAnalysisNoTag => 'No ReplayGain tag';
+  String get audioAnalysisNoTag => 'Sin etiqueta ReplayGain';
 
   @override
   String get audioAnalysisNotApplied =>
-      'The tag is not applied to these measurements.';
+      'La etiqueta no se aplica a estas mediciones.';
 
   @override
   String get audioAnalysisSpectrogramUnavailable =>
-      'Not enough audio for a spectrogram.';
+      'No hay suficiente audio para un espectrograma.';
 
   @override
   String get audioAnalysisSpectrogramCaption =>
-      '0 dBFS to −120 dBFS · full track';
+      '0 dBFS a −120 dBFS · pista completa';
 
   @override
   String get audioAnalysisSourceNote =>
-      'Measured from a separate source-file decode. Some formats include decoder padding, which can affect duration and silence measurements. Playback, DSP, and tags are unchanged.';
+      'Medido a partir de una decodificación independiente del archivo fuente. Algunos formatos incluyen relleno del decodificador, que puede afectar la duración y las mediciones de silencio. La reproducción, el DSP y las etiquetas no cambian.';
 }

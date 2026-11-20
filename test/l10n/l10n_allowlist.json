@@ -10,6 +10,8 @@
   ],
   "untranslated": {
     "aaudio": "brand / product name",
+    "audioAnalysisReplayGainSection": "brand / product name",
+    "audioAnalysisRms": "unit or symbol only",
     "accuraterip": "brand / product name",
     "alt": "release type label ('Alt'), kept verbatim",
     "android": "brand / product name",

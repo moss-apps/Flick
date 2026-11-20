@@ -9541,68 +9541,68 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get audioAnalysisSubtitle =>
-      'Read-only measurements from the source file.';
+      'Read-only na mga measurement mula sa source file.';
 
   @override
-  String get analyzeTrack => 'Analyze track';
+  String get analyzeTrack => 'I-analyze ang track';
 
   @override
   String get analyzeTrackDescription =>
-      'Measure levels, loudness, and spectrum from the source file. Playback and tags are not changed.';
+      'Sukatin ang levels, loudness, at spectrum mula sa source file. Hindi binabago ang playback at tags.';
 
   @override
-  String get audioAnalysisAnalyzing => 'Analyzing…';
+  String get audioAnalysisAnalyzing => 'Nag-a-analyze…';
 
   @override
-  String get audioAnalysisCancel => 'Cancel';
+  String get audioAnalysisCancel => 'Kanselahin';
 
   @override
-  String get audioAnalysisCancelled => 'Analysis cancelled.';
+  String get audioAnalysisCancelled => 'Kinansela ang analysis.';
 
   @override
   String get audioAnalysisBusy =>
-      'Another track analysis is still running. Try again in a moment.';
+      'May isa pang track na ini-analyze. Subukan ulit mamaya.';
 
   @override
-  String get audioAnalysisRetry => 'Analyze again';
+  String get audioAnalysisRetry => 'I-analyze ulit';
 
   @override
   String get audioAnalysisFailed =>
-      'Analysis failed. The file may be unreadable.';
+      'Nabigo ang analysis. Baka hindi mabasa ang file.';
 
   @override
   String get audioAnalysisUnsupportedFormat =>
-      'This format is not supported by source analysis yet.';
+      'Hindi pa supported ng source analysis ang format na ito.';
 
   @override
   String get audioAnalysisUnsupportedMultichannel =>
-      'Source analysis supports mono and stereo files only.';
+      'Mono at stereo files lang ang sinusuportahan ng source analysis.';
 
   @override
   String get audioAnalysisUnavailable =>
-      'Analysis is unavailable for this track.';
+      'Hindi available ang analysis para sa track na ito.';
 
   @override
   String get audioAnalysisNoAudioStream =>
-      'No decodable audio stream was found.';
+      'Walang makitang decodable audio stream.';
 
   @override
-  String get audioAnalysisUnreadable => 'The file could not be opened.';
+  String get audioAnalysisUnreadable => 'Hindi mabuksan ang file.';
 
   @override
-  String get audioAnalysisNoSamples => 'The file contains no audio samples.';
+  String get audioAnalysisNoSamples => 'Walang audio samples ang file.';
 
   @override
   String get audioAnalysisLocalOnly =>
-      'Source analysis is available for local files only.';
+      'Para sa local files lang ang source analysis.';
 
   @override
   String get audioAnalysisCueUnsupported =>
-      'CUE tracks are not supported yet. Analyze the source file instead.';
+      'Hindi pa supported ang CUE tracks. I-analyze ang source file sa halip.';
 
   @override
   String get audioAnalysisDocumentProviderUnsupported =>
-      'Files opened through a document provider cannot be analyzed.';
+      'Hindi maaaring i-analyze ang mga file na binuksan sa document provider.';
 
   @override
   String get audioAnalysisFileSection => 'File';
@@ -9623,10 +9623,10 @@ class AppLocalizationsTl extends AppLocalizations {
   String get audioAnalysisSpectrogramSection => 'Spectrogram';
 
   @override
-  String get audioAnalysisDuration => 'Decoded duration';
+  String get audioAnalysisDuration => 'Na-decode na duration';
 
   @override
-  String get audioAnalysisFileSize => 'File size';
+  String get audioAnalysisFileSize => 'Laki ng file';
 
   @override
   String get audioAnalysisPeak => 'Peak';
@@ -9663,22 +9663,22 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String audioAnalysisSuggestedGainTarget(String target) {
-    return 'For a $target LUFS target; informational only, never applied.';
+    return 'Para sa $target LUFS target; informational lang, hindi inilalapat.';
   }
 
   @override
   String get audioAnalysisClipping => 'Sample clipping check';
 
   @override
-  String get audioAnalysisClippingNone => 'None';
+  String get audioAnalysisClippingNone => 'Wala';
 
   @override
   String audioAnalysisClippingCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count samples at or above full scale',
-      one: '1 sample at or above full scale',
+      other: '$count samples na nasa o lampas sa full scale',
+      one: '1 sample na nasa o lampas sa full scale',
     );
     return '$_temp0';
   }
@@ -9691,32 +9691,32 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get audioAnalysisAllSilent =>
-      'The entire track is below the silence threshold (−60 dBFS).';
+      'Nasa ilalim ng silence threshold (−60 dBFS) ang buong track.';
 
   @override
-  String get audioAnalysisReplayGainTag => 'Tag gain';
+  String get audioAnalysisReplayGainTag => 'Gain ng tag';
 
   @override
-  String get audioAnalysisReplayGainPeak => 'Tag peak';
+  String get audioAnalysisReplayGainPeak => 'Peak ng tag';
 
   @override
-  String get audioAnalysisNoTag => 'No ReplayGain tag';
+  String get audioAnalysisNoTag => 'Walang ReplayGain tag';
 
   @override
   String get audioAnalysisNotApplied =>
-      'The tag is not applied to these measurements.';
+      'Hindi ginagamit ang tag sa mga measurement na ito.';
 
   @override
   String get audioAnalysisSpectrogramUnavailable =>
-      'Not enough audio for a spectrogram.';
+      'Kulang ang audio para sa spectrogram.';
 
   @override
   String get audioAnalysisSpectrogramCaption =>
-      '0 dBFS to −120 dBFS · full track';
+      '0 dBFS hanggang −120 dBFS · buong track';
 
   @override
   String get audioAnalysisSourceNote =>
-      'Measured from a separate source-file decode. Some formats include decoder padding, which can affect duration and silence measurements. Playback, DSP, and tags are unchanged.';
+      'Sinukat mula sa hiwalay na decode ng source file. May decoder padding ang ilang format, na puwedeng makaapekto sa duration at silence measurements. Hindi nagbabago ang playback, DSP, at tags.';
 }
 
 /// The translations for Tagalog, using the Tagalog Baybayin Alibata script (`tl_Tglg`).

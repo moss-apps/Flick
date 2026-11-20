@@ -12027,5 +12027,223 @@
   "updateChannelBothSubtitle": "Mostrar avisos de ambos canales.",
   "@updateChannelBothSubtitle": {
     "description": "Explains the combined update channel."
+  },
+  "analyzeTrack": "Analizar pista",
+  "@analyzeTrack": {
+    "description": "lib/features/player/widgets/audio_signal_report.dart"
+  },
+  "analyzeTrackDescription": "Mide niveles, sonoridad y espectro desde el archivo fuente. La reproducción y las etiquetas no se modifican.",
+  "@analyzeTrackDescription": {
+    "description": "lib/features/player/widgets/audio_signal_report.dart"
+  },
+  "audioAnalysis": "Análisis de audio",
+  "@audioAnalysis": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisAllSilent": "Toda la pista está por debajo del umbral de silencio (−60 dBFS).",
+  "@audioAnalysisAllSilent": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisAnalyzing": "Analizando…",
+  "@audioAnalysisAnalyzing": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisBalance": "Balance",
+  "@audioAnalysisBalance": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisBusy": "Todavía se está analizando otra pista. Inténtalo de nuevo en un momento.",
+  "@audioAnalysisBusy": {
+    "description": "Status when a previous source analysis has not yet finished"
+  },
+  "audioAnalysisCancel": "Cancelar",
+  "@audioAnalysisCancel": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisCancelled": "Análisis cancelado.",
+  "@audioAnalysisCancelled": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisClipping": "Comprobación de recorte de muestras",
+  "@audioAnalysisClipping": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisClippingCount": "{count, plural, =1{1 muestra al nivel máximo o por encima} other{{count} muestras al nivel máximo o por encima}}",
+  "@audioAnalysisClippingCount": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "audioAnalysisClippingNone": "Ninguno",
+  "@audioAnalysisClippingNone": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisCrest": "Factor de cresta",
+  "@audioAnalysisCrest": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisCueUnsupported": "Las pistas CUE aún no son compatibles. Analiza el archivo fuente.",
+  "@audioAnalysisCueUnsupported": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisDocumentProviderUnsupported": "Los archivos abiertos mediante un proveedor de documentos no se pueden analizar.",
+  "@audioAnalysisDocumentProviderUnsupported": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisDuration": "Duración decodificada",
+  "@audioAnalysisDuration": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisDynamicRange": "Rango dinámico (est.)",
+  "@audioAnalysisDynamicRange": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisFailed": "El análisis falló. Es posible que el archivo no se pueda leer.",
+  "@audioAnalysisFailed": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisFileSection": "Archivo",
+  "@audioAnalysisFileSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisFileSize": "Tamaño del archivo",
+  "@audioAnalysisFileSize": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisHeadroom": "Margen de pico real",
+  "@audioAnalysisHeadroom": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisIntegratedLoudness": "Sonoridad integrada",
+  "@audioAnalysisIntegratedLoudness": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisLeadingSilence": "Silencio inicial",
+  "@audioAnalysisLeadingSilence": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisLevelsSection": "Niveles",
+  "@audioAnalysisLevelsSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisLocalOnly": "El análisis de origen solo está disponible para archivos locales.",
+  "@audioAnalysisLocalOnly": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisLoudnessRange": "Rango de sonoridad",
+  "@audioAnalysisLoudnessRange": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisLoudnessSection": "Sonoridad",
+  "@audioAnalysisLoudnessSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisNoAudioStream": "No se encontró ningún flujo de audio decodificable.",
+  "@audioAnalysisNoAudioStream": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisNoSamples": "El archivo no contiene muestras de audio.",
+  "@audioAnalysisNoSamples": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisNoTag": "Sin etiqueta ReplayGain",
+  "@audioAnalysisNoTag": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisNotApplied": "La etiqueta no se aplica a estas mediciones.",
+  "@audioAnalysisNotApplied": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisPeak": "Pico",
+  "@audioAnalysisPeak": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisReplayGainPeak": "Pico de la etiqueta",
+  "@audioAnalysisReplayGainPeak": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisReplayGainSection": "ReplayGain",
+  "@audioAnalysisReplayGainSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisReplayGainTag": "Ganancia de la etiqueta",
+  "@audioAnalysisReplayGainTag": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisRetry": "Analizar de nuevo",
+  "@audioAnalysisRetry": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisRms": "RMS",
+  "@audioAnalysisRms": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSideMid": "Lateral / medio",
+  "@audioAnalysisSideMid": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSilenceSection": "Silencio",
+  "@audioAnalysisSilenceSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSourceNote": "Medido a partir de una decodificación independiente del archivo fuente. Algunos formatos incluyen relleno del decodificador, que puede afectar la duración y las mediciones de silencio. La reproducción, el DSP y las etiquetas no cambian.",
+  "@audioAnalysisSourceNote": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSpectrogramCaption": "0 dBFS a −120 dBFS · pista completa",
+  "@audioAnalysisSpectrogramCaption": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSpectrogramSection": "Espectrograma",
+  "@audioAnalysisSpectrogramSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSpectrogramUnavailable": "No hay suficiente audio para un espectrograma.",
+  "@audioAnalysisSpectrogramUnavailable": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSubtitle": "Mediciones de solo lectura del archivo fuente.",
+  "@audioAnalysisSubtitle": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSuggestedGain": "Ganancia sugerida de la pista",
+  "@audioAnalysisSuggestedGain": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSuggestedGainTarget": "Para un objetivo de {target} LUFS; solo informativo, nunca se aplica.",
+  "@audioAnalysisSuggestedGainTarget": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "audioAnalysisTrailingSilence": "Silencio final",
+  "@audioAnalysisTrailingSilence": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisTruePeak": "Pico real",
+  "@audioAnalysisTruePeak": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisUnavailable": "El análisis no está disponible para esta pista.",
+  "@audioAnalysisUnavailable": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisUnreadable": "No se pudo abrir el archivo.",
+  "@audioAnalysisUnreadable": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisUnsupportedFormat": "Este formato aún no es compatible con el análisis de origen.",
+  "@audioAnalysisUnsupportedFormat": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisUnsupportedMultichannel": "El análisis de origen solo admite archivos mono y estéreo.",
+  "@audioAnalysisUnsupportedMultichannel": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
   }
 }
