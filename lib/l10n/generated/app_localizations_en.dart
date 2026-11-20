@@ -9424,4 +9424,186 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get yourYearlyRecapFillsInAs =>
       'Your yearly recap fills in as you keep listening throughout the year.';
+
+  @override
+  String get audioAnalysis => 'Audio Analysis';
+
+  @override
+  String get audioAnalysisSubtitle =>
+      'Read-only measurements from the source file.';
+
+  @override
+  String get analyzeTrack => 'Analyze track';
+
+  @override
+  String get analyzeTrackDescription =>
+      'Measure levels, loudness, and spectrum from the source file. Playback and tags are not changed.';
+
+  @override
+  String get audioAnalysisAnalyzing => 'Analyzing…';
+
+  @override
+  String get audioAnalysisCancel => 'Cancel';
+
+  @override
+  String get audioAnalysisCancelled => 'Analysis cancelled.';
+
+  @override
+  String get audioAnalysisBusy =>
+      'Another track analysis is still running. Try again in a moment.';
+
+  @override
+  String get audioAnalysisRetry => 'Analyze again';
+
+  @override
+  String get audioAnalysisFailed =>
+      'Analysis failed. The file may be unreadable.';
+
+  @override
+  String get audioAnalysisUnsupportedFormat =>
+      'This format is not supported by source analysis yet.';
+
+  @override
+  String get audioAnalysisUnsupportedMultichannel =>
+      'Source analysis supports mono and stereo files only.';
+
+  @override
+  String get audioAnalysisUnavailable =>
+      'Analysis is unavailable for this track.';
+
+  @override
+  String get audioAnalysisNoAudioStream =>
+      'No decodable audio stream was found.';
+
+  @override
+  String get audioAnalysisUnreadable => 'The file could not be opened.';
+
+  @override
+  String get audioAnalysisNoSamples => 'The file contains no audio samples.';
+
+  @override
+  String get audioAnalysisLocalOnly =>
+      'Source analysis is available for local files only.';
+
+  @override
+  String get audioAnalysisCueUnsupported =>
+      'CUE tracks are not supported yet. Analyze the source file instead.';
+
+  @override
+  String get audioAnalysisDocumentProviderUnsupported =>
+      'Files opened through a document provider cannot be analyzed.';
+
+  @override
+  String get audioAnalysisFileSection => 'File';
+
+  @override
+  String get audioAnalysisLevelsSection => 'Levels';
+
+  @override
+  String get audioAnalysisLoudnessSection => 'Loudness';
+
+  @override
+  String get audioAnalysisSilenceSection => 'Silence';
+
+  @override
+  String get audioAnalysisReplayGainSection => 'ReplayGain';
+
+  @override
+  String get audioAnalysisSpectrogramSection => 'Spectrogram';
+
+  @override
+  String get audioAnalysisDuration => 'Decoded duration';
+
+  @override
+  String get audioAnalysisFileSize => 'File size';
+
+  @override
+  String get audioAnalysisPeak => 'Peak';
+
+  @override
+  String get audioAnalysisRms => 'RMS';
+
+  @override
+  String get audioAnalysisCrest => 'Crest factor';
+
+  @override
+  String get audioAnalysisBalance => 'Balance';
+
+  @override
+  String get audioAnalysisSideMid => 'Side / mid';
+
+  @override
+  String get audioAnalysisIntegratedLoudness => 'Integrated loudness';
+
+  @override
+  String get audioAnalysisLoudnessRange => 'Loudness range';
+
+  @override
+  String get audioAnalysisTruePeak => 'True peak';
+
+  @override
+  String get audioAnalysisHeadroom => 'True-peak headroom';
+
+  @override
+  String get audioAnalysisDynamicRange => 'Dynamic range (est.)';
+
+  @override
+  String get audioAnalysisSuggestedGain => 'Suggested track gain';
+
+  @override
+  String audioAnalysisSuggestedGainTarget(String target) {
+    return 'For a $target LUFS target; informational only, never applied.';
+  }
+
+  @override
+  String get audioAnalysisClipping => 'Sample clipping check';
+
+  @override
+  String get audioAnalysisClippingNone => 'None';
+
+  @override
+  String audioAnalysisClippingCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count samples at or above full scale',
+      one: '1 sample at or above full scale',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get audioAnalysisLeadingSilence => 'Leading silence';
+
+  @override
+  String get audioAnalysisTrailingSilence => 'Trailing silence';
+
+  @override
+  String get audioAnalysisAllSilent =>
+      'The entire track is below the silence threshold (−60 dBFS).';
+
+  @override
+  String get audioAnalysisReplayGainTag => 'Tag gain';
+
+  @override
+  String get audioAnalysisReplayGainPeak => 'Tag peak';
+
+  @override
+  String get audioAnalysisNoTag => 'No ReplayGain tag';
+
+  @override
+  String get audioAnalysisNotApplied =>
+      'The tag is not applied to these measurements.';
+
+  @override
+  String get audioAnalysisSpectrogramUnavailable =>
+      'Not enough audio for a spectrogram.';
+
+  @override
+  String get audioAnalysisSpectrogramCaption =>
+      '0 dBFS to −120 dBFS · full track';
+
+  @override
+  String get audioAnalysisSourceNote =>
+      'Measured from a separate source-file decode. Some formats include decoder padding, which can affect duration and silence measurements. Playback, DSP, and tags are unchanged.';
 }

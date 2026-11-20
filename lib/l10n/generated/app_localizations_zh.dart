@@ -8729,4 +8729,171 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get yourYearlyRecapFillsInAs => '随着你全年持续收听，你的年度回顾会逐渐充实。';
+
+  @override
+  String get audioAnalysis => '音频分析';
+
+  @override
+  String get audioAnalysisSubtitle => '源文件的只读测量结果。';
+
+  @override
+  String get analyzeTrack => '分析曲目';
+
+  @override
+  String get analyzeTrackDescription => '从源文件测量电平、响度和频谱。不会更改播放和标签。';
+
+  @override
+  String get audioAnalysisAnalyzing => '正在分析…';
+
+  @override
+  String get audioAnalysisCancel => '取消';
+
+  @override
+  String get audioAnalysisCancelled => '分析已取消。';
+
+  @override
+  String get audioAnalysisBusy => '另一首曲目仍在分析中，请稍后再试。';
+
+  @override
+  String get audioAnalysisRetry => '重新分析';
+
+  @override
+  String get audioAnalysisFailed => '分析失败。文件可能无法读取。';
+
+  @override
+  String get audioAnalysisUnsupportedFormat => '源文件分析暂不支持此格式。';
+
+  @override
+  String get audioAnalysisUnsupportedMultichannel => '源文件分析仅支持单声道和立体声文件。';
+
+  @override
+  String get audioAnalysisUnavailable => '此曲目无法分析。';
+
+  @override
+  String get audioAnalysisNoAudioStream => '未找到可解码的音频流。';
+
+  @override
+  String get audioAnalysisUnreadable => '无法打开文件。';
+
+  @override
+  String get audioAnalysisNoSamples => '文件中没有音频采样。';
+
+  @override
+  String get audioAnalysisLocalOnly => '源文件分析仅适用于本地文件。';
+
+  @override
+  String get audioAnalysisCueUnsupported => '暂不支持 CUE 曲目。请改为分析源文件。';
+
+  @override
+  String get audioAnalysisDocumentProviderUnsupported => '无法分析通过文档提供程序打开的文件。';
+
+  @override
+  String get audioAnalysisFileSection => '文件';
+
+  @override
+  String get audioAnalysisLevelsSection => '电平';
+
+  @override
+  String get audioAnalysisLoudnessSection => '响度';
+
+  @override
+  String get audioAnalysisSilenceSection => '静音';
+
+  @override
+  String get audioAnalysisReplayGainSection => 'ReplayGain';
+
+  @override
+  String get audioAnalysisSpectrogramSection => '频谱图';
+
+  @override
+  String get audioAnalysisDuration => '解码时长';
+
+  @override
+  String get audioAnalysisFileSize => '文件大小';
+
+  @override
+  String get audioAnalysisPeak => '峰值';
+
+  @override
+  String get audioAnalysisRms => 'RMS';
+
+  @override
+  String get audioAnalysisCrest => '波峰因数';
+
+  @override
+  String get audioAnalysisBalance => '平衡';
+
+  @override
+  String get audioAnalysisSideMid => '侧 / 中';
+
+  @override
+  String get audioAnalysisIntegratedLoudness => '整体响度';
+
+  @override
+  String get audioAnalysisLoudnessRange => '响度范围';
+
+  @override
+  String get audioAnalysisTruePeak => '真峰值';
+
+  @override
+  String get audioAnalysisHeadroom => '真峰值余量';
+
+  @override
+  String get audioAnalysisDynamicRange => '动态范围（估计）';
+
+  @override
+  String get audioAnalysisSuggestedGain => '建议曲目增益';
+
+  @override
+  String audioAnalysisSuggestedGainTarget(String target) {
+    return '以 $target LUFS 为目标；仅供参考，不会应用。';
+  }
+
+  @override
+  String get audioAnalysisClipping => '采样削波检查';
+
+  @override
+  String get audioAnalysisClippingNone => '无';
+
+  @override
+  String audioAnalysisClippingCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个采样达到或超过满量程',
+      one: '1 个采样达到或超过满量程',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get audioAnalysisLeadingSilence => '开头静音';
+
+  @override
+  String get audioAnalysisTrailingSilence => '结尾静音';
+
+  @override
+  String get audioAnalysisAllSilent => '整首曲目低于静音阈值（−60 dBFS）。';
+
+  @override
+  String get audioAnalysisReplayGainTag => '标签增益';
+
+  @override
+  String get audioAnalysisReplayGainPeak => '标签峰值';
+
+  @override
+  String get audioAnalysisNoTag => '无 ReplayGain 标签';
+
+  @override
+  String get audioAnalysisNotApplied => '该标签未应用于这些测量结果。';
+
+  @override
+  String get audioAnalysisSpectrogramUnavailable => '音频不足，无法生成频谱图。';
+
+  @override
+  String get audioAnalysisSpectrogramCaption => '0 dBFS 至 −120 dBFS · 整首曲目';
+
+  @override
+  String get audioAnalysisSourceNote =>
+      '测量基于对源文件的独立解码。某些格式包含解码器填充，可能影响时长和静音测量。播放、DSP 和标签均不变。';
 }

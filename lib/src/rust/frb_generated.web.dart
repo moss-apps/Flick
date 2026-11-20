@@ -35,14 +35,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_AudioSourceAnalysisJobPtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  AudioSourceAnalysisJob
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    dynamic raw,
+  );
+
+  @protected
+  AudioSourceAnalysisJob
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    dynamic raw,
+  );
 
   @protected
   Map<String, String> dco_decode_Map_String_String_None(dynamic raw);
 
   @protected
   Map<String, PlatformInt64> dco_decode_Map_String_i_64_None(dynamic raw);
+
+  @protected
+  AudioSourceAnalysisJob
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    dynamic raw,
+  );
 
   @protected
   RustStreamSink<String> dco_decode_StreamSink_String_Sse(dynamic raw);
@@ -97,6 +119,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AudioRuntimeDebugState dco_decode_audio_runtime_debug_state(dynamic raw);
 
   @protected
+  AudioSourceAnalysis dco_decode_audio_source_analysis(dynamic raw);
+
+  @protected
+  AudioSourceAnalysisStatus dco_decode_audio_source_analysis_status(
+    dynamic raw,
+  );
+
+  @protected
+  AudioSourceSpectrogram dco_decode_audio_source_spectrogram(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -113,6 +146,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AudioProgress dco_decode_box_autoadd_audio_progress(dynamic raw);
+
+  @protected
+  AudioSourceSpectrogram dco_decode_box_autoadd_audio_source_spectrogram(
+    dynamic raw,
+  );
 
   @protected
   bool dco_decode_box_autoadd_bool(dynamic raw);
@@ -218,6 +256,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Float32List dco_decode_list_prim_f_32_strict(dynamic raw);
 
   @protected
+  Float64List dco_decode_list_prim_f_64_strict(dynamic raw);
+
+  @protected
   Uint16List dco_decode_list_prim_u_16_strict(dynamic raw);
 
   @protected
@@ -256,6 +297,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AudioProgress? dco_decode_opt_box_autoadd_audio_progress(dynamic raw);
+
+  @protected
+  AudioSourceSpectrogram? dco_decode_opt_box_autoadd_audio_source_spectrogram(
+    dynamic raw,
+  );
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
@@ -397,12 +443,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
+  AudioSourceAnalysisJob
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AudioSourceAnalysisJob
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Map<String, String> sse_decode_Map_String_String_None(
     SseDeserializer deserializer,
   );
 
   @protected
   Map<String, PlatformInt64> sse_decode_Map_String_i_64_None(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AudioSourceAnalysisJob
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
     SseDeserializer deserializer,
   );
 
@@ -479,6 +543,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AudioSourceAnalysis sse_decode_audio_source_analysis(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AudioSourceAnalysisStatus sse_decode_audio_source_analysis_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AudioSourceSpectrogram sse_decode_audio_source_spectrogram(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -503,6 +582,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AudioProgress sse_decode_box_autoadd_audio_progress(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AudioSourceSpectrogram sse_decode_box_autoadd_audio_source_spectrogram(
     SseDeserializer deserializer,
   );
 
@@ -630,6 +714,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Float32List sse_decode_list_prim_f_32_strict(SseDeserializer deserializer);
 
   @protected
+  Float64List sse_decode_list_prim_f_64_strict(SseDeserializer deserializer);
+
+  @protected
   Uint16List sse_decode_list_prim_u_16_strict(SseDeserializer deserializer);
 
   @protected
@@ -676,6 +763,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AudioProgress? sse_decode_opt_box_autoadd_audio_progress(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AudioSourceSpectrogram? sse_decode_opt_box_autoadd_audio_source_spectrogram(
     SseDeserializer deserializer,
   );
 
@@ -840,6 +932,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    AudioSourceAnalysisJob self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    AudioSourceAnalysisJob self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_Map_String_String_None(
     Map<String, String> self,
     SseSerializer serializer,
@@ -848,6 +954,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_Map_String_i_64_None(
     Map<String, PlatformInt64> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    AudioSourceAnalysisJob self,
     SseSerializer serializer,
   );
 
@@ -942,6 +1055,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_audio_source_analysis(
+    AudioSourceAnalysis self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_audio_source_analysis_status(
+    AudioSourceAnalysisStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_audio_source_spectrogram(
+    AudioSourceSpectrogram self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -971,6 +1102,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_audio_progress(
     AudioProgress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_audio_source_spectrogram(
+    AudioSourceSpectrogram self,
     SseSerializer serializer,
   );
 
@@ -1119,6 +1256,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_prim_f_64_strict(
+    Float64List self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_16_strict(
     Uint16List self,
     SseSerializer serializer,
@@ -1181,6 +1324,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_audio_progress(
     AudioProgress? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_audio_source_spectrogram(
+    AudioSourceSpectrogram? self,
     SseSerializer serializer,
   );
 
@@ -1381,6 +1530,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
 class RustLibWire implements BaseWire {
   RustLibWire.fromExternalLibrary(ExternalLibrary lib);
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+        ptr,
+      );
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+        ptr,
+      );
 }
 
 @JS('wasm_bindgen')
@@ -1388,4 +1553,14 @@ external RustLibWasmModule get wasmModule;
 
 @JS()
 @anonymous
-extension type RustLibWasmModule._(JSObject _) implements JSObject {}
+extension type RustLibWasmModule._(JSObject _) implements JSObject {
+  external void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    int ptr,
+  );
+
+  external void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioSourceAnalysisJob(
+    int ptr,
+  );
+}

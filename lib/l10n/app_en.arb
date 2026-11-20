@@ -12027,5 +12027,219 @@
   "yourYearlyRecapFillsInAs": "Your yearly recap fills in as you keep listening throughout the year.",
   "@yourYearlyRecapFillsInAs": {
     "description": "lib/data/repositories/recently_played_repository.dart:39"
+  },
+  "audioAnalysis": "Audio Analysis",
+  "@audioAnalysis": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSubtitle": "Read-only measurements from the source file.",
+  "@audioAnalysisSubtitle": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "analyzeTrack": "Analyze track",
+  "@analyzeTrack": {
+    "description": "lib/features/player/widgets/audio_signal_report.dart"
+  },
+  "analyzeTrackDescription": "Measure levels, loudness, and spectrum from the source file. Playback and tags are not changed.",
+  "@analyzeTrackDescription": {
+    "description": "lib/features/player/widgets/audio_signal_report.dart"
+  },
+  "audioAnalysisAnalyzing": "Analyzing…",
+  "@audioAnalysisAnalyzing": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisCancel": "Cancel",
+  "@audioAnalysisCancel": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisCancelled": "Analysis cancelled.",
+  "@audioAnalysisCancelled": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisBusy": "Another track analysis is still running. Try again in a moment.",
+  "@audioAnalysisBusy": {
+    "description": "Status when a previous source analysis has not yet finished"
+  },
+  "audioAnalysisRetry": "Analyze again",
+  "@audioAnalysisRetry": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisFailed": "Analysis failed. The file may be unreadable.",
+  "@audioAnalysisFailed": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisUnsupportedFormat": "This format is not supported by source analysis yet.",
+  "@audioAnalysisUnsupportedFormat": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisUnsupportedMultichannel": "Source analysis supports mono and stereo files only.",
+  "@audioAnalysisUnsupportedMultichannel": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisUnavailable": "Analysis is unavailable for this track.",
+  "@audioAnalysisUnavailable": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisNoAudioStream": "No decodable audio stream was found.",
+  "@audioAnalysisNoAudioStream": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisUnreadable": "The file could not be opened.",
+  "@audioAnalysisUnreadable": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisNoSamples": "The file contains no audio samples.",
+  "@audioAnalysisNoSamples": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisLocalOnly": "Source analysis is available for local files only.",
+  "@audioAnalysisLocalOnly": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisCueUnsupported": "CUE tracks are not supported yet. Analyze the source file instead.",
+  "@audioAnalysisCueUnsupported": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisDocumentProviderUnsupported": "Files opened through a document provider cannot be analyzed.",
+  "@audioAnalysisDocumentProviderUnsupported": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisFileSection": "File",
+  "@audioAnalysisFileSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisLevelsSection": "Levels",
+  "@audioAnalysisLevelsSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisLoudnessSection": "Loudness",
+  "@audioAnalysisLoudnessSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSilenceSection": "Silence",
+  "@audioAnalysisSilenceSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisReplayGainSection": "ReplayGain",
+  "@audioAnalysisReplayGainSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSpectrogramSection": "Spectrogram",
+  "@audioAnalysisSpectrogramSection": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisDuration": "Decoded duration",
+  "@audioAnalysisDuration": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisFileSize": "File size",
+  "@audioAnalysisFileSize": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisPeak": "Peak",
+  "@audioAnalysisPeak": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisRms": "RMS",
+  "@audioAnalysisRms": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisCrest": "Crest factor",
+  "@audioAnalysisCrest": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisBalance": "Balance",
+  "@audioAnalysisBalance": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSideMid": "Side / mid",
+  "@audioAnalysisSideMid": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisIntegratedLoudness": "Integrated loudness",
+  "@audioAnalysisIntegratedLoudness": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisLoudnessRange": "Loudness range",
+  "@audioAnalysisLoudnessRange": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisTruePeak": "True peak",
+  "@audioAnalysisTruePeak": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisHeadroom": "True-peak headroom",
+  "@audioAnalysisHeadroom": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisDynamicRange": "Dynamic range (est.)",
+  "@audioAnalysisDynamicRange": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSuggestedGain": "Suggested track gain",
+  "@audioAnalysisSuggestedGain": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSuggestedGainTarget": "For a {target} LUFS target; informational only, never applied.",
+  "@audioAnalysisSuggestedGainTarget": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart",
+    "placeholders": {
+      "target": {"type": "String"}
+    }
+  },
+  "audioAnalysisClipping": "Sample clipping check",
+  "@audioAnalysisClipping": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisClippingNone": "None",
+  "@audioAnalysisClippingNone": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisClippingCount": "{count, plural, =1{1 sample at or above full scale} other{{count} samples at or above full scale}}",
+  "@audioAnalysisClippingCount": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "audioAnalysisLeadingSilence": "Leading silence",
+  "@audioAnalysisLeadingSilence": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisTrailingSilence": "Trailing silence",
+  "@audioAnalysisTrailingSilence": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisAllSilent": "The entire track is below the silence threshold (−60 dBFS).",
+  "@audioAnalysisAllSilent": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisReplayGainTag": "Tag gain",
+  "@audioAnalysisReplayGainTag": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisReplayGainPeak": "Tag peak",
+  "@audioAnalysisReplayGainPeak": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisNoTag": "No ReplayGain tag",
+  "@audioAnalysisNoTag": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisNotApplied": "The tag is not applied to these measurements.",
+  "@audioAnalysisNotApplied": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSpectrogramUnavailable": "Not enough audio for a spectrogram.",
+  "@audioAnalysisSpectrogramUnavailable": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSpectrogramCaption": "0 dBFS to −120 dBFS · full track",
+  "@audioAnalysisSpectrogramCaption": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "audioAnalysisSourceNote": "Measured from a separate source-file decode. Some formats include decoder padding, which can affect duration and silence measurements. Playback, DSP, and tags are unchanged.",
+  "@audioAnalysisSourceNote": {
+    "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
   }
 }

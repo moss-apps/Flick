@@ -9543,4 +9543,187 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get yourYearlyRecapFillsInAs =>
       'Tu resumen anual se completa a medida que escuchas música durante el año.';
+
+  @override
+  String get audioAnalysis => 'Análisis de audio';
+
+  @override
+  String get audioAnalysisSubtitle =>
+      'Mediciones de solo lectura del archivo fuente.';
+
+  @override
+  String get analyzeTrack => 'Analizar pista';
+
+  @override
+  String get analyzeTrackDescription =>
+      'Mide niveles, sonoridad y espectro desde el archivo fuente. La reproducción y las etiquetas no se modifican.';
+
+  @override
+  String get audioAnalysisAnalyzing => 'Analizando…';
+
+  @override
+  String get audioAnalysisCancel => 'Cancelar';
+
+  @override
+  String get audioAnalysisCancelled => 'Análisis cancelado.';
+
+  @override
+  String get audioAnalysisBusy =>
+      'Todavía se está analizando otra pista. Inténtalo de nuevo en un momento.';
+
+  @override
+  String get audioAnalysisRetry => 'Analizar de nuevo';
+
+  @override
+  String get audioAnalysisFailed =>
+      'El análisis falló. Es posible que el archivo no se pueda leer.';
+
+  @override
+  String get audioAnalysisUnsupportedFormat =>
+      'Este formato aún no es compatible con el análisis de origen.';
+
+  @override
+  String get audioAnalysisUnsupportedMultichannel =>
+      'El análisis de origen solo admite archivos mono y estéreo.';
+
+  @override
+  String get audioAnalysisUnavailable =>
+      'El análisis no está disponible para esta pista.';
+
+  @override
+  String get audioAnalysisNoAudioStream =>
+      'No se encontró ningún flujo de audio decodificable.';
+
+  @override
+  String get audioAnalysisUnreadable => 'No se pudo abrir el archivo.';
+
+  @override
+  String get audioAnalysisNoSamples =>
+      'El archivo no contiene muestras de audio.';
+
+  @override
+  String get audioAnalysisLocalOnly =>
+      'El análisis de origen solo está disponible para archivos locales.';
+
+  @override
+  String get audioAnalysisCueUnsupported =>
+      'Las pistas CUE aún no son compatibles. Analiza el archivo fuente.';
+
+  @override
+  String get audioAnalysisDocumentProviderUnsupported =>
+      'Los archivos abiertos mediante un proveedor de documentos no se pueden analizar.';
+
+  @override
+  String get audioAnalysisFileSection => 'Archivo';
+
+  @override
+  String get audioAnalysisLevelsSection => 'Niveles';
+
+  @override
+  String get audioAnalysisLoudnessSection => 'Sonoridad';
+
+  @override
+  String get audioAnalysisSilenceSection => 'Silencio';
+
+  @override
+  String get audioAnalysisReplayGainSection => 'ReplayGain';
+
+  @override
+  String get audioAnalysisSpectrogramSection => 'Espectrograma';
+
+  @override
+  String get audioAnalysisDuration => 'Duración decodificada';
+
+  @override
+  String get audioAnalysisFileSize => 'Tamaño del archivo';
+
+  @override
+  String get audioAnalysisPeak => 'Pico';
+
+  @override
+  String get audioAnalysisRms => 'RMS';
+
+  @override
+  String get audioAnalysisCrest => 'Factor de cresta';
+
+  @override
+  String get audioAnalysisBalance => 'Balance';
+
+  @override
+  String get audioAnalysisSideMid => 'Lateral / medio';
+
+  @override
+  String get audioAnalysisIntegratedLoudness => 'Sonoridad integrada';
+
+  @override
+  String get audioAnalysisLoudnessRange => 'Rango de sonoridad';
+
+  @override
+  String get audioAnalysisTruePeak => 'Pico real';
+
+  @override
+  String get audioAnalysisHeadroom => 'Margen de pico real';
+
+  @override
+  String get audioAnalysisDynamicRange => 'Rango dinámico (est.)';
+
+  @override
+  String get audioAnalysisSuggestedGain => 'Ganancia sugerida de la pista';
+
+  @override
+  String audioAnalysisSuggestedGainTarget(String target) {
+    return 'Para un objetivo de $target LUFS; solo informativo, nunca se aplica.';
+  }
+
+  @override
+  String get audioAnalysisClipping => 'Comprobación de recorte de muestras';
+
+  @override
+  String get audioAnalysisClippingNone => 'Ninguno';
+
+  @override
+  String audioAnalysisClippingCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count muestras al nivel máximo o por encima',
+      one: '1 muestra al nivel máximo o por encima',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get audioAnalysisLeadingSilence => 'Silencio inicial';
+
+  @override
+  String get audioAnalysisTrailingSilence => 'Silencio final';
+
+  @override
+  String get audioAnalysisAllSilent =>
+      'Toda la pista está por debajo del umbral de silencio (−60 dBFS).';
+
+  @override
+  String get audioAnalysisReplayGainTag => 'Ganancia de la etiqueta';
+
+  @override
+  String get audioAnalysisReplayGainPeak => 'Pico de la etiqueta';
+
+  @override
+  String get audioAnalysisNoTag => 'Sin etiqueta ReplayGain';
+
+  @override
+  String get audioAnalysisNotApplied =>
+      'La etiqueta no se aplica a estas mediciones.';
+
+  @override
+  String get audioAnalysisSpectrogramUnavailable =>
+      'No hay suficiente audio para un espectrograma.';
+
+  @override
+  String get audioAnalysisSpectrogramCaption =>
+      '0 dBFS a −120 dBFS · pista completa';
+
+  @override
+  String get audioAnalysisSourceNote =>
+      'Medido a partir de una decodificación independiente del archivo fuente. Algunos formatos incluyen relleno del decodificador, que puede afectar la duración y las mediciones de silencio. La reproducción, el DSP y las etiquetas no cambian.';
 }

@@ -6,8 +6,9 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `integrated_loudness`, `loudness_range`, `new`, `process`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Biquad`
+// These functions are ignored because they are not marked as `pub`: `amplitude_to_db`, `analyze_source_audio_file_inner`, `column`, `empty_source_analysis`, `hann_window`, `index`, `integrated_loudness`, `interpolated_peak`, `is_cancelled`, `k_filter_coefficients`, `loudness_range`, `loudness_range`, `mean_above`, `mean_top_fifth`, `new`, `new`, `new`, `next_source_packet`, `power_to_db`, `process`, `record_energy`, `record`, `relative_gate`, `spectrogram_bin_positions`, `spectrogram_column`, `true_peak_coefficients`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Biquad`, `MeasurementHistogram`, `SpectrumColumns`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`
 
 /// Decode `path` once, computing waveform peaks + BS.1770 metrics.
 /// Returns `None` for unsupported/unreachable files — callers treat that as a
@@ -21,6 +22,20 @@ Future<AudioAnalysisResult?> analyzeAudioFile({
   path: path,
   peakBuckets: peakBuckets,
 );
+
+AudioSourceAnalysisJob createSourceAudioAnalysisJob() =>
+    RustLib.instance.api.crateApiAudioAnalysisCreateSourceAudioAnalysisJob();
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AudioSourceAnalysisJob>>
+abstract class AudioSourceAnalysisJob implements RustOpaqueInterface {
+  /// Opens a separate file handle without touching playback, DSP, or tags.
+  Future<AudioSourceAnalysis> analyze({required String path});
+
+  void cancel();
+
+  /// Returns 0.0 when the total frame count is unknown.
+  double progress();
+}
 
 class AudioAnalysisResult {
   final Float32List peaks;
@@ -59,4 +74,153 @@ class AudioAnalysisResult {
           dr == other.dr &&
           lra == other.lra &&
           clipping == other.clipping;
+}
+
+class AudioSourceAnalysis {
+  final AudioSourceAnalysisStatus status;
+  final BigInt fileSizeBytes;
+  final double? durationSeconds;
+  final int? sampleRate;
+  final int? channels;
+  final int? bitDepth;
+  final Float64List channelPeakDb;
+  final Float64List channelRmsDb;
+  final double? balanceDb;
+  final double? sideMidDb;
+  final double? leadingSilenceSeconds;
+  final double? trailingSilenceSeconds;
+  final bool silent;
+  final double? lufs;
+  final double? lra;
+  final double? truePeakDb;
+  final double? dr;
+  final bool clipping;
+  final BigInt clippedSamples;
+  final AudioSourceSpectrogram? spectrogram;
+
+  const AudioSourceAnalysis({
+    required this.status,
+    required this.fileSizeBytes,
+    this.durationSeconds,
+    this.sampleRate,
+    this.channels,
+    this.bitDepth,
+    required this.channelPeakDb,
+    required this.channelRmsDb,
+    this.balanceDb,
+    this.sideMidDb,
+    this.leadingSilenceSeconds,
+    this.trailingSilenceSeconds,
+    required this.silent,
+    this.lufs,
+    this.lra,
+    this.truePeakDb,
+    this.dr,
+    required this.clipping,
+    required this.clippedSamples,
+    this.spectrogram,
+  });
+
+  @override
+  int get hashCode =>
+      status.hashCode ^
+      fileSizeBytes.hashCode ^
+      durationSeconds.hashCode ^
+      sampleRate.hashCode ^
+      channels.hashCode ^
+      bitDepth.hashCode ^
+      channelPeakDb.hashCode ^
+      channelRmsDb.hashCode ^
+      balanceDb.hashCode ^
+      sideMidDb.hashCode ^
+      leadingSilenceSeconds.hashCode ^
+      trailingSilenceSeconds.hashCode ^
+      silent.hashCode ^
+      lufs.hashCode ^
+      lra.hashCode ^
+      truePeakDb.hashCode ^
+      dr.hashCode ^
+      clipping.hashCode ^
+      clippedSamples.hashCode ^
+      spectrogram.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AudioSourceAnalysis &&
+          runtimeType == other.runtimeType &&
+          status == other.status &&
+          fileSizeBytes == other.fileSizeBytes &&
+          durationSeconds == other.durationSeconds &&
+          sampleRate == other.sampleRate &&
+          channels == other.channels &&
+          bitDepth == other.bitDepth &&
+          channelPeakDb == other.channelPeakDb &&
+          channelRmsDb == other.channelRmsDb &&
+          balanceDb == other.balanceDb &&
+          sideMidDb == other.sideMidDb &&
+          leadingSilenceSeconds == other.leadingSilenceSeconds &&
+          trailingSilenceSeconds == other.trailingSilenceSeconds &&
+          silent == other.silent &&
+          lufs == other.lufs &&
+          lra == other.lra &&
+          truePeakDb == other.truePeakDb &&
+          dr == other.dr &&
+          clipping == other.clipping &&
+          clippedSamples == other.clippedSamples &&
+          spectrogram == other.spectrogram;
+}
+
+enum AudioSourceAnalysisStatus {
+  ok,
+  unsupportedFormat,
+  unsupportedMultichannel,
+  unreadable,
+  noAudioStream,
+  noSamples,
+  cancelled,
+  busy,
+}
+
+class AudioSourceSpectrogram {
+  final int columns;
+  final int bins;
+  final double minFrequencyHz;
+  final double maxFrequencyHz;
+
+  /// Row-major: `column * bins + bin`, bin 0 is the lowest frequency.
+  final Float32List leftDb;
+
+  /// Empty for mono sources.
+  final Float32List rightDb;
+
+  const AudioSourceSpectrogram({
+    required this.columns,
+    required this.bins,
+    required this.minFrequencyHz,
+    required this.maxFrequencyHz,
+    required this.leftDb,
+    required this.rightDb,
+  });
+
+  @override
+  int get hashCode =>
+      columns.hashCode ^
+      bins.hashCode ^
+      minFrequencyHz.hashCode ^
+      maxFrequencyHz.hashCode ^
+      leftDb.hashCode ^
+      rightDb.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AudioSourceSpectrogram &&
+          runtimeType == other.runtimeType &&
+          columns == other.columns &&
+          bins == other.bins &&
+          minFrequencyHz == other.minFrequencyHz &&
+          maxFrequencyHz == other.maxFrequencyHz &&
+          leftDb == other.leftDb &&
+          rightDb == other.rightDb;
 }

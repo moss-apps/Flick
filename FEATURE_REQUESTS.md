@@ -17,34 +17,36 @@ name, track count, artist, and (newly added) **Year**.
 
 ---
 
-## ~~Audio Analysis~~ — too far for now.
+## Audio Analysis — shipped, scoped
 
-### Measurement
+Opened from **Audio Signal Path → Source → Analyze track**. It measures a
+separate, read-only decode of the source file; playback, DSP, tags, and the
+ReplayGain scanner are unchanged. Available for local mono/stereo files that
+Symphonia can decode, excluding CUE track ranges and native DSD/WavPack.
 
-- ~~TT Dynamic Range (DR) measurement~~
-- ~~LUFS loudness analysis~~
-- ~~True Peak (dBTP)~~
-- ~~Loudness Range (LRA)~~
-- ~~Clipping detection~~
-- ~~Effective bit-depth estimation~~
-- ~~Spectral bandwidth analysis~~
-- ~~Fake-lossless detection~~
-- ~~Overall fidelity scoring~~
-- ~~Mastering quality grading~~
-- ~~Cached analysis~~
-- ~~Batch album analysis~~
-- ~~Exportable analysis reports~~
+Shipped:
 
-### Spectrogram
+- Integrated LUFS, loudness range (LRA), true peak (dBTP), true-peak headroom,
+  estimated dynamic range, and clipping sample count.
+- Per-channel peak/RMS, crest factor, stereo balance, and side/mid.
+- Decoded duration, file size, and leading/trailing silence.
+- Existing ReplayGain tag versus the suggested −18 LUFS gain (informational
+  only; never applied or written).
+- Log-frequency spectrogram for All / Left / Right, full track, to Nyquist.
 
-- ~~Calibrated FFT spectrogram~~
-- ~~True re-analysis while zooming~~
-- ~~Higher FFT resolution on deeper zoom~~
-- ~~Stereo / Left / Right / Mid / Side view~~
-- ~~Linear & Log frequency scales~~
-- ~~Tap-to-inspect (Hz, dB, Time)~~
-- ~~Full Nyquist display~~
-- ~~Exportable spectrogram images~~
+Duration and silence reflect the decoded samples. Container edits that the
+decoder does not apply (such as MP4 edit lists) can leave encoder padding in
+those measurements.
+
+Still deferred:
+
+- Multichannel and native DSD/WavPack analysis.
+- CUE track ranges.
+- Deep zoom / true re-analysis, linear frequency scale, tap-to-inspect,
+  mid/side spectrogram, and image export.
+- Batch/album analysis and persistent analysis cache.
+- Effective bit-depth/bandwidth estimation, lossless-origin scoring, and
+  fidelity or mastering grades.
 
 ---
 

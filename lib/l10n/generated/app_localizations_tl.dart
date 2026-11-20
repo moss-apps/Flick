@@ -9535,6 +9535,188 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get yourYearlyRecapFillsInAs =>
       'Unti-unting nabubuo ang iyong taunang buod habang patuloy kang nakikinig sa buong taon.';
+
+  @override
+  String get audioAnalysis => 'Audio Analysis';
+
+  @override
+  String get audioAnalysisSubtitle =>
+      'Read-only na mga measurement mula sa source file.';
+
+  @override
+  String get analyzeTrack => 'I-analyze ang track';
+
+  @override
+  String get analyzeTrackDescription =>
+      'Sukatin ang levels, loudness, at spectrum mula sa source file. Hindi binabago ang playback at tags.';
+
+  @override
+  String get audioAnalysisAnalyzing => 'Nag-a-analyze…';
+
+  @override
+  String get audioAnalysisCancel => 'Kanselahin';
+
+  @override
+  String get audioAnalysisCancelled => 'Kinansela ang analysis.';
+
+  @override
+  String get audioAnalysisBusy =>
+      'May isa pang track na ini-analyze. Subukan ulit mamaya.';
+
+  @override
+  String get audioAnalysisRetry => 'I-analyze ulit';
+
+  @override
+  String get audioAnalysisFailed =>
+      'Nabigo ang analysis. Baka hindi mabasa ang file.';
+
+  @override
+  String get audioAnalysisUnsupportedFormat =>
+      'Hindi pa supported ng source analysis ang format na ito.';
+
+  @override
+  String get audioAnalysisUnsupportedMultichannel =>
+      'Mono at stereo files lang ang sinusuportahan ng source analysis.';
+
+  @override
+  String get audioAnalysisUnavailable =>
+      'Hindi available ang analysis para sa track na ito.';
+
+  @override
+  String get audioAnalysisNoAudioStream =>
+      'Walang makitang decodable audio stream.';
+
+  @override
+  String get audioAnalysisUnreadable => 'Hindi mabuksan ang file.';
+
+  @override
+  String get audioAnalysisNoSamples => 'Walang audio samples ang file.';
+
+  @override
+  String get audioAnalysisLocalOnly =>
+      'Para sa local files lang ang source analysis.';
+
+  @override
+  String get audioAnalysisCueUnsupported =>
+      'Hindi pa supported ang CUE tracks. I-analyze ang source file sa halip.';
+
+  @override
+  String get audioAnalysisDocumentProviderUnsupported =>
+      'Hindi maaaring i-analyze ang mga file na binuksan sa document provider.';
+
+  @override
+  String get audioAnalysisFileSection => 'File';
+
+  @override
+  String get audioAnalysisLevelsSection => 'Levels';
+
+  @override
+  String get audioAnalysisLoudnessSection => 'Loudness';
+
+  @override
+  String get audioAnalysisSilenceSection => 'Silence';
+
+  @override
+  String get audioAnalysisReplayGainSection => 'ReplayGain';
+
+  @override
+  String get audioAnalysisSpectrogramSection => 'Spectrogram';
+
+  @override
+  String get audioAnalysisDuration => 'Na-decode na duration';
+
+  @override
+  String get audioAnalysisFileSize => 'Laki ng file';
+
+  @override
+  String get audioAnalysisPeak => 'Peak';
+
+  @override
+  String get audioAnalysisRms => 'RMS';
+
+  @override
+  String get audioAnalysisCrest => 'Crest factor';
+
+  @override
+  String get audioAnalysisBalance => 'Balance';
+
+  @override
+  String get audioAnalysisSideMid => 'Side / mid';
+
+  @override
+  String get audioAnalysisIntegratedLoudness => 'Integrated loudness';
+
+  @override
+  String get audioAnalysisLoudnessRange => 'Loudness range';
+
+  @override
+  String get audioAnalysisTruePeak => 'True peak';
+
+  @override
+  String get audioAnalysisHeadroom => 'True-peak headroom';
+
+  @override
+  String get audioAnalysisDynamicRange => 'Dynamic range (est.)';
+
+  @override
+  String get audioAnalysisSuggestedGain => 'Suggested track gain';
+
+  @override
+  String audioAnalysisSuggestedGainTarget(String target) {
+    return 'Para sa $target LUFS target; informational lang, hindi inilalapat.';
+  }
+
+  @override
+  String get audioAnalysisClipping => 'Sample clipping check';
+
+  @override
+  String get audioAnalysisClippingNone => 'Wala';
+
+  @override
+  String audioAnalysisClippingCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count samples na nasa o lampas sa full scale',
+      one: '1 sample na nasa o lampas sa full scale',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get audioAnalysisLeadingSilence => 'Leading silence';
+
+  @override
+  String get audioAnalysisTrailingSilence => 'Trailing silence';
+
+  @override
+  String get audioAnalysisAllSilent =>
+      'Nasa ilalim ng silence threshold (−60 dBFS) ang buong track.';
+
+  @override
+  String get audioAnalysisReplayGainTag => 'Gain ng tag';
+
+  @override
+  String get audioAnalysisReplayGainPeak => 'Peak ng tag';
+
+  @override
+  String get audioAnalysisNoTag => 'Walang ReplayGain tag';
+
+  @override
+  String get audioAnalysisNotApplied =>
+      'Hindi ginagamit ang tag sa mga measurement na ito.';
+
+  @override
+  String get audioAnalysisSpectrogramUnavailable =>
+      'Kulang ang audio para sa spectrogram.';
+
+  @override
+  String get audioAnalysisSpectrogramCaption =>
+      '0 dBFS hanggang −120 dBFS · buong track';
+
+  @override
+  String get audioAnalysisSourceNote =>
+      'Sinukat mula sa hiwalay na decode ng source file. May decoder padding ang ilang format, na puwedeng makaapekto sa duration at silence measurements. Hindi nagbabago ang playback, DSP, at tags.';
 }
 
 /// The translations for Tagalog, using the Tagalog Baybayin Alibata script (`tl_Tglg`).

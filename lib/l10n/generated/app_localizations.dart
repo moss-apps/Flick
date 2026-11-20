@@ -15915,6 +15915,318 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your yearly recap fills in as you keep listening throughout the year.'**
   String get yourYearlyRecapFillsInAs;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Analysis'**
+  String get audioAnalysis;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only measurements from the source file.'**
+  String get audioAnalysisSubtitle;
+
+  /// lib/features/player/widgets/audio_signal_report.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze track'**
+  String get analyzeTrack;
+
+  /// lib/features/player/widgets/audio_signal_report.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Measure levels, loudness, and spectrum from the source file. Playback and tags are not changed.'**
+  String get analyzeTrackDescription;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing…'**
+  String get audioAnalysisAnalyzing;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get audioAnalysisCancel;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis cancelled.'**
+  String get audioAnalysisCancelled;
+
+  /// Status when a previous source analysis has not yet finished
+  ///
+  /// In en, this message translates to:
+  /// **'Another track analysis is still running. Try again in a moment.'**
+  String get audioAnalysisBusy;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze again'**
+  String get audioAnalysisRetry;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis failed. The file may be unreadable.'**
+  String get audioAnalysisFailed;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'This format is not supported by source analysis yet.'**
+  String get audioAnalysisUnsupportedFormat;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Source analysis supports mono and stereo files only.'**
+  String get audioAnalysisUnsupportedMultichannel;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis is unavailable for this track.'**
+  String get audioAnalysisUnavailable;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'No decodable audio stream was found.'**
+  String get audioAnalysisNoAudioStream;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'The file could not be opened.'**
+  String get audioAnalysisUnreadable;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'The file contains no audio samples.'**
+  String get audioAnalysisNoSamples;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Source analysis is available for local files only.'**
+  String get audioAnalysisLocalOnly;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'CUE tracks are not supported yet. Analyze the source file instead.'**
+  String get audioAnalysisCueUnsupported;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Files opened through a document provider cannot be analyzed.'**
+  String get audioAnalysisDocumentProviderUnsupported;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get audioAnalysisFileSection;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Levels'**
+  String get audioAnalysisLevelsSection;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Loudness'**
+  String get audioAnalysisLoudnessSection;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Silence'**
+  String get audioAnalysisSilenceSection;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'ReplayGain'**
+  String get audioAnalysisReplayGainSection;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Spectrogram'**
+  String get audioAnalysisSpectrogramSection;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Decoded duration'**
+  String get audioAnalysisDuration;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'File size'**
+  String get audioAnalysisFileSize;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Peak'**
+  String get audioAnalysisPeak;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'RMS'**
+  String get audioAnalysisRms;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Crest factor'**
+  String get audioAnalysisCrest;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Balance'**
+  String get audioAnalysisBalance;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Side / mid'**
+  String get audioAnalysisSideMid;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Integrated loudness'**
+  String get audioAnalysisIntegratedLoudness;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Loudness range'**
+  String get audioAnalysisLoudnessRange;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'True peak'**
+  String get audioAnalysisTruePeak;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'True-peak headroom'**
+  String get audioAnalysisHeadroom;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic range (est.)'**
+  String get audioAnalysisDynamicRange;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested track gain'**
+  String get audioAnalysisSuggestedGain;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'For a {target} LUFS target; informational only, never applied.'**
+  String audioAnalysisSuggestedGainTarget(String target);
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Sample clipping check'**
+  String get audioAnalysisClipping;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get audioAnalysisClippingNone;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 sample at or above full scale} other{{count} samples at or above full scale}}'**
+  String audioAnalysisClippingCount(int count);
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Leading silence'**
+  String get audioAnalysisLeadingSilence;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Trailing silence'**
+  String get audioAnalysisTrailingSilence;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'The entire track is below the silence threshold (−60 dBFS).'**
+  String get audioAnalysisAllSilent;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tag gain'**
+  String get audioAnalysisReplayGainTag;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tag peak'**
+  String get audioAnalysisReplayGainPeak;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'No ReplayGain tag'**
+  String get audioAnalysisNoTag;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'The tag is not applied to these measurements.'**
+  String get audioAnalysisNotApplied;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough audio for a spectrogram.'**
+  String get audioAnalysisSpectrogramUnavailable;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'0 dBFS to −120 dBFS · full track'**
+  String get audioAnalysisSpectrogramCaption;
+
+  /// lib/features/player/widgets/audio_analysis_sheet.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Measured from a separate source-file decode. Some formats include decoder padding, which can affect duration and silence measurements. Playback, DSP, and tags are unchanged.'**
+  String get audioAnalysisSourceNote;
 }
 
 class _AppLocalizationsDelegate
