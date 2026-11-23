@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/src/rust/frb_generated.dart';
 import 'package:flick/app/app.dart';
 import 'package:flick/data/database.dart';
+import 'package:flick/services/album_color_mode_preference_service.dart';
 import 'package:flick/services/app_preferences_service.dart';
 import 'package:flick/services/display_mode_service.dart';
 import 'package:flick/services/external_playback_service.dart';
@@ -27,6 +28,9 @@ Future<void> main() async {
   // Snapshot install freshness before anything can write to the preference
   // store: new installations start on the adaptive refresh-rate default.
   await AppPreferencesService.captureInstallFreshness();
+  // Runs after the freshness snapshot so the migration's writes cannot make an
+  // existing install look new.
+  await AlbumColorModePreferenceService().migrateToVibrantDefault();
 
   await AppLog.instance.initializePersistence();
   await Uac2PreferencesService().initializeDeveloperModeCache();
