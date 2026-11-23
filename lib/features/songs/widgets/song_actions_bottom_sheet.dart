@@ -18,6 +18,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/widgets/common/song_file_tag_extras.dart';
+import 'package:flick/widgets/common/song_network_source_row.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flick/l10n/english_l10n.dart';
@@ -602,6 +603,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
                       _buildMetadataRow(sheetContext, l10n.artist, song.artist),
                       if (song.album != null)
                         _buildMetadataRow(sheetContext, l10n.album, song.album!),
+                      SongNetworkSourceRow(song: song),
                       if (song.albumArtist != null)
                         _buildMetadataRow(
                           sheetContext,

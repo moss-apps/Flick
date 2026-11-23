@@ -2,6 +2,7 @@
 import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar_community/isar.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,6 +17,7 @@ import '../../../core/utils/responsive.dart';
 // Database, widgets, and service configurations
 import '../../../data/database.dart';
 import '../../../data/repositories/song_repository.dart';
+import '../../../providers/providers.dart';
 import '../../../services/playlist_service.dart';
 import '../../../services/sources/jellyfin_service.dart';
 import '../../../services/sources/network_source_service.dart';
@@ -25,13 +27,13 @@ import 'package:flick/l10n/settings_l10n.dart';
 
 /// Add or edit a network server. All registered protocols are selectable;
 /// each dispatches test/sync/stream through [networkSourceServiceFor].
-class NetworkServerEditScreen extends StatefulWidget {
+class NetworkServerEditScreen extends ConsumerStatefulWidget {
   const NetworkServerEditScreen({super.key, this.server});
 
   final NetworkServerEntity? server;
 
   @override
-  State<NetworkServerEditScreen> createState() =>
+  ConsumerState<NetworkServerEditScreen> createState() =>
       _NetworkServerEditScreenState();
 }
 
@@ -103,7 +105,7 @@ List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
   ),
 ];
 
-class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
+class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScreen> {
   late final TextEditingController _labelController;
   late final TextEditingController _urlController;
   late final TextEditingController _usernameController;
@@ -310,6 +312,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     await Database.instance.writeTxn(() async {
       await Database.networkServers.put(_draftEntity(token: token));
     });
+    ref.invalidate(networkServersProvider);
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
@@ -342,6 +345,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     });
     await SongRepository().deleteSongsForRemoteServer(server.id);
     await PlaylistService.instance.removeNetworkPlaylistsForServer('${server.id}');
+    ref.invalidate(networkServersProvider);
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
