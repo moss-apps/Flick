@@ -1602,7 +1602,12 @@ class MainActivity: FlutterActivity() {
     // Single source of truth for filesystem path + MediaStore-volume routing, including
     // removable (USB/SD) volumes which queryMediaStoreAudio must target by their own name.
     private fun resolveStorageInfo(uriString: String): Map<String, Any?> {
-        val allFiles = mapOf("allFilesAccess" to hasAllFilesAccess())
+        val allFiles = mapOf(
+            "allFilesAccess" to hasAllFilesAccess(),
+            // Dart uses this to decide whether the SAF tree is the only
+            // accessible view of the folder (scoped storage, API 30+).
+            "sdkInt" to Build.VERSION.SDK_INT,
+        )
         val unknown = mapOf<String, Any?>(
             "fsPath" to null,
             "mediaStoreVolume" to null,
@@ -2126,18 +2131,30 @@ class MainActivity: FlutterActivity() {
         val relativePath: String,
     )
 
+    private data class TreeWalkResult(
+        val entries: List<TreeDocEntry>,
+        // False when the tree root itself could not be queried (permission
+        // revoked, volume unplugged, provider gone). Callers must keep the
+        // existing library rows instead of treating this as an empty folder.
+        val rootAccessible: Boolean,
+        // False when at least one subdirectory could not be listed. The walk is
+        // still useful, but absence from the result does not prove deletion.
+        val complete: Boolean,
+    )
+
     // Walks a granted SAF tree with one contentResolver.query() per directory
     // (single IPC returning all columns) instead of per-attribute DocumentFile
     // calls. .nomedia short-circuits a subtree when [respectNomedia] is true.
     private fun listTreeDocuments(
         uriString: String,
         respectNomedia: Boolean,
-    ): List<TreeDocEntry> {
+    ): TreeWalkResult {
         val treeUri = Uri.parse(uriString)
         val rootDocId = try {
             DocumentsContract.getTreeDocumentId(treeUri)
         } catch (e: Exception) {
-            return emptyList()
+            Log.w("MainActivity", "SAF tree id unavailable for '$uriString': ${e.message}", e)
+            return TreeWalkResult(emptyList(), rootAccessible = false, complete = false)
         }
         val projection = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
@@ -2149,75 +2166,125 @@ class MainActivity: FlutterActivity() {
         val result = mutableListOf<TreeDocEntry>()
         val visited = HashSet<String>()
         var dirCount = 0
+        var rootAccessible = true
+        var complete = true
 
-        fun scanDir(docId: String, relativePath: String) {
+        fun scanDir(docId: String, relativePath: String, isRoot: Boolean) {
             if (!visited.add(docId)) return
             dirCount++
             val childrenUri = try {
                 DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
             } catch (e: Exception) {
+                Log.w("MainActivity", "SAF child URI failed for $docId: ${e.message}", e)
+                if (isRoot) rootAccessible = false
+                complete = false
                 return
             }
             val entries = mutableListOf<TreeDocEntry>()
             var hasNomedia = false
+            var dirListed = false
             try {
                 val cursor = contentResolver.query(childrenUri, projection, null, null, null)
                 if (cursor == null) {
                     Log.w("MainActivity", "SAF query null cursor: $childrenUri")
-                }
-                cursor?.use { c ->
-                    val idIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
-                    val nameIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-                    val mimeIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
-                    val sizeIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE)
-                    val modIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
-                    while (c.moveToNext()) {
-                        val name = if (nameIdx >= 0) c.getString(nameIdx) else null
-                        if (name == null) continue
-                        if (respectNomedia && name == ".nomedia") hasNomedia = true
-                        val childDocId = if (idIdx >= 0) c.getString(idIdx) else null
-                        if (childDocId == null) continue
-                        entries.add(
-                            TreeDocEntry(
-                                documentId = childDocId,
-                                name = name,
-                                mimeType = if (mimeIdx >= 0) c.getString(mimeIdx) else null,
-                                size = if (sizeIdx >= 0 && !c.isNull(sizeIdx)) c.getLong(sizeIdx) else 0L,
-                                lastModified = if (modIdx >= 0 && !c.isNull(modIdx)) c.getLong(modIdx) else 0L,
-                                relativePath = relativePath,
-                            ),
-                        )
+                } else {
+                    cursor.use { c ->
+                        // Providers can return an empty or partial cursor without
+                        // throwing. It must not be used as evidence of deletion.
+                        val extras = c.extras
+                        if (extras.getBoolean(DocumentsContract.EXTRA_LOADING) ||
+                            extras.containsKey(DocumentsContract.EXTRA_ERROR)
+                        ) {
+                            complete = false
+                        }
+                        val idIdx = c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                        val nameIdx = c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                        val mimeIdx = c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
+                        val sizeIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE)
+                        val modIdx = c.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                        while (c.moveToNext()) {
+                            val name = c.getString(nameIdx)
+                            val childDocId = c.getString(idIdx)
+                            val mimeType = c.getString(mimeIdx)
+                            if (name.isNullOrEmpty() || childDocId.isNullOrEmpty() || mimeType.isNullOrEmpty()) {
+                                complete = false
+                                continue
+                            }
+                            if (respectNomedia && name == ".nomedia") hasNomedia = true
+                            entries.add(
+                                TreeDocEntry(
+                                    documentId = childDocId,
+                                    name = name,
+                                    mimeType = mimeType,
+                                    size = if (sizeIdx >= 0 && !c.isNull(sizeIdx)) c.getLong(sizeIdx) else 0L,
+                                    lastModified = if (modIdx >= 0 && !c.isNull(modIdx)) c.getLong(modIdx) else 0L,
+                                    relativePath = relativePath,
+                                ),
+                            )
+                        }
                     }
+                    dirListed = true
                 }
             } catch (e: Exception) {
                 Log.w("MainActivity", "listTreeDocuments query failed: ${e.message}", e)
+            }
+            if (!dirListed) {
+                if (isRoot) rootAccessible = false
+                complete = false
+                return
+            }
+            if (isRoot && complete && entries.isEmpty()) {
+                // Some providers return an empty children cursor for a stale
+                // tree URI. Confirm the root still exists before pruning rows.
+                rootAccessible = try {
+                    val rootUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
+                    val rootProjection = arrayOf(DocumentsContract.Document.COLUMN_MIME_TYPE)
+                    contentResolver.query(rootUri, rootProjection, null, null, null)?.use { c ->
+                        val extras = c.extras
+                        !extras.getBoolean(DocumentsContract.EXTRA_LOADING) &&
+                            !extras.containsKey(DocumentsContract.EXTRA_ERROR) &&
+                            c.moveToFirst() &&
+                            c.getString(c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)) ==
+                            DocumentsContract.Document.MIME_TYPE_DIR
+                    } == true
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "SAF empty-root confirmation failed: ${e.message}", e)
+                    false
+                }
+                if (!rootAccessible) complete = false
+                return
             }
             if (hasNomedia) return
             for (e in entries) {
                 if (e.mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
                     val childPath =
                         if (relativePath.isEmpty()) e.name else "$relativePath/${e.name}"
-                    scanDir(e.documentId, childPath)
+                    scanDir(e.documentId, childPath, isRoot = false)
                 } else {
                     result.add(e)
                 }
             }
         }
 
-        scanDir(rootDocId, "")
-        Log.d("MainActivity", "SAF tree walk '$uriString' rootDocId=$rootDocId dirs=$dirCount files=${result.size}")
-        return result
+        scanDir(rootDocId, "", isRoot = true)
+        Log.d(
+            "MainActivity",
+            "SAF tree walk '$uriString' rootDocId=$rootDocId dirs=$dirCount files=${result.size} " +
+                "rootAccessible=$rootAccessible complete=$complete",
+        )
+        return TreeWalkResult(result, rootAccessible, complete)
     }
 
     private fun fastScanAudioFiles(
         uriString: String,
         filterNonMusicFilesAndFolders: Boolean
-    ): List<Map<String, Any?>> {
+    ): Map<String, Any?> {
         val audioExtensions =
             setOf("mp3", "flac", "wav", "aac", "m4a", "ogg", "oga", "ogx", "opus", "wma", "alac", "aif", "aiff", "cue", "wv", "dsf", "dff")
         val treeUri = Uri.parse(uriString)
+        val walk = listTreeDocuments(uriString, filterNonMusicFilesAndFolders)
 
-        return listTreeDocuments(uriString, filterNonMusicFilesAndFolders)
+        val files = walk.entries
             .filter { entry ->
                 !filterNonMusicFilesAndFolders ||
                     entry.name.substringAfterLast('.', "").lowercase() in audioExtensions
@@ -2234,6 +2301,12 @@ class MainActivity: FlutterActivity() {
                     "relativeFolderPath" to entry.relativePath,
                 )
             }
+
+        return mapOf(
+            "files" to files,
+            "rootAccessible" to walk.rootAccessible,
+            "complete" to walk.complete,
+        )
     }
 
     private fun scanPlaylistFiles(
@@ -2243,7 +2316,7 @@ class MainActivity: FlutterActivity() {
         val playlistExtensions = setOf("m3u", "m3u8")
         val treeUri = Uri.parse(uriString)
 
-        return listTreeDocuments(uriString, filterNonMusicFilesAndFolders)
+        return listTreeDocuments(uriString, filterNonMusicFilesAndFolders).entries
             .filter { entry ->
                 entry.name.substringAfterLast('.', "").lowercase() in playlistExtensions
             }
