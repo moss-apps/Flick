@@ -8,6 +8,7 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/providers/listenbrainz_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flick/widgets/common/brand_icon.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
@@ -411,7 +412,7 @@ class _ListenBrainzSettingsTileState
       context,
       child: Row(
         children: [
-          _buildLeadingIcon(context, Icons.radio_button_unchecked),
+          _buildLeadingIcon(context),
           const SizedBox(width: AppConstants.spacingMd),
           Expanded(
             child: Column(
@@ -441,7 +442,6 @@ class _ListenBrainzSettingsTileState
   Widget _buildErrorTile(BuildContext context) {
     return _buildTapTile(
       context,
-      icon: Icons.error_outline,
       title: l10n.englishForFilipino.listenbrainz,
       subtitle: l10n.couldNotLoadSession,
       onTap: _showTokenDialog,
@@ -456,7 +456,6 @@ class _ListenBrainzSettingsTileState
   Widget _buildConnectedTile(BuildContext context, {required String username}) {
     return _buildTapTile(
       context,
-      icon: Icons.radio_button_checked,
       title: l10n.englishForFilipino.listenbrainz,
       subtitle: l10n.connectedAs(username),
       onTap: () => _showConnectedBottomSheet(username),
@@ -471,7 +470,6 @@ class _ListenBrainzSettingsTileState
   Widget _buildDisconnectedTile(BuildContext context) {
     return _buildTapTile(
       context,
-      icon: Icons.radio_button_unchecked,
       title: l10n.englishForFilipino.listenbrainz,
       subtitle: l10n.connectToSubmitYourListeningHistory,
       onTap: _showTokenDialog,
@@ -485,7 +483,6 @@ class _ListenBrainzSettingsTileState
 
   Widget _buildTapTile(
     BuildContext context, {
-    required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback? onTap,
@@ -499,7 +496,7 @@ class _ListenBrainzSettingsTileState
           context,
           child: Row(
             children: [
-              _buildLeadingIcon(context, icon),
+              _buildLeadingIcon(context),
               const SizedBox(width: AppConstants.spacingMd),
               Expanded(
                 child: Column(
@@ -536,17 +533,17 @@ class _ListenBrainzSettingsTileState
     );
   }
 
-  Widget _buildLeadingIcon(BuildContext context, IconData icon) {
+  Widget _buildLeadingIcon(BuildContext context) {
     return Container(
       width: context.scaleSize(AppConstants.containerSizeMd),
       height: context.scaleSize(AppConstants.containerSizeMd),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.glassBackgroundStrong,
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
       ),
-      child: Icon(
-        icon,
-        color: context.adaptiveTextSecondary,
+      child: BrandIcon(
+        asset: BrandAssets.listenbrainz,
         size: context.responsiveIcon(AppConstants.iconSizeMd),
       ),
     );

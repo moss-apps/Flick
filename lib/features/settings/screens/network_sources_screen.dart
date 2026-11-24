@@ -11,6 +11,7 @@ import '../../../data/database.dart';
 import '../../../data/repositories/song_repository.dart';
 import '../../../services/library_scanner_service.dart' show ScanProgress;
 import '../../../services/sources/network_source_service.dart';
+import '../../../widgets/common/brand_icon.dart';
 import '../widgets/settings_widgets.dart';
 import 'network_server_edit_screen.dart';
 import 'package:flick/l10n/settings_l10n.dart';
@@ -225,6 +226,15 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
     );
   }
 
+  /// Official service mark for [protocol], if it has one.
+  String? _logoAssetFor(String protocol) => switch (protocol) {
+    NetworkProtocol.subsonic => BrandAssets.subsonic,
+    NetworkProtocol.jellyfin => BrandAssets.jellyfin,
+    NetworkProtocol.upnp => BrandAssets.dlna,
+    NetworkProtocol.tidal => BrandAssets.tidal,
+    _ => null,
+  };
+
   Widget _buildServerRow(BuildContext context, NetworkServerEntity server) {
     final isSyncing = _syncingId == server.id;
     final songCount = _songCounts[server.id] ?? 0;
@@ -242,6 +252,10 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
                 children: [
                   ColoredSettingsIcon(
                     icon: LucideIcons.server,
+                    asset: _logoAssetFor(server.protocol),
+                    assetColor: server.protocol == NetworkProtocol.tidal
+                        ? context.adaptiveTextPrimary
+                        : null,
                     backgroundColor: AppColors.glassBackgroundStrong,
                     iconColor: context.adaptiveTextSecondary,
                   ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/providers/apple_music_provider.dart';
 import 'package:flick/services/apple_music/apple_music_settings.dart';
+import 'package:flick/widgets/common/brand_icon.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
@@ -50,6 +51,7 @@ class _AppleMusicSettingsTileState
       children: [
         ToggleSetting(
           icon: LucideIcons.globe,
+          iconAsset: BrandAssets.applemusic,
           title: l10n.englishForFilipino.onlineArtistAlbumInformation,
           subtitle: l10n.showAppleMusicBiographiesRecommendationsAnd,
           value: pageInfoEnabled,

@@ -8,6 +8,7 @@ import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/widgets/common/brand_icon.dart';
 import 'settings_scroll_target.dart';
 
 /// Section header used in settings sub-screens.
@@ -105,6 +106,8 @@ class ToggleSetting extends StatelessWidget {
   const ToggleSetting({
     super.key,
     required this.icon,
+    this.iconAsset,
+    this.iconAssetColor,
     required this.title,
     required this.subtitle,
     required this.value,
@@ -112,6 +115,8 @@ class ToggleSetting extends StatelessWidget {
   });
 
   final IconData icon;
+  final String? iconAsset;
+  final Color? iconAssetColor;
   final String title;
   final String subtitle;
   final bool value;
@@ -130,7 +135,11 @@ class ToggleSetting extends StatelessWidget {
           padding: const EdgeInsets.all(AppConstants.spacingLg),
           child: Row(
             children: [
-              _SettingsIcon(icon: icon),
+              _SettingsIcon(
+                icon: icon,
+                asset: iconAsset,
+                assetColor: iconAssetColor,
+              ),
               const SizedBox(width: AppConstants.spacingMd),
               Expanded(
                 child: Column(
@@ -276,6 +285,8 @@ class SelectionSetting extends StatelessWidget {
   const SelectionSetting({
     super.key,
     required this.icon,
+    this.iconAsset,
+    this.iconAssetColor,
     required this.title,
     required this.subtitle,
     required this.selected,
@@ -283,6 +294,8 @@ class SelectionSetting extends StatelessWidget {
   });
 
   final IconData icon;
+  final String? iconAsset;
+  final Color? iconAssetColor;
   final String title;
   final String subtitle;
   final bool selected;
@@ -300,6 +313,8 @@ class SelectionSetting extends StatelessWidget {
             children: [
               _SettingsIcon(
                 icon: icon,
+                asset: iconAsset,
+                assetColor: iconAssetColor,
                 color: onTap == null
                     ? context.adaptiveTextTertiary
                     : null,
@@ -598,25 +613,39 @@ class SliderSetting extends StatelessWidget {
 
 /// Small icon container used by every settings tile.
 class _SettingsIcon extends StatelessWidget {
-  const _SettingsIcon({required this.icon, this.color});
+  const _SettingsIcon({
+    required this.icon,
+    this.asset,
+    this.color,
+    this.assetColor,
+  });
 
   final IconData icon;
+  final String? asset;
   final Color? color;
+  final Color? assetColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: context.scaleSize(AppConstants.containerSizeMd),
       height: context.scaleSize(AppConstants.containerSizeMd),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.glassBackgroundStrong,
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
       ),
-      child: Icon(
-        icon,
-        color: color ?? context.adaptiveTextSecondary,
-        size: context.responsiveIcon(AppConstants.iconSizeLg),
-      ),
+      child: asset != null
+          ? BrandIcon(
+              asset: asset!,
+              size: context.responsiveIcon(AppConstants.iconSizeLg),
+              color: color ?? assetColor,
+            )
+          : Icon(
+              icon,
+              color: color ?? context.adaptiveTextSecondary,
+              size: context.responsiveIcon(AppConstants.iconSizeLg),
+            ),
     );
   }
 }
@@ -626,11 +655,15 @@ class ColoredSettingsIcon extends StatelessWidget {
   const ColoredSettingsIcon({
     super.key,
     required this.icon,
+    this.asset,
+    this.assetColor,
     required this.backgroundColor,
     required this.iconColor,
   });
 
   final IconData icon;
+  final String? asset;
+  final Color? assetColor;
   final Color backgroundColor;
   final Color iconColor;
 
@@ -639,15 +672,22 @@ class ColoredSettingsIcon extends StatelessWidget {
     return Container(
       width: context.scaleSize(AppConstants.containerSizeMd),
       height: context.scaleSize(AppConstants.containerSizeMd),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
       ),
-      child: Icon(
-        icon,
-        color: iconColor,
-        size: context.responsiveIcon(AppConstants.iconSizeLg),
-      ),
+      child: asset != null
+          ? BrandIcon(
+              asset: asset!,
+              size: context.responsiveIcon(AppConstants.iconSizeLg),
+              color: assetColor,
+            )
+          : Icon(
+              icon,
+              color: iconColor,
+              size: context.responsiveIcon(AppConstants.iconSizeLg),
+            ),
     );
   }
 }

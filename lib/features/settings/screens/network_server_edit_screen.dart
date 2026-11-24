@@ -22,6 +22,7 @@ import '../../../services/playlist_service.dart';
 import '../../../services/sources/jellyfin_service.dart';
 import '../../../services/sources/network_source_service.dart';
 import '../../../services/sources/tidal_service.dart';
+import '../../../widgets/common/brand_icon.dart';
 import '../widgets/settings_widgets.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
@@ -45,6 +46,8 @@ class _ProtocolMeta {
     required this.icon,
     required this.urlHint,
     required this.passwordHelper,
+    this.logoAsset,
+    this.logoTinted = false,
   });
   final String id;
   final String label;
@@ -52,6 +55,14 @@ class _ProtocolMeta {
   final IconData icon;
   final String urlHint;
   final String passwordHelper;
+
+  /// Official service mark, when the protocol has one. Protocols without a
+  /// brand (WebDAV, SMB) fall back to [icon].
+  final String? logoAsset;
+
+  /// Tint [logoAsset] with the current foreground color (used for marks whose
+  /// official form is black/white on transparent).
+  final bool logoTinted;
 }
 
 List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
@@ -60,6 +71,7 @@ List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
     label: l10n.englishForFilipino.subsonic,
     subtitle: l10n.navidromeAirsonicGonic,
     icon: LucideIcons.radio,
+    logoAsset: BrandAssets.subsonic,
     urlHint: 'https://music.example.com/subsonic',
     passwordHelper: l10n.storedAsASaltedHashNever,
   ),
@@ -68,6 +80,7 @@ List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
     label: l10n.englishForFilipino.jellyfin,
     subtitle: l10n.jellyfinEmby,
     icon: LucideIcons.clapperboard,
+    logoAsset: BrandAssets.jellyfin,
     urlHint: 'https://jf.example.com',
     passwordHelper: l10n.keptInSecureStorageToRe,
   ),
@@ -84,6 +97,7 @@ List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
     label: l10n.englishForFilipino.upnpDlna,
     subtitle: l10n.minimserverServiioKodi,
     icon: LucideIcons.cast,
+    logoAsset: BrandAssets.dlna,
     urlHint: 'http://192.168.1.10:8200/rootDesc.xml',
     passwordHelper: l10n.mostDlnaServersNeedNoPassword,
   ),
@@ -100,6 +114,8 @@ List<_ProtocolMeta> _protocolsFor(AppLocalizations l10n) => [
     label: l10n.englishForFilipino.tidal,
     subtitle: l10n.signInWithYourAccountHifi,
     icon: LucideIcons.waves,
+    logoAsset: BrandAssets.tidal,
+    logoTinted: true,
     urlHint: TidalService.tidalBaseUrl,
     passwordHelper: l10n.oauthSignInNoPasswordStored,
   ),
@@ -384,6 +400,10 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
                 if (i > 0) const SettingsDivider(),
                 SelectionSetting(
                   icon: protocols[i].icon,
+                  iconAsset: protocols[i].logoAsset,
+                  iconAssetColor: protocols[i].logoTinted
+                      ? context.adaptiveTextPrimary
+                      : null,
                   title: protocols[i].label,
                   subtitle: protocols[i].subtitle,
                   selected: _selectedProtocol == protocols[i].id,
