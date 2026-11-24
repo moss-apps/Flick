@@ -140,7 +140,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     _playerService.favoriteNotificationToggleNotifier.addListener(
       _handleFavoriteToggledFromNotification,
     );
-    _updateTopBarTextMeasurement(_playerService.currentSongNotifier.value);
     _loadPlayerScreenMode();
     _refreshImmersiveFullViewTimer();
   }
