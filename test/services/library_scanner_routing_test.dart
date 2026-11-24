@@ -1,3 +1,4 @@
+import 'package:flick/data/entities/song_entity.dart';
 import 'package:flick/services/library_scanner_service.dart';
 import 'package:test/test.dart';
 
@@ -97,6 +98,142 @@ void main() {
         ),
         'saf',
       );
+    });
+
+    test('Android 11+ scoped mode uses SAF even with a readable path', () {
+      expect(
+        LibraryScannerService.chooseAndroidScanEngine(
+          allFilesAccess: false,
+          hasReadableFsPath: true,
+          useDeepScan: false,
+          isRemovable: false,
+          scopedTreeRequired: true,
+        ),
+        'saf',
+      );
+      expect(
+        LibraryScannerService.chooseAndroidScanEngine(
+          allFilesAccess: false,
+          hasReadableFsPath: true,
+          useDeepScan: true,
+          isRemovable: false,
+          scopedTreeRequired: true,
+        ),
+        'saf',
+      );
+      expect(
+        LibraryScannerService.chooseAndroidScanEngine(
+          allFilesAccess: false,
+          hasReadableFsPath: true,
+          useDeepScan: true,
+          isRemovable: true,
+          scopedTreeRequired: true,
+        ),
+        'saf',
+      );
+    });
+
+    test('all-files access still prefers Rust over scoped SAF', () {
+      expect(
+        LibraryScannerService.chooseAndroidScanEngine(
+          allFilesAccess: true,
+          hasReadableFsPath: true,
+          useDeepScan: false,
+          isRemovable: false,
+          scopedTreeRequired: true,
+        ),
+        'rust',
+      );
+    });
+  });
+
+  group('migrateRawRowsToSafUris', () {
+    const safUri =
+        'content://com.android.externalstorage.documents/tree/primary%3AMusic/'
+        'document/primary%3AMusic%2FAlbum%2Ftrack.flac';
+
+    SongEntity song(
+      int id,
+      String filePath, {
+      int? startOffsetMs,
+      bool hasLocalEdits = false,
+    }) => SongEntity()
+      ..id = id
+      ..filePath = filePath
+      ..startOffsetMs = startOffsetMs
+      ..title = 'Track $id'
+      ..artist = 'Artist'
+      ..relativeFolderPath = 'Old'
+      ..hasLocalEdits = hasLocalEdits;
+
+    test('rewrites raw rows in place and keeps identity and edits', () {
+      final raw = song(7, '/storage/emulated/0/Music/Album/track.flac',
+          hasLocalEdits: true);
+
+      final migrated = LibraryScannerService.migrateRawRowsToSafUris(
+        songs: [raw],
+        safUriByRawPath: {'/storage/emulated/0/Music/Album/track.flac': safUri},
+        relativeFolderPathByUri: {safUri: 'Album'},
+      );
+
+      expect(migrated, [raw]);
+      expect(raw.id, 7);
+      expect(raw.filePath, safUri);
+      expect(raw.mediaStoreUri, safUri);
+      expect(raw.relativeFolderPath, 'Album');
+      expect(raw.hasLocalEdits, isTrue);
+      expect(raw.title, 'Track 7');
+    });
+
+    test('matches file:// rows produced by MediaStore DSD reconciliation', () {
+      final raw = song(8, 'file:///storage/emulated/0/Music/Album/track.dsf');
+
+      final migrated = LibraryScannerService.migrateRawRowsToSafUris(
+        songs: [raw],
+        safUriByRawPath: {
+          'file:///storage/emulated/0/Music/Album/track.dsf': safUri,
+        },
+        relativeFolderPathByUri: const {},
+      );
+
+      expect(migrated, [raw]);
+      expect(raw.filePath, safUri);
+      expect(raw.relativeFolderPath, 'Old');
+    });
+
+    test('migrates CUE offsets without replacing an occupied offset', () {
+      final cue = song(
+        9,
+        '/storage/emulated/0/Music/Album/track.flac',
+        startOffsetMs: 1200,
+      );
+      final excluded = song(10, '/storage/emulated/0/Music/Album/b.flac');
+      final alreadyMapped = song(11, safUri, startOffsetMs: 2400);
+      final unknown = song(12, '/storage/emulated/0/Music/other.flac');
+      final duplicateOffset = song(
+        13,
+        '/storage/emulated/0/Music/Album/track.flac',
+        startOffsetMs: 2400,
+      );
+
+      final migrated = LibraryScannerService.migrateRawRowsToSafUris(
+        songs: [cue, excluded, alreadyMapped, unknown, duplicateOffset],
+        safUriByRawPath: {
+          '/storage/emulated/0/Music/Album/track.flac': safUri,
+          '/storage/emulated/0/Music/Album/b.flac': safUri,
+        },
+        relativeFolderPathByUri: {safUri: 'Album'},
+        excludedIds: {10},
+      );
+
+      expect(migrated, [cue]);
+      expect(cue.filePath, safUri);
+      expect(cue.startOffsetMs, 1200);
+      expect(cue.id, 9);
+      expect(duplicateOffset.filePath, '/storage/emulated/0/Music/Album/track.flac');
+      expect(excluded.filePath, '/storage/emulated/0/Music/Album/b.flac');
+      expect(alreadyMapped.filePath, safUri);
+      expect(unknown.filePath, '/storage/emulated/0/Music/other.flac');
     });
   });
 
