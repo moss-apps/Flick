@@ -4,28 +4,34 @@
 
 Three scan tiers, prioritized by availability and performance:
 
-1. **Android `MediaStore` Query** (primary, Android-only) — queries the `MediaStore` content provider, diffs against Isar, parses metadata only for new/modified files. `MediaStoreObserverService` triggers live rescans.
-2. **Rust `TwoPhaseScanner` + `EventDrivenScanner`** — used when `MediaStore` is unavailable or for direct filesystem access. **Preferred over MediaStore whenever All Files Access is granted** (see [Permission Model](#permission-model)).
-3. **SAF (Storage Access Framework)** — USB/SD and unresolvable tree URIs. Traverses `DocumentFile` via `ContentResolver`, extracts metadata with `MediaMetadataRetriever`. See [External Storage Scanning](#external-storage-usbsd-scanning).
+1. **Android `MediaStore` Query** (normal scans, Android-only) — queries the `MediaStore` content provider, diffs against Isar, parses metadata only for new/modified files. `MediaStoreObserverService` triggers live rescans.
+2. **Rust `TwoPhaseScanner` + `EventDrivenScanner`** — the Deep Scan backend for folders with a directly readable filesystem path (every volume with All Files Access; primary volumes without scoped-tree restrictions). See [Permission Model](#permission-model).
+3. **SAF (Storage Access Framework)** — Deep Scan on Android 11+ scoped trees, USB/SD without a readable path, and the fallback when MediaStore can't query or index the folder. Traverses `DocumentFile` via `ContentResolver`, extracts metadata with `MediaMetadataRetriever`. See [External Storage Scanning](#external-storage-usbsd-scanning).
 
 ### Routing decision (`LibraryScannerService.chooseAndroidScanEngine`)
 
+Deep Scan is what opts into filesystem-level traversal; it is not implied by All Files Access alone.
+
 ```text
-All Files Access && readable fs path  -> Rust walk (every volume, every format)
-deep scan, primary, readable path     -> Rust walk
-deep scan, removable, readable path   -> MediaStore (scoped mode: Rust can't open it)
-normal scan, readable path            -> MediaStore
-otherwise                             -> SAF
+deep scan, All Files Access && readable path -> Rust walk (every volume, every format)
+deep scan, removable && readable path        -> MediaStore (scoped mode: Rust can't open it)
+deep scan, primary, readable non-scoped path -> Rust walk
+deep scan, otherwise                         -> SAF tree (foreground accurate metadata)
+normal scan, readable path                   -> MediaStore (even with All Files Access)
+otherwise                                    -> SAF
 ```
+
+MediaStore query failures or an empty index fall back to SAF instead of treating the folder as empty.
 
 The decision is pure and unit-tested (`test/services/library_scanner_routing_test.dart`).
 
 ### Permission model
 
 - `MANAGE_EXTERNAL_STORAGE` (All Files Access) is **flavor-dependent** (`productFlavors { play, full }` in `android/app/build.gradle.kts`). The `full` flavor (GitHub Releases/sideload) declares it in `android/app/src/full/AndroidManifest.xml`; the `play` flavor ships without it because Play policy requires MediaStore/SAF for media apps. Both share the same applicationId.
-- When declared and granted, normal scans run through the Rust walker and no OEM MediaScanner gap can hide a file. Settings → Library → Scan Settings → "Full Library Access" (with status) plus a dismissible notice card are shown only when `PermissionService.isAllFilesAccessSupported()` reports the permission is declared in this build's manifest.
+- When declared and granted, Deep Scan can walk every volume with Rust and no OEM MediaScanner gap can hide a file; with Deep Scan off, scans stay on MediaStore so the toggle changes the engine. Settings → Library → Scan Settings → "Full Library Access" (with status) plus a dismissible notice card are shown only when `PermissionService.isAllFilesAccessSupported()` reports the permission is declared in this build's manifest.
 - The `play` flavor falls back to scoped storage: MediaStore + SAF apply, and the Tier 1 DSD reconciliation walk below fills OEM indexing gaps. Android ≤10 is unaffected in both flavors — `hasAllFilesAccess()` accepts the still-declared legacy `READ_EXTERNAL_STORAGE` there.
 - Legacy: `READ_EXTERNAL_STORAGE` (≤32), `WRITE_EXTERNAL_STORAGE` (≤28) + `requestLegacyExternalStorage`, `READ_MEDIA_AUDIO` (13+).
+- Adding a folder or manually rescanning can request the media read permission when the scan may use MediaStore. This is separate from the folder picker grant. If denied, the scan can still use SAF; background scans never prompt.
 - Kotlin exposes `hasAllFilesAccess` / `isAllFilesAccessSupported` / `requestAllFilesAccess` (opens the system settings screen) on the `com.mossapps.flick/storage` channel; `resolveStorageInfo` returns an `allFilesAccess` flag alongside `fsPath`/`mediaStoreVolume`.
 
 ### Tier 1 — MediaStore Scanner (`LibraryScannerService`)
@@ -34,6 +40,7 @@ The decision is pure and unit-tested (`test/services/library_scanner_routing_tes
 - DSD reconciliation walk (`DsdReconciliation.findUnindexedDsdFiles`) — stat-only raw walk per scanned folder, every scan: recovers `.dsf`/`.dff`/`.wv` on OEMs (MIUI/HyperOS, Vivo, Honor) where the MediaScanner skips DSD *entirely* (no Files rows either). Synthesizes `file://` rows with empty tags; the background sparse-metadata pass fills them. Skips dotfiles/dirs and `.nomedia` subtrees. Also fires a best-effort `MediaScannerConnection.scanFile()` heal so future scans may find the rows in MediaStore. JVM-tested (`android/app/src/test/.../DsdReconciliationTest.kt`).
 - Change observer watches both `MediaStore.Audio.Media` and `MediaStore.Files` URIs (DSD lives only in the latter on these OEMs).
 - `queryMediaStoreNonAudio()` — non-audio (CUE, log) sidecars
+- Audio, DSD and sidecar queries match literal directory prefixes ending in `/`. Failed or incomplete audio/DSD queries trigger SAF fallback rather than returning partial results.
 - `queryMediaStoreDeletions()` — files removed since last scan
 - Differential sync: only `NEW`/`MODIFIED` entries proceed to metadata extraction
 - Background pass: `_enrichMediaStoreSidecarsInBackground()` parses CUE sheets and rip logs
@@ -137,12 +144,13 @@ resolveStorageInfo(folderUri) ──► StorageVolumeInfo
   │            yield ScanProgress(unavailable:true, isComplete:true), RETURN
   │
   ┌─ useDeepScan ?
-  │     YES ─► isRemovable ? ─► SAF (foreground accurate)   [Rust can't read scoped paths]
-  │           else fsPath resolves ? ─► Rust deep scan (fallback to SAF on throw)
+  │     YES ─► All Files Access && fsPath ? ─► Rust (fallback to SAF on throw)
+  │           isRemovable ? ─► MediaStore(volumeName) [fallback to SAF]
+  │           fsPath && !scopedTreeRequired ? ─► Rust deep scan (fallback to SAF on throw)
   │           else ─► SAF (foreground accurate)
   │
   └─ normal scan
-        fsPath resolves ? ─► MediaStore(volumeName=mediaStoreVolume) [fallback to SAF instant on throw]
+        fsPath resolves ? ─► MediaStore(volumeName=mediaStoreVolume) [fallback to SAF instant on throw/empty]
         else ─► SAF INSTANT (deferMetadata:true)
 ```
 
@@ -216,8 +224,8 @@ Surfaces: `_RootFolderCard` (`folders_screen.dart`), `_buildFolderItem` (`librar
 
 ### Trade-offs & limitations
 
-- **Scoped raw paths on removable** — without Full Library Access, removable raw paths are unreadable under scoped storage, so SAF + `MediaMetadataRetriever` remains the deep-scan backend on USB; with Full Library Access the Rust walker covers every volume.
-- **Deletion URI-space ownership** — every engine (Rust walk, MediaStore, SAF) only deletes DB rows keyed in the URI space it can actually observe. Rows keyed by SAF document URIs are never handed to raw-path deletion checks; instead they are *superseded*: an SAF row is dropped only after its raw-path equivalent (via `rawPathFromSafUri`) is confirmed in the new engine's results, so a scan that switches engines (e.g. granting Full Library Access) replaces rows instead of wiping them. Applies to folder scans and periodic deletion refreshes alike.
+- **Scoped raw paths on removable** — without Full Library Access, removable raw paths are unreadable under scoped storage, so deep scans prefer the per-volume MediaStore index (SAF is the fallback); with Full Library Access and Deep Scan on, the Rust walker covers every volume.
+- **Deletion URI-space ownership** — rows keyed by SAF document URIs are never handed to raw-path deletion checks. A switch to a raw-path engine only supersedes an SAF row once its raw equivalent is confirmed. MediaStore index misses do not prove deletion: an unmatched raw-path row is retained unless a complete, accessible SAF walk of the matching folder also confirms the file is absent. If the scan can't map the row to that tree, it leaves it alone.
 - **Per-volume MediaStore is API 29+** — pre-29 removable falls back to SAF.
 - **Deletion detection gap** — `queryMediaStoreDeletions` doesn't thread `volumeName`; MediaStore-based deletion detection on removable returns 0 rows and falls back to SAF only on MediaStore *failure*, not empty result. Pre-existing.
 - **DSD false-deletion guard** — `.dsf`/`.dff`/`.wv` are absent from `Audio.Media` on some OEMs, so deletion detection would flag them as removed every scan. `queryMediaStoreDeletions` confirms a DSD extension via `File.exists()` before declaring it deleted.
@@ -240,7 +248,7 @@ Surfaces: `_RootFolderCard` (`folders_screen.dart`), `_buildFolderItem` (`librar
 | DSF | `.dsf` | dsf-meta (ID3v2 via `id3` crate) | MediaStore (Files), SAF, Rust |
 | DSDIFF | `.dff` | dff-meta (ID3v2 via `id3` crate) | MediaStore (Files), SAF, Rust |
 
-Android's MediaStore does not classify WavPack or DSD as audio under `MediaStore.Audio.Media`, so the primary audio query misses them. `queryMediaStoreAudio()` runs a secondary query against `MediaStore.Files` for `.dsf`/`.dff`/`.wv` and merges the rows, deduplicating by filesystem path against the audio rows already collected. This recovers DSD on OEM MediaScanners (ColorOS/Oppo/Realme, HiOS/Tecno/Infinix) that never index DSD as audio. Metadata (title/artist/album/duration) is empty at this stage and filled in by the metadata parser. On OEMs whose MediaScanner skips DSD from the Files collection too, the DSD reconciliation walk (above) recovers the files directly from disk; granting All Files Access makes the Rust walk the scan engine outright and sidesteps OEM indexing entirely.
+Android's MediaStore does not classify WavPack or DSD as audio under `MediaStore.Audio.Media`, so the primary audio query misses them. `queryMediaStoreAudio()` runs a secondary query against `MediaStore.Files` for `.dsf`/`.dff`/`.wv` and merges the rows, deduplicating by filesystem path against the audio rows already collected. This recovers DSD on OEM MediaScanners (ColorOS/Oppo/Realme, HiOS/Tecno/Infinix) that never index DSD as audio. Metadata (title/artist/album/duration) is empty at this stage and filled in by the metadata parser. On OEMs whose MediaScanner skips DSD from the Files collection too, the DSD reconciliation walk (above) recovers the files directly from disk. Deep Scan with All Files Access uses the Rust walk and bypasses OEM indexing.
 
 ### Rust metadata fallback (WavPack/DSD enrichment)
 
