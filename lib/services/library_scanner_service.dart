@@ -8,6 +8,7 @@ import '../data/database.dart';
 import '../data/repositories/song_repository.dart';
 import '../data/repositories/folder_repository.dart';
 import '../services/music_folder_service.dart';
+import '../services/permission_service.dart';
 import '../services/library_scan_preferences_service.dart';
 import '../services/playlist_service.dart';
 import '../services/cue_file_service.dart';
@@ -163,6 +164,7 @@ class LibraryScannerService {
   final SongRepository _songRepository;
   final FolderRepository _folderRepository;
   final MusicFolderService _musicFolderService;
+  final PermissionService _permissionService;
   final LibraryScanPreferencesService _scanPreferencesService;
   final PlaylistService _playlistService;
   final bool _isAndroid;
@@ -204,12 +206,14 @@ class LibraryScannerService {
     SongRepository? songRepository,
     FolderRepository? folderRepository,
     MusicFolderService? musicFolderService,
+    PermissionService? permissionService,
     LibraryScanPreferencesService? scanPreferencesService,
     PlaylistService? playlistService,
     @visibleForTesting bool? isAndroid,
   }) : _songRepository = songRepository ?? SongRepository(),
        _folderRepository = folderRepository ?? FolderRepository(),
        _musicFolderService = musicFolderService ?? MusicFolderService(),
+       _permissionService = permissionService ?? PermissionService(),
        _scanPreferencesService =
            scanPreferencesService ?? LibraryScanPreferencesService(),
        _playlistService = playlistService ?? PlaylistService(),
@@ -242,10 +246,13 @@ class LibraryScannerService {
 
   /// Scan engine routing decision (pure; unit-tested).
   ///
-  /// [scopedTreeRequired] is true on Android 11+ without All Files Access:
-  /// direct filesystem and MediaStore views can be missing or incomplete
-  /// (non-standard folders, unindexed DSD), while the SAF tree is the exact
-  /// set the user granted. The picker tree wins in that case.
+  /// Deep Scan is the switch that opts into filesystem-level traversal:
+  /// Rust walks wherever it can open the folder directly, MediaStore covers
+  /// readable removable volumes (Rust can't open scoped FUSE paths), and the
+  /// SAF tree covers Android 11+ scoped trees where only the picker grant is
+  /// readable. With Deep Scan off, normal scans stay on MediaStore even when
+  /// All Files Access is granted, so the toggle actually changes the engine.
+  /// SAF remains the fallback when no readable path exists.
   static String chooseAndroidScanEngine({
     required bool allFilesAccess,
     required bool hasReadableFsPath,
@@ -253,13 +260,12 @@ class LibraryScannerService {
     required bool isRemovable,
     bool scopedTreeRequired = false,
   }) {
-    if (allFilesAccess && hasReadableFsPath) return 'rust';
-    if (scopedTreeRequired) return 'saf';
     if (useDeepScan) {
+      if (allFilesAccess && hasReadableFsPath) return 'rust';
       if (isRemovable) {
         return hasReadableFsPath ? 'mediaStore' : 'saf';
       }
-      return hasReadableFsPath ? 'rust' : 'saf';
+      return hasReadableFsPath && !scopedTreeRequired ? 'rust' : 'saf';
     }
     return hasReadableFsPath ? 'mediaStore' : 'saf';
   }
@@ -270,7 +276,8 @@ class LibraryScannerService {
   /// Songs keyed by a SAF document URI belong to the SAF engine's URI space;
   /// raw-path engines (MediaStore DATA, Rust walk) can neither match nor
   /// confirm them and must not report them as deleted.
-  bool _isSafUri(String filePath) => filePath.startsWith(_safDocumentsPrefix);
+  bool _isSafUri(String filePath) =>
+      filePath.startsWith('$_safDocumentsPrefix/');
 
   bool _isDocumentInTree(String filePath, String folderUri) {
     final file = Uri.tryParse(filePath);
@@ -306,9 +313,12 @@ class LibraryScannerService {
     for (var i = 0; i + 1 < segments.length; i++) {
       if (segments[i] == 'document') docId = segments[i + 1];
     }
-    if (docId == null) return null;
+    return docId == null ? null : _rawPathFromStorageDocId(docId);
+  }
+
+  static String? _rawPathFromStorageDocId(String docId, {bool isTree = false}) {
     final colon = docId.indexOf(':');
-    if (colon <= 0 || colon == docId.length - 1) return null;
+    if (colon <= 0) return null;
     final volume = docId.substring(0, colon);
     final relative = docId.substring(colon + 1);
     final volumeRoot = switch (volume) {
@@ -316,6 +326,7 @@ class LibraryScannerService {
       'home' => '/storage/emulated/0/Documents',
       _ => '/storage/$volume',
     };
+    if (relative.isEmpty) return isTree ? volumeRoot : null;
     return '$volumeRoot/$relative';
   }
 
@@ -443,17 +454,33 @@ class LibraryScannerService {
     String folderUri,
     String displayName, {
     ScanMode mode = ScanMode.quick,
+    bool promptForMediaAccess = false,
   }) async* {
     // Cancellation is sticky for the whole operation; only entry points may
     // clear it, so a Stop can't be wiped by a folder scan that starts late.
     _isCancelled = false;
-    yield* _scanFolderInternal(folderUri, displayName, mode: mode);
+    yield* _scanFolderInternal(
+      folderUri,
+      displayName,
+      mode: mode,
+      requestMediaAccess: promptForMediaAccess ? _requestMediaAccess : null,
+    );
+  }
+
+  Future<bool> _requestMediaAccess(int sdkInt) async {
+    try {
+      return await _permissionService.requestStoragePermission(sdkInt: sdkInt);
+    } catch (e) {
+      devLog('Could not request MediaStore permission: $e');
+      return false;
+    }
   }
 
   Stream<ScanProgress> _scanFolderInternal(
     String folderUri,
     String displayName, {
     ScanMode mode = ScanMode.quick,
+    Future<bool> Function(int sdkInt)? requestMediaAccess,
   }) async* {
     final scanStopwatch = Stopwatch()..start();
     final scanKey = normalizeFolderIdentifier(folderUri);
@@ -468,14 +495,34 @@ class LibraryScannerService {
     final artworkBackfillToken = _artworkBackfill.begin(scanKey);
     try {
       if (_isAndroid) {
-        final storageInfo = await _musicFolderService.resolveStorageInfo(
+        var storageInfo = await _musicFolderService.resolveStorageInfo(
           folderUri,
         );
-        final resolvedScanRoot = storageInfo.fsPath;
 
         final folderEntity = await _folderRepository.getFolderByUri(folderUri);
         final useDeepScan =
             folderEntity?.useDeepScan ?? scanPreferences.useDeepScan;
+
+        // A picker grant does not grant MediaStore access. Ask only for
+        // user-initiated scans that may use the index, then resolve the path
+        // again: granting media access can make a previously hidden path readable.
+        final mayUseMediaStore =
+            (!useDeepScan || storageInfo.isRemovable) &&
+            (storageInfo.fsPath != null || _isSafUri(folderUri)) &&
+            (!storageInfo.isRemovable || storageInfo.isMounted);
+        var mediaAccessDenied = false;
+        if (requestMediaAccess != null &&
+            !storageInfo.allFilesAccess &&
+            mayUseMediaStore) {
+          mediaAccessDenied = !await requestMediaAccess(storageInfo.sdkInt);
+          if (_isCancelled) return;
+          if (!mediaAccessDenied) {
+            storageInfo = await _musicFolderService.resolveStorageInfo(
+              folderUri,
+            );
+          }
+        }
+        final resolvedScanRoot = storageInfo.fsPath;
 
         // Lazy migration: backfill volume metadata for pre-feature folders.
         if (folderEntity != null && folderEntity.mediaStoreVolume == null) {
@@ -510,9 +557,6 @@ class LibraryScannerService {
           return;
         }
 
-        // All Files Access: raw filesystem walk covers every volume and every
-        // format the OEM's MediaScanner may have skipped (DSD/DSF/WV). This is
-        // the UAPP/Neutron parity path and collapses the deep/normal split.
         final hasReadableFsPath =
             resolvedScanRoot != null && resolvedScanRoot.isNotEmpty;
         // Android 11+ without All Files Access: only the picker-granted SAF
@@ -525,85 +569,10 @@ class LibraryScannerService {
           isRemovable: storageInfo.isRemovable,
           scopedTreeRequired: scopedTreeRequired,
         );
-        // The null re-check is required for Dart promotion even though the
-        // all-files 'rust' choice implies hasReadableFsPath.
-        if (scanEngineChoice == 'rust' &&
-            storageInfo.allFilesAccess &&
-            resolvedScanRoot != null) {
-          try {
-            yield* _scanFolderRust(
-              resolvedScanRoot,
-              folderUri,
-              displayName,
-              scanPreferences,
-              mode: mode,
-            );
-            _logScanTiming(
-              displayName,
-              'scan folder (Rust, all-files access)',
-              scanStopwatch.elapsed,
-            );
-            return;
-          } catch (e) {
-            devLog(
-              'All-files scan failed for $displayName at $resolvedScanRoot: '
-              '$e, falling back to MediaStore/SAF',
-            );
-          }
-        }
 
-        // SAF is authoritative in scoped storage: MediaStore may return a
-        // non-empty but partial list for folders outside standard media
-        // directories, which would silently drop unindexed tracks.
-        if (scopedTreeRequired) {
-          yield* _scanFolderAndroid(
-            folderUri,
-            displayName,
-            scanPreferences,
-            deferMetadata: !useDeepScan,
-            mode: mode,
-          );
-          _logScanTiming(
-            displayName,
-            'scan folder (SAF, scoped storage)',
-            scanStopwatch.elapsed,
-          );
-          return;
-        }
-
-        if (useDeepScan) {
-          // Rust can't open scoped removable paths. MediaStore indexes the
-          // volume and works; SAF DocumentsContract tree walk often returns 0
-          // files on SD/USB, so prefer MediaStore there before SAF fallback.
-          if (storageInfo.isRemovable) {
-            if (resolvedScanRoot != null && resolvedScanRoot.isNotEmpty) {
-              try {
-                yield* _scanFolderMediaStore(
-                  resolvedScanRoot,
-                  folderUri,
-                  displayName,
-                  scanPreferences,
-                  volumeName: storageInfo.mediaStoreVolume,
-                  mode: mode,
-                );
-                _logScanTiming(
-                  displayName,
-                  'scan folder (MediaStore, removable deep)',
-                  scanStopwatch.elapsed,
-                );
-                return;
-              } catch (e) {
-                devLog(
-                  'MediaStore scan failed for removable $displayName at '
-                  '$resolvedScanRoot: $e, falling back to SAF',
-                );
-              }
-            } else {
-              devLog(
-                'Deep scan on removable $displayName: no fs path, using SAF',
-              );
-            }
-          } else if (resolvedScanRoot != null && resolvedScanRoot.isNotEmpty) {
+        if (scanEngineChoice == 'rust') {
+          // The null re-check is required for Dart promotion.
+          if (resolvedScanRoot != null) {
             try {
               yield* _scanFolderRust(
                 resolvedScanRoot,
@@ -614,35 +583,20 @@ class LibraryScannerService {
               );
               _logScanTiming(
                 displayName,
-                'scan folder (Rust deep scan)',
+                'scan folder (Rust)',
                 scanStopwatch.elapsed,
               );
               return;
             } catch (e) {
               devLog(
-                'Rust deep scan failed for $displayName at $resolvedScanRoot: $e, '
-                'falling back to SAF',
+                'Rust scan failed for $displayName at $resolvedScanRoot: '
+                '$e, falling back to SAF',
               );
             }
-          } else {
-            devLog(
-              'Deep scan requested for $displayName but no filesystem path '
-              'resolvable, falling back to SAF',
-            );
           }
+        }
 
-          yield* _scanFolderAndroid(
-            folderUri,
-            displayName,
-            scanPreferences,
-            mode: mode,
-          );
-          _logScanTiming(
-            displayName,
-            'scan folder (SAF)',
-            scanStopwatch.elapsed,
-          );
-        } else {
+        if (scanEngineChoice == 'mediaStore' && !mediaAccessDenied) {
           if (resolvedScanRoot != null && resolvedScanRoot.isNotEmpty) {
             try {
               yield* _scanFolderMediaStore(
@@ -651,6 +605,8 @@ class LibraryScannerService {
                 displayName,
                 scanPreferences,
                 volumeName: storageInfo.mediaStoreVolume,
+                deepScan: useDeepScan,
+                mode: mode,
               );
               _logScanTiming(
                 displayName,
@@ -660,25 +616,22 @@ class LibraryScannerService {
               return;
             } catch (e) {
               devLog(
-                'MediaStore scan failed for $displayName at $resolvedScanRoot: $e, '
-                'falling back to SAF',
+                'MediaStore scan failed for $displayName at $resolvedScanRoot: '
+                '$e, falling back to SAF',
               );
             }
           }
-
-          yield* _scanFolderAndroid(
-            folderUri,
-            displayName,
-            scanPreferences,
-            deferMetadata: true,
-            mode: mode,
-          );
-          _logScanTiming(
-            displayName,
-            'scan folder (SAF)',
-            scanStopwatch.elapsed,
-          );
         }
+
+        // 'saf' (and any fallback above): the picker tree is authoritative.
+        yield* _scanFolderAndroid(
+          folderUri,
+          displayName,
+          scanPreferences,
+          deferMetadata: !useDeepScan,
+          mode: mode,
+        );
+        _logScanTiming(displayName, 'scan folder (SAF)', scanStopwatch.elapsed);
       } else {
         yield* _scanFolderRust(
           folderUri,
@@ -748,6 +701,7 @@ class LibraryScannerService {
     String displayName,
     LibraryScanPreferences scanPreferences, {
     String? volumeName,
+    bool deepScan = false,
     ScanMode mode = ScanMode.quick,
   }) async* {
     if (_isCancelled) return;
@@ -773,7 +727,17 @@ class LibraryScannerService {
       ], volumeName: volumeName);
       _logScanTiming(displayName, 'MediaStore audio query', stopwatch.elapsed);
     } catch (e) {
-      devLog("MediaStore audio query failed for $displayName: $e");
+      devLog(
+        'MediaStore audio query failed for $displayName: $e; '
+        'falling back to SAF',
+      );
+      yield* _scanFolderAndroid(
+        folderUri,
+        displayName,
+        scanPreferences,
+        deferMetadata: !deepScan,
+        mode: mode,
+      );
       return;
     }
 
@@ -792,7 +756,7 @@ class LibraryScannerService {
         folderUri,
         displayName,
         scanPreferences,
-        deferMetadata: true,
+        deferMetadata: !deepScan,
         mode: mode,
       );
       return;
@@ -886,7 +850,7 @@ class LibraryScannerService {
     final allScannedUris = scannedByUri.keys.toSet();
     final allKnownPaths = allScannedPaths.union(allScannedUris);
 
-    final idsToDelete = <int>[];
+    final unresolvedRows = <SongEntity>[];
     for (final song in existingSongs) {
       if (filteredSongIds.contains(song.id)) continue;
 
@@ -897,8 +861,15 @@ class LibraryScannerService {
       final isKnown =
           allKnownPaths.contains(song.filePath) ||
           (mediaStoreUri != null && allKnownPaths.contains(mediaStoreUri));
-      if (!isKnown) idsToDelete.add(song.id);
+      if (!isKnown) unresolvedRows.add(song);
     }
+
+    final idsToDelete = await _confirmMediaStoreDeletions(
+      folderUri,
+      folderPath,
+      unresolvedRows,
+    );
+    if (_isCancelled) return;
 
     if (idsToDelete.isNotEmpty) {
       await _songRepository.deleteSongsByIds(idsToDelete);
@@ -1116,6 +1087,55 @@ class LibraryScannerService {
       deletedSongs: deletedSongs,
       isComplete: true,
     );
+  }
+
+  Future<List<int>> _confirmMediaStoreDeletions(
+    String folderUri,
+    String folderPath,
+    List<SongEntity> unmatchedRows,
+  ) async {
+    if (unmatchedRows.isEmpty || !_isSafUri(folderUri)) return [];
+    final segments = Uri.parse(folderUri).pathSegments;
+    if (segments.length != 2 || segments.first != 'tree') return [];
+    final treePath = _rawPathFromStorageDocId(segments[1], isTree: true);
+    final root = folderPath.replaceFirst(RegExp(r'/+$'), '');
+    if (treePath != root) return [];
+    final prefix = '$root/';
+
+    // File.exists() can return false for permission-denied paths. Use it
+    // only as positive evidence, so most unindexed tracks don't need a walk.
+    final candidates = <String, List<int>>{};
+    for (final song in unmatchedRows) {
+      final path = rawPathFromFileUri(song.filePath);
+      if (path == null || !path.startsWith(prefix)) continue;
+      (candidates[path] ??= []).add(song.id);
+    }
+    for (final path in candidates.keys.toList()) {
+      if (_isCancelled) return [];
+      if (await File(path).exists()) candidates.remove(path);
+    }
+    if (candidates.isEmpty) return [];
+
+    try {
+      final tree = await _musicFolderService.scanFolderDetailed(
+        folderUri,
+        filterNonMusicFilesAndFolders: false,
+      );
+      if (!tree.rootAccessible || !tree.complete) return [];
+      for (final file in tree.files) {
+        final path = rawPathFromSafUri(file.uri);
+        if (!_isDocumentInTree(file.uri, folderUri) ||
+            path == null ||
+            !path.startsWith(prefix)) {
+          return [];
+        }
+        candidates.remove(path);
+      }
+      return candidates.values.expand((ids) => ids).toList();
+    } catch (e) {
+      devLog('Could not confirm MediaStore deletions for $folderUri: $e');
+      return [];
+    }
   }
 
   Future<void> _extractSparseMetadataInBackground(
@@ -2668,7 +2688,10 @@ class LibraryScannerService {
     );
   }
 
-  Stream<ScanProgress> scanAllFolders({ScanMode mode = ScanMode.quick}) async* {
+  Stream<ScanProgress> scanAllFolders({
+    ScanMode mode = ScanMode.quick,
+    bool promptForMediaAccess = false,
+  }) async* {
     _isCancelled = false;
     final totalStopwatch = Stopwatch()..start();
     final folders = await _folderRepository.getAllFolders();
@@ -2684,6 +2707,7 @@ class LibraryScannerService {
     final folderStates = <String, FolderScanProgress>{};
     var started = 0;
     var completed = 0;
+    Future<bool>? mediaAccess;
     String? aggScanEngine;
     String? lastPhase;
     String? lastCurrentFile;
@@ -2728,7 +2752,14 @@ class LibraryScannerService {
       if (_isCancelled) break;
       started++;
 
-      _scanFolderInternal(folder.uri, folder.displayName, mode: mode).listen(
+      _scanFolderInternal(
+        folder.uri,
+        folder.displayName,
+        mode: mode,
+        requestMediaAccess: promptForMediaAccess
+            ? (sdkInt) => mediaAccess ??= _requestMediaAccess(sdkInt)
+            : null,
+      ).listen(
         (progress) {
           folderStates[folder.uri] = FolderScanProgress(
             displayName: folder.displayName,

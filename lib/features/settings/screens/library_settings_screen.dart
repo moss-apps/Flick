@@ -685,7 +685,11 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       title: displayName,
       kind: ScanSessionKind.scan,
       onCancel: _scannerService.cancelScan,
-      run: () => _scannerService.scanFolder(uri, displayName),
+      run: () => _scannerService.scanFolder(
+        uri,
+        displayName,
+        promptForMediaAccess: true,
+      ),
       artworkBackfill: () => _scannerService.awaitArtworkBackfill(uri),
     );
   }
@@ -695,7 +699,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       title: l10n.englishForFilipino.allFolders,
       kind: ScanSessionKind.scan,
       onCancel: _scannerService.cancelScan,
-      run: () => _scannerService.scanAllFolders(mode: mode),
+      run: () => _scannerService.scanAllFolders(
+        mode: mode,
+        promptForMediaAccess: true,
+      ),
       artworkBackfill: _scannerService.awaitAllArtworkBackfill,
     );
   }
