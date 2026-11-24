@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('chooseAndroidScanEngine', () {
-    test('all-files access with readable path routes to Rust walk', () {
+    test('Deep Scan off uses MediaStore even with All Files Access', () {
       expect(
         LibraryScannerService.chooseAndroidScanEngine(
           allFilesAccess: true,
@@ -12,11 +12,8 @@ void main() {
           useDeepScan: false,
           isRemovable: false,
         ),
-        'rust',
+        'mediaStore',
       );
-    });
-
-    test('all-files access covers removable volumes too', () {
       expect(
         LibraryScannerService.chooseAndroidScanEngine(
           allFilesAccess: true,
@@ -24,11 +21,20 @@ void main() {
           useDeepScan: false,
           isRemovable: true,
         ),
-        'rust',
+        'mediaStore',
       );
     });
 
-    test('all-files access collapses the deep-scan flag', () {
+    test('Deep Scan on uses Rust wherever it can read a path', () {
+      expect(
+        LibraryScannerService.chooseAndroidScanEngine(
+          allFilesAccess: true,
+          hasReadableFsPath: true,
+          useDeepScan: true,
+          isRemovable: false,
+        ),
+        'rust',
+      );
       expect(
         LibraryScannerService.chooseAndroidScanEngine(
           allFilesAccess: true,
@@ -38,9 +44,18 @@ void main() {
         ),
         'rust',
       );
+      expect(
+        LibraryScannerService.chooseAndroidScanEngine(
+          allFilesAccess: false,
+          hasReadableFsPath: true,
+          useDeepScan: true,
+          isRemovable: false,
+        ),
+        'rust',
+      );
     });
 
-    test('all-files access without readable path falls back to SAF', () {
+    test('All Files Access without a readable path falls back to SAF', () {
       expect(
         LibraryScannerService.chooseAndroidScanEngine(
           allFilesAccess: true,
@@ -50,33 +65,18 @@ void main() {
         ),
         'saf',
       );
-    });
-
-    test('scoped normal scan with path uses MediaStore', () {
       expect(
         LibraryScannerService.chooseAndroidScanEngine(
-          allFilesAccess: false,
-          hasReadableFsPath: true,
-          useDeepScan: false,
-          isRemovable: false,
-        ),
-        'mediaStore',
-      );
-    });
-
-    test('scoped deep scan on primary uses Rust', () {
-      expect(
-        LibraryScannerService.chooseAndroidScanEngine(
-          allFilesAccess: false,
-          hasReadableFsPath: true,
+          allFilesAccess: true,
+          hasReadableFsPath: false,
           useDeepScan: true,
           isRemovable: false,
         ),
-        'rust',
+        'saf',
       );
     });
 
-    test('scoped deep scan on removable prefers MediaStore', () {
+    test('Deep Scan on removable prefers MediaStore', () {
       expect(
         LibraryScannerService.chooseAndroidScanEngine(
           allFilesAccess: false,
@@ -88,7 +88,7 @@ void main() {
       );
     });
 
-    test('scoped scan without path uses SAF', () {
+    test('a scan without a readable path uses SAF', () {
       expect(
         LibraryScannerService.chooseAndroidScanEngine(
           allFilesAccess: false,
@@ -100,7 +100,11 @@ void main() {
       );
     });
 
-    test('Android 11+ scoped mode uses SAF even with a readable path', () {
+    // Regression: the same indexed internal Music folder on Android 11+
+    // scoped storage must follow the toggle. Off -> MediaStore (the user's
+    // report: forcing SAF made the switch a no-op); on -> SAF because only
+    // the picker grant is readable to Rust there.
+    test('Android 11+ scoped folder: off uses MediaStore, on uses SAF', () {
       expect(
         LibraryScannerService.chooseAndroidScanEngine(
           allFilesAccess: false,
@@ -109,7 +113,7 @@ void main() {
           isRemovable: false,
           scopedTreeRequired: true,
         ),
-        'saf',
+        'mediaStore',
       );
       expect(
         LibraryScannerService.chooseAndroidScanEngine(
@@ -121,6 +125,9 @@ void main() {
         ),
         'saf',
       );
+    });
+
+    test('scoped deep scan on removable prefers the indexed volume', () {
       expect(
         LibraryScannerService.chooseAndroidScanEngine(
           allFilesAccess: false,
@@ -129,22 +136,35 @@ void main() {
           isRemovable: true,
           scopedTreeRequired: true,
         ),
-        'saf',
+        'mediaStore',
       );
     });
 
-    test('all-files access still prefers Rust over scoped SAF', () {
-      expect(
-        LibraryScannerService.chooseAndroidScanEngine(
-          allFilesAccess: true,
-          hasReadableFsPath: true,
-          useDeepScan: false,
-          isRemovable: false,
-          scopedTreeRequired: true,
-        ),
-        'rust',
-      );
-    });
+    test(
+      'All Files Access plus Deep Scan still prefers Rust in scoped mode',
+      () {
+        expect(
+          LibraryScannerService.chooseAndroidScanEngine(
+            allFilesAccess: true,
+            hasReadableFsPath: true,
+            useDeepScan: true,
+            isRemovable: false,
+            scopedTreeRequired: true,
+          ),
+          'rust',
+        );
+        expect(
+          LibraryScannerService.chooseAndroidScanEngine(
+            allFilesAccess: true,
+            hasReadableFsPath: true,
+            useDeepScan: false,
+            isRemovable: false,
+            scopedTreeRequired: true,
+          ),
+          'mediaStore',
+        );
+      },
+    );
   });
 
   group('migrateRawRowsToSafUris', () {

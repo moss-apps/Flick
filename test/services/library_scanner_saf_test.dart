@@ -12,9 +12,11 @@ import 'package:flick/src/rust/api/scanner.dart';
 import 'package:flick/src/rust/frb_generated.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _storage = MethodChannel('com.mossapps.flick/storage');
+const _permissions = MethodChannel('flutter.baseflow.com/permissions/methods');
 const _provider = 'content://com.android.externalstorage.documents';
 const _root = '$_provider/tree/primary%3AMusic';
 const _albumUri = '$_root/document/primary%3AMusic%2Falbum.flac';
@@ -39,6 +41,19 @@ Map<String, Object> _file(String uri, String name) => {
   'size': _size,
   'lastModified': _timestamp,
   'relativeFolderPath': '',
+};
+
+Map<String, Object> _indexedTrack(String path, {int mediaId = 1}) => {
+  ..._file(
+    'content://media/external/audio/media/$mediaId',
+    path.split('/').last,
+  ),
+  'filePath': path,
+  'duration': 60000,
+  'sampleRate': 96000,
+  'bitDepth': 24,
+  'bitrate': '900000',
+  'metadataRead': true,
 };
 
 FolderEntity _folder(String uri, String name) => FolderEntity()
@@ -170,7 +185,10 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
-  tearDown(() => messenger.setMockMethodCallHandler(_storage, null));
+  tearDown(() {
+    messenger.setMockMethodCallHandler(_storage, null);
+    messenger.setMockMethodCallHandler(_permissions, null);
+  });
 
   LibraryScannerService scanner(_Songs songs, {List<FolderEntity>? folders}) =>
       LibraryScannerService(
@@ -183,6 +201,10 @@ void main() {
   void useStorage({
     required Object Function(String) list,
     bool allFilesAccess = false,
+    String? fsPath,
+    String? Function()? resolvePath,
+    int sdkInt = 34,
+    Object? Function(MethodCall)? mediaStore,
     Object? Function(MethodCall)? extra,
   }) {
     messenger.setMockMethodCallHandler(_storage, (call) async {
@@ -192,14 +214,24 @@ void main() {
       if (call.method == 'resolveStorageInfo') {
         final removable = uri!.contains('1234-5678');
         return {
-          'sdkInt': 34,
-          'fsPath': removable ? '/storage/1234-5678/Music' : _rawRoot,
+          'sdkInt': sdkInt,
+          'fsPath': removable
+              ? '/storage/1234-5678/Music'
+              : (resolvePath != null ? resolvePath() : fsPath ?? _rawRoot),
           'state': removable ? 'mounted_ro' : 'mounted',
           'isRemovable': removable,
           'allFilesAccess': allFilesAccess,
         };
       }
       if (call.method == 'listAudioFiles') return list(uri!);
+      // Scoped tests default to an unindexed folder: MediaStore returns
+      // nothing and the scanner degrades to the SAF tree.
+      if (call.method == 'queryMediaStoreAudio') {
+        return mediaStore?.call(call) ?? const <Map<String, Object?>>[];
+      }
+      if (call.method == 'queryMediaStoreNonAudio') {
+        return const <Map<String, Object?>>[];
+      }
       if (extra != null) return extra(call);
       throw UnimplementedError(call.method);
     });
@@ -372,7 +404,10 @@ FILE "album.flac" WAVE
         _song(11, _albumUri, offset: 60000),
         _song(12, _songUri),
       ]);
-      final service = scanner(songs);
+      final service = scanner(
+        songs,
+        folders: [_folder(_root, 'Music')..useDeepScan = true],
+      );
       final result = await service.scanFolder(_root, 'Music').last;
       await service.awaitArtworkBackfill(_root);
 
@@ -388,6 +423,211 @@ FILE "album.flac" WAVE
       }
     },
   );
+
+  test(
+    'Android 11+ scoped folder follows Deep Scan: off MediaStore, on SAF',
+    () async {
+      var mediaStoreQueries = 0;
+      var safWalks = 0;
+      useStorage(
+        list: (_) {
+          safWalks++;
+          return _listing(files: [_file(_songUri, 'track.flac')]);
+        },
+        mediaStore: (call) {
+          mediaStoreQueries++;
+          return [_indexedTrack(_rawSong)];
+        },
+      );
+
+      final folder = _folder(_root, 'Music');
+      final songs = _Songs([_song(20, _rawSong)]);
+      final service = scanner(songs, folders: [folder]);
+
+      final normal = await service.scanFolder(_root, 'Music').last;
+      await service.awaitArtworkBackfill(_root);
+      expect(normal.scanEngine, 'MediaStore');
+      expect(mediaStoreQueries, 1);
+      expect(safWalks, 0);
+      expect(songs.rows[20]!.filePath, _rawSong);
+
+      folder.useDeepScan = true;
+      final deep = await service.scanFolder(_root, 'Music').last;
+      await service.awaitArtworkBackfill(_root);
+      expect(deep.scanEngine, 'SAF');
+      expect(safWalks, greaterThan(0));
+      expect(mediaStoreQueries, 1);
+      expect(songs.rows[20]!.filePath, _songUri);
+    },
+  );
+
+  for (final (sdkInt, permission, grant) in [
+    (32, Permission.storage, true),
+    (34, Permission.audio, true),
+    (34, Permission.audio, false),
+  ]) {
+    test('manual scan on API $sdkInt with permission grant=$grant', () async {
+      var granted = false;
+      var requests = 0;
+      var queries = 0;
+      messenger.setMockMethodCallHandler(_permissions, (call) async {
+        if (call.method == 'checkPermissionStatus') {
+          expect(call.arguments, permission.value);
+          return PermissionStatus.denied.index;
+        }
+        expect(call.method, 'requestPermissions');
+        expect(call.arguments, [permission.value]);
+        requests++;
+        granted = grant;
+        final status = grant
+            ? PermissionStatus.granted
+            : PermissionStatus.denied;
+        return {permission.value: status.index};
+      });
+      useStorage(
+        sdkInt: sdkInt,
+        resolvePath: () => granted ? _rawRoot : null,
+        list: (_) => _listing(),
+        mediaStore: (_) {
+          queries++;
+          expect(granted, isTrue);
+          return [_indexedTrack(_rawSong)];
+        },
+      );
+      final service = scanner(_Songs([_song(20, _rawSong)]));
+
+      final result = await service
+          .scanFolder(_root, 'Music', promptForMediaAccess: true)
+          .last;
+      await service.awaitArtworkBackfill(_root);
+
+      expect(requests, 1);
+      expect(queries, grant ? 1 : 0);
+      expect(result.scanEngine, grant ? 'MediaStore' : 'SAF (instant)');
+    });
+  }
+
+  test('background scans never prompt for media access', () async {
+    var permissionCalls = 0;
+    messenger.setMockMethodCallHandler(_permissions, (_) async {
+      permissionCalls++;
+      return PermissionStatus.denied.index;
+    });
+    useStorage(list: (_) => _listing());
+    final service = scanner(_Songs([]));
+
+    await service.scanAllFolders().last;
+    await service.awaitAllArtworkBackfill();
+
+    expect(permissionCalls, 0);
+  });
+
+  test('manual Rescan All requests media access once', () async {
+    const sd = '$_provider/tree/1234-5678%3AMusic';
+    var requests = 0;
+    var queries = 0;
+    messenger.setMockMethodCallHandler(_permissions, (call) async {
+      if (call.method == 'checkPermissionStatus') {
+        return PermissionStatus.denied.index;
+      }
+      requests++;
+      return {Permission.audio.value: PermissionStatus.denied.index};
+    });
+    useStorage(
+      list: (_) => _listing(),
+      mediaStore: (_) {
+        queries++;
+        return [];
+      },
+    );
+    final service = scanner(
+      _Songs([]),
+      folders: [_folder(_root, 'Music'), _folder(sd, 'SD card')],
+    );
+    await service.scanAllFolders(promptForMediaAccess: true).last;
+    await service.awaitAllArtworkBackfill();
+    expect(requests, 1);
+    expect(queries, 0);
+  });
+
+  test('MediaStore retains rows if the SAF root differs', () async {
+    const otherRoot = '/storage/emulated/0/OtherMusic';
+    const indexed = '$otherRoot/indexed.flac';
+    const unindexed = '$otherRoot/unindexed.flac';
+    var safWalks = 0;
+
+    useStorage(
+      fsPath: otherRoot,
+      list: (_) {
+        safWalks++;
+        return _listing();
+      },
+      mediaStore: (_) => [_indexedTrack(indexed)],
+    );
+    final songs = _Songs([_song(30, indexed), _song(31, unindexed)]);
+    final service = scanner(songs);
+
+    final result = await service.scanFolder(_root, 'Music').last;
+    await service.awaitArtworkBackfill(_root);
+
+    expect(result.scanEngine, 'MediaStore');
+    expect(safWalks, 0);
+    expect(songs.rows.keys, unorderedEquals([30, 31]));
+    expect(songs.deleted, isEmpty);
+  });
+
+  for (final (label, accessible, complete) in [
+    ('inaccessible', false, false),
+    ('partial', true, false),
+    ('complete', true, true),
+  ]) {
+    test('MediaStore deletion with a $label SAF tree', () async {
+      const missing = '$_rawRoot/missing.flac';
+      var safWalks = 0;
+      useStorage(
+        mediaStore: (_) => [_indexedTrack(_rawAlbum)],
+        list: (_) {
+          safWalks++;
+          return _listing(
+            accessible: accessible,
+            complete: complete,
+            files: accessible ? [_file(_songUri, 'track.flac')] : [],
+          );
+        },
+        extra: (call) => throw StateError('Unexpected ${call.method}'),
+      );
+      final songs = _Songs([
+        _song(30, _rawAlbum),
+        _song(31, Uri.file(_rawSong).toString()),
+        _song(32, missing),
+      ]);
+      final service = scanner(songs);
+
+      final result = await service.scanFolder(_root, 'Music').last;
+      await service.awaitArtworkBackfill(_root);
+
+      expect(result.scanEngine, 'MediaStore');
+      expect(safWalks, 1);
+      expect(songs.rows.containsKey(31), isTrue);
+      expect(songs.deleted, complete ? [32] : isEmpty);
+    });
+  }
+
+  test('MediaStore query errors fall back without pruning rows', () async {
+    useStorage(
+      mediaStore: (_) => throw PlatformException(code: 'MEDIASTORE_ERROR'),
+      list: (_) => _listing(accessible: false, complete: false),
+    );
+    final songs = _Songs([_song(40, _rawSong)]);
+    final service = scanner(songs);
+
+    final result = await service.scanFolder(_root, 'Music').last;
+    await service.awaitArtworkBackfill(_root);
+
+    expect(result.unavailable, isTrue);
+    expect(songs.rows.keys, [40]);
+    expect(songs.deleted, isEmpty);
+  });
 
   test(
     'Rescan All reports lost access and still scans a read-only SD card',
