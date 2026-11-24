@@ -2455,6 +2455,7 @@
     "description": "lib/features/manual/data/manual_data.dart"
   },
   "editCover": "Edit cover",
+  "editArtwork": "Edit artwork",
   "crop": "Crop",
   "adjust": "Adjust",
   "editing": "Editing",
@@ -4606,6 +4607,10 @@
   "folder": "Folder",
   "@folder": {
     "description": "lib/models/playback_context.dart:13"
+  },
+  "folderAccessLostReselect": "Folder access was lost. Add the folder again to restore access.",
+  "@folderAccessLostReselect": {
+    "description": "lib/services/library_scanner_service.dart:1576"
   },
   "folderLimit": "FOLDER LIMIT",
   "@folderLimit": {
@@ -10120,10 +10125,6 @@
   "@storageAccessIsRequiredToScan": {
     "description": "lib/features/settings/screens/privacy_policy_screen.dart:51"
   },
-  "storagePermissionIsRequiredToAdd": "Storage permission is required to add music folders",
-  "@storagePermissionIsRequiredToAdd": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:461"
-  },
   "storagePermissionRequiredForRecap": "Storage permission is required to save recap images on this Android version.",
   "@storagePermissionRequiredForRecap": {
     "description": "l10n pass: user-visible service error"
@@ -10491,10 +10492,6 @@
   "thisFolderAppearsToBeEmpty": "This folder appears to be empty",
   "@thisFolderAppearsToBeEmpty": {
     "description": "lib/features/folders/screens/folders_screen.dart:1370"
-  },
-  "thisFolderHasAlreadyBeenAdded": "This folder has already been added",
-  "@thisFolderHasAlreadyBeenAdded": {
-    "description": "l10n pass: user-visible service error"
   },
   "thisMonth": "This Month",
   "@thisMonth": {

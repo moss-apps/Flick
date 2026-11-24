@@ -2015,6 +2015,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editCover => 'Edit cover';
 
   @override
+  String get editArtwork => 'Edit artwork';
+
+  @override
   String get crop => 'Crop';
 
   @override
@@ -3713,6 +3716,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get folder => 'Folder';
+
+  @override
+  String get folderAccessLostReselect =>
+      'Folder access was lost. Add the folder again to restore access.';
 
   @override
   String get folderLimit => 'FOLDER LIMIT';
@@ -7899,10 +7906,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Storage access is required to scan and read music files, extract metadata, import/export EQ presets, and save recap images. All processing happens on-device.';
 
   @override
-  String get storagePermissionIsRequiredToAdd =>
-      'Storage permission is required to add music folders';
-
-  @override
   String get storagePermissionRequiredForRecap =>
       'Storage permission is required to save recap images on this Android version.';
 
@@ -8203,10 +8206,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get thisFolderAppearsToBeEmpty => 'This folder appears to be empty';
-
-  @override
-  String get thisFolderHasAlreadyBeenAdded =>
-      'This folder has already been added';
 
   @override
   String get thisMonth => 'This Month';

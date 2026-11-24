@@ -2455,6 +2455,7 @@
     "description": "lib/features/manual/data/manual_data.dart"
   },
   "editCover": "Editar portada",
+  "editArtwork": "Editar ilustración",
   "crop": "Recortar",
   "adjust": "Ajustar",
   "editing": "Editando",
@@ -4606,6 +4607,10 @@
   "folder": "Carpeta",
   "@folder": {
     "description": "lib/models/playback_context.dart:13"
+  },
+  "folderAccessLostReselect": "Se perdió el acceso a la carpeta. Vuelve a añadirla para restaurar el acceso.",
+  "@folderAccessLostReselect": {
+    "description": "lib/services/library_scanner_service.dart:1576"
   },
   "folderLimit": "LÍMITE DE CARPETAS",
   "@folderLimit": {
@@ -10120,10 +10125,6 @@
   "@storageAccessIsRequiredToScan": {
     "description": "lib/features/settings/screens/privacy_policy_screen.dart:51"
   },
-  "storagePermissionIsRequiredToAdd": "Se necesita permiso de almacenamiento para agregar carpetas de música",
-  "@storagePermissionIsRequiredToAdd": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:461"
-  },
   "storagePermissionRequiredForRecap": "Se necesita permiso de almacenamiento para guardar imágenes del resumen en esta versión de Android.",
   "@storagePermissionRequiredForRecap": {
     "description": "l10n pass: user-visible service error"
@@ -10491,10 +10492,6 @@
   "thisFolderAppearsToBeEmpty": "Esta carpeta parece estar vacía",
   "@thisFolderAppearsToBeEmpty": {
     "description": "lib/features/folders/screens/folders_screen.dart:1370"
-  },
-  "thisFolderHasAlreadyBeenAdded": "Esta carpeta ya se agregó",
-  "@thisFolderHasAlreadyBeenAdded": {
-    "description": "l10n pass: user-visible service error"
   },
   "thisMonth": "Este mes",
   "@thisMonth": {
