@@ -7,8 +7,14 @@ import 'package:flick/l10n/english_l10n.dart';
 class AlbumArtShareCard extends StatelessWidget {
   final Song song;
   final String? albumArtPath;
+  final double textScale;
 
-  const AlbumArtShareCard({super.key, required this.song, this.albumArtPath});
+  const AlbumArtShareCard({
+    super.key,
+    required this.song,
+    this.albumArtPath,
+    this.textScale = 1,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -46,17 +52,18 @@ class AlbumArtShareCard extends StatelessWidget {
                     l10n.track2(song.trackNumber!),
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 12,
+                      fontSize: 12 * textScale,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 const SizedBox(height: 4),
                 Text(
                   song.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 18 * textScale,
                     fontWeight: FontWeight.w700,
+                    height: 1.15,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -66,7 +73,7 @@ class AlbumArtShareCard extends StatelessWidget {
                   song.artist,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.75),
-                    fontSize: 14,
+                    fontSize: 14 * textScale,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

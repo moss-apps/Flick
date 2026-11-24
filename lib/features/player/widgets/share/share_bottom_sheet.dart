@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -7,6 +8,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/features/playlists/screens/playlist_cover_editor_screen.dart';
+import 'package:flick/features/playlists/utils/artwork_edit_result.dart';
+import 'package:flick/features/playlists/utils/playlist_cover_edit.dart';
 import 'package:flick/widgets/common/flick_snackbar.dart';
 import 'package:flick/features/player/widgets/share/share_template.dart';
 import 'package:flick/features/player/widgets/share/share_cards/lyric_share_card.dart';
@@ -33,15 +38,30 @@ class ShareBottomSheet extends ConsumerStatefulWidget {
 }
 
 class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
+  static const double _cardWidth = 240;
+  static const double _minTextScale = 0.8;
+  static const double _maxTextScale = 1.4;
+  static const double _textScaleStep = 0.1;
+
   int _selectedTemplate = 0;
   bool _isSharing = false;
   bool _isSaving = false;
+  bool _editingArtwork = false;
   final GlobalKey _cardKey = GlobalKey();
   String? _resolvedAlbumArt;
   String? _currentLyric;
   bool _lyricAutoFit = true;
   double _lyricFontSize = 34;
-  static const double _cardWidth = 240;
+
+  /// Per-layout text size for the title and artist. The lyric layout keeps its
+  /// own fit controls for the lyric line.
+  final List<double> _textScales = List<double>.filled(
+    ShareTemplate.values.length,
+    1,
+  );
+
+  /// Rendered artwork overrides, keyed by [ShareTemplate.index].
+  final Map<int, ArtworkEditResult> _artworkEdits = <int, ArtworkEditResult>{};
 
   @override
   void initState() {
@@ -50,9 +70,19 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
     _loadCurrentLyric();
   }
 
+  @override
+  void dispose() {
+    for (final result in _artworkEdits.values) {
+      unawaited(_deleteQuietly(result.path));
+    }
+    super.dispose();
+  }
+
   Future<void> _resolveAlbumArt() async {
     final song = widget.song;
-    if (song.albumArt != null && song.albumArt!.isNotEmpty && await File(song.albumArt!).exists()) {
+    if (song.albumArt != null &&
+        song.albumArt!.isNotEmpty &&
+        await File(song.albumArt!).exists()) {
       if (mounted) setState(() => _resolvedAlbumArt = song.albumArt);
       return;
     }
@@ -76,7 +106,9 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
       final pos = playerService.positionNotifier.value;
       final idx = lyricsService.findCurrentLineIndex(data, pos);
       final line = idx >= 0 && idx < data.lines.length ? data.lines[idx] : null;
-      if (mounted && line != null) setState(() => _currentLyric = line.text.trim());
+      if (mounted && line != null) {
+        setState(() => _currentLyric = line.text.trim());
+      }
     } else if (data.lines.isNotEmpty) {
       final line = data.lines.firstWhere(
         (l) => l.text.trim().isNotEmpty,
@@ -86,38 +118,126 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
     }
   }
 
+  ShareTemplate get _template => ShareTemplate.values[_selectedTemplate];
+
+  String? get _editedArtworkPath => _artworkEdits[_selectedTemplate]?.path;
+
+  double _artworkAspect(ShareTemplate template) => switch (template) {
+    ShareTemplate.solidColor || ShareTemplate.minimal => 1,
+    ShareTemplate.lyric || ShareTemplate.albumArt => 4 / 5,
+  };
+
   Widget _buildCard(int index) {
     final song = widget.song;
     final dominantColor = ref.watch(albumDominantColorSyncProvider);
+    final template = ShareTemplate.values[index];
+    final edited = _artworkEdits[index]?.path;
+    final textScale = _textScales[index];
 
-    switch (ShareTemplate.values[index]) {
+    switch (template) {
       case ShareTemplate.lyric:
         return LyricShareCard(
           song: song,
           lyricLine: _currentLyric,
-          albumArtPath: _resolvedAlbumArt,
+          albumArtPath: edited ?? _resolvedAlbumArt,
           fontSizeOverride: _lyricAutoFit ? null : _lyricFontSize,
+          textScale: textScale,
         );
       case ShareTemplate.solidColor:
-        return SolidColorShareCard(song: song, dominantColor: dominantColor, albumArtPath: _resolvedAlbumArt);
+        return SolidColorShareCard(
+          song: song,
+          dominantColor: dominantColor,
+          albumArtPath: _resolvedAlbumArt,
+          coverArtPath: edited,
+          textScale: textScale,
+        );
       case ShareTemplate.minimal:
-        return MinimalShareCard(song: song, albumArtPath: _resolvedAlbumArt);
+        return MinimalShareCard(
+          song: song,
+          albumArtPath: _resolvedAlbumArt,
+          coverArtPath: edited,
+          textScale: textScale,
+        );
       case ShareTemplate.albumArt:
-        return AlbumArtShareCard(song: song, albumArtPath: _resolvedAlbumArt);
+        return AlbumArtShareCard(
+          song: song,
+          albumArtPath: edited ?? _resolvedAlbumArt,
+          textScale: textScale,
+        );
+    }
+  }
+
+  Future<void> _editArtwork() async {
+    final sourcePath = _resolvedAlbumArt;
+    if (sourcePath == null || _editingArtwork) return;
+
+    final index = _selectedTemplate;
+    final existing = _artworkEdits[index];
+    final aspect = _artworkAspect(_template);
+    final strings = l10n;
+    setState(() => _editingArtwork = true);
+
+    try {
+      final result = await NavigationHelper.pushFade<ArtworkEditResult>(
+        context,
+        (_) => PlaylistCoverEditorScreen(
+          sourcePath: sourcePath,
+          aspectRatio: aspect,
+          initialEdit: existing?.edit ?? const PlaylistCoverEdit(),
+          initialCrop: existing?.crop,
+          maxOutput: 1440,
+          title: strings.editArtwork,
+          saveLabel: strings.apply,
+        ),
+      );
+      if (!mounted || result == null) return;
+
+      final previousPath = existing?.path;
+      setState(() => _artworkEdits[index] = result);
+      if (previousPath != null && previousPath != result.path) {
+        await _deleteQuietly(previousPath);
+      }
+    } finally {
+      if (mounted) setState(() => _editingArtwork = false);
+    }
+  }
+
+  Future<void> _deleteQuietly(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {
+      // Temporary editor output; the OS will eventually clean it up.
     }
   }
 
   Future<Uint8List?> _captureCard() async {
-    await Future.delayed(const Duration(milliseconds: 64));
-    final context = _cardKey.currentContext;
-    if (context == null) return null;
+    // Decode the artwork before painting so a quick tap never exports a blank
+    // or stale cover while Android is still reading the file.
+    final artworkPaths = <String>{?_resolvedAlbumArt, ?_editedArtworkPath};
+    for (final path in artworkPaths) {
+      if (!mounted) return null;
+      if (!await File(path).exists()) continue;
+      await precacheImage(FileImage(File(path)), context, onError: (_, _) {});
+    }
+    if (!mounted) return null;
+    await WidgetsBinding.instance.endOfFrame;
 
-    final renderObject = context.findRenderObject();
+    final cardContext = _cardKey.currentContext;
+    if (cardContext == null) return null;
+    final renderObject = cardContext.findRenderObject();
     if (renderObject is! RenderRepaintBoundary) return null;
+    if (renderObject.debugNeedsPaint) {
+      await WidgetsBinding.instance.endOfFrame;
+    }
 
     final image = await renderObject.toImage(pixelRatio: 3);
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    return byteData?.buffer.asUint8List();
+    try {
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } finally {
+      image.dispose();
+    }
   }
 
   Future<void> _share() async {
@@ -158,7 +278,8 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
       final galleryService = GallerySaveService();
       await galleryService.saveImage(
         bytes: bytes,
-        fileName: 'flick_share_${widget.song.id}_${DateTime.now().millisecondsSinceEpoch}',
+        fileName:
+            'flick_share_${widget.song.id}_${DateTime.now().millisecondsSinceEpoch}',
       );
 
       if (mounted) {
@@ -171,7 +292,9 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
         ScaffoldMessenger.of(context).showFlickSnackBar(
           SnackBar(
             content: Text(
-              e is GallerySaveException ? e.message : l10n.englishForFilipino.failedToSave,
+              e is GallerySaveException
+                  ? e.message
+                  : l10n.englishForFilipino.failedToSave,
             ),
           ),
         );
@@ -181,37 +304,73 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
     }
   }
 
-  Widget _buildLyricSizeControls() {
-    if (ShareTemplate.values[_selectedTemplate] != ShareTemplate.lyric) {
-      return const SizedBox.shrink();
+  void _stepTextScale(int direction) {
+    final current = _textScales[_selectedTemplate];
+    final next = (current + direction * _textScaleStep).clamp(
+      _minTextScale,
+      _maxTextScale,
+    );
+    setState(() {
+      _textScales[_selectedTemplate] = double.parse(next.toStringAsFixed(1));
+    });
+  }
+
+  Widget _buildTextSizeControls() {
+    if (_template == ShareTemplate.lyric) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _SizePill(
+            icon: LucideIcons.minus,
+            dimmed: _lyricAutoFit,
+            onTap: () => setState(() {
+              _lyricAutoFit = false;
+              _lyricFontSize = (_lyricFontSize - 2)
+                  .clamp(14.0, 34.0)
+                  .toDouble();
+            }),
+          ),
+          const SizedBox(width: 6),
+          _SizePill(
+            label: l10n.auto,
+            active: _lyricAutoFit,
+            onTap: () => setState(() => _lyricAutoFit = true),
+          ),
+          const SizedBox(width: 6),
+          _SizePill(
+            icon: LucideIcons.plus,
+            dimmed: _lyricAutoFit,
+            onTap: () => setState(() {
+              _lyricAutoFit = false;
+              _lyricFontSize = (_lyricFontSize + 2)
+                  .clamp(14.0, 34.0)
+                  .toDouble();
+            }),
+          ),
+        ],
+      );
     }
+
+    final scale = _textScales[_selectedTemplate];
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _SizePill(
           icon: LucideIcons.minus,
-          dimmed: _lyricAutoFit,
-          onTap: () => setState(() {
-            _lyricAutoFit = false;
-            _lyricFontSize =
-                (_lyricFontSize - 2).clamp(14.0, 34.0).toDouble();
-          }),
+          dimmed: scale <= _minTextScale,
+          onTap: () => _stepTextScale(-1),
         ),
         const SizedBox(width: 6),
         _SizePill(
           label: l10n.auto,
-          active: _lyricAutoFit,
-          onTap: () => setState(() => _lyricAutoFit = true),
+          active: scale == 1,
+          onTap: () => setState(() => _textScales[_selectedTemplate] = 1),
         ),
         const SizedBox(width: 6),
         _SizePill(
           icon: LucideIcons.plus,
-          dimmed: _lyricAutoFit,
-          onTap: () => setState(() {
-            _lyricAutoFit = false;
-            _lyricFontSize =
-                (_lyricFontSize + 2).clamp(14.0, 34.0).toDouble();
-          }),
+          dimmed: scale >= _maxTextScale,
+          onTap: () => _stepTextScale(1),
         ),
       ],
     );
@@ -220,15 +379,11 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final templates = ShareTemplate.values;
+    final canEditArtwork = _resolvedAlbumArt != null;
 
     return AppBottomSheetSurface(
       scrollable: true,
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        16,
-        20,
-        24,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -273,7 +428,9 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: isSelected ? Colors.white : AppColors.glassBorder,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.glassBorder,
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -288,7 +445,11 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
             children: [
               Text(
                 templates[_selectedTemplate].label(l10n),
@@ -299,16 +460,42 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(width: 12),
-              _buildLyricSizeControls(),
-              const Spacer(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.textSize,
+                    style: const TextStyle(
+                      fontFamily: 'GoogleSansFlex',
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildTextSizeControls(),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (canEditArtwork)
+                _ActionButton(
+                  icon: LucideIcons.crop,
+                  label: l10n.editArtwork,
+                  isLoading: _editingArtwork,
+                  onTap: _editArtwork,
+                ),
               _ActionButton(
                 icon: LucideIcons.download,
                 label: l10n.save,
                 isLoading: _isSaving,
                 onTap: _saveToGallery,
               ),
-              const SizedBox(width: 12),
               _ActionButton(
                 icon: LucideIcons.share2,
                 label: l10n.share,
@@ -351,7 +538,10 @@ class _ActionButton extends StatelessWidget {
             ? const SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textPrimary),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.textPrimary,
+                ),
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,

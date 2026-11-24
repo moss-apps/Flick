@@ -11,6 +11,7 @@ class LyricShareCard extends StatelessWidget {
   final String? lyricLine;
   final String? albumArtPath;
   final double? fontSizeOverride;
+  final double textScale;
 
   const LyricShareCard({
     super.key,
@@ -18,6 +19,7 @@ class LyricShareCard extends StatelessWidget {
     this.lyricLine,
     this.albumArtPath,
     this.fontSizeOverride,
+    this.textScale = 1,
   });
 
   @override
@@ -47,11 +49,19 @@ class LyricShareCard extends StatelessWidget {
             padding: const EdgeInsets.all(24),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                const metaHeight = 20.0 + 4.0 + 16.0 + 20.0; // title + gap + artist + lyric gap
+                const metaHeight =
+                    20.0 +
+                    4.0 +
+                    16.0 +
+                    20.0; // title + gap + artist + lyric gap
                 const spacerReserve = 24.0;
-                final availH = (constraints.maxHeight - metaHeight - spacerReserve)
-                    .clamp(0.0, double.infinity);
-                final size = fontSizeOverride ??
+                final availH =
+                    (constraints.maxHeight - metaHeight - spacerReserve).clamp(
+                      0.0,
+                      double.infinity,
+                    );
+                final size =
+                    fontSizeOverride ??
                     _fitFontSize(displayLyric, constraints.maxWidth, availH);
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,7 +81,7 @@ class LyricShareCard extends StatelessWidget {
                       song.title,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.95),
-                        fontSize: 16,
+                        fontSize: 16 * textScale,
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
@@ -82,7 +92,7 @@ class LyricShareCard extends StatelessWidget {
                       song.artist,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 13,
+                        fontSize: 13 * textScale,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -111,8 +121,12 @@ class LyricShareCard extends StatelessWidget {
     );
   }
 
-  double _fitFontSize(String text, double width, double maxHeight,
-      [double max = 34]) {
+  double _fitFontSize(
+    String text,
+    double width,
+    double maxHeight, [
+    double max = 34,
+  ]) {
     if (text.isEmpty || maxHeight <= 0 || width <= 0) return max;
     const min = 14.0;
     double lo = min, hi = max;
@@ -142,8 +156,6 @@ class LyricShareCard extends StatelessWidget {
 
   Widget _fallbackBackground() => Container(
     color: const Color(0xFF1A1A1A),
-    child: const Center(
-      child: FlickArtworkPlaceholder(size: 56, opacity: 0.9),
-    ),
+    child: const Center(child: FlickArtworkPlaceholder(size: 56, opacity: 0.9)),
   );
 }
