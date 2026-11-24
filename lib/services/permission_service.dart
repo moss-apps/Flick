@@ -14,24 +14,13 @@ class PermissionService {
   static const _batteryNoticeDismissedKey = 'battery_optimization_notice_dismissed';
   static const _allFilesNoticeDismissedKey = 'all_files_access_notice_dismissed';
 
-  /// Request storage permission based on Android version.
-  /// Returns true if permission is granted.
-  Future<bool> requestStoragePermission() async {
-    if (Platform.isAndroid) {
-      // For Android 13+, we need READ_MEDIA_AUDIO
-      // For Android 10-12, we use Scoped Storage (no permission needed for SAF)
-      // For Android 9-, we need READ_EXTERNAL_STORAGE
-      final statuses = await [Permission.audio].request();
-
-      if (statuses[Permission.audio]!.isGranted) {
-        return true;
-      }
-
-      // Fallback to storage permission for older Android
-      final storageStatus = await Permission.storage.request();
-      return storageStatus.isGranted;
-    }
-    return true;
+  /// Request read access to the shared MediaStore index, not the SAF tree.
+  Future<bool> requestStoragePermission({required int sdkInt}) async {
+    final permission = sdkInt >= 33 ? Permission.audio : Permission.storage;
+    final status = await permission.status;
+    if (status.isGranted) return true;
+    if (status.isPermanentlyDenied || status.isRestricted) return false;
+    return (await permission.request()).isGranted;
   }
 
   /// Check if storage permission is already granted.

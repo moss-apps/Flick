@@ -142,11 +142,12 @@ void main() {
   });
 
   group('StorageVolumeInfo', () {
-    test('isMounted is true only for "mounted" state', () {
+    test('isMounted accepts read-only volumes', () {
       expect(
         const StorageVolumeInfo(state: 'mounted').isMounted,
         isTrue,
       );
+      expect(const StorageVolumeInfo(state: 'mounted_ro').isMounted, isTrue);
       expect(
         const StorageVolumeInfo(state: 'unmounted').isMounted,
         isFalse,
@@ -173,6 +174,77 @@ void main() {
       expect(empty.isRemovable, isFalse);
       expect(empty.isPrimary, isFalse);
       expect(empty.state, 'unknown');
+      expect(empty.sdkInt, 0);
+    });
+
+    test('fromMap reads the Android API level', () {
+      final info = StorageVolumeInfo.fromMap({
+        'state': 'mounted',
+        'sdkInt': 34,
+        'allFilesAccess': false,
+      });
+      expect(info.sdkInt, 34);
+      expect(info.requiresSafTreeWalk, isTrue);
+    });
+
+    test('scoped SAF walk is required only on Android 11+ without access', () {
+      expect(
+        const StorageVolumeInfo(sdkInt: 29, allFilesAccess: false)
+            .requiresSafTreeWalk,
+        isFalse,
+      );
+      expect(
+        const StorageVolumeInfo(sdkInt: 30, allFilesAccess: false)
+            .requiresSafTreeWalk,
+        isTrue,
+      );
+      expect(
+        const StorageVolumeInfo(sdkInt: 34, allFilesAccess: true)
+            .requiresSafTreeWalk,
+        isFalse,
+      );
+    });
+  });
+
+  group('FolderScanResult', () {
+    test('parses files and accessibility flags', () {
+      final result = FolderScanResult.fromMap({
+        'files': [
+          {
+            'uri': 'content://tree/document/track.flac',
+            'name': 'track.flac',
+            'size': 123,
+            'lastModified': 456,
+            'extension': 'flac',
+          },
+        ],
+        'rootAccessible': false,
+        'complete': false,
+      });
+
+      expect(result.files, hasLength(1));
+      expect(result.files.single.name, 'track.flac');
+      expect(result.rootAccessible, isFalse);
+      expect(result.complete, isFalse);
+    });
+
+    test('defaults to accessible and complete', () {
+      const result = FolderScanResult();
+      expect(result.rootAccessible, isTrue);
+      expect(result.complete, isTrue);
+      expect(result.files, isEmpty);
+    });
+
+    test('an incomplete platform response cannot authorize deletions', () {
+      expect(FolderScanResult.fromMap({}).rootAccessible, isFalse);
+      expect(FolderScanResult.fromMap({'files': []}).complete, isFalse);
+      expect(
+        FolderScanResult.fromMap({
+          'rootAccessible': true,
+          'complete': true,
+        }).complete,
+        isFalse,
+      );
     });
   });
 }

@@ -185,6 +185,38 @@ class PlaylistFileInfo {
   }
 }
 
+/// Result of a fast SAF tree walk.
+///
+/// [rootAccessible] is false when the granted tree could not be queried at all
+/// (permission revoked, volume unplugged, provider unavailable); the caller
+/// must keep the existing library rows. [complete] is false when some
+/// subdirectory could not be listed, so a file missing from [files] is not
+/// proof that it was deleted.
+class FolderScanResult {
+  final List<AudioFileInfo> files;
+  final bool rootAccessible;
+  final bool complete;
+
+  const FolderScanResult({
+    this.files = const [],
+    this.rootAccessible = true,
+    this.complete = true,
+  });
+
+  factory FolderScanResult.fromMap(Map<String, dynamic> map) {
+    final rawFiles = map['files'] as List<dynamic>?;
+    final rootAccessible = map['rootAccessible'] == true;
+    return FolderScanResult(
+      files: (rawFiles ?? const [])
+          .cast<Map<dynamic, dynamic>>()
+          .map((file) => AudioFileInfo.fromMap(file.cast<String, dynamic>()))
+          .toList(),
+      rootAccessible: rootAccessible,
+      complete: rootAccessible && rawFiles != null && map['complete'] == true,
+    );
+  }
+}
+
 /// Represents a watched music folder.
 /// Resolved storage-volume metadata for a folder URI.
 /// Drives scan routing: primary vs removable, MediaStore volume name, mount state.
@@ -195,6 +227,7 @@ class StorageVolumeInfo {
   final bool isPrimary;
   final String state;
   final bool allFilesAccess;
+  final int sdkInt;
 
   const StorageVolumeInfo({
     this.fsPath,
@@ -203,9 +236,18 @@ class StorageVolumeInfo {
     this.isPrimary = false,
     this.state = 'unknown',
     this.allFilesAccess = false,
+    this.sdkInt = 0,
   });
 
-  bool get isMounted => state == 'mounted';
+  static bool canReadVolumeState(String? state) =>
+      state == 'mounted' || state == 'mounted_ro';
+
+  bool get isMounted => canReadVolumeState(state);
+
+  /// Android 11+ without broad storage access can only see picker-granted
+  /// folders through the SAF tree; MediaStore may omit files the system has
+  /// not indexed (non-standard directories, DSD on some OEMs).
+  bool get requiresSafTreeWalk => !allFilesAccess && sdkInt >= 30;
 
   factory StorageVolumeInfo.fromMap(Map<String, dynamic> map) {
     return StorageVolumeInfo(
@@ -215,6 +257,7 @@ class StorageVolumeInfo {
       isPrimary: map['isPrimary'] as bool? ?? false,
       state: map['state'] as String? ?? 'unknown',
       allFilesAccess: map['allFilesAccess'] as bool? ?? false,
+      sdkInt: (map['sdkInt'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -235,6 +278,11 @@ class MusicFolder {
     this.mediaStoreVolume,
     this.volumeState,
   });
+
+  bool get isOffline =>
+      isRemovable == true &&
+      volumeState != null &&
+      !StorageVolumeInfo.canReadVolumeState(volumeState);
 
   Map<String, dynamic> toJson() => {
         'uri': uri,
@@ -289,9 +337,33 @@ class MusicFolderService {
     final existingFolders = await getSavedFolders();
     for (final folder in existingFolders) {
       if (folder.uri == uri) {
-        throw FolderAlreadyExistsException(
-          l10n.thisFolderHasAlreadyBeenAdded,
+        // Re-picking an existing folder is how the user restores a grant that
+        // was revoked in system settings. Refresh the permission and keep the
+        // existing library identity instead of reporting a duplicate.
+        final refreshed = await _permissionService.takePersistablePermission(
+          uri,
         );
+        if (!refreshed) {
+          throw StorageException(l10n.failedToPersistFolderAccess);
+        }
+        final storageInfo = await resolveStorageInfo(uri);
+        final refreshedFolder = MusicFolder(
+          uri: folder.uri,
+          displayName: folder.displayName,
+          dateAdded: folder.dateAdded,
+          isRemovable: storageInfo.isRemovable,
+          mediaStoreVolume: storageInfo.mediaStoreVolume,
+          volumeState: storageInfo.state,
+        );
+        await _saveFolderToPrefs(refreshedFolder);
+        // Preserve the folder's song count and scan info.
+        await FolderRepository().updateFolderVolumeInfo(
+          uri: folder.uri,
+          isRemovable: storageInfo.isRemovable,
+          mediaStoreVolume: storageInfo.mediaStoreVolume,
+          state: storageInfo.state,
+        );
+        return refreshedFolder;
       }
       if (foldersOverlap(folder.uri, uri)) {
         throw FolderAlreadyExistsException(
@@ -391,19 +463,36 @@ class MusicFolderService {
     String folderUri, {
     bool filterNonMusicFilesAndFolders = true,
   }) async {
+    final result = await scanFolderDetailed(
+      folderUri,
+      filterNonMusicFilesAndFolders: filterNonMusicFilesAndFolders,
+    );
+    return result.files;
+  }
+
+  /// Scan a folder and report whether the tree walk was authoritative.
+  ///
+  /// Callers that delete missing rows must use this variant: an empty [files]
+  /// list with [FolderScanResult.rootAccessible] false means access was lost,
+  /// not that the folder is empty.
+  Future<FolderScanResult> scanFolderDetailed(
+    String folderUri, {
+    bool filterNonMusicFilesAndFolders = true,
+  }) async {
     try {
-      final result = await _channel
-          .invokeMethod<List<dynamic>>('listAudioFiles', {
-            'uri': folderUri,
-            'filterNonMusicFilesAndFolders': filterNonMusicFilesAndFolders,
-          });
+      final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        'listAudioFiles',
+        {
+          'uri': folderUri,
+          'filterNonMusicFilesAndFolders': filterNonMusicFilesAndFolders,
+        },
+      );
 
-      if (result == null) return [];
+      if (result == null) {
+        return const FolderScanResult(rootAccessible: false, complete: false);
+      }
 
-      return result
-          .cast<Map<dynamic, dynamic>>()
-          .map((map) => AudioFileInfo.fromMap(map.cast<String, dynamic>()))
-          .toList();
+      return FolderScanResult.fromMap(result.cast<String, dynamic>());
     } on PlatformException catch (e) {
       throw StorageException('Failed to scan folder: ${e.message}');
     }

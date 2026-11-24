@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/features/playlists/utils/artwork_edit_result.dart';
 import 'package:flick/features/playlists/utils/playlist_cover_crop_math.dart';
 import 'package:flick/features/playlists/utils/playlist_cover_edit.dart';
 import 'package:flick/features/playlists/utils/playlist_cover_render.dart';
@@ -15,14 +16,44 @@ import 'package:flick/l10n/l10n.dart';
 import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flick/widgets/common/flick_snackbar.dart';
 
-/// Full-screen editor for a user-selected playlist cover.
+/// Full-screen editor for playlist covers and share-card artwork.
 ///
-/// Pops with the path to a temporary JPEG, which the caller copies into
-/// durable storage before deleting it.
+/// Pops with an [ArtworkEditResult] pointing at a temporary JPEG, which the
+/// caller copies into durable storage before deleting it. Pass [aspectRatio]
+/// for non-square crops (share cards use 4:5 or 1:1) and [initialCrop] to
+/// resume a previous framing.
 class PlaylistCoverEditorScreen extends StatefulWidget {
-  const PlaylistCoverEditorScreen({super.key, required this.sourcePath});
+  const PlaylistCoverEditorScreen({
+    super.key,
+    required this.sourcePath,
+    this.aspectRatio = 1,
+    this.initialEdit = const PlaylistCoverEdit(),
+    this.initialCrop,
+    this.maxOutput = 1600,
+    this.title,
+    this.saveLabel,
+  });
 
   final String sourcePath;
+
+  /// Width divided by height of the crop viewport. Playlist covers use 1.
+  final double aspectRatio;
+
+  /// Edits to resume from when reopening the editor.
+  final PlaylistCoverEdit initialEdit;
+
+  /// Crop in the oriented image's coordinate space, matching
+  /// `calculateArtworkCrop`.
+  final Rect? initialCrop;
+
+  /// Longest side of the exported JPEG, in pixels.
+  final int maxOutput;
+
+  final String? title;
+  final String? saveLabel;
+
+  double get resolvedAspectRatio =>
+      aspectRatio.isFinite && aspectRatio > 0 ? aspectRatio : 1;
 
   @override
   State<PlaylistCoverEditorScreen> createState() =>
@@ -44,7 +75,7 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
   final TransformationController _controller = TransformationController();
   final ScrollController _panelScrollController = ScrollController();
 
-  PlaylistCoverEdit _edit = const PlaylistCoverEdit();
+  late PlaylistCoverEdit _edit;
   Uint8List? _imageBytes;
   Size? _imageSize;
   bool _preparing = true;
@@ -55,7 +86,8 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
   bool _suppressCropDirty = false;
   bool _allowPop = false;
   bool _discardDialogOpen = false;
-  double? _viewportSide;
+  bool _initialCropApplied = false;
+  Size? _viewportSize;
   int _selectedTab = _cropTab;
 
   Uint8List? _filterThumbnailBytes;
@@ -63,11 +95,12 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
   bool _pendingFilterThumbnail = false;
   int _thumbnailRequest = 0;
 
-  bool get _dirty => _edit.hasEdits || _cropChanged;
+  bool get _dirty => _edit != widget.initialEdit || _cropChanged;
 
   @override
   void initState() {
     super.initState();
+    _edit = widget.initialEdit;
     _controller.addListener(_onTransformChanged);
     _prepare();
   }
@@ -117,30 +150,43 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
     _suppressCropDirty = false;
   }
 
-  void _centerViewport(double side) {
-    if (_viewportSide == side) return;
-    _viewportSide = side;
+  void _centerViewport(Size viewport) {
+    if (_viewportSize == viewport) return;
+    _viewportSize = viewport;
     _viewportReady = false;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _viewportSide != side) return;
+      if (!mounted || _viewportSize != viewport) return;
       final imageSize = _imageSize;
       if (imageSize == null) return;
 
       final oriented = _edit.orientedSize(imageSize);
-      final coverScale = math.max(
-        side / oriented.width,
-        side / oriented.height,
-      );
-      final childWidth = oriented.width * coverScale;
-      final childHeight = oriented.height * coverScale;
-      _setTransform(
-        Matrix4.identity()..setTranslationRaw(
-          (side - childWidth) / 2,
-          (side - childHeight) / 2,
-          0,
-        ),
-      );
+      final initialCrop = widget.initialCrop;
+      if (!_initialCropApplied && initialCrop != null) {
+        _initialCropApplied = true;
+        _setTransform(
+          calculateArtworkTransform(
+            viewportSize: viewport,
+            imageSize: oriented,
+            cropCenter: initialCrop.center,
+            cropSize: initialCrop.size,
+          ),
+        );
+      } else {
+        final coverScale = math.max(
+          viewport.width / oriented.width,
+          viewport.height / oriented.height,
+        );
+        final childWidth = oriented.width * coverScale;
+        final childHeight = oriented.height * coverScale;
+        _setTransform(
+          Matrix4.identity()..setTranslationRaw(
+            (viewport.width - childWidth) / 2,
+            (viewport.height - childHeight) / 2,
+            0,
+          ),
+        );
+      }
       setState(() => _viewportReady = true);
 
       if (_pendingFilterThumbnail && _selectedTab == _filtersTab) {
@@ -166,25 +212,25 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
     if (_saving) return;
 
     final imageSize = _imageSize;
-    final side = _viewportSide;
+    final viewport = _viewportSize;
     setState(() {
       _edit = const PlaylistCoverEdit();
       _cropChanged = false;
       _filterThumbnailBytes = null;
     });
 
-    if (imageSize != null && side != null) {
+    if (imageSize != null && viewport != null) {
       final oriented = _edit.orientedSize(imageSize);
       final coverScale = math.max(
-        side / oriented.width,
-        side / oriented.height,
+        viewport.width / oriented.width,
+        viewport.height / oriented.height,
       );
       final childWidth = oriented.width * coverScale;
       final childHeight = oriented.height * coverScale;
       _setTransform(
         Matrix4.identity()..setTranslationRaw(
-          (side - childWidth) / 2,
-          (side - childHeight) / 2,
+          (viewport.width - childWidth) / 2,
+          (viewport.height - childHeight) / 2,
           0,
         ),
       );
@@ -197,12 +243,11 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
 
   void _applyOrientation(_OrientationAction action) {
     final imageSize = _imageSize;
-    final side = _viewportSide;
-    if (!_viewportReady || imageSize == null || side == null) return;
+    final viewport = _viewportSize;
+    if (!_viewportReady || imageSize == null || viewport == null) return;
 
-    final viewport = Size.square(side);
     final oldOriented = _edit.orientedSize(imageSize);
-    final oldCrop = calculatePlaylistCoverCrop(
+    final oldCrop = calculateArtworkCrop(
       viewportSize: viewport,
       imageSize: oldOriented,
       transform: _controller.value,
@@ -217,17 +262,22 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
     };
     final nextOriented = nextEdit.orientedSize(imageSize);
     final center = _mapCropCenter(oldCrop.center, oldOriented, action);
+    final nextCropSize = switch (action) {
+      _OrientationAction.rotateLeft ||
+      _OrientationAction.rotateRight => Size(oldCrop.height, oldCrop.width),
+      _ => oldCrop.size,
+    };
 
     setState(() {
       _edit = nextEdit;
       _filterThumbnailBytes = null;
     });
     _setTransform(
-      calculatePlaylistCoverTransform(
+      calculateArtworkTransform(
         viewportSize: viewport,
         imageSize: nextOriented,
         cropCenter: center,
-        cropSide: oldCrop.width,
+        cropSize: nextCropSize,
       ),
     );
   }
@@ -259,14 +309,14 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
 
   Future<void> _save() async {
     final imageSize = _imageSize;
-    final side = _viewportSide;
-    if (_saving || !_viewportReady || imageSize == null || side == null) {
+    final viewport = _viewportSize;
+    if (_saving || !_viewportReady || imageSize == null || viewport == null) {
       return;
     }
 
     final oriented = _edit.orientedSize(imageSize);
-    final crop = calculatePlaylistCoverCrop(
-      viewportSize: Size.square(side),
+    final crop = calculateArtworkCrop(
+      viewportSize: viewport,
       imageSize: oriented,
       transform: _controller.value,
     );
@@ -282,8 +332,9 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
         'mirrored': _edit.mirrored,
         'cropLeft': crop.left,
         'cropTop': crop.top,
-        'cropSide': crop.width,
-        'maxOutput': 1600,
+        'cropWidth': crop.width,
+        'cropHeight': crop.height,
+        'maxOutput': widget.maxOutput,
         'quality': 90,
         'applyEffects': true,
         'colorMatrix': _edit.colorMatrix.values,
@@ -310,13 +361,17 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
 
       if (!mounted) return;
       setState(() => _saving = false);
-      _popWithResult(file.path);
+      _popWithResult(
+        ArtworkEditResult(path: file.path, edit: _edit, crop: crop),
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showFlickSnackBar(
         SnackBar(
-          content: Text(context.l10n.englishForFilipino.couldNotUpdatePlaylistCover),
+          content: Text(
+            context.l10n.englishForFilipino.couldNotUpdatePlaylistCover,
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -325,16 +380,16 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
 
   Future<void> _prepareFilterThumbnail() async {
     final imageSize = _imageSize;
-    final side = _viewportSide;
-    if (!_viewportReady || imageSize == null || side == null) {
+    final viewport = _viewportSize;
+    if (!_viewportReady || imageSize == null || viewport == null) {
       _pendingFilterThumbnail = true;
       return;
     }
     _pendingFilterThumbnail = false;
 
     final oriented = _edit.orientedSize(imageSize);
-    final crop = calculatePlaylistCoverCrop(
-      viewportSize: Size.square(side),
+    final crop = calculateArtworkCrop(
+      viewportSize: viewport,
       imageSize: oriented,
       transform: _controller.value,
     );
@@ -351,7 +406,8 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
         'mirrored': _edit.mirrored,
         'cropLeft': crop.left,
         'cropTop': crop.top,
-        'cropSide': crop.width,
+        'cropWidth': crop.width,
+        'cropHeight': crop.height,
         'maxOutput': 256,
         'quality': 80,
         'applyEffects': false,
@@ -424,10 +480,11 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
             onPressed: _saving ? null : () => Navigator.of(context).maybePop(),
             icon: const Icon(LucideIcons.x),
           ),
-          title: Text(l10n.editCover),
+          title: Text(widget.title ?? l10n.editCover),
           actions: [
             TextButton(
-              onPressed: _saving || (!_edit.hasEdits && !_cropChanged)
+              onPressed:
+                  _saving || (_edit == widget.initialEdit && !_cropChanged)
                   ? null
                   : _resetAll,
               style: TextButton.styleFrom(
@@ -451,7 +508,7 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : Text(l10n.save),
+                  : Text(widget.saveLabel ?? l10n.save),
             ),
             const SizedBox(width: 8),
           ],
@@ -535,16 +592,23 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
   Widget _buildPreview() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final available = math.min(constraints.maxWidth, constraints.maxHeight);
-        final side = math.max(1.0, available - 32);
+        final maxWidth = math.max(1.0, constraints.maxWidth - 32);
+        final maxHeight = math.max(1.0, constraints.maxHeight - 32);
+        var width = maxWidth;
+        var height = width / widget.resolvedAspectRatio;
+        if (height > maxHeight) {
+          height = maxHeight;
+          width = height * widget.resolvedAspectRatio;
+        }
+        final viewport = Size(width, height);
         if (_imageSize != null && _imageBytes != null) {
-          _centerViewport(side);
+          _centerViewport(viewport);
         }
 
         return Center(
           child: SizedBox(
-            width: side,
-            height: side,
+            width: viewport.width,
+            height: viewport.height,
             child: !_viewportReady || _imageSize == null || _imageBytes == null
                 ? const Center(child: CircularProgressIndicator())
                 : ClipRect(
@@ -556,7 +620,7 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
                           constrained: false,
                           minScale: 1,
                           maxScale: 4,
-                          child: _buildImage(side),
+                          child: _buildImage(viewport),
                         ),
                         if (_edit.vignette > 0)
                           Positioned.fill(
@@ -578,10 +642,13 @@ class _PlaylistCoverEditorScreenState extends State<PlaylistCoverEditorScreen> {
     );
   }
 
-  Widget _buildImage(double side) {
+  Widget _buildImage(Size viewport) {
     final imageSize = _imageSize!;
     final oriented = _edit.orientedSize(imageSize);
-    final coverScale = math.max(side / oriented.width, side / oriented.height);
+    final coverScale = math.max(
+      viewport.width / oriented.width,
+      viewport.height / oriented.height,
+    );
     final displayWidth = imageSize.width * coverScale;
     final displayHeight = imageSize.height * coverScale;
 

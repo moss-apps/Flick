@@ -52,6 +52,39 @@ void main() {
     });
   });
 
+  group('calculateArtworkCrop', () {
+    test('portrait viewport keeps its 4:5 aspect inside a landscape image', () {
+      final crop = calculateArtworkCrop(
+        viewportSize: const Size(400, 500),
+        imageSize: const Size(2000, 1000),
+        transform: Matrix4.identity()..setTranslationRaw(-300, 0, 0),
+      );
+
+      expect(crop, const Rect.fromLTWH(600, 0, 800, 1000));
+    });
+
+    test('4:5 framing round-trips through calculateArtworkTransform', () {
+      const viewport = Size(400, 500);
+      final transform = calculateArtworkTransform(
+        viewportSize: viewport,
+        imageSize: const Size(2000, 1000),
+        cropCenter: const Offset(1000, 500),
+        cropSize: const Size(800, 1000),
+      );
+
+      expect(transform.getMaxScaleOnAxis(), closeTo(1, 0.0001));
+      expect(transform.getTranslation().x, closeTo(-300, 0.0001));
+      expect(transform.getTranslation().y, closeTo(0, 0.0001));
+
+      final crop = calculateArtworkCrop(
+        viewportSize: viewport,
+        imageSize: const Size(2000, 1000),
+        transform: transform,
+      );
+      expect(crop, const Rect.fromLTWH(600, 0, 800, 1000));
+    });
+  });
+
   group('calculatePlaylistCoverTransform', () {
     void expectTransform({
       required Size imageSize,

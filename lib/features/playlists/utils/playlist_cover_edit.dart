@@ -300,6 +300,32 @@ class PlaylistCoverEdit {
     );
   }
 
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is PlaylistCoverEdit &&
+            quarterTurns == other.quarterTurns &&
+            mirrored == other.mirrored &&
+            brightness == other.brightness &&
+            contrast == other.contrast &&
+            saturation == other.saturation &&
+            warmth == other.warmth &&
+            vignette == other.vignette &&
+            filter == other.filter;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    quarterTurns,
+    mirrored,
+    brightness,
+    contrast,
+    saturation,
+    warmth,
+    vignette,
+    filter,
+  );
+
   PlaylistCoverEdit rotateClockwise() =>
       copyWith(quarterTurns: (quarterTurns + 1) % 4);
 

@@ -776,9 +776,7 @@ class _RootFolderCardState extends State<_RootFolderCard>
                           [
                             l10n.songs15(widget.entry.songs.length),
                             if (widget.entry.folder.isRemovable == true)
-                              (widget.entry.folder.volumeState != null &&
-                                      widget.entry.folder.volumeState !=
-                                          'mounted')
+                              widget.entry.folder.isOffline
                                   ? l10n.usbNotConnected
                                   : l10n.externalLabel,
                           ].join(' · '),

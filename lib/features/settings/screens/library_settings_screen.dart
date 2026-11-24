@@ -453,25 +453,9 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     final tutorial = ref.read(tutorialProvider.notifier);
     tutorial.setPaused(true);
     try {
-      final permissionService = PermissionService();
-      final hasPermission = await permissionService.hasStoragePermission();
-
-      if (!hasPermission && _folders.isEmpty) {
-        final granted = await permissionService.requestStoragePermission();
-        if (!granted) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showFlickSnackBar(
-              SnackBar(
-                content: Text(
-                  l10n.storagePermissionIsRequiredToAdd,
-                ),
-              ),
-            );
-          }
-          return;
-        }
-      }
-
+      // The folder picker grants access to the selected tree itself via SAF,
+      // so adding a folder does not require broad storage permission. The
+      // persisted read grant is enough; write access is requested but optional.
       final folder = await _folderService.addFolder();
       tutorial.setPaused(false);
       if (folder != null) {
@@ -596,21 +580,39 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     if (mounted) {
       _vinylController.stop();
     }
-    if (!wasCancelled && completed) {
+    final finalProgress = lastProgress ?? _scanProgress;
+    final showUnavailable =
+        !wasCancelled && completed && finalProgress?.unavailable == true;
+    final showUnavailableNotice = showUnavailable && !_scanOverlayOpen;
+    if (!wasCancelled && completed && !showUnavailable) {
       ScanSessionController.instance.markCompleted();
     }
     ScanSessionController.instance.end(generation);
     if (!mounted) return;
     await _loadLibraryData();
     if (mounted) {
-      if (_scanOverlayOpen) Navigator.of(context).pop();
-      _scanProgressNotifier.value = null;
-      final finalProgress = lastProgress ?? _scanProgress;
+      if (_scanOverlayOpen && !showUnavailable) {
+        Navigator.of(context).pop();
+        _scanProgressNotifier.value = null;
+      }
       setState(() {
         _isScanning = false;
-        _scanProgress = null;
+        if (!showUnavailable || !_scanOverlayOpen) _scanProgress = null;
       });
-      if (!wasCancelled && completed && finalProgress?.unavailable != true) {
+      if (showUnavailableNotice) {
+        final details = _unavailableFolders(finalProgress!, title);
+        final singleFolder = details.singleOrNull;
+        ScaffoldMessenger.of(context).showFlickSnackBar(
+          SnackBar(
+            content: Text(
+              singleFolder != null
+                  ? '${singleFolder.$1}: ${singleFolder.$2}'
+                  : '${details.map((detail) => detail.$1).join(', ')}\n'
+                        '${l10n.scanFailedPleaseTryAgain}',
+            ),
+          ),
+        );
+      } else if (!wasCancelled && completed && !showUnavailable) {
         _showScanCompleteBottomSheet(
           scanDuration: _scanStopwatch.elapsed,
           progress: includeProgressInSummary ? finalProgress : null,
@@ -683,7 +685,11 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       title: displayName,
       kind: ScanSessionKind.scan,
       onCancel: _scannerService.cancelScan,
-      run: () => _scannerService.scanFolder(uri, displayName),
+      run: () => _scannerService.scanFolder(
+        uri,
+        displayName,
+        promptForMediaAccess: true,
+      ),
       artworkBackfill: () => _scannerService.awaitArtworkBackfill(uri),
     );
   }
@@ -693,7 +699,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       title: l10n.englishForFilipino.allFolders,
       kind: ScanSessionKind.scan,
       onCancel: _scannerService.cancelScan,
-      run: () => _scannerService.scanAllFolders(mode: mode),
+      run: () => _scannerService.scanAllFolders(
+        mode: mode,
+        promptForMediaAccess: true,
+      ),
       artworkBackfill: _scannerService.awaitAllArtworkBackfill,
     );
   }
@@ -891,9 +900,14 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         );
       },
     ).whenComplete(() {
-      // Covers minimize, system-back, cancel, and natural completion: if the
-      // work is still running, the floating pill takes over.
+      // Covers minimize, system-back, cancel, natural completion, and the
+      // unavailable state's Done button: if the work is still running, the
+      // floating pill takes over.
       _scanOverlayOpen = false;
+      _scanProgressNotifier.value = null;
+      if (mounted) {
+        setState(() => _scanProgress = null);
+      }
       ScanSessionController.instance.overlayDismissed(generation);
     });
   }
@@ -1237,21 +1251,45 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     );
   }
 
+  List<(String, String)> _unavailableFolders(
+    ScanProgress progress,
+    String folderName,
+  ) {
+    final folders = progress.folders;
+    if (folders != null) {
+      return [
+        for (final folder in folders)
+          if (folder.unavailable)
+            (
+              folder.displayName,
+              folder.unavailableMessage ??
+                  _disconnectedScanMessage(folder.displayName),
+            ),
+      ];
+    }
+    final name = progress.currentFolder ?? folderName;
+    return [(name, progress.unavailableMessage ?? _disconnectedScanMessage(name))];
+  }
+
+  String _disconnectedScanMessage(String name) =>
+      '${l10n.usbStorageNotConnected}\n${l10n.isOfflineRetainedSongsStillListed(name)}';
+
   Widget _buildUnavailableState(ScanProgress progress, String folderName) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppConstants.spacingXl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(
-              LucideIcons.usb,
+              LucideIcons.folderOpen,
               size: 64,
               color: AppColors.textTertiary,
             ),
             const SizedBox(height: AppConstants.spacingLg),
             Text(
-              l10n.usbStorageNotConnected,
+              l10n.unavailable2,
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'GoogleSansFlex',
                 fontSize: 18,
@@ -1259,16 +1297,32 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: AppConstants.spacingSm),
-            Text(
-              l10n.isOfflineRetainedSongsStillListed(progress.currentFolder ?? folderName),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'GoogleSansFlex',
-                fontSize: 13,
-                color: AppColors.textTertiary,
+            for (final (name, message) in _unavailableFolders(
+              progress,
+              folderName,
+            ))
+              Padding(
+                padding: const EdgeInsets.only(top: AppConstants.spacingMd),
+                child: Column(
+                  children: [
+                    Text(
+                      name,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: AppConstants.spacingXs),
+                    Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'GoogleSansFlex',
+                        fontSize: 13,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
             const SizedBox(height: AppConstants.spacingXl),
             SizedBox(
               width: double.infinity,
@@ -1700,8 +1754,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       [
                         effectiveDeepScan ? l10n.deepScanOn : l10n.deepScanOff,
                         if (folder.isRemovable == true)
-                          (folder.volumeState != null &&
-                                  folder.volumeState != 'mounted')
+                          folder.isOffline
                               ? l10n.usbNotConnected
                               : l10n.externalLabel,
                       ].join(' · '),

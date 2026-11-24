@@ -10,11 +10,18 @@ class SolidColorShareCard extends StatelessWidget {
   final Color? dominantColor;
   final String? albumArtPath;
 
+  /// Optional reframed square for the foreground cover. The blurred backdrop
+  /// keeps using [albumArtPath] so only the subject is affected by the edit.
+  final String? coverArtPath;
+  final double textScale;
+
   const SolidColorShareCard({
     super.key,
     required this.song,
     this.dominantColor,
     this.albumArtPath,
+    this.coverArtPath,
+    this.textScale = 1,
   });
 
   @override
@@ -22,6 +29,7 @@ class SolidColorShareCard extends StatelessWidget {
     final bgColor = dominantColor ?? const Color(0xFF1A1A1A);
     final brighter = HSLColor.fromColor(bgColor).withLightness(0.35).toColor();
     final darker = HSLColor.fromColor(bgColor).withLightness(0.08).toColor();
+    final coverPath = coverArtPath ?? albumArtPath;
 
     return AspectRatio(
       aspectRatio: 4 / 5,
@@ -71,49 +79,66 @@ class SolidColorShareCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(28, 32, 28, 32),
-            child: Column(
-              children: [
-                const Spacer(flex: 2),
-                if (albumArtPath != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
-                      width: 140,
-                      height: 140,
-                      child: Image.file(
-                        File(albumArtPath!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _artPlaceholder(),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    coverPath != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: SizedBox(
+                              width: 140,
+                              height: 140,
+                              child: Image.file(
+                                File(coverPath),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _artPlaceholder(),
+                              ),
+                            ),
+                          )
+                        : _artPlaceholder(),
+                    const SizedBox(height: 20),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: SizedBox(
+                          width: constraints.maxWidth,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                song.title,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18 * textScale,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.15,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                song.artist,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                  fontSize: 14 * textScale,
+                                  height: 1.15,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  )
-                else
-                  _artPlaceholder(),
-                const SizedBox(height: 24),
-                Text(
-                  song.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  song.artist,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 14,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const Spacer(),
-              ],
+                  ],
+                );
+              },
             ),
           ),
           Positioned(

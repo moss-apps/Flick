@@ -99,6 +99,8 @@ void main() {
     double cropLeft = 0,
     double cropTop = 0,
     double cropSide = 8,
+    double? cropWidth,
+    double? cropHeight,
     int maxOutput = 8,
     int quality = 100,
     bool applyEffects = false,
@@ -114,6 +116,8 @@ void main() {
       'cropLeft': cropLeft,
       'cropTop': cropTop,
       'cropSide': cropSide,
+      'cropWidth': ?cropWidth,
+      'cropHeight': ?cropHeight,
       'maxOutput': maxOutput,
       'quality': quality,
       'applyEffects': applyEffects,
@@ -160,6 +164,30 @@ void main() {
         renderPlaylistCover(request('${temporaryDirectory.path}/missing.png')),
         isNull,
       );
+    });
+
+    test('exports a non-square crop at the requested aspect', () {
+      final path = writeImage(solidImage(8, 8, 10, 20, 30));
+
+      final bytes = renderPlaylistCover(
+        request(path, cropWidth: 8, cropHeight: 6, maxOutput: 8),
+      );
+
+      final decoded = decodeResult(bytes);
+      expect(decoded.width, 8);
+      expect(decoded.height, 6);
+    });
+
+    test('scales the longest side of a non-square crop', () {
+      final path = writeImage(solidImage(8, 8, 10, 20, 30));
+
+      final bytes = renderPlaylistCover(
+        request(path, cropWidth: 8, cropHeight: 6, maxOutput: 4),
+      );
+
+      final decoded = decodeResult(bytes);
+      expect(decoded.width, 4);
+      expect(decoded.height, 3);
     });
 
     test('returns null for undecodable bytes', () {

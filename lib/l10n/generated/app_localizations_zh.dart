@@ -1883,6 +1883,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editCover => '编辑封面';
 
   @override
+  String get editArtwork => '编辑图片';
+
+  @override
   String get crop => '裁剪';
 
   @override
@@ -3456,6 +3459,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get folder => '文件夹';
+
+  @override
+  String get folderAccessLostReselect => '文件夹访问权限已丢失。请重新添加该文件夹以恢复访问。';
 
   @override
   String get folderLimit => '文件夹上限';
@@ -7321,9 +7327,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '需要存储访问权限才能扫描和读取音乐文件、提取元数据、导入/导出 EQ 预设以及保存回顾图片。所有处理均在设备上完成。';
 
   @override
-  String get storagePermissionIsRequiredToAdd => '需要存储权限才能添加音乐文件夹';
-
-  @override
   String get storagePermissionRequiredForRecap => '在此 Android 版本上保存回顾图需要存储权限。';
 
   @override
@@ -7593,9 +7596,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get thisFolderAppearsToBeEmpty => '此文件夹似乎是空的';
-
-  @override
-  String get thisFolderHasAlreadyBeenAdded => '这个文件夹已经添加过了';
 
   @override
   String get thisMonth => '本月';

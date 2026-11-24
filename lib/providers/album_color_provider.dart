@@ -24,7 +24,7 @@ class AlbumColorModeNotifier extends Notifier<AlbumColorMode> {
       _initialized = true;
       Future<void>.microtask(_loadFromPreferences);
     }
-    return AlbumColorMode.off;
+    return AlbumColorMode.vibrant;
   }
 
   Future<void> _loadFromPreferences() async {

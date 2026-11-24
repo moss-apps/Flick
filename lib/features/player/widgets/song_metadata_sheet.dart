@@ -4,6 +4,7 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/widgets/common/song_file_tag_extras.dart';
+import 'package:flick/widgets/common/song_network_source_row.dart';
 import 'package:flick/l10n/english_l10n.dart';
 
 class SongMetadataSheet extends StatelessWidget {
@@ -57,6 +58,7 @@ class SongMetadataSheet extends StatelessWidget {
           _buildMetadataRow(context, l10n.artist, song.artist),
           if (song.album != null)
             _buildMetadataRow(context, l10n.album, song.album!),
+          SongNetworkSourceRow(song: song),
           _buildMetadataRow(context, l10n.duration, song.formattedDuration),
           _buildMetadataRow(
             context,

@@ -3499,6 +3499,12 @@ abstract class AppLocalizations {
   /// **'Edit cover'**
   String get editCover;
 
+  /// No description provided for @editArtwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit artwork'**
+  String get editArtwork;
+
   /// No description provided for @crop.
   ///
   /// In en, this message translates to:
@@ -6354,6 +6360,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Folder'**
   String get folder;
+
+  /// lib/services/library_scanner_service.dart:1576
+  ///
+  /// In en, this message translates to:
+  /// **'Folder access was lost. Add the folder again to restore access.'**
+  String get folderAccessLostReselect;
 
   /// lib/features/folders/screens/folders_screen.dart:2258
   ///
@@ -13416,12 +13428,6 @@ abstract class AppLocalizations {
   /// **'Storage access is required to scan and read music files, extract metadata, import/export EQ presets, and save recap images. All processing happens on-device.'**
   String get storageAccessIsRequiredToScan;
 
-  /// lib/features/settings/screens/library_settings_screen.dart:461
-  ///
-  /// In en, this message translates to:
-  /// **'Storage permission is required to add music folders'**
-  String get storagePermissionIsRequiredToAdd;
-
   /// l10n pass: user-visible service error
   ///
   /// In en, this message translates to:
@@ -13913,12 +13919,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This folder appears to be empty'**
   String get thisFolderAppearsToBeEmpty;
-
-  /// l10n pass: user-visible service error
-  ///
-  /// In en, this message translates to:
-  /// **'This folder has already been added'**
-  String get thisFolderHasAlreadyBeenAdded;
 
   /// lib/data/repositories/recently_played_repository.dart:294
   ///

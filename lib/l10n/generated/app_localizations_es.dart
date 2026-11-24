@@ -2042,6 +2042,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get editCover => 'Editar portada';
 
   @override
+  String get editArtwork => 'Editar ilustración';
+
+  @override
   String get crop => 'Recortar';
 
   @override
@@ -3767,6 +3770,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get folder => 'Carpeta';
+
+  @override
+  String get folderAccessLostReselect =>
+      'Se perdió el acceso a la carpeta. Vuelve a añadirla para restaurar el acceso.';
 
   @override
   String get folderLimit => 'LÍMITE DE CARPETAS';
@@ -7995,10 +8002,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se necesita acceso al almacenamiento para analizar y leer archivos de música, extraer metadatos, importar o exportar preajustes del ecualizador y guardar imágenes del resumen. Todo el procesamiento se realiza en el dispositivo.';
 
   @override
-  String get storagePermissionIsRequiredToAdd =>
-      'Se necesita permiso de almacenamiento para agregar carpetas de música';
-
-  @override
   String get storagePermissionRequiredForRecap =>
       'Se necesita permiso de almacenamiento para guardar imágenes del resumen en esta versión de Android.';
 
@@ -8305,9 +8308,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get thisFolderAppearsToBeEmpty => 'Esta carpeta parece estar vacía';
-
-  @override
-  String get thisFolderHasAlreadyBeenAdded => 'Esta carpeta ya se agregó';
 
   @override
   String get thisMonth => 'Este mes';

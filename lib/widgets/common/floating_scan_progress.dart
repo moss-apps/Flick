@@ -44,7 +44,7 @@ class FloatingScanProgress extends StatefulWidget {
 }
 
 class _FloatingScanProgressState extends State<FloatingScanProgress>
-    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   static const double _bubbleSize = 52;
   static const double _edgeMargin = 8;
   static const double _cardGap = 8;
@@ -66,6 +66,12 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
 
   late final AnimationController _completionController;
   bool _completionOutro = false;
+
+  /// Drives the pill's show/hide fade. It must own the fade instead of an
+  /// implicit [AnimatedOpacity]: [TickerMode] mutes descendant tickers the
+  /// moment the pill goes invisible, which froze the implicit fade at full
+  /// opacity and left an untappable bubble on screen.
+  late final AnimationController _visibilityController;
 
   FloatingScanIndicatorSide _side = FloatingScanIndicatorSide.right;
   double? _yFraction;
@@ -98,6 +104,11 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
       duration: const Duration(milliseconds: 1200),
     );
     _completionController.addStatusListener(_onCompletionStatus);
+    _visibilityController = AnimationController(
+      vsync: this,
+      duration: AppConstants.animationFast,
+      value: _visible ? 1 : 0,
+    );
     final controller = ScanSessionController.instance;
     controller.session.addListener(_onChanged);
     controller.progress.addListener(_onChanged);
@@ -121,6 +132,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
     controller.postProcessing.removeListener(_onChanged);
     controller.completed.removeListener(_onCompletedChanged);
     _autoPreloadProgress.removeListener(_onChanged);
+    _visibilityController.dispose();
     _completionController.dispose();
     super.dispose();
   }
@@ -139,6 +151,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
       _completionOutro = true;
       _expanded = false;
     });
+    _syncVisibility();
   }
 
   void _cancelCompletionOutro() {
@@ -146,6 +159,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
     _completionController.stop();
     _completionController.value = 0;
     setState(() => _completionOutro = false);
+    _syncVisibility();
   }
 
   void _onCompletionStatus(AnimationStatus status) {
@@ -157,6 +171,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
       // enqueue can start another one right after; keep all of it silent.
       _autoSuppressedAfterCompletion = true;
     });
+    _syncVisibility();
   }
 
   @override
@@ -185,8 +200,18 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
       _autoPreloadSince = null;
     }
     if (!_visible) _expanded = false;
+    _syncVisibility();
     _syncTimer();
     if (mounted) setState(() {});
+  }
+
+  void _syncVisibility() {
+    if (_visible) {
+      _visibilityController.forward();
+    } else {
+      // A pending fade-in can still be at zero before its first tick.
+      _visibilityController.reverse();
+    }
   }
 
   void _syncTimer() {
@@ -229,6 +254,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
         _autoStopped = true;
         _expanded = false;
       });
+      _syncVisibility();
       return;
     }
     (widget.onCancelAutoPreload ?? AudioPreloadService.instance.cancel)();
@@ -236,6 +262,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
       _autoStopped = true;
       _expanded = false;
     });
+    _syncVisibility();
   }
 
   void _toggleExpanded() {
@@ -354,111 +381,131 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final size = Size(constraints.maxWidth, constraints.maxHeight);
-        if (size.isEmpty) return const SizedBox.shrink();
+    return AnimatedBuilder(
+      animation: _visibilityController,
+      builder: (context, _) {
+        final visibility = _visibilityController.value
+            .clamp(0.0, 1.0)
+            .toDouble();
+        // Fully hidden: drop the tree so nothing can linger on screen and no
+        // hidden ticker keeps the spinner running behind an invisible pill.
+        if (visibility == 0 && !_visible) return const SizedBox.shrink();
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final size = Size(constraints.maxWidth, constraints.maxHeight);
+            if (size.isEmpty) return const SizedBox.shrink();
 
-        final padding = MediaQuery.paddingOf(context);
-        final position =
-            _dragPosition ??
-            Offset(
-              _side == FloatingScanIndicatorSide.right
-                  ? size.width - _bubbleSize - _edgeMargin
-                  : _edgeMargin,
-              _resolveTop(size, padding),
+            final padding = MediaQuery.paddingOf(context);
+            final position =
+                _dragPosition ??
+                Offset(
+                  _side == FloatingScanIndicatorSide.right
+                      ? size.width - _bubbleSize - _edgeMargin
+                      : _edgeMargin,
+                  _resolveTop(size, padding),
+                );
+            _resolvedPosition = position;
+
+            final controller = ScanSessionController.instance;
+            final session = controller.session.value;
+            final scanProgress = session == null
+                ? null
+                : controller.progress.value;
+            final preloadProgress = session == null
+                ? _autoPreloadProgress.value
+                : null;
+
+            final title = session?.title ?? l10n.preloadingAudio3;
+            final fraction = session != null
+                ? (scanProgress?.progressFraction ?? 0.0)
+                : (preloadProgress?.fraction ?? 0.0);
+            final processed = session != null
+                ? (scanProgress?.filesProcessed ?? 0)
+                : (preloadProgress?.completed ?? 0);
+            final total = session != null
+                ? (scanProgress?.totalFiles ?? 0)
+                : (preloadProgress?.total ?? 0);
+            final currentFile = _basename(
+              session != null
+                  ? scanProgress?.currentFile
+                  : preloadProgress?.currentFile,
             );
-        _resolvedPosition = position;
+            final startedAt =
+                session?.startedAt ?? _autoPreloadSince ?? DateTime.now();
+            final icon = switch (session?.kind) {
+              ScanSessionKind.scan => LucideIcons.scanSearch,
+              ScanSessionKind.replayGain => LucideIcons.audioWaveform,
+              ScanSessionKind.preload || null => LucideIcons.activity,
+            };
+            final foldersTotal = scanProgress?.foldersTotal ?? 0;
+            final folderStatus = foldersTotal > 1
+                ? l10n.folderOf2(
+                    scanProgress?.foldersCompleted ?? 0,
+                    foldersTotal,
+                  )
+                : null;
+            final loadingArtwork =
+                session != null && scanProgress?.phase == 'Loading artwork';
+            // All files counted but the stream has not finished yet: say so instead
+            // of letting the card look done.
+            final finishingUp =
+                session != null &&
+                !loadingArtwork &&
+                total > 0 &&
+                processed >= total &&
+                scanProgress?.isComplete != true;
 
-        final controller = ScanSessionController.instance;
-        final session = controller.session.value;
-        final scanProgress = session == null ? null : controller.progress.value;
-        final preloadProgress = session == null
-            ? _autoPreloadProgress.value
-            : null;
-
-        final title = session?.title ?? l10n.preloadingAudio3;
-        final fraction = session != null
-            ? (scanProgress?.progressFraction ?? 0.0)
-            : (preloadProgress?.fraction ?? 0.0);
-        final processed = session != null
-            ? (scanProgress?.filesProcessed ?? 0)
-            : (preloadProgress?.completed ?? 0);
-        final total = session != null
-            ? (scanProgress?.totalFiles ?? 0)
-            : (preloadProgress?.total ?? 0);
-        final currentFile = _basename(
-          session != null
-              ? scanProgress?.currentFile
-              : preloadProgress?.currentFile,
-        );
-        final startedAt =
-            session?.startedAt ?? _autoPreloadSince ?? DateTime.now();
-        final icon = switch (session?.kind) {
-          ScanSessionKind.scan => LucideIcons.scanSearch,
-          ScanSessionKind.replayGain => LucideIcons.audioWaveform,
-          ScanSessionKind.preload || null => LucideIcons.activity,
-        };
-        final foldersTotal = scanProgress?.foldersTotal ?? 0;
-        final folderStatus = foldersTotal > 1
-            ? l10n.folderOf2(scanProgress?.foldersCompleted ?? 0, foldersTotal)
-            : null;
-        final loadingArtwork =
-            session != null && scanProgress?.phase == 'Loading artwork';
-        // All files counted but the stream has not finished yet: say so instead
-        // of letting the card look done.
-        final finishingUp =
-            session != null &&
-            !loadingArtwork &&
-            total > 0 &&
-            processed >= total &&
-            scanProgress?.isComplete != true;
-
-        return IgnorePointer(
-          ignoring: !_visible || _completionOutro,
-          child: TickerMode(
-            enabled: _visible,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                if (_expanded && _visible)
-                  Positioned.fill(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _collapse,
+            return IgnorePointer(
+              ignoring: !_visible || _completionOutro,
+              child: TickerMode(
+                enabled: _visible || visibility > 0,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    if (_expanded && _visible)
+                      Positioned.fill(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _collapse,
+                        ),
+                      ),
+                    AnimatedPositioned(
+                      duration: _isDragging
+                          ? Duration.zero
+                          : AppConstants.animationNormal,
+                      curve: Curves.easeOutCubic,
+                      left: position.dx,
+                      top: position.dy,
+                      child: _buildBubble(
+                        icon: icon,
+                        fraction: fraction.clamp(0.0, 1.0).toDouble(),
+                        total: total,
+                        opacity: visibility,
+                      ),
                     ),
-                  ),
-                AnimatedPositioned(
-                  duration: _isDragging
-                      ? Duration.zero
-                      : AppConstants.animationNormal,
-                  curve: Curves.easeOutCubic,
-                  left: position.dx,
-                  top: position.dy,
-                  child: _buildBubble(
-                    icon: icon,
-                    fraction: fraction.clamp(0.0, 1.0).toDouble(),
-                    total: total,
-                  ),
+                    // The bubble can outlive its progress source, but the
+                    // card must not fade out with unrelated preload details.
+                    if (!_completionOutro && (_sessionVisible || _autoVisible))
+                      _buildCard(
+                        size: size,
+                        padding: padding,
+                        icon: icon,
+                        title: title,
+                        fraction: fraction.clamp(0.0, 1.0).toDouble(),
+                        processed: processed,
+                        total: total,
+                        currentFile: currentFile,
+                        startedAt: startedAt,
+                        failed: preloadProgress?.failed ?? 0,
+                        folderStatus: folderStatus,
+                        finishingUp: finishingUp,
+                        loadingArtwork: loadingArtwork,
+                      ),
+                  ],
                 ),
-                _buildCard(
-                  size: size,
-                  padding: padding,
-                  icon: icon,
-                  title: title,
-                  fraction: fraction.clamp(0.0, 1.0).toDouble(),
-                  processed: processed,
-                  total: total,
-                  currentFile: currentFile,
-                  startedAt: startedAt,
-                  failed: preloadProgress?.failed ?? 0,
-                  folderStatus: folderStatus,
-                  finishingUp: finishingUp,
-                  loadingArtwork: loadingArtwork,
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -468,6 +515,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
     required IconData icon,
     required double fraction,
     required int total,
+    required double opacity,
   }) {
     return GestureDetector(
       onTap: _toggleExpanded,
@@ -477,83 +525,85 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
       onPanStart: _onPanStart,
       onPanUpdate: _onPanUpdate,
       onPanEnd: _onPanEnd,
-      child: AnimatedOpacity(
+      child: Opacity(
         key: const ValueKey('floating_scan_bubble'),
-        opacity: _visible ? 1 : 0,
-        duration: AppConstants.animationFast,
-        child: AnimatedScale(
-          scale: _visible ? (_pressed ? 0.92 : 1) : 0.6,
-          duration: AppConstants.animationNormal,
-          curve: Curves.easeOutCubic,
-          child: Semantics(
-            button: true,
-            label: l10n.scanProgress,
-            child: Container(
-              width: _bubbleSize,
-              height: _bubbleSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.surfaceLight.withValues(alpha: 0.92),
-                    AppColors.surface.withValues(alpha: 0.96),
+        opacity: opacity,
+        child: Transform.scale(
+          scale: 0.6 + 0.4 * opacity,
+          child: AnimatedScale(
+            scale: _pressed ? 0.92 : 1,
+            duration: AppConstants.animationFast,
+            curve: Curves.easeOutCubic,
+            child: Semantics(
+              button: true,
+              label: l10n.scanProgress,
+              child: Container(
+                width: _bubbleSize,
+                height: _bubbleSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.surfaceLight.withValues(alpha: 0.92),
+                      AppColors.surface.withValues(alpha: 0.96),
+                    ],
+                  ),
+                  border: Border.all(color: AppColors.glassBorderStrong),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
                   ],
                 ),
-                border: Border.all(color: AppColors.glassBorderStrong),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: AnimatedBuilder(
-                animation: _completionController,
-                builder: (context, _) {
-                  if (_completionOutro) {
-                    final t = _completionController.value;
-                    final checkScale = Curves.easeOutBack.transform(
-                      (t / 0.6).clamp(0.0, 1.0),
-                    );
-                    final fadeOut = t <= 0.8
-                        ? 1.0
-                        : (1.0 - (t - 0.8) / 0.2).clamp(0.0, 1.0);
-                    return Opacity(
-                      opacity: fadeOut,
-                      child: Transform.scale(
-                        scale: 0.5 + 0.5 * checkScale,
-                        child: const Icon(
-                          Icons.check_rounded,
-                          size: 26,
-                          color: AppColors.accent,
+                child: AnimatedBuilder(
+                  animation: _completionController,
+                  builder: (context, _) {
+                    if (_completionOutro) {
+                      final t = _completionController.value;
+                      final checkScale = Curves.easeOutBack.transform(
+                        (t / 0.6).clamp(0.0, 1.0),
+                      );
+                      final fadeOut = t <= 0.8
+                          ? 1.0
+                          : (1.0 - (t - 0.8) / 0.2).clamp(0.0, 1.0);
+                      return Opacity(
+                        opacity: fadeOut,
+                        child: Transform.scale(
+                          scale: 0.5 + 0.5 * checkScale,
+                          child: const Icon(
+                            Icons.check_rounded,
+                            size: 26,
+                            color: AppColors.accent,
+                          ),
                         ),
-                      ),
-                    );
-                  }
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Positioned.fill(
-                        child: Padding(
-                          padding: const EdgeInsets.all(1.5),
-                          child: CircularProgressIndicator(
-                            value: total > 0 ? fraction : null,
-                            strokeWidth: 3,
-                            strokeCap: StrokeCap.round,
-                            backgroundColor: AppColors.glassBackground,
-                            valueColor: const AlwaysStoppedAnimation(
-                              AppColors.accent,
+                      );
+                    }
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.all(1.5),
+                            child: CircularProgressIndicator(
+                              value: total > 0 ? fraction : null,
+                              strokeWidth: 3,
+                              strokeCap: StrokeCap.round,
+                              backgroundColor: AppColors.glassBackground,
+                              valueColor: const AlwaysStoppedAnimation(
+                                AppColors.accent,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      Icon(icon, size: 20, color: AppColors.textPrimary),
-                    ],
-                  );
-                },
+                        Icon(icon, size: 20, color: AppColors.textPrimary),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),

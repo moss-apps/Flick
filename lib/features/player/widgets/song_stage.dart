@@ -14,6 +14,7 @@ import 'package:flick/features/player/widgets/bit_perfect_capsule.dart';
 import 'package:flick/features/player/widgets/bit_perfect_indicator.dart';
 import 'package:flick/features/player/widgets/compact_player_info_layout.dart';
 import 'package:flick/features/player/widgets/inline_lyrics_panel.dart';
+import 'package:flick/features/player/widgets/source_server_capsule.dart';
 import 'package:flick/features/player/widgets/lyrics_mode_waveform_strip.dart';
 import 'package:flick/features/player/widgets/visualizer_art_box.dart';
 import 'package:flick/features/player/widgets/waveform_layer.dart';
@@ -545,6 +546,14 @@ class SongStage extends ConsumerWidget {
                             ),
                           ),
                         ),
+                      if (immersiveShowTitle || immersiveShowArtist)
+                        SourceServerCapsule(
+                          song: song,
+                          topSpacing:
+                              context.responsive(5.0, 6.0, 7.0) *
+                              immersiveFullViewScale,
+                          maxWidth: 220 * immersiveFullViewScale,
+                        ),
                     ],
                   ),
                 ),
@@ -604,6 +613,12 @@ class SongStage extends ConsumerWidget {
                       color: Colors.white.withValues(alpha: 0.82),
                     ),
                   ),
+                ),
+              if (immersiveShowTitle || immersiveShowArtist)
+                SourceServerCapsule(
+                  song: song,
+                  topSpacing: landscape ? 6.0 : titleGap * 0.6,
+                  maxWidth: landscape ? 220 : 260,
                 ),
               if (immersiveShowTitle || immersiveShowArtist)
                 SizedBox(height: landscape ? 8.0 : titleGap),
@@ -1007,6 +1022,14 @@ class SongStage extends ConsumerWidget {
                   ),
                 ),
               ),
+            ),
+          if (artworkCardShowTitle || artworkCardShowArtist)
+            SourceServerCapsule(
+              song: song,
+              topSpacing: veryCompact
+                  ? 6.0
+                  : context.responsive(8.0, 9.0, 10.0),
+              maxWidth: landscape ? 220 : 260,
             ),
         ],
       ],

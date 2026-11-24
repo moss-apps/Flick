@@ -2039,6 +2039,9 @@ class AppLocalizationsTl extends AppLocalizations {
   String get editCover => 'Baguhin ang pabalat';
 
   @override
+  String get editArtwork => 'I-edit ang larawan';
+
+  @override
   String get crop => 'I-crop';
 
   @override
@@ -3760,6 +3763,10 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get folder => 'Folder';
+
+  @override
+  String get folderAccessLostReselect =>
+      'Nawala ang access sa folder. Idagdag muli ang folder para maibalik ang access.';
 
   @override
   String get folderLimit => 'LIMITASYON NG FOLDER';
@@ -7983,10 +7990,6 @@ class AppLocalizationsTl extends AppLocalizations {
       'Kailangan ang access sa imbakan upang i-scan at basahin ang mga file ng musika, kunin ang metadata, mag-import/mag-export ng mga preset ng EQ, at i-save ang mga larawan ng buod. Lahat ng pagproseso ay ginagawa sa aparato.';
 
   @override
-  String get storagePermissionIsRequiredToAdd =>
-      'Kailangan ang pahintulot sa imbakan upang magdagdag ng mga folder ng musika';
-
-  @override
   String get storagePermissionRequiredForRecap =>
       'Kailangan ang pahintulot sa imbakan upang i-save ang mga larawan ng buod sa bersiyong ito ng Android.';
 
@@ -8294,9 +8297,6 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get thisFolderAppearsToBeEmpty =>
       'Mukhang walang laman ang folder na ito';
-
-  @override
-  String get thisFolderHasAlreadyBeenAdded => 'Naidagdag na ang folder na ito';
 
   @override
   String get thisMonth => 'Ngayong buwan';

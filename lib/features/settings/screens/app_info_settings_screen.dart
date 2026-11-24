@@ -22,6 +22,7 @@ import 'package:flick/models/update_channel.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/build_info_service.dart';
 import 'package:flick/services/github_release_service.dart';
+import 'package:flick/widgets/common/brand_icon.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
@@ -447,6 +448,17 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
     );
   }
 
+  /// Brand marks are tinted with the surrounding button's resolved icon color
+  /// so they follow the same states as the Lucide icons used elsewhere.
+  Widget _brandIcon(String asset) {
+    return Builder(
+      builder: (context) {
+        final color = IconTheme.of(context).color ?? AppColors.textSecondary;
+        return BrandIcon(asset: asset, size: 18, color: color);
+      },
+    );
+  }
+
   void _showAboutBottomSheet() {
     GlassBottomSheet.show(
       context: context,
@@ -518,7 +530,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
               TextButton.icon(
                 onPressed: () =>
                     _launchUrl('https://github.com/moss-apps/Flick'),
-                icon: const Icon(LucideIcons.squareCode, size: 18),
+                icon: _brandIcon(BrandAssets.github),
                 label: Text(
                   l10n.github,
                   style: TextStyle(fontFamily: 'GoogleSansFlex'),
@@ -530,7 +542,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
               const SizedBox(width: AppConstants.spacingSm),
               TextButton.icon(
                 onPressed: () => _launchUrl('https://discord.gg/5hgcrdnKY6'),
-                icon: const Icon(LucideIcons.messageCircle, size: 18),
+                icon: _brandIcon(BrandAssets.discord),
                 label: Text(
                   l10n.discord,
                   style: TextStyle(fontFamily: 'GoogleSansFlex'),

@@ -69,19 +69,26 @@ img.Image applyPlaylistCoverOrientation(
   return image;
 }
 
-/// Exports the cropped square cover described by [request].
+/// Exports the cropped cover described by [request].
 ///
-/// All values are primitives so this can run through `compute`. Returns null
-/// when the source cannot be decoded.
+/// The crop may be square (playlist covers, `cropSide`) or any aspect ratio
+/// (share artwork, `cropWidth` + `cropHeight`). All values are primitives so
+/// this can run through `compute`. Returns null when the source cannot be
+/// decoded.
 Uint8List? renderPlaylistCover(Map<String, Object> request) {
   final sourcePath = request['path'] as String?;
   final preparedWidth = (request['preparedWidth'] as num?)?.toInt() ?? 0;
   final preparedHeight = (request['preparedHeight'] as num?)?.toInt() ?? 0;
-  final requestedSide = (request['cropSide'] as num?)?.toDouble() ?? 0;
+  final legacySide = (request['cropSide'] as num?)?.toDouble() ?? 0;
+  final requestedWidth =
+      (request['cropWidth'] as num?)?.toDouble() ?? legacySide;
+  final requestedHeight =
+      (request['cropHeight'] as num?)?.toDouble() ?? legacySide;
   if (sourcePath == null ||
       preparedWidth <= 0 ||
       preparedHeight <= 0 ||
-      requestedSide < 1) {
+      requestedWidth < 1 ||
+      requestedHeight < 1) {
     return null;
   }
 
@@ -104,11 +111,11 @@ Uint8List? renderPlaylistCover(Map<String, Object> request) {
     mirrored: request['mirrored'] as bool? ?? false,
   );
 
-  final maxSide = math.min(image.width, image.height);
-  if (maxSide <= 0) return null;
-  final side = requestedSide.round().clamp(1, maxSide);
-  final maxLeft = image.width - side;
-  final maxTop = image.height - side;
+  if (image.width <= 0 || image.height <= 0) return null;
+  final cropWidth = requestedWidth.round().clamp(1, image.width);
+  final cropHeight = requestedHeight.round().clamp(1, image.height);
+  final maxLeft = image.width - cropWidth;
+  final maxTop = image.height - cropHeight;
   final left = ((request['cropLeft'] as num?)?.toDouble() ?? 0).round().clamp(
     0,
     maxLeft,
@@ -118,14 +125,22 @@ Uint8List? renderPlaylistCover(Map<String, Object> request) {
     maxTop,
   );
 
-  var cropped = img.copyCrop(image, x: left, y: top, width: side, height: side);
+  var cropped = img.copyCrop(
+    image,
+    x: left,
+    y: top,
+    width: cropWidth,
+    height: cropHeight,
+  );
 
   final maxOutput = (request['maxOutput'] as num?)?.toInt() ?? 1600;
-  if (maxOutput > 0 && cropped.width > maxOutput) {
+  final longestSide = math.max(cropped.width, cropped.height);
+  if (maxOutput > 0 && longestSide > maxOutput) {
+    final scale = maxOutput / longestSide;
     cropped = img.copyResize(
       cropped,
-      width: maxOutput,
-      height: maxOutput,
+      width: math.max(1, (cropped.width * scale).round()),
+      height: math.max(1, (cropped.height * scale).round()),
       interpolation: img.Interpolation.average,
     );
   }

@@ -31,8 +31,15 @@ Widget _host(
   ),
 );
 
-double _opacity(WidgetTester tester, Key key) =>
-    tester.widget<AnimatedOpacity>(find.byKey(key)).opacity;
+double _opacity(WidgetTester tester, Key key) {
+  final finder = find.byKey(key);
+  // The pill unmounts completely once it is fully hidden.
+  if (finder.evaluate().isEmpty) return 0;
+  final widget = tester.widget(finder);
+  if (widget is Opacity) return widget.opacity;
+  if (widget is AnimatedOpacity) return widget.opacity;
+  fail('Unexpected widget at $key: ${widget.runtimeType}');
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -82,6 +89,39 @@ void main() {
 
     expect(_opacity(tester, _bubbleKey), 0);
     expect(_opacity(tester, _cardKey), 0);
+  });
+
+  testWidgets('a minimized scan ending before the first tick stays hidden', (
+    tester,
+  ) async {
+    await pumpHost(tester);
+    final generation = controller.begin(
+      title: 'All Folders',
+      kind: ScanSessionKind.scan,
+      onCancel: () {},
+    );
+    controller.overlayDismissed(generation);
+    controller.end(generation);
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byKey(_bubbleKey), findsNothing);
+    expect(find.byKey(_cardKey), findsNothing);
+  });
+
+  testWidgets('auto preload clearing before the first tick stays hidden', (
+    tester,
+  ) async {
+    await pumpHost(tester);
+    autoProgress.value = const PreloadProgress(completed: 1, total: 2);
+    autoProgress.value = null;
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byKey(_bubbleKey), findsNothing);
+    expect(find.byKey(_cardKey), findsNothing);
   });
 
   testWidgets('shows the bubble and toggles the card on tap', (tester) async {
@@ -156,32 +196,30 @@ void main() {
     expect(_opacity(tester, _bubbleKey), 1);
   });
 
-  testWidgets('Stop on a scan session suppresses an auto pass that starts later', (
-    tester,
-  ) async {
-    await startMinimizedSession(tester);
+  testWidgets(
+    'Stop on a scan session suppresses an auto pass that starts later',
+    (tester) async {
+      await startMinimizedSession(tester);
 
-    await tester.tap(find.byKey(_bubbleKey));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Stop'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(_bubbleKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Stop'));
+      await tester.pumpAndSettle();
 
-    // A straggler pass can start only after the cancel, with no null in
-    // between; Stop must still win.
-    autoProgress.value = const PreloadProgress(completed: 1, total: 4);
-    await tester.pumpAndSettle();
-    expect(_opacity(tester, _bubbleKey), 0);
-  });
+      // A straggler pass can start only after the cancel, with no null in
+      // between; Stop must still win.
+      autoProgress.value = const PreloadProgress(completed: 1, total: 4);
+      await tester.pumpAndSettle();
+      expect(_opacity(tester, _bubbleKey), 0);
+    },
+  );
 
   testWidgets('Stop hides the auto preload bubble before the pass drains', (
     tester,
   ) async {
     var cancelRequested = false;
     autoProgress.value = const PreloadProgress(completed: 2, total: 8);
-    await pumpHost(
-      tester,
-      onCancelAutoPreload: () => cancelRequested = true,
-    );
+    await pumpHost(tester, onCancelAutoPreload: () => cancelRequested = true);
 
     await tester.tap(find.byKey(_bubbleKey));
     await tester.pumpAndSettle();
@@ -200,35 +238,36 @@ void main() {
     expect(_opacity(tester, _bubbleKey), 1);
   });
 
-  testWidgets('Skip while loading artwork ends the session and hides the pill', (
-    tester,
-  ) async {
-    final generation = controller.begin(
-      title: 'All Folders',
-      kind: ScanSessionKind.scan,
-      onCancel: () {},
-    );
-    controller.update(
-      generation,
-      _progress(3, 10).copyWith(phase: 'Loading artwork'),
-    );
-    controller.overlayDismissed(generation);
-    controller.postProcessing.value = true;
-    await pumpHost(tester);
+  testWidgets(
+    'Skip while loading artwork ends the session and hides the pill',
+    (tester) async {
+      final generation = controller.begin(
+        title: 'All Folders',
+        kind: ScanSessionKind.scan,
+        onCancel: () {},
+      );
+      controller.update(
+        generation,
+        _progress(3, 10).copyWith(phase: 'Loading artwork'),
+      );
+      controller.overlayDismissed(generation);
+      controller.postProcessing.value = true;
+      await pumpHost(tester);
 
-    await tester.tap(find.byKey(_bubbleKey));
-    await tester.pumpAndSettle();
-    expect(find.text('Skip'), findsOneWidget);
+      await tester.tap(find.byKey(_bubbleKey));
+      await tester.pumpAndSettle();
+      expect(find.text('Skip'), findsOneWidget);
 
-    await tester.tap(find.text('Skip'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Skip'));
+      await tester.pumpAndSettle();
 
-    expect(controller.skipRequests.value, greaterThan(0));
-    expect(controller.isActive, isFalse);
-    expect(controller.postProcessing.value, isFalse);
-    expect(_opacity(tester, _bubbleKey), 0);
-    expect(_opacity(tester, _cardKey), 0);
-  });
+      expect(controller.skipRequests.value, greaterThan(0));
+      expect(controller.isActive, isFalse);
+      expect(controller.postProcessing.value, isFalse);
+      expect(_opacity(tester, _bubbleKey), 0);
+      expect(_opacity(tester, _cardKey), 0);
+    },
+  );
 
   testWidgets('shows for silent auto preload without a session', (
     tester,
@@ -262,6 +301,49 @@ void main() {
     expect(_opacity(tester, _cardKey), 0);
     expect(controller.isActive, isFalse);
   });
+
+  testWidgets(
+    'finished artwork scan leaves no stale pill when preload is off',
+    (tester) async {
+      final generation = controller.begin(
+        title: 'All Folders',
+        kind: ScanSessionKind.scan,
+        onCancel: () {},
+      );
+      controller.update(
+        generation,
+        _progress(10, 10).copyWith(phase: 'Loading artwork'),
+      );
+      controller.postProcessing.value = true;
+      controller.overlayDismissed(generation);
+      await pumpHost(tester);
+
+      expect(_opacity(tester, _bubbleKey), 1);
+      await tester.tap(find.byKey(_bubbleKey));
+      await tester.pumpAndSettle();
+      expect(_opacity(tester, _cardKey), 1);
+      expect(find.text('10 / 10 covers'), findsOneWidget);
+
+      // Backfill finished; the owning flow plays the check and ends the
+      // session. No auto preload pass exists because the pref is off.
+      controller.postProcessing.value = false;
+      controller.markCompleted();
+      controller.end(generation);
+      await tester.pump();
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      expect(find.byKey(_cardKey), findsNothing);
+      expect(find.text('Preloading audio'), findsNothing);
+
+      // The pill must actually leave the screen once the check finishes, not
+      // stay frozen at full opacity with taps ignored.
+      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(_bubbleKey), findsNothing);
+      expect(find.byKey(_cardKey), findsNothing);
+      expect(find.byIcon(Icons.check_rounded), findsNothing);
+    },
+  );
 
   testWidgets('completion does not play the outro when the overlay is open', (
     tester,

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/playlists/screens/playlist_cover_editor_screen.dart';
+import 'package:flick/features/playlists/utils/artwork_edit_result.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/playlist.dart';
 import 'package:flick/providers/playlist_provider.dart';
@@ -73,10 +74,11 @@ class PlaylistCoverActions {
 
     try {
       if (!context.mounted) return false;
-      editedPath = await NavigationHelper.pushFade<String>(
+      final result = await NavigationHelper.pushFade<ArtworkEditResult>(
         context,
         (_) => PlaylistCoverEditorScreen(sourcePath: sourcePath),
       );
+      editedPath = result?.path;
       if (editedPath == null) return false;
 
       final success = await ref
