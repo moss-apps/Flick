@@ -50,6 +50,7 @@ import android.media.AudioManager
 import android.media.MediaMetadataRetriever
 import android.media.MediaScannerConnection
 import android.database.ContentObserver
+import android.database.Cursor
 import android.os.Handler
 import android.os.Looper
 import android.net.Uri
@@ -1632,14 +1633,15 @@ class MainActivity: FlutterActivity() {
                 return unknown
             }
 
+            // getTreeDocumentId already decodes the URI segment. Decoding
+            // again would turn literal names like "Mix%20" into another path.
             val documentId = DocumentsContract.getTreeDocumentId(uri)
-            val decodedId = Uri.decode(documentId)
-            val parts = decodedId.split(":", limit = 2)
+            val parts = documentId.split(":", limit = 2)
             if (parts.isEmpty()) return unknown
             val volumeId = parts[0]
             val relativePath = parts.getOrNull(1)?.trim('/') ?: ""
-            val isPrimaryDoc = volumeId.lowercase() == "primary" ||
-                volumeId.lowercase() == "home"
+            val isHomeDoc = volumeId.equals("home", ignoreCase = true)
+            val isPrimaryDoc = volumeId.equals("primary", ignoreCase = true) || isHomeDoc
 
             val sm = getSystemService(Context.STORAGE_SERVICE) as? StorageManager
             val matched = sm?.storageVolumes?.firstOrNull { vol ->
@@ -1648,7 +1650,9 @@ class MainActivity: FlutterActivity() {
             }
 
             if (matched != null) {
-                val basePath = storageVolumePath(matched)
+                val basePath = storageVolumePath(matched)?.let {
+                    if (isHomeDoc) "$it/${Environment.DIRECTORY_DOCUMENTS}" else it
+                }
                 val candidate = if (basePath == null) null
                     else if (relativePath.isEmpty()) basePath else "$basePath/$relativePath"
                 val readable = candidate != null &&
@@ -2470,6 +2474,28 @@ class MainActivity: FlutterActivity() {
         return if (value > 0) value else null
     }
 
+    private fun queryMediaStoreCursor(
+        collection: Uri,
+        projection: Array<String>,
+        selection: String?,
+        selectionArgs: Array<String>?,
+    ): Cursor {
+        val cursor = checkNotNull(
+            contentResolver.query(collection, projection, selection, selectionArgs, null)
+        ) { "MediaStore returned no cursor for $collection" }
+        try {
+            val extras = cursor.extras
+            check(!extras.getBoolean(DocumentsContract.EXTRA_LOADING) &&
+                !extras.containsKey(DocumentsContract.EXTRA_ERROR)) {
+                "MediaStore returned an incomplete cursor for $collection"
+            }
+            return cursor
+        } catch (e: Exception) {
+            cursor.close()
+            throw e
+        }
+    }
+
     private fun queryMediaStoreAudio(folderPaths: List<String>, volumeName: String? = null): List<Map<String, Any?>> {
         val startedAt = System.nanoTime()
         val result = mutableListOf<Map<String, Any?>>()
@@ -2497,16 +2523,13 @@ class MainActivity: FlutterActivity() {
             MediaStore.Audio.Media.COMPOSER,
         )
 
-        val selection = if (folderPaths.isNotEmpty()) {
-            folderPaths.joinToString(" OR ") { "${MediaStore.Audio.Media.DATA} LIKE ?" }
-        } else null
-        val selectionArgs = if (folderPaths.isNotEmpty()) {
-            folderPaths.map { "$it%" }.toTypedArray()
-        } else null
+        val folderScope = MediaStoreFolderScope(folderPaths)
+        val selection = folderScope.selection(MediaStore.Audio.Media.DATA)
+        val selectionArgs = selection?.let { folderScope.args.toTypedArray() }
 
         val seenPaths = HashSet<String>()
         try {
-            contentResolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
+            queryMediaStoreCursor(collection, projection, selection, selectionArgs).use { cursor ->
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                 val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
                 val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
@@ -2524,13 +2547,12 @@ class MainActivity: FlutterActivity() {
 
                 while (cursor.moveToNext()) {
                     val data = cursor.getString(dataCol) ?: continue
+                    if (!folderScope.contains(data)) continue
                     seenPaths.add(data)
                     val extension = data.substringAfterLast('.', "").lowercase()
 
                     val id = cursor.getLong(idCol)
-                    val contentUri = ContentUris.withAppendedId(
-                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id
-                    ).toString()
+                    val contentUri = ContentUris.withAppendedId(collection, id).toString()
 
                     val duration = cursor.getLong(durationCol)
                     val size = cursor.getLong(sizeCol)
@@ -2556,7 +2578,8 @@ class MainActivity: FlutterActivity() {
                         "size" to size,
                         "lastModified" to (cursor.getLong(dateModCol) * 1000L),
                         "dateAdded" to (cursor.getLong(dateAddedCol) * 1000L),
-                        "bitrate" to (if (duration > 0 && size > 0) ((size * 8) / (duration / 1000)).toString() else null),
+                        "bitrate" to (if (duration > 0 && size > 0)
+                            (size * 8_000.0 / duration).toLong().toString() else null),
                     ))
                 }
             }
@@ -2567,23 +2590,12 @@ class MainActivity: FlutterActivity() {
             // it. Pull these from the Files collection and merge, deduping by
             // filesystem path against the audio rows already collected.
             val dsdExtPatterns = listOf("%.dsf", "%.dff", "%.wv")
-            val dsdSelection = if (folderPaths.isNotEmpty()) {
-                val folderPart = folderPaths.joinToString(" OR ") {
-                    "${MediaStore.Files.FileColumns.DATA} LIKE ?"
-                }
-                val extPart = dsdExtPatterns.joinToString(" OR ") {
-                    "${MediaStore.Files.FileColumns.DATA} LIKE ?"
-                }
-                "($folderPart) AND ($extPart)"
-            } else {
-                dsdExtPatterns.joinToString(" OR ") {
-                    "${MediaStore.Files.FileColumns.DATA} LIKE ?"
-                }
+            val dsdExtSelection = dsdExtPatterns.joinToString(" OR ") {
+                "${MediaStore.Files.FileColumns.DATA} LIKE ?"
             }
-            val dsdSelectionArgs = (
-                (if (folderPaths.isNotEmpty()) folderPaths.map { "$it%" } else emptyList())
-                    + dsdExtPatterns
-                ).toTypedArray()
+            val dsdSelection = folderScope.selection(MediaStore.Files.FileColumns.DATA)
+                ?.let { "($it) AND ($dsdExtSelection)" } ?: dsdExtSelection
+            val dsdSelectionArgs = (folderScope.args + dsdExtPatterns).toTypedArray()
             val dsdCollection =
                 MediaStore.Files.getContentUri(volumeName ?: MediaStore.VOLUME_EXTERNAL)
             val dsdProjection = arrayOf(
@@ -2594,9 +2606,7 @@ class MainActivity: FlutterActivity() {
                 MediaStore.Files.FileColumns.DATE_MODIFIED,
                 MediaStore.Files.FileColumns.DATE_ADDED,
             )
-            contentResolver.query(
-                dsdCollection, dsdProjection, dsdSelection, dsdSelectionArgs, null
-            )?.use { c ->
+            queryMediaStoreCursor(dsdCollection, dsdProjection, dsdSelection, dsdSelectionArgs).use { c ->
                 val dIdCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
                 val dDataCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
                 val dMimeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
@@ -2605,6 +2615,7 @@ class MainActivity: FlutterActivity() {
                 val dAddedCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_ADDED)
                 while (c.moveToNext()) {
                     val data = c.getString(dDataCol) ?: continue
+                    if (!folderScope.contains(data)) continue
                     if (!seenPaths.add(data)) continue
                     val contentUri = ContentUris.withAppendedId(
                         dsdCollection, c.getLong(dIdCol)
@@ -2632,6 +2643,9 @@ class MainActivity: FlutterActivity() {
             }
         } catch (e: Exception) {
             Log.w("MainActivity", "MediaStore audio query failed: ${e.message}", e)
+            // Do not return a partial result or let reconciliation mask a
+            // provider failure. The channel forwards this to the SAF fallback.
+            throw e
         }
 
         // Reconciliation walk: some OEM MediaScanners (MIUI/HyperOS, Vivo/
@@ -2718,30 +2732,16 @@ class MainActivity: FlutterActivity() {
 
         val nonAudioExtensions = setOf("cue", "log", "txt", "m3u", "m3u8")
 
-        val folderConditions = folderPaths.map { "${MediaStore.Files.FileColumns.DATA} LIKE ?" }
-        val extConditions = nonAudioExtensions.map { "${MediaStore.Files.FileColumns.DATA} LIKE ?" }
-
-        val selection = buildString {
-            if (folderConditions.isNotEmpty()) {
-                append("(")
-                append(folderConditions.joinToString(" OR "))
-                append(")")
-            }
-            if (extConditions.isNotEmpty()) {
-                if (isNotEmpty()) append(" AND ")
-                append("(")
-                append(extConditions.joinToString(" OR "))
-                append(")")
-            }
+        val folderScope = MediaStoreFolderScope(folderPaths)
+        val extSelection = nonAudioExtensions.joinToString(" OR ") {
+            "${MediaStore.Files.FileColumns.DATA} LIKE ?"
         }
-
-        val selectionArgs = (
-            folderPaths.map { "$it%" } +
-            nonAudioExtensions.map { "%.$it" }
-        ).toTypedArray()
+        val selection = folderScope.selection(MediaStore.Files.FileColumns.DATA)
+            ?.let { "($it) AND ($extSelection)" } ?: extSelection
+        val selectionArgs = (folderScope.args + nonAudioExtensions.map { "%.$it" }).toTypedArray()
 
         try {
-            contentResolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
+            queryMediaStoreCursor(collection, projection, selection, selectionArgs).use { cursor ->
                 val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
                 val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
@@ -2750,11 +2750,9 @@ class MainActivity: FlutterActivity() {
 
                 while (cursor.moveToNext()) {
                     val data = cursor.getString(dataCol) ?: continue
+                    if (!folderScope.contains(data)) continue
                     val extension = data.substringAfterLast('.', "").lowercase()
                     if (extension !in nonAudioExtensions) continue
-
-                    val isInFolder = folderPaths.any { data.startsWith(it) }
-                    if (!isInFolder && folderPaths.isNotEmpty()) continue
 
                     result.add(mapOf(
                         "filePath" to data,
@@ -2768,6 +2766,7 @@ class MainActivity: FlutterActivity() {
             }
         } catch (e: Exception) {
             Log.w("MainActivity", "MediaStore non-audio query failed: ${e.message}", e)
+            throw e
         }
 
         return result
