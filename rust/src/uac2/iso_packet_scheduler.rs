@@ -11,11 +11,11 @@ pub(crate) struct IsoPacketScheduler {
 
 impl IsoPacketScheduler {
     pub(crate) fn new(sample_rate: u32, bytes_per_frame: usize, service_interval_us: u32) -> Self {
-        let packets_per_transfer = if service_interval_us >= 1_000 {
-            16usize
-        } else {
-            (4_000u32 / service_interval_us).clamp(16, 32) as usize
-        };
+        // 8 packets per URB at 125 us = 1 ms per transfer, 16 queued = 16 ms
+        // of cushion. Larger batches (32 packets) put 8 x 32 = 256 transfer
+        // descriptors in flight, which exhausts the xHCI endpoint ring and
+        // leaves every URB waiting without a completion.
+        let packets_per_transfer = 8usize;
 
         Self {
             sample_rate,

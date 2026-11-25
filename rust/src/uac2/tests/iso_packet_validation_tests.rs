@@ -40,21 +40,22 @@ fn test_variable_44100_hz_packets_match_the_submitted_schedule() {
 #[test]
 fn test_issue_354_alternating_packet_phase_is_accepted() {
     let mut scheduler = IsoPacketScheduler::new(44_100, 4, 125);
-    scheduler.next_transfer_packet_bytes();
-    scheduler.next_transfer_packet_bytes();
-    let packet_sizes = scheduler.next_transfer_packet_bytes();
+    let mut packet_sizes = Vec::new();
+    for _ in 0..4 {
+        packet_sizes.extend(scheduler.next_transfer_packet_bytes());
+    }
     let mut descriptors = completed_packets(&packet_sizes);
 
     // Reconstruct the issue's 23 actual/expected mismatches: the host
     // controller repacketised the URB, so some 24-byte requests completed with
     // 20 bytes and some 20-byte requests with 24.
-    for index in (0..15).chain(24..32) {
+    for index in (1..16).chain(24..32) {
         descriptors[index].actual_length = 44 - descriptors[index].length;
     }
     assert_eq!(descriptors[0].actual_length, 20);
-    assert_eq!(descriptors[0].length, 24);
-    assert_eq!(descriptors[1].actual_length, 24);
-    assert_eq!(descriptors[1].length, 20);
+    assert_eq!(descriptors[0].length, 20);
+    assert_eq!(descriptors[1].actual_length, 20);
+    assert_eq!(descriptors[1].length, 24);
 
     let acceptance = PacketAcceptance::new(44_100, 125, 4);
     let stats = validate_iso_packet_descriptors(&packet_sizes, &descriptors, acceptance).unwrap();
@@ -205,11 +206,10 @@ fn test_feedback_paced_packets_use_the_actual_submitted_schedule() {
 #[test]
 fn test_stale_schedule_with_a_different_packet_count_is_rejected() {
     let mut scheduler = IsoPacketScheduler::new(44_100, 4, 125);
-    let old_packet_sizes: Vec<usize> = scheduler
-        .next_transfer_packet_bytes()
-        .into_iter()
-        .take(16)
-        .collect();
+    let mut old_packet_sizes = Vec::new();
+    for _ in 0..2 {
+        old_packet_sizes.extend(scheduler.next_transfer_packet_bytes());
+    }
     let current_packet_sizes = scheduler.next_transfer_packet_bytes();
     let descriptors = completed_packets(&current_packet_sizes);
 
