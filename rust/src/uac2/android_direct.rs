@@ -89,6 +89,7 @@ const ANDROID_USB_STABLE_TRANSFER_THRESHOLD: usize = 64;
 // ring stays full (which is why underrun counters read zero). Eight transfers
 // double the bus-side cushion without changing a single audio byte.
 const ANDROID_USB_TRANSFER_QUEUE_DEPTH: usize = 8;
+const ANDROID_USB_MAX_CONSECUTIVE_TIMEOUTS: u32 = 3;
 const ANDROID_USB_REQUIRE_VERIFIED_RATE_DEFAULT: bool = true;
 const ANDROID_USB_CLOCK_SETTLE_DELAY_MS_DEFAULT: u64 = 20;
 const ANDROID_USB_FEEDBACK_TIMEOUT_MS: u32 = 50;
@@ -6067,6 +6068,8 @@ fn run_usb_output_loop(
     let mut successful_transfers = 0usize;
     let mut logged_usb_stabilized = false;
     let mut underrun_count = 0u64;
+    let mut timeout_count = 0u64;
+    let mut consecutive_timeouts = 0u32;
     let mut feedback_counters = FeedbackCounters::default();
     let mut feedback_stale_warned = false;
     let mut min_active_slots = transfer_slot_count;
@@ -6230,9 +6233,13 @@ fn run_usb_output_loop(
             let turnaround_us = slot.turnaround_us(completed_at).unwrap_or_default();
             let queued_frame_count = slot.queued_frame_count as u64;
             let completed_underrun = slot.queued_underrun;
+            // A single timed-out isochronous URB is a lost slot, not a broken
+            // device. Cancel-and-resubmit keeps the stream alive; only a run of
+            // consecutive timeouts means the host or DAC has stopped consuming.
+            let timed_out = status == LIBUSB_TRANSFER_TIMED_OUT;
             let transfer_result = match status {
                 LIBUSB_TRANSFER_COMPLETED => slot.validate_packets(acceptance),
-                LIBUSB_TRANSFER_TIMED_OUT => Err("isochronous transfer timed out".to_string()),
+                LIBUSB_TRANSFER_TIMED_OUT => Ok(CompletionStats::default()),
                 LIBUSB_TRANSFER_STALL => Err("isochronous transfer stalled".to_string()),
                 LIBUSB_TRANSFER_NO_DEVICE => Err("USB DAC disconnected".to_string()),
                 LIBUSB_TRANSFER_OVERFLOW => Err("isochronous transfer overflow".to_string()),
@@ -6299,15 +6306,55 @@ fn run_usb_output_loop(
                 }
             }
 
-            successful_transfers = successful_transfers.saturating_add(1);
+            if timed_out {
+                consecutive_timeouts = consecutive_timeouts.saturating_add(1);
+                timeout_count = timeout_count.saturating_add(1);
+                log_warn!(
+                    "[USB] ISO transfer timed out; resubmitting slot (consecutive={}, total={}, \
+                     queueDepth={}, lostFrames={})",
+                    consecutive_timeouts,
+                    timeout_count,
+                    active_slots,
+                    queued_frame_count,
+                );
+                if consecutive_timeouts > ANDROID_USB_MAX_CONSECUTIVE_TIMEOUTS {
+                    fatal_error = Some(format!(
+                        "Android USB direct transfer failed: {} consecutive isochronous transfers \
+                         timed out; sample_rate={} channels={} subslot_bytes={} bit_resolution={} \
+                         service_interval_us={} interface={} alt={} endpoint=0x{:02x} speed={:?} sync={}",
+                        consecutive_timeouts,
+                        playback_format.sample_rate,
+                        channels,
+                        slot_bytes,
+                        candidate.bit_resolution,
+                        candidate.service_interval_us,
+                        candidate.interface_number,
+                        candidate.alt_setting,
+                        candidate.endpoint_address,
+                        candidate.usb_speed,
+                        sync_type_label(candidate.sync_type),
+                    ));
+                    break;
+                }
+            } else {
+                consecutive_timeouts = 0;
+                successful_transfers = successful_transfers.saturating_add(1);
+            }
+
             let completed_transfers = runtime_stats
                 .completed_transfers
                 .fetch_add(1, Ordering::Relaxed)
                 .saturating_add(1);
-            runtime_stats.consumer_frames.fetch_add(
-                queued_frame_count.saturating_sub(completion_stats.shortfall_frames),
-                Ordering::Relaxed,
-            );
+            if timed_out {
+                runtime_stats
+                    .consumer_frames
+                    .fetch_add(queued_frame_count, Ordering::Relaxed);
+            } else {
+                runtime_stats.consumer_frames.fetch_add(
+                    queued_frame_count.saturating_sub(completion_stats.shortfall_frames),
+                    Ordering::Relaxed,
+                );
+            }
 
             let mut submit_gap_us = 0u64;
             if !usb_stop_requested(&stop) {
