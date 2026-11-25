@@ -13,7 +13,7 @@ fn test_scheduler_44100_hz_microframes_alternate_five_and_six_frames() {
     let mut scheduler = IsoPacketScheduler::new(44_100, bytes_per_frame, 125);
     let frames = transfer_frames(&scheduler.next_transfer_packet_bytes(), bytes_per_frame);
 
-    assert_eq!(frames.len(), 32);
+    assert_eq!(frames.len(), scheduler.packets_per_transfer());
     assert_eq!(&frames[..8], &[5, 6, 5, 6, 5, 6, 5, 6]);
 }
 
@@ -21,7 +21,7 @@ fn test_scheduler_44100_hz_microframes_alternate_five_and_six_frames() {
 fn test_scheduler_44100_hz_microframes_accumulate_exact_second() {
     let bytes_per_frame = 4usize;
     let mut scheduler = IsoPacketScheduler::new(44_100, bytes_per_frame, 125);
-    let total_frames: usize = (0..250)
+    let total_frames: usize = (0..(8_000 / scheduler.packets_per_transfer()))
         .flat_map(|_| scheduler.next_transfer_packet_bytes())
         .map(|packet| packet / bytes_per_frame)
         .sum();
@@ -33,7 +33,7 @@ fn test_scheduler_44100_hz_microframes_accumulate_exact_second() {
 fn test_scheduler_48000_hz_microframes_accumulate_exact_second() {
     let bytes_per_frame = 4usize;
     let mut scheduler = IsoPacketScheduler::new(48_000, bytes_per_frame, 125);
-    let total_frames: usize = (0..250)
+    let total_frames: usize = (0..(8_000 / scheduler.packets_per_transfer()))
         .flat_map(|_| scheduler.next_transfer_packet_bytes())
         .map(|packet| packet / bytes_per_frame)
         .sum();
@@ -45,7 +45,7 @@ fn test_scheduler_48000_hz_microframes_accumulate_exact_second() {
 fn test_scheduler_96000_hz_microframes_accumulate_exact_second() {
     let bytes_per_frame = 6usize;
     let mut scheduler = IsoPacketScheduler::new(96_000, bytes_per_frame, 125);
-    let total_frames: usize = (0..250)
+    let total_frames: usize = (0..(8_000 / scheduler.packets_per_transfer()))
         .flat_map(|_| scheduler.next_transfer_packet_bytes())
         .map(|packet| packet / bytes_per_frame)
         .sum();
@@ -59,7 +59,7 @@ fn test_scheduler_96000_hz_microframes_use_twelve_frames_per_packet() {
     let mut scheduler = IsoPacketScheduler::new(96_000, bytes_per_frame, 125);
     let frames = transfer_frames(&scheduler.next_transfer_packet_bytes(), bytes_per_frame);
 
-    assert_eq!(frames.len(), 32);
+    assert_eq!(frames.len(), scheduler.packets_per_transfer());
     assert!(frames.iter().all(|frames| *frames == 12));
 }
 
@@ -67,7 +67,7 @@ fn test_scheduler_96000_hz_microframes_use_twelve_frames_per_packet() {
 fn test_scheduler_88200_hz_microframes_accumulate_exact_second() {
     let bytes_per_frame = 6usize;
     let mut scheduler = IsoPacketScheduler::new(88_200, bytes_per_frame, 125);
-    let total_frames: usize = (0..250)
+    let total_frames: usize = (0..(8_000 / scheduler.packets_per_transfer()))
         .flat_map(|_| scheduler.next_transfer_packet_bytes())
         .map(|packet| packet / bytes_per_frame)
         .sum();
@@ -79,7 +79,7 @@ fn test_scheduler_88200_hz_microframes_accumulate_exact_second() {
 fn test_scheduler_176400_hz_microframes_accumulate_exact_second() {
     let bytes_per_frame = 6usize;
     let mut scheduler = IsoPacketScheduler::new(176_400, bytes_per_frame, 125);
-    let total_frames: usize = (0..250)
+    let total_frames: usize = (0..(8_000 / scheduler.packets_per_transfer()))
         .flat_map(|_| scheduler.next_transfer_packet_bytes())
         .map(|packet| packet / bytes_per_frame)
         .sum();
@@ -91,7 +91,7 @@ fn test_scheduler_176400_hz_microframes_accumulate_exact_second() {
 fn test_scheduler_192000_hz_microframes_accumulate_exact_second() {
     let bytes_per_frame = 6usize;
     let mut scheduler = IsoPacketScheduler::new(192_000, bytes_per_frame, 125);
-    let total_frames: usize = (0..250)
+    let total_frames: usize = (0..(8_000 / scheduler.packets_per_transfer()))
         .flat_map(|_| scheduler.next_transfer_packet_bytes())
         .map(|packet| packet / bytes_per_frame)
         .sum();
@@ -133,7 +133,7 @@ fn test_scheduler_352800_hz_dop_carrier_accumulates_exact_second() {
     let bytes_per_frame = 6usize;
     let mut scheduler = IsoPacketScheduler::new(352_800, bytes_per_frame, 125);
     let mut frames = Vec::new();
-    for _ in 0..250 {
+    for _ in 0..(8_000 / scheduler.packets_per_transfer()) {
         frames.extend(transfer_frames(
             &scheduler.next_transfer_packet_bytes(),
             bytes_per_frame,
