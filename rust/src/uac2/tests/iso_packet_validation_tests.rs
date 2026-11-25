@@ -36,11 +36,13 @@ fn test_variable_44100_hz_packets_match_the_submitted_schedule() {
 fn test_issue_354_mismatches_report_a_frame_deficit_not_harmless_alternation() {
     let mut scheduler = IsoPacketScheduler::new(44_100, 4, 125);
     // The issue's capture is a 32-packet window starting 64 packets into the
-    // stream. Transfers are 8 packets now, so skip 8 and join the next 4.
-    for _ in 0..8 {
+    // stream. Transfers are shorter than that now, so skip 64 packets and
+    // join the next 32.
+    let packets_per_transfer = scheduler.packets_per_transfer();
+    for _ in 0..(64 / packets_per_transfer) {
         scheduler.next_transfer_packet_bytes();
     }
-    let packet_sizes: Vec<usize> = (0..4)
+    let packet_sizes: Vec<usize> = (0..(32 / packets_per_transfer))
         .flat_map(|_| scheduler.next_transfer_packet_bytes())
         .collect();
     let mut descriptors = completed_packets(&packet_sizes);

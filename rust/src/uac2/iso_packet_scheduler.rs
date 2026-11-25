@@ -11,14 +11,14 @@ pub(crate) struct IsoPacketScheduler {
 
 impl IsoPacketScheduler {
     pub(crate) fn new(sample_rate: u32, bytes_per_frame: usize, service_interval_us: u32) -> Self {
-        // 8 packets per URB at 125 us = 1 ms per transfer, 16 queued = 16 ms
-        // in flight. That stays under the 18 ms (MAX_QUEUE) that the Linux
-        // snd-usb-audio driver allows itself. 8 x 32 packets (32 ms) stalled
-        // on a OnePlus 15 with an iBasso DC04U: every in-flight URB timed out
-        // together. BitChord issue 1485 reports the same stall on another
-        // Snapdragon phone at a different in-flight count, so the limit is
-        // device-specific and the mechanism is not established.
-        let packets_per_transfer = 8usize;
+        // 16 packets per URB at 125 us = 2 ms per transfer, 8 queued = 16 ms
+        // in flight (see ANDROID_USB_TRANSFER_QUEUE_DEPTH for the limit this
+        // respects). The output thread's CPU cost follows packets per URB:
+        // 16 measured about 30% below 8 on a OnePlus 15, with the same audio
+        // in flight. BitChord issue 1485 reports a stall on another Snapdragon
+        // phone at a different in-flight count, so the limit is
+        // device-specific.
+        let packets_per_transfer = 16usize;
 
         Self {
             sample_rate,

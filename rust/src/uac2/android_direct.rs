@@ -82,11 +82,13 @@ const ANDROID_USB_RENDER_CHUNK_MS: usize = 10;
 const ANDROID_USB_RENDER_POLL_MS: u64 = 2;
 const ANDROID_USB_STABLE_TRANSFER_THRESHOLD: usize = 64;
 // Queued USB time = queue depth × packets_per_transfer × service interval.
-// Sixteen 8-packet transfers at 125µs keep 128 packets (16ms) in flight,
-// under the 18ms MAX_QUEUE of Linux snd-usb-audio. Eight 32-packet transfers
-// (256 packets, 32ms) never completed on a OnePlus 15 with an iBasso DC04U:
-// every URB timed out about 2s after stream start.
-const ANDROID_USB_TRANSFER_QUEUE_DEPTH: usize = 16;
+// Eight 16-packet transfers at 125µs keep 128 packets (16ms) in flight, inside
+// both limits of Linux snd-usb-audio (MAX_URBS 12, MAX_QUEUE 18ms). A sweep on
+// a OnePlus 15 with an iBasso DC04U played every geometry with 255 packets or
+// fewer in flight and stalled on every geometry with exactly 256, including
+// the earlier eight 32-packet transfers; above 256 the result was irregular.
+// 255 is the usable size of an xHCI ring segment. Stay well below it.
+const ANDROID_USB_TRANSFER_QUEUE_DEPTH: usize = 8;
 const ANDROID_USB_REQUIRE_VERIFIED_RATE_DEFAULT: bool = true;
 const ANDROID_USB_CLOCK_SETTLE_DELAY_MS_DEFAULT: u64 = 20;
 const ANDROID_USB_FEEDBACK_TIMEOUT_MS: u32 = 50;
