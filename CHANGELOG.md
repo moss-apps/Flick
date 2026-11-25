@@ -5,6 +5,9 @@
 ### Playback
 - **Now Playing** — fixed an error when opening or reopening the full player with a track already loaded.
 
+### Startup
+- Fixed a Flutter debug startup error that blocked the main screen after the splash logo.
+
 ## 0.23.3-beta.5 (2026-11-20)
 
 ### Equalizer
