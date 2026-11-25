@@ -887,11 +887,14 @@ class PlayerService {
       _usbHardwareVolumeCheckedGeneration = null;
       _usbSoftwareVolumeUsed = false;
       usbVolumeSafetyBlockedNotifier.value = false;
+      _resumeAfterUsbReattach = isPlayingNotifier.value;
       if (!isPlayingNotifier.value) return;
       final enabled = await _appPreferencesService.getPauseOnUsbDacDisconnect();
       if (enabled) pause();
     });
   }
+
+  bool _resumeAfterUsbReattach = false;
 
   void _initUsbDacAttachHandling() {
     _usbDacAttachSubscription = _uac2Service.deviceAttachedEvents.listen((
@@ -1843,7 +1846,10 @@ class PlayerService {
 
   /// Complete USB auto-engage even when no track has been played yet.
   /// Changing the engine preference alone does not re-run launch volume setup.
-  Future<bool> enableUsbDacBitPerfect() async {
+  Future<bool> enableUsbDacBitPerfect({bool resumeIfWasPlaying = false}) async {
+    // Capture this before the engine switch disposes the Android stream: a
+    // DAC plugged in mid-playback must come back playing, not paused.
+    final wasPlaying = isPlayingNotifier.value;
     await setAudioEnginePreference(AudioEnginePreference.isochronousUsb);
     final applied = await _uac2Service.setBitPerfectEnabled(true);
     if (!applied) return false;
@@ -1859,6 +1865,12 @@ class PlayerService {
       if (isPlayingNotifier.value &&
           _sessionManager.selectedMode != AudioEngineType.usbDacExperimental) {
         await retryDirectUsbForCurrentDevice();
+      }
+      if (resumeIfWasPlaying && (wasPlaying || _resumeAfterUsbReattach)) {
+        _resumeAfterUsbReattach = false;
+        if (!isPlayingNotifier.value && currentSongNotifier.value != null) {
+          await _resumeInternal();
+        }
       }
       return true;
     } catch (e) {
@@ -5638,11 +5650,11 @@ class PlayerService {
         );
 
         var trackFormat = _deriveUac2FormatFromSong(song);
-        // A missing bit depth must not mean 16-bit: _deriveUac2FormatFromSong
-        // defaults to it, which silently down-converts 24-bit files after a
-        // hot-plug or engine restart. Probe the file in that case.
-        final needsFormatProbe =
-            trackFormat == null || (!song.isDsd && song.bitDepth == null);
+        // Library rows can carry the wrong bit depth (a 24-bit FLAC stored as
+        // 16-bit), and _deriveUac2FormatFromSong defaults to 16. Probe the
+        // source for every PCM track so the direct USB format is the file's
+        // actual rate/depth instead of the row's.
+        final needsFormatProbe = trackFormat == null || !song.isDsd;
         if (needsFormatProbe) {
           final resolvedPath = await _resolveRustPath(song);
           if (resolvedPath != null && resolvedPath.isNotEmpty) {

@@ -163,7 +163,7 @@ class _UsbBitPerfectPromptState extends ConsumerState<UsbBitPerfectPrompt> {
     try {
       final applied = await ref
           .read(playerServiceProvider)
-          .enableUsbDacBitPerfect();
+          .enableUsbDacBitPerfect(resumeIfWasPlaying: true);
       _invalidateEngineProviders();
       if (!mounted) return;
       _showEngagedSnackBar(status, promptKey, applied);
