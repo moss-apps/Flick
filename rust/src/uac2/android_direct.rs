@@ -3145,47 +3145,52 @@ fn configure_kernel_driver_detach(handle: &DeviceHandle<Context>) {
 const CLAIM_RETRY_ATTEMPTS: u32 = 8;
 const CLAIM_RETRY_DELAY_MS: u64 = 100;
 
+fn detach_kernel_driver_if_present(
+    handle: &DeviceHandle<Context>,
+    interface_number: u8,
+    details: &mut Vec<String>,
+) {
+    if !supports_detach_kernel_driver() {
+        return;
+    }
+    // kernel_driver_active() reports false for a wrapped Android fd even when
+    // snd-usb-audio owns the interface, so always issue the detach. Android
+    // players that work on this hardware (UAPP) force-claim the same way.
+    match handle.kernel_driver_active(interface_number) {
+        Ok(true) => details.push("kernel driver is active".to_string()),
+        Ok(false) => details.push("kernel_driver_active reported false".to_string()),
+        Err(error) => details.push(format!("kernel_driver_active failed: {}", error)),
+    }
+    match handle.detach_kernel_driver(interface_number) {
+        Ok(()) => details.push("detached kernel driver".to_string()),
+        Err(UsbError::NotFound) => details.push("no kernel driver to detach".to_string()),
+        Err(error) => details.push(format!("kernel-driver detach failed: {}", error)),
+    }
+}
+
 fn claim_interface_with_recovery(
     handle: &DeviceHandle<Context>,
     interface_number: u8,
 ) -> Result<(), String> {
+    let mut details = Vec::new();
+    detach_kernel_driver_if_present(handle, interface_number, &mut details);
+
     match handle.claim_interface(interface_number) {
         Ok(()) => return Ok(()),
         Err(initial_error) => {
-            let mut details = vec![format!("initial claim failed: {}", initial_error)];
+            details.push(format!("initial claim failed: {}", initial_error));
 
-            if supports_detach_kernel_driver() {
-                match handle.kernel_driver_active(interface_number) {
-                    Ok(true) => {
-                        details.push("kernel driver is active".to_string());
-                        match handle.detach_kernel_driver(interface_number) {
-                            Ok(()) => {
-                                details.push("detached kernel driver".to_string());
-                            }
-                            Err(error) => {
-                                details.push(format!("kernel-driver detach failed: {}", error));
-                            }
-                        }
-                    }
-                    Ok(false) => {
-                        details.push("kernel driver is not active".to_string());
-                    }
-                    Err(error) => {
-                        details.push(format!("kernel_driver_active failed: {}", error));
-                    }
-                }
-
-                if let Ok(()) = handle.claim_interface(interface_number) {
-                    dev_eprintln!(
-                        "Android USB direct claimed interface {} after kernel-driver recovery",
-                        interface_number
-                    );
-                    return Ok(());
-                }
+            if let Ok(()) = handle.claim_interface(interface_number) {
+                dev_eprintln!(
+                    "Android USB direct claimed interface {} after kernel-driver recovery",
+                    interface_number
+                );
+                return Ok(());
             }
 
             for attempt in 1..=CLAIM_RETRY_ATTEMPTS {
                 thread::sleep(Duration::from_millis(CLAIM_RETRY_DELAY_MS));
+                detach_kernel_driver_if_present(handle, interface_number, &mut details);
                 match handle.claim_interface(interface_number) {
                     Ok(()) => {
                         dev_eprintln!(
