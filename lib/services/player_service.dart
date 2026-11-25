@@ -586,6 +586,8 @@ class PlayerService {
   StreamSubscription<Map<Object?, Object?>>? _bluetoothDeviceEventSubscription;
   StreamSubscription<void>? _usbDacDetachSubscription;
   StreamSubscription<void>? _usbDacAttachSubscription;
+  Future<void>? _usbAttachEngage;
+  int _usbConnectionGeneration = 0;
   DateTime? _bluetoothDisconnectedAt;
   static const Duration _bluetoothReconnectWindow = Duration(seconds: 30);
   bool _audioInitialized = false;
@@ -877,59 +879,89 @@ class PlayerService {
   }
 
   void _initUsbDacDisconnectHandling() {
-    _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((
-      _,
-    ) async {
-      _usbDacVolumeRestore.reset();
-      _usbHardwareVolumeReadyFor = null;
-      _usbHardwareVolumeVerifiedLevel = null;
-      _hardwareVolumeGeneration = null;
-      _usbHardwareVolumeCheckedGeneration = null;
-      _usbSoftwareVolumeUsed = false;
-      usbVolumeSafetyBlockedNotifier.value = false;
-      _resumeAfterUsbReattach = isPlayingNotifier.value;
-      if (!isPlayingNotifier.value) return;
-      final enabled = await _appPreferencesService.getPauseOnUsbDacDisconnect();
-      if (enabled) pause();
+    _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((_) {
+      unawaited(_handleUsbDacDetached());
     });
   }
 
   bool _resumeAfterUsbReattach = false;
 
-  void _initUsbDacAttachHandling() {
-    _usbDacAttachSubscription = _uac2Service.deviceAttachedEvents.listen((
-      _,
-    ) async {
-      _usbDacVolumeRestore.reset();
-      if (_audioInitialized && _isDirectUsbPath) {
-        try {
-          await _restoreUsbDacVolumeBeforePlayback(currentEngineType);
-        } catch (error) {
-          _debugLog('[VolFlow] USB attach volume restore failed: $error');
-        }
+  Future<void> _handleUsbDacDetached() {
+    _usbConnectionGeneration++;
+    _usbAttachEngage = null;
+    // The transport error can precede the detach broadcast. Keep the intent
+    // captured by error recovery even if that recovery has already paused.
+    _resumeAfterUsbReattach |= isPlayingNotifier.value;
+    _usbDacVolumeRestore.reset();
+    _usbHardwareVolumeReadyFor = null;
+    _usbHardwareVolumeVerifiedLevel = null;
+    _hardwareVolumeGeneration = null;
+    _usbHardwareVolumeCheckedGeneration = null;
+    _usbSoftwareVolumeUsed = false;
+    usbVolumeSafetyBlockedNotifier.value = false;
+    return _enqueuePlaybackRequest(() async {
+      if (await _appPreferencesService.getPauseOnUsbDacDisconnect()) {
+        await _pauseInternal(preserveUsbResumeIntent: true);
       }
-      await _autoEngageDirectUsbOnAttach();
-      if (!isPlayingNotifier.value) return;
-      final enabled = await _appPreferencesService.getPauseOnUsbDacConnect();
-      if (enabled) pause();
     });
   }
 
-  /// Claims a re-attached DAC and moves playback back onto the direct USB
-  /// engine. The UI prompt is not authoritative here: it restores the previous
-  /// engine on detach, which used to leave bit-perfect off and block re-engage.
-  Future<void> _autoEngageDirectUsbOnAttach() async {
-    if (!Platform.isAndroid) return;
+  void _initUsbDacAttachHandling() {
+    _usbDacAttachSubscription = _uac2Service.deviceAttachedEvents.listen((_) {
+      unawaited(_handleUsbDacAttached());
+    });
+  }
+
+  Future<void> _handleUsbDacAttached() {
+    // Permission grants can repeat the attach event. Share the queued handoff
+    // instead of starting a second engine switch alongside the first one.
+    final pending = _usbAttachEngage;
+    if (pending != null) return pending;
+    final generation = _usbConnectionGeneration;
+    final engage = _enqueuePlaybackRequest(() async {
+      if (generation != _usbConnectionGeneration) return;
+      final pauseOnConnect = await _appPreferencesService
+          .getPauseOnUsbDacConnect();
+      if (pauseOnConnect) await _pauseInternal();
+      _usbDacVolumeRestore.reset();
+      await _autoEngageDirectUsbOnAttach(
+        resume: !pauseOnConnect,
+        generation: generation,
+      );
+    });
+    _usbAttachEngage = engage;
+    unawaited(
+      engage.whenComplete(() {
+        if (identical(_usbAttachEngage, engage)) _usbAttachEngage = null;
+      }),
+    );
+    return engage;
+  }
+
+  /// Run inside the playback queue, before any subsequent play/pause request.
+  Future<void> _autoEngageDirectUsbOnAttach({
+    required bool resume,
+    required int generation,
+  }) async {
     try {
       final engine = await _preferencesService.getAudioEnginePreference();
       if (engine != AudioEnginePreference.isochronousUsb) return;
-      final devices = await _uac2Service.listDevices();
+      final devices = await _uac2Service.listDevices(refresh: true);
       if (devices.isEmpty) return;
-      await enableUsbDacBitPerfect(resumeIfWasPlaying: true);
+      await _enableUsbDacBitPerfect(
+        resumeIfWasPlaying: resume,
+        connectionGeneration: generation,
+      );
     } catch (error) {
       _debugLog('[USB] Attach auto-engage failed: $error');
     }
   }
+
+  @visibleForTesting
+  Future<void> handleUsbDacAttachedForTesting() => _handleUsbDacAttached();
+
+  @visibleForTesting
+  Future<void> handleUsbDacDetachedForTesting() => _handleUsbDacDetached();
 
   /// Push the user's codec preference to the active A2DP device when codec
   /// control is enabled. Best-effort: the hidden API no-ops on apps not
@@ -1042,7 +1074,7 @@ class PlayerService {
     if (!_isDirectUsbPath) return;
     if (status.volumeMode == Uac2VolumeMode.hardware &&
         isHardwareVolumeAuthority &&
-        _usbHardwareVolumeReadyFor == status.device) {
+        _sameUsbVolumeDevice(_usbHardwareVolumeReadyFor, status.device)) {
       final v = status.volume;
       if (v != null && v.isFinite) {
         _currentVolume = v.clamp(0.0, 1.0);
@@ -1342,6 +1374,10 @@ class PlayerService {
         '[Engine] Foreground: restoring ${AudioEngineType.usbDacExperimental.logLabel}',
       );
       await _enqueuePlaybackRequest(() async {
+        if (!isPlayingNotifier.value ||
+            currentEngineType == AudioEngineType.usbDacExperimental) {
+          return;
+        }
         try {
           await _resumeInternal();
         } catch (e) {
@@ -1864,34 +1900,51 @@ class PlayerService {
   /// Complete USB auto-engage even when no track has been played yet.
   /// Changing the engine preference alone does not re-run launch volume setup.
   Future<bool> enableUsbDacBitPerfect({bool resumeIfWasPlaying = false}) async {
-    // Capture this before the engine switch disposes the Android stream: a
-    // DAC plugged in mid-playback must come back playing, not paused.
+    var applied = false;
+    await _enqueuePlaybackRequest(() async {
+      applied = await _enableUsbDacBitPerfect(
+        resumeIfWasPlaying: resumeIfWasPlaying,
+      );
+    });
+    return applied;
+  }
+
+  Future<bool> _enableUsbDacBitPerfect({
+    required bool resumeIfWasPlaying,
+    int? connectionGeneration,
+  }) async {
     final wasPlaying = isPlayingNotifier.value;
+    final shouldResume =
+        resumeIfWasPlaying && (wasPlaying || _resumeAfterUsbReattach);
+    // Selection may already say USB while Android still owns playback.
+    final needsHandoff =
+        currentEngineType != AudioEngineType.usbDacExperimental;
     await setAudioEnginePreference(AudioEnginePreference.isochronousUsb);
     final applied = await _uac2Service.setBitPerfectEnabled(true);
     if (!applied) return false;
     try {
-      // Permission may reveal a different serial, so use the authorized route
-      // after activation rather than the pre-permission attach notification.
       await _restoreUsbDacVolumeBeforePlayback(
         AudioEngineType.usbDacExperimental,
       );
-      // Changing the preference only affects the next engine. When the DAC is
-      // plugged in during playback, move the running stream onto the exclusive
-      // path now instead of waiting for a manual stop/start.
-      if (isPlayingNotifier.value &&
-          _sessionManager.selectedMode != AudioEngineType.usbDacExperimental) {
-        await retryDirectUsbForCurrentDevice();
+      if (connectionGeneration != null &&
+          connectionGeneration != _usbConnectionGeneration) {
+        return false;
       }
-      if (resumeIfWasPlaying && (wasPlaying || _resumeAfterUsbReattach)) {
-        _resumeAfterUsbReattach = false;
-        if (!isPlayingNotifier.value && currentSongNotifier.value != null) {
-          await _resumeInternal();
+      await _sessionManager.retryExperimentalUsbForCurrentDevice();
+      if (_sessionManager.selectedMode != AudioEngineType.usbDacExperimental) {
+        return false;
+      }
+      if ((wasPlaying && needsHandoff) ||
+          (shouldResume && !isPlayingNotifier.value)) {
+        await _resumeInternal();
+        if (currentEngineType != AudioEngineType.usbDacExperimental) {
+          return false;
         }
       }
+      _resumeAfterUsbReattach = false;
       return true;
     } catch (e) {
-      _debugLog('[VolFlow] USB DAC handoff volume restore failed: $e');
+      _debugLog('[USB] DAC handoff failed: $e');
       return false;
     }
   }
@@ -2529,8 +2582,11 @@ class PlayerService {
     await _reconcileVolumeForTier(_determineCurrentTier());
   }
 
-  Future<int?> _blockUsbVolumeForSafety() async {
+  Future<int?> _blockUsbVolumeForSafety({String? reason}) async {
     final generation = ++_usbVolumeSafetyGeneration;
+    if (reason != null && !usbVolumeSafetyBlockedNotifier.value) {
+      _debugLog('[VolFlow] Holding direct USB playback: $reason');
+    }
     usbVolumeSafetyBlockedNotifier.value = true;
     _usbHardwareVolumeReadyFor = null;
     _usbHardwareVolumeVerifiedLevel = null;
@@ -2588,11 +2644,11 @@ class PlayerService {
     bool currentRoute() =>
         generation == _usbDacVolumeRestore.connectionGeneration &&
         (!directUsb || _isDirectUsbPath) &&
-        device == _uac2Service.currentDeviceStatus?.device;
+        _sameUsbVolumeDevice(device, _uac2Service.currentDeviceStatus?.device);
     // Do not write DAC gain during a safety pause or a change of authority.
     final safetyGeneration = directUsb
         ? await _confirmUsbVolumeSafety(
-            requirePause: _usbHardwareVolumeReadyFor != device,
+            requirePause: !_sameUsbVolumeDevice(_usbHardwareVolumeReadyFor, device),
           )
         : null;
     bool currentSafety() =>
@@ -2798,13 +2854,17 @@ class PlayerService {
   }
 
   Future<void> _reconcileVolumeForTier(
-    VolumeTier tier, {
+    VolumeTier requestedTier, {
     bool? usbDsdWireActive,
     AudioEngineType? playbackMode,
     bool? passthroughActive,
   }) async {
     await _waitForPhysicalOutputVolumeGuard();
     if (_physicalOutputVolumeSafetyBlocked) return;
+    // Route callbacks can wait behind the output guard. Take their authority
+    // from the current route, since a callback queued before the DAC was
+    // ready may now be running after hardware volume has been verified.
+    final tier = playbackMode == null ? _determineCurrentTier() : requestedTier;
     volumeTierNotifier.value = tier;
     final directUsb = (Platform.isAndroid || _testDirectUsb) &&
         (playbackMode ?? currentEngineType) == AudioEngineType.usbDacExperimental;
@@ -2813,12 +2873,21 @@ class PlayerService {
       final ready = _usbHardwareVolumeReadyFor;
       if (ready != null &&
           (tier != VolumeTier.hardware ||
-              ready != _uac2Service.currentDeviceStatus?.device)) {
-        await _blockUsbVolumeForSafety();
+              !_sameUsbVolumeDevice(
+                ready,
+                _uac2Service.currentDeviceStatus?.device,
+              ))) {
+        await _blockUsbVolumeForSafety(
+          reason: 'DAC volume authority lost (tier=${tier.name}, '
+              'expected=${ready.deviceName}, '
+              'reported=${_uac2Service.currentDeviceStatus?.device.deviceName})',
+        );
         return;
       }
       if (tier == VolumeTier.hardware && ready == null) {
-        if (_usbSoftwareVolumeUsed) await _blockUsbVolumeForSafety();
+        if (_usbSoftwareVolumeUsed) {
+          await _blockUsbVolumeForSafety(reason: 'handoff to DAC hardware volume');
+        }
         // The pre-playback restore (or an explicit, verified slider write)
         // must complete before releasing any existing engine attenuation.
         return;
@@ -2853,6 +2922,18 @@ class PlayerService {
     );
   }
 
+  bool _sameUsbVolumeDevice(Uac2DeviceInfo? a, Uac2DeviceInfo? b) {
+    if (a == b) return true;
+    if (a == null || b == null) return false;
+    // Compare the USB connection independently of AudioManager's display
+    // metadata. The restore generation still invalidates every detach.
+    return (a.deviceName?.isNotEmpty ?? false) &&
+        a.deviceName == b.deviceName &&
+        a.vendorId == b.vendorId &&
+        a.productId == b.productId &&
+        a.serial == b.serial;
+  }
+
   /// Apply the remembered level for the connected DAC once per connection.
   ///
   /// Native consumes a queued hardware restore while creating the Rust USB
@@ -2869,21 +2950,23 @@ class PlayerService {
       return;
     }
     final generation = _usbDacVolumeRestore.connectionGeneration;
+    await _uac2Service.refreshAndroidRouteStatus(
+      isPlaying: isPlayingNotifier.value,
+      hasActiveSong: currentSongNotifier.value != null,
+    );
+    // Publishing the refreshed route can start a safety pause when volume
+    // authority moves to the DAC. Join that pause before taking a safety
+    // generation for the restore. Changes after that still invalidate it.
     var safetyGeneration = await _confirmUsbVolumeSafety();
     void ensureSafetyCurrent() {
       if (safetyGeneration == null) {
         throw UsbDacVolumeRestoreError('could not stop the transport safely');
       }
       if (safetyGeneration != _usbVolumeSafetyGeneration) {
-        throw UsbDacVolumeRestoreError('DAC volume safety state changed');
+        throw _UsbVolumeSafetyStateChanged();
       }
     }
 
-    ensureSafetyCurrent();
-    await _uac2Service.refreshAndroidRouteStatus(
-      isPlaying: isPlayingNotifier.value,
-      hasActiveSong: currentSongNotifier.value != null,
-    );
     if (generation != _usbDacVolumeRestore.connectionGeneration) {
       throw UsbDacVolumeRestoreError('route changed');
     }
@@ -2910,7 +2993,8 @@ class PlayerService {
       );
       ensureRestoreCurrent();
       final currentStatus = _uac2Service.currentDeviceStatus;
-      if (currentStatus == null || currentStatus.device != device) {
+      if (currentStatus == null ||
+          !_sameUsbVolumeDevice(currentStatus.device, device)) {
         throw UsbDacVolumeRestoreError('route changed');
       }
       if (currentStatus.volumeMode != status.volumeMode) {
@@ -2945,12 +3029,13 @@ class PlayerService {
       final authorityHandoff =
           _usbSoftwareVolumeUsed ||
           _physicalOutputSoftwareVolumeActive ||
-          (_usbHardwareVolumeReadyFor != device && isPlayingNotifier.value);
+          (!_sameUsbVolumeDevice(_usbHardwareVolumeReadyFor, device) &&
+              isPlayingNotifier.value);
       final preserveSoftwareMute =
           _currentVolume == 0.0 &&
           (_usbSoftwareVolumeUsed ||
               _physicalOutputSoftwareVolumeActive ||
-              _usbHardwareVolumeReadyFor != device);
+              !_sameUsbVolumeDevice(_usbHardwareVolumeReadyFor, device));
       final useLowDefault =
           settings.hardware == null ||
           authorityHandoff ||
@@ -2975,7 +3060,8 @@ class PlayerService {
       // A pause can wait on the transport. Recheck the route and read its
       // latest level afterwards, before issuing any hardware write.
       final beforeWrite = _uac2Service.currentDeviceStatus;
-      if (beforeWrite == null || beforeWrite.device != device) {
+      if (beforeWrite == null ||
+          !_sameUsbVolumeDevice(beforeWrite.device, device)) {
         throw UsbDacVolumeRestoreError.routeChanged();
       }
       if (beforeWrite.volumeMode != Uac2VolumeMode.hardware ||
@@ -3000,14 +3086,15 @@ class PlayerService {
         );
         ensureRestoreCurrent();
         if (!restored) {
-          await _blockUsbVolumeForSafety();
+          await _blockUsbVolumeForSafety(reason: 'DAC volume write failed');
           // A real write/readback failure stays stopped, but the next Play
           // retries the low restore instead of requiring a slider gesture.
           throw UsbDacVolumeRestoreError();
         }
       }
       final appliedStatus = _uac2Service.currentDeviceStatus;
-      if (appliedStatus == null || appliedStatus.device != device) {
+      if (appliedStatus == null ||
+          !_sameUsbVolumeDevice(appliedStatus.device, device)) {
         throw UsbDacVolumeRestoreError('route changed');
       }
       if (appliedStatus.volumeMode != Uac2VolumeMode.hardware ||
@@ -3031,7 +3118,7 @@ class PlayerService {
         ensureRestoreCurrent();
         final mutedStatus = _uac2Service.currentDeviceStatus;
         if (!muted ||
-            mutedStatus?.device != device ||
+            !_sameUsbVolumeDevice(mutedStatus?.device, device) ||
             mutedStatus?.volumeMode != Uac2VolumeMode.hardware ||
             mutedStatus?.muted != true) {
           await _blockUsbVolumeForSafety();
@@ -3045,7 +3132,7 @@ class PlayerService {
       );
       ensureRestoreCurrent();
       final finalStatus = _uac2Service.currentDeviceStatus;
-      if (finalStatus?.device != device) {
+      if (!_sameUsbVolumeDevice(finalStatus?.device, device)) {
         throw UsbDacVolumeRestoreError('route changed');
       }
       if (finalStatus?.volumeMode != Uac2VolumeMode.hardware ||
@@ -3074,7 +3161,7 @@ class PlayerService {
     // runOnce can return a cached result or join another restore. Neither
     // permits playback if a newer safety block is still in effect.
     if (usbVolumeSafetyBlockedNotifier.value) {
-      throw UsbDacVolumeRestoreError('DAC volume safety state changed');
+      throw _UsbVolumeSafetyStateChanged();
     }
   }
 
@@ -3739,7 +3826,10 @@ class PlayerService {
                 verifiedLevel == null ||
                 hardwareLevel > verifiedLevel + 1e-6);
         if (unsafe) {
-          await _blockUsbVolumeForSafety();
+          await _blockUsbVolumeForSafety(
+            reason: 'new USB stream volume ${hardwareLevel ?? 'unknown'}, '
+                'verified level $verifiedLevel',
+          );
         }
       }
     }
@@ -4006,29 +4096,107 @@ class PlayerService {
     }
   }
 
+  @visibleForTesting
+  void syncRustPlaybackStateForTesting() => _handleRustPlaybackStateChanged();
+
+  void _handleRustPlaybackStateChanged() {
+    if (!_usingRustBackend) return;
+
+    final rustState = _rustAudioService.stateNotifier.value;
+    // Treat buffering like playback for Android direct USB: releasing audio
+    // focus while the Rust isochronous pump is still starting starves the
+    // stream and surfaces as libusb I/O errors.
+    final pipelineActive =
+        rustState == RustPlaybackState.playing ||
+        rustState == RustPlaybackState.crossfading ||
+        rustState == RustPlaybackState.buffering;
+
+    // The direct-USB engine reports through rustAudioService, and its
+    // playbackState stream does not always flip the UI. Without this the
+    // track plays while the UI still says paused, so the next press looks
+    // like "resume" and the user has to press play twice.
+    if (rustState != RustPlaybackState.idle &&
+        isPlayingNotifier.value != pipelineActive) {
+      if (!pipelineActive && _isDirectUsbPath) {
+        _debugLog('[USB] Native playback became ${rustState.name}');
+      }
+      isPlayingNotifier.value = pipelineActive;
+    }
+
+    unawaited(
+      _syncUac2PlaybackStatus(
+        currentSongNotifier.value,
+        isPlaying: pipelineActive,
+      ),
+    );
+  }
+
+  @visibleForTesting
+  Future<void> handleDirectUsbRuntimeFailureForTesting(String message) =>
+      _handleDirectUsbRuntimeFailure(message);
+
+  Future<void> _handleDirectUsbRuntimeFailure(String message) {
+    _midStreamUsbFallbackActive = true;
+    final failedEngine = _rustEngine;
+    final wasPlaying =
+        isPlayingNotifier.value || (_lastPlaybackState?.isPlaying ?? false);
+    _resumeAfterUsbReattach |= wasPlaying;
+    return _enqueuePlaybackRequest(() async {
+      try {
+        // A queued attach may already have replaced the failed engine.
+        if (currentEngineType != AudioEngineType.usbDacExperimental ||
+            !identical(failedEngine, _rustEngine)) {
+          return;
+        }
+        final song = currentSongNotifier.value;
+        final position = positionNotifier.value;
+        final pauseOnDisconnect = await _appPreferencesService
+            .getPauseOnUsbDacDisconnect();
+        await _uac2Service.releaseAndroidDirectUsbRuntime();
+        final stillAttached = (await _uac2Service.listDevices(
+          refresh: true,
+        )).isNotEmpty;
+        if (stillAttached) {
+          // NO_DEVICE invalidates the old handle. Open/claim a fresh
+          // connection, rebuild the output, and resume once on that path.
+          await _sessionManager.switchMode(
+            AudioEngineType.normalAndroid,
+            reason: 'rebuilding failed direct USB connection',
+          );
+          if (await _enableUsbDacBitPerfect(resumeIfWasPlaying: true)) {
+            _debugLog(
+              '[USB] Direct playback recovered on a fresh connection',
+            );
+            return;
+          }
+          // Re-establish the failed mode for the normal refusal handler.
+          await _sessionManager.switchMode(
+            AudioEngineType.usbDacExperimental,
+            reason: 'direct USB recovery failed',
+          );
+        }
+        final fellBack = await _handleDirectUsbStartupRefusal(
+          message,
+          song: song,
+          initialPosition: position,
+          autoResumeAfterFallback: wasPlaying && !pauseOnDisconnect,
+        );
+        if (!fellBack) {
+          await _refreshAudioOutputDiagnostics(
+            reason: 'Rust backend error',
+          );
+        }
+      } finally {
+        _midStreamUsbFallbackActive = false;
+      }
+    });
+  }
+
   void _setupRustAudioListeners() {
     if (_rustListenersAttached) return;
     _rustListenersAttached = true;
 
-    _rustStateListener = () {
-      if (!_usingRustBackend) return;
-
-      final rustState = _rustAudioService.stateNotifier.value;
-      // Treat buffering like playback for Android direct USB: releasing audio
-      // focus while the Rust isochronous pump is still starting starves the
-      // stream and surfaces as libusb I/O errors.
-      final pipelineActive =
-          rustState == RustPlaybackState.playing ||
-          rustState == RustPlaybackState.crossfading ||
-          rustState == RustPlaybackState.buffering;
-
-      unawaited(
-        _syncUac2PlaybackStatus(
-          currentSongNotifier.value,
-          isPlaying: pipelineActive,
-        ),
-      );
-    };
+    _rustStateListener = _handleRustPlaybackStateChanged;
     _rustAudioService.stateNotifier.addListener(_rustStateListener!);
 
     _rustPositionListener = () {
@@ -4064,49 +4232,7 @@ class PlayerService {
           !_midStreamUsbFallbackActive &&
           currentEngineType == AudioEngineType.usbDacExperimental &&
           _isDirectUsbStartupRefusal(message)) {
-        _midStreamUsbFallbackActive = true;
-        final song = currentSongNotifier.value;
-        final position = _lastPlaybackState?.position ?? Duration.zero;
-        unawaited(() async {
-          try {
-            // Mid-stream USB error = DAC lost while playing. Respect the
-            // pause-on-disconnect pref instead of resuming on the fallback.
-            final pauseOnDisconnect = await _appPreferencesService
-                .getPauseOnUsbDacDisconnect();
-            var autoResumeAfterFallback = !pauseOnDisconnect;
-            if (pauseOnDisconnect) {
-              // "USB DAC disconnected" is often a lie (e.g. Samsung One UI
-              // suspends userspace USB transfers when the app is backgrounded
-              // while the DAC stays attached). Release the frozen direct-USB
-              // session first so listDevices() does a real UsbManager query,
-              // then only honour pause-on-disconnect for a genuine unplug.
-              await _uac2Service.releaseAndroidDirectUsbRuntime();
-              final stillAttached =
-                  (await _uac2Service.listDevices()).isNotEmpty;
-              if (stillAttached) {
-                _debugLog(
-                  '[Engine] Direct USB failed but DAC still attached; '
-                  'treating as transient USB suspension, auto-resuming on '
-                  'fallback',
-                );
-                autoResumeAfterFallback = true;
-              }
-            }
-            final fellBack = await _handleDirectUsbStartupRefusal(
-              message,
-              song: song,
-              initialPosition: position,
-              autoResumeAfterFallback: autoResumeAfterFallback,
-            );
-            if (!fellBack) {
-              await _refreshAudioOutputDiagnostics(
-                reason: 'Rust backend error',
-              );
-            }
-          } finally {
-            _midStreamUsbFallbackActive = false;
-          }
-        }());
+        unawaited(_handleDirectUsbRuntimeFailure(message));
         return;
       }
       if (isDeadRustEngineError(message)) {
@@ -5049,7 +5175,7 @@ class PlayerService {
         Platform.isAndroid;
     if (requiresUsbDac) {
       final deviceInfo = await AndroidAudioDeviceService.instance.refresh();
-      if (!deviceInfo.hasUsbDac) {
+      if (!deviceInfo.hasUsbDac && !_uac2Service.hasClaimedDirectUsbDac) {
         _debugLog('[Engine] USB init blocked: no USB DAC detected');
         throw StateError('Rust USB engine requires a USB DAC');
       }
@@ -5118,7 +5244,24 @@ class PlayerService {
         }
       }
 
-      await _applyRustPlaybackProcessingPolicy(playbackMode);
+      final connection = _usbDacVolumeRestore.connectionGeneration;
+      try {
+        await _applyRustPlaybackProcessingPolicy(playbackMode);
+      } on _UsbVolumeSafetyStateChanged {
+        // Preparation can publish a new hardware volume authority while the
+        // restore is in progress. Before loading audio, allow one fresh
+        // restore on the same connection after its safety pause succeeds.
+        final pause = _usbVolumeSafetyPause;
+        if (playbackMode != AudioEngineType.usbDacExperimental ||
+            connection != _usbDacVolumeRestore.connectionGeneration ||
+            pause == null ||
+            !await pause ||
+            connection != _usbDacVolumeRestore.connectionGeneration) {
+          rethrow;
+        }
+        _debugLog('[VolFlow] Rechecking DAC volume before loading audio');
+        await _applyRustPlaybackProcessingPolicy(playbackMode);
+      }
     }
 
     _setupRustAudioListeners();
@@ -5595,7 +5738,7 @@ class PlayerService {
     }
 
     final deviceInfo = await AndroidAudioDeviceService.instance.refresh();
-    if (deviceInfo.hasUsbDac) {
+    if (deviceInfo.hasUsbDac || _uac2Service.hasClaimedDirectUsbDac) {
       return desiredEngine;
     }
 
@@ -6346,7 +6489,11 @@ class PlayerService {
     return _enqueuePlaybackRequest(_pauseInternal);
   }
 
-  Future<void> _pauseInternal({bool releaseAudioFocus = true}) async {
+  Future<void> _pauseInternal({
+    bool releaseAudioFocus = true,
+    bool preserveUsbResumeIntent = false,
+  }) async {
+    if (!preserveUsbResumeIntent) _resumeAfterUsbReattach = false;
     if (_castingService.isActive) {
       await _castingService.delegatePause();
       return;
@@ -7891,7 +8038,7 @@ class PlayerService {
     final healthy = await _uac2Service.verifyHardwareVolumeHealth();
     if (generation != _usbDacVolumeRestore.connectionGeneration ||
         revision != _usbHardwareVolumeRevision ||
-        device != _uac2Service.currentDeviceStatus?.device) {
+        !_sameUsbVolumeDevice(device, _uac2Service.currentDeviceStatus?.device)) {
       return;
     }
     if (healthy == false) {
@@ -8363,6 +8510,10 @@ class PlayerService {
       seek(a);
     }
   }
+}
+
+class _UsbVolumeSafetyStateChanged extends UsbDacVolumeRestoreError {
+  _UsbVolumeSafetyStateChanged() : super('DAC volume safety state changed');
 }
 
 class _QueueEntry {

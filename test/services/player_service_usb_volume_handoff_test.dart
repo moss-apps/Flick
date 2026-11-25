@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flick/data/database.dart';
 import 'package:flick/models/audio_engine_type.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/models/playback_state.dart';
+import 'package:flick/services/audio_engine_manager.dart';
 import 'package:flick/core/utils/volume_curve.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/providers/uac2_provider.dart';
@@ -107,6 +109,25 @@ class _Session extends Fake implements AudioSessionManager {
   String? get fallbackReason => null;
 
   @override
+  Future<bool> retryExperimentalUsbForCurrentDevice() async {
+    selectedModeNotifier.value = AudioEngineType.usbDacExperimental;
+    return true;
+  }
+
+  @override
+  void clearFallbackReason() {}
+
+  @override
+  Future<void> switchMode(
+    AudioEngineType mode, {
+    bool initializeNewEngine = false,
+    String reason = 'manual switch',
+  }) async {
+    selectedModeNotifier.value = mode;
+    initializedModeNotifier.value = initializeNewEngine ? mode : null;
+  }
+
+  @override
   Future<void> syncRouteSelection({required String reason}) async {
     expect(
       await Uac2PreferencesService().getAudioEnginePreference(),
@@ -119,6 +140,20 @@ class _Session extends Fake implements AudioSessionManager {
 
 class _Usb extends Fake implements Uac2Service {
   _Usb({this.hardware = false});
+
+  @override
+  Future<List<Uac2DeviceInfo>> listDevices({bool refresh = false}) async {
+    freshQueries.add(refresh);
+    return attached ? [_attachedDevice] : [];
+  }
+
+  bool attached = true;
+  final freshQueries = <bool>[];
+  int runtimeReleases = 0;
+  int activations = 0;
+
+  @override
+  Future<void> releaseAndroidDirectUsbRuntime() async { runtimeReleases++; }
 
   bool hardware;
   Completer<void>? permission;
@@ -133,6 +168,7 @@ class _Usb extends Fake implements Uac2Service {
   Map<String, dynamic>? playbackDebugState;
   final writes = <double>[];
   int refreshes = 0;
+  Future<void> Function()? onRouteRefresh;
   Uac2DeviceStatus status = _status(_attachedDevice);
 
   @override
@@ -143,6 +179,7 @@ class _Usb extends Fake implements Uac2Service {
   @override
   Future<bool> setBitPerfectEnabled(bool enabled, {bool persist = true}) async {
     await permission?.future;
+    activations++;
     if (!activationSucceeds) return false;
     isBitPerfectEnabledSync = enabled;
     status = _status(_authorizedDevice, hardware: hardware).copyWith(
@@ -153,12 +190,21 @@ class _Usb extends Fake implements Uac2Service {
   }
 
   @override
+  Future<void> syncPlaybackStatus({
+    Song? song,
+    required bool isPlaying,
+    Uac2AudioFormat? formatOverride,
+    AudioEngineType? playbackMode,
+  }) async {}
+
+  @override
   Future<void> refreshAndroidRouteStatus({
     Uac2AudioFormat? formatOverride,
     bool? isPlaying,
     bool? hasActiveSong,
   }) async {
     refreshes++;
+    await onRouteRefresh?.call();
   }
 
   @override
@@ -189,6 +235,8 @@ class _Usb extends Fake implements Uac2Service {
 }
 
 class _Rust extends Fake implements RustAudioService {
+  @override
+  final stateNotifier = ValueNotifier(RustPlaybackState.idle);
   final commands = <Object>[];
   Completer<void>? pauseCompletion;
   bool pauseFails = false;
@@ -254,6 +302,34 @@ PlayerService _player(AudioEngineType initial, _Usb usb, {_Rust? rust}) {
   return player;
 }
 
+class _HandoffPlayback extends Fake implements AudioEngineManager {
+  final starts = <({Song song, Duration position})>[];
+  int pauses = 0;
+
+  @override
+  AudioEngineType? get activeEngineType => null;
+  @override
+  bool get hasAttachedEngine => true;
+  @override
+  bool get canResumeCurrentTrack => false;
+  @override
+  PlaybackState? get latestState => null;
+
+  @override
+  Future<void> playTrack(
+    Song song, {
+    Duration initialPosition = Duration.zero,
+    bool autoPlay = true,
+  }) async {
+    if (autoPlay) starts.add((song: song, position: initialPosition));
+  }
+
+  @override
+  Future<void> pause() async {
+    pauses++;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory databaseDir;
@@ -284,6 +360,186 @@ void main() {
   });
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+    'native playback updates the play button without a second press',
+    () async {
+      final rust = _Rust();
+      final player = _player(
+        AudioEngineType.usbDacExperimental,
+        _Usb(),
+        rust: rust,
+      );
+      player.currentSongNotifier.value = _song;
+      rust.stateNotifier.value = RustPlaybackState.playing;
+      player.syncRustPlaybackStateForTesting();
+      expect(player.isPlayingNotifier.value, isTrue);
+      rust.stateNotifier.value = RustPlaybackState.paused;
+      player.syncRustPlaybackStateForTesting();
+      expect(player.isPlayingNotifier.value, isFalse);
+      await Future<void>.delayed(Duration.zero);
+    },
+  );
+
+  group('USB hot-plug playback handoff', () {
+    late _Session session;
+    late _Usb usb;
+    late _HandoffPlayback playback;
+    late PlayerService player;
+
+    setUp(() async {
+      await Uac2PreferencesService().setAudioEnginePreference(
+        AudioEnginePreference.isochronousUsb,
+      );
+      session = _Session(AudioEngineType.normalAndroid);
+      // This is the observed state after route selection, before handoff.
+      session.selectedModeNotifier.value = AudioEngineType.usbDacExperimental;
+      usb = _Usb();
+      playback = _HandoffPlayback();
+      player = PlayerService.forTesting(
+        sessionManager: session,
+        uac2Service: usb,
+        playbackManager: playback,
+      );
+      player.currentSongNotifier.value = _song;
+      player.positionNotifier.value = const Duration(seconds: 19);
+      addTearDown(() {
+        player.stopPositionSaveTimerForTesting();
+        session.selectedModeNotifier.dispose();
+        session.initializedModeNotifier.dispose();
+      });
+    });
+
+    test('attached transport loss reopens the DAC and resumes once without a press', () async {
+      session.initializedModeNotifier.value = AudioEngineType.usbDacExperimental;
+      player.isPlayingNotifier.value = true;
+      await player.handleDirectUsbRuntimeFailureForTesting(
+        'Android USB direct transfer failed: libusb_submit_transfer failed with code -4',
+      );
+      expect(usb.runtimeReleases, 1);
+      expect(usb.freshQueries, [true]);
+      expect(usb.activations, 1);
+      expect(playback.starts, [(song: _song, position: const Duration(seconds: 19))]);
+      expect(session.initializedMode, AudioEngineType.usbDacExperimental);
+    });
+
+    test('an absent DAC is never reopened using its disconnected handle', () async {
+      session.initializedModeNotifier.value = AudioEngineType.usbDacExperimental;
+      player.isPlayingNotifier.value = true;
+      usb.attached = false;
+      await player.handleDirectUsbRuntimeFailureForTesting(
+        'Android USB direct transfer failed: libusb_submit_transfer failed with code -4',
+      );
+      expect(usb.runtimeReleases, 1);
+      expect(usb.activations, 0);
+      expect(playback.starts, isEmpty);
+      await player.handleUsbDacDetachedForTesting();
+      session.initializedModeNotifier.value = AudioEngineType.normalAndroid;
+      usb.attached = true;
+      await player.handleUsbDacAttachedForTesting();
+      expect(playback.starts, hasLength(1));
+    });
+
+    test(
+      'attach migrates playing Android output even when USB is selected',
+      () async {
+        player.isPlayingNotifier.value = true;
+        await player.handleUsbDacAttachedForTesting();
+        expect(session.initializedMode, AudioEngineType.usbDacExperimental);
+        expect(playback.starts, [
+          (song: _song, position: const Duration(seconds: 19)),
+        ]);
+      },
+    );
+
+    test(
+      'detach pause retains intent and attach resumes once at the saved position',
+      () async {
+        player.isPlayingNotifier.value = true;
+        await player.handleUsbDacDetachedForTesting();
+        expect(player.isPlayingNotifier.value, isFalse);
+        expect(playback.starts, isEmpty);
+        await player.handleUsbDacAttachedForTesting();
+        expect(playback.starts, [
+          (song: _song, position: const Duration(seconds: 19)),
+        ]);
+      },
+    );
+
+    test('manual pause while disconnected cancels attach resume', () async {
+      player.isPlayingNotifier.value = true;
+      await player.handleUsbDacDetachedForTesting();
+      await player.pause();
+      await player.handleUsbDacAttachedForTesting();
+      expect(playback.starts, isEmpty);
+    });
+
+    test('an already paused track stays paused on attach', () async {
+      await player.handleUsbDacAttachedForTesting();
+      expect(playback.starts, isEmpty);
+    });
+
+    test('pause on connect prevents any automatic playback burst', () async {
+      SharedPreferences.setMockInitialValues({
+        'uac2_audio_engine': 'isochronousUsb',
+        'app_pause_on_usb_dac_connect': true,
+      });
+      await Uac2PreferencesService().setAudioEnginePreference(
+        AudioEnginePreference.isochronousUsb,
+      );
+      player.isPlayingNotifier.value = true;
+      await player.handleUsbDacAttachedForTesting();
+      expect(player.isPlayingNotifier.value, isFalse);
+      expect(playback.starts, isEmpty);
+    });
+
+    test(
+      'duplicate permission attach shares the handoff and queued pause completes',
+      () async {
+        player.isPlayingNotifier.value = true;
+        usb.permission = Completer<void>();
+        final first = player.handleUsbDacAttachedForTesting();
+        final duplicate = player.handleUsbDacAttachedForTesting();
+        expect(identical(first, duplicate), isTrue);
+        final pause = player.pause();
+        await Future<void>.delayed(Duration.zero);
+        expect(playback.starts, isEmpty);
+        usb.permission!.complete();
+        await Future.wait([
+          first,
+          duplicate,
+          pause,
+        ]).timeout(const Duration(seconds: 2));
+        expect(playback.starts, hasLength(1));
+        expect(player.isPlayingNotifier.value, isFalse);
+      },
+    );
+
+    test(
+      'detach during permission prevents playback on the obsolete connection',
+      () async {
+        player.isPlayingNotifier.value = true;
+        usb.permission = Completer<void>();
+        final attach = player.handleUsbDacAttachedForTesting();
+        await Future<void>.delayed(Duration.zero);
+        final detach = player.handleUsbDacDetachedForTesting();
+        usb.permission!.complete();
+        await Future.wait([attach, detach]);
+        expect(playback.starts, isEmpty);
+      },
+    );
+
+    test(
+      'detach invalidates an attach still waiting in the playback queue',
+      () async {
+        player.isPlayingNotifier.value = true;
+        final attach = player.handleUsbDacAttachedForTesting();
+        final detach = player.handleUsbDacDetachedForTesting();
+        await Future.wait([attach, detach]);
+        expect(playback.starts, isEmpty);
+      },
+    );
+  });
 
   for (final initial in [
     AudioEngineType.normalAndroid,
@@ -322,7 +578,7 @@ void main() {
       );
     }
 
-    testWidgets('${initial.name} auto-engage shows 40% before first play', (
+    testWidgets('${initial.name} USB activation shows 40% before first play', (
       tester,
     ) async {
       await Uac2PreferencesService().setAudioEnginePreference(
@@ -352,7 +608,10 @@ void main() {
       expect(tester.widget<Slider>(find.byType(Slider)).value, 1.0);
       expect(player.currentSongNotifier.value, isNull);
 
+      // PlayerService now owns activation; the prompt no longer starts it.
+      final activation = player.enableUsbDacBitPerfect();
       usb.permission!.complete(); // Accept Android's exclusive USB prompt.
+      expect(await activation, isTrue);
       await tester.pumpAndSettle();
 
       expect(player.currentVolume, 0.4);
@@ -1009,6 +1268,33 @@ void main() {
   );
 
   test(
+    'pre-play restore handles a safety pause started by its route refresh',
+    () async {
+      final usb = _Usb();
+      final rust = _Rust();
+      final player = _player(AudioEngineType.usbDacExperimental, usb, rust: rust);
+      expect(await player.enableUsbDacBitPerfect(), isTrue);
+      player.currentSongNotifier.value = _song;
+      await player.reconcileVolumeForTesting();
+      rust.commands.clear();
+
+      usb.onRouteRefresh = () async {
+        usb.onRouteRefresh = null;
+        usb.status = _status(
+          _authorizedDevice,
+          hardware: true,
+        ).copyWith(volume: 0.6);
+        await player.reconcileVolumeForTesting();
+      };
+
+      await player.restoreUsbVolumeForTesting();
+      expect(rust.commands, ['pause', 1.0]);
+      expect(usb.writes, [0.4]);
+      expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
+    },
+  );
+
+  test(
     'an inactive hardware generation is checked when it becomes active',
     () async {
       final usb = _Usb(hardware: true);
@@ -1131,6 +1417,30 @@ void main() {
       expect(player.currentVolume, 0.4);
     },
   );
+
+  test('a route label update for the same claimed DAC keeps playback active', () async {
+    final usb = _Usb(hardware: true);
+    final rust = _Rust();
+    final player = _player(AudioEngineType.usbDacExperimental, usb, rust: rust);
+    expect(await player.enableUsbDacBitPerfect(), isTrue);
+    player.isPlayingNotifier.value = true;
+    rust.commands.clear();
+
+    const audioManagerDevice = Uac2DeviceInfo(
+      vendorId: 0x1234,
+      productId: 0x5678,
+      serial: 'AUTHORIZED-SERIAL',
+      deviceName: '/dev/bus/usb/001/002',
+      productName: 'USB-Audio - Test DAC',
+      manufacturer: 'Phone manufacturer',
+    );
+    usb.status = _status(audioManagerDevice, hardware: true).copyWith(volume: 0.4);
+    await player.reconcileVolumeForTesting();
+
+    expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
+    expect(rust.commands, [1.0]);
+    expect(usb.writes, [0.4]);
+  });
 
   test('a late hardware write cannot approve a different DAC', () async {
     final usb = _Usb(hardware: true);

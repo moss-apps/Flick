@@ -304,12 +304,13 @@ class Uac2Service {
   /// platform driver, so engine selection must use this instead.
   bool get hasClaimedDirectUsbDac {
     final status = _currentDeviceStatus;
-    if (status == null) return false;
+    if (status == null || !status.directUsbRegistered) return false;
     return switch (status.state) {
       Uac2State.connected || Uac2State.prewarming || Uac2State.streaming => true,
       _ => false,
     };
   }
+
   Uac2AudioFormat? get lastKnownFormat => _lastKnownFormat;
   bool get isBitPerfectEnabledSync => bitPerfectEnabledNotifier.value;
   bool get isDapBitPerfectEnabledSync => dapBitPerfectEnabledNotifier.value;
@@ -467,19 +468,19 @@ class Uac2Service {
     );
   }
 
-  Future<List<Uac2DeviceInfo>> listDevices() async {
+  Future<List<Uac2DeviceInfo>> listDevices({bool refresh = false}) async {
     if (Platform.isAndroid) {
       final currentPlaybackDevice = _currentAndroidPlaybackDeviceIfReusable(
         requireActivatableDeviceName: false,
       );
-      if (currentPlaybackDevice != null) {
+      if (!refresh && currentPlaybackDevice != null) {
         devLog(
           'Uac2Service.listDevices (Android): reusing frozen direct USB device '
           '${_describeAndroidDevice(currentPlaybackDevice)}',
         );
         return [currentPlaybackDevice];
       }
-      return _listDevicesAndroid();
+      return _listDevicesAndroid(refresh: refresh);
     }
     if (!rust_uac2.uac2IsAvailable()) return [];
     try {
@@ -490,9 +491,13 @@ class Uac2Service {
     }
   }
 
-  Future<List<Uac2DeviceInfo>> _listDevicesAndroid() async {
+  Future<List<Uac2DeviceInfo>> _listDevicesAndroid({
+    bool refresh = false,
+  }) async {
     try {
-      final raw = await _channel.invokeMethod<List<dynamic>>('listDevices');
+      final raw = await _channel.invokeMethod<List<dynamic>>('listDevices', {
+        'refresh': refresh,
+      });
       if (raw == null) {
         devLog(
           'Uac2Service.listDevices (Android): no UsbManager devices returned',
@@ -1531,7 +1536,6 @@ Future<void> stopPriorityAnchor() async {
       )) {
         _updateStatus(
           _currentDeviceStatus!.copyWith(
-            device: resolvedPreferredDevice ?? _currentDeviceStatus!.device,
             state: isPlaying
                 ? Uac2State.streaming
                 : _currentDeviceStatus!.state,
@@ -2264,6 +2268,20 @@ Future<void> stopPriorityAnchor() async {
     Map<String, dynamic> routeStatus, {
     Uac2DeviceInfo? preferredDevice,
   }) {
+    final registeredName = routeStatus['directUsbDeviceName'] as String?;
+    if (registeredName != null && registeredName.isNotEmpty) {
+      // AudioManager describes its shared output, which can change names or
+      // point to the speaker even while this app owns the same USB device.
+      if (preferredDevice != null &&
+          preferredDevice.deviceName == registeredName) {
+        return preferredDevice;
+      }
+      final currentDevice = _currentDeviceStatus?.device;
+      if (currentDevice != null && currentDevice.deviceName == registeredName) {
+        return currentDevice;
+      }
+      preferredDevice = null;
+    }
     final routeType = _routeTypeFromString(routeStatus['routeType'] as String?);
     final productName =
         routeStatus['productName'] as String? ??
@@ -2290,7 +2308,9 @@ Future<void> stopPriorityAnchor() async {
           preferredDevice?.manufacturer ??
           '',
       deviceName:
-          routeStatus['deviceName'] as String? ?? preferredDevice?.deviceName,
+          registeredName ??
+          routeStatus['deviceName'] as String? ??
+          preferredDevice?.deviceName,
     );
   }
 
