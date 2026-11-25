@@ -93,6 +93,14 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
+        <!-- Re-encoded album covers for car hosts. Exported and read-only: it only
+             ever returns a downscaled JPEG, never the app-private file itself. -->
+        <provider
+            android:name=".CarArtProvider"
+            android:authorities="${applicationId}.carart"
+            android:exported="true"
+            android:grantUriPermissions="false" />
+
         <!-- Publishes DLNA renderers as MediaRouter routes for system UI -->
         <service
             android:name=".DlnaRouteProviderService"

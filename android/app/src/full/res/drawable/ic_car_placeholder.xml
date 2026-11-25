@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bundled cover for anything without art. Coloured on purpose: it is sent as
+     an original (untinted) icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path
+        android:fillColor="#FF1C1C1C"
+        android:pathData="M0,0h96v96h-96z" />
+    <path
+        android:fillColor="#FF4A4A4A"
+        android:pathData="M54,24v31.65c-1.77,-1.02 -3.81,-1.65 -6,-1.65 -6.63,0 -12,5.37 -12,12s5.37,12 12,12 12,-5.37 12,-12V36h12V24H54z" />
+</vector>

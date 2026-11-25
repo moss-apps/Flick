@@ -17,6 +17,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import androidx.media.VolumeProviderCompat
 import android.support.v4.media.session.MediaSessionCompat
@@ -38,6 +39,7 @@ class MusicNotificationService : Service() {
         const val ACTION_STOP = "com.mossapps.flick.STOP"
         const val ACTION_SHUFFLE = "com.mossapps.flick.SHUFFLE"
         const val ACTION_FAVORITE = "com.mossapps.flick.FAVORITE"
+        const val ACTION_REPEAT = "com.mossapps.flick.REPEAT"
         const val ACTION_DISCONNECT_CAST = "com.mossapps.flick.DISCONNECT_CAST"
 
         private const val PLAYER_CHANNEL = "com.mossapps.flick/player"
@@ -52,6 +54,9 @@ class MusicNotificationService : Service() {
     private var currentTitle: String = "Unknown"
     private var currentArtist: String = "Unknown Artist"
     private var currentAlbumArtPath: String? = null
+    private var currentAlbum: String = ""
+    private var currentMediaId: String = ""
+    private var currentLoopMode: String = LoopMode.OFF
     private var isPlaying: Boolean = false
     private var currentDuration: Long = 0
     private var currentPosition: Long = 0
@@ -67,6 +72,16 @@ class MusicNotificationService : Service() {
     private var cachedAlbumArtPath: String? = null
 
     private var floatingOverlay: FloatingPlayerOverlay? = null
+
+    // The session queue mirrors Dart's upcoming queue for car hosts. One request
+    // at a time; a change that arrives meanwhile triggers one more afterwards.
+    private var queueRequestInFlight = false
+    private var queueRefreshPending = false
+    private var lastPublishedQueue: SessionQueue? = null
+    private var isDestroyed = false
+    private val carChangeListener: (String) -> Unit = { what ->
+        if (what == "queue" || what == "track") refreshSessionQueue()
+    }
 
     private val actionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -176,6 +191,8 @@ class MusicNotificationService : Service() {
         FlutterEngineCache.getInstance().get("main_engine")?.let { engine ->
             methodChannel = MethodChannel(engine.dartExecutor.binaryMessenger, PLAYER_CHANNEL)
         }
+
+        CarChannel.addListener(carChangeListener)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -183,6 +200,9 @@ class MusicNotificationService : Service() {
             if (it.hasExtra("title")) currentTitle = it.getStringExtra("title") ?: "Unknown"
             if (it.hasExtra("artist")) currentArtist = it.getStringExtra("artist") ?: "Unknown Artist"
             if (it.hasExtra("albumArtPath")) currentAlbumArtPath = it.getStringExtra("albumArtPath")
+            if (it.hasExtra("album")) currentAlbum = it.getStringExtra("album") ?: ""
+            if (it.hasExtra("mediaId")) currentMediaId = it.getStringExtra("mediaId") ?: ""
+            if (it.hasExtra("loopMode")) currentLoopMode = LoopMode.normalize(it.getStringExtra("loopMode"))
             if (it.hasExtra("isPlaying")) isPlaying = it.getBooleanExtra("isPlaying", false)
             if (it.hasExtra("duration")) {
                 currentDuration = it.getLongExtra("duration", -1L).takeIf { v -> v != -1L }
@@ -194,7 +214,10 @@ class MusicNotificationService : Service() {
             }
             if (it.hasExtra("isShuffle")) isShuffleMode = it.getBooleanExtra("isShuffle", false)
             if (it.hasExtra("isFavorite")) isFavorite = it.getBooleanExtra("isFavorite", false)
-            if (it.hasExtra("color")) currentColor = it.getIntExtra("color", 0)
+            if (it.hasExtra("color")) {
+                currentColor = it.getIntExtra("color", 0)
+                FlickSessionHub.setAlbumColor(currentColor)
+            }
             if (it.hasExtra("isCasting")) isCasting = it.getBooleanExtra("isCasting", false)
             if (it.hasExtra("castDeviceName")) castDeviceName = it.getStringExtra("castDeviceName")
             if (it.hasExtra("castVolume")) {
@@ -225,6 +248,8 @@ class MusicNotificationService : Service() {
             android.util.Log.d("MusicNotification", "Starting foreground service: isPlaying=$isPlaying")
             startForeground(NOTIFICATION_ID, notification)
             isForegroundServiceStarted = true
+            // Dart may have changed the queue before this session existed.
+            refreshSessionQueue()
         } else {
             android.util.Log.d("MusicNotification", "Updating notification: isPlaying=$isPlaying, position=$currentPosition, duration=$currentDuration")
             notificationManager.notify(NOTIFICATION_ID, notification)
@@ -237,6 +262,10 @@ class MusicNotificationService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        if (FlickSessionHub.carSessionCount > 0) {
+            android.util.Log.d("MusicNotification", "Task removed but a car session is bound; staying alive")
+            return
+        }
         if (isKeepPlayingOnQuit() && isPlaying) {
             android.util.Log.d("MusicNotification", "Task removed but keep-playing enabled; staying alive")
             return
@@ -267,6 +296,10 @@ class MusicNotificationService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        isDestroyed = true
+        CarChannel.removeListener(carChangeListener)
+        FlickSessionHub.setToken(null)
+        FlickSessionHub.setAlbumColor(null)
         try {
             unregisterReceiver(actionReceiver)
         } catch (e: Exception) {
@@ -391,6 +424,36 @@ class MusicNotificationService : Service() {
                 override fun onSetShuffleMode(shuffleMode: Int) {
                     sendCommandToFlutter("toggleShuffle")
                 }
+                override fun onSetRepeatMode(repeatMode: Int) {
+                    // Dart only cycles (off, all, one); step it to the requested mode.
+                    val toggles = LoopMode.togglesToReach(currentLoopMode, LoopMode.fromRepeatMode(repeatMode))
+                    repeat(toggles) { sendCommandToFlutter("toggleLoop") }
+                }
+                override fun onSkipToQueueItem(id: Long) {
+                    if (id < 0 || id > Int.MAX_VALUE) return
+                    sendCommandToFlutter("skipToQueueItem", mapOf("index" to id.toInt()))
+                }
+                override fun onPlayFromSearch(query: String?, extras: android.os.Bundle?) {
+                    CarChannel.invoke(applicationContext, "playSearch", mapOf("query" to (query ?: ""))) { result ->
+                        result.onFailure {
+                            android.util.Log.w("MusicNotification", "playSearch failed: ${it.message}")
+                        }
+                    }
+                }
+                override fun onPlayFromMediaId(mediaId: String?, extras: android.os.Bundle?) {
+                    val parsed = CarMediaId.parse(mediaId)
+                    if (parsed == null) {
+                        android.util.Log.w("MusicNotification", "Ignoring unrecognised media id: $mediaId")
+                        return
+                    }
+                    val args = mutableMapOf<String, Any?>("kind" to parsed.kind, "id" to parsed.id)
+                    parsed.trackId?.let { args["trackId"] = it }
+                    CarChannel.invoke(applicationContext, "play", args) { result ->
+                        result.onFailure {
+                            android.util.Log.w("MusicNotification", "play failed: ${it.message}")
+                        }
+                    }
+                }
                 override fun onCustomAction(action: String?, extras: android.os.Bundle?) {
                     android.util.Log.d("MusicNotification", "Custom action received: $action")
                     when (action) {
@@ -408,6 +471,10 @@ class MusicNotificationService : Service() {
                             val notification = buildNotification()
                             notificationManager.notify(NOTIFICATION_ID, notification)
                         }
+                        ACTION_REPEAT -> {
+                            // Dart answers with the new loopMode, which redraws the action.
+                            sendCommandToFlutter("toggleLoop")
+                        }
                     }
                 }
             })
@@ -417,6 +484,7 @@ class MusicNotificationService : Service() {
 
         updateMediaSessionMetadata()
         updatePlaybackState()
+        FlickSessionHub.setToken(mediaSession.sessionToken)
     }
 
     private fun updateMediaSessionMetadata() {
@@ -424,6 +492,17 @@ class MusicNotificationService : Service() {
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
             .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDuration)
+
+        if (currentAlbum.isNotEmpty()) {
+            metadata.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, currentAlbum)
+        }
+        if (currentMediaId.isNotEmpty()) {
+            metadata.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentMediaId)
+        }
+        CarArtProvider.uriFor(this, currentAlbumArtPath)?.toString()?.let { uri ->
+            metadata.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, uri)
+            metadata.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, uri)
+        }
 
         getAlbumArtBitmap()?.let { bitmap ->
             metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
@@ -441,6 +520,7 @@ class MusicNotificationService : Service() {
             if (isShuffleMode) PlaybackStateCompat.SHUFFLE_MODE_ALL
             else PlaybackStateCompat.SHUFFLE_MODE_NONE
         )
+        mediaSession.setRepeatMode(LoopMode.toRepeatMode(currentLoopMode))
 
         val stateBuilder = PlaybackStateCompat.Builder()
             .setActions(
@@ -451,33 +531,51 @@ class MusicNotificationService : Service() {
                 PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackStateCompat.ACTION_STOP or
                 PlaybackStateCompat.ACTION_SEEK_TO or
-                PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE
+                PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE or
+                PlaybackStateCompat.ACTION_SET_REPEAT_MODE or
+                PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM or
+                PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
+                PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH
             )
             .setState(state, currentPosition, playbackSpeed, android.os.SystemClock.elapsedRealtime())
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val shuffleIcon = if (isShuffleMode) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle
-            val shuffleTitle = if (isShuffleMode) "Shuffle On" else "Shuffle Off"
-            
-            stateBuilder.addCustomAction(
-                PlaybackStateCompat.CustomAction.Builder(
-                    ACTION_SHUFFLE,
-                    shuffleTitle,
-                    shuffleIcon
-                ).build()
-            )
+        // Always present: car hosts read them below TIRAMISU too, and they are
+        // harmless to the notification, which draws its own buttons there.
+        val shuffleIcon = if (isShuffleMode) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle
+        val shuffleTitle = if (isShuffleMode) "Shuffle On" else "Shuffle Off"
 
-            val favoriteIcon = if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border
-            val favoriteTitle = if (isFavorite) "Unfavorite" else "Favorite"
-            
-            stateBuilder.addCustomAction(
-                PlaybackStateCompat.CustomAction.Builder(
-                    ACTION_FAVORITE,
-                    favoriteTitle,
-                    favoriteIcon
-                ).build()
-            )
+        stateBuilder.addCustomAction(
+            PlaybackStateCompat.CustomAction.Builder(
+                ACTION_SHUFFLE,
+                shuffleTitle,
+                shuffleIcon
+            ).build()
+        )
+
+        val repeatIcon = when (LoopMode.normalize(currentLoopMode)) {
+            LoopMode.ALL -> R.drawable.ic_repeat_on
+            LoopMode.ONE -> R.drawable.ic_repeat_one
+            else -> R.drawable.ic_repeat
         }
+
+        stateBuilder.addCustomAction(
+            PlaybackStateCompat.CustomAction.Builder(
+                ACTION_REPEAT,
+                LoopMode.title(currentLoopMode),
+                repeatIcon
+            ).build()
+        )
+
+        val favoriteIcon = if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border
+        val favoriteTitle = if (isFavorite) "Unfavorite" else "Favorite"
+
+        stateBuilder.addCustomAction(
+            PlaybackStateCompat.CustomAction.Builder(
+                ACTION_FAVORITE,
+                favoriteTitle,
+                favoriteIcon
+            ).build()
+        )
 
         mediaSession.setPlaybackState(stateBuilder.build())
     }
@@ -702,7 +800,10 @@ class MusicNotificationService : Service() {
         position?.let { currentPosition = it }
         shuffle?.let { isShuffleMode = it }
         favorite?.let { isFavorite = it }
-        color?.let { currentColor = it }
+        color?.let {
+            currentColor = it
+            FlickSessionHub.setAlbumColor(it)
+        }
         casting?.let { isCasting = it }
         castName?.let { castDeviceName = it }
         castVolume?.let { castVolumePercent = it.coerceIn(0, 100) }
@@ -720,6 +821,43 @@ class MusicNotificationService : Service() {
 
     private fun hideFloatingOverlay() {
         floatingOverlay?.hide()
+    }
+
+    private fun refreshSessionQueue() {
+        if (isDestroyed) return
+        if (queueRequestInFlight) {
+            queueRefreshPending = true
+            return
+        }
+        queueRequestInFlight = true
+        CarChannel.invoke(applicationContext, "queue", mapOf("limit" to SESSION_QUEUE_LIMIT)) { result ->
+            queueRequestInFlight = false
+            if (isDestroyed) return@invoke
+            result.onSuccess { publishSessionQueue(parseSessionQueue(it)) }
+                .onFailure {
+                    android.util.Log.w("MusicNotification", "Session queue not refreshed: ${it.message}")
+                }
+            if (queueRefreshPending) {
+                queueRefreshPending = false
+                refreshSessionQueue()
+            }
+        }
+    }
+
+    private fun publishSessionQueue(queue: SessionQueue) {
+        if (queue == lastPublishedQueue) return
+        lastPublishedQueue = queue
+        val items = queue.entries.map { entry ->
+            val description = MediaDescriptionCompat.Builder()
+                .setMediaId(entry.mediaId)
+                .setTitle(entry.title)
+                .setSubtitle(entry.subtitle)
+                .setIconUri(CarArtProvider.uriFor(this, entry.artPath))
+                .build()
+            MediaSessionCompat.QueueItem(description, entry.id)
+        }
+        mediaSession.setQueue(items.ifEmpty { null })
+        mediaSession.setQueueTitle(queue.title)
     }
 
     private fun sendCommandToFlutter(command: String, args: Map<String, Any>? = null) {

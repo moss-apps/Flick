@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Both: the host lists Flick as a media app (classic browser service) and as a
+     templated app (Car App Library). See docs/ANDROID_AUTO_DESIGN.md. -->
+<automotiveApp>
+    <uses name="media" />
+    <uses name="template" />
+</automotiveApp>

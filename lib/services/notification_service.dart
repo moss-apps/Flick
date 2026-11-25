@@ -26,6 +26,8 @@ class NotificationService {
     required Function(Duration) onSeek,
     required VoidCallback onToggleShuffle,
     required VoidCallback onToggleFavorite,
+    VoidCallback? onToggleLoop,
+    Function(int)? onSkipToQueueItem,
     VoidCallback? onDisconnectCast,
     Function(double)? onSetCastVolume,
   }) {
@@ -61,6 +63,14 @@ class NotificationService {
         case 'toggleFavorite':
           onToggleFavorite();
           break;
+        case 'toggleLoop':
+          onToggleLoop?.call();
+          break;
+        case 'skipToQueueItem':
+          // Index into the upcoming list: the user's queue, then the rest.
+          final index = (call.arguments['index'] as num?)?.toInt();
+          if (index != null) onSkipToQueueItem?.call(index);
+          break;
         case 'disconnectCast':
           onDisconnectCast?.call();
           break;
@@ -79,6 +89,7 @@ class NotificationService {
     Duration? duration,
     Duration? position,
     bool isShuffle = false,
+    String? loopMode,
     bool isFavorite = false,
     int? color,
     bool isCasting = false,
@@ -89,6 +100,8 @@ class NotificationService {
       final args = <String, dynamic>{
         'title': song.title,
         'artist': song.artist,
+        'album': song.album ?? '',
+        'mediaId': song.id,
         'albumArtPath': song.albumArt,
         'isPlaying': isPlaying,
         'duration': duration?.inMilliseconds ?? 0,
@@ -97,6 +110,7 @@ class NotificationService {
         'isFavorite': isFavorite,
         'isCasting': isCasting,
       };
+      if (loopMode != null) args['loopMode'] = loopMode;
       if (castDeviceName != null) args['castDeviceName'] = castDeviceName;
       if (castVolumePercent != null) {
         args['castVolume'] = castVolumePercent;
@@ -134,6 +148,7 @@ class NotificationService {
     Duration? duration,
     Duration? position,
     bool? isShuffle,
+    String? loopMode,
     bool? isFavorite,
     int? color,
     bool? isCasting,
@@ -144,6 +159,8 @@ class NotificationService {
       final args = <String, dynamic>{
         'title': song.title,
         'artist': song.artist,
+        'album': song.album ?? '',
+        'mediaId': song.id,
         'albumArtPath': song.albumArt,
         'isPlaying': isPlaying,
         'duration': duration?.inMilliseconds ?? 0,
@@ -151,6 +168,7 @@ class NotificationService {
       };
 
       if (isShuffle != null) args['isShuffle'] = isShuffle;
+      if (loopMode != null) args['loopMode'] = loopMode;
       if (isFavorite != null) args['isFavorite'] = isFavorite;
       if (color != null) args['color'] = color;
       if (isCasting != null) {
