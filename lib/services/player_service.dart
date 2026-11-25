@@ -5638,7 +5638,12 @@ class PlayerService {
         );
 
         var trackFormat = _deriveUac2FormatFromSong(song);
-        if (trackFormat == null) {
+        // A missing bit depth must not mean 16-bit: _deriveUac2FormatFromSong
+        // defaults to it, which silently down-converts 24-bit files after a
+        // hot-plug or engine restart. Probe the file in that case.
+        final needsFormatProbe =
+            trackFormat == null || (!song.isDsd && song.bitDepth == null);
+        if (needsFormatProbe) {
           final resolvedPath = await _resolveRustPath(song);
           if (resolvedPath != null && resolvedPath.isNotEmpty) {
             try {
