@@ -4,7 +4,11 @@ use crate::audio::commands::AudioEvent;
 use crate::audio::engine::{audio_callback, AudioCallbackData};
 use crate::uac2::endpoint::{select_explicit_feedback_endpoint, FeedbackEndpointCandidate};
 use crate::uac2::iso_packet_validation::{
-    iso_transfer_status_label, validate_iso_packet_descriptors, CompletionStats, PacketAcceptance,
+    account_timed_out_transfer, iso_transfer_status_label, validate_iso_packet_descriptors,
+    CompletionStats, PacketAcceptance,
+};
+use crate::uac2::iso_transport_loss::{
+    lost_frame_budget, ring_bytes_per_frame, LossLimits, LossLogGate, LossTracker, UrbLoss,
 };
 use crate::uac2::payload_audit_latch::PayloadAuditLatch;
 use crate::uac2::volume_control::{
@@ -91,7 +95,27 @@ const ANDROID_USB_STABLE_TRANSFER_THRESHOLD: usize = 64;
 // the earlier eight 32-packet transfers; above 256 the result was irregular.
 // 255 is the usable size of an xHCI ring segment. Stay well below it.
 const ANDROID_USB_TRANSFER_QUEUE_DEPTH: usize = 8;
-const ANDROID_USB_MAX_CONSECUTIVE_TIMEOUTS: u32 = 3;
+// A lossy data URB (it timed out, or the DAC took fewer bytes than were queued)
+// cannot be re-sent: up to ANDROID_USB_TRANSFER_QUEUE_DEPTH later URBs are
+// already queued behind it and re-sending would play out of order. So loss is
+// counted, clears the bit-perfect status at the first lost frame, and is bounded
+// two ways so a broken transport stops the stream instead of playing glitched
+// audio indefinitely.
+//
+// More than this many lossy URBs in a row means the host or DAC has stopped
+// consuming, not that one slot was unlucky.
+const ANDROID_USB_MAX_CONSECUTIVE_LOSSY_URBS: u32 = 3;
+// Cumulative budget since stream start, for loss that is sporadic and so never
+// trips the consecutive bound. 100 ms is about 50 high-speed URBs' worth of
+// audio (one 16-packet URB at 125us is 2 ms): dozens of audible dropouts, far
+// more than a healthy link ever produces, yet short enough that a stream which
+// keeps shedding frames is not left running for hours. The bit-perfect status
+// is already gone after the first lost frame, so this only decides when to stop
+// playing. Counted in ring frames, so it scales with `effective_ring_rate`.
+const ANDROID_USB_MAX_LOST_AUDIO_MS: u64 = 100;
+// Loss log lines: the first few immediately, then at most one per interval.
+const ANDROID_USB_LOSS_LOG_BURST: u32 = 4;
+const ANDROID_USB_LOSS_LOG_MIN_INTERVAL_MS: u64 = 1_000;
 const ANDROID_USB_REQUIRE_VERIFIED_RATE_DEFAULT: bool = true;
 const ANDROID_USB_CLOCK_SETTLE_DELAY_MS_DEFAULT: u64 = 20;
 const ANDROID_USB_FEEDBACK_TIMEOUT_MS: u32 = 50;
@@ -508,6 +532,9 @@ pub struct AndroidDirectUsbDebugState {
     pub underrun_count: Option<u64>,
     pub producer_frames: Option<u64>,
     pub consumer_frames: Option<u64>,
+    /// Ring frames lost on the USB transport this stream; any non-zero value
+    /// has cleared `bit_perfect_verified` and `usb_stream_stable`.
+    pub lost_frames: Option<u64>,
     pub drift_ms_from_target: Option<i32>,
     pub transfer_queue_depth: Option<u32>,
     pub completed_transfers: Option<u64>,
@@ -640,6 +667,17 @@ struct AndroidDirectUsbRuntimeStats {
     underrun_count: AtomicU64,
     producer_frames: AtomicU64,
     consumer_frames: AtomicU64,
+    /// Ring frames queued to the DAC that it never took (timed-out URBs and
+    /// short or zero-length ISO packets). Never included in `consumer_frames`.
+    lost_frames: AtomicU64,
+    short_packets: AtomicU64,
+    zero_packets: AtomicU64,
+    /// Data-endpoint URBs libusb reported as timed out. Unrelated to the
+    /// feedback endpoint's `timeouts=` in the `[USB-TIMING]` log.
+    data_urb_timeouts: AtomicU64,
+    /// Latched by the first lost frame. Stats are created per stream, so a new
+    /// stream starts unlatched.
+    transport_loss_latched: AtomicBool,
     completed_transfers: AtomicU64,
     last_transfer_turnaround_us: AtomicU64,
     max_transfer_turnaround_us: AtomicU64,
@@ -945,6 +983,12 @@ impl IsoTransferSlot {
                 transfer.length,
             )
         })
+    }
+
+    /// What a timed-out URB cost, from its packet descriptors.
+    fn account_timeout(&self, acceptance: PacketAcceptance) -> CompletionStats {
+        let transfer = unsafe { self.transfer.as_ref() };
+        timed_out_packet_results(transfer, &self.packet_sizes, acceptance)
     }
 
     fn mark_completed(&mut self) {
@@ -1313,6 +1357,11 @@ impl AndroidDirectUsbRuntimeStats {
             underrun_count: AtomicU64::new(0),
             producer_frames: AtomicU64::new(0),
             consumer_frames: AtomicU64::new(0),
+            lost_frames: AtomicU64::new(0),
+            short_packets: AtomicU64::new(0),
+            zero_packets: AtomicU64::new(0),
+            data_urb_timeouts: AtomicU64::new(0),
+            transport_loss_latched: AtomicBool::new(false),
             completed_transfers: AtomicU64::new(0),
             last_transfer_turnaround_us: AtomicU64::new(0),
             max_transfer_turnaround_us: AtomicU64::new(0),
@@ -1322,6 +1371,10 @@ impl AndroidDirectUsbRuntimeStats {
             last_push_max_abs_f32_bits: AtomicU32::new(0),
             last_push_max_abs_i32: AtomicU32::new(0),
         }
+    }
+
+    fn transport_loss_latched(&self) -> bool {
+        self.transport_loss_latched.load(Ordering::Relaxed)
     }
 
     fn buffer_fill_ms(&self) -> u32 {
@@ -1616,6 +1669,13 @@ fn bit_perfect_release_reason(state: &AndroidDirectUsbState) -> &'static str {
         });
     if format_mismatch {
         return "requested/effective format mismatch";
+    }
+    if state
+        .runtime_stats
+        .as_ref()
+        .is_some_and(|stats| stats.transport_loss_latched())
+    {
+        return "audio lost on the USB transport";
     }
     "wire payload audit failed"
 }
@@ -2291,6 +2351,7 @@ pub fn android_direct_debug_state() -> AndroidDirectUsbDebugState {
         underrun_count: runtime_stats.map(|stats| stats.underrun_count.load(Ordering::Relaxed)),
         producer_frames: runtime_stats.map(|stats| stats.producer_frames.load(Ordering::Relaxed)),
         consumer_frames: runtime_stats.map(|stats| stats.consumer_frames.load(Ordering::Relaxed)),
+        lost_frames: runtime_stats.map(|stats| stats.lost_frames.load(Ordering::Relaxed)),
         drift_ms_from_target: runtime_stats.map(|stats| stats.drift_ms_from_target()),
         transfer_queue_depth: runtime_stats
             .map(|stats| stats.transfer_queue_depth.load(Ordering::Relaxed) as u32)
@@ -3004,6 +3065,17 @@ fn set_clock_verification(
 
 fn direct_path_is_bit_perfect(state: &AndroidDirectUsbState) -> bool {
     if !state.stream_active {
+        return false;
+    }
+
+    // Audio that was queued but never reached the DAC cannot be re-sent, so a
+    // stream that lost any can no longer claim bit-perfect output. The latch
+    // lives in the per-stream runtime stats and clears only with a new stream.
+    if state
+        .runtime_stats
+        .as_ref()
+        .is_some_and(|stats| stats.transport_loss_latched())
+    {
         return false;
     }
 
@@ -5780,6 +5852,26 @@ fn prepare_iso_transfer_payload(
     }))
 }
 
+fn publish_transport_loss(runtime_stats: &AndroidDirectUsbRuntimeStats, tracker: &LossTracker) {
+    runtime_stats
+        .lost_frames
+        .store(tracker.lost_frames(), Ordering::Relaxed);
+    runtime_stats
+        .short_packets
+        .store(tracker.short_packets(), Ordering::Relaxed);
+    runtime_stats
+        .zero_packets
+        .store(tracker.zero_packets(), Ordering::Relaxed);
+    runtime_stats
+        .data_urb_timeouts
+        .store(tracker.data_urb_timeouts(), Ordering::Relaxed);
+    if tracker.is_latched() {
+        runtime_stats
+            .transport_loss_latched
+            .store(true, Ordering::Relaxed);
+    }
+}
+
 fn update_transfer_timing_stats(
     runtime_stats: &AndroidDirectUsbRuntimeStats,
     turnaround_us: u64,
@@ -6097,23 +6189,43 @@ fn run_usb_output_loop(
         .store(transfer_slot_count, Ordering::Relaxed);
     let mut logged_transfer_preview = false;
     let mut logged_usb_encode_format = false;
-    // Isochronous OUT transfers that completed successfully (libusb COMPLETED). Not reset on underrun.
+    // Lossless isochronous OUT transfers: libusb COMPLETED and the DAC took every
+    // submitted byte. Not reset on underrun or loss.
     let mut successful_transfers = 0usize;
     let mut logged_usb_stabilized = false;
     let mut underrun_count = 0u64;
-    let mut timeout_count = 0u64;
-    let mut consecutive_timeouts = 0u32;
     let mut feedback_counters = FeedbackCounters::default();
     let mut feedback_stale_warned = false;
     let mut min_active_slots = transfer_slot_count;
     let mut loud_transfer_log_count = 0u64;
-    let mut short_packet_count = 0u64;
-    let mut shortfall_frames = 0u64;
-    let mut zero_packet_count = 0u64;
     let acceptance = PacketAcceptance::new(
         playback_format.sample_rate,
         candidate.service_interval_us,
         bytes_per_frame,
+    );
+    // Lost audio is counted in the unit `consumer_frames` uses, which for native
+    // DSD is one byte per channel rather than a transport frame.
+    let ring_frame_bytes = ring_bytes_per_frame(
+        playback_format.dsd_transport == DsdTransportMode::Native,
+        channels,
+        bytes_per_frame,
+    );
+    let mut loss_tracker = LossTracker::new(LossLimits {
+        max_consecutive_lossy_urbs: ANDROID_USB_MAX_CONSECUTIVE_LOSSY_URBS,
+        max_lost_frames: lost_frame_budget(
+            runtime_stats.sample_rate,
+            ANDROID_USB_MAX_LOST_AUDIO_MS,
+        ),
+    });
+    // Separate gates so benign repacketisation cannot use up the budget for
+    // lines that report real loss.
+    let mut loss_log_gate = LossLogGate::new(
+        ANDROID_USB_LOSS_LOG_BURST,
+        ANDROID_USB_LOSS_LOG_MIN_INTERVAL_MS,
+    );
+    let mut repacketised_log_gate = LossLogGate::new(
+        ANDROID_USB_LOSS_LOG_BURST,
+        ANDROID_USB_LOSS_LOG_MIN_INTERVAL_MS,
     );
     let transfer_buffer_capacity = scheduler
         .packets_per_transfer()
@@ -6267,12 +6379,13 @@ fn run_usb_output_loop(
             let queued_frame_count = slot.queued_frame_count as u64;
             let completed_underrun = slot.queued_underrun;
             // A single timed-out isochronous URB is a lost slot, not a broken
-            // device. Cancel-and-resubmit keeps the stream alive; only a run of
-            // consecutive timeouts means the host or DAC has stopped consuming.
+            // device, so the stream keeps going. Its audio is gone though: it is
+            // counted as lost (never as consumed) and the stream is bounded by
+            // `loss_tracker` below.
             let timed_out = status == LIBUSB_TRANSFER_TIMED_OUT;
             let transfer_result = match status {
                 LIBUSB_TRANSFER_COMPLETED => slot.validate_packets(acceptance),
-                LIBUSB_TRANSFER_TIMED_OUT => Ok(CompletionStats::default()),
+                LIBUSB_TRANSFER_TIMED_OUT => Ok(slot.account_timeout(acceptance)),
                 LIBUSB_TRANSFER_STALL => Err("isochronous transfer stalled".to_string()),
                 LIBUSB_TRANSFER_NO_DEVICE => Err("USB DAC disconnected".to_string()),
                 LIBUSB_TRANSFER_OVERFLOW => Err("isochronous transfer overflow".to_string()),
@@ -6309,28 +6422,58 @@ fn run_usb_output_loop(
                 }
             };
 
-            if completion_stats.short_packets > 0 || completion_stats.zero_packets > 0 {
-                short_packet_count = short_packet_count
-                    .saturating_add(completion_stats.short_packets as u64);
-                zero_packet_count =
-                    zero_packet_count.saturating_add(completion_stats.zero_packets as u64);
-                shortfall_frames =
-                    shortfall_frames.saturating_add(completion_stats.shortfall_frames);
-                // First occurrence plus a bounded periodic summary. A short ISO
-                // OUT packet is normal repacketisation/FIFO backpressure, so it
-                // must never kill the stream.
-                if short_packet_count + zero_packet_count <= 4
-                    || (short_packet_count + zero_packet_count) % 256 == 0
-                {
+            let urb_loss = UrbLoss::from_completion(&completion_stats, timed_out, ring_frame_bytes);
+            let verdict = loss_tracker.record(queued_frame_count, urb_loss);
+            if verdict.lossy || urb_loss.short_packets > 0 || urb_loss.zero_packets > 0 {
+                publish_transport_loss(&runtime_stats, &loss_tracker);
+            }
+
+            let now_ms = stream_started_at
+                .elapsed()
+                .as_millis()
+                .min(u128::from(u64::MAX)) as u64;
+            if timed_out {
+                log_warn!(
+                    "[USB] ISO transfer timed out; its audio is lost and not re-sent \
+                     (consecutiveLossyUrbs={}, dataUrbTimeouts={}, queueDepth={}, \
+                     urbLostFrames={}/{}, lostFrames={})",
+                    loss_tracker.consecutive_lossy_urbs(),
+                    loss_tracker.data_urb_timeouts(),
+                    active_slots,
+                    urb_loss.lost_frames,
+                    queued_frame_count,
+                    loss_tracker.lost_frames(),
+                );
+            } else if urb_loss.short_packets > 0 || urb_loss.zero_packets > 0 {
+                // First occurrences plus a bounded periodic summary; neither
+                // kind of line may kill the stream on its own.
+                if verdict.lossy {
+                    if loss_log_gate.admit(now_ms) {
+                        log_warn!(
+                            "[USB] ISO transfer lost audio: urbLostFrames={}/{} lostFrames={} \
+                             shortPackets={} zeroPackets={} consecutiveLossyUrbs={} \
+                             lastShort={} lastZero={} descriptorRewrites={} legal={}/{} bytes \
+                             frame={}B",
+                            urb_loss.lost_frames,
+                            queued_frame_count,
+                            loss_tracker.lost_frames(),
+                            loss_tracker.short_packets(),
+                            loss_tracker.zero_packets(),
+                            loss_tracker.consecutive_lossy_urbs(),
+                            completion_stats.short_packets,
+                            completion_stats.zero_packets,
+                            completion_stats.descriptor_rewrites,
+                            acceptance.legal_sizes()[0],
+                            acceptance.legal_sizes()[1],
+                            acceptance.bytes_per_frame(),
+                        );
+                    }
+                } else if repacketised_log_gate.admit(now_ms) {
                     log_warn!(
-                        "[USB] ISO short completion accepted: shortPackets={} zeroPackets={} \
-                         shortfallFrames={} lastShort={} lastZero={} descriptorRewrites={} \
-                         legal={}/{} bytes frame={}B",
-                        short_packet_count,
-                        zero_packet_count,
-                        shortfall_frames,
+                        "[USB] ISO packets repacketised without loss: shortPackets={} \
+                         lastShort={} descriptorRewrites={} legal={}/{} bytes frame={}B",
+                        loss_tracker.short_packets(),
                         completion_stats.short_packets,
-                        completion_stats.zero_packets,
                         completion_stats.descriptor_rewrites,
                         acceptance.legal_sizes()[0],
                         acceptance.legal_sizes()[1],
@@ -6339,38 +6482,7 @@ fn run_usb_output_loop(
                 }
             }
 
-            if timed_out {
-                consecutive_timeouts = consecutive_timeouts.saturating_add(1);
-                timeout_count = timeout_count.saturating_add(1);
-                log_warn!(
-                    "[USB] ISO transfer timed out; resubmitting slot (consecutive={}, total={}, \
-                     queueDepth={}, lostFrames={})",
-                    consecutive_timeouts,
-                    timeout_count,
-                    active_slots,
-                    queued_frame_count,
-                );
-                if consecutive_timeouts > ANDROID_USB_MAX_CONSECUTIVE_TIMEOUTS {
-                    fatal_error = Some(format!(
-                        "Android USB direct transfer failed: {} consecutive isochronous transfers \
-                         timed out; sample_rate={} channels={} subslot_bytes={} bit_resolution={} \
-                         service_interval_us={} interface={} alt={} endpoint=0x{:02x} speed={:?} sync={}",
-                        consecutive_timeouts,
-                        playback_format.sample_rate,
-                        channels,
-                        slot_bytes,
-                        candidate.bit_resolution,
-                        candidate.service_interval_us,
-                        candidate.interface_number,
-                        candidate.alt_setting,
-                        candidate.endpoint_address,
-                        candidate.usb_speed,
-                        sync_type_label(candidate.sync_type),
-                    ));
-                    break;
-                }
-            } else {
-                consecutive_timeouts = 0;
+            if verdict.counts_as_successful_transfer() {
                 successful_transfers = successful_transfers.saturating_add(1);
             }
 
@@ -6378,15 +6490,33 @@ fn run_usb_output_loop(
                 .completed_transfers
                 .fetch_add(1, Ordering::Relaxed)
                 .saturating_add(1);
-            if timed_out {
-                runtime_stats
-                    .consumer_frames
-                    .fetch_add(queued_frame_count, Ordering::Relaxed);
-            } else {
-                runtime_stats.consumer_frames.fetch_add(
-                    queued_frame_count.saturating_sub(completion_stats.shortfall_frames),
-                    Ordering::Relaxed,
-                );
+            runtime_stats
+                .consumer_frames
+                .fetch_add(verdict.consumed_frames, Ordering::Relaxed);
+
+            if let Some(limit) = verdict.fatal {
+                fatal_error = Some(format!(
+                    "Android USB direct transfer failed: {}; lost_frames={} short_packets={} \
+                     zero_packets={} data_urb_timeouts={}; sample_rate={} channels={} \
+                     subslot_bytes={} bit_resolution={} service_interval_us={} interface={} \
+                     alt={} endpoint=0x{:02x} speed={:?} sync={}",
+                    limit,
+                    loss_tracker.lost_frames(),
+                    loss_tracker.short_packets(),
+                    loss_tracker.zero_packets(),
+                    loss_tracker.data_urb_timeouts(),
+                    playback_format.sample_rate,
+                    channels,
+                    slot_bytes,
+                    candidate.bit_resolution,
+                    candidate.service_interval_us,
+                    candidate.interface_number,
+                    candidate.alt_setting,
+                    candidate.endpoint_address,
+                    candidate.usb_speed,
+                    sync_type_label(candidate.sync_type),
+                ));
+                break;
             }
 
             let mut submit_gap_us = 0u64;
@@ -6463,7 +6593,7 @@ fn run_usb_output_loop(
                     .unwrap_or(-1);
                 let feedback_rate_hz = feedback_counters.last_estimated_sample_rate.unwrap_or(0.0);
                 log_info!(
-                    "[USB-TIMING] completed={} queueDepth={} minQueueDepth={} configuredQueueDepth={} effectiveRateHz={:.3} lastTurnaroundUs={} maxTurnaroundUs={} lastSubmitGapUs={} maxSubmitGapUs={} feedbackActive={} reports={} timeouts={} errors={} rejected={} feedbackAgeMs={} feedbackRateHz={:.2}",
+                    "[USB-TIMING] completed={} queueDepth={} minQueueDepth={} configuredQueueDepth={} effectiveRateHz={:.3} lastTurnaroundUs={} maxTurnaroundUs={} lastSubmitGapUs={} maxSubmitGapUs={} feedbackActive={} reports={} timeouts={} errors={} rejected={} feedbackAgeMs={} feedbackRateHz={:.2} lostFrames={} shortPackets={} zeroPackets={} dataUrbTimeouts={} transportLoss={}",
                     completed_transfers,
                     runtime_stats.transfer_queue_depth.load(Ordering::Relaxed),
                     min_active_slots,
@@ -6480,6 +6610,11 @@ fn run_usb_output_loop(
                     feedback_counters.rejected,
                     feedback_age_ms,
                     feedback_rate_hz,
+                    runtime_stats.lost_frames.load(Ordering::Relaxed),
+                    runtime_stats.short_packets.load(Ordering::Relaxed),
+                    runtime_stats.zero_packets.load(Ordering::Relaxed),
+                    runtime_stats.data_urb_timeouts.load(Ordering::Relaxed),
+                    runtime_stats.transport_loss_latched(),
                 );
                 let feedback_stale = feedback_slot.is_some()
                     && if feedback_counters.reports == 0 {
@@ -6508,7 +6643,8 @@ fn run_usb_output_loop(
             }
 
             if successful_transfers >= ANDROID_USB_STABLE_TRANSFER_THRESHOLD {
-                if !completed_underrun {
+                // A stream that has lost audio never asserts stability again.
+                if !completed_underrun && !loss_tracker.is_latched() {
                     set_usb_stream_stable(true);
                     if !logged_usb_stabilized {
                         if feedback_slot.is_none() {
@@ -8789,6 +8925,25 @@ fn validate_iso_packet_results(
     validate_iso_packet_descriptors(packet_sizes, descriptors, acceptance)
 }
 
+fn timed_out_packet_results(
+    transfer: &libusb_transfer,
+    packet_sizes: &[usize],
+    acceptance: PacketAcceptance,
+) -> CompletionStats {
+    if transfer.num_iso_packets != packet_sizes.len() as i32 {
+        // Not the schedule that was submitted: trust nothing, lose the URB.
+        return account_timed_out_transfer(packet_sizes, &[], acceptance);
+    }
+
+    // Same contract as validate_iso_packet_results: the slot allocated exactly
+    // packet_sizes.len() descriptors and this runs after completion, before the
+    // slot is resubmitted.
+    let descriptors = unsafe {
+        std::slice::from_raw_parts(transfer.iso_packet_desc.as_ptr(), packet_sizes.len())
+    };
+    account_timed_out_transfer(packet_sizes, descriptors, acceptance)
+}
+
 #[cfg(test)]
 mod dsd_bitperfect_tests {
     use super::*;
@@ -9039,5 +9194,154 @@ mod dsd_bitperfect_tests {
             decode_feedback_report(&bytes, 125, Speed::High).unwrap();
         assert!((frames_per_packet - 44.1).abs() < 0.000_1);
         assert!((estimated_rate - 352_800.0).abs() < 0.01);
+    }
+}
+
+#[cfg(test)]
+mod transport_loss_tests {
+    use super::*;
+
+    fn pcm_format() -> AndroidDirectUsbPlaybackFormat {
+        AndroidDirectUsbPlaybackFormat {
+            sample_rate: 44_100,
+            bit_depth: 16,
+            channels: 2,
+            is_dop: false,
+            dsd_transport: DsdTransportMode::None,
+            dsd_bit_rate: 0,
+        }
+    }
+
+    fn streaming_state(runtime_stats: Arc<AndroidDirectUsbRuntimeStats>) -> AndroidDirectUsbState {
+        AndroidDirectUsbState {
+            device: AndroidDirectUsbDevice {
+                fd: -1,
+                _fd_owner: Arc::new(AndroidDirectUsbOwnedFd(-1)),
+                vendor_id: 0,
+                product_id: 0,
+                product_name: "test DAC".to_string(),
+                manufacturer: String::new(),
+                serial: None,
+                device_name: None,
+                pre_claimed_mask: 0,
+            },
+            requested_playback_format: Some(pcm_format()),
+            playback_format: Some(pcm_format()),
+            lock_requested: true,
+            stream_active: true,
+            active_transport: None,
+            capability_model: None,
+            clock_status: None,
+            clock_control_attempted: true,
+            clock_control_succeeded: true,
+            clock_verification_passed: true,
+            require_verified_rate: true,
+            dac_clock_policy: DacClockPolicy::RequireVerifiedRate,
+            dac_mode: DacMode::FullControl,
+            last_error: None,
+            direct_mode_refusal_reason: None,
+            usb_stream_stable: false,
+            bit_perfect_verified: false,
+            software_volume_active: false,
+            hardware_volume_control: None,
+            hardware_volume_generation: 0,
+            hardware_volume_error: None,
+            hardware_volume_normalized: None,
+            hardware_mute_active: None,
+            pending_hardware_volume_restore: None,
+            packet_schedule_frames_preview: Vec::new(),
+            runtime_stats: Some(runtime_stats),
+        }
+    }
+
+    /// The PCM wire audit is process-global. Satisfy it so the only thing that
+    /// can change `direct_path_is_bit_perfect` in these tests is the latch.
+    fn new_stream_stats() -> Arc<AndroidDirectUsbRuntimeStats> {
+        USB_PCM_PAYLOAD_LATCH.lock().observe(true, Instant::now());
+        Arc::new(AndroidDirectUsbRuntimeStats::new(44_100, 2, 200, 100))
+    }
+
+    fn lossy_tracker(lost_frames: u64) -> LossTracker {
+        let mut tracker = LossTracker::new(LossLimits {
+            max_consecutive_lossy_urbs: ANDROID_USB_MAX_CONSECUTIVE_LOSSY_URBS,
+            max_lost_frames: u64::MAX,
+        });
+        tracker.record(
+            44,
+            UrbLoss {
+                lost_frames,
+                ..UrbLoss::default()
+            },
+        );
+        tracker
+    }
+
+    #[test]
+    fn lost_frames_clear_the_bit_perfect_claim_until_a_new_stream() {
+        let stats = new_stream_stats();
+        let state = streaming_state(Arc::clone(&stats));
+        assert!(direct_path_is_bit_perfect(&state));
+
+        publish_transport_loss(&stats, &lossy_tracker(3));
+        assert!(stats.transport_loss_latched());
+        assert_eq!(stats.lost_frames.load(Ordering::Relaxed), 3);
+        assert!(!direct_path_is_bit_perfect(&state));
+        assert_eq!(
+            bit_perfect_release_reason(&state),
+            "audio lost on the USB transport"
+        );
+
+        // A new stream gets fresh runtime stats, so it starts unlatched.
+        let next_stream = streaming_state(new_stream_stats());
+        assert!(direct_path_is_bit_perfect(&next_stream));
+    }
+
+    #[test]
+    fn a_lossless_tracker_never_latches_the_stream() {
+        let stats = new_stream_stats();
+        let state = streaming_state(Arc::clone(&stats));
+        publish_transport_loss(&stats, &lossy_tracker(0));
+        assert!(!stats.transport_loss_latched());
+        assert_eq!(stats.lost_frames.load(Ordering::Relaxed), 0);
+        assert!(direct_path_is_bit_perfect(&state));
+    }
+
+    #[test]
+    fn publish_mirrors_every_counter() {
+        let stats = new_stream_stats();
+        let mut tracker = LossTracker::new(LossLimits {
+            max_consecutive_lossy_urbs: ANDROID_USB_MAX_CONSECUTIVE_LOSSY_URBS,
+            max_lost_frames: u64::MAX,
+        });
+        tracker.record(
+            44,
+            UrbLoss {
+                timed_out: true,
+                lost_frames: 44,
+                short_packets: 0,
+                zero_packets: 0,
+            },
+        );
+        tracker.record(
+            44,
+            UrbLoss {
+                timed_out: false,
+                lost_frames: 6,
+                short_packets: 2,
+                zero_packets: 1,
+            },
+        );
+        publish_transport_loss(&stats, &tracker);
+        assert_eq!(stats.lost_frames.load(Ordering::Relaxed), 50);
+        assert_eq!(stats.short_packets.load(Ordering::Relaxed), 2);
+        assert_eq!(stats.zero_packets.load(Ordering::Relaxed), 1);
+        assert_eq!(stats.data_urb_timeouts.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn the_lost_audio_budget_is_about_a_tenth_of_a_second() {
+        let frames = lost_frame_budget(44_100, ANDROID_USB_MAX_LOST_AUDIO_MS);
+        assert_eq!(frames, 4_410);
+        assert_eq!(ANDROID_USB_MAX_CONSECUTIVE_LOSSY_URBS, 3);
     }
 }
