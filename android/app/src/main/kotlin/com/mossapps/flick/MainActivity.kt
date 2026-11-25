@@ -131,6 +131,7 @@ class MainActivity: FlutterActivity() {
     private var uac2Channel: MethodChannel? = null
     private var audioDeviceChannel: MethodChannel? = null
     private val directUsbConnections = mutableMapOf<String, UsbDeviceConnection>()
+    private val directUsbClaimedInterfaces = mutableMapOf<String, MutableSet<Int>>()
     private var activeDirectUsbDeviceName: String? = null
     private var exclusiveDacModeEnabled = false
     private var directUsbPlaybackActive = false
@@ -4238,7 +4239,8 @@ class MainActivity: FlutterActivity() {
                 return false
             }
 
-            if (!probeDirectUsbExclusiveAccess(connection, device)) {
+            val claimedInterfaces = claimDirectUsbInterfaces(connection, device, deviceName)
+            if (claimedInterfaces == null) {
                 if (existingConnection == null) {
                     connection.close()
                 } else {
@@ -4259,6 +4261,7 @@ class MainActivity: FlutterActivity() {
                 device.manufacturerName ?: "",
                 safeUsbSerial(device),
                 device.deviceName,
+                claimedInterfaces.isNotEmpty(),
             )
 
             if (!registered) {
@@ -4304,22 +4307,30 @@ class MainActivity: FlutterActivity() {
         return true
     }
 
-    private fun probeDirectUsbExclusiveAccess(
+    /// Force-claim the audio control and streaming interfaces through Android's
+    /// UsbDeviceConnection. `force = true` issues USBDEVFS_DISCONNECT_CLAIM, so
+    /// snd-usb-audio (and the platform USB-audio HAL) releases them even when
+    /// "Disable USB audio routing" is off. usbfs tracks claims per device, so
+    /// Rust must not issue a second claim on the same fd.
+    private fun claimDirectUsbInterfaces(
         connection: UsbDeviceConnection,
         device: UsbDevice,
-    ): Boolean {
-        val audioInterfaces = directUsbAudioInterfaces(device)
-        if (audioInterfaces.isEmpty()) {
-            Log.w("UAC2", "No USB audio interfaces were found for ${device.deviceName}")
-            return false
+        deviceName: String,
+    ): IntArray? {
+        directUsbClaimedInterfaces[deviceName]?.let { claimed ->
+            if (claimed.isNotEmpty()) {
+                Log.i("UAC2", "[USB] Reusing claimed interfaces $claimed for $deviceName")
+                return claimed.toIntArray()
+            }
         }
 
+        val audioInterfaces = directUsbAudioInterfaces(device)
         val controlInterface = audioInterfaces.firstOrNull { usbInterface ->
             usbInterface.interfaceSubclass == 0x01
         }
-        val streamingInterfaces = audioInterfaces.filter { usbInterface ->
-            usbInterface.interfaceSubclass == 0x02
-        }
+        val streamingInterfaces = audioInterfaces
+            .filter { usbInterface -> usbInterface.interfaceSubclass == 0x02 }
+            .distinctBy { usbInterface -> usbInterface.id }
         if (controlInterface == null || streamingInterfaces.isEmpty()) {
             Log.w(
                 "UAC2",
@@ -4327,17 +4338,43 @@ class MainActivity: FlutterActivity() {
                     "control=${controlInterface?.id ?: "none"}, " +
                     "streaming=${streamingInterfaces.map { it.id }}",
             )
-            return false
+            return null
         }
 
+        val targets = listOf(controlInterface) + streamingInterfaces
+        val claimed = mutableListOf<UsbInterface>()
+        for (usbInterface in targets) {
+            val ok = try {
+                connection.claimInterface(usbInterface, true)
+            } catch (e: Exception) {
+                Log.e(
+                    "UAC2",
+                    "[USB] claimInterface(${usbInterface.id}, force=true) threw: ${e.message}",
+                )
+                false
+            }
+            if (!ok) {
+                Log.e(
+                    "UAC2",
+                    "[USB] Failed to force-claim interface ${usbInterface.id} " +
+                        "on ${device.deviceName}; releasing ${claimed.map { it.id }}",
+                )
+                claimed.forEach { claimedInterface ->
+                    runCatching { connection.releaseInterface(claimedInterface) }
+                }
+                return null
+            }
+            claimed += usbInterface
+        }
+
+        val ids = claimed.map { it.id }.distinct()
+        directUsbClaimedInterfaces[deviceName] = ids.toMutableSet()
         Log.i(
             "UAC2",
-            "[USB] Audio interface check passed for ${device.deviceName}: " +
-                "controlInterface=${controlInterface.id}, " +
-                "streamingInterfaces=${streamingInterfaces.map { it.id }}, " +
-                "fd=${connection.fileDescriptor}",
+            "[USB] Force-claimed audio interfaces $ids for ${device.deviceName} " +
+                "(fd=${connection.fileDescriptor})",
         )
-        return true
+        return ids.toIntArray()
     }
 
     private fun directUsbAudioInterfaces(device: UsbDevice): List<UsbInterface> {
@@ -4549,6 +4586,7 @@ class MainActivity: FlutterActivity() {
 
     private fun closeDirectUsbConnection(deviceName: String?) {
         if (deviceName == null) return
+        directUsbClaimedInterfaces.remove(deviceName)
         try {
             directUsbConnections.remove(deviceName)?.close()
         } catch (_: Exception) {
@@ -5686,6 +5724,7 @@ class MainActivity: FlutterActivity() {
         manufacturer: String,
         serial: String?,
         deviceName: String?,
+        preClaimed: Boolean,
     ): Boolean
     private external fun nativeSetRustDirectUsbPlaybackFormat(
         sampleRate: Int,

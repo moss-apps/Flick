@@ -337,6 +337,10 @@ pub struct AndroidDirectUsbDevice {
     pub manufacturer: String,
     pub serial: Option<String>,
     pub device_name: Option<String>,
+    /// Interfaces were already claimed through Android's `UsbDeviceConnection`
+    /// with `claimInterface(iface, force = true)`. usbfs tracks the claim per
+    /// device, so libusb must not issue a second claim (it would see EBUSY).
+    pub pre_claimed: bool,
 }
 
 impl AndroidDirectUsbDevice {
@@ -348,6 +352,7 @@ impl AndroidDirectUsbDevice {
         manufacturer: String,
         serial: Option<String>,
         device_name: Option<String>,
+        pre_claimed: bool,
     ) -> Result<Self, String> {
         let duplicated_fd = unsafe { libc::dup(fd) };
         if duplicated_fd < 0 {
@@ -366,6 +371,7 @@ impl AndroidDirectUsbDevice {
             manufacturer,
             serial,
             device_name,
+            pre_claimed,
         })
     }
 }
@@ -656,6 +662,7 @@ struct AndroidDirectUsbLock {
     context: Context,
     handle: DeviceHandle<Context>,
     claimed_interfaces: Vec<u8>,
+    pre_claimed: bool,
 }
 
 struct AndroidDirectUsbClaimedHandle {
@@ -663,6 +670,7 @@ struct AndroidDirectUsbClaimedHandle {
     context: Context,
     handle: DeviceHandle<Context>,
     claimed_interfaces: Vec<u8>,
+    pre_claimed: bool,
 }
 
 #[derive(Debug)]
@@ -3089,6 +3097,7 @@ impl From<AndroidDirectUsbLock> for AndroidDirectUsbClaimedHandle {
             context: value.context,
             handle: value.handle,
             claimed_interfaces: value.claimed_interfaces,
+            pre_claimed: value.pre_claimed,
         }
     }
 }
@@ -3100,6 +3109,7 @@ impl AndroidDirectUsbClaimedHandle {
             context: self.context,
             handle: self.handle,
             claimed_interfaces: self.claimed_interfaces,
+            pre_claimed: self.pre_claimed,
         }
     }
 
@@ -3108,7 +3118,15 @@ impl AndroidDirectUsbClaimedHandle {
             return Ok(());
         }
 
-        claim_interface_with_recovery(&self.handle, interface_number)?;
+        if self.pre_claimed {
+            // Java already force-claimed the audio interfaces on this fd.
+            dev_eprintln!(
+                "Android USB direct: interface {} is pre-claimed by UsbDeviceConnection",
+                interface_number
+            );
+        } else {
+            claim_interface_with_recovery(&self.handle, interface_number)?;
+        }
         self.claimed_interfaces.push(interface_number);
         self.claimed_interfaces.sort_unstable();
         self.claimed_interfaces.dedup();
@@ -3245,6 +3263,7 @@ fn open_claimed_usb_handle(
         context,
         handle,
         claimed_interfaces: Vec::new(),
+        pre_claimed: device.pre_claimed,
     })
 }
 
@@ -3264,6 +3283,7 @@ fn open_transient_usb_handle(
         context,
         handle,
         claimed_interfaces: Vec::new(),
+        pre_claimed: device.pre_claimed,
     })
 }
 
@@ -5963,6 +5983,7 @@ fn run_usb_output_loop(
         context,
         handle,
         claimed_interfaces,
+        pre_claimed,
     } = claimed_handle;
     let playback_format = state.playback_format.unwrap();
     USB_DSD_PAYLOAD_LATCH.lock().reset();
@@ -5988,6 +6009,7 @@ fn run_usb_output_loop(
                 context,
                 handle,
                 claimed_interfaces,
+                pre_claimed,
             },
             Some(candidate.interface_number),
             current_lock_requested_for_fd(device_fd),
@@ -6006,6 +6028,7 @@ fn run_usb_output_loop(
                 context,
                 handle,
                 claimed_interfaces,
+                pre_claimed,
             },
             Some(candidate.interface_number),
             current_lock_requested_for_fd(device_fd),
@@ -6436,6 +6459,7 @@ fn run_usb_output_loop(
             context,
             handle,
             claimed_interfaces,
+            pre_claimed,
         },
         Some(candidate.interface_number),
         current_lock_requested_for_fd(device_fd),
