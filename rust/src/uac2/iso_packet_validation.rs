@@ -202,10 +202,12 @@ pub(crate) fn validate_iso_packet_descriptors(
 ///
 /// libusb retires every URB of the transfer and copies each packet's
 /// `actual_length` back before it reports a timeout (`handle_iso_completion` in
-/// `linux_usbfs.c`), so the descriptors describe what really went out. A packet
-/// the timeout cancelled mid-flight is reported as `LIBUSB_TRANSFER_COMPLETED`
-/// with `actual_length == 0`, so `status` alone proves nothing: a packet counts
-/// as delivered only if it completed with its full requested length. Everything
+/// `linux_usbfs.c`), so the descriptors describe what really went out. How a
+/// cancelled packet is reported is up to the kernel: a OnePlus 15 reports
+/// `LIBUSB_TRANSFER_ERROR` with `actual_length == 0`, and a host may equally
+/// report it completed with zero bytes, so `status` alone proves nothing. A
+/// packet counts as delivered only if it completed with its full requested
+/// length. Everything
 /// else is lost, including a short fragment (not credited) and a swap of the
 /// two legal sizes (which the completed-URB path would not call loss). That
 /// over-counts a little on a path that is already abnormal, never under-counts.
