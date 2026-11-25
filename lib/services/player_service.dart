@@ -908,10 +908,27 @@ class PlayerService {
           _debugLog('[VolFlow] USB attach volume restore failed: $error');
         }
       }
+      await _autoEngageDirectUsbOnAttach();
       if (!isPlayingNotifier.value) return;
       final enabled = await _appPreferencesService.getPauseOnUsbDacConnect();
       if (enabled) pause();
     });
+  }
+
+  /// Claims a re-attached DAC and moves playback back onto the direct USB
+  /// engine. The UI prompt is not authoritative here: it restores the previous
+  /// engine on detach, which used to leave bit-perfect off and block re-engage.
+  Future<void> _autoEngageDirectUsbOnAttach() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final engine = await _preferencesService.getAudioEnginePreference();
+      if (engine != AudioEnginePreference.isochronousUsb) return;
+      final devices = await _uac2Service.listDevices();
+      if (devices.isEmpty) return;
+      await enableUsbDacBitPerfect(resumeIfWasPlaying: true);
+    } catch (error) {
+      _debugLog('[USB] Attach auto-engage failed: $error');
+    }
   }
 
   /// Push the user's codec preference to the active A2DP device when codec
