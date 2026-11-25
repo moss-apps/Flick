@@ -7,6 +7,7 @@ import 'package:flick/src/rust/frb_generated.dart';
 import 'package:flick/app/app.dart';
 import 'package:flick/data/database.dart';
 import 'package:flick/services/album_color_mode_preference_service.dart';
+import 'package:flick/services/car/car_bridge.dart';
 import 'package:flick/services/app_preferences_service.dart';
 import 'package:flick/services/display_mode_service.dart';
 import 'package:flick/services/external_playback_service.dart';
@@ -61,6 +62,8 @@ Future<void> main() async {
   unawaited(ProcessExitDiagnosticsService().reportPreviousExits());
 
   await Database.init();
+  // A car can start this engine with no activity; answer it from here on.
+  CarBridge.instance.init();
 
   final externalPlaybackHandled = await ExternalPlaybackService().initialize();
   if (!externalPlaybackHandled) {

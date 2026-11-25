@@ -224,6 +224,12 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.1.0")
     implementation("androidx.media:media:1.7.0")
     implementation("androidx.lifecycle:lifecycle-service:2.7.0")
+
+    // Templated Android Auto media app (docs/ANDROID_AUTO_DESIGN.md). The full
+    // flavor only: an alpha library plus allow-all hosts stays out of the Play
+    // flavor. androidx.media is deliberately not excluded; the classic browser
+    // service and the media session share it.
+    "fullImplementation"("androidx.car.app:app:1.9.0-alpha03")
     
     // Jetpack Glance for Widgets
     val glanceVersion = "1.2.0-rc01"

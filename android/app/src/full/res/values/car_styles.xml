@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Car API 8 takes only the theme colours (API 9 hosts use the app theme
+         source, see FlickCarAppService). Silver is the phone app's accent. -->
+    <style name="FlickCarTheme">
+        <item name="carColorPrimary">#E0E0E0</item>
+        <item name="carColorPrimaryDark">#E0E0E0</item>
+        <item name="carColorSecondary">#FFFFFF</item>
+        <item name="carColorSecondaryDark">#FFFFFF</item>
+    </style>
+</resources>

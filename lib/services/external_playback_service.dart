@@ -52,6 +52,10 @@ class ExternalPlaybackService {
     } on PlatformException catch (e) {
       devLog('Failed to consume pending external playback: ${e.message}');
       return false;
+    } on MissingPluginException {
+      // Headless engine start (a car connected, no activity): the integration
+      // channel has no native handler until MainActivity exists.
+      return false;
     }
   }
 

@@ -13,6 +13,7 @@ import 'package:flick/models/playback_state.dart';
 import 'package:flick/models/shuffle_mode.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
+import 'package:flick/services/car/car_models.dart';
 import 'package:flick/services/notification_service.dart';
 import 'package:flick/services/floating_player_service.dart';
 import 'package:flick/services/android_audio_device_service.dart';
@@ -132,6 +133,15 @@ enum LoopMode {
     LoopMode.advanceFolder ||
     LoopMode.advancePlaylist => true,
     _ => false,
+  };
+
+  /// Repeat state as the media session and the car show it: `off`, `all` or
+  /// `one`. Advance modes keep going, so they read as `all`; stop-after-current
+  /// ends playback, so it reads as `off`.
+  String get sessionRepeat => switch (this) {
+    LoopMode.one => 'one',
+    LoopMode.off || LoopMode.stopAfterCurrent => 'off',
+    _ => 'all',
   };
 
   String get label => switch (this) {
@@ -788,6 +798,38 @@ class PlayerService {
     return List.unmodifiable(_playlist.sublist(startIndex));
   }
 
+
+  /// For each entry of [upNext]: whether the user queued it (as opposed to it
+  /// being the rest of the playing list). [upNext] holds queued songs at its
+  /// head, so this is how the two are told apart.
+  List<bool> get upNextIsQueued {
+    if (_playlist.isEmpty) return const [];
+    final startIndex = (_currentIndex + 1).clamp(0, _playlist.length);
+    return List.unmodifiable([
+      for (var i = startIndex; i < _playlist.length; i++)
+        i < _playlistQueueEntryIds.length && _playlistQueueEntryIds[i] != null,
+    ]);
+  }
+
+  /// [upNext] split into the user's queue and the rest of the list, as the car
+  /// and the media session show it.
+  CarUpcoming get upcoming => CarUpcoming.split(
+    upNext: upNext,
+    queued: upNextIsQueued,
+    manualQueue: queue,
+  );
+
+  /// Plays row [index] of [upcoming]: the user's queue first, then the rest of
+  /// the list. Out of range is ignored.
+  Future<void> playFromUpcomingIndex(int index) {
+    final upcoming = this.upcoming;
+    if (index < 0 || index >= upcoming.order.length) return Future.value();
+    final target = upcoming.order[index];
+    return upcoming.fromManualQueue
+        ? playFromQueueIndex(target)
+        : playFromUpNextIndex(target);
+  }
+
   void _init() {
     // Initialize notification service with callbacks
     _notificationService.init(
@@ -799,6 +841,8 @@ class PlayerService {
       onStop: _stopPlayback,
       onSeek: seek,
       onToggleShuffle: toggleShuffle,
+      onToggleLoop: toggleLoopMode,
+      onSkipToQueueItem: playFromUpcomingIndex,
       onToggleFavorite: _toggleFavoriteFromNotification,
       onDisconnectCast: () => unawaited(_castingService.disconnect()),
       onSetCastVolume: (volume) => unawaited(setVolume(volume)),
@@ -4239,6 +4283,10 @@ class PlayerService {
     );
   }
 
+  /// Toggles the current song's favorite state and refreshes the notification.
+  /// Shared by the notification button and the car.
+  Future<void> toggleCurrentFavorite() => _toggleFavoriteFromNotification();
+
   Future<void> _toggleFavoriteFromNotification() async {
     final song = currentSongNotifier.value;
     if (_allowsFavoriteActions(song)) {
@@ -4292,6 +4340,7 @@ class PlayerService {
       duration: durationNotifier.value,
       position: positionNotifier.value,
       isShuffle: isShuffleNotifier.value,
+      loopMode: loopModeNotifier.value.sessionRepeat,
       isFavorite: isFav,
       color: notificationColor,
       isCasting: _castingService.isActive,
@@ -7095,6 +7144,8 @@ class PlayerService {
     if (!_usingRustBackend && mode == LoopMode.all) {
       await _rebuildPlaylist();
     }
+    // The media session shows the repeat state.
+    unawaited(_updateNotificationState());
   }
 
   // ==================== Volume ====================

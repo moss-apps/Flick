@@ -5,4 +5,55 @@
          policy requires MediaStore/SAF for media apps; scoped storage stays
          fully functional without it. -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- Android Auto and other Car App hosts (docs/ANDROID_AUTO_DESIGN.md). The
+         whole car module lives in this flavor: an alpha library plus allow-all
+         hosts stays out of the Play flavor. -->
+    <uses-permission android:name="androidx.car.app.MEDIA_TEMPLATES" />
+
+    <queries>
+        <package android:name="com.google.android.projection.gearhead" />
+        <package android:name="com.google.android.apps.automotive.templates.host" />
+        <package android:name="app.johninnl.drivedeck" />
+    </queries>
+
+    <application>
+        <!-- Low on purpose: the app is compiled against 1.9, runs on a level 8
+             host, and the level 9 styling is chosen at runtime. -->
+        <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="8" />
+
+        <!-- Level 8 hosts read only these colours; level 9 hosts use the app
+             theme source (FlickCarAppService.getCarAppThemeSource). -->
+        <meta-data
+            android:name="androidx.car.app.theme"
+            android:resource="@style/FlickCarTheme" />
+
+        <!-- Media and template: the host lists Flick as a media app and a templated one. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
+        <!-- The templated app. Any host that speaks the Car App protocol may bind
+             (FlickCarAppService.createHostValidator allows all hosts). -->
+        <service
+            android:name=".car.FlickCarAppService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <action android:name="androidx.car.app.media.action.SHOW_MEDIA_PLAYBACK" />
+                <category android:name="androidx.car.app.category.MEDIA" />
+            </intent-filter>
+        </service>
+
+        <!-- Classic browse tree for hosts without template support. -->
+        <service
+            android:name=".car.FlickMediaBrowserService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+    </application>
 </manifest>
