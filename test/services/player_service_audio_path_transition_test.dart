@@ -14,6 +14,7 @@ AudioOutputDiagnostics _diagnostics({
   int? reported = 96000,
   String? fallback,
   String? verification,
+  UrbTransportInfo? urbTransport,
 }) {
   return AudioOutputDiagnostics(
     selectedMode: selected,
@@ -47,6 +48,7 @@ AudioOutputDiagnostics _diagnostics({
       supportsAndroidManagedHighResOnly: false,
       supportsInternalDapPathOnly: false,
     ),
+    urbTransport: urbTransport,
   );
 }
 
@@ -84,6 +86,56 @@ void main() {
         'USB DAC_EXPERIMENTAL -> NORMAL_ANDROID: clock lost',
       );
       expect(fields['verification'], 'Direct USB verification failed');
+    });
+  });
+
+  group('transport loss', () {
+    test('is reported as none until frames are lost', () {
+      expect(audioPathTransitionFields(_diagnostics())['transportLoss'], 'none');
+      expect(
+        audioPathTransitionFields(
+          _diagnostics(urbTransport: const UrbTransportInfo()),
+        )['transportLoss'],
+        'none',
+      );
+      expect(
+        audioPathTransitionFields(
+          _diagnostics(urbTransport: const UrbTransportInfo(lostFrames: 0)),
+        )['transportLoss'],
+        'none',
+      );
+    });
+
+    test('is reported once frames are lost', () {
+      final fields = audioPathTransitionFields(
+        _diagnostics(
+          bitPerfect: false,
+          urbTransport: const UrbTransportInfo(lostFrames: 44),
+        ),
+      );
+      expect(fields['transportLoss'], 'detected');
+      expect(fields['bitPerfect'], 'off');
+    });
+
+    test('logs the transition once, not on every counter tick', () {
+      final clean = audioPathTransitionFields(_diagnostics());
+      final firstLoss = audioPathTransitionFields(
+        _diagnostics(
+          bitPerfect: false,
+          urbTransport: const UrbTransportInfo(lostFrames: 44),
+        ),
+      );
+      final moreLoss = audioPathTransitionFields(
+        _diagnostics(
+          bitPerfect: false,
+          urbTransport: const UrbTransportInfo(lostFrames: 4410),
+        ),
+      );
+      expect(
+        audioPathTransitionChanges(clean, firstLoss),
+        containsAll(['transportLoss: none -> detected', 'bitPerfect: on -> off']),
+      );
+      expect(audioPathTransitionChanges(firstLoss, moreLoss), isEmpty);
     });
   });
 

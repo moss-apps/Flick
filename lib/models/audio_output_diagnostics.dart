@@ -46,6 +46,7 @@ class UrbTransportInfo {
     this.underrunCount,
     this.producerFrames,
     this.consumerFrames,
+    this.lostFrames,
     this.driftMsFromTarget,
   });
 
@@ -66,6 +67,11 @@ class UrbTransportInfo {
   final int? underrunCount;
   final int? producerFrames;
   final int? consumerFrames;
+
+  /// Frames queued to the DAC that it never took (timed-out or short USB
+  /// packets) since this stream started. Any non-zero value means the stream
+  /// is no longer bit-perfect, whatever the other flags say.
+  final int? lostFrames;
   final int? driftMsFromTarget;
 }
 

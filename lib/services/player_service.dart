@@ -379,6 +379,12 @@ Map<String, String> audioPathTransitionFields(
     'reported': diagnostics.reportedOutputSampleRate?.toString() ?? 'none',
     'fallback': diagnostics.fallbackReason ?? 'none',
     'verification': diagnostics.verificationReason ?? 'none',
+    // Audio dropped on the USB transport. `bitPerfect` already goes off with
+    // it; this records why in the shareable log, once per stream rather than
+    // on every counter tick.
+    'transportLoss': (diagnostics.urbTransport?.lostFrames ?? 0) > 0
+        ? 'detected'
+        : 'none',
   };
 }
 
@@ -3753,6 +3759,9 @@ class PlayerService {
     final consumerFrames = _intValue(
       directUsbState?['consumer_frames'] ?? directUsbState?['consumerFrames'],
     );
+    final lostFrames = _intValue(
+      directUsbState?['lost_frames'] ?? directUsbState?['lostFrames'],
+    );
     final driftMsFromTarget = _intValue(
       directUsbState?['drift_ms_from_target'] ??
           directUsbState?['driftMsFromTarget'],
@@ -3778,6 +3787,7 @@ class PlayerService {
             underrunCount: underrunCount,
             producerFrames: producerFrames,
             consumerFrames: consumerFrames,
+            lostFrames: lostFrames,
             driftMsFromTarget: driftMsFromTarget,
           )
         : null;
@@ -3938,6 +3948,7 @@ class PlayerService {
       'pcmClippedSamples=${_intValue(pcmCallbackState?['clipped_samples']) ?? -1}, '
       'pcmNonFiniteSamples=${_intValue(pcmCallbackState?['non_finite_samples']) ?? -1}, '
       'producerFrames=${producerFrames ?? -1}, consumerFrames=${consumerFrames ?? -1}, '
+      'lostFrames=${lostFrames ?? -1}, '
       'driftMs=${driftMsFromTarget ?? -999}, '
       'resampler=$resamplerActive, passthrough=$passthroughAllowed, '
       'transport=${transportFormat ?? 'none'}/${transportBitResolution ?? -1}/'
