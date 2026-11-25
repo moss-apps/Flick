@@ -18,6 +18,7 @@ Song song({int? start, int? end}) => Song(
 SourceIdentity source({double start = 0, double? end}) => SourceIdentity(
   path: '/music/album.flac',
   range: PlaybackRange(startSecs: start, endSecs: end),
+  playbackId: BigInt.one,
 );
 
 void main() {

@@ -274,7 +274,7 @@ pub struct AudioCallbackData {
     /// of passthrough so per-source gain runs even on bit-perfect outputs.
     replaygain_forces_dsp: AtomicBool,
     /// Channel for sending finished tracks to command thread
-    finished_tracks: Sender<AudioSource>,
+    finished_tracks: Sender<FinishedTrack>,
     /// Experimental 432 Hz tuning override. When enabled the callback leaves
     /// passthrough and uses the DSP path at 432/440 speed.
     tuning_432hz_enabled: AtomicBool,
@@ -293,6 +293,11 @@ pub struct AudioCallbackData {
     /// skip disabled-crossfade checks without taking the source/crossfader
     /// locks that the real-time callback needs.
     crossfade_configured: AtomicBool,
+    /// Repeat One guard. While set, the command loop clears any queued
+    /// successor, refuses to install a new one, and auto-crossfade stays
+    /// disabled. Replaying the current track must not preserve a successor
+    /// queued before the loop mode changed.
+    repeat_one: AtomicBool,
     /// Latches a reported [AudioEvent::NextTrackReady] for the queued
     /// successor. Starts `true` ("nothing to report"); queueing arms it, and
     /// the command loop reports only once the successor actually holds audio.
@@ -386,7 +391,7 @@ impl AudioCallbackData {
     pub(crate) fn new(
         sample_rate: u32,
         channels: usize,
-        finished_tracks: Sender<AudioSource>,
+        finished_tracks: Sender<FinishedTrack>,
         pipeline_mode: PipelineMode,
         engine_dsd_mode: EngineDsdMode,
     ) -> Self {
@@ -440,6 +445,7 @@ impl AudioCallbackData {
             crossfade_forces_dsp: AtomicBool::new(false),
             crossfade_active: AtomicBool::new(false),
             crossfade_configured: AtomicBool::new(false),
+            repeat_one: AtomicBool::new(false),
             next_ready_reported: AtomicBool::new(true),
             stream_needs_restart: AtomicBool::new(false),
             engine_dsd_mode: AtomicU8::new(engine_dsd_mode as u8),
@@ -913,6 +919,16 @@ impl AudioCallbackData {
         self.paused.store(paused, Ordering::Relaxed);
     }
 
+    #[inline]
+    pub fn set_repeat_one(&self, enabled: bool) {
+        self.repeat_one.store(enabled, Ordering::Relaxed);
+    }
+
+    #[inline]
+    pub fn is_repeat_one(&self) -> bool {
+        self.repeat_one.load(Ordering::Relaxed)
+    }
+
     /// Mark the Oboe output stream as disconnected so the command loop reopens
     /// it and resumes playback at the interrupted position.
     #[inline]
@@ -1060,6 +1076,48 @@ unsafe impl Send for AudioEngineHandle {}
 unsafe impl Sync for AudioEngineHandle {}
 
 impl AudioEngineHandle {
+    #[cfg(test)]
+    pub(super) fn without_output_for_test(sample_rate: u32) -> (Self, Receiver<AudioCommand>) {
+        let (command_tx, command_rx) = bounded(8);
+        let (_, event_rx) = bounded(8);
+        let (finished_tx, _) = bounded(8);
+        let handle = Self {
+            callback_data: Arc::new(AudioCallbackData::new(
+                sample_rate,
+                2,
+                finished_tx,
+                PipelineMode::Dsp,
+                EngineDsdMode::Pcm,
+            )),
+            command_tx,
+            event_rx,
+            state: Arc::new(AtomicU8::new(PlaybackState::Stopped as u8)),
+            sample_rate,
+            channels: 2,
+            output_signature: String::new(),
+            output_runtime: AudioOutputRuntimeState {
+                strategy: String::new(),
+                requested_sample_rate: sample_rate,
+                actual_sample_rate: sample_rate,
+                resampler_active: false,
+                passthrough_allowed: false,
+                verification_reason: None,
+                direct_usb_active: false,
+                direct_usb_verified: false,
+                dsd_source_rate: None,
+                dsd_effective_mode: None,
+                dsd_wire_rate: None,
+                dsd_transport: None,
+                active_audio_api: None,
+            },
+            audio_api_pref: AudioApiPreference::Auto,
+            decoders: Arc::default(),
+            shutdown: Arc::default(),
+            _audio_thread: Mutex::new(None),
+        };
+        (handle, command_rx)
+    }
+
     /// Send a command to the audio engine.
     pub fn send_command(&self, command: AudioCommand) -> Result<(), String> {
         self.command_tx
@@ -1084,20 +1142,21 @@ impl AudioEngineHandle {
     }
 
     /// Play a track using a pre-created source and decoder thread. The returned
-    /// receiver fires once the command thread installs the source, so callers
-    /// can wait outside the engine-manager lock before reporting "playing".
+    /// receiver fires once the command thread installs the returned source
+    /// identity, even if that source finishes before a caller wakes up.
     pub fn play_prepared(
         &self,
         source: AudioSource,
         decoder_handle: DecoderHandle,
-    ) -> Result<Receiver<()>, String> {
+    ) -> Result<(Receiver<()>, SourceIdentity), String> {
+        let identity = source.identity();
         let (completed, completion) = bounded(1);
         self.send_command(AudioCommand::PlayPrepared {
             source,
             decoder_handle,
             completed,
         })?;
-        Ok(completion)
+        Ok((completion, identity))
     }
 
     /// Queue the next track for gapless playback.
@@ -1168,6 +1227,11 @@ impl AudioEngineHandle {
             enabled,
             duration_secs,
         })
+    }
+
+    /// Enable/disable Repeat One.
+    pub fn set_repeat_one(&self, enabled: bool) -> Result<(), String> {
+        self.send_command(AudioCommand::SetRepeatOne { enabled })
     }
 
     /// Set the crossfade curve type.
@@ -1366,7 +1430,12 @@ impl AudioEngineHandle {
             self.callback_data.crossfade_active.load(Ordering::Relaxed),
             &sources,
         )
-        .map(|source| source.info.identity())
+        .map(AudioSource::identity)
+    }
+
+    pub fn has_queued_next(&self) -> bool {
+        let sources = self.callback_data.sources.lock();
+        sources.has_next() && !self.callback_data.is_repeat_one()
     }
 
     /// Try to receive an event (non-blocking).
@@ -1487,7 +1556,7 @@ pub fn create_audio_engine(
     };
 
     // Create finished tracks channel (from audio callback to command thread)
-    let (finished_tx, finished_rx) = bounded::<AudioSource>(32);
+    let (finished_tx, finished_rx) = bounded(32);
 
     // Create shared data. Desktop/cpal output is never a DSD carrier.
     let callback_data = Arc::new(AudioCallbackData::new(
@@ -2346,7 +2415,7 @@ pub fn create_audio_engine(
     let channels = ANDROID_DIRECT_CHANNELS;
 
     // Create finished tracks channel (from audio callback to command thread)
-    let (finished_tx, finished_rx) = bounded::<AudioSource>(32);
+    let (finished_tx, finished_rx) = bounded(32);
 
     // Create shared data before the output path is opened. If the platform
     // changes the actual stream rate, we reconfigure the processing state
@@ -4132,6 +4201,22 @@ fn process_dsp_effects(data: &AudioCallbackData, output: &mut [f32], channels: u
     data.note_output_peak(peak, clipped, non_finite);
 }
 
+pub(crate) struct FinishedTrack {
+    source: AudioSource,
+    next_playback_id: Option<u64>,
+}
+
+impl AudioCallbackData {
+    /// Capture the handoff under the sources lock. By the time Dart polls the
+    /// event, a short successor may have finished or another play may be live.
+    fn report_track_finished(&self, source: AudioSource, next: Option<&AudioSource>) {
+        let _ = self.finished_tracks.try_send(FinishedTrack {
+            source,
+            next_playback_id: next.map(|source| source.playback_id),
+        });
+    }
+}
+
 /// The real-time audio callback.
 ///
 /// This function MUST NOT:
@@ -4164,7 +4249,7 @@ pub(crate) fn audio_callback(
         };
         let (read, old_source) = sources.read(output);
         if let Some(source) = old_source {
-            let _ = data.finished_tracks.try_send(source);
+            data.report_track_finished(source, sources.current());
         }
         if read < output.len() {
             data.dsd_starved_samples
@@ -4195,7 +4280,7 @@ pub(crate) fn audio_callback(
 
         let (read, old_source) = sources.read(output);
         if let Some(source) = old_source {
-            let _ = data.finished_tracks.try_send(source);
+            data.report_track_finished(source, sources.current());
         }
         if read < output.len() {
             data.dsd_starved_samples
@@ -4325,7 +4410,7 @@ pub(crate) fn audio_callback(
         if !crossfader.is_active() {
             data.crossfade_active.store(false, Ordering::Relaxed);
             if let Some(source) = sources.advance_to_next() {
-                let _ = data.finished_tracks.try_send(source);
+                data.report_track_finished(source, sources.current());
             }
         }
         data.publish_progress_snapshot(&sources);
@@ -4335,7 +4420,7 @@ pub(crate) fn audio_callback(
             let (read, old_source) = sources.read(output);
 
             if let Some(source) = old_source {
-                let _ = data.finished_tracks.try_send(source);
+                data.report_track_finished(source, sources.current());
             }
 
             if read < output.len() {
@@ -4377,7 +4462,7 @@ pub(crate) fn audio_callback(
             let (read, old_source) = sources.read(&mut speed_buf[..input_samples_needed]);
 
             if let Some(source) = old_source {
-                let _ = data.finished_tracks.try_send(source);
+                data.report_track_finished(source, sources.current());
             }
 
             if had_current
@@ -4432,7 +4517,7 @@ pub(crate) fn audio_callback(
 /// Command processing loop running in the audio thread.
 fn command_processing_loop(
     command_rx: Receiver<AudioCommand>,
-    finished_rx: Receiver<AudioSource>,
+    finished_rx: Receiver<FinishedTrack>,
     event_tx: Sender<AudioEvent>,
     callback_data: Arc<AudioCallbackData>,
     state: Arc<AtomicU8>,
@@ -4453,7 +4538,11 @@ fn command_processing_loop(
         update_managed_output(&mut supervisor, &callback_data, &shutdown);
 
         // Check for finished tracks
-        while let Ok(source) = finished_rx.try_recv() {
+        while let Ok(FinishedTrack {
+            source,
+            next_playback_id,
+        }) = finished_rx.try_recv()
+        {
             let path = source.info.path.to_string_lossy().to_string();
             // Rust-side counterpart of Dart's "engineHasSource=false" handoff
             // check: when a track ends with no engine current source, the
@@ -4469,7 +4558,8 @@ fn command_processing_loop(
                 engine_current
             );
             let _ = event_tx.try_send(AudioEvent::TrackEnded {
-                source: source.info.identity(),
+                source: source.identity(),
+                next_playback_id,
             });
 
             // Crossfade completed — restore Playing state. This is the
@@ -4642,6 +4732,9 @@ fn command_processing_loop(
                             duration_secs,
                             enabled
                         );
+                    }
+                    AudioCommand::SetRepeatOne { enabled } => {
+                        handle_set_repeat_one(enabled, &callback_data, &state, &event_tx);
                     }
                     AudioCommand::SetCrossfadeCurve { curve } => {
                         callback_data.crossfader.lock().set_curve(curve);
@@ -4925,18 +5018,26 @@ fn handle_play(
     // (seeking away mid-fade): its read position is mid-track, so it must be
     // respawned from the beginning after the new current source is installed.
     let mut invalidated_successor: Option<(SourceInfo, f32)> = None;
+    let repeat_one = callback_data.is_repeat_one();
     {
         let mut sources = callback_data.sources.lock();
         if replay_keeps_successor(&sources, &path, PlaybackRange::default()) {
-            log::info!(
-                "[crossfade] replay of current track: keeping queued successor"
-            );
-            if callback_data.crossfade_active.load(Ordering::Relaxed)
-                || callback_data.crossfader.lock().is_active()
-            {
-                invalidated_successor = sources
-                    .next()
-                    .map(|next| (next.info.clone(), next.replaygain_db()));
+            if repeat_one {
+                // Repeat One replay must start the same track from the top,
+                // not hand off to a successor queued by an earlier mode.
+                log::info!("[repeat-one] replay of current track: clearing queued successor");
+                sources.clear_next();
+            } else {
+                log::info!(
+                    "[crossfade] replay of current track: keeping queued successor"
+                );
+                if callback_data.crossfade_active.load(Ordering::Relaxed)
+                    || callback_data.crossfader.lock().is_active()
+                {
+                    invalidated_successor = sources
+                        .next()
+                        .map(|next| (next.info.clone(), next.replaygain_db()));
+                }
             }
             sources.take_current();
         } else {
@@ -4987,19 +5088,25 @@ fn handle_play_prepared(
     source.set_replaygain_db(callback_data.get_replaygain_db());
 
     let mut invalidated_successor: Option<(SourceInfo, f32)> = None;
+    let repeat_one = callback_data.is_repeat_one();
     {
         let path = source.info.path.clone();
         let mut sources = callback_data.sources.lock();
         if replay_keeps_successor(&sources, &path, source.info.range) {
-            log::info!(
-                "[crossfade] replay of current track: keeping queued successor"
-            );
-            if callback_data.crossfade_active.load(Ordering::Relaxed)
-                || callback_data.crossfader.lock().is_active()
-            {
-                invalidated_successor = sources
-                    .next()
-                    .map(|next| (next.info.clone(), next.replaygain_db()));
+            if repeat_one {
+                log::info!("[repeat-one] replay of current track: clearing queued successor");
+                sources.clear_next();
+            } else {
+                log::info!(
+                    "[crossfade] replay of current track: keeping queued successor"
+                );
+                if callback_data.crossfade_active.load(Ordering::Relaxed)
+                    || callback_data.crossfader.lock().is_active()
+                {
+                    invalidated_successor = sources
+                        .next()
+                        .map(|next| (next.info.clone(), next.replaygain_db()));
+                }
             }
             sources.take_current();
         } else {
@@ -5026,6 +5133,38 @@ fn handle_play_prepared(
     }
 }
 
+fn handle_set_repeat_one(
+    enabled: bool,
+    callback_data: &AudioCallbackData,
+    state: &AtomicU8,
+    event_tx: &Sender<AudioEvent>,
+) {
+    let mut sources = callback_data.sources.lock();
+    callback_data.set_repeat_one(enabled);
+    if !enabled {
+        return;
+    }
+
+    // Progress and the UI already follow the incoming source. Finish a fade
+    // that has started, without rewinding or falling back to the outgoing song.
+    let mut crossfader = callback_data.crossfader.lock();
+    if callback_data.crossfade_active.load(Ordering::Relaxed) && sources.has_next() {
+        if let Some(retired) = sources.advance_to_next() {
+            callback_data.report_track_finished(retired, sources.current());
+        }
+    } else {
+        sources.clear_next();
+    }
+    crossfader.reset();
+    callback_data.crossfade_active.store(false, Ordering::Relaxed);
+    callback_data.next_ready_reported.store(true, Ordering::Relaxed);
+    callback_data.publish_progress_snapshot(&sources);
+    if state.load(Ordering::Relaxed) == PlaybackState::Crossfading as u8 {
+        state.store(PlaybackState::Playing as u8, Ordering::Relaxed);
+        let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Playing));
+    }
+}
+
 fn handle_queue_next(
     path: PathBuf,
     callback_data: &AudioCallbackData,
@@ -5033,6 +5172,14 @@ fn handle_queue_next(
     event_tx: &Sender<AudioEvent>,
     sample_rate: u32,
 ) {
+    if callback_data.is_repeat_one() {
+        log::info!(
+            "[repeat-one] ignoring queue request for {}",
+            path.display()
+        );
+        return;
+    }
+
     match spawn_decoder(path.clone(), sample_rate, callback_data.channels(), None, callback_data) {
         Ok((source, handle)) => {
             source.set_replaygain_db(callback_data.get_replaygain_db());
@@ -5052,6 +5199,14 @@ fn handle_queue_next_prepared(
     callback_data: &AudioCallbackData,
     decoders: &Arc<Mutex<Vec<DecoderHandle>>>,
 ) {
+    if callback_data.is_repeat_one() {
+        log::info!(
+            "[repeat-one] ignoring prepared queue request for {}",
+            source.info.path.display()
+        );
+        decoder_handle.stop();
+        return;
+    }
     source.set_replaygain_db(callback_data.get_replaygain_db());
     queue_playback_source(source, decoder_handle, callback_data, decoders);
 }
@@ -5121,7 +5276,7 @@ fn report_next_ready(callback_data: &AudioCallbackData, event_tx: &Sender<AudioE
     if !sources.next_has_enough_buffer(0.1) {
         return;
     }
-    let source = sources.next().map(|next| next.info.identity());
+    let source = sources.next().map(AudioSource::identity);
     drop(sources);
 
     callback_data
@@ -5149,6 +5304,11 @@ fn maybe_start_auto_crossfade(
     event_tx: &Sender<AudioEvent>,
     near_end_logged: &mut bool,
 ) -> bool {
+    if callback_data.is_repeat_one() {
+        *near_end_logged = false;
+        return false;
+    }
+
     if !callback_data.is_crossfade_allowed() {
         return false;
     }
@@ -5216,8 +5376,8 @@ fn maybe_start_auto_crossfade(
         return false;
     }
 
-    let from = sources.current().map(|s| s.info.identity());
-    let to = sources.next().map(|s| s.info.identity());
+    let from = sources.current().map(AudioSource::identity);
+    let to = sources.next().map(AudioSource::identity);
 
     crossfader.set_active_duration_secs(effective);
     crossfader.start();
@@ -5353,8 +5513,8 @@ fn handle_skip_to_next(
         let next_total = sources.next().map(|s| s.info.duration_secs).unwrap_or(0.0);
         let effective = clamp_crossfade_secs(configured, next_total);
         if configured > 0.0 && effective > 0.0 {
-            let from = sources.current().map(|s| s.info.identity());
-            let to = sources.next().map(|s| s.info.identity());
+            let from = sources.current().map(AudioSource::identity);
+            let to = sources.next().map(AudioSource::identity);
             crossfader.set_active_duration_secs(effective);
             crossfader.start();
             callback_data
@@ -5395,7 +5555,7 @@ fn handle_seek(
     // seek during the fade must land in the incoming track, not the fading-out
     // one. As a side effect the seek then ends the fade: the outgoing source is
     // retired and the incoming source becomes the sole current.
-    let (path, range, http_origin, replaygain_db, successor, retire_current) = {
+    let (path, range, http_origin, replaygain_db, playback_id, successor, retire_current) = {
         let sources = callback_data.sources.lock();
         // Same predicate `progress_source` uses for progress: while the fade is
         // in flight the incoming source is the audible track, so the seek must
@@ -5413,6 +5573,7 @@ fn handle_seek(
                 incoming.info.range,
                 incoming.info.http_origin.clone(),
                 incoming.replaygain_db(),
+                incoming.playback_id,
                 successor,
                 true,
             )
@@ -5423,6 +5584,7 @@ fn handle_seek(
                     s.info.range,
                     s.info.http_origin.clone(),
                     s.replaygain_db(),
+                    s.playback_id,
                     successor,
                     false,
                 ),
@@ -5431,6 +5593,7 @@ fn handle_seek(
                     PlaybackRange::default(),
                     None,
                     0.0,
+                    0,
                     None,
                     false,
                 ),
@@ -5516,6 +5679,7 @@ fn handle_seek(
 
     match spawn_result {
         Ok((mut source, handle)) => {
+            source.playback_id = playback_id;
             source.set_replaygain_db(replaygain_db);
             source.set_ready();
             if !was_paused {
@@ -5539,7 +5703,10 @@ fn handle_seek(
                 // queued, so only the successor check below may re-queue the
                 // following track.
                 if let Some(retired) = retired_source {
-                    let _ = callback_data.finished_tracks.try_send(retired);
+                    let _ = callback_data.finished_tracks.try_send(FinishedTrack {
+                        source: retired,
+                        next_playback_id: Some(playback_id),
+                    });
                 }
             } else if fade_was_active {
                 if let Some((next_info, next_replaygain_db)) = successor {
@@ -5632,7 +5799,7 @@ mod tests {
     }
 
     fn build_callback_data(sample_rate: u32, channels: usize) -> AudioCallbackData {
-        let (finished_tx, _finished_rx) = bounded::<AudioSource>(8);
+        let (finished_tx, _finished_rx) = bounded(8);
         AudioCallbackData::new(
             sample_rate,
             channels,
@@ -5643,7 +5810,7 @@ mod tests {
     }
 
     fn build_passthrough_callback_data(sample_rate: u32, channels: usize) -> AudioCallbackData {
-        let (finished_tx, _finished_rx) = bounded::<AudioSource>(8);
+        let (finished_tx, _finished_rx) = bounded(8);
         AudioCallbackData::new(
             sample_rate,
             channels,
@@ -5654,7 +5821,7 @@ mod tests {
     }
 
     fn build_dsd_engine_callback_data(mode: EngineDsdMode) -> AudioCallbackData {
-        let (finished_tx, _finished_rx) = bounded::<AudioSource>(8);
+        let (finished_tx, _finished_rx) = bounded(8);
         // Native-DSD DAP engines run their (raw bypass) pipeline as Dop.
         let pipeline = if mode == EngineDsdMode::Pcm {
             PipelineMode::Dsp
@@ -5828,7 +5995,7 @@ mod tests {
 
     #[test]
     fn crossfade_lock_contention_must_not_consume_or_hard_advance_sources() {
-        let (finished_tx, finished_rx) = bounded::<AudioSource>(8);
+        let (finished_tx, finished_rx) = bounded(8);
         let data = AudioCallbackData::new(
             48_000,
             2,
@@ -5947,11 +6114,12 @@ mod tests {
         let finished = finished_rx
             .try_recv()
             .expect("outgoing CUE segment finished");
-        assert_eq!(finished.info.identity().range, first);
+        assert_eq!(finished.source.identity().range, first);
         assert!(finished_rx.try_recv().is_err(), "handoff is reported once");
         let sources = data.sources.lock();
         let current = sources.current().unwrap();
-        assert_eq!(current.info.identity().range, second);
+        assert_eq!(current.identity().range, second);
+        assert_eq!(finished.next_playback_id, Some(current.playback_id));
         assert_eq!(current.position_samples(), 2);
     }
 
@@ -6180,6 +6348,162 @@ mod tests {
         let _ = std::fs::remove_file(&successor_path);
     }
 
+    #[test]
+    fn repeat_one_prepared_replay_clears_queued_successor() {
+        let (current_path, successor_path) = seek_test_fixtures("repeat_one_prepared");
+        let data = build_callback_data(48_000, 2);
+        let (event_tx, _event_rx) = bounded::<AudioEvent>(8);
+        let decoders = Arc::new(Mutex::new(Vec::new()));
+        let state = Arc::new(AtomicU8::new(PlaybackState::Playing as u8));
+        load_current_and_successor(&data, &decoders, &current_path, &successor_path);
+        data.set_repeat_one(true);
+
+        let (prepared, prepared_handle) =
+            spawn_decoder(current_path.clone(), 48_000, 2, None, &data).unwrap();
+        handle_play_prepared(
+            prepared,
+            prepared_handle,
+            &data,
+            &state,
+            &decoders,
+            &event_tx,
+            48_000,
+        );
+
+        let sources = data.sources.lock();
+        assert_eq!(
+            sources.current().map(|source| source.info.path.clone()),
+            Some(current_path.clone())
+        );
+        assert!(
+            !sources.has_next(),
+            "Repeat One replay must drop a successor queued before it was enabled"
+        );
+        drop(sources);
+
+        let _ = std::fs::remove_file(&current_path);
+        let _ = std::fs::remove_file(&successor_path);
+    }
+
+    #[test]
+    fn enabling_repeat_one_during_fade_keeps_incoming_position_and_identity() {
+        let (data, finished_rx) = build_callback_data_with_finished(48_000, 2);
+        let (event_tx, event_rx) = bounded(8);
+        let state = AtomicU8::new(PlaybackState::Crossfading as u8);
+        let outgoing = build_source_with_path("first.wav", &[0.1; 512], 48_000, 2);
+        let incoming = build_source_with_path("second.wav", &[0.2; 512], 48_000, 2);
+        let outgoing_id = outgoing.playback_id;
+        let incoming_id = incoming.playback_id;
+        {
+            let mut sources = data.sources.lock();
+            sources.set_current(outgoing);
+            sources.queue_next(incoming);
+        }
+        start_test_fade(&data);
+        run_callback(&data, 8);
+        let position = data.sources.lock().next().unwrap().position_samples();
+        assert!(position > 0);
+
+        handle_set_repeat_one(true, &data, &state, &event_tx);
+
+        let sources = data.sources.lock();
+        let current = sources.current().unwrap();
+        assert_eq!(current.playback_id, incoming_id);
+        assert_eq!(current.position_samples(), position);
+        assert!(!sources.has_next());
+        assert!(!data.crossfade_active.load(Ordering::Relaxed));
+        assert!(data.is_repeat_one());
+        let finished = finished_rx.try_recv().unwrap();
+        assert_eq!(finished.source.playback_id, outgoing_id);
+        assert_eq!(finished.next_playback_id, Some(incoming_id));
+        assert!(finished_rx.try_recv().is_err());
+        assert!(matches!(
+            event_rx.try_recv(),
+            Ok(AudioEvent::StateChanged(PlaybackState::Playing))
+        ));
+    }
+
+    #[test]
+    fn enabling_repeat_one_discards_unused_successor_without_a_handoff() {
+        let (data, finished_rx) = build_callback_data_with_finished(48_000, 2);
+        let (event_tx, _) = bounded(8);
+        let state = AtomicU8::new(PlaybackState::Playing as u8);
+        let outgoing = build_source_with_path("first.wav", &[0.1; 8], 48_000, 2);
+        let incoming = build_source_with_path("second.wav", &[0.2; 8], 48_000, 2);
+        let outgoing_id = outgoing.playback_id;
+        {
+            let mut sources = data.sources.lock();
+            sources.set_current(outgoing);
+            sources.queue_next(incoming);
+        }
+
+        handle_set_repeat_one(true, &data, &state, &event_tx);
+
+        let sources = data.sources.lock();
+        assert_eq!(sources.current().unwrap().playback_id, outgoing_id);
+        assert!(!sources.has_next());
+        assert!(finished_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn repeat_one_suppresses_auto_crossfade() {
+        let data = build_callback_data(48_000, 2);
+        let (event_tx, event_rx) = bounded::<AudioEvent>(8);
+        {
+            let mut sources = data.sources.lock();
+            let outgoing = build_source(&[0.25; 96_000], 48_000, 2);
+            outgoing.set_position_secs(0.75);
+            sources.set_current(outgoing);
+            sources.queue_next(build_source(&[0.5; 96_000], 48_000, 2));
+        }
+        {
+            let mut fade = data.crossfader.lock();
+            fade.set_enabled(true);
+            fade.set_duration(0.5);
+        }
+        data.crossfade_configured.store(true, Ordering::Relaxed);
+        data.set_repeat_one(true);
+        let state = Arc::new(AtomicU8::new(PlaybackState::Playing as u8));
+        let mut near_end_logged = false;
+
+        assert!(!maybe_start_auto_crossfade(
+            &data,
+            &state,
+            &event_tx,
+            &mut near_end_logged
+        ));
+        assert!(!data.crossfade_active.load(Ordering::Relaxed));
+        assert!(!data.crossfader.lock().is_active());
+        assert_eq!(
+            state.load(Ordering::Relaxed),
+            PlaybackState::Playing as u8
+        );
+        assert!(
+            event_rx
+                .try_iter()
+                .all(|event| !matches!(event, AudioEvent::CrossfadeStarted { .. }))
+        );
+    }
+
+    #[test]
+    fn repeat_one_ignores_queue_next_requests() {
+        let data = build_callback_data(48_000, 2);
+        let (event_tx, _event_rx) = bounded::<AudioEvent>(8);
+        let decoders = Arc::new(Mutex::new(Vec::new()));
+        data.set_repeat_one(true);
+
+        handle_queue_next(
+            PathBuf::from("/music/queued-after-repeat-one.flac"),
+            &data,
+            &decoders,
+            &event_tx,
+            48_000,
+        );
+
+        assert!(!data.sources.lock().has_next());
+        assert!(decoders.lock().is_empty());
+    }
+
     /// Like [`build_callback_data`] but returns the `finished_tracks` receiver
     /// so a test can assert that a seek retired its old source. The command
     /// loop is what turns that channel into `AudioEvent::TrackEnded`, and it is
@@ -6187,8 +6511,8 @@ mod tests {
     fn build_callback_data_with_finished(
         sample_rate: u32,
         channels: usize,
-    ) -> (AudioCallbackData, Receiver<AudioSource>) {
-        let (finished_tx, finished_rx) = bounded::<AudioSource>(8);
+    ) -> (AudioCallbackData, Receiver<FinishedTrack>) {
+        let (finished_tx, finished_rx) = bounded(8);
         let data = AudioCallbackData::new(
             sample_rate,
             channels,
@@ -6400,8 +6724,11 @@ mod tests {
         let timeout = std::time::Duration::from_secs(2);
         assert!(transition_rx.recv_timeout(timeout).unwrap());
 
-        let finished = data.sources.lock().advance_to_next().unwrap();
-        data.finished_tracks.send(finished).unwrap();
+        {
+            let mut sources = data.sources.lock();
+            let finished = sources.advance_to_next().unwrap();
+            data.report_track_finished(finished, sources.current());
+        }
         while !matches!(
             event_rx.recv_timeout(timeout).unwrap(),
             AudioEvent::TrackEnded { .. }
@@ -6413,7 +6740,7 @@ mod tests {
         assert!(data.sources.lock().current().is_some());
 
         let finished = data.sources.lock().advance_to_next().unwrap();
-        data.finished_tracks.send(finished).unwrap();
+        data.report_track_finished(finished, None);
         while !matches!(
             event_rx.recv_timeout(timeout).unwrap(),
             AudioEvent::StateChanged(PlaybackState::Stopped)
@@ -6474,7 +6801,7 @@ mod tests {
             assert!((current.position_secs() - 0.05).abs() < 1e-9);
             assert!(!sources.has_next());
         }
-        assert_eq!(finished_rx.try_recv().unwrap().info.range, first);
+        assert_eq!(finished_rx.try_recv().unwrap().source.info.range, first);
         for handle in decoders.lock().drain(..) {
             handle.join().unwrap();
         }
@@ -6557,7 +6884,7 @@ mod tests {
         let retired = finished_rx
             .try_recv()
             .expect("mid-fade seek must report the retired outgoing track as finished");
-        assert_eq!(retired.info.path, current_path);
+        assert_eq!(retired.source.info.path, current_path);
 
         let _ = std::fs::remove_file(&current_path);
         let _ = std::fs::remove_file(&successor_path);
@@ -6589,7 +6916,7 @@ mod tests {
         let retired = finished_rx
             .try_recv()
             .expect("the paused mid-fade seek must still report the retired track");
-        assert_eq!(retired.info.path, current_path);
+        assert_eq!(retired.source.info.path, current_path);
 
         let _ = std::fs::remove_file(&current_path);
         let _ = std::fs::remove_file(&successor_path);
@@ -6860,7 +7187,7 @@ mod tests {
     }
 
     fn build_dop_callback_data() -> AudioCallbackData {
-        let (finished_tx, _finished_rx) = bounded::<AudioSource>(8);
+        let (finished_tx, _finished_rx) = bounded(8);
         let data = AudioCallbackData::new(
             48_000,
             2,

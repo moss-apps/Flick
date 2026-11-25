@@ -26,15 +26,20 @@ class PlaybackRange {
           endSecs == other.endSecs;
 }
 
-/// Unlike a path alone, this distinguishes adjacent tracks in a CUE album.
+/// Identifies both a logical track and the particular playback of that track.
 class SourceIdentity {
   final String path;
   final PlaybackRange range;
+  final BigInt playbackId;
 
-  const SourceIdentity({required this.path, required this.range});
+  const SourceIdentity({
+    required this.path,
+    required this.range,
+    required this.playbackId,
+  });
 
   @override
-  int get hashCode => path.hashCode ^ range.hashCode;
+  int get hashCode => path.hashCode ^ range.hashCode ^ playbackId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -42,5 +47,6 @@ class SourceIdentity {
       other is SourceIdentity &&
           runtimeType == other.runtimeType &&
           path == other.path &&
-          range == other.range;
+          range == other.range &&
+          playbackId == other.playbackId;
 }

@@ -853,6 +853,7 @@ pub enum AudioEventType {
     },
     TrackEnded {
         source: SourceIdentity,
+        next_playback_id: Option<u64>,
     },
     CrossfadeStarted {
         from: SourceIdentity,
@@ -1350,7 +1351,7 @@ pub fn audio_play(
     path: String,
     start_secs: Option<f64>,
     end_secs: Option<f64>,
-) -> Result<(), String> {
+) -> Result<SourceIdentity, String> {
     crate::assert_android_debug_logging();
     let path = PathBuf::from(&path);
     let range = playback_range_for_path(&path, start_secs, end_secs)?;
@@ -1443,7 +1444,7 @@ pub fn audio_play(
                 handle.set_dop_override(is_raw)?;
                 handle.play_prepared(source, DecoderHandle::Dsd(thread))
             })?;
-            wait_for_native_completion(completion, "Audio play")
+            wait_for_play_start(completion)
         }
         crate::audio::decoder_handle::FileType::WavPack => {
             clear_dsd_track_rate();
@@ -1459,7 +1460,7 @@ pub fn audio_play(
                 engine.set_dop_override(false)?;
                 engine.play_prepared(source, handle)
             })
-            .and_then(|completion| wait_for_native_completion(completion, "Audio play"))
+            .and_then(wait_for_play_start)
         }
         crate::audio::decoder_handle::FileType::Standard => {
             clear_dsd_track_rate();
@@ -1495,7 +1496,7 @@ pub fn audio_play(
                 handle.set_dop_override(false)?;
                 handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
             })
-            .and_then(|completion| wait_for_native_completion(completion, "Audio play"))
+            .and_then(wait_for_play_start)
         }
     }
 }
@@ -1507,6 +1508,9 @@ pub fn audio_queue_next(
     end_secs: Option<f64>,
 ) -> Result<(), String> {
     crate::assert_android_debug_logging();
+    if ENGINE_MANAGER.is_repeat_one() {
+        return Ok(());
+    }
     let path = PathBuf::from(path);
     let range = playback_range_for_path(&path, start_secs, end_secs)?;
     if !audio_is_initialized() {
@@ -1711,7 +1715,7 @@ pub fn audio_play_from_http(
     headers: HashMap<String, String>,
     start_secs: Option<f64>,
     end_secs: Option<f64>,
-) -> Result<(), String> {
+) -> Result<SourceIdentity, String> {
     let range = PlaybackRange {
         start_secs: start_secs.unwrap_or(0.0),
         end_secs,
@@ -1743,7 +1747,7 @@ pub fn audio_play_from_http(
         handle.set_dop_override(false)?;
         handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
     })
-    .and_then(|completion| wait_for_native_completion(completion, "Audio play"))
+    .and_then(wait_for_play_start)
 }
 
 /// Queue a remote HTTP stream as the next track for gapless playback.
@@ -1753,6 +1757,9 @@ pub fn audio_queue_next_from_http(
     start_secs: Option<f64>,
     end_secs: Option<f64>,
 ) -> Result<(), String> {
+    if ENGINE_MANAGER.is_repeat_one() {
+        return Ok(());
+    }
     let range = PlaybackRange {
         start_secs: start_secs.unwrap_or(0.0),
         end_secs,
@@ -1863,6 +1870,13 @@ fn wait_for_native_completion(
     completion
         .recv_timeout(std::time::Duration::from_secs(5))
         .map_err(|error| format!("{action} did not complete: {error}"))
+}
+
+fn wait_for_play_start(
+    (completion, source): (crossbeam_channel::Receiver<()>, SourceIdentity),
+) -> Result<SourceIdentity, String> {
+    wait_for_native_completion(completion, "Audio play")?;
+    Ok(source)
 }
 
 /// Seek to a position in the current track.
@@ -2011,6 +2025,14 @@ pub fn audio_set_crossfade(enabled: bool, duration_secs: f32) -> Result<(), Stri
     with_audio_engine(|handle| handle.set_crossfade(enabled, duration_secs))
 }
 
+/// Enable/disable Repeat One in the native engine.
+///
+/// Complete any fade already underway and prevent new handoffs while enabled.
+/// The manager retains the setting even when there is no live output engine.
+pub fn audio_set_repeat_one(enabled: bool) -> Result<(), String> {
+    ENGINE_MANAGER.set_repeat_one(enabled)
+}
+
 /// Skip to the next queued track.
 pub fn audio_skip_to_next() -> Result<(), String> {
     with_audio_engine(|handle| handle.skip_to_next())
@@ -2075,7 +2097,13 @@ pub fn audio_poll_event() -> Option<AudioEventType> {
             duration_secs: p.duration_secs,
             buffer_level: p.buffer_level,
         },
-        AudioEvent::TrackEnded { source } => AudioEventType::TrackEnded { source },
+        AudioEvent::TrackEnded {
+            source,
+            next_playback_id,
+        } => AudioEventType::TrackEnded {
+            source,
+            next_playback_id,
+        },
         AudioEvent::CrossfadeStarted { from, to } => AudioEventType::CrossfadeStarted { from, to },
         AudioEvent::Error { message } => AudioEventType::Error { message },
         AudioEvent::NextTrackReady { source } => AudioEventType::NextTrackReady { source },
@@ -2113,6 +2141,13 @@ pub fn audio_get_current_path() -> Option<String> {
 #[flutter_rust_bridge::frb(sync)]
 pub fn audio_get_current_source() -> Option<SourceIdentity> {
     read_audio_engine(|handle| handle.get_current_source()).flatten()
+}
+
+/// Whether the native engine actually installed a successor.
+#[flutter_rust_bridge::frb(sync)]
+pub fn audio_has_queued_next() -> bool {
+    !ENGINE_MANAGER.is_repeat_one()
+        && read_audio_engine(|handle| handle.has_queued_next()).unwrap_or(false)
 }
 
 /// Get the number of audio channels.

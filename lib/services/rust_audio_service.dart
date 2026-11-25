@@ -51,7 +51,7 @@ class RustAudioService {
   int _lastPositionLabelMs = 0;
 
   // Event callbacks
-  void Function(SourceIdentity source)? onTrackEnded;
+  void Function(SourceIdentity source, BigInt? nextPlaybackId)? onTrackEnded;
   void Function(SourceIdentity from, SourceIdentity to)? onCrossfadeStarted;
   void Function(SourceIdentity source)? onNextTrackReady;
   void Function(String message)? onError;
@@ -70,8 +70,8 @@ class RustAudioService {
   final Stopwatch _stateRefreshClock = Stopwatch();
   bool _initialized = false;
   bool _highResModeEnabled = false;
-  SourceIdentity? _currentSource;
-  SourceIdentity? _nextSource;
+  BigInt? _acceptedPlaybackId;
+  bool _repeatOne = false;
 
   /// Check if native audio engine is available on this platform.
   bool get isNativeAvailable => rust_audio.audioIsNativeAvailable();
@@ -136,6 +136,19 @@ class RustAudioService {
 
   /// Check if the engine is initialized.
   bool get isInitialized => _initialized;
+
+  /// Whether a native engine handle currently exists. [isInitialized] only
+  /// covers the Rust manager, which can be up before the first engine is
+  /// prepared (or after a stop/shutdown).
+  bool get hasNativeEngine {
+    if (!_initialized) return false;
+    try {
+      return rust_audio.audioIsInitialized();
+    } catch (e) {
+      devLog('[RustAudio] Failed to query native engine state: $e');
+      return false;
+    }
+  }
 
   /// Whether the user explicitly requested the native high-res engine path.
   bool get isHighResModeEnabled => _highResModeEnabled;
@@ -283,12 +296,20 @@ class RustAudioService {
       return rust_audio.audioGetCurrentSource();
     } catch (e) {
       devLog('Error getting current path: $e');
-      return _currentSource; // Fallback to cached value
+      return null;
     }
   }
 
+  /// Playback accepted by an explicit play or by PlayerService's native handoff.
+  /// Unlike [currentSource], it remains available after the source reaches EOF.
+  BigInt? get acceptedPlaybackId => _acceptedPlaybackId;
+
+  void acceptNativeHandoff(BigInt playbackId) {
+    _acceptedPlaybackId = playbackId;
+  }
+
   /// Whether a next track is already queued in the engine.
-  bool get hasQueuedNext => _nextSource != null;
+  bool get hasQueuedNext => _initialized && rust_audio.audioHasQueuedNext();
 
   /// Play an audio file.
   Future<void> play(String path, {double? startSecs, double? endSecs}) async {
@@ -298,20 +319,14 @@ class RustAudioService {
 
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
-    await _reviveAndRetry(
+    final source = await _reviveAndRetry(
       () => rust_audio.audioPlay(
         path: path,
         startSecs: startSecs,
         endSecs: endSecs,
       ),
     );
-    final source = SourceIdentity(
-      path: path,
-      range: PlaybackRange(startSecs: startSecs ?? 0, endSecs: endSecs),
-    );
-    // Replaying the same segment preserves its native queued successor.
-    if (_currentSource != source) _nextSource = null;
-    _currentSource = source;
+    _acceptedPlaybackId = source.playbackId;
     _startProgressUpdates(fast: true);
     _updateState();
   }
@@ -330,7 +345,7 @@ class RustAudioService {
     }
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
-    await _reviveAndRetry(
+    final source = await _reviveAndRetry(
       () => rust_audio.audioPlayFromHttp(
         url: url,
         headers: headers,
@@ -338,11 +353,20 @@ class RustAudioService {
         endSecs: endSecs,
       ),
     );
-    final source = _httpSourceIdentity(url, startSecs, endSecs);
-    if (_currentSource != source) _nextSource = null;
-    _currentSource = source;
+    _acceptedPlaybackId = source.playbackId;
     _startProgressUpdates(fast: true);
     _updateState();
+  }
+
+  /// Enable/disable Repeat One at the native engine.
+  ///
+  /// The native manager applies the guard to both live and replacement engines.
+  Future<void> setRepeatOne(bool enabled) async {
+    _repeatOne = enabled;
+    if (!_initialized) return;
+    await _reviveAndRetry(
+      () => rust_audio.audioSetRepeatOne(enabled: enabled),
+    );
   }
 
   /// Queue the next track for gapless playback.
@@ -355,6 +379,10 @@ class RustAudioService {
     if (!_initialized) {
       throw StateError('Rust audio engine not initialized');
     }
+    if (_repeatOne) {
+      devLog('[repeat-one] ignoring queueNext while Repeat One is active');
+      return;
+    }
 
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
@@ -364,10 +392,6 @@ class RustAudioService {
         startSecs: startSecs,
         endSecs: endSecs,
       ),
-    );
-    _nextSource = SourceIdentity(
-      path: path,
-      range: PlaybackRange(startSecs: startSecs ?? 0, endSecs: endSecs),
     );
   }
 
@@ -381,6 +405,10 @@ class RustAudioService {
     if (!_initialized) {
       throw StateError('Rust audio engine not initialized');
     }
+    if (_repeatOne) {
+      devLog('[repeat-one] ignoring queueNextHttp while Repeat One is active');
+      return;
+    }
     _syncDsdOutputMode();
     _syncDsdTransportOverrides();
     await _reviveAndRetry(
@@ -390,21 +418,6 @@ class RustAudioService {
         startSecs: startSecs,
         endSecs: endSecs,
       ),
-    );
-    _nextSource = _httpSourceIdentity(url, startSecs, endSecs);
-  }
-
-  // Match decoder::url_label: native HTTP sources use a filename-only label,
-  // never a credential-bearing URL. Cache the same identity for handoffs.
-  SourceIdentity _httpSourceIdentity(
-    String url,
-    double? startSecs,
-    double? endSecs,
-  ) {
-    final label = url.split('?').first.split('/').last;
-    return SourceIdentity(
-      path: label.isEmpty ? 'http-stream' : label,
-      range: PlaybackRange(startSecs: startSecs ?? 0, endSecs: endSecs),
     );
   }
 
@@ -480,8 +493,7 @@ class RustAudioService {
     if (!_initialized) return;
     await rust_audio.audioStop();
     _stopProgressUpdates();
-    _currentSource = null;
-    _nextSource = null;
+    _acceptedPlaybackId = null;
     _updateState();
   }
 
@@ -615,6 +627,7 @@ class RustAudioService {
       ..reset();
     await rust_audio.audioShutdown();
     _initialized = false;
+    _acceptedPlaybackId = null;
   }
 
   /// Start periodic progress updates.
@@ -825,19 +838,8 @@ class RustAudioService {
             bufferLevelNotifier.value = bufferLevel;
           }
         },
-        trackEnded: (source) {
-          final engineSource = currentSource;
-          devLog(
-            '[crossfade] TrackEnded: queued=${_nextSource != null}, '
-            'engineHasSource=${engineSource != null}, '
-            'engineMatchesRequested=${_nextSource != null && engineSource == _nextSource}',
-          );
-          // Track finished, next track should auto-start if queued
-          _currentSource = engineSource;
-          if (engineSource == _nextSource || engineSource == null) {
-            _nextSource = null;
-          }
-          onTrackEnded?.call(source);
+        trackEnded: (source, nextPlaybackId) {
+          onTrackEnded?.call(source, nextPlaybackId);
         },
         crossfadeStarted: (from, to) {
           onCrossfadeStarted?.call(from, to);
@@ -847,9 +849,6 @@ class RustAudioService {
           onError?.call(message);
         },
         nextTrackReady: (source) {
-          devLog(
-            '[crossfade] NextTrackReady: matchesRequested=${source == _nextSource}',
-          );
           onNextTrackReady?.call(source);
         },
       );

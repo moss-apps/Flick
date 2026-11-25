@@ -21,10 +21,13 @@ class FakeRustAudioService implements RustAudioService {
   final plays = <PlayCall>[];
   final httpPlays = <PlayCall>[];
   final seeks = <Duration>[];
+  final seekPlayAttempts = <int>[];
   @override
   String? currentPath;
   bool failHttp = false;
+  bool failPlay = false;
   int resumes = 0;
+  int _activePlayAttempt = 0;
 
   @override
   Future<void> pause() async {
@@ -40,6 +43,9 @@ class FakeRustAudioService implements RustAudioService {
   @override
   Future<void> play(String path, {double? startSecs, double? endSecs}) async {
     plays.add((path: path, start: startSecs, end: endSecs));
+    if (failPlay) throw StateError('Play unavailable');
+    currentPath = path;
+    _activePlayAttempt = plays.length + httpPlays.length;
     stateNotifier.value = RustPlaybackState.playing;
   }
 
@@ -52,11 +58,15 @@ class FakeRustAudioService implements RustAudioService {
   }) async {
     httpPlays.add((path: url, start: startSecs, end: endSecs));
     if (failHttp) throw StateError('HTTP unavailable');
+    _activePlayAttempt = plays.length + httpPlays.length;
     stateNotifier.value = RustPlaybackState.playing;
   }
 
   @override
-  Future<void> seek(Duration position) async => seeks.add(position);
+  Future<void> seek(Duration position) async {
+    seeks.add(position);
+    seekPlayAttempts.add(_activePlayAttempt);
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -132,6 +142,31 @@ void main() {
     ]);
   });
 
+  for (final sameTrack in [false, true]) {
+    test('staged seek waits for the new play, same track=$sameTrack', () async {
+      final first = track();
+      await engine.load(first);
+      await engine.play();
+      service.positionNotifier.value = const Duration(seconds: 7);
+
+      final second = sameTrack ? first : track(start: 13000, end: 31000);
+      await engine.load(second);
+      const target = Duration(seconds: 2);
+      await engine.seek(target);
+      expect(service.seeks, isEmpty);
+
+      service.failPlay = true;
+      await expectLater(engine.play(), throwsStateError);
+      expect(service.seeks, isEmpty);
+
+      service.failPlay = false;
+      await engine.play();
+      expect(service.plays, hasLength(3));
+      expect(service.seeks, [target]);
+      expect(service.seekPlayAttempts, [3]);
+    });
+  }
+
   for (final fallback in [false, true]) {
     test('HTTP play retains bounds with cache fallback=$fallback', () async {
       await engine.dispose();
@@ -185,16 +220,45 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(states.last.isPlaying, isTrue);
 
-    // The native stream never stopped, so play() does not change the Rust
-    // state notifier; the engine must still emit the accepted playing state.
+    // Loading a selection is not playback: the previous track is still
+    // audible until the native engine accepts the switch.
     await engine.load(track(start: 13000, end: 31000));
     await Future<void>.delayed(Duration.zero);
-    expect(states.last.isPlaying, isFalse);
+    expect(states.last.isPlaying, isTrue);
+    expect(states.last.currentTrack?.id, 'cue-file');
     await engine.play();
     await Future<void>.delayed(Duration.zero);
 
     expect(service.stateNotifier.value, RustPlaybackState.playing);
     expect(states.last.isPlaying, isTrue);
+    expect(states.last.currentTrack?.id, 'cue-13000');
+    await subscription.cancel();
+  });
+
+  test('failed play keeps the previous track visible and retry succeeds', () async {
+    final states = <PlaybackState>[];
+    final subscription = engine.playbackStateStream.listen(states.add);
+    final first = track();
+    final second = track(start: 13000, end: 31000);
+    await engine.load(first);
+    await engine.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(states.last.currentTrack?.id, first.id);
+
+    service.failPlay = true;
+    await engine.load(second);
+    await expectLater(engine.play(), throwsStateError);
+    await Future<void>.delayed(Duration.zero);
+    expect(states.last.currentTrack?.id, first.id);
+    expect(states.last.isPlaying, isTrue);
+    expect(states.last.duration, first.duration);
+
+    service.failPlay = false;
+    await engine.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(states.last.currentTrack?.id, second.id);
+    expect(states.last.isPlaying, isTrue);
+    expect(service.plays, hasLength(3));
     await subscription.cancel();
   });
 

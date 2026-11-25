@@ -127,10 +127,19 @@ class RustAudioEngine implements AudioEngine {
     _loadedTrack = track;
     _needsFreshPlay = true;
     _pendingSeekPosition = Duration.zero;
+    // Do not publish the selection here. `play()` can still fail (dead engine,
+    // refused route, unreadable source); until the native engine accepts the
+    // new source the previous track may still be audible, so keep showing it.
+    // The accepted track is emitted from `play()` after the engine acknowledges
+    // the switch.
+  }
+
+  /// Publish a track only after the native engine has accepted the play.
+  void _emitAcceptedTrack(Song track) {
     _emit(
       _state.copyWith(
         currentTrack: track,
-        isPlaying: false,
+        isPlaying: true,
         position: Duration.zero,
         bufferedPosition: Duration.zero,
         duration: track.duration,
@@ -177,9 +186,11 @@ class RustAudioEngine implements AudioEngine {
       return;
     }
 
-    _needsFreshPlay = false;
     // ponytail: HTTP-first for network sources. Try a direct ranged stream; on
     // any failure (no ranges, auth, network) fall back to cache-then-play.
+    // `_needsFreshPlay` stays true until a native play actually succeeds so a
+    // failed attempt is retried as a fresh play instead of a resume of the
+    // previous source.
     final httpResolver = _resolveHttpSource;
     if (httpResolver != null) {
       try {
@@ -198,7 +209,8 @@ class RustAudioEngine implements AudioEngine {
             );
             // A track switch while already playing leaves the Rust state
             // notifier unchanged, so sync the engine's UI state explicitly.
-            _emit(_state.copyWith(isPlaying: true));
+            _needsFreshPlay = false;
+            _emitAcceptedTrack(track);
             await _applyInitialSeekAfterStart();
             return;
           } catch (e) {
@@ -231,7 +243,8 @@ class RustAudioEngine implements AudioEngine {
     );
     // See the HTTP path above: switching tracks during playback does not
     // change the native state string, so emit the accepted play here.
-    _emit(_state.copyWith(isPlaying: true));
+    _needsFreshPlay = false;
+    _emitAcceptedTrack(track);
     await _applyInitialSeekAfterStart();
   }
 
@@ -273,6 +286,9 @@ class RustAudioEngine implements AudioEngine {
     await _safeEnsureInitialized();
     _attachListeners();
     _pendingSeekPosition = position;
+    // A seek between load() and the engine's play acknowledgement is deferred;
+    // even reloading the same song must not seek the outgoing play instance.
+    if (_needsFreshPlay) return;
     _emit(_state.copyWith(position: position));
 
     final rustState = _rustAudioService.stateNotifier.value;
@@ -291,7 +307,10 @@ class RustAudioEngine implements AudioEngine {
 
   @override
   void updateTrack(Song track) {
+    // A native handoff supersedes any staged selection that didn't start.
     _loadedTrack = track;
+    _needsFreshPlay = false;
+    _pendingSeekPosition = null;
     _emit(
       _state.copyWith(
         currentTrack: track,

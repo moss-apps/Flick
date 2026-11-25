@@ -163,6 +163,9 @@ class _Rust extends Fake implements RustAudioService {
   }
 
   @override
+  Future<void> setRepeatOne(bool enabled) async {}
+
+  @override
   Future<void> pause() async {
     commands.add('pause');
     if (failPause) throw StateError('pause failed');

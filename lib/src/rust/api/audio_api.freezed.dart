@@ -131,12 +131,12 @@ return nextTrackReady(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String state)?  stateChanged,TResult Function( double positionSecs,  double? durationSecs,  double bufferLevel)?  progress,TResult Function( SourceIdentity source)?  trackEnded,TResult Function( SourceIdentity from,  SourceIdentity to)?  crossfadeStarted,TResult Function( String message)?  error,TResult Function( SourceIdentity source)?  nextTrackReady,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String state)?  stateChanged,TResult Function( double positionSecs,  double? durationSecs,  double bufferLevel)?  progress,TResult Function( SourceIdentity source,  BigInt? nextPlaybackId)?  trackEnded,TResult Function( SourceIdentity from,  SourceIdentity to)?  crossfadeStarted,TResult Function( String message)?  error,TResult Function( SourceIdentity source)?  nextTrackReady,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AudioEventType_StateChanged() when stateChanged != null:
 return stateChanged(_that.state);case AudioEventType_Progress() when progress != null:
 return progress(_that.positionSecs,_that.durationSecs,_that.bufferLevel);case AudioEventType_TrackEnded() when trackEnded != null:
-return trackEnded(_that.source);case AudioEventType_CrossfadeStarted() when crossfadeStarted != null:
+return trackEnded(_that.source,_that.nextPlaybackId);case AudioEventType_CrossfadeStarted() when crossfadeStarted != null:
 return crossfadeStarted(_that.from,_that.to);case AudioEventType_Error() when error != null:
 return error(_that.message);case AudioEventType_NextTrackReady() when nextTrackReady != null:
 return nextTrackReady(_that.source);case _:
@@ -157,12 +157,12 @@ return nextTrackReady(_that.source);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String state)  stateChanged,required TResult Function( double positionSecs,  double? durationSecs,  double bufferLevel)  progress,required TResult Function( SourceIdentity source)  trackEnded,required TResult Function( SourceIdentity from,  SourceIdentity to)  crossfadeStarted,required TResult Function( String message)  error,required TResult Function( SourceIdentity source)  nextTrackReady,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String state)  stateChanged,required TResult Function( double positionSecs,  double? durationSecs,  double bufferLevel)  progress,required TResult Function( SourceIdentity source,  BigInt? nextPlaybackId)  trackEnded,required TResult Function( SourceIdentity from,  SourceIdentity to)  crossfadeStarted,required TResult Function( String message)  error,required TResult Function( SourceIdentity source)  nextTrackReady,}) {final _that = this;
 switch (_that) {
 case AudioEventType_StateChanged():
 return stateChanged(_that.state);case AudioEventType_Progress():
 return progress(_that.positionSecs,_that.durationSecs,_that.bufferLevel);case AudioEventType_TrackEnded():
-return trackEnded(_that.source);case AudioEventType_CrossfadeStarted():
+return trackEnded(_that.source,_that.nextPlaybackId);case AudioEventType_CrossfadeStarted():
 return crossfadeStarted(_that.from,_that.to);case AudioEventType_Error():
 return error(_that.message);case AudioEventType_NextTrackReady():
 return nextTrackReady(_that.source);}
@@ -179,12 +179,12 @@ return nextTrackReady(_that.source);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String state)?  stateChanged,TResult? Function( double positionSecs,  double? durationSecs,  double bufferLevel)?  progress,TResult? Function( SourceIdentity source)?  trackEnded,TResult? Function( SourceIdentity from,  SourceIdentity to)?  crossfadeStarted,TResult? Function( String message)?  error,TResult? Function( SourceIdentity source)?  nextTrackReady,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String state)?  stateChanged,TResult? Function( double positionSecs,  double? durationSecs,  double bufferLevel)?  progress,TResult? Function( SourceIdentity source,  BigInt? nextPlaybackId)?  trackEnded,TResult? Function( SourceIdentity from,  SourceIdentity to)?  crossfadeStarted,TResult? Function( String message)?  error,TResult? Function( SourceIdentity source)?  nextTrackReady,}) {final _that = this;
 switch (_that) {
 case AudioEventType_StateChanged() when stateChanged != null:
 return stateChanged(_that.state);case AudioEventType_Progress() when progress != null:
 return progress(_that.positionSecs,_that.durationSecs,_that.bufferLevel);case AudioEventType_TrackEnded() when trackEnded != null:
-return trackEnded(_that.source);case AudioEventType_CrossfadeStarted() when crossfadeStarted != null:
+return trackEnded(_that.source,_that.nextPlaybackId);case AudioEventType_CrossfadeStarted() when crossfadeStarted != null:
 return crossfadeStarted(_that.from,_that.to);case AudioEventType_Error() when error != null:
 return error(_that.message);case AudioEventType_NextTrackReady() when nextTrackReady != null:
 return nextTrackReady(_that.source);case _:
@@ -335,10 +335,11 @@ as double,
 
 
 class AudioEventType_TrackEnded extends AudioEventType {
-  const AudioEventType_TrackEnded({required this.source}): super._();
+  const AudioEventType_TrackEnded({required this.source, this.nextPlaybackId}): super._();
   
 
  final  SourceIdentity source;
+ final  BigInt? nextPlaybackId;
 
 /// Create a copy of AudioEventType
 /// with the given fields replaced by the non-null parameter values.
@@ -350,16 +351,16 @@ $AudioEventType_TrackEndedCopyWith<AudioEventType_TrackEnded> get copyWith => _$
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AudioEventType_TrackEnded&&(identical(other.source, source) || other.source == source));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AudioEventType_TrackEnded&&(identical(other.source, source) || other.source == source)&&(identical(other.nextPlaybackId, nextPlaybackId) || other.nextPlaybackId == nextPlaybackId));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,source);
+int get hashCode => Object.hash(runtimeType,source,nextPlaybackId);
 
 @override
 String toString() {
-  return 'AudioEventType.trackEnded(source: $source)';
+  return 'AudioEventType.trackEnded(source: $source, nextPlaybackId: $nextPlaybackId)';
 }
 
 
@@ -370,7 +371,7 @@ abstract mixin class $AudioEventType_TrackEndedCopyWith<$Res> implements $AudioE
   factory $AudioEventType_TrackEndedCopyWith(AudioEventType_TrackEnded value, $Res Function(AudioEventType_TrackEnded) _then) = _$AudioEventType_TrackEndedCopyWithImpl;
 @useResult
 $Res call({
- SourceIdentity source
+ SourceIdentity source, BigInt? nextPlaybackId
 });
 
 
@@ -387,10 +388,11 @@ class _$AudioEventType_TrackEndedCopyWithImpl<$Res>
 
 /// Create a copy of AudioEventType
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? source = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? source = null,Object? nextPlaybackId = freezed,}) {
   return _then(AudioEventType_TrackEnded(
 source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
-as SourceIdentity,
+as SourceIdentity,nextPlaybackId: freezed == nextPlaybackId ? _self.nextPlaybackId : nextPlaybackId // ignore: cast_nullable_to_non_nullable
+as BigInt?,
   ));
 }
 
