@@ -5,6 +5,9 @@
 ### Playback
 - **Now Playing** — fixed an error when opening or reopening the full player with a track already loaded.
 
+### Playlists
+- **Playlist grid** — switch between the list and a two-column artwork grid from the Playlists header. Flick remembers your preferred view, and playlist actions are available in both layouts.
+
 ## 0.23.3-beta.5 (2026-11-20)
 
 ### Equalizer

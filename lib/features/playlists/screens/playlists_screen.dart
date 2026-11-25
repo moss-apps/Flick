@@ -3,12 +3,14 @@ import 'package:flick/widgets/common/flick_snackbar.dart';
 import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/models/playlist.dart';
+import 'package:flick/models/song.dart';
 import 'package:flick/providers/playlist_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/services/sources/network_source_service.dart';
@@ -18,10 +20,41 @@ import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/features/playlists/playlist_cover_actions.dart';
 import 'package:flick/features/playlists/playlist_rename_action.dart';
 import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
+import 'package:flick/features/playlists/widgets/playlist_preview_card.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/widgets/common/library_heading.dart';
+
+const _playlistSidePadding = AppConstants.spacingMd;
+
+final _playlistGridViewProvider =
+    AsyncNotifierProvider<_PlaylistGridView, bool>(_PlaylistGridView.new);
+
+class _PlaylistGridView extends AsyncNotifier<bool> {
+  static const _prefKey = 'playlist_grid_view';
+  bool _saving = false;
+
+  @override
+  Future<bool> build() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_prefKey) ?? false;
+  }
+
+  Future<void> toggle() async {
+    final current = state.value;
+    if (current == null || _saving) return;
+    _saving = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (await prefs.setBool(_prefKey, !current) && ref.mounted) {
+        state = AsyncData(!current);
+      }
+    } finally {
+      _saving = false;
+    }
+  }
+}
 
 class PlaylistsScreen extends ConsumerWidget {
   const PlaylistsScreen({super.key});
@@ -30,6 +63,7 @@ class PlaylistsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final playlistsAsync = ref.watch(playlistsProvider);
     final currentSong = ref.watch(currentSongProvider);
+    final gridView = ref.watch(_playlistGridViewProvider).value;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -43,14 +77,14 @@ class PlaylistsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(context, ref),
+                _buildHeader(context, ref, gridView),
                 Expanded(
                   child: playlistsAsync.when(
                     loading: () => _buildLoadingState(context),
                     error: (e, _) => _buildErrorState(context, e.toString()),
                     data: (state) => state.playlists.isEmpty
                         ? _buildEmptyState(context)
-                        : _buildPlaylistsList(context, ref, state.playlists),
+                        : _buildPlaylists(ref, state.playlists, gridView ?? false),
                   ),
                 ),
               ],
@@ -62,8 +96,10 @@ class PlaylistsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref, bool? gridView) {
     final count = ref.watch(playlistsCountProvider);
+    final showGrid = gridView ?? false;
+    final copy = context.l10n.englishForFilipino;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -102,6 +138,20 @@ class PlaylistsScreen extends ConsumerWidget {
               ],
             ),
           ),
+          SurfaceIconButton(
+            child: IconButton(
+              icon: Icon(
+                showGrid ? LucideIcons.list : LucideIcons.layoutGrid,
+                color: context.adaptiveTextPrimary,
+                size: context.responsiveIcon(AppConstants.iconSizeMd),
+              ),
+              tooltip: showGrid ? copy.viewAsList : copy.viewAsGrid,
+              onPressed: gridView == null
+                  ? null
+                  : () => ref.read(_playlistGridViewProvider.notifier).toggle(),
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingSm),
           SurfaceIconButton(
             child: PopupMenuButton<String>(
               icon: Icon(
@@ -276,59 +326,116 @@ class PlaylistsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPlaylistsList(
-    BuildContext context,
+  Widget _buildPlaylists(
     WidgetRef ref,
     List<Playlist> playlists,
+    bool showGrid,
   ) {
+    final servers = ref.watch(networkServersProvider).value ?? [];
+    final serverLabels = {for (final server in servers) server.id: server.label};
+    final songs = showGrid ? ref.watch(songsProvider).value?.songs : null;
+    final songById = <String, Song>{
+      if (songs != null)
+        for (final song in songs) song.id: song,
+    };
+
+    Widget buildItem(BuildContext context, int index, {double? artworkHeight}) {
+      final playlist = playlists[index];
+      final serverLabel = serverLabels[playlist.networkServerId];
+
+      void openPlaylist() {
+        NavigationHelper.pushFade(
+          context,
+          (context) => PlaylistDetailScreen(playlist: playlist),
+        );
+      }
+
+      final actions = _PlaylistActionsMenu(
+        hasCustomCover: playlist.coverPath != null,
+        onArtwork: artworkHeight != null,
+        onRename: () => PlaylistRenameAction.show(context, ref, playlist),
+        onDelete: () async {
+          final confirm = await _showDeleteDialog(context, ref);
+          if (confirm) {
+            await ref
+                .read(playlistsProvider.notifier)
+                .deletePlaylist(playlist.id);
+          }
+        },
+        onSetCover: () => PlaylistCoverActions.choose(context, ref, playlist),
+        onRemoveCover: () => PlaylistCoverActions.remove(context, ref, playlist),
+        onExportM3u: () => _exportPlaylist(context, ref, playlist, utf8: false),
+        onExportM3u8: () => _exportPlaylist(context, ref, playlist, utf8: true),
+      );
+
+      return artworkHeight == null
+          ? _PlaylistListTile(
+              key: ValueKey(playlist.id),
+              playlist: playlist,
+              serverLabel: serverLabel,
+              onTap: openPlaylist,
+              actions: actions,
+            )
+          : PlaylistPreviewCard(
+              key: ValueKey(playlist.id),
+              preview: PlaylistPreview.fromPlaylist(
+                playlist,
+                songById,
+                context.l10n.englishForFilipino,
+              ),
+              artworkHeight: artworkHeight,
+              songCount: playlist.songIds.length,
+              serverLabel: serverLabel,
+              onTap: openPlaylist,
+              actions: actions,
+            );
+    }
+
+    const bottomInset = AppConstants.navBarHeight + 120.0;
     return NotificationListener<ScrollNotification>(
       onNotification: (_) => true,
-      child: ListView.builder(
-        padding: EdgeInsets.only(bottom: AppConstants.navBarHeight + 120),
-        itemCount: playlists.length,
-      itemBuilder: (context, index) {
-        final playlist = playlists[index];
-        final serversAsync = ref.watch(networkServersProvider);
-        String? serverLabel;
-        final serverId = playlist.networkServerId;
-        if (serverId != null && serversAsync.value != null) {
-          for (final server in serversAsync.value!) {
-            if (server.id == serverId) {
-              serverLabel = server.label;
-              break;
-            }
-          }
-        }
-        return _PlaylistCard(
-          key: ValueKey(playlist.id),
-          playlist: playlist,
-          serverLabel: serverLabel,
-          onTap: () {
-            NavigationHelper.pushFade(
-              context,
-              (context) => PlaylistDetailScreen(playlist: playlist),
-            );
-          },
-          onRename: () => PlaylistRenameAction.show(context, ref, playlist),
-          onDelete: () async {
-            final confirm = await _showDeleteDialog(context, ref);
-            if (confirm == true) {
-              await ref
-                  .read(playlistsProvider.notifier)
-                  .deletePlaylist(playlist.id);
-            }
-          },
-          onSetCover: () =>
-              PlaylistCoverActions.choose(context, ref, playlist),
-          onRemoveCover: () =>
-              PlaylistCoverActions.remove(context, ref, playlist),
-          onExportM3u: () =>
-              _exportPlaylist(context, ref, playlist, utf8: false),
-          onExportM3u8: () =>
-              _exportPlaylist(context, ref, playlist, utf8: true),
-        );
-      },
-      ),
+      child: showGrid
+          ? LayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = AppConstants.spacingMd;
+                const columnCount = 2;
+                const gridInsets = 2 * _playlistSidePadding + spacing;
+                final cardWidth =
+                    (constraints.maxWidth - gridInsets) / columnCount;
+                final artworkHeight = (cardWidth - 2 * spacing).clamp(
+                  0.0,
+                  PlaylistPreviewCard.defaultArtworkHeight,
+                );
+
+                return GridView.builder(
+                  key: const PageStorageKey('playlists_grid'),
+                  padding: const EdgeInsets.fromLTRB(
+                    _playlistSidePadding,
+                    AppConstants.spacingXs,
+                    _playlistSidePadding,
+                    bottomInset,
+                  ),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columnCount,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                    mainAxisExtent: PlaylistPreviewCard.heightFor(
+                      context,
+                      artworkHeight,
+                    ),
+                  ),
+                  itemCount: playlists.length,
+                  itemBuilder: (context, index) =>
+                      buildItem(context, index, artworkHeight: artworkHeight),
+                );
+              },
+            )
+          : ListView.builder(
+              key: const PageStorageKey('playlists_list'),
+              padding: const EdgeInsets.only(bottom: bottomInset),
+              itemCount: playlists.length,
+              itemBuilder: buildItem,
+            ),
     );
   }
 
@@ -550,35 +657,25 @@ class PlaylistsScreen extends ConsumerWidget {
   }
 }
 
-class _PlaylistCard extends StatelessWidget {
+class _PlaylistListTile extends StatelessWidget {
   final Playlist playlist;
   final String? serverLabel;
   final VoidCallback onTap;
-  final VoidCallback onRename;
-  final VoidCallback onDelete;
-  final VoidCallback onSetCover;
-  final VoidCallback onRemoveCover;
-  final VoidCallback onExportM3u;
-  final VoidCallback onExportM3u8;
+  final Widget actions;
 
-  const _PlaylistCard({
+  const _PlaylistListTile({
     super.key,
     required this.playlist,
     this.serverLabel,
     required this.onTap,
-    required this.onRename,
-    required this.onDelete,
-    required this.onSetCover,
-    required this.onRemoveCover,
-    required this.onExportM3u,
-    required this.onExportM3u8,
+    required this.actions,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingMd,
+        horizontal: _playlistSidePadding,
         vertical: AppConstants.spacingXs,
       ),
       child: Material(
@@ -591,7 +688,10 @@ class _PlaylistCard extends StatelessWidget {
             padding: const EdgeInsets.all(AppConstants.spacingMd),
             child: Row(
               children: [
-                _PlaylistCover(playlist: playlist),
+                _PlaylistCover(
+                  key: PageStorageKey('playlist-artwork-${playlist.id}'),
+                  playlist: playlist,
+                ),
                 const SizedBox(width: AppConstants.spacingMd),
                 Expanded(
                   child: Column(
@@ -619,109 +719,7 @@ class _PlaylistCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    LucideIcons.ellipsisVertical,
-                    color: context.adaptiveTextTertiary,
-                    size: context.responsiveIcon(AppConstants.iconSizeMd),
-                  ),
-                  color: AppColors.surface,
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'rename':
-                        onRename();
-                        break;
-                      case 'set_cover':
-                        onSetCover();
-                        break;
-                      case 'remove_cover':
-                        onRemoveCover();
-                        break;
-                      case 'export_m3u':
-                        onExportM3u();
-                        break;
-                      case 'export_m3u8':
-                        onExportM3u8();
-                        break;
-                      case 'delete':
-                        onDelete();
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'rename',
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.pencilLine, size: 18),
-                          SizedBox(width: 8),
-                          Text(l10n.englishForFilipino.rename),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: 'set_cover',
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.imagePlus, size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            playlist.coverPath == null
-                                ? l10n.englishForFilipino.setCover
-                                : l10n.englishForFilipino.changeCover,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (playlist.coverPath != null)
-                      PopupMenuItem(
-                        value: 'remove_cover',
-                        child: Row(
-                          children: [
-                            Icon(LucideIcons.imageOff, size: 18),
-                            const SizedBox(width: 8),
-                            Text(l10n.englishForFilipino.removeCover),
-                          ],
-                        ),
-                      ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: 'export_m3u',
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.fileDown, size: 18),
-                          SizedBox(width: 8),
-                          Text(l10n.englishForFilipino.exportAsM3u),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'export_m3u8',
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.fileDown, size: 18),
-                          SizedBox(width: 8),
-                          Text(l10n.englishForFilipino.exportAsM3u8),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.trash2, color: Colors.red, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            l10n.englishForFilipino.delete,
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                actions,
               ],
             ),
           ),
@@ -731,10 +729,87 @@ class _PlaylistCard extends StatelessWidget {
   }
 }
 
+class _PlaylistActionsMenu extends StatelessWidget {
+  final bool hasCustomCover;
+  final bool onArtwork;
+  final VoidCallback onRename;
+  final VoidCallback onDelete;
+  final VoidCallback onSetCover;
+  final VoidCallback onRemoveCover;
+  final VoidCallback onExportM3u;
+  final VoidCallback onExportM3u8;
+
+  const _PlaylistActionsMenu({
+    required this.hasCustomCover,
+    required this.onArtwork,
+    required this.onRename,
+    required this.onDelete,
+    required this.onSetCover,
+    required this.onRemoveCover,
+    required this.onExportM3u,
+    required this.onExportM3u8,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n.englishForFilipino;
+    return PopupMenuButton<VoidCallback>(
+      icon: Icon(
+        LucideIcons.ellipsisVertical,
+        color: onArtwork ? Colors.white : context.adaptiveTextTertiary,
+        size: onArtwork ? 18 : context.responsiveIcon(AppConstants.iconSizeMd),
+      ),
+      padding: onArtwork ? EdgeInsets.zero : const EdgeInsets.all(8),
+      color: AppColors.surface,
+      tooltip: l10n.moreActions,
+      onSelected: (action) => action(),
+      itemBuilder: (context) => [
+        _item(LucideIcons.pencilLine, l10n.rename, onRename),
+        const PopupMenuDivider(),
+        _item(
+          LucideIcons.imagePlus,
+          hasCustomCover ? l10n.changeCover : l10n.setCover,
+          onSetCover,
+        ),
+        if (hasCustomCover)
+          _item(LucideIcons.imageOff, l10n.removeCover, onRemoveCover),
+        const PopupMenuDivider(),
+        _item(LucideIcons.fileDown, l10n.exportAsM3u, onExportM3u),
+        _item(LucideIcons.fileDown, l10n.exportAsM3u8, onExportM3u8),
+        const PopupMenuDivider(),
+        _item(LucideIcons.trash2, l10n.delete, onDelete, color: Colors.red),
+      ],
+    );
+  }
+
+  PopupMenuItem<VoidCallback> _item(
+    IconData icon,
+    String label,
+    VoidCallback action, {
+    Color? color,
+  }) {
+    return PopupMenuItem(
+      value: action,
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              label,
+              style: color == null ? null : TextStyle(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PlaylistCover extends ConsumerWidget {
   final Playlist playlist;
 
-  const _PlaylistCover({required this.playlist});
+  const _PlaylistCover({super.key, required this.playlist});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -837,6 +912,7 @@ class _PlaylistCover extends ConsumerWidget {
 
   Widget _buildGridArt(BuildContext context, List<String> artworkPaths, double size) {
     return GridView.count(
+      primary: false,
       crossAxisCount: 2,
       physics: const NeverScrollableScrollPhysics(),
       children: artworkPaths.take(4).map((path) {
