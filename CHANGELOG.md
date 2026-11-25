@@ -5,7 +5,7 @@
 ### Playback
 - **Now Playing** — fixed an error when opening or reopening the full player with a track already loaded.
 - **USB DAC playback establishment** — a completed isochronous packet whose length differs from the exact submitted schedule is now accepted when it is a legal size for the service interval (for example the 20/24-byte alternation at 44.1 kHz). Short or zero-length completions are counted and logged instead of aborting the stream, so a host controller that repacketises a URB or a DAC that applies FIFO backpressure no longer forces a fallback to ExoPlayer. Error statuses, non-frame-aligned lengths, lengths outside the legal envelope, packet-count changes, and a transfer total above the submitted bytes are still refused.
-- **In-app USB exclusive routing** — direct USB now force-claims the DAC's AudioControl and AudioStreaming interfaces through `UsbDeviceConnection.claimInterface(iface, force = true)` instead of requiring "Disable USB audio routing" in Developer options. The pre-claimed interfaces are handed to the Rust engine, which records them instead of issuing a second usbfs claim that would return `EBUSY`.
+- **In-app USB exclusive routing** — direct USB now force-claims the DAC's AudioControl interface through `UsbDeviceConnection.claimInterface(iface, force = true)` instead of requiring "Disable USB audio routing" in Developer options. The streaming interface stays with libusb, because a Java claim there makes libusb's alt-setting ioctl fail with `ENOENT`. The pre-claimed interface mask is handed to the Rust engine, which records those interfaces instead of issuing a second usbfs claim that would return `EBUSY`.
 
 ## 0.23.3-beta.5 (2026-11-20)
 

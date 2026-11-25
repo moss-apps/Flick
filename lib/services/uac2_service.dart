@@ -298,6 +298,18 @@ class Uac2Service {
   Timer? _androidRouteRefreshDebounceTimer;
 
   Uac2DeviceStatus? get currentDeviceStatus => _currentDeviceStatus;
+
+  /// True once this app has registered and claimed a direct-USB DAC. Android's
+  /// audio route stops looking like USB after the force-claim detaches the
+  /// platform driver, so engine selection must use this instead.
+  bool get hasClaimedDirectUsbDac {
+    final status = _currentDeviceStatus;
+    if (status == null) return false;
+    return switch (status.state) {
+      Uac2State.connected || Uac2State.prewarming || Uac2State.streaming => true,
+      _ => false,
+    };
+  }
   Uac2AudioFormat? get lastKnownFormat => _lastKnownFormat;
   bool get isBitPerfectEnabledSync => bitPerfectEnabledNotifier.value;
   bool get isDapBitPerfectEnabledSync => dapBitPerfectEnabledNotifier.value;
@@ -592,6 +604,25 @@ class Uac2Service {
     } catch (e) {
       devLog('Uac2Service.getDeviceCapabilities failed: $e');
       return null;
+    }
+  }
+
+  /// Registers and force-claims the DAC that is already attached.
+  ///
+  /// Called during audio initialization so an app start with the DAC already
+  /// plugged in reaches the direct-USB path before the first engine is created.
+  /// Attach broadcasts alone do not cover that case.
+  Future<bool> activateAttachedDirectUsb() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final devices = await listDevices();
+      if (devices.isEmpty) return false;
+      final device = devices.first;
+      if ((device.deviceName ?? '').isEmpty) return false;
+      return await selectDevice(device, bitPerfectOverride: true);
+    } catch (e) {
+      devLog('Uac2Service.activateAttachedDirectUsb failed: $e');
+      return false;
     }
   }
 

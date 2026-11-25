@@ -1853,6 +1853,13 @@ class PlayerService {
       await _restoreUsbDacVolumeBeforePlayback(
         AudioEngineType.usbDacExperimental,
       );
+      // Changing the preference only affects the next engine. When the DAC is
+      // plugged in during playback, move the running stream onto the exclusive
+      // path now instead of waiting for a manual stop/start.
+      if (isPlayingNotifier.value &&
+          _sessionManager.selectedMode != AudioEngineType.usbDacExperimental) {
+        await retryDirectUsbForCurrentDevice();
+      }
       return true;
     } catch (e) {
       _debugLog('[VolFlow] USB DAC handoff volume restore failed: $e');
@@ -1906,6 +1913,7 @@ class PlayerService {
     _debugLog('[Engine] Initializing audio manager');
 
     try {
+      await _claimAttachedDirectUsbIfConfigured();
       await Future.wait<void>([
         _preferencesService.initializeDeveloperModeCache(),
         _preferencesService.initializeKillIsochronousUsbOnQuitCache(),
@@ -1961,6 +1969,33 @@ class PlayerService {
       }
     } finally {
       _audioInitInFlight = null;
+    }
+  }
+
+  /// Registers/claims an already-attached DAC before the session manager
+  /// resolves the first engine. Without this an app start with the DAC plugged
+  /// in creates the Android engine, and the claim never happens.
+  Future<void> _claimAttachedDirectUsbIfConfigured() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final engine = await _preferencesService.getAudioEnginePreference();
+      if (engine != AudioEnginePreference.isochronousUsb) return;
+      if (!await _preferencesService.getBitPerfectEnabled()) return;
+      final activated = await _uac2Service.activateAttachedDirectUsb();
+      if (!activated) return;
+      // Selecting the mode is not enough: the engine must be rebuilt on the
+      // direct-USB backend, otherwise playback stays on Oboe/AAudio even though
+      // the platform driver was detached by the claim.
+      if (_sessionManager.initializedMode !=
+          AudioEngineType.usbDacExperimental) {
+        await _sessionManager.switchMode(
+          AudioEngineType.usbDacExperimental,
+          initializeNewEngine: true,
+          reason: 'attached DAC claimed for direct USB',
+        );
+      }
+    } catch (error) {
+      _debugLog('[USB] Attached DAC claim failed: $error');
     }
   }
 
