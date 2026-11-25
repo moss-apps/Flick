@@ -286,6 +286,34 @@ String canonicalPlaybackFileType({required String fileType, String? filePath}) {
   return '';
 }
 
+/// An incomplete FLAC library entry does not imply 16-bit/44.1 kHz PCM.
+@visibleForTesting
+Future<Uac2AudioFormat?> resolveDirectUsbTrackFormat(
+  Song song, {
+  required Uac2AudioFormat? metadataFormat,
+  required Future<rust_audio.AudioProbeFormat?> Function() probe,
+}) async {
+  final fileType = canonicalPlaybackFileType(
+    fileType: song.fileType,
+    filePath: song.filePath,
+  );
+  final needsFlacProbe =
+      !song.isDsd &&
+      fileType == 'flac' &&
+      ((song.sampleRate ?? 0) <= 0 || (song.bitDepth ?? 0) <= 0);
+  if (metadataFormat != null && !needsFlacProbe) return metadataFormat;
+
+  final format = await probe();
+  if (format == null) return null;
+  final bitDepth = format.bitsPerSample ?? (needsFlacProbe ? null : 16);
+  if (bitDepth == null || bitDepth <= 0) return null;
+  return Uac2AudioFormat(
+    sampleRate: format.sampleRate,
+    bitDepth: bitDepth,
+    channels: format.channels,
+  );
+}
+
 @visibleForTesting
 String extractPlaybackPathExtension(String? path) {
   if (path == null || path.isEmpty) return '';
@@ -1839,25 +1867,52 @@ class PlayerService {
     await _sessionManager.syncRouteSelection(
       reason: 'audio engine preference changed',
     );
+    if (Platform.isAndroid &&
+        preference != AudioEnginePreference.isochronousUsb &&
+        _uac2Service.currentDeviceStatus?.directUsbRegistered == true) {
+      await _enqueuePlaybackRequest(() async {
+        final nextMode = _sessionManager.selectedMode;
+        if (nextMode == AudioEngineType.usbDacExperimental ||
+            (_isDirectUsbPath && isPlayingNotifier.value)) {
+          return;
+        }
+        if (_sessionManager.initializedMode ==
+            AudioEngineType.usbDacExperimental) {
+          await _sessionManager.switchMode(
+            nextMode,
+            reason: 'leaving direct USB',
+          );
+        }
+        await _uac2Service.releaseAndroidDirectUsbRuntime();
+      });
+    }
   }
 
-  /// Complete USB auto-engage even when no track has been played yet.
-  /// Changing the engine preference alone does not re-run launch volume setup.
+  /// Apply USB bit-perfect and restore DAC volume. If a managed engine is
+  /// playing, defer taking the USB interfaces until the next playback request.
   Future<bool> enableUsbDacBitPerfect() async {
     await setAudioEnginePreference(AudioEnginePreference.isochronousUsb);
-    final applied = await _uac2Service.setBitPerfectEnabled(true);
-    if (!applied) return false;
-    try {
-      // Permission may reveal a different serial, so use the authorized route
-      // after activation rather than the pre-permission attach notification.
-      await _restoreUsbDacVolumeBeforePlayback(
-        AudioEngineType.usbDacExperimental,
+    var applied = false;
+    await _enqueuePlaybackRequest(() async {
+      final deferActivation =
+          isPlayingNotifier.value &&
+          currentEngineType != AudioEngineType.usbDacExperimental;
+      applied = await _uac2Service.setBitPerfectEnabled(
+        true,
+        deferDeviceActivation: deferActivation,
       );
-      return true;
-    } catch (e) {
-      _debugLog('[VolFlow] USB DAC handoff volume restore failed: $e');
-      return false;
-    }
+      if (!applied || deferActivation) return;
+      try {
+        // Permission may reveal a different serial. Restore on the authorized route.
+        await _restoreUsbDacVolumeBeforePlayback(
+          AudioEngineType.usbDacExperimental,
+        );
+      } catch (e) {
+        _debugLog('[VolFlow] USB DAC handoff volume restore failed: $e');
+        applied = false;
+      }
+    });
+    return applied;
   }
 
   /// Re-resolves the desired engine/route. The newly selected engine attaches
@@ -5602,43 +5657,39 @@ class PlayerService {
           reason: 'before direct USB initialization',
         );
 
-        var trackFormat = _deriveUac2FormatFromSong(song);
-        if (trackFormat == null) {
-          final resolvedPath = await _resolveRustPath(song);
-          if (resolvedPath != null && resolvedPath.isNotEmpty) {
+        final trackFormat = await resolveDirectUsbTrackFormat(
+          song,
+          metadataFormat: _deriveUac2FormatFromSong(song),
+          probe: () async {
+            final resolvedPath = await _resolveRustPath(song);
+            if (resolvedPath == null || resolvedPath.isEmpty) return null;
             try {
               final probed = await rust_audio.audioProbeFormat(
                 path: resolvedPath,
               );
-              final probedBitDepth = probed.bitsPerSample ?? 16;
               _debugLog(
-                '[Engine] Metadata missing — probed format: '
-                '${probed.sampleRate}Hz/$probedBitDepth-bit/'
+                '[Engine] Probed source format: '
+                '${probed.sampleRate}Hz/${probed.bitsPerSample ?? 'unknown'}-bit/'
                 '${probed.channels}ch',
               );
-              trackFormat = Uac2AudioFormat(
-                sampleRate: probed.sampleRate,
-                bitDepth: probedBitDepth,
-                channels: probed.channels,
-              );
+              return probed;
             } catch (e) {
               _debugLog('[Engine] Format probe failed: $e');
+              return null;
             }
-          }
-          if (trackFormat == null) {
-            await _uac2Service.markAndroidDirectUsbFallback(
-              'track sample rate is unavailable before USB engine startup',
-            );
-            await _uac2Service.releaseAndroidDirectUsbRuntime();
-            await _rustAudioService.setHighResMode(false);
-            await _sessionManager.recordFallback(
-              requestedMode: normalizedEngine,
-              fallbackMode: AudioEngineType.normalAndroid,
-              reason:
-                  'track sample rate is unavailable before USB engine startup',
-            );
-            return AudioEngineType.normalAndroid;
-          }
+          },
+        );
+        if (trackFormat == null) {
+          const reason = 'track format is unavailable before USB engine startup';
+          await _uac2Service.markAndroidDirectUsbFallback(reason);
+          await _uac2Service.releaseAndroidDirectUsbRuntime();
+          await _rustAudioService.setHighResMode(false);
+          await _sessionManager.recordFallback(
+            requestedMode: normalizedEngine,
+            fallbackMode: AudioEngineType.normalAndroid,
+            reason: reason,
+          );
+          return AudioEngineType.normalAndroid;
         }
 
         final alreadyInUsbMode =
@@ -5656,6 +5707,7 @@ class PlayerService {
         final targetUsbOutputFormat = requestedUsbOutputFormat ?? trackFormat;
         final formatMatches =
             alreadyInUsbMode &&
+            _uac2Service.currentDeviceStatus?.directUsbRegistered == true &&
             _sameUac2Format(currentUsbFormat, targetUsbOutputFormat);
 
         if (formatMatches) {
@@ -5674,15 +5726,16 @@ class PlayerService {
               format: targetUsbOutputFormat,
             );
         if (!prepared) {
-          await _uac2Service.markAndroidDirectUsbFallback(
-            'experimental direct USB path could not be prepared',
-          );
+          final failureReason =
+              _uac2Service.currentDeviceStatus?.errorMessage ??
+              'experimental direct USB path could not be prepared';
+          await _uac2Service.markAndroidDirectUsbFallback(failureReason);
           await _uac2Service.releaseAndroidDirectUsbRuntime();
           await _rustAudioService.setHighResMode(false);
           await _sessionManager.recordFallback(
             requestedMode: normalizedEngine,
             fallbackMode: AudioEngineType.normalAndroid,
-            reason: 'experimental direct USB path could not be prepared',
+            reason: failureReason,
           );
           return AudioEngineType.normalAndroid;
         }

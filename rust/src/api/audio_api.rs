@@ -1315,12 +1315,16 @@ pub fn audio_probe_format(path: String) -> Result<AudioProbeFormat, String> {
         .and_then(|p| p.audio())
         .ok_or("No audio track found".to_string())?;
     Ok(AudioProbeFormat {
-        sample_rate: cp.sample_rate.unwrap_or(44100),
+        sample_rate: cp
+            .sample_rate
+            .filter(|rate| *rate > 0)
+            .ok_or_else(|| "File does not report a sample rate".to_string())?,
         channels: cp
             .channels
             .as_ref()
             .map(|c| c.count() as u16)
-            .unwrap_or(2),
+            .filter(|channels| *channels > 0)
+            .ok_or_else(|| "File does not report its channel count".to_string())?,
         bits_per_sample: cp.bits_per_sample,
     })
 }

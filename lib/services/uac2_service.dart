@@ -370,26 +370,15 @@ class Uac2Service {
     final dapBitPerfectEnabled = await _preferencesService.getDapBitPerfectEnabled();
     dapBitPerfectEnabledNotifier.value = dapBitPerfectEnabled;
     await syncKillIsochronousUsbOnQuitToNative();
-    final savedDevice = await _preferencesService.loadSelectedDevice();
-    if (savedDevice == null) {
-      return;
-    }
 
     if (Platform.isAndroid) {
-      if (!bitPerfectEnabled) {
-        return;
-      }
-      final matchingDevice = await _resolvePreferredAndroidActivationDevice(
-        savedDevice,
-      );
-      if (matchingDevice == null) {
-        return;
-      }
-      await selectDevice(matchingDevice);
+      // Probing must not claim the DAC away from Android. Direct playback
+      // preparation and explicit device selection resolve the saved DAC.
       return;
     }
 
-    await selectDevice(savedDevice);
+    final savedDevice = await _preferencesService.loadSelectedDevice();
+    if (savedDevice != null) await selectDevice(savedDevice);
   }
 
   /// Boot-time probe: publish route status without activating devices or
@@ -705,13 +694,17 @@ class Uac2Service {
     } catch (e) {
       devLog('Uac2Service.selectDevice failed: $e');
       final volumeRestoreFailed = e is UsbDacVolumeRestoreError;
+      final errorMessage =
+          e is PlatformException && e.code == 'DIRECT_USB_CLAIM_FAILED'
+          ? e.message ?? e.toString()
+          : e.toString();
       _updateStatus(
         Uac2DeviceStatus(
           device: device,
           state: Uac2State.error,
           errorMessage: volumeRestoreFailed
               ? l10n.exclusiveUsbIsStillUnavailableCheck
-              : e.toString(),
+              : errorMessage,
         ),
       );
       // Playback must remain stopped on a volume safety refusal, not silently
@@ -2300,9 +2293,17 @@ Future<void> stopPriorityAnchor() async {
     _updateStatus(current.copyWith(state: Uac2State.prewarming));
   }
 
-  Future<bool> setBitPerfectEnabled(bool enabled, {bool persist = true}) {
+  Future<bool> setBitPerfectEnabled(
+    bool enabled, {
+    bool persist = true,
+    bool deferDeviceActivation = false,
+  }) {
     final result = _bitPerfectChangeQueue.then(
-      (_) => _setBitPerfectEnabled(enabled, persist: persist),
+      (_) => _setBitPerfectEnabled(
+        enabled,
+        persist: persist,
+        deferDeviceActivation: deferDeviceActivation,
+      ),
     );
     _bitPerfectChangeQueue = result.then<void>(
       (_) {},
@@ -2311,13 +2312,17 @@ Future<void> stopPriorityAnchor() async {
     return result;
   }
 
-  Future<bool> _setBitPerfectEnabled(bool enabled, {required bool persist}) async {
+  Future<bool> _setBitPerfectEnabled(
+    bool enabled, {
+    required bool persist,
+    required bool deferDeviceActivation,
+  }) async {
     if (!Platform.isAndroid) {
       return false;
     }
 
     try {
-      if (enabled) {
+      if (enabled && !deferDeviceActivation) {
         final preferredDevice = await _resolvePreferredAndroidActivationDevice(
           null,
         );
@@ -2334,16 +2339,19 @@ Future<void> stopPriorityAnchor() async {
             await _restoreAndroidDirectUsbHardwareVolume(preferredDevice);
           }
         }
-      } else {
+      } else if (!enabled) {
         _hardwareVolumeRestore.reset();
       }
 
-      final result = await _channel.invokeMethod<bool>('setExclusiveDacMode', {
-        'enabled': enabled,
-      });
-      if (result == false) return false;
+      if (!enabled || !deferDeviceActivation) {
+        final result = await _channel.invokeMethod<bool>('setExclusiveDacMode', {
+          'enabled': enabled,
+        });
+        if (result == false) return false;
+      }
       // Publishing this flag releases software gain in PlayerService. Do not
       // expose unity-gain passthrough until the native restore has succeeded.
+      // Deferred activation still restores before the first direct playback.
       if (persist) {
         await _preferencesService.setBitPerfectEnabled(enabled);
       }

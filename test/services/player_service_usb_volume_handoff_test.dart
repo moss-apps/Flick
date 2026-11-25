@@ -130,6 +130,7 @@ class _Usb extends Fake implements Uac2Service {
   bool volumeWritable = true;
   bool hardwareHealthy = true;
   double initialHardwareVolume = 1.0;
+  bool activationDeferred = false;
   Map<String, dynamic>? playbackDebugState;
   final writes = <double>[];
   int refreshes = 0;
@@ -141,7 +142,16 @@ class _Usb extends Fake implements Uac2Service {
   Uac2DeviceStatus get currentDeviceStatus => status;
 
   @override
-  Future<bool> setBitPerfectEnabled(bool enabled, {bool persist = true}) async {
+  Future<bool> setBitPerfectEnabled(
+    bool enabled, {
+    bool persist = true,
+    bool deferDeviceActivation = false,
+  }) async {
+    activationDeferred = deferDeviceActivation;
+    if (deferDeviceActivation) {
+      isBitPerfectEnabledSync = enabled;
+      return true;
+    }
     await permission?.future;
     if (!activationSucceeds) return false;
     isBitPerfectEnabledSync = enabled;
@@ -365,6 +375,19 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
+
+  test('managed playback keeps the DAC until the next playback request', () async {
+    final usb = _Usb(hardware: true);
+    final player = _player(AudioEngineType.normalAndroid, usb)
+      ..isPlayingNotifier.value = true;
+
+    expect(await player.enableUsbDacBitPerfect(), isTrue);
+    expect(usb.activationDeferred, isTrue);
+    expect(usb.isBitPerfectEnabledSync, isTrue);
+    expect(usb.writes, isEmpty);
+    expect(player.currentEngineType, AudioEngineType.normalAndroid);
+    expect(player.isPlayingNotifier.value, isTrue);
+  });
 
   test(
     'idle handoff verifies hardware volume before reporting success',
