@@ -3,7 +3,9 @@ use crate::dev_eprintln;
 use crate::audio::commands::AudioEvent;
 use crate::audio::engine::{audio_callback, AudioCallbackData};
 use crate::uac2::endpoint::{select_explicit_feedback_endpoint, FeedbackEndpointCandidate};
-use crate::uac2::iso_packet_validation::{iso_transfer_status_label, validate_iso_packet_descriptors};
+use crate::uac2::iso_packet_validation::{
+    iso_transfer_status_label, validate_iso_packet_descriptors, CompletionStats, PacketAcceptance,
+};
 use crate::uac2::payload_audit_latch::PayloadAuditLatch;
 use crate::uac2::volume_control::{
     normalize_volume, parse_uac2_volume_ranges, quantize_volume, read_hardware_volume_snapshot, volume_bounds,
@@ -916,9 +918,9 @@ impl IsoTransferSlot {
         })
     }
 
-    fn validate_packets(&self) -> Result<(), String> {
+    fn validate_packets(&self, acceptance: PacketAcceptance) -> Result<CompletionStats, String> {
         let transfer = unsafe { self.transfer.as_ref() };
-        validate_iso_packet_results(transfer, &self.packet_sizes).map_err(|error| {
+        validate_iso_packet_results(transfer, &self.packet_sizes, acceptance).map_err(|error| {
             format!(
                 "{}; slot={} generation={} submitted_endpoint=0x{:02x} \
                  completed_endpoint=0x{:02x} submitted_bytes={} transfer_length={}",
@@ -6069,6 +6071,14 @@ fn run_usb_output_loop(
     let mut feedback_stale_warned = false;
     let mut min_active_slots = transfer_slot_count;
     let mut loud_transfer_log_count = 0u64;
+    let mut short_packet_count = 0u64;
+    let mut shortfall_frames = 0u64;
+    let mut zero_packet_count = 0u64;
+    let acceptance = PacketAcceptance::new(
+        playback_format.sample_rate,
+        candidate.service_interval_us,
+        bytes_per_frame,
+    );
     let transfer_buffer_capacity = scheduler
         .packets_per_transfer()
         .saturating_mul(candidate.max_packet_bytes.max(1));
@@ -6221,7 +6231,7 @@ fn run_usb_output_loop(
             let queued_frame_count = slot.queued_frame_count as u64;
             let completed_underrun = slot.queued_underrun;
             let transfer_result = match status {
-                LIBUSB_TRANSFER_COMPLETED => slot.validate_packets(),
+                LIBUSB_TRANSFER_COMPLETED => slot.validate_packets(acceptance),
                 LIBUSB_TRANSFER_TIMED_OUT => Err("isochronous transfer timed out".to_string()),
                 LIBUSB_TRANSFER_STALL => Err("isochronous transfer stalled".to_string()),
                 LIBUSB_TRANSFER_NO_DEVICE => Err("USB DAC disconnected".to_string()),
@@ -6236,24 +6246,57 @@ fn run_usb_output_loop(
             };
             slot.mark_completed();
 
-            if let Err(error) = transfer_result {
-                fatal_error = Some(format!(
-                    "Android USB direct transfer failed: {}; sample_rate={} channels={} \
-                     subslot_bytes={} bit_resolution={} service_interval_us={} interface={} \
-                     alt={} endpoint=0x{:02x} speed={:?} sync={}",
-                    error,
-                    playback_format.sample_rate,
-                    channels,
-                    slot_bytes,
-                    candidate.bit_resolution,
-                    candidate.service_interval_us,
-                    candidate.interface_number,
-                    candidate.alt_setting,
-                    candidate.endpoint_address,
-                    candidate.usb_speed,
-                    sync_type_label(candidate.sync_type),
-                ));
-                break;
+            let completion_stats = match transfer_result {
+                Ok(stats) => stats,
+                Err(error) => {
+                    fatal_error = Some(format!(
+                        "Android USB direct transfer failed: {}; sample_rate={} channels={} \
+                         subslot_bytes={} bit_resolution={} service_interval_us={} interface={} \
+                         alt={} endpoint=0x{:02x} speed={:?} sync={}",
+                        error,
+                        playback_format.sample_rate,
+                        channels,
+                        slot_bytes,
+                        candidate.bit_resolution,
+                        candidate.service_interval_us,
+                        candidate.interface_number,
+                        candidate.alt_setting,
+                        candidate.endpoint_address,
+                        candidate.usb_speed,
+                        sync_type_label(candidate.sync_type),
+                    ));
+                    break;
+                }
+            };
+
+            if completion_stats.short_packets > 0 || completion_stats.zero_packets > 0 {
+                short_packet_count = short_packet_count
+                    .saturating_add(completion_stats.short_packets as u64);
+                zero_packet_count =
+                    zero_packet_count.saturating_add(completion_stats.zero_packets as u64);
+                shortfall_frames =
+                    shortfall_frames.saturating_add(completion_stats.shortfall_frames);
+                // First occurrence plus a bounded periodic summary. A short ISO
+                // OUT packet is normal repacketisation/FIFO backpressure, so it
+                // must never kill the stream.
+                if short_packet_count + zero_packet_count <= 4
+                    || (short_packet_count + zero_packet_count) % 256 == 0
+                {
+                    log_warn!(
+                        "[USB] ISO short completion accepted: shortPackets={} zeroPackets={} \
+                         shortfallFrames={} lastShort={} lastZero={} descriptorRewrites={} \
+                         legal={}/{} bytes frame={}B",
+                        short_packet_count,
+                        zero_packet_count,
+                        shortfall_frames,
+                        completion_stats.short_packets,
+                        completion_stats.zero_packets,
+                        completion_stats.descriptor_rewrites,
+                        acceptance.legal_sizes()[0],
+                        acceptance.legal_sizes()[1],
+                        acceptance.bytes_per_frame(),
+                    );
+                }
             }
 
             successful_transfers = successful_transfers.saturating_add(1);
@@ -6261,9 +6304,10 @@ fn run_usb_output_loop(
                 .completed_transfers
                 .fetch_add(1, Ordering::Relaxed)
                 .saturating_add(1);
-            runtime_stats
-                .consumer_frames
-                .fetch_add(queued_frame_count, Ordering::Relaxed);
+            runtime_stats.consumer_frames.fetch_add(
+                queued_frame_count.saturating_sub(completion_stats.shortfall_frames),
+                Ordering::Relaxed,
+            );
 
             let mut submit_gap_us = 0u64;
             if !usb_stop_requested(&stop) {
@@ -8517,7 +8561,8 @@ fn submit_iso_transfer(
 
     let packet_validation = unsafe {
         let transfer_ref = transfer_ptr.as_ref();
-        validate_iso_packet_results(transfer_ref, packet_sizes)
+        validate_iso_packet_results(transfer_ref, packet_sizes, PacketAcceptance::exact())
+            .map(|_| ())
     };
 
     unsafe {
@@ -8644,7 +8689,8 @@ fn read_iso_feedback_packet(
 fn validate_iso_packet_results(
     transfer: &libusb_transfer,
     packet_sizes: &[usize],
-) -> Result<(), String> {
+    acceptance: PacketAcceptance,
+) -> Result<CompletionStats, String> {
     if transfer.num_iso_packets != packet_sizes.len() as i32 {
         return Err(format!(
             "isochronous transfer completed with packet errors: \
@@ -8659,7 +8705,7 @@ fn validate_iso_packet_results(
     let descriptors = unsafe {
         std::slice::from_raw_parts(transfer.iso_packet_desc.as_ptr(), packet_sizes.len())
     };
-    validate_iso_packet_descriptors(packet_sizes, descriptors)
+    validate_iso_packet_descriptors(packet_sizes, descriptors, acceptance)
 }
 
 #[cfg(test)]
