@@ -14,6 +14,8 @@ use std::sync::Arc;
 /// 48000 samples/sec * 2 channels * 5 seconds = 480,000 samples
 pub const SOURCE_BUFFER_SIZE: usize = 480_000;
 
+static NEXT_PLAYBACK_ID: AtomicU64 = AtomicU64::new(1);
+
 /// File-relative bounds of a logical PCM track. The end is exclusive; None
 /// means decode to EOF. Playback positions remain relative to the start.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -36,11 +38,12 @@ impl PlaybackRange {
     }
 }
 
-/// Unlike a path alone, this distinguishes adjacent tracks in a CUE album.
+/// Identifies both a logical track and the particular playback of that track.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceIdentity {
     pub path: String,
     pub range: PlaybackRange,
+    pub playback_id: u64,
 }
 
 /// Metadata about an audio source.
@@ -68,15 +71,6 @@ pub struct SourceInfo {
     pub http_origin: Option<(String, HashMap<String, String>)>,
 }
 
-impl SourceInfo {
-    pub(crate) fn identity(&self) -> SourceIdentity {
-        SourceIdentity {
-            path: self.path.to_string_lossy().to_string(),
-            range: self.range,
-        }
-    }
-}
-
 /// State of an audio source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceState {
@@ -99,6 +93,8 @@ pub enum SourceState {
 pub struct AudioSource {
     /// Source metadata
     pub info: SourceInfo,
+    /// Stable across seek, but different for a new play of the same file/range.
+    pub(crate) playback_id: u64,
     /// Current state
     state: SourceState,
     /// Ring buffer consumer (receives samples from decoder)
@@ -140,6 +136,14 @@ pub struct SourceProducer {
 }
 
 impl AudioSource {
+    pub(crate) fn identity(&self) -> SourceIdentity {
+        SourceIdentity {
+            path: self.info.path.to_string_lossy().to_string(),
+            range: self.info.range,
+            playback_id: self.playback_id,
+        }
+    }
+
     /// Create a new audio source with its producer.
     ///
     /// Returns the source (for the audio thread) and producer (for the decoder thread).
@@ -161,6 +165,7 @@ impl AudioSource {
 
         let source = AudioSource {
             info,
+            playback_id: NEXT_PLAYBACK_ID.fetch_add(1, Ordering::Relaxed),
             state: SourceState::Loading,
             consumer,
             capacity,

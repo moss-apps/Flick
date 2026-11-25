@@ -104,6 +104,9 @@ pub enum AudioCommand {
     SetConvolverIr { coeffs: Vec<Vec<f32>> },
     /// Remove the current IR (frees taps; convolver becomes no-op).
     ClearConvolverIr,
+    /// Enable/disable Repeat One. Complete any fade already underway, then
+    /// discard unused successors and suppress new handoffs.
+    SetRepeatOne { enabled: bool },
     /// Switch pipeline mode at runtime (e.g. when Bit-perfect (DAP Internal) is toggled).
     SetPipelineMode { passthrough: bool },
     /// Override pipeline to Dop for DoP DSD playback, or restore base mode.
@@ -157,8 +160,11 @@ pub enum AudioEvent {
     StateChanged(PlaybackState),
     /// Progress update (sent periodically during playback)
     Progress(PlaybackProgress),
-    /// Track finished naturally (not skipped)
-    TrackEnded { source: SourceIdentity },
+    /// A track finished, optionally handing off to another native source.
+    TrackEnded {
+        source: SourceIdentity,
+        next_playback_id: Option<u64>,
+    },
     /// Crossfade started between tracks
     CrossfadeStarted {
         from: SourceIdentity,

@@ -93,6 +93,7 @@ pub struct EngineSelection {
 struct EngineManagerState {
     current: Option<AudioEngine>,
     rust_handle: Option<AudioEngineHandle>,
+    repeat_one: bool,
     high_res_mode: bool,
     dap_bit_perfect_enabled: bool,
     audio_api_preference: AudioApiPreference,
@@ -104,11 +105,25 @@ impl Default for EngineManagerState {
         Self {
             current: None,
             rust_handle: None,
+            repeat_one: false,
             high_res_mode: false,
             dap_bit_perfect_enabled: true,
             audio_api_preference: AudioApiPreference::Auto,
             capability_snapshot: AudioCapabilitySnapshot::default(),
         }
+    }
+}
+
+impl EngineManagerState {
+    fn install_rust_handle(&mut self, handle: AudioEngineHandle) -> Result<(), String> {
+        // A play can replace the engine to switch rates or output strategies.
+        // Enqueue the latest guard before exposing the handle to play/queue calls.
+        if self.repeat_one {
+            handle.set_repeat_one(true)?;
+        }
+        self.current = Some(AudioEngine::Rust);
+        self.rust_handle = Some(handle);
+        Ok(())
     }
 }
 
@@ -199,6 +214,19 @@ impl EngineManager {
 
     pub fn is_rust_initialized(&self) -> bool {
         self.state.lock().rust_handle.is_some()
+    }
+
+    pub fn set_repeat_one(&self, enabled: bool) -> Result<(), String> {
+        let mut state = self.state.lock();
+        state.repeat_one = enabled;
+        match state.rust_handle.as_ref() {
+            Some(handle) => handle.set_repeat_one(enabled),
+            None => Ok(()),
+        }
+    }
+
+    pub fn is_repeat_one(&self) -> bool {
+        self.state.lock().repeat_one
     }
 
     pub fn selection(&self, preferred_sample_rate: Option<u32>) -> Result<EngineSelection, String> {
@@ -386,8 +414,7 @@ impl EngineManager {
         .map_err(|error| format!("Rust engine initialization task failed: {}", error))??;
 
         let mut state = self.state.lock();
-        state.current = Some(AudioEngine::Rust);
-        state.rust_handle = Some(new_handle);
+        state.install_rust_handle(new_handle)?;
         if let Some(volume) = crate::api::audio_api::take_pending_volume()
             .or_else(|| Some(crate::api::audio_api::last_volume()))
         {
@@ -551,6 +578,7 @@ mod tests {
         selection_from_snapshot, AudioCapability, AudioCapabilitySnapshot, AudioEngine,
         EngineManager,
     };
+    use crate::audio::{commands::AudioCommand, engine::AudioEngineHandle};
 
     #[test]
     fn init_marks_default_without_loading_rust_engine() {
@@ -559,6 +587,34 @@ mod tests {
 
         assert_eq!(manager.current_engine(), Some(AudioEngine::Default));
         assert!(!manager.is_rust_initialized());
+    }
+
+    #[test]
+    fn repeat_one_is_queued_before_play_on_each_replacement_engine() {
+        let manager = EngineManager::new();
+        manager.set_repeat_one(true).unwrap();
+        let mut latest_commands = None;
+        for rate in [44_100, 48_000] {
+            let (handle, commands) = AudioEngineHandle::without_output_for_test(rate);
+            manager.state.lock().install_rust_handle(handle).unwrap();
+            manager
+                .with_rust_handle(|handle| handle.play("track.wav".into()))
+                .unwrap();
+            assert!(matches!(
+                commands.try_recv(),
+                Ok(AudioCommand::SetRepeatOne { enabled: true })
+            ));
+            assert!(matches!(commands.try_recv(), Ok(AudioCommand::Play { .. })));
+            latest_commands = Some(commands);
+        }
+        manager.set_repeat_one(false).unwrap();
+        assert!(matches!(
+            latest_commands.unwrap().try_recv(),
+            Ok(AudioCommand::SetRepeatOne { enabled: false })
+        ));
+        let (handle, commands) = AudioEngineHandle::without_output_for_test(96_000);
+        manager.state.lock().install_rust_handle(handle).unwrap();
+        assert!(commands.try_recv().is_err());
     }
 
     #[test]
