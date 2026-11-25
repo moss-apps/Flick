@@ -2,6 +2,22 @@ package com.mossapps.flick.widgets
 
 internal data class WidgetSize(val widthDp: Int, val heightDp: Int)
 
+internal data class NowPlayingGeometry(
+    val controlsBelow: Boolean,
+    val showPrevious: Boolean,
+    val showNext: Boolean,
+    val horizontalPaddingDp: Int,
+    val artDp: Int,
+    val metadataWidthDp: Int,
+    val showArtist: Boolean,
+    val showProgress: Boolean,
+)
+
+internal data class NowPlayingColors(
+    val start: Int, val end: Int, val foreground: Int, val secondary: Int,
+    val progressTrack: Int, val playIcon: Int, val lightText: Boolean,
+)
+
 internal enum class CompactLayout { REGULAR, SHORT, NARROW }
 
 internal data class FlagshipGeometry(
@@ -182,6 +198,68 @@ internal object WidgetLayoutPolicy {
     val miniDefault = WidgetSize(320, MINI_HEIGHT_DP)
     val compactDefault = WidgetSize(168, 168)
     val flagshipDefault = WidgetSize(320, 240)
+
+    val nowPlayingDefault = WidgetSize(320, 80)
+    private const val NOW_PLAYING_INK = 0xFF22251B.toInt()
+    private const val WHITE = 0xFFFFFFFF.toInt()
+    private const val BLACK = 0xFF000000.toInt()
+
+    fun nowPlayingColors(background: Int, gradient: Boolean, opacity: Int): NowPlayingColors {
+        val foreground = when {
+            ReplayPalette.contrast(background, NOW_PLAYING_INK) >= 4.5 -> NOW_PLAYING_INK
+            ReplayPalette.contrast(background, WHITE) >= 4.5 -> WHITE
+            else -> BLACK
+        }
+        val lightText = foreground == WHITE
+        val backdrop = if (lightText) WHITE else BLACK
+        val tone = if (lightText) BLACK else WHITE
+        val alpha = opacity.coerceIn(60, 100) / 100f
+        fun worstCase(surface: Int) = ReplayPalette.lerp(backdrop, surface, alpha)
+
+        // At low opacity, keep the artwork hue and move its tone far enough
+        // from the foreground to stay readable over either extreme of wallpaper.
+        var start = background
+        while (ReplayPalette.contrast(worstCase(start), foreground) < 4.5 && start != tone) {
+            val adjusted = ReplayPalette.lerp(start, tone, 0.25f)
+            start = if (adjusted == start) tone else adjusted
+        }
+        val end = if (gradient) ReplayPalette.lerp(start, tone, 0.16f) else start
+        val secondary = ReplayPalette.lerp(start, foreground, 0.82f)
+            .takeIf { ReplayPalette.contrast(it, worstCase(start)) >= 4.5 } ?: foreground
+        val playIcon = if (lightText) NOW_PLAYING_INK
+            else start.takeIf { ReplayPalette.contrast(it, NOW_PLAYING_INK) >= 4.5 } ?: WHITE
+        return NowPlayingColors(start, end, foreground, secondary,
+            ReplayPalette.lerp(start, foreground, 0.20f), playIcon, lightText)
+    }
+
+    fun nowPlaying(size: WidgetSize, hasSong: Boolean, allowArtwork: Boolean = true): NowPlayingGeometry {
+        val (width, height) = size
+        val preferredPadding = when {
+            width < 200 -> 4
+            width < 256 -> 8
+            else -> 12
+        }
+        val controlsBelow = hasSong && width in 160..243 && height >= 96
+        val metadataMin = 56
+        val fullControlsMin = 144 + metadataMin
+        val padding = if (hasSong && !controlsBelow && width >= fullControlsMin) {
+            minOf(preferredPadding, (width - fullControlsMin) / 2)
+        } else preferredPadding
+        val contentWidth = width - 2 * padding
+        val previous = hasSong && (controlsBelow || contentWidth >= fullControlsMin)
+        val next = hasSong && (controlsBelow || contentWidth >= 96 + metadataMin)
+        val controlsWidth = if (hasSong) 48 + (if (previous) 48 else 0) + (if (next) 48 else 0) else 0
+        val textAndArtWidth = contentWidth - if (controlsBelow) 0 else controlsWidth
+        // Keep 72 dp for a title before adding a cover and its 12 dp gutter.
+        val cover = minOf(width * 18 / 100, 80, height, textAndArtWidth - 72 - 12)
+        val art = if (allowArtwork && !controlsBelow && cover >= 48) cover else 0
+        val textWidth = textAndArtWidth - if (art > 0) art + 12 else 0
+        return NowPlayingGeometry(
+            controlsBelow, previous, next, padding, art, textWidth,
+            showArtist = hasSong && !controlsBelow && height >= 62 && textWidth >= 72,
+            showProgress = hasSong && height >= if (controlsBelow) 102 else 56,
+        )
+    }
 
     fun miniTextWidth(size: WidgetSize, showArt: Boolean, hasSong: Boolean): Int =
         (size.widthDp - 16 - (if (showArt) MINI_HEIGHT_DP else 0) - (if (hasSong) 48 else 0))

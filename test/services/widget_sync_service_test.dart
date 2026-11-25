@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flick/models/song.dart';
@@ -17,11 +18,19 @@ void main() {
     WidgetSyncService.keyNext2Title,
     WidgetSyncService.keyNext2Art,
   ];
+  const playbackProviders = [
+    WidgetSyncService.miniPlayerProvider,
+    WidgetSyncService.flagshipProvider,
+    WidgetSyncService.compactProvider,
+    WidgetSyncService.nowPlayingProvider,
+    WidgetSyncService.replayProvider,
+  ];
   final service = WidgetSyncService.instance;
   late Directory directory;
   late Map<String, Object?> saved;
   late List<String> writtenKeys;
   late List<String> updatedProviders;
+  Future<void> Function(String key, Object? value)? beforeSave;
 
   Song song(String id, {String? art}) => Song(
     id: id,
@@ -47,20 +56,15 @@ void main() {
     service.schedulePush(state);
     await tester.pump(delay);
     for (var attempt = 0; attempt < 30; attempt++) {
-      if (updatedProviders.length == before + 4) {
-        expect(updatedProviders.skip(before), [
-          WidgetSyncService.miniPlayerProvider,
-          WidgetSyncService.flagshipProvider,
-          WidgetSyncService.compactProvider,
-          WidgetSyncService.replayProvider,
-        ]);
+      if (updatedProviders.length == before + playbackProviders.length) {
+        expect(updatedProviders.skip(before), playbackProviders);
         // Flush the continuation that records the successfully pushed snapshot.
         await tester.pump();
         return;
       }
       await tester.pump();
     }
-    fail('Expected all four widgets to refresh after a state change');
+    fail('Expected the playback widgets to refresh after a state change');
   }
 
   setUp(() {
@@ -68,6 +72,7 @@ void main() {
     saved = {};
     writtenKeys = [];
     updatedProviders = [];
+    beforeSave = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           switch (call.method) {
@@ -76,6 +81,7 @@ void main() {
             case 'saveWidgetData':
               final args = call.arguments as Map;
               final key = args['id'] as String;
+              await beforeSave?.call(key, args['data']);
               saved[key] = args['data'];
               writtenKeys.add(key);
               return true;
@@ -176,6 +182,38 @@ void main() {
     expect(writtenKeys.where(previewKeys.contains), isEmpty);
     expect(saved[WidgetSyncService.keyIsPlaying], isTrue);
     expect(saved[WidgetSyncService.keyNext1Id], 'cached-next');
+  });
+
+  test('a delayed widget update cannot overwrite a newer skip', () async {
+    final writingFirst = Completer<void>();
+    final release = Completer<void>();
+    beforeSave = (key, value) async {
+      if (key == WidgetSyncService.keyTitle && value == 'Title first-skip') {
+        writingFirst.complete();
+        await release.future;
+      }
+    };
+
+    final first = service.refreshPlayback(
+      PlayerState(currentSong: song('first-skip')),
+    );
+    await writingFirst.future;
+    final latest = service.refreshPlayback(
+      PlayerState(currentSong: song('latest-skip')),
+    );
+    await pumpEventQueue();
+    release.complete();
+    await Future.wait([first, latest]);
+
+    expect(saved[WidgetSyncService.keyTitle], 'Title latest-skip');
+    expect(saved[WidgetSyncService.keySongId], 'latest-skip');
+  });
+
+  test('leaving the app keeps the pause button while audio plays', () async {
+    await service.pushPaused(isPlaying: true);
+
+    expect(saved[WidgetSyncService.keyIsPlaying], isTrue);
+    expect(updatedProviders, contains(WidgetSyncService.nowPlayingProvider));
   });
 
   testWidgets('clears covers when the queue becomes empty', (tester) async {

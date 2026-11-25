@@ -35,6 +35,8 @@ internal object WidgetPrefs {
     const val KEY_NEXT_2_TITLE = "flick_widget_next_2_title"
     const val KEY_NEXT_2_ART = "flick_widget_next_2_art"
 
+    const val KEY_NOW_PLAYING_SETTINGS = "flick_widget_now_playing_settings"
+
     const val KEY_REPLAY_LOOK = "flick_widget_replay_look"
     const val KEY_REPLAY_DAY = "flick_widget_replay_day"
     const val KEY_REPLAY_TIME_MS = "flick_widget_replay_time_ms"
@@ -73,6 +75,7 @@ internal object WidgetPrefs {
             FlagshipWidgetProvider::class.java,
             CompactWidgetProvider::class.java,
             ReplayWidgetProvider::class.java,
+            NowPlayingWidgetProvider::class.java,
         ).forEach { cls ->
             val ids = mgr.getAppWidgetIds(ComponentName(context, cls))
             if (ids.isNotEmpty()) {
@@ -106,14 +109,15 @@ internal object WidgetPrefs {
         return (baseSp * auto * manualScale).roundToInt().coerceIn(9, 30)
     }
 
-    fun getAccentColor(context: Context): Int {
-        return when (getAccentName(context)) {
-            "amber" -> 0xFFFFB300.toInt()
-            "blue" -> 0xFF64B5F6.toInt()
-            "green" -> 0xFF81C784.toInt()
-            "purple" -> 0xFFCE93D8.toInt()
-            else -> 0xFFFFFFFF.toInt()
-        }
+    fun getAccentColor(context: Context): Int = accentColor(getAccentName(context))
+
+    fun accentColor(name: String, fallback: Int = 0xFFFFFFFF.toInt()): Int = when (name) {
+        "white" -> 0xFFFFFFFF.toInt()
+        "amber" -> 0xFFFFB300.toInt()
+        "blue" -> 0xFF64B5F6.toInt()
+        "green" -> 0xFF81C784.toInt()
+        "purple" -> 0xFFCE93D8.toInt()
+        else -> fallback
     }
 
     fun getProgressDrawableRes(context: Context): Int {

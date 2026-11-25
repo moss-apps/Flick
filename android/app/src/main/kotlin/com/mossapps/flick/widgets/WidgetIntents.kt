@@ -57,6 +57,9 @@ internal object WidgetIntents {
     fun openApp(context: Context, requestCode: Int): PendingIntent =
         activity(context, Uri.parse("flickwidget://player/open"), requestCode)
 
+    fun openFullPlayer(context: Context): PendingIntent =
+        activity(context, Uri.parse("flickwidget://player/full"), 71)
+
     fun openRecap(context: Context): PendingIntent =
         activity(context, Uri.parse("flickwidget://recap/open"), 70)
 }

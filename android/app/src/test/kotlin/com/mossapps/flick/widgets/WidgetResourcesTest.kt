@@ -22,7 +22,7 @@ class WidgetResourcesTest {
     private fun Element.android(name: String): String = getAttributeNS(androidNamespace, name)
 
     @Test
-    fun onlyFlagshipAndReplayOfferResizing() {
+    fun existingWidgetsKeepTheirResizeRules() {
         for (name in listOf("mini_player", "compact", "flagship", "replay")) {
             val provider = resource("xml/${name}_widget_info.xml")
             val resizable = name == "flagship" || name == "replay"
@@ -36,6 +36,28 @@ class WidgetResourcesTest {
             }
             assertEquals(provider.android("previewLayout"), provider.android("initialLayout"))
         }
+    }
+
+    @Test
+    fun nowPlayingHasItsOwnPickerEntryAndPreview() {
+        val provider = resource("xml/now_playing_widget_info.xml")
+        assertEquals("4", provider.android("targetCellWidth"))
+        assertEquals("1", provider.android("targetCellHeight"))
+        assertEquals("@layout/widget_now_playing", provider.android("initialLayout"))
+        assertEquals("@layout/widget_now_playing_preview", provider.android("previewLayout"))
+        assertEquals("@drawable/widget_now_playing_preview", provider.android("previewImage"))
+        val manifest = File("src/main/AndroidManifest.xml").readText()
+        assertTrue(manifest.contains(".widgets.NowPlayingWidgetProvider"))
+        assertTrue(manifest.contains("@xml/now_playing_widget_info"))
+        assertTrue(manifest.contains("android:label=\"@string/widget_now_playing_name\""))
+    }
+
+    @Test
+    fun nowPlayingCanResizeHorizontallyWithoutAWidthCap() {
+        val provider = resource("xml/now_playing_widget_info.xml")
+        assertEquals("horizontal", provider.android("resizeMode"))
+        assertTrue(provider.android("minResizeWidth").removeSuffix("dp").toInt() <= 203)
+        assertTrue(provider.android("maxResizeWidth").isBlank())
     }
 
     @Test
@@ -280,7 +302,7 @@ class WidgetResourcesTest {
 
         var count = 0
         for (name in listOf("widget_mini_player", "widget_compact", "widget_compact_short", "widget_compact_narrow",
-            "widget_flagship_panel", "widget_flagship_controls")) {
+            "widget_flagship_panel", "widget_flagship_controls", "widget_now_playing_transport")) {
             val buttons = resource("layout/$name.xml").getElementsByTagName("ImageButton")
             for (index in 0 until buttons.length) {
                 val button = buttons.item(index) as Element
@@ -295,6 +317,6 @@ class WidgetResourcesTest {
                 count++
             }
         }
-        assertEquals(16, count)
+        assertEquals(19, count)
     }
 }
