@@ -155,7 +155,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeRegisterRustDi
     manufacturer: JString<'_>,
     serial: JString<'_>,
     device_name: JString<'_>,
-    pre_claimed: jboolean,
+    pre_claimed_mask: jint,
 ) -> jboolean {
     let read_string = |env: &mut jni::Env<'_>, value: JString<'_>| -> Option<String> {
         if jni::refs::Reference::is_null(&value) {
@@ -179,7 +179,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeRegisterRustDi
             manufacturer,
             serial,
             device_name,
-            pre_claimed,
+            pre_claimed_mask as u32,
         ) {
             Ok(device) => device,
             Err(error) => {
@@ -214,7 +214,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeRegisterRustDi
     _manufacturer: JString<'_>,
     _serial: JString<'_>,
     _device_name: JString<'_>,
-    _pre_claimed: jboolean,
+    _pre_claimed_mask: jint,
 ) -> jboolean {
     false
 }

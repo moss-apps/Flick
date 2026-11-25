@@ -337,10 +337,11 @@ pub struct AndroidDirectUsbDevice {
     pub manufacturer: String,
     pub serial: Option<String>,
     pub device_name: Option<String>,
-    /// Interfaces were already claimed through Android's `UsbDeviceConnection`
-    /// with `claimInterface(iface, force = true)`. usbfs tracks the claim per
-    /// device, so libusb must not issue a second claim (it would see EBUSY).
-    pub pre_claimed: bool,
+    /// Bitmask of interfaces already claimed through Android's
+    /// `UsbDeviceConnection` with `claimInterface(iface, force = true)`.
+    /// libusb must not claim those again (it would see EBUSY), and it must keep
+    /// the streaming interface so `set_alt_setting` stays valid.
+    pub pre_claimed_mask: u32,
 }
 
 impl AndroidDirectUsbDevice {
@@ -352,7 +353,7 @@ impl AndroidDirectUsbDevice {
         manufacturer: String,
         serial: Option<String>,
         device_name: Option<String>,
-        pre_claimed: bool,
+        pre_claimed_mask: u32,
     ) -> Result<Self, String> {
         let duplicated_fd = unsafe { libc::dup(fd) };
         if duplicated_fd < 0 {
@@ -371,7 +372,7 @@ impl AndroidDirectUsbDevice {
             manufacturer,
             serial,
             device_name,
-            pre_claimed,
+            pre_claimed_mask,
         })
     }
 }
@@ -662,7 +663,7 @@ struct AndroidDirectUsbLock {
     context: Context,
     handle: DeviceHandle<Context>,
     claimed_interfaces: Vec<u8>,
-    pre_claimed: bool,
+    pre_claimed_mask: u32,
 }
 
 struct AndroidDirectUsbClaimedHandle {
@@ -670,7 +671,7 @@ struct AndroidDirectUsbClaimedHandle {
     context: Context,
     handle: DeviceHandle<Context>,
     claimed_interfaces: Vec<u8>,
-    pre_claimed: bool,
+    pre_claimed_mask: u32,
 }
 
 #[derive(Debug)]
@@ -3097,7 +3098,7 @@ impl From<AndroidDirectUsbLock> for AndroidDirectUsbClaimedHandle {
             context: value.context,
             handle: value.handle,
             claimed_interfaces: value.claimed_interfaces,
-            pre_claimed: value.pre_claimed,
+            pre_claimed_mask: value.pre_claimed_mask,
         }
     }
 }
@@ -3109,7 +3110,7 @@ impl AndroidDirectUsbClaimedHandle {
             context: self.context,
             handle: self.handle,
             claimed_interfaces: self.claimed_interfaces,
-            pre_claimed: self.pre_claimed,
+            pre_claimed_mask: self.pre_claimed_mask,
         }
     }
 
@@ -3118,8 +3119,10 @@ impl AndroidDirectUsbClaimedHandle {
             return Ok(());
         }
 
-        if self.pre_claimed {
-            // Java already force-claimed the audio interfaces on this fd.
+        if self.pre_claimed_mask & (1u32 << interface_number) != 0 {
+            // Java already force-claimed this interface (AudioControl). libusb
+            // must not claim it again, but still keeps the streaming interface
+            // so its alt-setting ioctls remain valid.
             dev_eprintln!(
                 "Android USB direct: interface {} is pre-claimed by UsbDeviceConnection",
                 interface_number
@@ -3263,7 +3266,7 @@ fn open_claimed_usb_handle(
         context,
         handle,
         claimed_interfaces: Vec::new(),
-        pre_claimed: device.pre_claimed,
+        pre_claimed_mask: device.pre_claimed_mask,
     })
 }
 
@@ -3283,7 +3286,7 @@ fn open_transient_usb_handle(
         context,
         handle,
         claimed_interfaces: Vec::new(),
-        pre_claimed: device.pre_claimed,
+        pre_claimed_mask: device.pre_claimed_mask,
     })
 }
 
@@ -5983,7 +5986,7 @@ fn run_usb_output_loop(
         context,
         handle,
         claimed_interfaces,
-        pre_claimed,
+        pre_claimed_mask,
     } = claimed_handle;
     let playback_format = state.playback_format.unwrap();
     USB_DSD_PAYLOAD_LATCH.lock().reset();
@@ -6009,7 +6012,7 @@ fn run_usb_output_loop(
                 context,
                 handle,
                 claimed_interfaces,
-                pre_claimed,
+                pre_claimed_mask,
             },
             Some(candidate.interface_number),
             current_lock_requested_for_fd(device_fd),
@@ -6028,7 +6031,7 @@ fn run_usb_output_loop(
                 context,
                 handle,
                 claimed_interfaces,
-                pre_claimed,
+                pre_claimed_mask,
             },
             Some(candidate.interface_number),
             current_lock_requested_for_fd(device_fd),
@@ -6459,7 +6462,7 @@ fn run_usb_output_loop(
             context,
             handle,
             claimed_interfaces,
-            pre_claimed,
+            pre_claimed_mask,
         },
         Some(candidate.interface_number),
         current_lock_requested_for_fd(device_fd),

@@ -22,12 +22,18 @@ take the interfaces itself.
 
 ## Approach
 
-1. **Force-claim through Android's API.** In `activateDirectUsb`, after
-   `UsbManager.openDevice`, claim the AudioControl interface and each unique
-   AudioStreaming interface with
+1. **Force-claim only the AudioControl interface through Android's API.** In
+   `activateDirectUsb`, after `UsbManager.openDevice`, claim interface 1 with
    `UsbDeviceConnection.claimInterface(usbInterface, force = true)`. This is
    the `USBDEVFS_DISCONNECT_CLAIM` path: it detaches the kernel driver and
    claims the interface in one step.
+
+   The AudioStreaming interface is deliberately left to libusb. Claiming it
+   through Java makes libusb's `set_alt_setting` fail with
+   `Entity not found (ENOENT)` and the engine never starts. This was measured
+   on the DC4U: Java claim of interfaces {1,2} produced
+   `Failed to reset USB interface 2 to alt 0 before negotiation: Entity not
+   found`; Java claim of {1} plus libusb claim of {2} streamed immediately.
 2. **Tell Rust the interfaces are already claimed.** usbfs tracks claims per
    device, not per file descriptor, so a second `libusb_claim_interface` on the
    same fd returns `EBUSY`. Pass `preClaimed` at device registration and have
