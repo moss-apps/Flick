@@ -20,6 +20,8 @@ const MAX_DIAGNOSTIC_PACKETS: usize = 32;
 pub(crate) struct PacketAcceptance {
     legal_sizes: [usize; 2],
     bytes_per_frame: usize,
+    /// Only the exact submitted length is acceptable.
+    exact: bool,
 }
 
 impl PacketAcceptance {
@@ -36,6 +38,7 @@ impl PacketAcceptance {
         Self {
             legal_sizes,
             bytes_per_frame,
+            exact: false,
         }
     }
 
@@ -45,6 +48,7 @@ impl PacketAcceptance {
         Self {
             legal_sizes: [0, 0],
             bytes_per_frame: 1,
+            exact: true,
         }
     }
 
@@ -57,11 +61,9 @@ impl PacketAcceptance {
     }
 
     fn is_legal_size(&self, actual_length: usize, requested: usize) -> bool {
-        if actual_length == requested {
-            return true;
-        }
-        self.legal_sizes[0] != 0
-            && (actual_length == self.legal_sizes[0] || actual_length == self.legal_sizes[1])
+        actual_length == requested
+            || (!self.exact
+                && (actual_length == self.legal_sizes[0] || actual_length == self.legal_sizes[1]))
     }
 
     fn is_frame_aligned(&self, actual_length: usize) -> bool {
@@ -75,6 +77,17 @@ pub(crate) struct CompletionStats {
     pub zero_packets: usize,
     pub descriptor_rewrites: usize,
     pub shortfall_frames: u64,
+    /// Submitted bytes the DAC did not take. This is loss: the audio was
+    /// queued behind other URBs and cannot be re-sent.
+    pub lost_bytes: u64,
+}
+
+impl CompletionStats {
+    /// Lost audio in ring frames (the unit of `consumer_frames`). Rounds up so
+    /// a stray partial frame is never reported as no loss.
+    pub(crate) fn lost_ring_frames(&self, ring_bytes_per_frame: usize) -> u64 {
+        self.lost_bytes.div_ceil(ring_bytes_per_frame.max(1) as u64)
+    }
 }
 
 /// Validate ISO OUT completions against the legal packet envelope for the
@@ -118,6 +131,20 @@ pub(crate) fn validate_iso_packet_descriptors(
         }
 
         if actual == 0 {
+            if requested == 0 {
+                // Nothing was asked of this packet, so nothing was dropped.
+                continue;
+            }
+            // A zero-length completion of a real request is loss, and only an
+            // envelope-based stream tolerates it (the caller accounts for it).
+            if acceptance.exact {
+                return Err(format_diagnostics(
+                    packet_sizes,
+                    descriptors,
+                    acceptance,
+                    "zero-length completion of a non-empty packet",
+                ));
+            }
             stats.zero_packets = stats.zero_packets.saturating_add(1);
             continue;
         }
@@ -165,10 +192,52 @@ pub(crate) fn validate_iso_packet_descriptors(
         ));
     }
 
-    stats.shortfall_frames =
-        ((requested_total - actual_total) / acceptance.bytes_per_frame.max(1)) as u64;
+    stats.lost_bytes = (requested_total - actual_total) as u64;
+    stats.shortfall_frames = stats.lost_bytes / acceptance.bytes_per_frame.max(1) as u64;
 
     Ok(stats)
+}
+
+/// Account for a URB that libusb reported as timed out.
+///
+/// libusb retires every URB of the transfer and copies each packet's
+/// `actual_length` back before it reports a timeout (`handle_iso_completion` in
+/// `linux_usbfs.c`), so the descriptors describe what really went out. A packet
+/// the timeout cancelled mid-flight is reported as `LIBUSB_TRANSFER_COMPLETED`
+/// with `actual_length == 0`, so `status` alone proves nothing: a packet counts
+/// as delivered only if it completed with its full requested length. Everything
+/// else is lost, including a short fragment (not credited) and a swap of the
+/// two legal sizes (which the completed-URB path would not call loss). That
+/// over-counts a little on a path that is already abnormal, never under-counts.
+///
+/// If the descriptors do not match the submitted schedule nothing can be
+/// trusted and the whole URB is lost.
+pub(crate) fn account_timed_out_transfer(
+    packet_sizes: &[usize],
+    descriptors: &[libusb_iso_packet_descriptor],
+    acceptance: PacketAcceptance,
+) -> CompletionStats {
+    let requested_total: u64 = packet_sizes.iter().map(|length| *length as u64).sum();
+    let delivered_total: u64 = if packet_sizes.len() == descriptors.len() {
+        packet_sizes
+            .iter()
+            .zip(descriptors)
+            .filter(|(requested, packet)| {
+                packet.status == LIBUSB_TRANSFER_COMPLETED
+                    && packet.actual_length as usize == **requested
+            })
+            .map(|(requested, _)| *requested as u64)
+            .sum()
+    } else {
+        0
+    };
+
+    let lost_bytes = requested_total - delivered_total;
+    CompletionStats {
+        shortfall_frames: lost_bytes / acceptance.bytes_per_frame.max(1) as u64,
+        lost_bytes,
+        ..CompletionStats::default()
+    }
 }
 
 fn format_diagnostics(

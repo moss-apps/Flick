@@ -1,5 +1,7 @@
 use crate::uac2::iso_packet_scheduler::IsoPacketScheduler;
-use crate::uac2::iso_packet_validation::{validate_iso_packet_descriptors, PacketAcceptance};
+use crate::uac2::iso_packet_validation::{
+    account_timed_out_transfer, validate_iso_packet_descriptors, CompletionStats, PacketAcceptance,
+};
 use libusb1_sys::{
     constants::{
         LIBUSB_TRANSFER_CANCELLED, LIBUSB_TRANSFER_COMPLETED, LIBUSB_TRANSFER_ERROR,
@@ -62,6 +64,7 @@ fn test_issue_354_alternating_packet_phase_is_accepted() {
     let stats = validate_iso_packet_descriptors(&packet_sizes, &descriptors, acceptance).unwrap();
     assert_eq!(stats.short_packets, 23);
     assert_eq!(stats.shortfall_frames, 1);
+    assert_eq!(stats.lost_bytes, 4);
     assert_eq!(stats.zero_packets, 0);
     assert_eq!(stats.descriptor_rewrites, 0);
 }
@@ -77,6 +80,7 @@ fn test_swapped_legal_sizes_are_accepted() {
     let stats = validate_iso_packet_descriptors(&packet_sizes, &descriptors, acceptance).unwrap();
     assert_eq!(stats.short_packets, 2);
     assert_eq!(stats.shortfall_frames, 0);
+    assert_eq!(stats.lost_bytes, 0);
 }
 
 #[test]
@@ -111,13 +115,13 @@ fn test_zero_length_packets_are_counted_not_rejected() {
     let stats = validate_iso_packet_descriptors(&[24], &descriptors, acceptance).unwrap();
     assert_eq!(stats.zero_packets, 1);
     assert_eq!(stats.shortfall_frames, 6);
+    assert_eq!(stats.lost_bytes, 24);
 
-    assert_eq!(
-        validate_iso_packet_descriptors(&[0, 4], &completed_packets(&[0, 4]), acceptance)
-            .unwrap()
-            .zero_packets,
-        1
-    );
+    // A packet nobody asked anything of is not a dropped packet.
+    let empty_request =
+        validate_iso_packet_descriptors(&[0, 4], &completed_packets(&[0, 4]), acceptance).unwrap();
+    assert_eq!(empty_request.zero_packets, 0);
+    assert_eq!(empty_request.lost_bytes, 0);
 }
 
 #[test]
@@ -255,4 +259,122 @@ fn test_exact_mode_still_rejects_any_shortfall() {
         ),
         Ok(Default::default())
     );
+}
+
+#[test]
+fn test_exact_mode_rejects_a_zero_length_completion_of_a_non_empty_packet() {
+    let mut descriptors = completed_packets(&[24]);
+    descriptors[0].actual_length = 0;
+    let error = validate_iso_packet_descriptors(&[24], &descriptors, PacketAcceptance::exact())
+        .unwrap_err();
+    assert!(error.contains("zero-length completion of a non-empty packet"));
+    assert!(error.contains("actual_total=0"));
+
+    // One dead packet among healthy ones is still an error in exact mode.
+    let mut descriptors = completed_packets(&[24, 24, 24]);
+    descriptors[1].actual_length = 0;
+    assert!(validate_iso_packet_descriptors(
+        &[24, 24, 24],
+        &descriptors,
+        PacketAcceptance::exact()
+    )
+    .is_err());
+}
+
+#[test]
+fn test_exact_mode_accepts_an_empty_request_that_completes_empty() {
+    assert_eq!(
+        validate_iso_packet_descriptors(
+            &[0, 24],
+            &completed_packets(&[0, 24]),
+            PacketAcceptance::exact()
+        ),
+        Ok(Default::default())
+    );
+}
+
+#[test]
+fn test_envelope_mode_still_tolerates_zero_length_completions() {
+    // Envelope-based streams count the shortfall as loss instead of failing;
+    // only exact mode treats a zero-length completion as an error.
+    let acceptance = PacketAcceptance::new(44_100, 125, 4);
+    let mut descriptors = completed_packets(&[24, 20]);
+    descriptors[0].actual_length = 0;
+    let stats = validate_iso_packet_descriptors(&[24, 20], &descriptors, acceptance).unwrap();
+    assert_eq!(stats.zero_packets, 1);
+    assert_eq!(stats.lost_bytes, 24);
+}
+
+#[test]
+fn test_lost_bytes_is_the_submitted_total_minus_the_delivered_total() {
+    let acceptance = PacketAcceptance::new(44_100, 125, 4);
+
+    // A swap of the two legal sizes with an equal URB total delivers everything.
+    let mut swapped = completed_packets(&[20, 24]);
+    swapped[0].actual_length = 24;
+    swapped[1].actual_length = 20;
+    let stats = validate_iso_packet_descriptors(&[20, 24], &swapped, acceptance).unwrap();
+    assert_eq!((stats.short_packets, stats.lost_bytes), (2, 0));
+
+    // An all-zero URB loses all of it.
+    let mut zeroed = completed_packets(&[20, 24, 20, 24]);
+    for packet in &mut zeroed {
+        packet.actual_length = 0;
+    }
+    let stats = validate_iso_packet_descriptors(&[20, 24, 20, 24], &zeroed, acceptance).unwrap();
+    assert_eq!((stats.zero_packets, stats.lost_bytes), (4, 88));
+    assert_eq!(stats.lost_ring_frames(4), 22);
+}
+
+#[test]
+fn test_lost_ring_frames_rounds_up_and_never_divides_by_zero() {
+    let stats = CompletionStats {
+        lost_bytes: 5,
+        ..CompletionStats::default()
+    };
+    assert_eq!(stats.lost_ring_frames(4), 2);
+    assert_eq!(stats.lost_ring_frames(0), 5);
+    assert_eq!(CompletionStats::default().lost_ring_frames(4), 0);
+}
+
+#[test]
+fn test_timed_out_transfer_credits_only_packets_that_completed_in_full() {
+    let acceptance = PacketAcceptance::new(44_100, 125, 4);
+    let packet_sizes = [20, 24, 20, 24];
+
+    // libusb reports a packet the timeout cancelled as COMPLETED with 0 bytes.
+    let mut descriptors = completed_packets(&packet_sizes);
+    descriptors[2].actual_length = 0;
+    descriptors[3].actual_length = 20; // short fragment: not credited
+    let stats = account_timed_out_transfer(&packet_sizes, &descriptors, acceptance);
+    assert_eq!(stats.lost_bytes, 44);
+    assert_eq!(stats.shortfall_frames, 11);
+    assert_eq!((stats.short_packets, stats.zero_packets), (0, 0));
+
+    // A packet with an error status is lost even though it reports full length.
+    let mut descriptors = completed_packets(&packet_sizes);
+    descriptors[0].status = LIBUSB_TRANSFER_ERROR;
+    assert_eq!(
+        account_timed_out_transfer(&packet_sizes, &descriptors, acceptance).lost_bytes,
+        20
+    );
+
+    // Every packet whole means nothing was lost.
+    assert_eq!(
+        account_timed_out_transfer(&packet_sizes, &completed_packets(&packet_sizes), acceptance)
+            .lost_bytes,
+        0
+    );
+}
+
+#[test]
+fn test_timed_out_transfer_with_mismatched_descriptors_loses_the_whole_urb() {
+    let acceptance = PacketAcceptance::new(44_100, 125, 4);
+    let packet_sizes = [20, 24, 20, 24];
+    let stats =
+        account_timed_out_transfer(&packet_sizes, &completed_packets(&[20, 24]), acceptance);
+    assert_eq!(stats.lost_bytes, 88);
+    assert_eq!(stats.shortfall_frames, 22);
+    let stats = account_timed_out_transfer(&packet_sizes, &[], acceptance);
+    assert_eq!(stats.lost_bytes, 88);
 }
