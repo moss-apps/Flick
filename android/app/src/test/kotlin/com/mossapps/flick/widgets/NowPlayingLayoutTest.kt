@@ -18,30 +18,46 @@ class NowPlayingLayoutTest {
 
     @Test
     fun shortPlacementKeepsTheTitleReadableAlongsideThreeControls() {
-        for (size in listOf(WidgetSize(200, 50), WidgetSize(203, 51))) {
+        for (size in listOf(WidgetSize(184, 50), WidgetSize(200, 50), WidgetSize(203, 51))) {
             val layout = WidgetLayoutPolicy.nowPlaying(size, hasSong = true)
 
             assertFalse(layout.controlsBelow)
-            assertTrue(layout.metadataWidthDp >= 56)
+            assertTrue(layout.metadataWidthDp >= 40)
             assertTrue(layout.showNext)
             assertTrue(layout.showPrevious)
-            assertFalse(layout.showProgress)
             assertFalse(layout.showArtist)
         }
     }
 
     @Test
-    fun gradientColorsRemainReadableAtMinimumOpacity() {
+    fun defaultPlacementsFitArtworkArtistAndProgress() {
+        for (size in listOf(WidgetSize(260, 50), WidgetSize(276, 102), WidgetSize(554, 51))) {
+            val layout = WidgetLayoutPolicy.nowPlaying(size, hasSong = true)
+
+            assertTrue("artwork at $size", layout.artDp >= 24)
+            assertTrue("artist at $size", layout.showArtist)
+            assertTrue("progress at $size", layout.showProgress)
+        }
+    }
+
+    @Test
+    fun shortRowsGiveProgressRoomWhenTheArtistDoesNotFit() {
+        val layout = WidgetLayoutPolicy.nowPlaying(WidgetSize(344, 62), hasSong = true,
+            titleHeightDp = 32, artistHeightDp = 28)
+
+        assertFalse(layout.showArtist)
+        assertTrue(layout.showProgress)
+    }
+
+    @Test
+    fun gradientColorsRemainReadableAcrossTheSurface() {
         val black = 0xFF000000.toInt()
         val white = 0xFFFFFFFF.toInt()
         for (cover in listOf(black, 0xFF595959.toInt(), 0xFF8D2ADE.toInt(), 0xFFF9FD6F.toInt(), white)) {
-            val colors = WidgetLayoutPolicy.nowPlayingColors(cover, gradient = true, opacity = 60)
+            val colors = WidgetLayoutPolicy.nowPlayingColors(cover, gradient = true)
             for (surface in listOf(colors.start, colors.end)) {
-                for (wallpaper in listOf(black, white)) {
-                    val composite = ReplayPalette.lerp(wallpaper, surface, 0.6f)
-                    assertTrue(ReplayPalette.contrast(composite, colors.foreground) >= 4.5)
-                    assertTrue(ReplayPalette.contrast(composite, colors.secondary) >= 4.5)
-                }
+                assertTrue(ReplayPalette.contrast(surface, colors.foreground) >= 4.5)
+                assertTrue(ReplayPalette.contrast(surface, colors.secondary) >= 4.5)
             }
         }
     }

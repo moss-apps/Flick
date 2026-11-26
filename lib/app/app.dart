@@ -723,6 +723,7 @@ class _MainShellState extends ConsumerState<MainShell>
         NavigationHelper.navigateToFullPlayer(
           context,
           heroTag: 'widget_now_playing',
+          revealExisting: true,
         ),
       );
     });

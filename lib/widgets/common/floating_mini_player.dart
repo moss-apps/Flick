@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/features/player/screens/full_player_screen.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
@@ -103,29 +103,7 @@ class _FloatingMiniPlayerState extends ConsumerState<FloatingMiniPlayer>
     _longPressTimer = Timer(_longPressDelay, () {
       if (!mounted) return;
       _isLongPress = true;
-      Navigator.of(context).push(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const FullPlayerScreen(heroTag: _heroTag),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(0.0, 1.0);
-            const end = Offset.zero;
-            const curve = Curves.easeOutCubic;
-            var tween = Tween(
-              begin: begin,
-              end: end,
-            ).chain(CurveTween(curve: curve));
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 300),
-          opaque: false,
-          settings: const RouteSettings(name: '/full_player'),
-          barrierColor: Colors.black,
-        ),
-      );
+      unawaited(NavigationHelper.navigateToFullPlayer(context, heroTag: _heroTag));
     });
   }
 

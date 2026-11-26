@@ -26,13 +26,6 @@
 
         <include layout="@layout/widget_now_playing_transport" />
 
-        <ImageView
-            android:id="@+id/now_playing_progress"
-            android:layout_width="match_parent"
-            android:layout_height="2dp"
-            android:layout_marginTop="4dp"
-            android:importantForAccessibility="no"
-            android:scaleType="fitXY"
-            android:visibility="gone" />
+        <include layout="@layout/widget_now_playing_progress" />
     </LinearLayout>
 </FrameLayout>
