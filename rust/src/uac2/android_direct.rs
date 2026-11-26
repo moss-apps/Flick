@@ -9,7 +9,10 @@ use crate::uac2::volume_control::{
     normalize_volume, parse_uac2_volume_ranges, quantize_volume, read_hardware_volume_snapshot, volume_bounds,
     AudioControlProtocol, VolumeRange,
 };
-use crate::uac2::{iso_packet_scheduler::IsoPacketScheduler, AudioControlParser, DescriptorIter};
+use crate::uac2::{
+    iso_packet_scheduler::{IsoPacketScheduler, IsoQueueGeometry},
+    AudioControlParser, DescriptorIter,
+};
 use crossbeam_channel::Sender;
 use libusb1_sys::{
     constants::{
@@ -25,9 +28,8 @@ use log::{error as log_error, info as log_info, warn as log_warn};
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use rusb::{
-    disable_device_discovery, supports_detach_kernel_driver, ConfigDescriptor, Context, Device,
-    DeviceHandle, Direction, Error as UsbError, Speed, SyncType, TransferType, UsageType,
-    UsbContext,
+    disable_device_discovery, ConfigDescriptor, Context, Device, DeviceHandle, Direction, Speed,
+    SyncType, TransferType, UsageType, UsbContext,
 };
 use serde::Serialize;
 use std::collections::HashSet;
@@ -80,13 +82,6 @@ const ANDROID_USB_BUFFER_CAPACITY_MS: usize = 200;
 const ANDROID_USB_BUFFER_TARGET_MS: usize = 100;
 const ANDROID_USB_RENDER_CHUNK_MS: usize = 10;
 const ANDROID_USB_RENDER_POLL_MS: u64 = 2;
-const ANDROID_USB_STABLE_TRANSFER_THRESHOLD: usize = 64;
-// Queued USB time = queue depth × packets_per_transfer × service interval.
-// Four 32-packet transfers at 125µs cover only ~16ms, so any host scheduling
-// hiccup larger than that starves the DAC's own FIFO even though the software
-// ring stays full (which is why underrun counters read zero). Eight transfers
-// double the bus-side cushion without changing a single audio byte.
-const ANDROID_USB_TRANSFER_QUEUE_DEPTH: usize = 8;
 const ANDROID_USB_REQUIRE_VERIFIED_RATE_DEFAULT: bool = true;
 const ANDROID_USB_CLOCK_SETTLE_DELAY_MS_DEFAULT: u64 = 20;
 const ANDROID_USB_FEEDBACK_TIMEOUT_MS: u32 = 50;
@@ -331,11 +326,10 @@ impl Drop for AndroidDirectUsbOwnedFd {
 pub struct AndroidDirectUsbDevice {
     pub fd: RawFd,
     _fd_owner: Arc<AndroidDirectUsbOwnedFd>,
+    claimed_interfaces: Arc<[u8]>,
     pub vendor_id: u16,
     pub product_id: u16,
     pub product_name: String,
-    pub manufacturer: String,
-    pub serial: Option<String>,
     pub device_name: Option<String>,
 }
 
@@ -345,9 +339,8 @@ impl AndroidDirectUsbDevice {
         vendor_id: u16,
         product_id: u16,
         product_name: String,
-        manufacturer: String,
-        serial: Option<String>,
         device_name: Option<String>,
+        claimed_interfaces: Vec<u8>,
     ) -> Result<Self, String> {
         let duplicated_fd = unsafe { libc::dup(fd) };
         if duplicated_fd < 0 {
@@ -360,13 +353,42 @@ impl AndroidDirectUsbDevice {
         Ok(Self {
             fd: duplicated_fd,
             _fd_owner: Arc::new(AndroidDirectUsbOwnedFd(duplicated_fd)),
+            claimed_interfaces: claimed_interfaces.into(),
             vendor_id,
             product_id,
             product_name,
-            manufacturer,
-            serial,
             device_name,
         })
+    }
+
+    fn feature_unit_control(
+        &self,
+        request_type: u8,
+        request: u8,
+        value: u16,
+        index: u16,
+        data: &mut [u8],
+    ) -> std::io::Result<usize> {
+        if !self.claimed_interfaces.contains(&(index as u8)) {
+            return Err(std::io::Error::other("AudioControl interface is not claimed"));
+        }
+        let length = u16::try_from(data.len()).map_err(std::io::Error::other)?;
+        let transfer = UsbfsControlTransfer {
+            request_type,
+            request,
+            value,
+            index,
+            length,
+            timeout_ms: 1000,
+            data: data.as_mut_ptr().cast(),
+        };
+        // This synchronous ioctl does not reap URBs. A separate libusb control
+        // context on the same fd could consume the output context's completions.
+        let result = unsafe { libc::ioctl(self.fd, USBDEVFS_CONTROL, &transfer) };
+        if result < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(result as usize)
     }
 }
 
@@ -655,15 +677,36 @@ struct AndroidDirectUsbLock {
     device_fd: RawFd,
     context: Context,
     handle: DeviceHandle<Context>,
-    claimed_interfaces: Vec<u8>,
+    claimed_interfaces: Arc<[u8]>,
 }
 
 struct AndroidDirectUsbClaimedHandle {
     device_fd: RawFd,
     context: Context,
     handle: DeviceHandle<Context>,
-    claimed_interfaces: Vec<u8>,
+    claimed_interfaces: Arc<[u8]>,
 }
+
+// linux/usbdevice_fs.h; use libc's architecture-specific ioctl encoding.
+#[repr(C)]
+struct UsbfsControlTransfer {
+    request_type: u8,
+    request: u8,
+    value: u16,
+    index: u16,
+    length: u16,
+    timeout_ms: u32,
+    data: *mut c_void,
+}
+
+#[repr(C)]
+struct UsbfsSetInterface {
+    interface: libc::c_uint,
+    altsetting: libc::c_uint,
+}
+
+const USBDEVFS_CONTROL: libc::Ioctl = libc::_IOWR::<UsbfsControlTransfer>(b'U' as u32, 0);
+const USBDEVFS_SETINTERFACE: libc::Ioctl = libc::_IOR::<UsbfsSetInterface>(b'U' as u32, 4);
 
 #[derive(Debug)]
 struct AndroidIsoStreamCandidate {
@@ -1451,19 +1494,36 @@ static DIRECT_USB_STATE: Lazy<Mutex<Option<AndroidDirectUsbState>>> =
 static DIRECT_USB_LOCK: Lazy<Mutex<Option<AndroidDirectUsbLock>>> = Lazy::new(|| Mutex::new(None));
 static DIRECT_USB_LIFECYCLE_STATE: Lazy<Mutex<AndroidDirectUsbLifecycleState>> =
     Lazy::new(|| Mutex::new(AndroidDirectUsbLifecycleState::default()));
-/// Serializes JNI hardware volume/mute control transfers. Reusing the idle
-/// `DIRECT_USB_LOCK` handle for feature-unit writes would require partial
-/// interface release; a second transient open remains necessary, but we avoid
-/// overlapping transient claims from concurrent UI/sync calls.
+/// Serializes Feature Unit I/O with other volume calls and final device clear.
 static ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 static DIRECT_USB_DISCOVERY_DISABLED: Once = Once::new();
 static ANDROID_DIRECT_USB_ENABLED: AtomicBool = AtomicBool::new(true);
 static USB_SESSION_CLEAR_PENDING: AtomicBool = AtomicBool::new(false);
 static HARDWARE_VOLUME_GENERATION: AtomicU64 = AtomicU64::new(0);
 
-/// Global guard: only one USB streaming session may be active at a time.
-/// Prevents "Resource busy" from concurrent or overlapping claim attempts.
+/// Only one negotiation or output session can use the claimed interfaces.
+/// Serialize ownership transitions with device clear before Android releases them.
 static USB_SESSION_ACTIVE: AtomicBool = AtomicBool::new(false);
+static USB_SESSION_GATE: Mutex<()> = Mutex::new(());
+
+struct AndroidUsbSessionGuard;
+
+impl AndroidUsbSessionGuard {
+    // Caller holds USB_SESSION_GATE and has checked that no session is active.
+    fn start_locked() -> Self {
+        USB_STOP_REQUESTED.store(false, Ordering::SeqCst);
+        USB_SESSION_ACTIVE.store(true, Ordering::SeqCst);
+        Self
+    }
+}
+
+impl Drop for AndroidUsbSessionGuard {
+    fn drop(&mut self) {
+        let _session_gate = USB_SESSION_GATE.lock();
+        USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
+        complete_pending_android_usb_clear_locked();
+    }
+}
 
 // ponytail: module-level stop signal. `clear_android_usb_device()` has no handle
 // to the backend's local `stop` Arc, so without this the transfer loop keeps
@@ -1700,23 +1760,29 @@ pub fn is_usb_session_active() -> bool {
     USB_SESSION_ACTIVE.load(Ordering::SeqCst)
 }
 
-fn is_same_android_usb_device(a: &AndroidDirectUsbDevice, b: &AndroidDirectUsbDevice) -> bool {
-    if a.device_name.is_some() && b.device_name.is_some() && a.device_name == b.device_name {
-        return true;
+pub(crate) fn with_live_usb_reconnect<T>(
+    expected_device: &str,
+    start: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let _gate = USB_SESSION_GATE.lock();
+    let device_matches = DIRECT_USB_STATE
+        .lock()
+        .as_ref()
+        .and_then(|state| state.device.device_name.as_deref())
+        == Some(expected_device);
+    if !device_matches
+        || !is_usb_session_active()
+        || USB_SESSION_CLEAR_PENDING.load(Ordering::SeqCst)
+        || USB_STOP_REQUESTED.load(Ordering::SeqCst)
+    {
+        return Err("Direct USB reconnect no longer owns the expected DAC".into());
     }
-
-    if a.vendor_id != b.vendor_id || a.product_id != b.product_id {
-        return false;
-    }
-
-    if a.serial.is_some() && b.serial.is_some() {
-        return a.serial == b.serial;
-    }
-
-    a.product_name == b.product_name && a.manufacturer == b.manufacturer
+    start()
 }
 
 fn clear_android_usb_device_state() {
+    // Finish any in-progress Feature Unit I/O before Android releases its claims.
+    let _volume_hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
     release_idle_lock();
     if DIRECT_USB_LIFECYCLE_STATE.lock().engine_state != AndroidDirectUsbEngineState::Fallback {
         set_android_usb_engine_state(AndroidDirectUsbEngineState::Idle, None);
@@ -1724,13 +1790,9 @@ fn clear_android_usb_device_state() {
     *DIRECT_USB_STATE.lock() = None;
 }
 
-fn clear_android_usb_device_now() {
-    USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
-    USB_SESSION_CLEAR_PENDING.store(false, Ordering::SeqCst);
-    clear_android_usb_device_state();
-}
-
-fn complete_pending_android_usb_clear_if_idle() {
+// The caller holds USB_SESSION_GATE so the wait API cannot report success while
+// a clear is still dropping the idle handle and its device registration.
+fn complete_pending_android_usb_clear_locked() {
     if USB_SESSION_ACTIVE.load(Ordering::SeqCst) {
         return;
     }
@@ -1738,41 +1800,39 @@ fn complete_pending_android_usb_clear_if_idle() {
         return;
     }
 
-    dev_eprintln!("Android USB direct: applying deferred clear after session stop");
+    dev_eprintln!("Android USB direct: clearing registration after USB I/O stopped");
     clear_android_usb_device_state();
 }
 
-/// Force-release the USB session guard. Called before re-initialization or on
-/// unrecoverable errors to ensure the next attempt can proceed.
+/// Request teardown without reporting the interfaces idle before the output
+/// thread has finished with them.
 pub fn force_release_usb_session() {
-    if USB_SESSION_ACTIVE.swap(false, Ordering::SeqCst) {
-        dev_eprintln!("Android USB direct: force-released USB session guard");
+    let _session_gate = USB_SESSION_GATE.lock();
+    if is_usb_session_active() {
+        USB_STOP_REQUESTED.store(true, Ordering::SeqCst);
+    } else {
+        complete_pending_android_usb_clear_locked();
     }
-    complete_pending_android_usb_clear_if_idle();
 }
 
 pub fn register_android_usb_device(device: AndroidDirectUsbDevice) -> Result<(), String> {
-    let mut guard = DIRECT_USB_STATE.lock();
-    if USB_SESSION_ACTIVE.load(Ordering::SeqCst) {
-        if let Some(current_state) = guard.as_ref() {
-            if is_same_android_usb_device(&current_state.device, &device) {
-                dev_eprintln!(
-                    "Android USB direct: ignoring duplicate registration for '{}' while the session is active",
-                    device.product_name
-                );
-                return Ok(());
-            }
-        }
+    let _session_gate = USB_SESSION_GATE.lock();
+    if is_usb_session_active() {
         return Err(format!(
             "Android direct USB session is still active; refusing to replace registration for '{}'",
             device.product_name
         ));
     }
 
-    USB_SESSION_CLEAR_PENDING.store(false, Ordering::SeqCst);
-    let existing_format = guard.as_ref().and_then(|state| state.playback_format);
+    complete_pending_android_usb_clear_locked();
+    if DIRECT_USB_STATE.lock().is_some() {
+        return Err(
+            "Release the previous Android direct USB DAC before registering another".to_string(),
+        );
+    }
+    let capability_model = inspect_android_usb_capabilities(&device)?;
+    let mut guard = DIRECT_USB_STATE.lock();
 
-    let capability_model = inspect_android_usb_capabilities(&device).ok();
     let dac_clock_policy = resolve_dac_clock_policy(&device);
 
     let require_verified_rate = match dac_clock_policy {
@@ -1786,8 +1846,8 @@ pub fn register_android_usb_device(device: AndroidDirectUsbDevice) -> Result<(),
     set_android_usb_engine_state(AndroidDirectUsbEngineState::Idle, None);
     *guard = Some(AndroidDirectUsbState {
         device,
-        requested_playback_format: existing_format,
-        playback_format: existing_format,
+        requested_playback_format: None,
+        playback_format: None,
         lock_requested: true,
         stream_active: false,
         active_transport: None,
@@ -1818,8 +1878,8 @@ pub fn register_android_usb_device(device: AndroidDirectUsbDevice) -> Result<(),
 
 /// Restore a remembered hardware level now, or stage it for backend startup.
 ///
-/// The DAC's Feature Unit is not discovered until the backend claims the
-/// stream, so the write cannot happen during registration. Keeping the value
+/// The DAC's Feature Unit is not discovered until backend preparation, so
+/// the write cannot happen during registration. Keeping the value
 /// in the state lets startup apply it before the first isochronous transfer.
 /// An already prepared DSP session must restore immediately, before Dart can
 /// enable unity-gain passthrough on that same backend.
@@ -1975,6 +2035,7 @@ pub fn set_android_usb_dsd_native_mode(dsd_bit_rate: u32) -> Result<(), String> 
 }
 
 pub fn set_android_usb_lock_enabled(enabled: bool) -> Result<(), String> {
+    let _session_gate = USB_SESSION_GATE.lock();
     let stream_active = {
         let mut guard = DIRECT_USB_STATE.lock();
         let Some(state) = guard.as_mut() else {
@@ -1988,7 +2049,7 @@ pub fn set_android_usb_lock_enabled(enabled: bool) -> Result<(), String> {
         state.stream_active
     };
 
-    if enabled && !stream_active {
+    if enabled && !stream_active && !is_usb_session_active() {
         ensure_android_usb_idle_lock()?;
     }
 
@@ -1996,10 +2057,11 @@ pub fn set_android_usb_lock_enabled(enabled: bool) -> Result<(), String> {
 }
 
 pub fn clear_android_usb_device() {
+    let _session_gate = USB_SESSION_GATE.lock();
     USB_SESSION_CLEAR_PENDING.store(true, Ordering::SeqCst);
-    if USB_SESSION_ACTIVE.load(Ordering::SeqCst) {
-        // Signal the running transfer loop to drain and exit. Without this the
-        // Kotlin-side wait_for_stop times out and force-closes the fd.
+    if is_usb_session_active() {
+        // Signal the running transfer loop to drain before Android releases
+        // the interfaces and lets the platform driver rebind.
         USB_STOP_REQUESTED.store(true, Ordering::SeqCst);
         dev_eprintln!(
             "Android USB direct: clear requested while session active; signaling transfer loop to stop"
@@ -2007,20 +2069,23 @@ pub fn clear_android_usb_device() {
         return;
     }
 
-    clear_android_usb_device_now();
+    complete_pending_android_usb_clear_locked();
 }
 
 pub fn wait_for_android_usb_session_stop(timeout: Duration) -> bool {
     let started_at = Instant::now();
-    while USB_SESSION_ACTIVE.load(Ordering::SeqCst) {
+    loop {
+        if let Some(_session_gate) = USB_SESSION_GATE.try_lock() {
+            if !is_usb_session_active() {
+                complete_pending_android_usb_clear_locked();
+                return true;
+            }
+        }
         if started_at.elapsed() >= timeout {
             return false;
         }
         thread::sleep(Duration::from_millis(10));
     }
-
-    complete_pending_android_usb_clear_if_idle();
-    true
 }
 
 pub fn android_direct_output_signature(preferred_sample_rate: Option<u32>) -> Option<String> {
@@ -2320,6 +2385,10 @@ pub fn negotiate_android_direct_output_sample_rate(
         return Ok(preferred_sample_rate);
     }
 
+    let session_gate = USB_SESSION_GATE.lock();
+    if USB_SESSION_CLEAR_PENDING.load(Ordering::SeqCst) {
+        return Err("Android direct USB is being released".to_string());
+    }
     let requested_format = {
         let mut guard = DIRECT_USB_STATE.lock();
         let Some(state) = guard.as_mut() else {
@@ -2364,6 +2433,8 @@ pub fn negotiate_android_direct_output_sample_rate(
         requested_format
     };
 
+    let _session = AndroidUsbSessionGuard::start_locked();
+    drop(session_gate);
     let negotiated = negotiate_android_direct_playback_format(requested_format);
     negotiated.map(|format| {
         // set_effective_playback_format may have corrected a 0 Hz rate to
@@ -2390,7 +2461,7 @@ fn negotiate_android_direct_playback_format(
         state.device.clone()
     };
 
-    let mut claimed_handle = open_claimed_usb_handle(&device)?;
+    let claimed_handle = open_claimed_usb_handle(&device)?;
     let lock_requested = current_lock_requested_for_fd(device.fd);
     let mut cleanup_interface: Option<u8> = None;
     let negotiated = (|| {
@@ -2425,10 +2496,7 @@ fn negotiate_android_direct_playback_format(
             return Err(error);
         }
 
-        if let Err(error) = claimed_handle
-            .handle
-            .set_alternate_setting(candidate.interface_number, 0)
-        {
+        if let Err(error) = claimed_handle.set_alternate_setting(candidate.interface_number, 0) {
             let msg = format!(
                 "Failed to reset USB interface {} to alt 0 before negotiation: {}",
                 candidate.interface_number, error
@@ -2449,12 +2517,10 @@ fn negotiate_android_direct_playback_format(
         let mut last_message = None;
 
         if let Some(clock) = clock {
-            if let Err(e) = claimed_handle.ensure_interface_claimed(clock.interface_number) {
-                log::error!(
-                    "[USB] Failed to claim AudioControl interface {}: {}",
-                    clock.interface_number,
-                    e,
-                );
+            if let Err(error) = claimed_handle.ensure_interface_claimed(clock.interface_number) {
+                set_last_error(Some(error.clone()));
+                set_direct_mode_refusal_reason(Some(error.clone()));
+                return Err(error);
             }
             set_clock_status(Some(AndroidDirectUsbClockStatus {
                 interface_number: clock.interface_number,
@@ -3065,21 +3131,8 @@ fn set_stream_active(active: bool) {
 }
 
 fn release_idle_lock() {
-    if let Some(lock) = DIRECT_USB_LOCK.lock().take() {
-        release_claimed_interfaces(&lock.handle, &lock.claimed_interfaces);
-    }
-}
-
-fn release_claimed_interfaces(handle: &DeviceHandle<Context>, interfaces: &[u8]) {
-    let mut released = interfaces.to_vec();
-    released.sort_unstable();
-    released.dedup();
-    released.reverse();
-
-    for interface_number in released {
-        let _ = handle.set_alternate_setting(interface_number, 0);
-        let _ = handle.release_interface(interface_number);
-    }
+    // Android owns the claims and releases them after the USB session stops.
+    DIRECT_USB_LOCK.lock().take();
 }
 
 impl From<AndroidDirectUsbLock> for AndroidDirectUsbClaimedHandle {
@@ -3103,116 +3156,30 @@ impl AndroidDirectUsbClaimedHandle {
         }
     }
 
-    fn ensure_interface_claimed(&mut self, interface_number: u8) -> Result<(), String> {
-        if self.claimed_interfaces.contains(&interface_number) {
-            return Ok(());
+    fn ensure_interface_claimed(&self, interface_number: u8) -> Result<(), String> {
+        if !self.claimed_interfaces.contains(&interface_number) {
+            return Err(format!(
+                "USB interface {} was not claimed during Android direct USB registration",
+                interface_number
+            ));
         }
-
-        claim_interface_with_recovery(&self.handle, interface_number)?;
-        self.claimed_interfaces.push(interface_number);
-        self.claimed_interfaces.sort_unstable();
-        self.claimed_interfaces.dedup();
         Ok(())
     }
-}
 
-fn configure_kernel_driver_detach(handle: &DeviceHandle<Context>) {
-    if !supports_detach_kernel_driver() {
-        dev_eprintln!(
-            "Android USB direct: libusb kernel-driver detach is not supported on this platform"
-        );
-        return;
-    }
-
-    match handle.set_auto_detach_kernel_driver(true) {
-        Ok(()) => {
-            dev_eprintln!("Android USB direct: enabled libusb auto-detach for claimed interfaces");
+    fn set_alternate_setting(&self, interface_number: u8, alternate_setting: u8) -> Result<(), String> {
+        self.ensure_interface_claimed(interface_number)?;
+        let request = UsbfsSetInterface {
+            interface: interface_number.into(),
+            altsetting: alternate_setting.into(),
+        };
+        // Android's fd and our dup share the usbfs claims. libusb's own
+        // per-handle claim table does not, so its alt-setting helper refuses
+        // these interfaces. Use the same kernel ioctl Android uses instead.
+        let result = unsafe { libc::ioctl(self.device_fd, USBDEVFS_SETINTERFACE, &request) };
+        if result < 0 {
+            return Err(std::io::Error::last_os_error().to_string());
         }
-        Err(UsbError::NotSupported) => {
-            dev_eprintln!(
-                "Android USB direct: libusb auto-detach is not supported for this device handle"
-            );
-        }
-        Err(error) => {
-            dev_eprintln!(
-                "Android USB direct: failed to enable libusb auto-detach: {}",
-                error
-            );
-        }
-    }
-}
-
-const CLAIM_RETRY_ATTEMPTS: u32 = 8;
-const CLAIM_RETRY_DELAY_MS: u64 = 100;
-
-fn claim_interface_with_recovery(
-    handle: &DeviceHandle<Context>,
-    interface_number: u8,
-) -> Result<(), String> {
-    match handle.claim_interface(interface_number) {
-        Ok(()) => return Ok(()),
-        Err(initial_error) => {
-            let mut details = vec![format!("initial claim failed: {}", initial_error)];
-
-            if supports_detach_kernel_driver() {
-                match handle.kernel_driver_active(interface_number) {
-                    Ok(true) => {
-                        details.push("kernel driver is active".to_string());
-                        match handle.detach_kernel_driver(interface_number) {
-                            Ok(()) => {
-                                details.push("detached kernel driver".to_string());
-                            }
-                            Err(error) => {
-                                details.push(format!("kernel-driver detach failed: {}", error));
-                            }
-                        }
-                    }
-                    Ok(false) => {
-                        details.push("kernel driver is not active".to_string());
-                    }
-                    Err(error) => {
-                        details.push(format!("kernel_driver_active failed: {}", error));
-                    }
-                }
-
-                if let Ok(()) = handle.claim_interface(interface_number) {
-                    dev_eprintln!(
-                        "Android USB direct claimed interface {} after kernel-driver recovery",
-                        interface_number
-                    );
-                    return Ok(());
-                }
-            }
-
-            for attempt in 1..=CLAIM_RETRY_ATTEMPTS {
-                thread::sleep(Duration::from_millis(CLAIM_RETRY_DELAY_MS));
-                match handle.claim_interface(interface_number) {
-                    Ok(()) => {
-                        dev_eprintln!(
-                            "Android USB direct claimed interface {} on retry {} after {}ms settle",
-                            interface_number,
-                            attempt,
-                            attempt as u64 * CLAIM_RETRY_DELAY_MS,
-                        );
-                        return Ok(());
-                    }
-                    Err(error) => {
-                        details.push(format!(
-                            "retry {} after {}ms: {}",
-                            attempt,
-                            attempt as u64 * CLAIM_RETRY_DELAY_MS,
-                            error
-                        ));
-                    }
-                }
-            }
-
-            Err(format!(
-                "Failed to claim USB interface {}: {}",
-                interface_number,
-                details.join("; ")
-            ))
-        }
+        Ok(())
     }
 }
 
@@ -3223,27 +3190,12 @@ fn open_claimed_usb_handle(
         if lock.device_fd == device.fd {
             return Ok(lock.into());
         }
-
-        release_claimed_interfaces(&lock.handle, &lock.claimed_interfaces);
     }
 
-    prepare_direct_usb_libusb();
-
-    let context =
-        Context::new().map_err(|error| format!("Failed to create libusb context: {}", error))?;
-    let handle = unsafe { context.open_device_with_fd(device.fd) }
-        .map_err(|error| format!("Failed to wrap Android USB file descriptor: {}", error))?;
-    configure_kernel_driver_detach(&handle);
-
-    Ok(AndroidDirectUsbClaimedHandle {
-        device_fd: device.fd,
-        context,
-        handle,
-        claimed_interfaces: Vec::new(),
-    })
+    wrap_android_usb_handle(device)
 }
 
-fn open_transient_usb_handle(
+fn wrap_android_usb_handle(
     device: &AndroidDirectUsbDevice,
 ) -> Result<AndroidDirectUsbClaimedHandle, String> {
     prepare_direct_usb_libusb();
@@ -3252,13 +3204,12 @@ fn open_transient_usb_handle(
         Context::new().map_err(|error| format!("Failed to create libusb context: {}", error))?;
     let handle = unsafe { context.open_device_with_fd(device.fd) }
         .map_err(|error| format!("Failed to wrap Android USB file descriptor: {}", error))?;
-    configure_kernel_driver_detach(&handle);
 
     Ok(AndroidDirectUsbClaimedHandle {
         device_fd: device.fd,
         context,
         handle,
-        claimed_interfaces: Vec::new(),
+        claimed_interfaces: Arc::clone(&device.claimed_interfaces),
     })
 }
 
@@ -3355,7 +3306,7 @@ fn parse_audio_control_topologies(
 }
 
 fn read_feature_unit_i16_control(
-    handle: &DeviceHandle<Context>,
+    device: &AndroidDirectUsbDevice,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3366,15 +3317,8 @@ fn read_feature_unit_i16_control(
     let value = control_selector | (channel & 0xff);
     let index = (interface_number as u16) | ((feature_unit_id as u16) << 8);
     let mut data = [0u8; 2];
-    let transferred = handle
-        .read_control(
-            request_type,
-            request,
-            value,
-            index,
-            &mut data,
-            Duration::from_secs(1),
-        )
+    let transferred = device
+        .feature_unit_control(request_type, request, value, index, &mut data)
         .map_err(|error| format!(
             "USB volume read request=0x{request:02x} interface={interface_number} unit={feature_unit_id} channel={channel} selector=0x{control_selector:04x}: {error}"
         ))?;
@@ -3389,7 +3333,7 @@ fn read_feature_unit_i16_control(
 }
 
 fn write_feature_unit_i16_control(
-    handle: &DeviceHandle<Context>,
+    device: &AndroidDirectUsbDevice,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3399,16 +3343,9 @@ fn write_feature_unit_i16_control(
     let request_type = USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE;
     let value = control_selector | (channel & 0xff);
     let index = (interface_number as u16) | ((feature_unit_id as u16) << 8);
-    let data = value_raw.to_le_bytes();
-    let transferred = handle
-        .write_control(
-            request_type,
-            UAC2_REQUEST_SET_CUR,
-            value,
-            index,
-            &data,
-            Duration::from_secs(1),
-        )
+    let mut data = value_raw.to_le_bytes();
+    let transferred = device
+        .feature_unit_control(request_type, UAC2_REQUEST_SET_CUR, value, index, &mut data)
         .map_err(|error| format!(
             "USB volume SET_CUR interface={interface_number} unit={feature_unit_id} channel={channel} selector=0x{control_selector:04x}: {error}"
         ))?;
@@ -3421,7 +3358,7 @@ fn write_feature_unit_i16_control(
 }
 
 fn read_feature_unit_bool_control(
-    handle: &DeviceHandle<Context>,
+    device: &AndroidDirectUsbDevice,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3432,14 +3369,13 @@ fn read_feature_unit_bool_control(
     let value = control_selector | (channel & 0xff);
     let index = (interface_number as u16) | ((feature_unit_id as u16) << 8);
     let mut data = [0u8; 1];
-    let transferred = handle
-        .read_control(
+    let transferred = device
+        .feature_unit_control(
             request_type,
             protocol.current_request(),
             value,
             index,
             &mut data,
-            Duration::from_secs(1),
         )
         .map_err(|error| format!(
             "USB mute {protocol:?} GET_CUR interface={interface_number} unit={feature_unit_id} channel={channel}: {error}"
@@ -3455,7 +3391,7 @@ fn read_feature_unit_bool_control(
 }
 
 fn write_feature_unit_bool_control(
-    handle: &DeviceHandle<Context>,
+    device: &AndroidDirectUsbDevice,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3465,16 +3401,9 @@ fn write_feature_unit_bool_control(
     let request_type = USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE;
     let value = control_selector | (channel & 0xff);
     let index = (interface_number as u16) | ((feature_unit_id as u16) << 8);
-    let data = [u8::from(enabled)];
-    let transferred = handle
-        .write_control(
-            request_type,
-            UAC2_REQUEST_SET_CUR,
-            value,
-            index,
-            &data,
-            Duration::from_secs(1),
-        )
+    let mut data = [u8::from(enabled)];
+    let transferred = device
+        .feature_unit_control(request_type, UAC2_REQUEST_SET_CUR, value, index, &mut data)
         .map_err(|error| format!(
             "USB mute SET_CUR interface={interface_number} unit={feature_unit_id} channel={channel}: {error}"
         ))?;
@@ -3487,7 +3416,7 @@ fn write_feature_unit_bool_control(
 }
 
 fn read_feature_unit_volume_range(
-    handle: &DeviceHandle<Context>,
+    device: &AndroidDirectUsbDevice,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3500,9 +3429,9 @@ fn read_feature_unit_volume_range(
         let value = UAC2_FEATURE_UNIT_VOLUME_CONTROL | (channel & 0xff);
         let index = interface_number as u16 | (feature_unit_id as u16) << 8;
         let mut count_bytes = [0u8; 2];
-        let transferred = handle.read_control(
+        let transferred = device.feature_unit_control(
             request_type, UAC2_REQUEST_GET_RANGE, value, index,
-            &mut count_bytes, Duration::from_secs(1),
+            &mut count_bytes,
         ).map_err(|e| format!("USB volume RANGE count interface={interface_number} unit={feature_unit_id} channel={channel}: {e}"))?;
         if transferred != count_bytes.len() {
             return Err(format!("short USB volume RANGE count interface={interface_number} unit={feature_unit_id} channel={channel}: {transferred}/2 bytes"));
@@ -3513,10 +3442,9 @@ fn read_feature_unit_volume_range(
         }
         let mut data = [0u8; 386];
         let expected = 2 + count * 6;
-        let transferred = handle.read_control(
+        let transferred = device.feature_unit_control(
             request_type, UAC2_REQUEST_GET_RANGE, value, index,
             &mut data[..expected],
-            Duration::from_secs(1),
         ).map_err(|e| format!("USB volume RANGE interface={interface_number} unit={feature_unit_id} channel={channel}: {e}"))?;
         if transferred != expected {
             return Err(format!("short USB volume RANGE interface={interface_number} unit={feature_unit_id} channel={channel}: {transferred}/{expected} bytes"));
@@ -3526,7 +3454,7 @@ fn read_feature_unit_volume_range(
     Ok(vec![VolumeRange {
         min:
         read_feature_unit_i16_control(
-            handle,
+            device,
             interface_number,
             feature_unit_id,
             channel,
@@ -3535,7 +3463,7 @@ fn read_feature_unit_volume_range(
         )?,
         max:
         read_feature_unit_i16_control(
-            handle,
+            device,
             interface_number,
             feature_unit_id,
             channel,
@@ -3544,7 +3472,7 @@ fn read_feature_unit_volume_range(
         )?,
         resolution:
         read_feature_unit_i16_control(
-            handle,
+            device,
             interface_number,
             feature_unit_id,
             channel,
@@ -3555,7 +3483,7 @@ fn read_feature_unit_volume_range(
 }
 
 fn build_hardware_volume_control_from_feature_unit(
-    handle: &DeviceHandle<Context>,
+    device: &AndroidDirectUsbDevice,
     topology: &AndroidAudioControlTopology,
     feature_unit: &crate::uac2::FeatureUnit,
     channels: u16,
@@ -3565,7 +3493,7 @@ fn build_hardware_volume_control_from_feature_unit(
     let mut ranges = Vec::new();
     for &channel in &volume_channels {
         let channel_ranges = read_feature_unit_volume_range(
-            handle, topology.interface_number, feature_unit.b_unit_id, channel, topology.protocol,
+            device, topology.interface_number, feature_unit.b_unit_id, channel, topology.protocol,
         )?;
         if ranges.is_empty() { ranges = channel_ranges; }
         else if ranges != channel_ranges {
@@ -3593,7 +3521,7 @@ fn build_hardware_volume_control_from_feature_unit(
 }
 
 fn discover_hardware_volume_control_for_terminal(
-    handle: &DeviceHandle<Context>,
+    device: &AndroidDirectUsbDevice,
     topology: &AndroidAudioControlTopology,
     terminal_link: u8,
     channels: u16,
@@ -3628,7 +3556,7 @@ fn discover_hardware_volume_control_for_terminal(
         {
             if ancestors.contains(&entity_id) {
                 if let Some(control) = build_hardware_volume_control_from_feature_unit(
-                    handle, topology, feature_unit, channels,
+                    device, topology, feature_unit, channels,
                 )? { return Ok(Some(control)); }
             }
         }
@@ -3644,13 +3572,13 @@ fn discover_hardware_volume_control_for_terminal(
 }
 
 fn discover_android_usb_hardware_volume_control(
-    device: &Device<Context>,
-    handle: &DeviceHandle<Context>,
+    descriptors: &Device<Context>,
+    device: &AndroidDirectUsbDevice,
     candidate: &AndroidIsoStreamCandidate,
     clock_interface: Option<u8>,
 ) -> Result<Option<AndroidDirectUsbHardwareVolumeControl>, String> {
     let terminal = candidate.terminal_link.ok_or_else(|| "no playback terminal link for USB volume".to_string())?;
-    let topologies = parse_audio_control_topologies(device)?;
+    let topologies = parse_audio_control_topologies(descriptors)?;
     let matches: Vec<_> = topologies.iter().filter(|topology| {
         clock_interface.map_or(true, |interface| topology.interface_number == interface)
             && (topology.protocol != AudioControlProtocol::Uac1
@@ -3660,11 +3588,11 @@ fn discover_android_usb_hardware_volume_control(
     if matches.len() != 1 {
         return Err("USB playback AudioControl topology is missing or ambiguous".to_string());
     }
-    discover_hardware_volume_control_for_terminal(handle, matches[0], terminal, candidate.channels)
+    discover_hardware_volume_control_for_terminal(device, matches[0], terminal, candidate.channels)
 }
 
-fn refresh_android_usb_hardware_volume_snapshot_with_handle(
-    handle: &DeviceHandle<Context>,
+fn refresh_android_usb_hardware_volume_snapshot(
+    device: &AndroidDirectUsbDevice,
     control: &AndroidDirectUsbHardwareVolumeControl,
 ) -> Result<(f64, Option<bool>), String> {
     const GET_CUR_RETRIES: u32 = 3;
@@ -3676,11 +3604,11 @@ fn refresh_android_usb_hardware_volume_snapshot_with_handle(
             &control.volume_channels,
             &control.ranges,
             |channel| read_feature_unit_i16_control(
-                handle, control.interface_number, control.feature_unit_id, channel,
+                device, control.interface_number, control.feature_unit_id, channel,
                 control.protocol.current_request(), UAC2_FEATURE_UNIT_VOLUME_CONTROL,
             ),
             || control.mute_channel.map(|channel| read_feature_unit_bool_control(
-                handle, control.interface_number, control.feature_unit_id, channel,
+                device, control.interface_number, control.feature_unit_id, channel,
                 control.protocol, UAC2_FEATURE_UNIT_MUTE_CONTROL,
             )).transpose(),
         );
@@ -3725,8 +3653,8 @@ pub fn android_direct_cached_hardware_mute() -> Option<bool> {
         .and_then(|state| state.hardware_mute_active)
 }
 
-fn apply_android_usb_hardware_volume_with_handle(
-    handle: &DeviceHandle<Context>,
+fn apply_android_usb_hardware_volume(
+    device: &AndroidDirectUsbDevice,
     control: &AndroidDirectUsbHardwareVolumeControl,
     generation: u64,
     volume: f64,
@@ -3741,7 +3669,7 @@ fn apply_android_usb_hardware_volume_with_handle(
     );
     // Snapshot every channel before a grouped write, for best-effort rollback.
     let previous = control.volume_channels.iter().map(|&channel| read_feature_unit_i16_control(
-        handle, control.interface_number, control.feature_unit_id, channel,
+        device, control.interface_number, control.feature_unit_id, channel,
         control.protocol.current_request(), UAC2_FEATURE_UNIT_VOLUME_CONTROL,
     )).collect::<Result<Vec<_>, _>>()?;
     for (index, &channel) in control.volume_channels.iter().enumerate() {
@@ -3749,12 +3677,12 @@ fn apply_android_usb_hardware_volume_with_handle(
             .is_some_and(|current| current.hardware_volume_generation == generation);
         if !unchanged { return Err("USB volume route changed before write".to_string()); }
         if let Err(error) = write_feature_unit_i16_control(
-            handle, control.interface_number, control.feature_unit_id, channel,
+            device, control.interface_number, control.feature_unit_id, channel,
             UAC2_FEATURE_UNIT_VOLUME_CONTROL, target_raw,
         ) {
             for (&channel, &raw) in control.volume_channels[..=index].iter().zip(&previous) {
                 let _ = write_feature_unit_i16_control(
-                    handle, control.interface_number, control.feature_unit_id, channel,
+                    device, control.interface_number, control.feature_unit_id, channel,
                     UAC2_FEATURE_UNIT_VOLUME_CONTROL, raw,
                 );
             }
@@ -3762,8 +3690,7 @@ fn apply_android_usb_hardware_volume_with_handle(
         }
     }
 
-    let (normalized, muted) =
-        refresh_android_usb_hardware_volume_snapshot_with_handle(handle, control)?;
+    let (normalized, muted) = refresh_android_usb_hardware_volume_snapshot(device, control)?;
 
     let expected = normalize_volume(target_raw, &control.ranges);
     if (normalized - expected).abs() > 1e-6 {
@@ -3800,14 +3727,8 @@ fn set_android_usb_hardware_volume_for_state(
         .hardware_volume_control
         .clone()
         .ok_or_else(|| "Android direct USB hardware volume is unavailable".to_string())?;
-    let claimed_handle = open_transient_usb_handle(&state.device)
-        .inspect_err(|e| {
-            dev_eprintln!("[VolFlow] open_transient_usb_handle failed: {e}");
-            set_hardware_volume_error(Some(e.clone()));
-        })?;
-
-    let (normalized, muted) = apply_android_usb_hardware_volume_with_handle(
-        &claimed_handle.handle,
+    let (normalized, muted) = apply_android_usb_hardware_volume(
+        &state.device,
         &control,
         state.hardware_volume_generation,
         volume,
@@ -3841,15 +3762,8 @@ pub fn android_direct_verify_hardware_volume_health() -> Result<bool, String> {
         .hardware_volume_control
         .clone()
         .ok_or_else(|| "Android direct USB hardware volume is unavailable".to_string())?;
-    let claimed_handle = open_transient_usb_handle(&state.device)
-        .inspect_err(|e| {
-            dev_eprintln!("[VolFlow] health: open_transient_usb_handle failed: {e}");
-            set_hardware_volume_error(Some(e.clone()));
-        })?;
-
-    let (normalized, muted) = refresh_android_usb_hardware_volume_snapshot_with_handle(
-        &claimed_handle.handle, &control,
-    ).inspect_err(|e| set_hardware_volume_error(Some(e.clone())))?;
+    let (normalized, muted) = refresh_android_usb_hardware_volume_snapshot(&state.device, &control)
+        .inspect_err(|e| set_hardware_volume_error(Some(e.clone())))?;
     publish_hardware_volume_snapshot(state.hardware_volume_generation, normalized, muted)?;
     Ok(true)
 }
@@ -3868,14 +3782,12 @@ pub fn android_direct_set_hardware_mute(muted: bool) -> Result<(), String> {
     let mute_channel = control
         .mute_channel
         .ok_or_else(|| "Android direct USB hardware mute is unavailable".to_string())?;
-    let claimed_handle = open_transient_usb_handle(&state.device)?;
-
     if !DIRECT_USB_STATE.lock().as_ref()
         .is_some_and(|current| current.hardware_volume_generation == state.hardware_volume_generation) {
         return Err("USB mute route changed before write".to_string());
     }
     let write_result = write_feature_unit_bool_control(
-        &claimed_handle.handle,
+        &state.device,
         control.interface_number,
         control.feature_unit_id,
         mute_channel,
@@ -3883,8 +3795,7 @@ pub fn android_direct_set_hardware_mute(muted: bool) -> Result<(), String> {
         muted,
     );
     write_result?;
-    let snapshot_result =
-        refresh_android_usb_hardware_volume_snapshot_with_handle(&claimed_handle.handle, &control);
+    let snapshot_result = refresh_android_usb_hardware_volume_snapshot(&state.device, &control);
     let (normalized, snapshot_muted) = snapshot_result?;
     // Publish the observed state even when mute readback fails or disagrees.
     // Healthy volume must remain usable, and an unknown mute must not stay cached.
@@ -3897,14 +3808,21 @@ pub fn android_direct_set_hardware_mute(muted: bool) -> Result<(), String> {
 
 fn inspect_android_usb_capabilities(
     device: &AndroidDirectUsbDevice,
-) -> Result<AndroidDirectUsbCapabilityModel, String> {
-    prepare_direct_usb_libusb();
-    let context =
-        Context::new().map_err(|error| format!("Failed to create libusb context: {}", error))?;
-    let handle = unsafe { context.open_device_with_fd(device.fd) }
-        .map_err(|error| format!("Failed to wrap Android USB file descriptor: {}", error))?;
-    let inspected_device = handle.device();
-    build_android_usb_capability_model(&inspected_device, &handle, resolve_device_speed(&inspected_device))
+) -> Result<Option<AndroidDirectUsbCapabilityModel>, String> {
+    let claimed_handle = wrap_android_usb_handle(device)?;
+    let inspected_device = claimed_handle.handle.device();
+    let config = inspected_device
+        .active_config_descriptor()
+        .map_err(|error| format!("Failed to read active USB config descriptor: {}", error))?;
+    // Capability discovery makes clock/endpoint control requests. Reject a
+    // mismatched handoff before any of those can implicitly claim interfaces.
+    validate_android_usb_claims(&claimed_handle, &config)?;
+    Ok(build_android_usb_capability_model(
+        &inspected_device,
+        &claimed_handle.handle,
+        resolve_device_speed(&inspected_device),
+    )
+    .ok())
 }
 
 fn build_android_usb_capability_model(
@@ -4024,30 +3942,17 @@ fn build_android_usb_capability_model(
 }
 
 fn cleanup_claimed_handle(
-    mut claimed_handle: AndroidDirectUsbClaimedHandle,
+    claimed_handle: AndroidDirectUsbClaimedHandle,
     active_interface: Option<u8>,
-    _keep_locked: bool,
+    keep_locked: bool,
 ) {
     if let Some(interface_number) = active_interface {
-        let _ = claimed_handle
-            .handle
-            .set_alternate_setting(interface_number, 0);
+        let _ = claimed_handle.set_alternate_setting(interface_number, 0);
     }
 
-    let device_registered = DIRECT_USB_STATE.lock().is_some();
-    if device_registered {
-        if let Ok(interfaces) = discover_audio_streaming_interfaces(&claimed_handle.handle.device())
-        {
-            for interface_number in interfaces {
-                let _ = claimed_handle.ensure_interface_claimed(interface_number);
-            }
-        }
-
+    if keep_locked && current_lock_requested_for_fd(claimed_handle.device_fd) {
         *DIRECT_USB_LOCK.lock() = Some(claimed_handle.into_idle_lock());
-        return;
     }
-
-    release_claimed_interfaces(&claimed_handle.handle, &claimed_handle.claimed_interfaces);
 }
 
 fn ensure_android_usb_idle_lock() -> Result<(), String> {
@@ -4060,20 +3965,15 @@ fn ensure_android_usb_idle_lock() -> Result<(), String> {
         .as_ref()
         .cloned()
         .ok_or_else(|| "No Android direct USB DAC is registered".to_string())?;
-    let mut claimed_handle = open_claimed_usb_handle(&state.device).map_err(|error| {
+    let claimed_handle = open_claimed_usb_handle(&state.device).map_err(|error| {
         set_last_error(Some(error.clone()));
         set_direct_mode_refusal_reason(Some(error.clone()));
         set_android_usb_engine_state(AndroidDirectUsbEngineState::Error, Some(error.clone()));
         error
     })?;
 
-    let interfaces = discover_audio_streaming_interfaces(&claimed_handle.handle.device())?;
-    for interface_number in interfaces {
-        claimed_handle.ensure_interface_claimed(interface_number)?;
-    }
-
     dev_eprintln!(
-        "Android USB direct idle lock claimed '{}' interfaces {:?}",
+        "Android USB direct idle lock using Android claims for '{}' interfaces {:?}",
         state.device.product_name, claimed_handle.claimed_interfaces
     );
 
@@ -4107,32 +4007,24 @@ pub fn create_android_usb_backend(
         thread::sleep(Duration::from_millis(100));
     }
 
-    // Fresh session: clear any stop signal left by a prior teardown.
-    USB_STOP_REQUESTED.store(false, Ordering::SeqCst);
-
-    if USB_SESSION_ACTIVE.swap(true, Ordering::SeqCst) {
-        dev_eprintln!("Android USB direct: force-releasing stale USB session guard");
-        force_release_usb_session();
-        USB_SESSION_ACTIVE.store(true, Ordering::SeqCst);
-    }
-
-    match create_android_usb_backend_inner(callback_data, event_tx, preferred_sample_rate) {
-        Ok(Some(backend)) => Ok(Some(backend)),
-        Ok(None) => {
-            USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
-            Ok(None)
+    let session = {
+        let _session_gate = USB_SESSION_GATE.lock();
+        if USB_SESSION_CLEAR_PENDING.load(Ordering::SeqCst) {
+            return Ok(None);
         }
-        Err(error) => {
-            USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
-            Err(error)
+        if is_usb_session_active() {
+            return Err("Previous Android direct USB session is still stopping".to_string());
         }
-    }
+        Arc::new(AndroidUsbSessionGuard::start_locked())
+    };
+    create_android_usb_backend_inner(callback_data, event_tx, preferred_sample_rate, &session)
 }
 
 fn create_android_usb_backend_inner(
     callback_data: Arc<AudioCallbackData>,
     event_tx: Sender<AudioEvent>,
     mut preferred_sample_rate: u32,
+    session: &Arc<AndroidUsbSessionGuard>,
 ) -> Result<Option<AndroidDirectUsbBackend>, String> {
     // Some buggy DACs report 0 Hz via GET_CUR, and Dart passes this as
     // preferred_sample_rate = 0. Use the requested playback format's rate
@@ -4247,7 +4139,7 @@ fn create_android_usb_backend_inner(
     set_android_usb_engine_state(AndroidDirectUsbEngineState::UsbInit, None);
     let clock_settle_delay_ms = resolve_dac_settle_delay_ms(&state.device);
 
-    let mut claimed_handle = open_claimed_usb_handle(&state.device).map_err(|error| {
+    let claimed_handle = open_claimed_usb_handle(&state.device).map_err(|error| {
         set_last_error(Some(error.clone()));
         set_direct_mode_refusal_reason(Some(error.clone()));
         set_android_usb_engine_state(AndroidDirectUsbEngineState::Error, Some(error.clone()));
@@ -4313,7 +4205,7 @@ fn create_android_usb_backend_inner(
     let volume_hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
     let hardware_volume_control = discover_android_usb_hardware_volume_control(
         &device,
-        &claimed_handle.handle,
+        &state.device,
         &candidate,
         clock.map(|clock| clock.interface_number),
     );
@@ -4353,8 +4245,8 @@ fn create_android_usb_backend_inner(
             .unwrap_or_default();
         let restore_requested = pending_restore.is_some();
         let snapshot = if let Some(target) = pending_restore {
-            match apply_android_usb_hardware_volume_with_handle(
-                &claimed_handle.handle,
+            match apply_android_usb_hardware_volume(
+                &state.device,
                 control,
                 generation,
                 target,
@@ -4382,10 +4274,7 @@ fn create_android_usb_backend_inner(
                 }
             }
         } else {
-            refresh_android_usb_hardware_volume_snapshot_with_handle(
-                &claimed_handle.handle,
-                control,
-            )
+            refresh_android_usb_hardware_volume_snapshot(&state.device, control)
         };
         match snapshot {
             Ok((volume, muted)) => {
@@ -4500,10 +4389,17 @@ fn create_android_usb_backend_inner(
         return Err(error);
     }
 
-    claimed_handle
-        .handle
-        .set_alternate_setting(candidate.interface_number, 0)
-        .ok();
+    if let Err(error) = claimed_handle.set_alternate_setting(candidate.interface_number, 0) {
+        let message = format!(
+            "Failed to reset USB interface {} to alt 0: {}",
+            candidate.interface_number, error
+        );
+        set_last_error(Some(message.clone()));
+        set_direct_mode_refusal_reason(Some(message.clone()));
+        set_android_usb_engine_state(AndroidDirectUsbEngineState::Error, Some(message.clone()));
+        cleanup_claimed_handle(claimed_handle, None, lock_requested);
+        return Err(message);
+    }
     thread::sleep(Duration::from_millis(50));
 
     let mut clock_control_attempted = state.clock_control_attempted;
@@ -4515,12 +4411,12 @@ fn create_android_usb_backend_inner(
         .and_then(|status| status.reported_sample_rate);
 
     if let Some(clock) = clock {
-        if let Err(e) = claimed_handle.ensure_interface_claimed(clock.interface_number) {
-            log::error!(
-                "[USB] Failed to claim AudioControl interface {}: {}",
-                clock.interface_number,
-                e,
-            );
+        if let Err(error) = claimed_handle.ensure_interface_claimed(clock.interface_number) {
+            set_last_error(Some(error.clone()));
+            set_direct_mode_refusal_reason(Some(error.clone()));
+            set_android_usb_engine_state(AndroidDirectUsbEngineState::Error, Some(error.clone()));
+            cleanup_claimed_handle(claimed_handle, Some(candidate.interface_number), lock_requested);
+            return Err(error);
         }
         match state.dac_mode {
             DacMode::FullControl => {
@@ -4775,9 +4671,8 @@ fn create_android_usb_backend_inner(
         set_last_error(Some(message));
     }
 
-    if let Err(error) = claimed_handle
-        .handle
-        .set_alternate_setting(candidate.interface_number, candidate.alt_setting)
+    if let Err(error) =
+        claimed_handle.set_alternate_setting(candidate.interface_number, candidate.alt_setting)
     {
         let msg = format!(
             "Failed to set USB alt setting {} on interface {}: {}",
@@ -5222,10 +5117,15 @@ fn create_android_usb_backend_inner(
         ANDROID_USB_BUFFER_TARGET_MS,
     ));
     set_runtime_stats(Some(Arc::clone(&runtime_stats)));
-    let mut preview_scheduler = IsoPacketScheduler::new(
+    let geometry = IsoQueueGeometry::for_stream(
+        candidate.service_interval_us,
+        playback_format.is_dop || playback_format.dsd_transport == DsdTransportMode::Native,
+    );
+    let mut preview_scheduler = IsoPacketScheduler::with_geometry(
         playback_format.sample_rate,
         bytes_per_frame,
         candidate.service_interval_us,
+        geometry,
     );
     let packet_schedule_preview = preview_scheduler
         .next_transfer_packet_bytes()
@@ -5307,9 +5207,15 @@ fn create_android_usb_backend_inner(
     let backend_endpoint_address = candidate.endpoint_address;
     let backend_interface_number = candidate.interface_number;
     let backend_alt_setting = candidate.alt_setting;
+    let output_session = Arc::clone(session);
+    // Publish before spawning: the output thread can fail immediately and must
+    // not have its error state overwritten by the caller.
+    set_android_usb_engine_state(AndroidDirectUsbEngineState::Streaming, None);
     let thread_handle = match thread::Builder::new()
         .name("android-usb-direct-output".to_string())
         .spawn(move || {
+            // Keep the interfaces alive until the loop and its USB handles are done.
+            let _session = output_session;
             #[cfg(target_os = "android")]
             if set_audio_thread_priority().is_err() {
                 dev_eprintln!("[AudioSched] Output thread running without SCHED_FIFO");
@@ -5344,8 +5250,6 @@ fn create_android_usb_backend_inner(
                 set_stream_active(false);
                 set_runtime_stats(None);
                 set_usb_stream_stable(false);
-                USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
-                complete_pending_android_usb_clear_if_idle();
             }
         }) {
         Ok(handle) => handle,
@@ -5385,7 +5289,6 @@ fn create_android_usb_backend_inner(
         playback_format.sample_rate,
         dsd_transport_label,
     );
-    set_android_usb_engine_state(AndroidDirectUsbEngineState::Streaming, None);
     Ok(Some(AndroidDirectUsbBackend {
         stop,
         producer_thread_handle: Some(producer_thread_handle),
@@ -5417,8 +5320,6 @@ impl AndroidDirectUsbBackend {
             }
         }
 
-        USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
-        complete_pending_android_usb_clear_if_idle();
         match first_error {
             Some(error) => Err(error),
             None => Ok(()),
@@ -5429,8 +5330,6 @@ impl AndroidDirectUsbBackend {
 impl Drop for AndroidDirectUsbBackend {
     fn drop(&mut self) {
         let _ = self.stop();
-        USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
-        complete_pending_android_usb_clear_if_idle();
     }
 }
 
@@ -6011,12 +5910,17 @@ fn run_usb_output_loop(
 
     let channels = candidate.channels as usize;
     let bytes_per_frame = slot_bytes.saturating_mul(channels);
-    let mut scheduler = IsoPacketScheduler::new(
+    let geometry = IsoQueueGeometry::for_stream(
+        candidate.service_interval_us,
+        playback_format.is_dop || playback_format.dsd_transport == DsdTransportMode::Native,
+    );
+    let mut scheduler = IsoPacketScheduler::with_geometry(
         playback_format.sample_rate,
         bytes_per_frame,
         candidate.service_interval_us,
+        geometry,
     );
-    let transfer_slot_count = ANDROID_USB_TRANSFER_QUEUE_DEPTH.max(1);
+    let transfer_slot_count = geometry.transfer_slots;
     // One-shot: prove whether the sink links a feedback endpoint at all. If this
     // dump shows a FeedbackData IN endpoint that descriptor parsing missed, the
     // discovery path is wrong; if it shows none, host-side feedback is
@@ -6078,6 +5982,13 @@ fn run_usb_output_loop(
 
     let priming_target = runtime_stats.buffer_target_samples;
     log_info!(
+        "[USB] Isochronous queue: serviceIntervalUs={} packetsPerTransfer={} slots={} stableTransfers={}",
+        candidate.service_interval_us,
+        geometry.packets_per_transfer,
+        geometry.transfer_slots,
+        geometry.stable_transfers,
+    );
+    log_info!(
         "[USB] Waiting for stream prime: buffered_samples must reach buffer_target_samples={} before isochronous submit",
         priming_target,
     );
@@ -6095,6 +6006,9 @@ fn run_usb_output_loop(
     }
 
     for slot_index in 0..transfer_slot_count {
+        if usb_stop_requested(&stop) {
+            break;
+        }
         match IsoTransferSlot::new(
             slot_index,
             scheduler.packets_per_transfer(),
@@ -6114,6 +6028,9 @@ fn run_usb_output_loop(
     let stream_started_at = Instant::now();
     if fatal_error.is_none() {
         for slot in slots.iter_mut() {
+            if usb_stop_requested(&stop) {
+                break;
+            }
             let payload = match prepare_iso_transfer_payload(
                 &mut scheduler,
                 &pcm_buffer,
@@ -6158,7 +6075,7 @@ fn run_usb_output_loop(
     }
     min_active_slots = min_active_slots.min(active_slots);
 
-    if let Some(slot) = feedback_slot.as_mut() {
+    if let Some(slot) = feedback_slot.as_mut().filter(|_| !usb_stop_requested(&stop)) {
         let endpoint = slot.endpoint;
         match slot.submit(&handle) {
             Ok(()) => {
@@ -6383,7 +6300,7 @@ fn run_usb_output_loop(
                 }
             }
 
-            if successful_transfers >= ANDROID_USB_STABLE_TRANSFER_THRESHOLD {
+            if successful_transfers >= geometry.stable_transfers {
                 if !completed_underrun {
                     set_usb_stream_stable(true);
                     if !logged_usb_stabilized {
@@ -6438,8 +6355,6 @@ fn run_usb_output_loop(
     set_stream_active(false);
     set_runtime_stats(None);
     set_usb_stream_stable(false);
-    USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
-    complete_pending_android_usb_clear_if_idle();
     if usb_stop_requested(&stop) {
         set_android_usb_engine_state(AndroidDirectUsbEngineState::Idle, None);
     }
@@ -6874,30 +6789,47 @@ fn find_feedback_endpoint(
     Some(feedback)
 }
 
-fn discover_audio_streaming_interfaces(device: &Device<Context>) -> Result<Vec<u8>, String> {
-    let config_descriptor = device
-        .active_config_descriptor()
-        .map_err(|error| format!("Failed to read active USB config descriptor: {}", error))?;
-
-    let mut interfaces = Vec::new();
+fn validate_android_usb_claims(
+    claimed_handle: &AndroidDirectUsbClaimedHandle,
+    config_descriptor: &ConfigDescriptor,
+) -> Result<(), String> {
+    let mut required = HashSet::new();
+    let mut has_control = false;
+    let mut has_playback = false;
     for interface in config_descriptor.interfaces() {
         for descriptor in interface.descriptors() {
-            if descriptor.class_code() == USB_CLASS_AUDIO
-                && descriptor.sub_class_code() == USB_SUBCLASS_AUDIOSTREAMING
-            {
-                interfaces.push(descriptor.interface_number());
+            if descriptor.class_code() != USB_CLASS_AUDIO {
+                continue;
+            }
+            match descriptor.sub_class_code() {
+                USB_SUBCLASS_AUDIOCONTROL => {
+                    required.insert(descriptor.interface_number());
+                    has_control = true;
+                }
+                USB_SUBCLASS_AUDIOSTREAMING
+                    if descriptor.endpoint_descriptors().any(|endpoint| {
+                        endpoint.direction() == Direction::Out
+                            && endpoint.transfer_type() == TransferType::Isochronous
+                    }) =>
+                {
+                    required.insert(descriptor.interface_number());
+                    has_playback = true;
+                }
+                _ => {}
             }
         }
     }
-
-    interfaces.sort_unstable();
-    interfaces.dedup();
-
-    if interfaces.is_empty() {
-        return Err("No USB audio streaming interfaces were found on the device".to_string());
+    if !has_control || !has_playback {
+        return Err("USB configuration is missing audio control or playback interfaces".to_string());
     }
-
-    Ok(interfaces)
+    let claimed: HashSet<_> = claimed_handle.claimed_interfaces.iter().copied().collect();
+    if claimed != required || claimed.len() != claimed_handle.claimed_interfaces.len() {
+        return Err(format!(
+            "Android USB claims {:?} don't match required audio control/playback interfaces {:?}",
+            claimed_handle.claimed_interfaces, required
+        ));
+    }
+    Ok(())
 }
 
 /// Find the clock entity that feeds a specific streaming interface's terminal.
