@@ -45,6 +45,21 @@ including a volume change made while paused. Seek discards audio from the old
 position and sends silence until the new decoder can supply audio. Intentional
 silence does not count as an underrun, and transport errors still count.
 
+## Hardware volume
+
+Live volume, mute and periodic level reads run on a separate worker using the
+claimed USB connection. The synchronous usbfs control transfers do not reap
+libusb streaming completions or run on the audio submission thread. The worker
+checks the DAC and active Feature Unit generation before starting a request.
+Release waits for an in-flight control operation before returning the interfaces
+to Android.
+
+Flick checks the DAC's readback before accepting a new level or mute setting.
+If verification fails, it attempts to restore the previous setting on that
+connection and reports the error. A failed direct USB write does not turn into
+an Android volume change. Before a new stream starts, any remembered hardware
+level is still restored and verified before the first audio is sent.
+
 ## Reconnect
 
 Automatic resume requires the same track, enabled USB auto-engage and
@@ -78,7 +93,9 @@ disconnect** is disabled and no DAC is present.
    playing and while paused. Listen for old audio after the seek and confirm
    the DAC stays locked. With PCM software volume, lower it while paused and
    check the first audio after resume. If the DAC supports hardware volume,
-   change it at a safe level during playback and listen for interruptions.
+   adjust it at a safe level during playback. Check the displayed readback,
+   try hardware mute if supported, and listen for interruptions. Repeat after
+   pausing and after reconnecting the DAC.
    On a compatible DAC, repeat pause and seek with native DSD and DoP.
    With pause-on-connect off, unplug during playback and reconnect
    the same DAC. Check that playback continues once at the retained position
