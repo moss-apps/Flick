@@ -110,13 +110,18 @@ class BitPerfectIndicator extends ConsumerWidget {
     return 'SD';
   }
 
+  static bool isVerified(AudioOutputDiagnostics? diagnostics) =>
+      diagnostics?.capabilityFlags.supportsVerifiedBitPerfect == true &&
+      diagnostics?.resamplerActive != true;
+
+  static bool isDirectUsb(AudioOutputDiagnostics? diagnostics) =>
+      diagnostics?.pathManagement == AudioPathManagement.directUsbExperimental;
+
   static _IndicatorState _resolveState(
     AudioOutputDiagnostics? diagnostics, {
     bool suppressVerified = false,
   }) {
-    final isVerified =
-        diagnostics?.capabilityFlags.supportsVerifiedBitPerfect == true &&
-        diagnostics?.resamplerActive != true;
+    final isVerified = BitPerfectIndicator.isVerified(diagnostics);
 
     final isLocked =
         diagnostics != null &&
@@ -143,12 +148,7 @@ class BitPerfectIndicator extends ConsumerWidget {
     required Uac2DeviceStatus? deviceStatus,
     required PlayerService playerService,
   }) {
-    final isVerified =
-        diagnostics?.capabilityFlags.supportsVerifiedBitPerfect == true &&
-        diagnostics?.resamplerActive != true;
-    final isDirectUsb =
-        diagnostics?.pathManagement ==
-        AudioPathManagement.directUsbExperimental;
+    final isVerified = BitPerfectIndicator.isVerified(diagnostics);
 
     showModalBottomSheet(
       useRootNavigator: true,
@@ -161,7 +161,6 @@ class BitPerfectIndicator extends ConsumerWidget {
         deviceStatus: deviceStatus,
         playerService: playerService,
         isVerified: isVerified,
-        isDirectUsb: isDirectUsb,
       ),
     );
   }
@@ -210,7 +209,6 @@ class _AudioInfoBottomSheet extends ConsumerStatefulWidget {
   final Uac2DeviceStatus? deviceStatus;
   final PlayerService playerService;
   final bool isVerified;
-  final bool isDirectUsb;
 
   const _AudioInfoBottomSheet({
     required this.song,
@@ -218,7 +216,6 @@ class _AudioInfoBottomSheet extends ConsumerStatefulWidget {
     required this.deviceStatus,
     required this.playerService,
     required this.isVerified,
-    required this.isDirectUsb,
   });
 
   @override
@@ -293,11 +290,25 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
                   : CrossFadeState.showFirst,
               firstChild: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                child: _buildHeader(context),
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final diagnostics =
+                        ref.watch(audioOutputDiagnosticsProvider) ??
+                        widget.diagnostics;
+                    return _buildHeader(context, diagnostics);
+                  },
+                ),
               ),
               secondChild: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                child: _buildExpandedTopBar(context),
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final diagnostics =
+                        ref.watch(audioOutputDiagnosticsProvider) ??
+                        widget.diagnostics;
+                    return _buildExpandedTopBar(context, diagnostics);
+                  },
+                ),
               ),
             ),
             // Info rows: collapse to 0 height when expanded.
@@ -403,37 +414,59 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     );
   }
 
-  /// Compact top bar shown when expanded: drag-handle region + Bit-perfect chip + close.
-  Widget _buildExpandedTopBar(BuildContext context) {
+  /// Compact top bar shown when expanded: drag-handle region + live path chip.
+  Widget _buildExpandedTopBar(
+    BuildContext context,
+    AudioOutputDiagnostics? diagnostics,
+  ) {
+    final isVerified = BitPerfectIndicator.isVerified(diagnostics);
+    final isDirectUsb = BitPerfectIndicator.isDirectUsb(diagnostics);
+    final MaterialColor? chipColor = isVerified
+        ? Colors.green
+        : isDirectUsb
+            ? Colors.blue
+            : null;
+    final label = isVerified
+        ? l10n.bitPerfect2
+        : isDirectUsb
+            ? l10n.directUsb
+            : null;
+    final icon = isVerified
+        ? Icons.verified_rounded
+        : isDirectUsb
+            ? LucideIcons.audioWaveform
+            : null;
+
     return SizedBox(
       height: 36,
       child: Row(
         children: [
           const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.verified_rounded, size: 12, color: Colors.green.shade400),
-                const SizedBox(width: 4),
-                Text(
-                  l10n.bitPerfect2,
-                  style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green.shade400,
+          if (chipColor != null && label != null && icon != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: chipColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: chipColor.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 12, color: chipColor.shade400),
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontFamily: 'GoogleSansFlex',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: chipColor.shade400,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -454,25 +487,30 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(
+    BuildContext context,
+    AudioOutputDiagnostics? diagnostics,
+  ) {
+    final isVerified = BitPerfectIndicator.isVerified(diagnostics);
+    final isDirectUsb = BitPerfectIndicator.isDirectUsb(diagnostics);
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: widget.isVerified
+            color: isVerified
                 ? Colors.green.withValues(alpha: 0.15)
-                : widget.isDirectUsb
+                : isDirectUsb
                     ? Colors.blue.withValues(alpha: 0.15)
                     : AppColors.glassBackgroundStrong,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
-            widget.isVerified ? LucideIcons.badgeCheck : LucideIcons.audioWaveform,
+            isVerified ? LucideIcons.badgeCheck : LucideIcons.audioWaveform,
             size: 20,
-            color: widget.isVerified
+            color: isVerified
                 ? Colors.green.shade400
-                : widget.isDirectUsb
+                : isDirectUsb
                     ? Colors.blue.shade400
                     : context.adaptiveTextPrimary,
           ),
@@ -491,7 +529,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
                   color: context.adaptiveTextPrimary,
                 ),
               ),
-              if (widget.isVerified)
+              if (isVerified)
                 Text(
                   l10n.bitPerfectVerified,
                   style: TextStyle(
@@ -501,7 +539,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
                     fontWeight: FontWeight.w500,
                   ),
                 )
-              else if (widget.isDirectUsb)
+              else if (isDirectUsb)
                 Text(
                   l10n.directUsbExperimental,
                   style: TextStyle(
@@ -514,7 +552,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
             ],
           ),
         ),
-        if (widget.isVerified)
+        if (isVerified)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -577,10 +615,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
       );
     }
 
-    final outRate =
-        d?.reportedOutputSampleRate ??
-        d?.requestedOutputSampleRate ??
-        widget.deviceStatus?.currentFormat?.sampleRate;
+    final outRate = d?.reportedOutputSampleRate;
     if (outRate != null) {
       // DSD transports report a divided rate (native ÷8, DoP ÷16, wire ÷32).
       // Show the DSD bit rate like the DAP does; any valid domain matches.
@@ -607,8 +642,29 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           label: l10n.outputRate,
           value: _formatHz(displayRate),
           trailing: matches
-              ? Icon(Icons.check_circle_rounded, size: 14, color: Colors.green.shade400)
-              : Icon(Icons.warning_amber_rounded, size: 14, color: Colors.amber.shade400),
+              ? Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Colors.green.shade400,
+                )
+              : Icon(
+                  Icons.warning_amber_rounded,
+                  size: 14,
+                  color: Colors.amber.shade400,
+                ),
+        ),
+      );
+    } else {
+      // Android shared playback can expose the source/requested rate without
+      // reporting the actual output rate. A match here does not verify output.
+      final requestedRate = d?.requestedOutputSampleRate;
+      rows.add(
+        _buildRow(
+          context,
+          label: requestedRate == null
+              ? l10n.outputRate
+              : l10n.requestedOutputRate,
+          value: requestedRate == null ? l10n.unknown : _formatHz(requestedRate),
         ),
       );
     }
@@ -664,7 +720,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           context,
           label: l10n.route,
           value: routeLabel,
-          trailing: widget.isDirectUsb
+          trailing: BitPerfectIndicator.isDirectUsb(d)
               ? _buildTinyBadge(l10n.direct, Colors.blue)
               : (d?.isMixerManaged ?? false)
                   ? _buildTinyBadge(l10n.mixer, Colors.grey)

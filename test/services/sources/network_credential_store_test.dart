@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:flick/data/entities/network_server_entity.dart';
 import 'package:flick/services/sources/network_credential_migration.dart';
@@ -10,29 +9,14 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar_community/isar.dart';
 
+import '../isar_core_test_helper.dart';
+
 NetworkServerEntity _server(int id) => NetworkServerEntity()
   ..id = id
   ..label = 'Server $id'
   ..protocol = 'subsonic'
   ..baseUrl = 'https://server-$id.example.com'
   ..username = 'demo';
-
-String? _isarLibrary() {
-  final override = Platform.environment['ISAR_CORE_LIB'];
-  if (override != null) return override;
-  final library = Isolate.resolvePackageUriSync(
-    Uri.parse('package:isar_community_flutter_libs/isar_flutter_libs.dart'),
-  );
-  final filename = switch (Platform.operatingSystem) {
-    'linux' => 'libisar.so',
-    'macos' => 'libisar.dylib',
-    'windows' => 'isar.dll',
-    _ => null,
-  };
-  if (library == null || filename == null) return null;
-  final path = library.resolve('../${Platform.operatingSystem}/$filename');
-  return File.fromUri(path).existsSync() ? path.toFilePath() : null;
-}
 
 void main() {
   const storage = FlutterSecureStorage();
@@ -130,7 +114,7 @@ void main() {
     expect(await storage.readAll(), isEmpty);
   });
 
-  final library = _isarLibrary();
+  final library = findIsarCoreLibrary();
   test(
     'migration retries failed writes and keeps each server ID and binding',
     () async {
