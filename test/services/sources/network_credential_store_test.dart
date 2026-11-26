@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -9,7 +8,8 @@ import 'package:flick/services/sources/network_credential_store.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar_community/isar.dart';
-import 'package:path/path.dart' as p;
+
+import '../isar_core_test_helper.dart';
 
 NetworkServerEntity _server(int id) => NetworkServerEntity()
   ..id = id
@@ -17,43 +17,6 @@ NetworkServerEntity _server(int id) => NetworkServerEntity()
   ..protocol = 'subsonic'
   ..baseUrl = 'https://server-$id.example.com'
   ..username = 'demo';
-
-String? _isarLibrary() {
-  final override = Platform.environment['ISAR_CORE_LIB'];
-  if (override != null && File(override).existsSync()) return override;
-
-  final fileName = switch (Abi.current()) {
-    Abi.linuxX64 || Abi.linuxArm || Abi.linuxArm64 => 'libisar.so',
-    Abi.macosX64 || Abi.macosArm64 => 'libisar.dylib',
-    Abi.windowsX64 => 'isar.dll',
-    _ => null,
-  };
-  if (fileName == null) return null;
-
-  // Isolate.resolvePackageUri is unsupported under `flutter test`, so read
-  // the package config that pub already generated instead.
-  final packageConfig = File(
-    p.join(Directory.current.path, '.dart_tool', 'package_config.json'),
-  );
-  if (!packageConfig.existsSync()) return null;
-
-  final config =
-      jsonDecode(packageConfig.readAsStringSync()) as Map<String, dynamic>;
-  final packages = config['packages'];
-  if (packages is! List) return null;
-  for (final package in packages) {
-    if (package is! Map<String, dynamic> ||
-        package['name'] != 'isar_community_flutter_libs') {
-      continue;
-    }
-    final rootUri = package['rootUri'];
-    if (rootUri is! String) return null;
-    final root = Directory.fromUri(packageConfig.uri.resolve(rootUri));
-    final path = p.join(root.path, Platform.operatingSystem, fileName);
-    return File(path).existsSync() ? path : null;
-  }
-  return null;
-}
 
 void main() {
   const storage = FlutterSecureStorage();
@@ -151,7 +114,7 @@ void main() {
     expect(await storage.readAll(), isEmpty);
   });
 
-  final library = _isarLibrary();
+  final library = findIsarCoreLibrary();
   test(
     'migration retries failed writes and keeps each server ID and binding',
     () async {

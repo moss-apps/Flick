@@ -12,6 +12,7 @@ import 'package:http/testing.dart';
 import 'package:isar_community/isar.dart';
 import 'package:path/path.dart' as p;
 
+import 'isar_core_test_helper.dart';
 import 'network_credential_fixture.dart';
 
 const _serverId = 42;
@@ -50,44 +51,8 @@ const _Entry _what =
 const _Entry _cover =
     (href: '/music/Album%20One/cover.jpg', collection: false, size: 444);
 
-String? _isarCorePath() {
-  final override = Platform.environment['ISAR_CORE_LIB'];
-  if (override != null && File(override).existsSync()) return override;
-
-  final abi = Abi.current();
-  final fileName = switch (abi) {
-    Abi.linuxX64 ||
-    Abi.linuxArm ||
-    Abi.linuxArm64 =>
-      'libisar.so',
-    Abi.macosX64 || Abi.macosArm64 => 'libisar.dylib',
-    Abi.windowsX64 => 'isar.dll',
-    _ => null,
-  };
-  if (fileName == null) return null;
-  final platformDir = Platform.operatingSystem;
-
-  final pubCache = Platform.environment['PUB_CACHE'] ??
-      p.join(Platform.environment['HOME'] ?? '', '.pub-cache');
-  final hosted = Directory(p.join(pubCache, 'hosted', 'pub.dev'));
-  if (!hosted.existsSync()) return null;
-
-  final candidates = hosted
-      .listSync()
-      .whereType<Directory>()
-      .map((d) => p.basename(d.path))
-      .where((name) => name.startsWith('isar_community_flutter_libs-'))
-      .toList()
-    ..sort();
-  for (final name in candidates.reversed) {
-    final path = p.join(hosted.path, name, platformDir, fileName);
-    if (File(path).existsSync()) return path;
-  }
-  return null;
-}
-
 void main() async {
-  final corePath = _isarCorePath();
+  final corePath = findIsarCoreLibrary();
   late Directory tempDir;
   late Isar isar;
 
