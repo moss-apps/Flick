@@ -374,7 +374,20 @@ impl AndroidDirectUsbDevice {
             device_name,
         })
     }
+}
 
+trait FeatureUnitControl {
+    fn feature_unit_control(
+        &self,
+        request_type: u8,
+        request: u8,
+        value: u16,
+        index: u16,
+        data: &mut [u8],
+    ) -> std::io::Result<usize>;
+}
+
+impl FeatureUnitControl for AndroidDirectUsbDevice {
     fn feature_unit_control(
         &self,
         request_type: u8,
@@ -1890,28 +1903,29 @@ pub(crate) fn with_live_usb_reconnect<T>(
     start()
 }
 
-fn clear_android_usb_device_state() {
-    // Finish any in-progress Feature Unit I/O before Android releases its claims.
-    let _volume_hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
+// The caller holds USB_SESSION_GATE so the wait API cannot report success while
+// a clear is still dropping the idle handle and its device registration.
+fn complete_pending_android_usb_clear_locked() -> bool {
+    if USB_SESSION_ACTIVE.load(Ordering::SeqCst) {
+        return false;
+    }
+    if !USB_SESSION_CLEAR_PENDING.load(Ordering::SeqCst) {
+        return true;
+    }
+    // A volume operation may still be on the worker. Android can retry the
+    // clear without blocking its main thread or releasing the claimed interfaces.
+    let Some(_volume_hold) = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.try_lock() else {
+        return false;
+    };
+
+    dev_eprintln!("Android USB direct: clearing registration after USB I/O stopped");
     release_idle_lock();
     if DIRECT_USB_LIFECYCLE_STATE.lock().engine_state != AndroidDirectUsbEngineState::Fallback {
         set_android_usb_engine_state(AndroidDirectUsbEngineState::Idle, None);
     }
     *DIRECT_USB_STATE.lock() = None;
-}
-
-// The caller holds USB_SESSION_GATE so the wait API cannot report success while
-// a clear is still dropping the idle handle and its device registration.
-fn complete_pending_android_usb_clear_locked() {
-    if USB_SESSION_ACTIVE.load(Ordering::SeqCst) {
-        return;
-    }
-    if !USB_SESSION_CLEAR_PENDING.swap(false, Ordering::SeqCst) {
-        return;
-    }
-
-    dev_eprintln!("Android USB direct: clearing registration after USB I/O stopped");
-    clear_android_usb_device_state();
+    USB_SESSION_CLEAR_PENDING.store(false, Ordering::SeqCst);
+    true
 }
 
 /// Request teardown without reporting the interfaces idle before the output
@@ -1934,7 +1948,9 @@ pub fn register_android_usb_device(device: AndroidDirectUsbDevice) -> Result<(),
         ));
     }
 
-    complete_pending_android_usb_clear_locked();
+    if !complete_pending_android_usb_clear_locked() {
+        return Err("The previous Android direct USB DAC is still being released".into());
+    }
     if DIRECT_USB_STATE.lock().is_some() {
         return Err(
             "Release the previous Android direct USB DAC before registering another".to_string(),
@@ -1993,22 +2009,31 @@ pub fn register_android_usb_device(device: AndroidDirectUsbDevice) -> Result<(),
 /// in the state lets startup apply it before the first isochronous transfer.
 /// An already prepared DSP session must restore immediately, before Dart can
 /// enable unity-gain passthrough on that same backend.
-pub fn android_direct_queue_hardware_volume_restore(volume: f64) -> Result<(), String> {
+pub fn android_direct_queue_hardware_volume_restore(
+    volume: f64,
+    generation: u64,
+    stage_only: bool,
+) -> Result<(), String> {
     if !volume.is_finite() || !(0.0..=1.0).contains(&volume) {
         return Err(format!("USB hardware volume restore value out of range: {volume}"));
     }
-    let _hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
-    let state = DIRECT_USB_STATE
-        .lock()
-        .as_ref()
-        .cloned()
-        .ok_or_else(|| "No Android direct USB DAC is registered".to_string())?;
+    let _hold = if stage_only {
+        ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX
+            .try_lock()
+            .ok_or("USB hardware volume is busy")?
+    } else {
+        ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock()
+    };
+    let state = hardware_volume_state(generation)?;
     if state.hardware_volume_control.is_some() {
+        if stage_only {
+            return Err("USB hardware volume was prepared before restore".into());
+        }
         return set_android_usb_hardware_volume_for_state(&state, volume);
     }
     let mut guard = DIRECT_USB_STATE.lock();
     let state = guard.as_mut()
-        .filter(|current| current.hardware_volume_generation == state.hardware_volume_generation)
+        .filter(|current| volume_generation_is_current(current, generation))
         .ok_or_else(|| "USB volume route changed before restore".to_string())?;
     state.pending_hardware_volume_restore = Some(volume);
     Ok(())
@@ -2186,8 +2211,7 @@ pub fn wait_for_android_usb_session_stop(timeout: Duration) -> bool {
     let started_at = Instant::now();
     loop {
         if let Some(_session_gate) = USB_SESSION_GATE.try_lock() {
-            if !is_usb_session_active() {
-                complete_pending_android_usb_clear_locked();
+            if complete_pending_android_usb_clear_locked() {
                 return true;
             }
         }
@@ -3052,7 +3076,9 @@ fn publish_hardware_volume_snapshot(
     muted: Option<bool>,
 ) -> Result<(), String> {
     let mut guard = DIRECT_USB_STATE.lock();
-    let state = guard.as_mut().filter(|state| state.hardware_volume_generation == generation)
+    let state = guard
+        .as_mut()
+        .filter(|state| volume_generation_is_current(state, generation))
         .ok_or_else(|| "USB volume route changed during control transfer".to_string())?;
     state.hardware_volume_normalized = Some(volume);
     state.hardware_mute_active = muted;
@@ -3431,7 +3457,7 @@ fn parse_audio_control_topologies(
 }
 
 fn read_feature_unit_i16_control(
-    device: &AndroidDirectUsbDevice,
+    device: &impl FeatureUnitControl,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3458,7 +3484,7 @@ fn read_feature_unit_i16_control(
 }
 
 fn write_feature_unit_i16_control(
-    device: &AndroidDirectUsbDevice,
+    device: &impl FeatureUnitControl,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3483,7 +3509,7 @@ fn write_feature_unit_i16_control(
 }
 
 fn read_feature_unit_bool_control(
-    device: &AndroidDirectUsbDevice,
+    device: &impl FeatureUnitControl,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3516,7 +3542,7 @@ fn read_feature_unit_bool_control(
 }
 
 fn write_feature_unit_bool_control(
-    device: &AndroidDirectUsbDevice,
+    device: &impl FeatureUnitControl,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3717,7 +3743,7 @@ fn discover_android_usb_hardware_volume_control(
 }
 
 fn refresh_android_usb_hardware_volume_snapshot(
-    device: &AndroidDirectUsbDevice,
+    device: &impl FeatureUnitControl,
     control: &AndroidDirectUsbHardwareVolumeControl,
 ) -> Result<(f64, Option<bool>), String> {
     const GET_CUR_RETRIES: u32 = 3;
@@ -3757,11 +3783,44 @@ fn refresh_android_usb_hardware_volume_snapshot(
 }
 
 pub fn android_direct_has_hardware_volume_control() -> bool {
+    android_direct_hardware_volume_generation(true).is_some()
+}
+
+pub fn android_direct_hardware_volume_generation(require_hardware_control: bool) -> Option<u64> {
+    let state = DIRECT_USB_STATE.lock();
+    if USB_SESSION_CLEAR_PENDING.load(Ordering::SeqCst) {
+        return None;
+    }
+    state
+        .as_ref()
+        .filter(|state| !require_hardware_control || state.hardware_volume_control.is_some())
+        .map(|state| state.hardware_volume_generation)
+}
+
+fn volume_generation_is_current(state: &AndroidDirectUsbState, generation: u64) -> bool {
+    state.hardware_volume_generation == generation
+        && !USB_SESSION_CLEAR_PENDING.load(Ordering::SeqCst)
+}
+
+fn hardware_volume_state(generation: u64) -> Result<AndroidDirectUsbState, String> {
     DIRECT_USB_STATE
         .lock()
         .as_ref()
-        .and_then(|state| state.hardware_volume_control.as_ref())
-        .is_some()
+        .filter(|state| volume_generation_is_current(state, generation))
+        .cloned()
+        .ok_or_else(|| "USB volume route changed before control transfer".into())
+}
+
+fn record_hardware_volume_error(generation: u64, error: &str) {
+    if let Some(state) = DIRECT_USB_STATE
+        .lock()
+        .as_mut()
+        .filter(|state| volume_generation_is_current(state, generation))
+    {
+        state.hardware_volume_error = Some(error.to_owned());
+        state.hardware_volume_normalized = None;
+        state.hardware_mute_active = None;
+    }
 }
 
 pub fn android_direct_cached_hardware_volume() -> Option<f64> {
@@ -3779,13 +3838,16 @@ pub fn android_direct_cached_hardware_mute() -> Option<bool> {
 }
 
 fn apply_android_usb_hardware_volume(
-    device: &AndroidDirectUsbDevice,
+    device: &impl FeatureUnitControl,
     control: &AndroidDirectUsbHardwareVolumeControl,
-    generation: u64,
     volume: f64,
+    route_is_current: impl Fn() -> bool,
 ) -> Result<(f64, Option<bool>), String> {
     if !volume.is_finite() {
         return Err("USB hardware volume must be finite".to_string());
+    }
+    if !route_is_current() {
+        return Err("USB volume route changed before write".into());
     }
     let target_raw = quantize_volume(volume, &control.ranges);
     dev_eprintln!(
@@ -3793,53 +3855,311 @@ fn apply_android_usb_hardware_volume(
         control.min_volume_raw, control.max_volume_raw, control.resolution_raw
     );
     // Snapshot every channel before a grouped write, for best-effort rollback.
-    let previous = control.volume_channels.iter().map(|&channel| read_feature_unit_i16_control(
-        device, control.interface_number, control.feature_unit_id, channel,
-        control.protocol.current_request(), UAC2_FEATURE_UNIT_VOLUME_CONTROL,
-    )).collect::<Result<Vec<_>, _>>()?;
-    for (index, &channel) in control.volume_channels.iter().enumerate() {
-        let unchanged = DIRECT_USB_STATE.lock().as_ref()
-            .is_some_and(|current| current.hardware_volume_generation == generation);
-        if !unchanged { return Err("USB volume route changed before write".to_string()); }
-        if let Err(error) = write_feature_unit_i16_control(
-            device, control.interface_number, control.feature_unit_id, channel,
-            UAC2_FEATURE_UNIT_VOLUME_CONTROL, target_raw,
-        ) {
-            for (&channel, &raw) in control.volume_channels[..=index].iter().zip(&previous) {
-                let _ = write_feature_unit_i16_control(
-                    device, control.interface_number, control.feature_unit_id, channel,
-                    UAC2_FEATURE_UNIT_VOLUME_CONTROL, raw,
-                );
+    let previous = control
+        .volume_channels
+        .iter()
+        .map(|&channel| {
+            read_feature_unit_i16_control(
+                device,
+                control.interface_number,
+                control.feature_unit_id,
+                channel,
+                control.protocol.current_request(),
+                UAC2_FEATURE_UNIT_VOLUME_CONTROL,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut attempted = 0;
+    let result = (|| {
+        for &channel in &control.volume_channels {
+            if !route_is_current() {
+                return Err("USB volume route changed before write".into());
             }
-            return Err(error);
+            // A failed transfer may still have changed the device. Include it
+            // when restoring the previous levels.
+            attempted += 1;
+            write_feature_unit_i16_control(
+                device,
+                control.interface_number,
+                control.feature_unit_id,
+                channel,
+                UAC2_FEATURE_UNIT_VOLUME_CONTROL,
+                target_raw,
+            )?;
+        }
+        if !route_is_current() {
+            return Err("USB volume route changed before readback".into());
+        }
+        let (normalized, muted) = refresh_android_usb_hardware_volume_snapshot(device, control)?;
+        if !route_is_current() {
+            return Err("USB volume route changed during readback".into());
+        }
+        let expected = normalize_volume(target_raw, &control.ranges);
+        if (normalized - expected).abs() > 1e-6 {
+            return Err(format!(
+                "volume verification failed: expected {expected:.3}, got {normalized:.3}"
+            ));
+        }
+        Ok((normalized, muted))
+    })();
+    let Err(error) = result else {
+        return result;
+    };
+
+    // SET_CUR and its readback are one transaction. A successful write with
+    // failed verification must not quietly leave the new gain in place. The
+    // caller still holds the volume lock, so rollback uses the old DAC's fd
+    // even if disconnect has been requested.
+    let mut rollback_error = None;
+    for (&channel, &raw) in control.volume_channels[..attempted].iter().zip(&previous) {
+        if let Err(error) = write_feature_unit_i16_control(
+            device,
+            control.interface_number,
+            control.feature_unit_id,
+            channel,
+            UAC2_FEATURE_UNIT_VOLUME_CONTROL,
+            raw,
+        ) {
+            rollback_error.get_or_insert(error);
         }
     }
 
-    let (normalized, muted) = refresh_android_usb_hardware_volume_snapshot(device, control)?;
-
-    let expected = normalize_volume(target_raw, &control.ranges);
-    if (normalized - expected).abs() > 1e-6 {
-        dev_eprintln!(
-            "[VolFlow] post-SET_CUR volume mismatch: expected={expected:.3} got={normalized:.3}"
-        );
-        return Err(format!(
-            "volume verification failed: expected {:.3}, got {:.3}",
-            expected, normalized
-        ));
+    if let Some(rollback_error) = rollback_error {
+        return Err(format!("{error}; USB volume rollback failed: {rollback_error}"));
     }
-    Ok((normalized, muted))
+    Err(error)
 }
 
-pub fn android_direct_set_hardware_volume(volume: f64) -> Result<(), String> {
+#[cfg(test)]
+mod feature_unit_control_tests {
+    use super::*;
+    use std::cell::{Cell, RefCell};
+
+    struct FakeDac {
+        volume: RefCell<[i16; 2]>,
+        muted: Cell<bool>,
+        requests: RefCell<Vec<(u8, u8, u16, u16)>>,
+        failed_write_channel: Cell<Option<u16>>,
+        readback_failures: Cell<usize>,
+        fail_unmute_readback: bool,
+        ignore_higher_volume: bool,
+        mute_unavailable: bool,
+    }
+
+    impl FakeDac {
+        fn new() -> Self {
+            Self {
+                volume: RefCell::new([-500, -500]),
+                muted: Cell::new(false),
+                requests: RefCell::new(Vec::new()),
+                failed_write_channel: Cell::new(None),
+                readback_failures: Cell::new(0),
+                fail_unmute_readback: false,
+                ignore_higher_volume: false,
+                mute_unavailable: false,
+            }
+        }
+    }
+
+    impl FeatureUnitControl for FakeDac {
+        fn feature_unit_control(
+            &self,
+            request_type: u8,
+            request: u8,
+            value: u16,
+            index: u16,
+            data: &mut [u8],
+        ) -> std::io::Result<usize> {
+            self.requests.borrow_mut().push((request_type, request, value, index));
+            let reading = request_type & USB_DIR_IN != 0;
+            let channel = value & 0xff;
+            if value & 0xff00 == UAC2_FEATURE_UNIT_MUTE_CONTROL {
+                if self.mute_unavailable {
+                    return Err(std::io::ErrorKind::BrokenPipe.into());
+                }
+                if reading {
+                    if self.fail_unmute_readback && !self.muted.get() {
+                        return Err(std::io::ErrorKind::TimedOut.into());
+                    }
+                    data.copy_from_slice(&[u8::from(self.muted.get())]);
+                } else {
+                    self.muted.set(data[0] != 0);
+                }
+                return Ok(data.len());
+            }
+            let slot = usize::from(channel - 1);
+            let mut volume = self.volume.borrow_mut();
+            if reading {
+                if volume[slot] == 0 && self.readback_failures.get() > 0 {
+                    self.readback_failures.set(self.readback_failures.get() - 1);
+                    return Err(std::io::ErrorKind::TimedOut.into());
+                }
+                data.copy_from_slice(&volume[slot].to_le_bytes());
+            } else {
+                let target = i16::from_le_bytes(data.try_into().unwrap());
+                if !self.ignore_higher_volume || target <= volume[slot] {
+                    volume[slot] = target;
+                }
+                // Model a write that reached the DAC but returned an error.
+                if self.failed_write_channel.get() == Some(channel) {
+                    self.failed_write_channel.set(None);
+                    return Err(std::io::ErrorKind::BrokenPipe.into());
+                }
+            }
+            Ok(data.len())
+        }
+    }
+
+    fn stereo_control() -> AndroidDirectUsbHardwareVolumeControl {
+        AndroidDirectUsbHardwareVolumeControl {
+            interface_number: 3,
+            feature_unit_id: 9,
+            protocol: AudioControlProtocol::Uac2,
+            volume_channels: vec![1, 2],
+            ranges: vec![VolumeRange {
+                min: -1000,
+                max: 0,
+                resolution: 10,
+            }],
+            mute_channel: Some(0),
+            min_volume_raw: -1000,
+            max_volume_raw: 0,
+            resolution_raw: 10,
+        }
+    }
+
+    #[test]
+    fn feature_unit_requests_keep_their_class_request_encoding() {
+        let dac = FakeDac::new();
+        let current = |protocol: AudioControlProtocol| {
+            read_feature_unit_i16_control(
+                &dac,
+                3,
+                9,
+                1,
+                protocol.current_request(),
+                UAC2_FEATURE_UNIT_VOLUME_CONTROL,
+            )
+        };
+        assert_eq!(current(AudioControlProtocol::Uac2), Ok(-500));
+        assert_eq!(current(AudioControlProtocol::Uac1), Ok(-500));
+        write_feature_unit_i16_control(&dac, 3, 9, 2, UAC2_FEATURE_UNIT_VOLUME_CONTROL, -20).unwrap();
+        write_feature_unit_bool_control(&dac, 3, 9, 0, UAC2_FEATURE_UNIT_MUTE_CONTROL, true).unwrap();
+        assert!(read_feature_unit_bool_control(
+            &dac,
+            3,
+            9,
+            0,
+            AudioControlProtocol::Uac2,
+            UAC2_FEATURE_UNIT_MUTE_CONTROL,
+        )
+        .unwrap());
+        assert_eq!(
+            *dac.requests.borrow(),
+            [
+                (0xa1, 0x01, 0x0201, 0x0903),
+                (0xa1, 0x81, 0x0201, 0x0903),
+                (0x21, 0x01, 0x0202, 0x0903),
+                (0x21, 0x01, 0x0100, 0x0903),
+                (0xa1, 0x01, 0x0100, 0x0903),
+            ]
+        );
+    }
+
+    #[test]
+    fn grouped_write_restores_both_channels_when_later_set_cur_fails() {
+        let dac = FakeDac::new();
+        dac.failed_write_channel.set(Some(2));
+        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 1.0, || true)
+            .unwrap_err();
+        assert!(error.contains("SET_CUR") && error.contains("channel=2"), "{error}");
+        assert_eq!(*dac.volume.borrow(), [-500, -500]);
+    }
+
+    #[test]
+    fn grouped_write_rolls_back_when_the_new_level_cannot_be_read() {
+        let dac = FakeDac::new();
+        dac.readback_failures.set(3);
+        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 1.0, || true)
+            .unwrap_err();
+        assert!(error.contains("USB volume read request"), "{error}");
+        assert_eq!(*dac.volume.borrow(), [-500, -500]);
+    }
+
+    #[test]
+    fn grouped_write_rolls_back_after_a_mismatched_readback() {
+        let dac = FakeDac {
+            ignore_higher_volume: true,
+            ..FakeDac::new()
+        };
+        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 1.0, || true)
+            .unwrap_err();
+        assert!(error.contains("volume verification failed"), "{error}");
+        assert_eq!(*dac.volume.borrow(), [-500, -500]);
+        let writes = dac.requests.borrow().iter().filter(|r| r.0 == 0x21).count();
+        assert_eq!(writes, 4);
+    }
+
+    #[test]
+    fn verified_volume_write_does_not_require_optional_mute() {
+        let dac = FakeDac {
+            mute_unavailable: true,
+            ..FakeDac::new()
+        };
+        assert_eq!(
+            apply_android_usb_hardware_volume(&dac, &stereo_control(), 0.752, || true),
+            Ok((0.75, None))
+        );
+        assert_eq!(*dac.volume.borrow(), [-250, -250]);
+    }
+
+    #[test]
+    fn stale_control_generation_sends_no_requests() {
+        let dac = FakeDac::new();
+        assert_eq!(
+            apply_android_usb_hardware_volume(&dac, &stereo_control(), 1.0, || false),
+            Err("USB volume route changed before write".into())
+        );
+        assert!(dac.requests.borrow().is_empty());
+    }
+
+    #[test]
+    fn route_invalidation_mid_write_restores_the_original_device() {
+        let dac = FakeDac::new();
+        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 1.0, || {
+            dac.volume.borrow()[0] == -500
+        })
+        .unwrap_err();
+        assert_eq!(error, "USB volume route changed before write");
+        assert_eq!(*dac.volume.borrow(), [-500, -500]);
+        assert_eq!(
+            dac.requests.borrow().iter().filter(|r| r.0 == 0x21).count(),
+            2, // First channel's write and rollback only.
+        );
+    }
+
+    #[test]
+    fn unverifiable_unmute_restores_mute_without_touching_volume() {
+        let dac = FakeDac {
+            muted: Cell::new(true),
+            fail_unmute_readback: true,
+            ..FakeDac::new()
+        };
+        let error = apply_android_usb_hardware_mute(&dac, &stereo_control(), false, || true)
+            .unwrap_err();
+        assert!(error.contains("GET_CUR"), "{error}");
+        assert!(dac.muted.get());
+        assert_eq!(*dac.volume.borrow(), [-500, -500]);
+        assert!(dac.requests.borrow().iter().all(|request| request.2 == 0x0100));
+    }
+}
+
+pub fn android_direct_set_hardware_volume(volume: f64, generation: u64) -> Result<(), String> {
     if !volume.is_finite() {
         return Err("USB hardware volume must be finite".to_string());
     }
     let _hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
-    let state = DIRECT_USB_STATE
-        .lock()
-        .as_ref()
-        .cloned()
-        .ok_or_else(|| "No Android direct USB DAC is registered".to_string())?;
+    let state = hardware_volume_state(generation)?;
     set_android_usb_hardware_volume_for_state(&state, volume)
 }
 
@@ -3855,17 +4175,19 @@ fn set_android_usb_hardware_volume_for_state(
     let (normalized, muted) = apply_android_usb_hardware_volume(
         &state.device,
         &control,
-        state.hardware_volume_generation,
         volume,
+        || android_direct_hardware_volume_generation(true) == Some(state.hardware_volume_generation),
     )
     .inspect_err(|e| {
         dev_eprintln!("[VolFlow] SET_CUR failed: {e}");
-        set_hardware_volume_error(Some(e.clone()));
+        record_hardware_volume_error(state.hardware_volume_generation, e);
     })?;
 
     publish_hardware_volume_snapshot(state.hardware_volume_generation, normalized, muted)?;
-    if let Some(current) = DIRECT_USB_STATE.lock().as_mut()
-        .filter(|current| current.hardware_volume_generation == state.hardware_volume_generation)
+    if let Some(current) = DIRECT_USB_STATE
+        .lock()
+        .as_mut()
+        .filter(|current| volume_generation_is_current(current, state.hardware_volume_generation))
     {
         current.pending_hardware_volume_restore = None;
     }
@@ -3876,59 +4198,95 @@ fn set_android_usb_hardware_volume_for_state(
 /// Refresh actual DAC state. A physical volume-button change is not a failure.
 /// SET_CUR verification happens immediately after the write, not against an
 /// indefinitely stale value in this periodic read.
-pub fn android_direct_verify_hardware_volume_health() -> Result<bool, String> {
+pub fn android_direct_verify_hardware_volume_health(generation: u64) -> Result<(), String> {
     let _hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
-    let state = DIRECT_USB_STATE
-        .lock()
-        .as_ref()
-        .cloned()
-        .ok_or_else(|| "No Android direct USB DAC is registered".to_string())?;
+    let state = hardware_volume_state(generation)?;
     let control = state
         .hardware_volume_control
         .clone()
         .ok_or_else(|| "Android direct USB hardware volume is unavailable".to_string())?;
     let (normalized, muted) = refresh_android_usb_hardware_volume_snapshot(&state.device, &control)
-        .inspect_err(|e| set_hardware_volume_error(Some(e.clone())))?;
-    publish_hardware_volume_snapshot(state.hardware_volume_generation, normalized, muted)?;
-    Ok(true)
+        .inspect_err(|e| record_hardware_volume_error(generation, e))?;
+    publish_hardware_volume_snapshot(generation, normalized, muted)
 }
 
-pub fn android_direct_set_hardware_mute(muted: bool) -> Result<(), String> {
-    let _hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
-    let state = DIRECT_USB_STATE
-        .lock()
-        .as_ref()
-        .cloned()
-        .ok_or_else(|| "No Android direct USB DAC is registered".to_string())?;
-    let control = state
-        .hardware_volume_control
-        .clone()
-        .ok_or_else(|| "Android direct USB hardware mute is unavailable".to_string())?;
+fn apply_android_usb_hardware_mute(
+    device: &impl FeatureUnitControl,
+    control: &AndroidDirectUsbHardwareVolumeControl,
+    muted: bool,
+    route_is_current: impl Fn() -> bool,
+) -> Result<bool, String> {
     let mute_channel = control
         .mute_channel
         .ok_or_else(|| "Android direct USB hardware mute is unavailable".to_string())?;
-    if !DIRECT_USB_STATE.lock().as_ref()
-        .is_some_and(|current| current.hardware_volume_generation == state.hardware_volume_generation) {
+    if !route_is_current() {
         return Err("USB mute route changed before write".to_string());
     }
-    let write_result = write_feature_unit_bool_control(
-        &state.device,
-        control.interface_number,
-        control.feature_unit_id,
-        mute_channel,
-        UAC2_FEATURE_UNIT_MUTE_CONTROL,
-        muted,
-    );
-    write_result?;
-    let snapshot_result = refresh_android_usb_hardware_volume_snapshot(&state.device, &control);
-    let (normalized, snapshot_muted) = snapshot_result?;
-    // Publish the observed state even when mute readback fails or disagrees.
-    // Healthy volume must remain usable, and an unknown mute must not stay cached.
-    publish_hardware_volume_snapshot(state.hardware_volume_generation, normalized, snapshot_muted)?;
-    if snapshot_muted != Some(muted) {
-        return Err("USB mute write did not match readback".to_string());
+    let read_mute = || {
+        read_feature_unit_bool_control(
+            device,
+            control.interface_number,
+            control.feature_unit_id,
+            mute_channel,
+            control.protocol,
+            UAC2_FEATURE_UNIT_MUTE_CONTROL,
+        )
+    };
+    let write_mute = |value| {
+        write_feature_unit_bool_control(
+            device,
+            control.interface_number,
+            control.feature_unit_id,
+            mute_channel,
+            UAC2_FEATURE_UNIT_MUTE_CONTROL,
+            value,
+        )
+    };
+    let previous = read_mute()?;
+    if !route_is_current() {
+        return Err("USB mute route changed before write".into());
     }
-    Ok(())
+    let result = write_mute(muted).and_then(|()| {
+        if !route_is_current() {
+            return Err("USB mute route changed before readback".into());
+        }
+        let observed = read_mute()?;
+        if !route_is_current() {
+            return Err("USB mute route changed during readback".into());
+        }
+        if observed != muted {
+            return Err("USB mute write did not match readback".into());
+        }
+        Ok(observed)
+    });
+    let Err(error) = result else {
+        return result;
+    };
+    // An unverified unmute may have reached the DAC. Restore the old mute
+    // setting on the same connection without writing the volume channels.
+    match write_mute(previous) {
+        Ok(()) => Err(error),
+        Err(rollback) => Err(format!("{error}; USB mute rollback failed: {rollback}")),
+    }
+}
+
+pub fn android_direct_set_hardware_mute(muted: bool, generation: u64) -> Result<(), String> {
+    let _hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
+    let state = hardware_volume_state(generation)?;
+    let control = state
+        .hardware_volume_control
+        .as_ref()
+        .ok_or_else(|| "Android direct USB hardware mute is unavailable".to_string())?;
+    let result = apply_android_usb_hardware_mute(&state.device, control, muted, || {
+        android_direct_hardware_volume_generation(true) == Some(generation)
+    });
+    let mut guard = DIRECT_USB_STATE.lock();
+    let current = guard
+        .as_mut()
+        .filter(|state| volume_generation_is_current(state, generation))
+        .ok_or_else(|| "USB mute route changed during control transfer".to_string())?;
+    current.hardware_mute_active = result.as_ref().ok().copied();
+    result.map(|_| ())
 }
 
 fn inspect_android_usb_capabilities(
@@ -4373,8 +4731,8 @@ fn create_android_usb_backend_inner(
             match apply_android_usb_hardware_volume(
                 &state.device,
                 control,
-                generation,
                 target,
+                || android_direct_hardware_volume_generation(true) == Some(generation),
             )
             .and_then(|snapshot| {
                 publish_hardware_volume_snapshot(generation, snapshot.0, snapshot.1)?;

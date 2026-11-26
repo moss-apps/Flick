@@ -9,6 +9,7 @@
 - **Direct USB on high-speed DACs:** PCM at a 125 µs service interval uses a shorter transfer queue to address stalls observed on the OnePlus 15 and iBasso DC04U.
 - **Direct USB PCM recovery:** Flick can continue after an isolated whole-frame short completion or timeout. Uncredited frames are logged and the stream loses bit-perfect verification until restarted. Rewritten descriptors, oversized packets, and other transport errors still stop the stream. Native DSD and DoP still require exact completions.
 - **Direct USB playback controls:** Pause keeps the DAC locked without letting the audio buffer play out. Resume uses the current software volume, and seek drops buffered audio from the previous position.
+- **Direct USB hardware volume:** Live DAC volume, mute, and readback run separately from audio transfers. Failed verification attempts to restore the previous hardware setting, and pending commands are discarded when the USB route changes.
 
 ## 0.23.3-beta.5 (2026-11-20)
 
