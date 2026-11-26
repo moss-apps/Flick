@@ -23,16 +23,18 @@ saved preferences alone do not take ownership of the DAC.
   descriptor is not a substitute. If a device refuses the initial claim, retry
   after reconnecting, or test with **Disable USB audio routing** enabled in
   Developer options as a fallback.
-- Isochronous packet lengths must still match exactly and a timed-out audio
-  transfer remains fatal. PCM at a 125 µs service interval uses 16 packets
-  per transfer and eight slots (16 ms queued) instead of 32 packets and
+- PCM can continue after a bounded shortfall or timeout, but the first one
+  clears stream stability and bit-perfect verification until a new stream.
+  Native DSD and DoP still require exact completions and stop on a timeout.
+  See [USB completion diagnostics](USB_ISO_COMPLETION_DIAGNOSTICS.md).
+- PCM at a 125 µs service interval uses 16 packets per transfer and eight
+  slots (16 ms queued) instead of 32 packets and
   eight slots (32 ms). It requires 128 successful transfers, preserving
   the original 256 ms nominal window before marking the stream stable.
   Other intervals, native DSD and DoP keep their original geometry.
   The shorter queue addressed stalls on a OnePlus 15 with an iBasso DC04U.
   On that setup, the author also measured lower CPU use with 16 × 8 than
   with 8 × 16 at 44.1 kHz. This does not establish a host-controller limit.
-  See [USB completion diagnostics](USB_ISO_COMPLETION_DIAGNOSTICS.md).
 
 ## Reconnect
 
@@ -78,5 +80,9 @@ disconnect** is disabled and no DAC is present.
    DAC, source format, and whether automatic USB audio routing was enabled.
    For 125 µs PCM, the `Isochronous queue` line should show
    `packetsPerTransfer=16 slots=8 stableTransfers=128`.
+   After a recoverable PCM interruption, playback can continue on the DAC.
+   Confirm the interruption was logged and the verified badge stays off
+   until a new stream starts. Check that disconnect and reconnect still follow
+   the configured preferences.
 
 Build from the project root with `flutter run --release --flavor full`.
