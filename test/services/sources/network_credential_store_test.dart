@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:flick/data/entities/network_server_entity.dart';
 import 'package:flick/services/sources/network_credential_migration.dart';
@@ -9,6 +9,7 @@ import 'package:flick/services/sources/network_credential_store.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar_community/isar.dart';
+import 'package:path/path.dart' as p;
 
 NetworkServerEntity _server(int id) => NetworkServerEntity()
   ..id = id
@@ -19,19 +20,39 @@ NetworkServerEntity _server(int id) => NetworkServerEntity()
 
 String? _isarLibrary() {
   final override = Platform.environment['ISAR_CORE_LIB'];
-  if (override != null) return override;
-  final library = Isolate.resolvePackageUriSync(
-    Uri.parse('package:isar_community_flutter_libs/isar_flutter_libs.dart'),
-  );
-  final filename = switch (Platform.operatingSystem) {
-    'linux' => 'libisar.so',
-    'macos' => 'libisar.dylib',
-    'windows' => 'isar.dll',
+  if (override != null && File(override).existsSync()) return override;
+
+  final fileName = switch (Abi.current()) {
+    Abi.linuxX64 || Abi.linuxArm || Abi.linuxArm64 => 'libisar.so',
+    Abi.macosX64 || Abi.macosArm64 => 'libisar.dylib',
+    Abi.windowsX64 => 'isar.dll',
     _ => null,
   };
-  if (library == null || filename == null) return null;
-  final path = library.resolve('../${Platform.operatingSystem}/$filename');
-  return File.fromUri(path).existsSync() ? path.toFilePath() : null;
+  if (fileName == null) return null;
+
+  // Isolate.resolvePackageUri is unsupported under `flutter test`, so read
+  // the package config that pub already generated instead.
+  final packageConfig = File(
+    p.join(Directory.current.path, '.dart_tool', 'package_config.json'),
+  );
+  if (!packageConfig.existsSync()) return null;
+
+  final config =
+      jsonDecode(packageConfig.readAsStringSync()) as Map<String, dynamic>;
+  final packages = config['packages'];
+  if (packages is! List) return null;
+  for (final package in packages) {
+    if (package is! Map<String, dynamic> ||
+        package['name'] != 'isar_community_flutter_libs') {
+      continue;
+    }
+    final rootUri = package['rootUri'];
+    if (rootUri is! String) return null;
+    final root = Directory.fromUri(packageConfig.uri.resolve(rootUri));
+    final path = p.join(root.path, Platform.operatingSystem, fileName);
+    return File(path).existsSync() ? path : null;
+  }
+  return null;
 }
 
 void main() {
