@@ -616,6 +616,17 @@ class RustAudioService {
     return rust_audio.audioGetChannels()?.toInt();
   }
 
+  /// Drop the native engine, closing any direct USB stream, but keep the
+  /// manager initialized so the next [play] or [prepareEngine] recreates it.
+  Future<void> releaseEngine() async {
+    if (!_initialized) return;
+
+    _stopProgressUpdates();
+    await rust_audio.audioShutdown();
+    _acceptedPlaybackId = null;
+    _updateState();
+  }
+
   /// Shutdown the audio engine.
   Future<void> shutdown() async {
     if (!_initialized) return;

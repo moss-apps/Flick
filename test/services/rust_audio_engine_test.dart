@@ -27,11 +27,27 @@ class FakeRustAudioService implements RustAudioService {
   bool failHttp = false;
   bool failPlay = false;
   int resumes = 0;
+  int pauses = 0;
+  int stops = 0;
+  int releases = 0;
   int _activePlayAttempt = 0;
 
   @override
   Future<void> pause() async {
+    pauses++;
     stateNotifier.value = RustPlaybackState.paused;
+  }
+
+  @override
+  Future<void> stop() async {
+    stops++;
+    stateNotifier.value = RustPlaybackState.stopped;
+  }
+
+  @override
+  Future<void> releaseEngine() async {
+    releases++;
+    stateNotifier.value = RustPlaybackState.idle;
   }
 
   @override
@@ -260,6 +276,98 @@ void main() {
     expect(states.last.isPlaying, isTrue);
     expect(service.plays, hasLength(3));
     await subscription.cancel();
+  });
+
+  group('released output', () {
+    Future<void> pausedAt(Duration position) async {
+      await engine.load(track());
+      await engine.play();
+      service.positionNotifier.value = position;
+      await engine.pause();
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    test('play restarts the track and seeks back to the paused position', () async {
+      await pausedAt(const Duration(seconds: 7));
+      final states = <PlaybackState>[];
+      final subscription = engine.playbackStateStream.listen(states.add);
+
+      expect(await engine.releaseOutput(), isTrue);
+      expect(engine.isOutputReleased, isTrue);
+      expect(service.releases, 1);
+      expect(service.resumes, 0);
+
+      await engine.play();
+      await Future<void>.delayed(Duration.zero);
+
+      // A fresh play, never a native resume, then back to where it paused.
+      expect(service.resumes, 0);
+      expect(service.plays, hasLength(2));
+      expect(service.seeks, [const Duration(seconds: 7)]);
+      expect(engine.isOutputReleased, isFalse);
+      expect(states.last.isPlaying, isTrue);
+      await subscription.cancel();
+    });
+
+    test('seek only stages the position and never reaches native', () async {
+      await pausedAt(const Duration(seconds: 7));
+      await engine.releaseOutput();
+      final states = <PlaybackState>[];
+      final subscription = engine.playbackStateStream.listen(states.add);
+
+      await engine.seek(const Duration(seconds: 12));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.seeks, isEmpty);
+      expect(service.plays, hasLength(1));
+      expect(engine.isOutputReleased, isTrue);
+      expect(states.last.position, const Duration(seconds: 12));
+      expect(states.last.isPlaying, isFalse);
+
+      await engine.play();
+      expect(service.seeks, [const Duration(seconds: 12)]);
+      await subscription.cancel();
+    });
+
+    test('pause and stop do not reach the missing native engine', () async {
+      await pausedAt(const Duration(seconds: 7));
+      await engine.releaseOutput();
+      final pauses = service.pauses;
+
+      await engine.pause();
+      await engine.stop();
+
+      expect(service.pauses, pauses);
+      expect(service.stops, 0);
+    });
+
+    test('nothing loaded is not released; a repeat closes a reopened engine', () async {
+      expect(await engine.releaseOutput(), isFalse);
+      expect(service.releases, 0);
+
+      await pausedAt(const Duration(seconds: 7));
+      expect(await engine.releaseOutput(), isTrue);
+      await engine.seek(const Duration(seconds: 9));
+      // The service reopened a silent engine (settings change); close it again.
+      expect(await engine.releaseOutput(), isTrue);
+      expect(service.releases, 2);
+
+      await engine.play();
+      expect(service.seeks, [const Duration(seconds: 9)]);
+    });
+
+    test('loading another track ends the released state', () async {
+      await pausedAt(const Duration(seconds: 7));
+      await engine.releaseOutput();
+
+      await engine.load(track(start: 13000, end: 31000));
+      expect(engine.isOutputReleased, isFalse);
+      await engine.seek(const Duration(seconds: 3)); // Deferred, as before.
+      await engine.play();
+
+      expect(service.plays.last.start, 13.0);
+      expect(service.seeks, [const Duration(seconds: 3)]);
+    });
   });
 
   group('managed audio focus', () {
