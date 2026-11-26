@@ -63,6 +63,7 @@ import androidx.mediarouter.media.MediaRouter
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.util.Log
+import android.view.KeyEvent
 import android.os.PowerManager
 import android.os.storage.StorageManager
 import android.os.storage.StorageVolume
@@ -129,6 +130,7 @@ class MainActivity: FlutterActivity() {
     private val promptedUsbPermissionDeviceNames = mutableSetOf<String>()
     private var uac2DeviceCache: List<Map<String, Any?>>? = null
     private var uac2Channel: MethodChannel? = null
+    private var playerChannel: MethodChannel? = null
     private var audioDeviceChannel: MethodChannel? = null
     private val directUsbConnections = mutableMapOf<String, UsbDeviceConnection>()
     private var activeDirectUsbDeviceName: String? = null
@@ -691,7 +693,8 @@ class MainActivity: FlutterActivity() {
         // Engine is already cached in provideFlutterEngine
         
         // Player channel for notification control
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PLAYER_CHANNEL).setMethodCallHandler { call, result ->
+        playerChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PLAYER_CHANNEL)
+        playerChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "showNotification" -> {
                     val title = call.argument<String>("title")
@@ -776,6 +779,8 @@ class MainActivity: FlutterActivity() {
                     val isCasting = call.argument<Boolean>("isCasting")
                     val castDeviceName = call.argument<String>("castDeviceName")
                     val castVolume = call.argument<Int>("castVolume")
+                    val dacVolumeActive = call.argument<Boolean>("dacVolumeActive")
+                    val dacVolume = call.argument<Int>("dacVolume")
 
                     val intent = Intent(this, MusicNotificationService::class.java).apply {
                         title?.let { putExtra("title", it) }
@@ -789,12 +794,32 @@ class MainActivity: FlutterActivity() {
                         isCasting?.let { putExtra("isCasting", it) }
                         castDeviceName?.let { putExtra("castDeviceName", it) }
                         castVolume?.let { putExtra("castVolume", it) }
+                        dacVolumeActive?.let { putExtra("dacVolumeActive", it) }
+                        dacVolume?.let { putExtra("dacVolume", it) }
                         color?.let { putExtra("color", it) }
                     }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         startForegroundService(intent)
                     } else {
                         startService(intent)
+                    }
+                    result.success(null)
+                }
+                "updateDacVolume" -> {
+                    val active = call.argument<Boolean>("active") == true
+                    dacVolumeKeysCaptured = active
+                    // Only an existing notification may start the service: it
+                    // goes foreground on every start, which needs one to show.
+                    if (call.argument<Boolean>("notify") == true) {
+                        val intent = Intent(this, MusicNotificationService::class.java).apply {
+                            putExtra("dacVolumeActive", active)
+                            call.argument<Int>("volume")?.let { putExtra("dacVolume", it) }
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(intent)
+                        } else {
+                            startService(intent)
+                        }
                     }
                     result.success(null)
                 }
@@ -5641,6 +5666,21 @@ class MainActivity: FlutterActivity() {
         }
     }
 
+    // Over direct USB, STREAM_MUSIC does not reach the DAC. While Dart says the DAC
+    // owns the volume keys, take them here (down, repeats and up) and let Dart
+    // step the DAC through its usual volume path; the system volume stays put.
+    // Otherwise the keys fall through exactly as before.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val direction = volumeKeyDirection(event.keyCode)
+        if (direction != 0 && dacVolumeKeysCaptured && hasDirectUsbHardwareVolume()) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                playerChannel?.invokeMethod("adjustDacVolume", mapOf("direction" to direction))
+            }
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         audioDeviceCallback?.let {
@@ -5675,6 +5715,15 @@ class MainActivity: FlutterActivity() {
         private const val ACTION_USB_PERMISSION = "com.mossapps.flick.USB_PERMISSION"
         private val pluginRegistrationLock = Any()
         private var registeredMainEngineIdentity: Int? = null
+
+        /**
+         * Dart says the DAC owns the phone's volume keys (direct USB, DAC
+         * hardware volume as the authority, not casting). A flag rather than a
+         * native check alone, because Dart also knows about safety blocks and
+         * DSD; kept out of the instance so an activity recreation does not drop it.
+         */
+        @Volatile
+        private var dacVolumeKeysCaptured = false
     }
 
     private external fun nativeInitRustAndroidContext(context: Context): Boolean

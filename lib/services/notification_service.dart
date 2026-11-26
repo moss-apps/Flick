@@ -28,6 +28,8 @@ class NotificationService {
     required VoidCallback onToggleFavorite,
     VoidCallback? onDisconnectCast,
     Function(double)? onSetCastVolume,
+    Function(double)? onSetDacVolume,
+    Function(int)? onAdjustDacVolume,
   }) {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
@@ -67,6 +69,14 @@ class NotificationService {
         case 'setCastVolume':
           final volume = (call.arguments['volume'] as num?)?.toDouble();
           if (volume != null) onSetCastVolume?.call(volume);
+          break;
+        case 'setDacVolume':
+          final volume = (call.arguments['volume'] as num?)?.toDouble();
+          if (volume != null) onSetDacVolume?.call(volume);
+          break;
+        case 'adjustDacVolume':
+          final direction = (call.arguments['direction'] as num?)?.toInt();
+          if (direction != null) onAdjustDacVolume?.call(direction);
           break;
       }
     });
@@ -139,6 +149,8 @@ class NotificationService {
     bool? isCasting,
     String? castDeviceName,
     int? castVolumePercent,
+    bool? dacVolumeActive,
+    int? dacVolumePercent,
   }) async {
     try {
       final args = <String, dynamic>{
@@ -158,6 +170,8 @@ class NotificationService {
         args['castDeviceName'] = castDeviceName;
         if (castVolumePercent != null) args['castVolume'] = castVolumePercent;
       }
+      if (dacVolumeActive != null) args['dacVolumeActive'] = dacVolumeActive;
+      if (dacVolumePercent != null) args['dacVolume'] = dacVolumePercent;
 
       await _channel.invokeMethod('updateNotification', args);
       _isNotificationVisible = true;
@@ -184,6 +198,27 @@ class NotificationService {
       await _channel.invokeMethod('updateNotification', args);
     } catch (e) {
       devLog('Failed to update cast state: $e');
+    }
+  }
+
+  /// Tells native whether the DAC owns the phone's volume keys and what level
+  /// it is at. While [active] the activity consumes the keys in the foreground
+  /// and the media session offers the DAC as its remote volume in the
+  /// background; otherwise both go back to the system volume. The session is
+  /// only touched when a notification is up (that is what starts the service).
+  Future<void> updateDacVolume({
+    required bool active,
+    int? volumePercent,
+  }) async {
+    try {
+      final args = <String, dynamic>{
+        'active': active,
+        'notify': _isNotificationVisible,
+      };
+      if (volumePercent != null) args['volume'] = volumePercent;
+      await _channel.invokeMethod('updateDacVolume', args);
+    } catch (e) {
+      devLog('Failed to update DAC volume state: $e');
     }
   }
 

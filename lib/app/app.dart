@@ -49,6 +49,7 @@ import 'package:flick/widgets/common/floating_scan_progress.dart';
 import 'package:flick/widgets/common/connection_notice_host.dart';
 import 'package:flick/widgets/common/display_mode_controller.dart';
 import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
+import 'package:flick/widgets/uac2/volume_key_hud.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/library_scanner_service.dart';
 import 'package:flick/services/player_service.dart';
@@ -106,8 +107,13 @@ class FlickPlayerApp extends StatelessWidget {
                         (preferences) => preferences.connectionNoticesEnabled,
                       ),
                     ),
-                    child: TutorialHost(
-                      child: child ?? const SizedBox.shrink(),
+                    child: VolumeKeyHudHost(
+                      feedback: ref
+                          .read(playerServiceProvider)
+                          .volumeKeyFeedbackNotifier,
+                      child: TutorialHost(
+                        child: child ?? const SizedBox.shrink(),
+                      ),
                     ),
                   ),
                 );
