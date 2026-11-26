@@ -1,4 +1,48 @@
-use crate::uac2::iso_packet_scheduler::IsoPacketScheduler;
+use crate::uac2::iso_packet_scheduler::{IsoPacketScheduler, IsoQueueGeometry};
+
+#[test]
+fn queue_changes_only_for_125_us_pcm() {
+    let pcm = IsoQueueGeometry::for_stream(125, false);
+    assert_eq!(pcm.packets_per_transfer, 16);
+    assert_eq!(pcm.transfer_slots, 8);
+    assert_eq!(pcm.stable_transfers, 128);
+    assert_eq!(pcm.packets_per_transfer * pcm.transfer_slots * 125, 16_000);
+    assert_eq!(
+        pcm.packets_per_transfer * pcm.stable_transfers * 125,
+        256_000
+    );
+
+    let dsd = IsoQueueGeometry::for_stream(125, true);
+    assert_eq!(dsd.packets_per_transfer, 32);
+    assert_eq!(dsd.transfer_slots, 8);
+    assert_eq!(dsd.stable_transfers, 64);
+    for interval in [250, 500, 1_000, 2_000] {
+        let pcm = IsoQueueGeometry::for_stream(interval, false);
+        assert_eq!(pcm, IsoQueueGeometry::for_stream(interval, true));
+        assert_eq!(pcm.packets_per_transfer, 16);
+        assert_eq!(pcm.transfer_slots, 8);
+        assert_eq!(pcm.stable_transfers, 64);
+    }
+}
+
+#[test]
+fn regrouping_the_125_us_pcm_queue_preserves_packet_sizes_in_order() {
+    let current = IsoQueueGeometry::for_stream(125, false);
+    let previous = IsoQueueGeometry {
+        packets_per_transfer: 8,
+        transfer_slots: 16,
+        stable_transfers: 256,
+    };
+    for rate in [44_100, 96_000, 384_000] {
+        let schedule = |geometry: IsoQueueGeometry| {
+            let mut scheduler = IsoPacketScheduler::with_geometry(rate, 6, 125, geometry);
+            (0..(8_000 / geometry.packets_per_transfer))
+                .flat_map(|_| scheduler.next_transfer_packet_bytes())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(schedule(current), schedule(previous));
+    }
+}
 
 fn transfer_frames(packet_bytes: &[usize], bytes_per_frame: usize) -> Vec<usize> {
     packet_bytes
@@ -131,7 +175,12 @@ fn test_scheduler_rejects_implausible_feedback() {
 #[test]
 fn test_scheduler_352800_hz_dop_carrier_accumulates_exact_second() {
     let bytes_per_frame = 6usize;
-    let mut scheduler = IsoPacketScheduler::new(352_800, bytes_per_frame, 125);
+    let mut scheduler = IsoPacketScheduler::with_geometry(
+        352_800,
+        bytes_per_frame,
+        125,
+        IsoQueueGeometry::for_stream(125, true),
+    );
     let mut frames = Vec::new();
     for _ in 0..(8_000 / scheduler.packets_per_transfer()) {
         frames.extend(transfer_frames(

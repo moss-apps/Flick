@@ -1,69 +1,82 @@
-# UAC2 exclusive routing (follow-up to #400)
+# Android exclusive USB routing
 
-Status: implementation in progress on `feat/uac2-exclusive-routing`.
+Flick can request the DAC for direct USB playback without asking the user to
+disable Android's automatic USB audio routing system-wide. Enumeration and
+saved preferences alone do not take ownership of the DAC.
 
-## Problem
+## Ownership and fallback
 
-#400 makes direct USB playback work on the iBasso DC4U, but only after this
-device setting is applied manually:
+- After the user grants USB permission, Android's `UsbDeviceConnection` claims
+  the AudioControl and isochronous playback interfaces in the active
+  configuration with `force = true`. Capture-only and MIDI streaming
+  interfaces are not claimed. A failed claim or registration rolls back the
+  interfaces already acquired.
+- Rust verifies the exact interface IDs and uses a duplicate of that connection
+  for clock controls and transfers. It sets streaming alternates with the
+  usbfs `USBDEVFS_SETINTERFACE` ioctl: libusb's alternate-setting helper would
+  reject an interface claimed by Android rather than by that libusb handle.
+  Hardware volume and mute use synchronous usbfs controls so they do not
+  consume completions from the streaming context.
+- On exit from direct USB, Rust stops and drains the transfers before Android
+  resets the streaming alternate and explicitly releases the interfaces.
+  `releaseInterface` lets Android try to rebind its driver; simply closing a
+  descriptor is not a substitute. If a device refuses the initial claim, retry
+  after reconnecting, or test with **Disable USB audio routing** enabled in
+  Developer options as a fallback.
+- Isochronous packet lengths must still match exactly and a timed-out audio
+  transfer remains fatal. PCM at a 125 µs service interval uses 16 packets
+  per transfer and eight slots (16 ms queued) instead of 32 packets and
+  eight slots (32 ms). It requires 128 successful transfers, preserving
+  the original 256 ms nominal window before marking the stream stable.
+  Other intervals, native DSD and DoP keep their original geometry.
+  The shorter queue addressed stalls on a OnePlus 15 with an iBasso DC04U.
+  On that setup, the author also measured lower CPU use with 16 × 8 than
+  with 8 × 16 at 44.1 kHz. This does not establish a host-controller limit.
+  See [USB completion diagnostics](USB_ISO_COMPLETION_DIAGNOSTICS.md).
 
-```sh
-adb shell settings put secure usb_audio_automatic_routing_disabled 1
-```
+## Reconnect
 
-Without it, Android's platform USB-audio path keeps `snd-usb-audio` bound to
-the DAC's AudioControl and AudioStreaming interfaces. Flick's libusb claim on
-the AudioControl interface fails with `Resource busy`, every clock request
-(`GET_RANGE`, `GET_CUR`, `SET_CUR`) returns `Input/Output Error`, and the
-engine refuses to stream because the rate cannot be verified.
+Automatic resume requires the same track, enabled USB auto-engage and
+bit-perfect playback, and the same DAC identified by vendor, product and a
+real USB serial number. A changed USB address is allowed. If Android has
+not exposed the serial yet, permission can be requested for a single plausible
+device, but playback stays paused unless its serial matches. DACs without a
+verifiable serial require a manual Play after reconnecting.
 
-UAPP works on the same phone without that setting, so the app must be able to
-take the interfaces itself.
+The app verifies the DAC's volume and direct route before starting audio.
+If the DAC or its claim changes during startup, or direct playback fails,
+the reconnect attempt does not start Android output. A manual pause and
+**Pause on USB DAC connect** both cancel the pending resume. On a confirmed
+unplug, Android continuation remains possible only when **Pause on USB DAC
+disconnect** is disabled and no DAC is present.
 
-## Approach
+## Hardware test
 
-1. **Force-claim only the AudioControl interface through Android's API.** In
-   `activateDirectUsb`, after `UsbManager.openDevice`, claim interface 1 with
-   `UsbDeviceConnection.claimInterface(usbInterface, force = true)`. This is
-   the `USBDEVFS_DISCONNECT_CLAIM` path: it detaches the kernel driver and
-   claims the interface in one step.
+1. In Android Developer options, leave **Disable USB audio routing** **off**.
+   Unplug and reconnect the DAC. With Flick set to Standard and USB auto-engage
+   disabled, confirm Android can use the DAC and that launching Flick does not
+   take it away.
+2. Select **Isochronous USB**, enable **Bit-perfect (USB DAC)**, and grant USB
+   permission. Start with a local 24-bit/44.1 kHz FLAC on the iBasso DC4U. In
+   Audio Signal Path, confirm **USB direct**, a stable stream, the expected
+   source and output format, and **Bit-perfect verified**. Check that output
+   is audible and the DAC reports the expected rate. Note any clock refusal,
+   unexpected fallback, packet-length mismatch, or timeout.
+3. Play 48 and 96 kHz PCM, a 16-bit track, and a higher rate such as 192 or
+   384 kHz if the DAC supports it. Pause, resume, and seek. If the
+   DAC supports hardware volume, change it at a safe level during playback
+   and listen for interruptions. On a compatible DAC, repeat with native DSD
+   and DoP. With pause-on-connect off, unplug during playback and reconnect
+   the same DAC. Check that playback continues once at the retained position
+   after the safe level is restored. Repeat after a manual pause, with
+   pause-on-connect on, and using a different DAC. None should resume.
+4. Pause and select Standard, then play again and verify Android can route to
+   the DAC. Also test selecting direct USB during Android-managed playback:
+   ownership should transfer on the next playback request, not interrupt the
+   ongoing track as soon as the preference changes.
+5. Export Flick's logs if anything fails. Include the Android device/version,
+   DAC, source format, and whether automatic USB audio routing was enabled.
+   For 125 µs PCM, the `Isochronous queue` line should show
+   `packetsPerTransfer=16 slots=8 stableTransfers=128`.
 
-   The AudioStreaming interface is deliberately left to libusb. Claiming it
-   through Java makes libusb's `set_alt_setting` fail with
-   `Entity not found (ENOENT)` and the engine never starts. This was measured
-   on the DC4U: Java claim of interfaces {1,2} produced
-   `Failed to reset USB interface 2 to alt 0 before negotiation: Entity not
-   found`; Java claim of {1} plus libusb claim of {2} streamed immediately.
-2. **Tell Rust the interfaces are already claimed.** usbfs tracks claims per
-   device, not per file descriptor, so a second `libusb_claim_interface` on the
-   same fd returns `EBUSY`. Pass `preClaimed` at device registration and have
-   `ensure_interface_claimed` record the interface without issuing the ioctl.
-3. **Fallback, not silence.** If the force-claim is refused, log the exact
-   interface and error and return a clear activation failure. The UI prompt
-   ("Disable USB audio routing" with a shortcut to Developer options) is the
-   remaining fallback for devices where Android refuses the claim.
-4. **Release stays correct.** Teardown keeps setting alt 0; Java releases the
-   claims when `UsbDeviceConnection.close()` runs. Rust must not rely on its
-   own release for pre-claimed interfaces.
-
-## Test plan
-
-1. Set `usb_audio_automatic_routing_disabled` back to `0`.
-2. Unplug/replug the DC4U.
-3. Confirm `snd-usb-audio` is bound to `1-1:1.1` and `1-1:1.2` before launch.
-4. Play the 24-bit/44.1 kHz track.
-5. Expect in `RustUSB`:
-
-```text
-[USB] SET_CUR verified: 44100 Hz on clock 1 interface 1
-[USB] Streaming started ... strategy=usb_direct
-[USB] USB stream stabilized after 64 transfers
-[USB] ... timeouts=0 errors=0
-```
-
-6. Audio Signal Path must read `Strategy: USB direct`, `Passthrough: Allowed`,
-   `USB: Interface claimed · Stream stable`, with `Bit-perfect verified`.
-7. Repeat on 48 kHz and 24/96 to confirm the clock is reprogrammed per track.
-
-If step 3 cannot be reproduced (driver already unbound), disable routing,
-replug, and re-enable routing before launching to force the conflict.
+Build from the project root with `flutter run --release --flavor full`.

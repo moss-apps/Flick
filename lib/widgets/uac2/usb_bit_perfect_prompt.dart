@@ -131,11 +131,6 @@ class _UsbBitPerfectPromptState extends ConsumerState<UsbBitPerfectPrompt> {
   }
 
   Future<void> _maybeAutoEngage(Uac2DeviceStatus status) async {
-    // PlayerService owns attach auto-engage. Running it here too caused two
-    // engine switches on every plug-in: the first started playback, the second
-    // disposed it, so the track played for a millisecond and paused.
-    return;
-    // ignore: dead_code
     if (_engageInFlight || _engagedDeviceKey != null || !mounted) return;
     final preferences = ref.read(uac2PreferencesServiceProvider);
     final autoEngage = await preferences.getAutoEngageUsbDacEnabled();
@@ -168,7 +163,7 @@ class _UsbBitPerfectPromptState extends ConsumerState<UsbBitPerfectPrompt> {
     try {
       final applied = await ref
           .read(playerServiceProvider)
-          .enableUsbDacBitPerfect(resumeIfWasPlaying: true);
+          .enableUsbDacBitPerfect();
       _invalidateEngineProviders();
       if (!mounted) return;
       _showEngagedSnackBar(status, promptKey, applied);

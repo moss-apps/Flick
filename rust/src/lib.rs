@@ -15,7 +15,7 @@ use std::{ffi::c_void, sync::OnceLock};
 
 #[cfg(target_os = "android")]
 use jni::{
-    objects::{Global, JObject, JString},
+    objects::{Global, JIntArray, JObject, JString},
     sys::{jboolean, jdouble, jint, jstring},
     JNIEnv, JavaVM,
 };
@@ -152,10 +152,8 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeRegisterRustDi
     vendor_id: jint,
     product_id: jint,
     product_name: JString<'_>,
-    manufacturer: JString<'_>,
-    serial: JString<'_>,
     device_name: JString<'_>,
-    pre_claimed_mask: jint,
+    claimed_interfaces: JIntArray<'_>,
 ) -> jboolean {
     let read_string = |env: &mut jni::Env<'_>, value: JString<'_>| -> Option<String> {
         if jni::refs::Reference::is_null(&value) {
@@ -167,19 +165,28 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeRegisterRustDi
     env.with_env(|env| -> jni::errors::Result<bool> {
         let product_name =
             read_string(env, product_name).unwrap_or_else(|| "USB Audio Device".to_string());
-        let manufacturer = read_string(env, manufacturer).unwrap_or_default();
-        let serial = read_string(env, serial);
         let device_name = read_string(env, device_name);
+        let interface_count = claimed_interfaces.len(env)?;
+        if !(1..=256).contains(&interface_count) {
+            return Ok(false);
+        }
+        let mut interface_ids = vec![0; interface_count];
+        claimed_interfaces.get_region(env, 0, &mut interface_ids)?;
+        let Ok(interface_ids) = interface_ids
+            .into_iter()
+            .map(u8::try_from)
+            .collect::<Result<Vec<_>, _>>()
+        else {
+            return Ok(false);
+        };
 
         let device = match crate::uac2::AndroidDirectUsbDevice::try_new(
             fd,
             vendor_id as u16,
             product_id as u16,
             product_name,
-            manufacturer,
-            serial,
             device_name,
-            pre_claimed_mask as u32,
+            interface_ids,
         ) {
             Ok(device) => device,
             Err(error) => {
@@ -211,10 +218,8 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeRegisterRustDi
     _vendor_id: jint,
     _product_id: jint,
     _product_name: JString<'_>,
-    _manufacturer: JString<'_>,
-    _serial: JString<'_>,
     _device_name: JString<'_>,
-    _pre_claimed_mask: jint,
+    _claimed_interfaces: JIntArray<'_>,
 ) -> jboolean {
     false
 }
@@ -545,6 +550,34 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeWaitRustDirect
     crate::uac2::wait_for_android_usb_session_stop(std::time::Duration::from_millis(
         timeout_ms.max(0) as u64,
     )) as jboolean
+}
+
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectUsbReconnectTarget(
+    mut env: JNIEnv<'_>,
+    _activity: JObject<'_>,
+    device_name: JString<'_>,
+    cancel: jboolean,
+) -> jboolean {
+    env.with_env(|env| -> jni::errors::Result<bool> {
+        let name = if jni::refs::Reference::is_null(&device_name) {
+            None
+        } else {
+            Some(device_name.try_to_string(env)?)
+        };
+        #[cfg(feature = "uac2")]
+        {
+            crate::api::audio_api::set_android_usb_reconnect_target(name, cancel);
+            Ok(true)
+        }
+        #[cfg(not(feature = "uac2"))]
+        {
+            let _ = cancel;
+            Ok(name.is_none())
+        }
+    })
+    .resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 
 #[cfg(all(target_os = "android", feature = "uac2"))]

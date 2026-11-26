@@ -286,6 +286,42 @@ String canonicalPlaybackFileType({required String fileType, String? filePath}) {
   return '';
 }
 
+/// Prefer a readable source header to PCM library metadata. Missing FLAC
+/// metadata is not a reason to request a guessed 16-bit transport.
+@visibleForTesting
+Future<Uac2AudioFormat?> resolveDirectUsbTrackFormat(
+  Song song, {
+  required Uac2AudioFormat? metadataFormat,
+  required Future<rust_audio.AudioProbeFormat?> Function() probe,
+}) async {
+  if (song.isDsd) return metadataFormat;
+  final isFlac = canonicalPlaybackFileType(
+    fileType: song.fileType,
+    filePath: song.filePath,
+  ) == 'flac';
+  final needsVerifiedFormat =
+      isFlac && ((song.sampleRate ?? 0) <= 0 || (song.bitDepth ?? 0) <= 0);
+  rust_audio.AudioProbeFormat? source;
+  try {
+    source = await probe();
+  } catch (error) {
+    devLog('[Engine] Direct USB source format probe failed: $error');
+  }
+  final depth = source?.bitsPerSample ?? (isFlac ? null : metadataFormat?.bitDepth);
+  if (source != null &&
+      source.sampleRate > 0 &&
+      source.channels > 0 &&
+      depth != null &&
+      depth > 0) {
+    return Uac2AudioFormat(
+      sampleRate: source.sampleRate,
+      bitDepth: depth,
+      channels: source.channels,
+    );
+  }
+  return needsVerifiedFormat ? null : metadataFormat;
+}
+
 @visibleForTesting
 String extractPlaybackPathExtension(String? path) {
   if (path == null || path.isEmpty) return '';
@@ -584,10 +620,15 @@ class PlayerService {
   VoidCallback? _rustDurationListener;
   StreamSubscription<AudioInterruptionEvent>? _audioFocusSubscription;
   StreamSubscription<Map<Object?, Object?>>? _bluetoothDeviceEventSubscription;
-  StreamSubscription<void>? _usbDacDetachSubscription;
+  StreamSubscription<String?>? _usbDacDetachSubscription;
   StreamSubscription<void>? _usbDacAttachSubscription;
   Future<void>? _usbAttachEngage;
   int _usbConnectionGeneration = 0;
+  _UsbReconnectIntent? _usbReconnectIntent;
+  _UsbReconnectIntent? _lastActiveUsbPlayback;
+  _UsbReconnectAttempt? _activeUsbReconnect;
+  bool _usbReconnectBlocked = false;
+  int _usbPlaybackIntentRevision = 0;
   DateTime? _bluetoothDisconnectedAt;
   static const Duration _bluetoothReconnectWindow = Duration(seconds: 30);
   bool _audioInitialized = false;
@@ -879,19 +920,71 @@ class PlayerService {
   }
 
   void _initUsbDacDisconnectHandling() {
-    _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((_) {
-      unawaited(_handleUsbDacDetached());
+    _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((name) {
+      unawaited(_handleUsbDacDetached(name));
     });
   }
 
-  bool _resumeAfterUsbReattach = false;
+  void _cancelUsbReconnect() {
+    _usbReconnectIntent = null;
+    _lastActiveUsbPlayback = null;
+    _usbReconnectBlocked = true;
+    _usbPlaybackIntentRevision++;
+    if (_activeUsbReconnect != null) {
+      // Keep the native guard armed, but stop an in-flight file/HTTP probe
+      // from handing audio to the engine after the user cancels the resume.
+      unawaited(_uac2Service.setAndroidUsbReconnectTarget(null, cancel: true));
+    }
+  }
 
-  Future<void> _handleUsbDacDetached() {
-    _usbConnectionGeneration++;
+  _UsbReconnectIntent? _rememberDirectUsbPlayback() {
+    if (_usbReconnectBlocked) return null;
+    _captureActiveDirectUsbPlayback();
+    final previous = _lastActiveUsbPlayback;
+    if (_usbReconnectIntent == null &&
+        _sessionManager.initializedMode == AudioEngineType.usbDacExperimental &&
+        previous != null &&
+        previous.songId == currentSongNotifier.value?.id) {
+      _usbReconnectIntent = previous;
+    }
+    return _usbReconnectIntent;
+  }
+
+  void _captureActiveDirectUsbPlayback() {
+    if (_usbReconnectBlocked ||
+        !isPlayingNotifier.value ||
+        _sessionManager.initializedMode != AudioEngineType.usbDacExperimental) {
+      return;
+    }
+    final song = currentSongNotifier.value;
+    final status = _uac2Service.currentDeviceStatus;
+    if (song != null && status?.directUsbRegistered == true) {
+      _lastActiveUsbPlayback = _UsbReconnectIntent(
+        songId: song.id,
+        device: status!.device,
+        position: positionNotifier.value,
+      );
+    }
+  }
+
+  Future<void> _handleUsbDacDetached(String? name) {
+    final status = _uac2Service.currentDeviceStatus;
+    final activeName = _activeUsbReconnect?.device.deviceName ??
+        (status?.directUsbRegistered == true ? status!.device.deviceName : null);
+    final expectedName = activeName ?? _usbReconnectIntent?.device.deviceName;
+    if (name != null && expectedName != null && name != expectedName &&
+        // A candidate can detach while its USB permission prompt is open.
+        _usbAttachEngage == null && !_midStreamUsbFallbackActive) {
+      return Future<void>.value();
+    }
+    final wasDirect = _sessionManager.initializedMode ==
+        AudioEngineType.usbDacExperimental;
+    final intent = _rememberDirectUsbPlayback();
+    final generation = ++_usbConnectionGeneration;
+    if (_activeUsbReconnect != null) {
+      unawaited(_uac2Service.setAndroidUsbReconnectTarget(null, cancel: true));
+    }
     _usbAttachEngage = null;
-    // The transport error can precede the detach broadcast. Keep the intent
-    // captured by error recovery even if that recovery has already paused.
-    _resumeAfterUsbReattach |= isPlayingNotifier.value;
     _usbDacVolumeRestore.reset();
     _usbHardwareVolumeReadyFor = null;
     _usbHardwareVolumeVerifiedLevel = null;
@@ -900,8 +993,27 @@ class PlayerService {
     _usbSoftwareVolumeUsed = false;
     usbVolumeSafetyBlockedNotifier.value = false;
     return _enqueuePlaybackRequest(() async {
-      if (await _appPreferencesService.getPauseOnUsbDacDisconnect()) {
+      final pauseOnDisconnect =
+          await _appPreferencesService.getPauseOnUsbDacDisconnect();
+      if (wasDirect || pauseOnDisconnect) {
         await _pauseInternal(preserveUsbResumeIntent: true);
+      }
+      if (!wasDirect && intent == null) return;
+      if (_sessionManager.initializedMode == AudioEngineType.usbDacExperimental) {
+        await _tearDownDirectUsbForRecovery(reason: 'USB DAC detached');
+      }
+      // Continuing on Android is only allowed for a real removal and an
+      // explicit opt-out of Pause on detach, never for a failed reconnect.
+      if (!pauseOnDisconnect &&
+          intent != null &&
+          _usbReconnectIsCurrent(intent, generation) &&
+          (await _uac2Service.listDevices(refresh: true)).isEmpty &&
+          _usbReconnectIsCurrent(intent, generation)) {
+        await _resumeInternal(
+          requestedMode: AudioEngineType.normalAndroid,
+          retainedPosition: intent.position,
+          canStart: () => _usbReconnectIsCurrent(intent, generation),
+        );
       }
     });
   }
@@ -922,12 +1034,13 @@ class PlayerService {
       if (generation != _usbConnectionGeneration) return;
       final pauseOnConnect = await _appPreferencesService
           .getPauseOnUsbDacConnect();
-      if (pauseOnConnect) await _pauseInternal();
-      _usbDacVolumeRestore.reset();
-      await _autoEngageDirectUsbOnAttach(
-        resume: !pauseOnConnect,
-        generation: generation,
-      );
+      if (generation != _usbConnectionGeneration) return;
+      if (pauseOnConnect) {
+        await _pauseInternal();
+        return;
+      }
+      final intent = _usbReconnectIntent;
+      if (intent != null) await _tryResumeDirectUsb(intent, generation);
     });
     _usbAttachEngage = engage;
     unawaited(
@@ -938,22 +1051,68 @@ class PlayerService {
     return engage;
   }
 
-  /// Run inside the playback queue, before any subsequent play/pause request.
-  Future<void> _autoEngageDirectUsbOnAttach({
-    required bool resume,
-    required int generation,
-  }) async {
+  bool _usbReconnectIsCurrent(_UsbReconnectIntent intent, int generation) =>
+      identical(_usbReconnectIntent, intent) &&
+      generation == _usbConnectionGeneration &&
+      currentSongNotifier.value?.id == intent.songId;
+
+  Future<void> _tearDownDirectUsbForRecovery({required String reason}) async {
+    // Dispose the engine first so Android does not release its interfaces
+    // while Rust is still draining transfers.
+    await _sessionManager.switchMode(AudioEngineType.normalAndroid, reason: reason);
+    await _uac2Service.releaseAndroidDirectUsbRuntime();
+  }
+
+  /// Only a direct stream on the previously playing DAC can satisfy a
+  /// queued reconnect. No engine retry here may start a managed route.
+  Future<bool> _tryResumeDirectUsb(_UsbReconnectIntent intent, int generation) async {
+    bool isCurrent() => _usbReconnectIsCurrent(intent, generation) &&
+        _uac2Service.isBitPerfectEnabledSync;
+    if (!isCurrent()) return false;
+    var triedToPrepare = false;
+    var started = false;
     try {
-      final engine = await _preferencesService.getAudioEnginePreference();
-      if (engine != AudioEnginePreference.isochronousUsb) return;
-      final devices = await _uac2Service.listDevices(refresh: true);
-      if (devices.isEmpty) return;
-      await _enableUsbDacBitPerfect(
-        resumeIfWasPlaying: resume,
-        connectionGeneration: generation,
+      final old = intent.device;
+      final key = '${old.vendorId}:${old.productId}:${old.serial ?? old.deviceName}';
+      if (await _preferencesService.getAudioEnginePreference() !=
+              AudioEnginePreference.isochronousUsb ||
+          !await _preferencesService.getAutoEngageUsbDacEnabled() ||
+          (await _preferencesService.getDeclinedUsbDevices()).contains(key) ||
+          !isCurrent()) {
+        return false;
+      }
+      final device = await _uac2Service.findAndroidUsbReconnectDevice(
+        old,
+        isCurrent: isCurrent,
       );
+      if (device == null ||
+          !Uac2Service.sameUsbReconnectDevice(old, device) ||
+          !isCurrent()) {
+        return false;
+      }
+      final reconnect = (device: device, isCurrent: isCurrent);
+      _activeUsbReconnect = reconnect;
+      triedToPrepare = true;
+      started = await _resumeInternal(
+        reconnect: reconnect,
+        retainedPosition: intent.position,
+      );
+      if (!started) return false;
+      if (identical(_usbReconnectIntent, intent)) _usbReconnectIntent = null;
+      _debugLog('[USB] Direct playback recovered on the same DAC');
+      return true;
     } catch (error) {
-      _debugLog('[USB] Attach auto-engage failed: $error');
+      _debugLog('[USB] Direct reconnect held playback: $error');
+      return false;
+    } finally {
+      _activeUsbReconnect = null;
+      if (triedToPrepare && !started) {
+        // A failed attempt can have claimed the DAC before engine startup.
+        // Do not leave that claim around, or replay on an Android fallback.
+        if (_usbReconnectIsCurrent(intent, generation)) _usbReconnectIntent = null;
+        await _pauseInternal(preserveUsbResumeIntent: true);
+        await _tearDownDirectUsbForRecovery(reason: 'direct USB reconnect failed');
+      }
     }
   }
 
@@ -961,7 +1120,8 @@ class PlayerService {
   Future<void> handleUsbDacAttachedForTesting() => _handleUsbDacAttached();
 
   @visibleForTesting
-  Future<void> handleUsbDacDetachedForTesting() => _handleUsbDacDetached();
+  Future<void> handleUsbDacDetachedForTesting([String? name]) =>
+      _handleUsbDacDetached(name);
 
   /// Push the user's codec preference to the active A2DP device when codec
   /// control is enabled. Best-effort: the hidden API no-ops on apps not
@@ -1890,63 +2050,52 @@ class PlayerService {
   Future<void> setAudioEnginePreference(
     AudioEnginePreference preference,
   ) async {
+    if (preference != AudioEnginePreference.isochronousUsb) {
+      _cancelUsbReconnect();
+    }
     await _preferencesService.setAudioEnginePreference(preference);
     await initAudio();
     await _sessionManager.syncRouteSelection(
       reason: 'audio engine preference changed',
     );
+    if (Platform.isAndroid &&
+        preference != AudioEnginePreference.isochronousUsb &&
+        _uac2Service.currentDeviceStatus?.directUsbRegistered == true) {
+      await _enqueuePlaybackRequest(() async {
+        final nextMode = _sessionManager.selectedMode;
+        if (nextMode == AudioEngineType.usbDacExperimental ||
+            (_isDirectUsbPath && isPlayingNotifier.value)) {
+          return;
+        }
+        if (_sessionManager.initializedMode ==
+            AudioEngineType.usbDacExperimental) {
+          await _sessionManager.switchMode(nextMode, reason: 'leaving direct USB');
+        }
+        await _uac2Service.releaseAndroidDirectUsbRuntime();
+      });
+    }
   }
 
-  /// Complete USB auto-engage even when no track has been played yet.
-  /// Changing the engine preference alone does not re-run launch volume setup.
-  Future<bool> enableUsbDacBitPerfect({bool resumeIfWasPlaying = false}) async {
+  /// Apply USB bit-perfect without taking the DAC from a playing managed engine.
+  Future<bool> enableUsbDacBitPerfect() async {
+    await setAudioEnginePreference(AudioEnginePreference.isochronousUsb);
     var applied = false;
     await _enqueuePlaybackRequest(() async {
-      applied = await _enableUsbDacBitPerfect(
-        resumeIfWasPlaying: resumeIfWasPlaying,
+      final deferActivation = isPlayingNotifier.value &&
+          currentEngineType != AudioEngineType.usbDacExperimental;
+      applied = await _uac2Service.setBitPerfectEnabled(
+        true,
+        deferDeviceActivation: deferActivation,
       );
+      if (!applied || deferActivation) return;
+      try {
+        await _restoreUsbDacVolumeBeforePlayback(AudioEngineType.usbDacExperimental);
+      } catch (error) {
+        applied = false;
+        _debugLog('[USB] DAC handoff failed: $error');
+      }
     });
     return applied;
-  }
-
-  Future<bool> _enableUsbDacBitPerfect({
-    required bool resumeIfWasPlaying,
-    int? connectionGeneration,
-  }) async {
-    final wasPlaying = isPlayingNotifier.value;
-    final shouldResume =
-        resumeIfWasPlaying && (wasPlaying || _resumeAfterUsbReattach);
-    // Selection may already say USB while Android still owns playback.
-    final needsHandoff =
-        currentEngineType != AudioEngineType.usbDacExperimental;
-    await setAudioEnginePreference(AudioEnginePreference.isochronousUsb);
-    final applied = await _uac2Service.setBitPerfectEnabled(true);
-    if (!applied) return false;
-    try {
-      await _restoreUsbDacVolumeBeforePlayback(
-        AudioEngineType.usbDacExperimental,
-      );
-      if (connectionGeneration != null &&
-          connectionGeneration != _usbConnectionGeneration) {
-        return false;
-      }
-      await _sessionManager.retryExperimentalUsbForCurrentDevice();
-      if (_sessionManager.selectedMode != AudioEngineType.usbDacExperimental) {
-        return false;
-      }
-      if ((wasPlaying && needsHandoff) ||
-          (shouldResume && !isPlayingNotifier.value)) {
-        await _resumeInternal();
-        if (currentEngineType != AudioEngineType.usbDacExperimental) {
-          return false;
-        }
-      }
-      _resumeAfterUsbReattach = false;
-      return true;
-    } catch (e) {
-      _debugLog('[USB] DAC handoff failed: $e');
-      return false;
-    }
   }
 
   /// Re-resolves the desired engine/route. The newly selected engine attaches
@@ -1995,7 +2144,6 @@ class PlayerService {
     _debugLog('[Engine] Initializing audio manager');
 
     try {
-      await _claimAttachedDirectUsbIfConfigured();
       await Future.wait<void>([
         _preferencesService.initializeDeveloperModeCache(),
         _preferencesService.initializeKillIsochronousUsbOnQuitCache(),
@@ -2051,33 +2199,6 @@ class PlayerService {
       }
     } finally {
       _audioInitInFlight = null;
-    }
-  }
-
-  /// Registers/claims an already-attached DAC before the session manager
-  /// resolves the first engine. Without this an app start with the DAC plugged
-  /// in creates the Android engine, and the claim never happens.
-  Future<void> _claimAttachedDirectUsbIfConfigured() async {
-    if (!Platform.isAndroid) return;
-    try {
-      final engine = await _preferencesService.getAudioEnginePreference();
-      if (engine != AudioEnginePreference.isochronousUsb) return;
-      if (!await _preferencesService.getBitPerfectEnabled()) return;
-      final activated = await _uac2Service.activateAttachedDirectUsb();
-      if (!activated) return;
-      // Selecting the mode is not enough: the engine must be rebuilt on the
-      // direct-USB backend, otherwise playback stays on Oboe/AAudio even though
-      // the platform driver was detached by the claim.
-      if (_sessionManager.initializedMode !=
-          AudioEngineType.usbDacExperimental) {
-        await _sessionManager.switchMode(
-          AudioEngineType.usbDacExperimental,
-          initializeNewEngine: true,
-          reason: 'attached DAC claimed for direct USB',
-        );
-      }
-    } catch (error) {
-      _debugLog('[USB] Attached DAC claim failed: $error');
     }
   }
 
@@ -4103,6 +4224,9 @@ class PlayerService {
     if (!_usingRustBackend) return;
 
     final rustState = _rustAudioService.stateNotifier.value;
+    // The inactive state notification can arrive before the USB error.
+    // Preserve the last playing DAC and position, not an old UI state.
+    _captureActiveDirectUsbPlayback();
     // Treat buffering like playback for Android direct USB: releasing audio
     // focus while the Rust isochronous pump is still starting starves the
     // stream and surfaces as libusb I/O errors.
@@ -4122,6 +4246,7 @@ class PlayerService {
       }
       isPlayingNotifier.value = pipelineActive;
     }
+    if (pipelineActive) _captureActiveDirectUsbPlayback();
 
     unawaited(
       _syncUac2PlaybackStatus(
@@ -4138,54 +4263,27 @@ class PlayerService {
   Future<void> _handleDirectUsbRuntimeFailure(String message) {
     _midStreamUsbFallbackActive = true;
     final failedEngine = _rustEngine;
-    final wasPlaying =
-        isPlayingNotifier.value || (_lastPlaybackState?.isPlaying ?? false);
-    _resumeAfterUsbReattach |= wasPlaying;
+    final normalized = message.toLowerCase();
+    final connectionLost = normalized.contains('usb dac disconnected') ||
+        normalized.contains('code -4');
+    if (!connectionLost) _cancelUsbReconnect();
+    final intent = connectionLost ? _rememberDirectUsbPlayback() : null;
+    final generation = _usbConnectionGeneration;
     return _enqueuePlaybackRequest(() async {
       try {
-        // A queued attach may already have replaced the failed engine.
-        if (currentEngineType != AudioEngineType.usbDacExperimental ||
+        if (generation != _usbConnectionGeneration ||
+            _sessionManager.initializedMode != AudioEngineType.usbDacExperimental ||
             !identical(failedEngine, _rustEngine)) {
           return;
         }
-        final song = currentSongNotifier.value;
-        final position = positionNotifier.value;
-        final pauseOnDisconnect = await _appPreferencesService
-            .getPauseOnUsbDacDisconnect();
-        await _uac2Service.releaseAndroidDirectUsbRuntime();
-        final stillAttached = (await _uac2Service.listDevices(
-          refresh: true,
-        )).isNotEmpty;
-        if (stillAttached) {
-          // NO_DEVICE invalidates the old handle. Open/claim a fresh
-          // connection, rebuild the output, and resume once on that path.
-          await _sessionManager.switchMode(
-            AudioEngineType.normalAndroid,
-            reason: 'rebuilding failed direct USB connection',
-          );
-          if (await _enableUsbDacBitPerfect(resumeIfWasPlaying: true)) {
-            _debugLog(
-              '[USB] Direct playback recovered on a fresh connection',
-            );
-            return;
-          }
-          // Re-establish the failed mode for the normal refusal handler.
-          await _sessionManager.switchMode(
-            AudioEngineType.usbDacExperimental,
-            reason: 'direct USB recovery failed',
-          );
+        await _pauseInternal(preserveUsbResumeIntent: true);
+        await _tearDownDirectUsbForRecovery(reason: 'direct USB transport lost');
+        if (intent != null &&
+            !await _appPreferencesService.getPauseOnUsbDacConnect() &&
+            await _tryResumeDirectUsb(intent, generation)) {
+          return;
         }
-        final fellBack = await _handleDirectUsbStartupRefusal(
-          message,
-          song: song,
-          initialPosition: position,
-          autoResumeAfterFallback: wasPlaying && !pauseOnDisconnect,
-        );
-        if (!fellBack) {
-          await _refreshAudioOutputDiagnostics(
-            reason: 'Rust backend error',
-          );
-        }
+        _debugLog('[USB] Direct playback paused after transport loss: $message');
       } finally {
         _midStreamUsbFallbackActive = false;
       }
@@ -4228,6 +4326,9 @@ class PlayerService {
     };
     _rustAudioService.onError = (message) {
       _debugLog('[PlayerService] Rust backend error: $message');
+      // The in-flight direct-only attempt owns its startup failure. Do not
+      // let the generic error listener queue a second recovery or fallback.
+      if (_activeUsbReconnect != null) return;
       if (Platform.isAndroid &&
           !_midStreamUsbFallbackActive &&
           currentEngineType == AudioEngineType.usbDacExperimental &&
@@ -4261,6 +4362,7 @@ class PlayerService {
     _playbackDiagnosticsDebounceTimer = null;
     _playbackStateSubscription?.cancel();
     _playbackStateSubscription = _playbackManager.playbackState.listen((state) {
+      _captureActiveDirectUsbPlayback();
       final previous = _lastPlaybackState;
       _lastPlaybackState = state;
 
@@ -4556,6 +4658,10 @@ class PlayerService {
         _debugLog('Ignoring completion for superseded play: ${endedSource.path}');
         return;
       }
+      if (nextPlaybackId == null) {
+        _lastActiveUsbPlayback = null;
+        _usbReconnectIntent = null;
+      }
     }
 
     // A handoff can already have happened before Repeat One was enabled,
@@ -4712,12 +4818,14 @@ class PlayerService {
   }
 
   void _stopPlayback() {
+    _cancelUsbReconnect();
     _wasPlayingBeforeAudioInterruption = false;
     _audioInterruptionGeneration++;
     unawaited(_enqueuePlaybackRequest(_stopPlaybackInternal));
   }
 
   Future<void> _stopPlaybackInternal() async {
+    _cancelUsbReconnect();
     _crossfadeUiHandoffFrom = null;
     _stopPositionSaveTimer();
     await _savePosition();
@@ -5126,6 +5234,10 @@ class PlayerService {
       requestAudioFocus: playbackMode == AudioEngineType.usbDacExperimental
           ? null
           : _activateAudioSessionForRustEngine,
+      canStartPlayback: () {
+        final reconnect = _activeUsbReconnect;
+        return reconnect == null || _isUsbReconnectRouteCurrent(reconnect);
+      },
     );
   }
 
@@ -5234,6 +5346,7 @@ class PlayerService {
       } catch (error) {
         final recovered =
             playbackMode == AudioEngineType.usbDacExperimental &&
+            _activeUsbReconnect == null &&
             directUsbFormat != null &&
             await _retryAndroidDirectUsbPreparationWithFallbackRate(
               initialError: error,
@@ -5345,6 +5458,13 @@ class PlayerService {
       final alreadyRegistered = directUsbState?['registered'] == true;
       final hasPlaybackFormat =
           directUsbState?['playback_format_sample_rate'] != null;
+      final reconnect = _activeUsbReconnect;
+      if (reconnect != null) {
+        return alreadyRegistered &&
+            hasPlaybackFormat &&
+            directUsbState?['device_name'] == reconnect.device.deviceName &&
+            _isUsbReconnectRouteCurrent(reconnect);
+      }
 
       if (alreadyRegistered && hasPlaybackFormat) {
         _debugLog('[Engine] USB DAC already registered with playback format');
@@ -5753,12 +5873,19 @@ class PlayerService {
     AudioEngineType desiredEngine, {
     required Song song,
     required String reason,
+    _UsbReconnectAttempt? reconnect,
   }) async {
     final preparedEngine = await _prepareRequestedEngineForSong(
       desiredEngine,
       song: song,
       reason: reason,
+      reconnect: reconnect,
     );
+    if (reconnect != null &&
+        (preparedEngine != AudioEngineType.usbDacExperimental ||
+            !_isUsbReconnectRouteCurrent(reconnect))) {
+      throw StateError('Direct USB reconnect could not prepare the same DAC');
+    }
     await _sessionManager.switchMode(
       preparedEngine,
       initializeNewEngine: true,
@@ -5771,13 +5898,13 @@ class PlayerService {
     AudioEngineType desiredEngine, {
     required Song song,
     required String reason,
+    _UsbReconnectAttempt? reconnect,
   }) async {
-    final normalizedEngine = await _normalizeRequestedEngine(
-      desiredEngine,
-      reason: reason,
-    );
+    final normalizedEngine = reconnect != null
+        ? AudioEngineType.usbDacExperimental
+        : await _normalizeRequestedEngine(desiredEngine, reason: reason);
 
-    if (!Platform.isAndroid) {
+    if (!Platform.isAndroid && !(_testDirectUsb && reconnect != null)) {
       _sessionManager.clearFallbackReason();
       return normalizedEngine;
     }
@@ -5805,52 +5932,32 @@ class PlayerService {
         _sessionManager.clearFallbackReason();
         return engineForSong;
       case AudioEngineType.usbDacExperimental:
-        await _releaseAndroidManagedAudioResources(
-          reason: 'before direct USB initialization',
+        if (Platform.isAndroid) {
+          await _releaseAndroidManagedAudioResources(
+            reason: 'before direct USB initialization',
+          );
+        }
+        final trackFormat = await resolveDirectUsbTrackFormat(
+          song,
+          metadataFormat: _deriveUac2FormatFromSong(song),
+          probe: () async {
+            final path = await _resolveRustPath(song);
+            if (path == null || path.isEmpty) return null;
+            return rust_audio.audioProbeFormat(path: path);
+          },
         );
-
-        var trackFormat = _deriveUac2FormatFromSong(song);
-        // Library rows can carry the wrong bit depth (a 24-bit FLAC stored as
-        // 16-bit), and _deriveUac2FormatFromSong defaults to 16. Probe the
-        // source for every PCM track so the direct USB format is the file's
-        // actual rate/depth instead of the row's.
-        final needsFormatProbe = trackFormat == null || !song.isDsd;
-        if (needsFormatProbe) {
-          final resolvedPath = await _resolveRustPath(song);
-          if (resolvedPath != null && resolvedPath.isNotEmpty) {
-            try {
-              final probed = await rust_audio.audioProbeFormat(
-                path: resolvedPath,
-              );
-              final probedBitDepth = probed.bitsPerSample ?? 16;
-              _debugLog(
-                '[Engine] Metadata missing — probed format: '
-                '${probed.sampleRate}Hz/$probedBitDepth-bit/'
-                '${probed.channels}ch',
-              );
-              trackFormat = Uac2AudioFormat(
-                sampleRate: probed.sampleRate,
-                bitDepth: probedBitDepth,
-                channels: probed.channels,
-              );
-            } catch (e) {
-              _debugLog('[Engine] Format probe failed: $e');
-            }
-          }
-          if (trackFormat == null) {
-            await _uac2Service.markAndroidDirectUsbFallback(
-              'track sample rate is unavailable before USB engine startup',
-            );
-            await _uac2Service.releaseAndroidDirectUsbRuntime();
-            await _rustAudioService.setHighResMode(false);
-            await _sessionManager.recordFallback(
-              requestedMode: normalizedEngine,
-              fallbackMode: AudioEngineType.normalAndroid,
-              reason:
-                  'track sample rate is unavailable before USB engine startup',
-            );
-            return AudioEngineType.normalAndroid;
-          }
+        if (trackFormat == null) {
+          const failure = 'track format is unavailable before USB engine startup';
+          if (reconnect != null) throw StateError(failure);
+          await _uac2Service.markAndroidDirectUsbFallback(failure);
+          await _uac2Service.releaseAndroidDirectUsbRuntime();
+          await _rustAudioService.setHighResMode(false);
+          await _sessionManager.recordFallback(
+            requestedMode: normalizedEngine,
+            fallbackMode: AudioEngineType.normalAndroid,
+            reason: failure,
+          );
+          return AudioEngineType.normalAndroid;
         }
 
         final alreadyInUsbMode =
@@ -5867,7 +5974,9 @@ class PlayerService {
             _uac2Service.currentDeviceStatus?.currentFormat;
         final targetUsbOutputFormat = requestedUsbOutputFormat ?? trackFormat;
         final formatMatches =
+            reconnect == null &&
             alreadyInUsbMode &&
+            _uac2Service.currentDeviceStatus?.directUsbRegistered == true &&
             _sameUac2Format(currentUsbFormat, targetUsbOutputFormat);
 
         if (formatMatches) {
@@ -5881,20 +5990,25 @@ class PlayerService {
           return normalizedEngine;
         }
 
+        if (reconnect != null && !reconnect.isCurrent()) {
+          throw StateError('Direct USB reconnect was cancelled');
+        }
         final prepared = await _uac2Service
             .prepareAndroidExperimentalUsbPlayback(
               format: targetUsbOutputFormat,
+              reconnect: reconnect,
             );
         if (!prepared) {
-          await _uac2Service.markAndroidDirectUsbFallback(
-            'experimental direct USB path could not be prepared',
-          );
+          final failure = _uac2Service.currentDeviceStatus?.errorMessage ??
+              'experimental direct USB path could not be prepared';
+          if (reconnect != null) throw StateError(failure);
+          await _uac2Service.markAndroidDirectUsbFallback(failure);
           await _uac2Service.releaseAndroidDirectUsbRuntime();
           await _rustAudioService.setHighResMode(false);
           await _sessionManager.recordFallback(
             requestedMode: normalizedEngine,
             fallbackMode: AudioEngineType.normalAndroid,
-            reason: 'experimental direct USB path could not be prepared',
+            reason: failure,
           );
           return AudioEngineType.normalAndroid;
         }
@@ -5919,7 +6033,7 @@ class PlayerService {
           await _applyRustPlaybackProcessingPolicy(normalizedEngine, song: song);
         }
 
-        await _rustAudioService.setHighResMode(false);
+        if (Platform.isAndroid) await _rustAudioService.setHighResMode(false);
         _sessionManager.clearFallbackReason();
         return normalizedEngine;
     }
@@ -6016,6 +6130,7 @@ class PlayerService {
     PlaybackContext? context,
   }) {
     _debugLog('[UI] tap(${song.id})');
+    _cancelUsbReconnect();
     if (context != null) setPlaybackContext(context);
     // Immediate UI feedback: surface the loading state synchronously so the
     // mini-player shows a spinner before the (possibly queued) playback
@@ -6056,6 +6171,7 @@ class PlayerService {
   }
 
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
+    final playbackIntent = _usbPlaybackIntentRevision;
     await initAudio();
     await _ensurePhysicalOutputVolumeBeforePlayback();
     final loadingGen = ++_networkLoadingGen;
@@ -6137,6 +6253,9 @@ class PlayerService {
         // Engine preparation can change volume authority after the first
         // preflight (including a direct-USB fallback).
         await _ensurePhysicalOutputVolumeBeforePlayback();
+        if (playbackIntent == _usbPlaybackIntentRevision) {
+          _usbReconnectBlocked = false;
+        }
         await _runWithSuppressedSequenceStateUpdates(() async {
           await _playbackManager.playTrack(song);
         });
@@ -6481,6 +6600,7 @@ class PlayerService {
 
   Future<void> pause() {
     _debugLog('[PlayerService] pause() called');
+    _cancelUsbReconnect();
     // Manual pause cancels any pending auto-resume from a transient focus
     // loss; otherwise the next notification's end event restarts playback.
     // Interruption pauses bypass this manual cancellation path.
@@ -6493,7 +6613,7 @@ class PlayerService {
     bool releaseAudioFocus = true,
     bool preserveUsbResumeIntent = false,
   }) async {
-    if (!preserveUsbResumeIntent) _resumeAfterUsbReattach = false;
+    if (!preserveUsbResumeIntent) _cancelUsbReconnect();
     if (_castingService.isActive) {
       await _castingService.delegatePause();
       return;
@@ -6545,53 +6665,107 @@ class PlayerService {
   }
 
   Future<void> resume() {
-    return _enqueuePlaybackRequest(_resumeInternal);
+    _cancelUsbReconnect();
+    return _enqueuePlaybackRequest(() async {
+      await _resumeInternal();
+    });
   }
 
-  Future<void> _resumeInternal() async {
+  bool _isUsbReconnectRouteCurrent(_UsbReconnectAttempt reconnect) {
+    final status = _uac2Service.currentDeviceStatus;
+    return reconnect.isCurrent() &&
+        status?.directUsbRegistered == true &&
+        status!.device.deviceName == reconnect.device.deviceName &&
+        Uac2Service.sameUsbReconnectDevice(status.device, reconnect.device);
+  }
+
+  Future<bool> _resumeInternal({
+    _UsbReconnectAttempt? reconnect,
+    AudioEngineType? requestedMode,
+    Duration? retainedPosition,
+    bool Function()? canStart,
+  }) async {
+    final playbackIntent = _usbPlaybackIntentRevision;
+    bool requestIsCurrent() =>
+        (reconnect?.isCurrent() ?? true) && (canStart?.call() ?? true);
     if (_castingService.isActive) {
+      if (reconnect != null || canStart != null) return false;
       await _castingService.delegateResume();
-      return;
+      return true;
     }
+    if (!requestIsCurrent()) return false;
     await initAudio();
     await _ensurePhysicalOutputVolumeBeforePlayback();
 
     final song = currentSongNotifier.value ?? _songAtCurrentIndex();
-    if (song == null || song.filePath == null) {
-      return;
+    if (song == null || song.filePath == null || !requestIsCurrent()) {
+      return false;
     }
 
     _debugLog('[Playback] resume() called');
     // Use the cached route selection maintained by the session manager's device
     // listener rather than doing another blocking device probe on resume.
-    final desiredEngine = _sessionManager.selectedMode;
+    final desiredEngine = requestedMode ?? _sessionManager.selectedMode;
     final activeEngine = await _ensureEngineReady(
       desiredEngine,
       song: song,
       reason: 'resume requested',
+      reconnect: reconnect,
     );
     _debugLog('[Engine] Resume route resolved to ${activeEngine.logLabel}');
     // A matching prepared engine may be reused without re-running its policy.
     // Retry a low DAC level if a previous control failure held playback.
-    await _restoreUsbVolumeForResume(activeEngine, song: song);
-    await _ensurePhysicalOutputVolumeBeforePlayback();
-
     final latestState = _playbackManager.latestState;
     final canResumeDirectly =
+        reconnect == null &&
         _playbackManager.canResumeCurrentTrack &&
         latestState != null &&
         latestState.engine == activeEngine &&
         latestState.currentTrack?.id == song.id;
-    if (canResumeDirectly) {
-      await _playbackManager.play();
-    } else {
-      final resumePosition = positionNotifier.value > Duration.zero
-          ? positionNotifier.value
-          : _consumeRestoredPositionForSong(song);
+    if (reconnect != null) {
       await _prepareImmediatePlaybackAsset(song);
+      if (!_isUsbReconnectRouteCurrent(reconnect)) return false;
       await _runWithSuppressedSequenceStateUpdates(() async {
-        await _playbackManager.playTrack(song, initialPosition: resumePosition);
+        await _playbackManager.playTrack(
+          song,
+          initialPosition: retainedPosition ?? positionNotifier.value,
+          autoPlay: false,
+        );
       });
+      await _restoreUsbVolumeForResume(activeEngine, song: song);
+      await _ensurePhysicalOutputVolumeBeforePlayback();
+      if (_sessionManager.initializedMode != AudioEngineType.usbDacExperimental ||
+          !_isUsbReconnectRouteCurrent(reconnect) ||
+          !await _uac2Service.setAndroidUsbReconnectTarget(reconnect.device.deviceName)) {
+        return false;
+      }
+      try {
+        if (!_isUsbReconnectRouteCurrent(reconnect)) return false;
+        await _playbackManager.play();
+        if (!_isUsbReconnectRouteCurrent(reconnect)) return false;
+      } finally {
+        await _uac2Service.setAndroidUsbReconnectTarget(null);
+      }
+    } else {
+      await _restoreUsbVolumeForResume(activeEngine, song: song);
+      await _ensurePhysicalOutputVolumeBeforePlayback();
+      if (!requestIsCurrent()) return false;
+      if (playbackIntent == _usbPlaybackIntentRevision) {
+        _usbReconnectBlocked = false;
+      }
+      if (canResumeDirectly) {
+        await _playbackManager.play();
+      } else {
+        final resumePosition = retainedPosition ??
+            (positionNotifier.value > Duration.zero
+                ? positionNotifier.value
+                : _consumeRestoredPositionForSong(song));
+        await _prepareImmediatePlaybackAsset(song);
+        if (!requestIsCurrent()) return false;
+        await _runWithSuppressedSequenceStateUpdates(() async {
+          await _playbackManager.playTrack(song, initialPosition: resumePosition);
+        });
+      }
     }
 
     _ensurePositionSaveTimer();
@@ -6608,6 +6782,7 @@ class PlayerService {
       reason: 'playback resumed',
       activeSong: song,
     );
+    return true;
   }
 
   bool _isDirectUsbStartupRefusal(String message) {
@@ -6912,12 +7087,14 @@ class PlayerService {
     _debugLog(
       '[PlayerService] togglePlayPause called, isPlaying=${isPlayingNotifier.value}',
     );
+    final wasPlaying = isPlayingNotifier.value;
+    _cancelUsbReconnect();
     return _enqueuePlaybackRequest(() async {
       _debugLog(
         '[PlayerService] togglePlayPause executing, isPlaying=${isPlayingNotifier.value}',
       );
       try {
-        if (isPlayingNotifier.value) {
+        if (wasPlaying || isPlayingNotifier.value) {
           _wasPlayingBeforeAudioInterruption = false;
           await _pauseInternal();
         } else {
@@ -6952,6 +7129,7 @@ class PlayerService {
 
   Future<void> next() {
     _debugLog('[PlayerService] next() called');
+    _cancelUsbReconnect();
     return _enqueuePlaybackRequest(_nextInternal);
   }
 
@@ -7020,6 +7198,7 @@ class PlayerService {
 
   Future<void> previous({bool allowRestart = true}) {
     _debugLog('[PlayerService] previous() called (allowRestart=$allowRestart)');
+    _cancelUsbReconnect();
     return _enqueuePlaybackRequest(
       () => _previousInternal(allowRestart: allowRestart),
     );
@@ -7591,6 +7770,7 @@ class PlayerService {
   }
 
   Future<void> playFromQueueIndex(int index) {
+    _cancelUsbReconnect();
     return _enqueuePlaybackRequest(() => _playFromQueueIndexInternal(index));
   }
 
@@ -7705,6 +7885,7 @@ class PlayerService {
   }
 
   Future<void> playFromUpNextIndex(int index) {
+    _cancelUsbReconnect();
     return _enqueuePlaybackRequest(() => _playFromUpNextIndexInternal(index));
   }
 
@@ -8510,6 +8691,21 @@ class PlayerService {
       seek(a);
     }
   }
+}
+
+typedef _UsbReconnectAttempt =
+    ({Uac2DeviceInfo device, bool Function() isCurrent});
+
+class _UsbReconnectIntent {
+  const _UsbReconnectIntent({
+    required this.songId,
+    required this.device,
+    required this.position,
+  });
+
+  final String songId;
+  final Uac2DeviceInfo device;
+  final Duration position;
 }
 
 class _UsbVolumeSafetyStateChanged extends UsbDacVolumeRestoreError {

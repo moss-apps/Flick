@@ -1,3 +1,33 @@
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct IsoQueueGeometry {
+    pub(crate) packets_per_transfer: usize,
+    pub(crate) transfer_slots: usize,
+    pub(crate) stable_transfers: usize,
+}
+
+impl IsoQueueGeometry {
+    pub(crate) fn for_stream(service_interval_us: u32, dsd_on_wire: bool) -> Self {
+        // On a OnePlus 15 + DC04U, 125-us PCM stalled with 256 packets in
+        // flight. Both 8 x 16 and 16 x 8 (packets x slots) worked with 128
+        // packets queued, but 16 x 8 completed half as many URBs per second
+        // and used less CPU. This is a device result, not a controller limit.
+        // Keep the original geometry for other intervals and native DSD/DoP.
+        if service_interval_us == 125 && !dsd_on_wire {
+            return Self {
+                packets_per_transfer: 16,
+                transfer_slots: 8,
+                // Keep the old 256 ms observation window (64 x 32 x 125 us).
+                stable_transfers: 128,
+            };
+        }
+        Self {
+            packets_per_transfer: (4_000 / service_interval_us.max(1)).clamp(16, 32) as usize,
+            transfer_slots: 8,
+            stable_transfers: 64,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct IsoPacketScheduler {
     sample_rate: u32,
@@ -10,22 +40,28 @@ pub(crate) struct IsoPacketScheduler {
 }
 
 impl IsoPacketScheduler {
+    #[cfg(test)]
     pub(crate) fn new(sample_rate: u32, bytes_per_frame: usize, service_interval_us: u32) -> Self {
-        // 16 packets per URB at 125 us = 2 ms per transfer, 8 queued = 16 ms
-        // in flight (see ANDROID_USB_TRANSFER_QUEUE_DEPTH for the limit this
-        // respects). The output thread's CPU cost follows packets per URB:
-        // 16 measured about 30% below 8 on a OnePlus 15, with the same audio
-        // in flight. BitChord issue 1485 reports a stall on another Snapdragon
-        // phone at a different in-flight count, so the limit is
-        // device-specific.
-        let packets_per_transfer = 16usize;
+        Self::with_geometry(
+            sample_rate,
+            bytes_per_frame,
+            service_interval_us,
+            IsoQueueGeometry::for_stream(service_interval_us, false),
+        )
+    }
 
+    pub(crate) fn with_geometry(
+        sample_rate: u32,
+        bytes_per_frame: usize,
+        service_interval_us: u32,
+        geometry: IsoQueueGeometry,
+    ) -> Self {
         Self {
             sample_rate,
             service_interval_us,
             nominal_remainder: 0,
             bytes_per_frame,
-            packets_per_transfer,
+            packets_per_transfer: geometry.packets_per_transfer,
             feedback_frames_per_packet: None,
             feedback_remainder: 0.0,
         }

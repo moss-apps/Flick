@@ -4,7 +4,9 @@
 
 ### Playback
 - **Now Playing** — fixed an error when opening or reopening the full player with a track already loaded.
-- **In-app USB exclusive routing** — direct USB now force-claims the DAC's AudioControl interface through `UsbDeviceConnection.claimInterface(iface, force = true)` instead of requiring "Disable USB audio routing" in Developer options. The streaming interface stays with libusb, because a Java claim there makes libusb's alt-setting ioctl fail with `ENOENT`. The pre-claimed interface mask is handed to the Rust engine, which records those interfaces instead of issuing a second usbfs claim that would return `EBUSY`.
+- **In-app USB exclusive routing:** Flick claims the DAC for direct playback without requiring Android's global USB routing setting. Android gets the interfaces back after the stream has stopped.
+- **USB reconnect:** Playback can resume from the retained position on the same verified DAC. Manual pause, pause-on-connect, failed volume checks, and an unverified DAC keep it paused.
+- **Direct USB on high-speed DACs:** PCM at a 125 µs service interval uses a shorter transfer queue to address stalls observed on the OnePlus 15 and iBasso DC04U. Packet validation and timeout handling remain strict.
 
 ## 0.23.3-beta.5 (2026-11-20)
 

@@ -1315,12 +1315,16 @@ pub fn audio_probe_format(path: String) -> Result<AudioProbeFormat, String> {
         .and_then(|p| p.audio())
         .ok_or("No audio track found".to_string())?;
     Ok(AudioProbeFormat {
-        sample_rate: cp.sample_rate.unwrap_or(44100),
+        sample_rate: cp
+            .sample_rate
+            .filter(|rate| *rate > 0)
+            .ok_or_else(|| "File does not report a sample rate".to_string())?,
         channels: cp
             .channels
             .as_ref()
             .map(|c| c.count() as u16)
-            .unwrap_or(2),
+            .filter(|channels| *channels > 0)
+            .ok_or_else(|| "File does not report its channel count".to_string())?,
         bits_per_sample: cp.bits_per_sample,
     })
 }
@@ -1344,6 +1348,54 @@ fn playback_range_for_path(
         return Err("CUE playback ranges are not supported for DSD/WavPack sources".to_string());
     }
     Ok(range)
+}
+
+#[cfg(all(target_os = "android", feature = "uac2"))]
+enum UsbReconnectTarget {
+    Device(String),
+    Cancelled,
+}
+
+// Scoped by a serialized PlayerService reconnect request. This also covers
+// the second engine negotiation after the decoder discovers the actual rate.
+#[cfg(all(target_os = "android", feature = "uac2"))]
+static USB_RECONNECT_TARGET: Lazy<parking_lot::Mutex<Option<UsbReconnectTarget>>> =
+    Lazy::new(|| parking_lot::Mutex::new(None));
+
+#[cfg(all(target_os = "android", feature = "uac2"))]
+pub(crate) fn set_android_usb_reconnect_target(device_name: Option<String>, cancel: bool) {
+    let mut target = USB_RECONNECT_TARGET.lock();
+    if cancel {
+        if target.is_some() {
+            *target = Some(UsbReconnectTarget::Cancelled);
+        }
+    } else {
+        *target = device_name.map(UsbReconnectTarget::Device);
+    }
+}
+
+fn with_usb_reconnect_guard<T>(
+    _handle: &crate::audio::engine::AudioEngineHandle,
+    start: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    #[cfg(all(target_os = "android", feature = "uac2"))]
+    {
+        let target = USB_RECONNECT_TARGET.lock();
+        return match target.as_ref() {
+            None => start(),
+            Some(UsbReconnectTarget::Cancelled) => {
+                Err("Direct USB reconnect was cancelled".into())
+            }
+            Some(UsbReconnectTarget::Device(device)) => {
+                if !_handle.output_runtime().direct_usb_active {
+                    return Err("Direct USB reconnect refused a managed output".into());
+                }
+                crate::uac2::with_live_usb_reconnect(device, start)
+            }
+        };
+    }
+    #[cfg(not(all(target_os = "android", feature = "uac2")))]
+    start()
 }
 
 /// Play an audio file, optionally restricted to a CUE track.
@@ -1441,8 +1493,10 @@ pub fn audio_play(
                     .map_err(|e| format!("Failed to decode DSD: {}", e))?;
             let is_raw = matches!(effective_mode, DsdOutputMode::Dop | DsdOutputMode::Native);
             let completion = with_audio_engine(|handle| {
-                handle.set_dop_override(is_raw)?;
-                handle.play_prepared(source, DecoderHandle::Dsd(thread))
+                with_usb_reconnect_guard(handle, || {
+                    handle.set_dop_override(is_raw)?;
+                    handle.play_prepared(source, DecoderHandle::Dsd(thread))
+                })
             })?;
             wait_for_play_start(completion)
         }
@@ -1457,8 +1511,10 @@ pub fn audio_play(
                 WavpackDecoderThread::spawn(path, output_sample_rate, output_channels)
                     .map_err(|e| format!("Failed to decode WavPack: {}", e))?;
             with_audio_engine(|engine| {
-                engine.set_dop_override(false)?;
-                engine.play_prepared(source, handle)
+                with_usb_reconnect_guard(engine, || {
+                    engine.set_dop_override(false)?;
+                    engine.play_prepared(source, handle)
+                })
             })
             .and_then(wait_for_play_start)
         }
@@ -1493,8 +1549,10 @@ pub fn audio_play(
             )
             .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
             with_audio_engine(|handle| {
-                handle.set_dop_override(false)?;
-                handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
+                with_usb_reconnect_guard(handle, || {
+                    handle.set_dop_override(false)?;
+                    handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
+                })
             })
             .and_then(wait_for_play_start)
         }
@@ -1744,8 +1802,10 @@ pub fn audio_play_from_http(
     )
     .map_err(|e| format!("Failed to decode HTTP stream: {}", e))?;
     with_audio_engine(|handle| {
-        handle.set_dop_override(false)?;
-        handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
+        with_usb_reconnect_guard(handle, || {
+            handle.set_dop_override(false)?;
+            handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
+        })
     })
     .and_then(wait_for_play_start)
 }

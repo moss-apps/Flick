@@ -282,9 +282,9 @@ class Uac2Service {
   }
   Uac2DeviceStatus? _currentDeviceStatus;
   final List<ValueChanged<Uac2DeviceStatus?>> _statusListeners = [];
-  final StreamController<void> _deviceDetachedController =
-      StreamController<void>.broadcast();
-  Stream<void> get deviceDetachedEvents => _deviceDetachedController.stream;
+  final StreamController<String?> _deviceDetachedController =
+      StreamController<String?>.broadcast();
+  Stream<String?> get deviceDetachedEvents => _deviceDetachedController.stream;
   final StreamController<void> _deviceAttachedController =
       StreamController<void>.broadcast();
   Stream<void> get deviceAttachedEvents => _deviceAttachedController.stream;
@@ -383,26 +383,11 @@ class Uac2Service {
     final dapBitPerfectEnabled = await _preferencesService.getDapBitPerfectEnabled();
     dapBitPerfectEnabledNotifier.value = dapBitPerfectEnabled;
     await syncKillIsochronousUsbOnQuitToNative();
+    // Claiming can detach Android's audio driver. Enumeration on launch
+    // must not take that route away from Android-managed playback.
+    if (Platform.isAndroid) return;
     final savedDevice = await _preferencesService.loadSelectedDevice();
-    if (savedDevice == null) {
-      return;
-    }
-
-    if (Platform.isAndroid) {
-      if (!bitPerfectEnabled) {
-        return;
-      }
-      final matchingDevice = await _resolvePreferredAndroidActivationDevice(
-        savedDevice,
-      );
-      if (matchingDevice == null) {
-        return;
-      }
-      await selectDevice(matchingDevice);
-      return;
-    }
-
-    await selectDevice(savedDevice);
+    if (savedDevice != null) await selectDevice(savedDevice);
   }
 
   /// Boot-time probe: publish route status without activating devices or
@@ -429,8 +414,12 @@ class Uac2Service {
           _scheduleAndroidRouteRefresh();
           return;
         case 'onDeviceDetached':
-          _hardwareVolumeRestore.reset();
-          _deviceDetachedController.add(null);
+          final deviceName = call.arguments as String?;
+          if (deviceName == null ||
+              deviceName == _currentDeviceStatus?.device.deviceName) {
+            _hardwareVolumeRestore.reset();
+          }
+          _deviceDetachedController.add(deviceName);
           _scheduleAndroidRouteRefresh();
           return;
         case 'onVolumeChanged':
@@ -612,33 +601,90 @@ class Uac2Service {
     }
   }
 
-  /// Registers and force-claims the DAC that is already attached.
-  ///
-  /// Called during audio initialization so an app start with the DAC already
-  /// plugged in reaches the direct-USB path before the first engine is created.
-  /// Attach broadcasts alone do not cover that case.
-  Future<bool> activateAttachedDirectUsb() async {
-    if (!Platform.isAndroid) return false;
-    try {
-      final devices = await listDevices();
-      if (devices.isEmpty) return false;
-      final device = devices.first;
-      if ((device.deviceName ?? '').isEmpty) return false;
-      return await selectDevice(device, bitPerfectOverride: true);
-    } catch (e) {
-      devLog('Uac2Service.activateAttachedDirectUsb failed: $e');
-      return false;
+  // Android uses the current USB path as a stand-in when a serial is absent
+  // or hidden before permission. The path can change and can be reused.
+  static String? usbReconnectSerial(Uac2DeviceInfo device) {
+    final serial = device.serial;
+    if (serial == null ||
+        serial.trim().isEmpty ||
+        serial == device.deviceName ||
+        serial.startsWith('/dev/')) {
+      return null;
     }
+    return serial;
+  }
+
+  static bool sameUsbReconnectDevice(
+    Uac2DeviceInfo expected,
+    Uac2DeviceInfo actual,
+  ) =>
+      expected.vendorId == actual.vendorId &&
+      expected.productId == actual.productId &&
+      usbReconnectSerial(expected) != null &&
+      usbReconnectSerial(expected) == usbReconnectSerial(actual);
+
+  /// Re-enumerate rather than reuse the frozen playback device. Permission
+  /// may reveal the serial of a single candidate, but never claim by model.
+  Future<Uac2DeviceInfo?> findAndroidUsbReconnectDevice(
+    Uac2DeviceInfo previous, {
+    required bool Function() isCurrent,
+  }) async {
+    if (usbReconnectSerial(previous) == null) return null;
+    final devices = await listDevices(refresh: true);
+    if (!isCurrent()) return null;
+    final model = devices.where(
+      (device) =>
+          (device.deviceName?.isNotEmpty ?? false) &&
+          device.vendorId == previous.vendorId &&
+          device.productId == previous.productId,
+    ).toList();
+    final known = model.where(
+      (device) => sameUsbReconnectDevice(previous, device),
+    ).toList();
+    if (known.length == 1) return known.single;
+    if (known.isNotEmpty ||
+        model.length != 1 ||
+        usbReconnectSerial(model.single) != null) {
+      return null;
+    }
+    final name = model.single.deviceName!;
+    if (!await hasPermission(name)) {
+      if (!isCurrent() || !await requestPermission(name)) return null;
+    }
+    if (!isCurrent()) return null;
+    final refreshed = await listDevices(refresh: true);
+    final verified = refreshed
+        .where((device) => sameUsbReconnectDevice(previous, device))
+        .toList();
+    return isCurrent() &&
+            verified.length == 1 &&
+            verified.single.deviceName == name
+        ? verified.single
+        : null;
   }
 
   Future<bool> selectDevice(
     Uac2DeviceInfo device, {
     bool? bitPerfectOverride,
     bool throwOnVolumeRestoreFailure = false,
+  }) => _selectDevice(
+    device,
+    bitPerfectOverride: bitPerfectOverride,
+    throwOnVolumeRestoreFailure: throwOnVolumeRestoreFailure,
+  );
+
+  Future<bool> _selectDevice(
+    Uac2DeviceInfo device, {
+    bool? bitPerfectOverride,
+    required bool throwOnVolumeRestoreFailure,
+    bool Function()? reconnectIsCurrent,
   }) async {
     try {
+      if (reconnectIsCurrent?.call() == false) return false;
       final resolvedDevice = Platform.isAndroid
-          ? await _resolveConnectedAndroidDevice(device)
+          ? reconnectIsCurrent != null
+              ? device
+              : await _resolveConnectedAndroidDevice(device)
           : device;
 
       _updateStatus(
@@ -665,6 +711,12 @@ class Uac2Service {
         }
 
         final hasPermission = await this.hasPermission(deviceIdentifier);
+        // A reconnect target was already freshly enumerated and authorized.
+        // Never let the normal resolver replace it with a model match.
+        if (reconnectIsCurrent != null &&
+            (!hasPermission || usbReconnectSerial(device) == null)) {
+          return false;
+        }
         if (!hasPermission) {
           final granted = await requestPermission(deviceIdentifier);
           if (!granted) {
@@ -685,9 +737,17 @@ class Uac2Service {
             : await _resolveConnectedAndroidDevice(androidDevice) ?? androidDevice;
         final bitPerfectEnabled = bitPerfectOverride ??
             await _preferencesService.getBitPerfectEnabled();
+        if (reconnectIsCurrent?.call() == false) return false;
         final activated = await _channel.invokeMethod<bool>(
           'activateDirectUsb',
-          {'deviceName': deviceIdentifier},
+          {
+            'deviceName': deviceIdentifier,
+            if (reconnectIsCurrent != null) ...{
+              'expectedSerial': usbReconnectSerial(device),
+              'expectedVendorId': device.vendorId,
+              'expectedProductId': device.productId,
+            },
+          },
         );
         if (activated != true) {
           _updateStatus(
@@ -703,6 +763,7 @@ class Uac2Service {
         // Await the same restore for cold activation and an already registered
         // DAC. Native stages it before startup, or writes/readbacks immediately
         // on a prepared backend. DSP-only PCM must not be attenuated twice.
+        if (reconnectIsCurrent?.call() == false) return false;
         if (bitPerfectEnabled) {
           await _restoreAndroidDirectUsbHardwareVolume(authorizedDevice);
         }
@@ -711,6 +772,7 @@ class Uac2Service {
           'enabled': bitPerfectEnabled,
         });
 
+        if (reconnectIsCurrent?.call() == false) return false;
         await _preferencesService.saveSelectedDevice(authorizedDevice);
         await _refreshAndroidRouteStatus(
           preferredDevice: authorizedDevice,
@@ -747,7 +809,9 @@ class Uac2Service {
           state: Uac2State.error,
           errorMessage: volumeRestoreFailed
               ? l10n.exclusiveUsbIsStillUnavailableCheck
-              : e.toString(),
+              : e is PlatformException && e.code == 'DIRECT_USB_CLAIM_FAILED'
+                  ? e.message ?? e.toString()
+                  : e.toString(),
         ),
       );
       // Playback must remain stopped on a volume safety refusal, not silently
@@ -760,13 +824,15 @@ class Uac2Service {
   Future<bool> prepareAndroidExperimentalUsbPlayback({
     required Uac2AudioFormat format,
     Set<int> disallowedSampleRates = const <int>{},
+    ({Uac2DeviceInfo device, bool Function() isCurrent})? reconnect,
   }) async {
     if (!Platform.isAndroid) {
       return false;
     }
 
     await initialize();
-    final resolvedDevice = await _resolvePreferredAndroidActivationDevice(null);
+    final resolvedDevice =
+        reconnect?.device ?? await _resolvePreferredAndroidActivationDevice(null);
     if (resolvedDevice == null ||
         !(resolvedDevice.deviceName?.isNotEmpty ?? false)) {
       devLog(
@@ -776,9 +842,10 @@ class Uac2Service {
       return false;
     }
 
-    final selected = await selectDevice(
+    final selected = await _selectDevice(
       resolvedDevice,
       throwOnVolumeRestoreFailure: true,
+      reconnectIsCurrent: reconnect?.isCurrent,
     );
     if (!selected) {
       return false;
@@ -834,6 +901,7 @@ class Uac2Service {
       }
     }
 
+    if (reconnect?.isCurrent() == false) return false;
     try {
       final applied = await _channel
           .invokeMethod<bool>('setDirectUsbPlaybackFormat', {
@@ -1506,14 +1574,6 @@ Future<void> stopPriorityAnchor() async {
         if (!_isCurrentPlaybackStatusSync(syncGeneration)) {
           return;
         }
-        if (resolvedPreferredDevice != null &&
-            (resolvedPreferredDevice.deviceName?.isNotEmpty ?? false) &&
-            _shouldActivateAndroidDirectUsb(resolvedPreferredDevice)) {
-          await selectDevice(resolvedPreferredDevice);
-          if (!_isCurrentPlaybackStatusSync(syncGeneration)) {
-            return;
-          }
-        }
       } else {
         resolvedPreferredDevice = await _resolvePreferredAndroidDevice(null);
         if (!_isCurrentPlaybackStatusSync(syncGeneration)) {
@@ -1742,6 +1802,25 @@ Future<void> stopPriorityAnchor() async {
           currentStatus.currentFormat?.sampleRate ??
           _lastKnownFormat?.sampleRate,
     );
+  }
+
+  /// Scope the native play guard to this automatic resume, including any
+  /// HTTP-to-file retry. Cancel without disarming until the request returns.
+  Future<bool> setAndroidUsbReconnectTarget(
+    String? deviceName, {
+    bool cancel = false,
+  }) async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('setDirectUsbReconnectTarget', {
+            'deviceName': deviceName,
+            'cancel': cancel,
+          }) ??
+          false;
+    } catch (e) {
+      devLog('Uac2Service.setAndroidUsbReconnectTarget failed: $e');
+      return false;
+    }
   }
 
   Future<Map<String, dynamic>?> getAndroidPlaybackDebugState() async {
@@ -2351,9 +2430,17 @@ Future<void> stopPriorityAnchor() async {
     _updateStatus(current.copyWith(state: Uac2State.prewarming));
   }
 
-  Future<bool> setBitPerfectEnabled(bool enabled, {bool persist = true}) {
+  Future<bool> setBitPerfectEnabled(
+    bool enabled, {
+    bool persist = true,
+    bool deferDeviceActivation = false,
+  }) {
     final result = _bitPerfectChangeQueue.then(
-      (_) => _setBitPerfectEnabled(enabled, persist: persist),
+      (_) => _setBitPerfectEnabled(
+        enabled,
+        persist: persist,
+        deferDeviceActivation: deferDeviceActivation,
+      ),
     );
     _bitPerfectChangeQueue = result.then<void>(
       (_) {},
@@ -2362,13 +2449,17 @@ Future<void> stopPriorityAnchor() async {
     return result;
   }
 
-  Future<bool> _setBitPerfectEnabled(bool enabled, {required bool persist}) async {
+  Future<bool> _setBitPerfectEnabled(
+    bool enabled, {
+    required bool persist,
+    required bool deferDeviceActivation,
+  }) async {
     if (!Platform.isAndroid) {
       return false;
     }
 
     try {
-      if (enabled) {
+      if (enabled && !deferDeviceActivation) {
         final preferredDevice = await _resolvePreferredAndroidActivationDevice(
           null,
         );
@@ -2385,14 +2476,16 @@ Future<void> stopPriorityAnchor() async {
             await _restoreAndroidDirectUsbHardwareVolume(preferredDevice);
           }
         }
-      } else {
+      } else if (!enabled) {
         _hardwareVolumeRestore.reset();
       }
 
-      final result = await _channel.invokeMethod<bool>('setExclusiveDacMode', {
-        'enabled': enabled,
-      });
-      if (result == false) return false;
+      if (!enabled || !deferDeviceActivation) {
+        final result = await _channel.invokeMethod<bool>('setExclusiveDacMode', {
+          'enabled': enabled,
+        });
+        if (result == false) return false;
+      }
       // Publishing this flag releases software gain in PlayerService. Do not
       // expose unity-gain passthrough until the native restore has succeeded.
       if (persist) {
