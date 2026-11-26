@@ -3,6 +3,9 @@ use crate::dev_eprintln;
 use crate::audio::commands::AudioEvent;
 use crate::audio::engine::AudioCallbackData;
 use crate::uac2::endpoint::{select_explicit_feedback_endpoint, FeedbackEndpointCandidate};
+use crate::uac2::iso_completion_diagnostics::{
+    summarize_iso_batch, IsoCompletionDiagnostic, IsoSlotDiagnostic,
+};
 use crate::uac2::iso_packet_validation::{
     account_pcm_completion, iso_transfer_status_label, validate_iso_packet_descriptors,
     CompletionStats,
@@ -995,6 +998,23 @@ impl IsoTransferSlot {
     fn take_completion(&mut self) -> Option<(i32, Instant, usize)> {
         let completion = unsafe { &(*self.user_data).completion };
         completion.take()
+    }
+
+    fn diagnostic(&self, completion: Option<IsoCompletionDiagnostic>) -> IsoSlotDiagnostic {
+        IsoSlotDiagnostic {
+            slot_index: self.slot_index,
+            generation: self.generation,
+            pending_at_poll: self.in_flight && completion.is_none(),
+            submitted_age_us: self.submitted_at.map(|submitted_at| {
+                submitted_at
+                    .elapsed()
+                    .as_micros()
+                    .min(u128::from(u64::MAX)) as u64
+            }),
+            queued_frames: self.queued_frame_count as u64,
+            submitted_bytes: self.submitted_bytes,
+            completion,
+        }
     }
 
     fn turnaround_us(&self, completed_at: Instant) -> Option<u64> {
@@ -6322,6 +6342,79 @@ fn record_prepared_iso_transfer(
     }
 }
 
+fn optional_age_ms(value: Option<u64>) -> String {
+    value
+        .map(|age| age.to_string())
+        .unwrap_or_else(|| "none".to_string())
+}
+
+fn log_iso_timeout_snapshot(
+    timed_out_slot: usize,
+    polled_slots: &[IsoSlotDiagnostic],
+    min_active_slots: usize,
+    configured_queue_depth: usize,
+    processed_transfers: u64,
+    stream_elapsed: Duration,
+    last_successful_completion_at: Option<Instant>,
+    last_event_poll_gap_us: u64,
+    max_event_poll_gap_us: u64,
+    max_event_wait_us: u64,
+    feedback_counters: &FeedbackCounters,
+) {
+    let summary = summarize_iso_batch(polled_slots, last_successful_completion_at);
+    let pending_slots = polled_slots.iter().filter(|slot| slot.pending_at_poll).count();
+    let last_validated_age_ms = summary
+        .latest_packet_validated_at
+        .map(|completed_at| completed_at.elapsed().as_millis() as u64);
+    dev_eprintln!(
+        "[USB-TIMEOUT] timedOutSlot={} pendingSlotsAtPoll={} minActiveSlots={} configuredQueueDepth={} processedTransfers={} batchCompletions={} batchPacketValidated={} streamAgeMs={} lastPacketValidatedAgeMs={} lastEventPollGapUs={} maxEventPollGapUs={} maxEventWaitUs={} feedbackReports={} feedbackTimeouts={} feedbackErrors={}",
+        timed_out_slot,
+        pending_slots,
+        min_active_slots,
+        configured_queue_depth,
+        processed_transfers,
+        summary.completion_count,
+        summary.packet_validated_count,
+        stream_elapsed.as_millis() as u64,
+        optional_age_ms(last_validated_age_ms),
+        last_event_poll_gap_us,
+        max_event_poll_gap_us,
+        max_event_wait_us,
+        feedback_counters.reports,
+        feedback_counters.timeouts,
+        feedback_counters.errors,
+    );
+
+    for slot in polled_slots {
+        let status = slot
+            .completion
+            .map(|completion| iso_transfer_status_label(completion.status))
+            .unwrap_or("none");
+        let completion_age_ms = slot
+            .completion
+            .map(|completion| completion.completed_at.elapsed().as_millis() as u64);
+        let packet_validation = match slot.completion {
+            Some(completion) if completion.status == LIBUSB_TRANSFER_COMPLETED => {
+                if completion.packets_valid { "valid" } else { "invalid" }
+            }
+            _ => "n/a",
+        };
+        dev_eprintln!(
+            "[USB-TIMEOUT] slot={} timedOut={} pendingAtPoll={} status={} packetValidation={} completionAgeMs={} submittedAgeUs={} queuedFrames={} submittedBytes={} generation={}",
+            slot.slot_index,
+            slot.slot_index == timed_out_slot,
+            slot.pending_at_poll,
+            status,
+            packet_validation,
+            optional_age_ms(completion_age_ms),
+            optional_age_ms(slot.submitted_age_us),
+            slot.queued_frames,
+            slot.submitted_bytes,
+            slot.generation,
+        );
+    }
+}
+
 fn run_usb_output_loop(
     claimed_handle: AndroidDirectUsbClaimedHandle,
     candidate: AndroidIsoStreamCandidate,
@@ -6466,13 +6559,20 @@ fn run_usb_output_loop(
         ANDROID_USB_LOSS_LOG_BURST,
         ANDROID_USB_LOSS_LOG_MIN_INTERVAL_MS,
     );
+    let mut timeout_snapshot_gate = LossLogGate::new(1, ANDROID_USB_LOSS_LOG_MIN_INTERVAL_MS);
     let transfer_buffer_capacity = scheduler
         .packets_per_transfer()
         .saturating_mul(candidate.max_packet_bytes.max(1));
     let mut slots = Vec::with_capacity(transfer_slot_count);
     let mut ready_completions = Vec::with_capacity(transfer_slot_count);
+    let mut polled_slots = Vec::with_capacity(transfer_slot_count);
     let mut active_slots = 0usize;
     let mut fatal_error: Option<String> = None;
+    let mut last_successful_completion_at: Option<Instant> = None;
+    let mut last_event_poll_started_at: Option<Instant> = None;
+    let mut last_event_poll_gap_us = 0u64;
+    let mut max_event_poll_gap_us = 0u64;
+    let mut max_event_wait_us = 0u64;
 
     let priming_target = runtime_stats.buffer_target_samples;
     log_info!(
@@ -6609,7 +6709,24 @@ fn run_usb_output_loop(
             break;
         }
 
-        if let Err(error) = context.handle_events(Some(Duration::from_millis(50))) {
+        let event_poll_started_at = Instant::now();
+        if let Some(previous_poll_started_at) = last_event_poll_started_at {
+            last_event_poll_gap_us = event_poll_started_at
+                .saturating_duration_since(previous_poll_started_at)
+                .as_micros()
+                .min(u128::from(u64::MAX)) as u64;
+            max_event_poll_gap_us = max_event_poll_gap_us.max(last_event_poll_gap_us);
+        }
+        last_event_poll_started_at = Some(event_poll_started_at);
+
+        let event_result = context.handle_events(Some(Duration::from_millis(50)));
+        max_event_wait_us = max_event_wait_us.max(
+            event_poll_started_at
+                .elapsed()
+                .as_micros()
+                .min(u128::from(u64::MAX)) as u64,
+        );
+        if let Err(error) = event_result {
             fatal_error = Some(format!("libusb_handle_events failed: {}", error));
             break;
         }
@@ -6627,16 +6744,27 @@ fn run_usb_output_loop(
         }
 
         ready_completions.clear();
+        polled_slots.clear();
         for (index, slot) in slots.iter_mut().enumerate() {
-            if let Some((status, completed_at, _actual_length)) = slot.take_completion() {
+            let completion = slot.take_completion().map(|(status, completed_at, _)| {
                 ready_completions.push((index, status, completed_at));
-            }
+                IsoCompletionDiagnostic {
+                    status,
+                    completed_at,
+                    packets_valid: false,
+                }
+            });
+            polled_slots.push(slot.diagnostic(completion));
         }
         // Slot indices wrap as transfers are reused. Count consecutive
         // interruptions in callback order rather than ring slot order.
         ready_completions.sort_unstable_by_key(|&(index, _, completed_at)| {
             (completed_at, slots[index].submitted_at)
         });
+        let timed_out_slot = ready_completions
+            .iter()
+            .find(|&&(_, status, _)| status == LIBUSB_TRANSFER_TIMED_OUT)
+            .map(|&(index, _, _)| index);
 
         let mut retired = 0;
         for &(index, status, completed_at) in &ready_completions {
@@ -6724,6 +6852,11 @@ fn run_usb_output_loop(
 
             if verdict.counts_as_successful_transfer() {
                 successful_transfers = successful_transfers.saturating_add(1);
+                if let Some(completion) = polled_slots[index].completion.as_mut() {
+                    completion.packets_valid = true;
+                }
+                last_successful_completion_at =
+                    last_successful_completion_at.max(Some(completed_at));
             }
 
             let completed_transfers = runtime_stats
@@ -6910,13 +7043,43 @@ fn run_usb_output_loop(
         // fatal error, retire the remaining completed slots before draining.
         let unprocessed = &ready_completions[retired..];
         if !unprocessed.is_empty() {
-            for &(index, _, _) in unprocessed {
-                slots[index].mark_completed();
+            for &(index, status, _) in unprocessed {
+                let slot = &mut slots[index];
+                if timed_out_slot.is_some() && status == LIBUSB_TRANSFER_COMPLETED {
+                    // Validate for the snapshot only. Do not credit or resubmit
+                    // slots abandoned after a fatal error.
+                    if let Some(completion) = polled_slots[index].completion.as_mut() {
+                        completion.packets_valid = slot.validate_packets(None, false).is_ok();
+                    }
+                }
+                slot.mark_completed();
             }
             active_slots = active_slots.saturating_sub(unprocessed.len());
+            min_active_slots = min_active_slots.min(active_slots);
             runtime_stats
                 .transfer_queue_depth
                 .store(active_slots, Ordering::Relaxed);
+        }
+
+        // PCM recovery may produce several snapshots; keep fatal ones and
+        // rate-limit repeated recoverable timeouts.
+        if let Some(timed_out_slot) = timed_out_slot.filter(|_| {
+            fatal_error.is_some()
+                || timeout_snapshot_gate.admit(stream_started_at.elapsed().as_millis() as u64)
+        }) {
+            log_iso_timeout_snapshot(
+                timed_out_slot,
+                &polled_slots,
+                min_active_slots,
+                transfer_slot_count,
+                runtime_stats.completed_transfers.load(Ordering::Relaxed),
+                stream_started_at.elapsed(),
+                last_successful_completion_at,
+                last_event_poll_gap_us,
+                max_event_poll_gap_us,
+                max_event_wait_us,
+                &feedback_counters,
+            );
         }
     }
 
@@ -7422,6 +7585,13 @@ fn validate_android_usb_claims(
             "Android USB claims {:?} don't match required audio control/playback interfaces {:?}",
             claimed_handle.claimed_interfaces, required
         ));
+    }
+    for interface_number in claimed_handle.claimed_interfaces.iter() {
+        dev_eprintln!(
+            "Android USB direct claimed interface {} (now {:?})",
+            interface_number,
+            claimed_handle.claimed_interfaces
+        );
     }
     Ok(())
 }
