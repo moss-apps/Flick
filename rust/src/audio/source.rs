@@ -298,7 +298,12 @@ impl AudioSource {
     pub fn has_enough_buffer(&self) -> bool {
         // Need at least 0.5 seconds of audio buffered (at output sample rate)
         let min_samples = (self.info.output_sample_rate as usize / 2) * self.info.channels;
-        self.consumer.occupied_len() >= min_samples || self.decoder_finished.load(Ordering::Acquire)
+        self.has_buffered_samples_or_decoder_finished(min_samples)
+    }
+
+    #[inline]
+    pub(crate) fn has_buffered_samples_or_decoder_finished(&self, min_samples: usize) -> bool {
+        self.buffered_samples() >= min_samples || self.decoder_finished.load(Ordering::Acquire)
     }
 
     /// Read samples from the buffer into the output.
