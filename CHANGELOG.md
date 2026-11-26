@@ -8,6 +8,7 @@
 - **USB reconnect:** Playback can resume from the retained position on the same verified DAC. Manual pause, pause-on-connect, failed volume checks, and an unverified DAC keep it paused.
 - **Direct USB on high-speed DACs:** PCM at a 125 µs service interval uses a shorter transfer queue to address stalls observed on the OnePlus 15 and iBasso DC04U.
 - **Direct USB PCM recovery:** Flick can continue after an isolated whole-frame short completion or timeout. Uncredited frames are logged and the stream loses bit-perfect verification until restarted. Rewritten descriptors, oversized packets, and other transport errors still stop the stream. Native DSD and DoP still require exact completions.
+- **Direct USB playback controls:** Pause keeps the DAC locked without letting the audio buffer play out. Resume uses the current software volume, and seek drops buffered audio from the previous position.
 
 ## 0.23.3-beta.5 (2026-11-20)
 
