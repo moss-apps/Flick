@@ -415,6 +415,13 @@ Map<String, String> audioPathTransitionFields(
     'reported': diagnostics.reportedOutputSampleRate?.toString() ?? 'none',
     'fallback': diagnostics.fallbackReason ?? 'none',
     'verification': diagnostics.verificationReason ?? 'none',
+    // Record changes in verification, not every counter tick. A timeout can
+    // invalidate verification without a reported frame deficit.
+    'transportLoss': (diagnostics.urbTransport?.lostFrames ?? 0) > 0
+        ? 'detected'
+        : diagnostics.urbTransport?.transportInterrupted == true
+        ? 'unverified'
+        : 'none',
   };
 }
 
@@ -3620,6 +3627,21 @@ class PlayerService {
     final directUsbBitPerfectVerified =
         directUsbState?['bit_perfect_verified'] == true ||
         directUsbState?['bitPerfectVerified'] == true;
+    final lostFrames = _intValue(
+      directUsbState?['lost_frames'] ?? directUsbState?['lostFrames'],
+    );
+    final dataUrbTimeouts = _intValue(
+      directUsbState?['data_urb_timeouts'] ??
+          directUsbState?['dataUrbTimeouts'],
+    );
+    final transportUnverified =
+        directUsbState?['transport_unverified'] == true ||
+        directUsbState?['transportUnverified'] == true;
+    final directUsbTransportInterrupted =
+        directUsbActive &&
+        (transportUnverified ||
+            (lostFrames ?? 0) > 0 ||
+            (dataUrbTimeouts ?? 0) > 0);
     final directUsbEngineStateReason = _stringValue(
       directUsbState?['engine_state_reason'] ??
           directUsbState?['engineStateReason'],
@@ -3638,8 +3660,9 @@ class PlayerService {
         directUsbState?['idle_lock_held'] == true ||
         directUsbState?['stream_active'] == true;
     final usbStreamStable =
-        directUsbState?['usb_stream_stable'] == true ||
-        directUsbState?['usbStreamStable'] == true;
+        !directUsbTransportInterrupted &&
+        (directUsbState?['usb_stream_stable'] == true ||
+            directUsbState?['usbStreamStable'] == true);
     final audioFocusHeld = debugState?['audioFocusHeld'] == true;
 
     final androidManagedUsbRoute =
@@ -3647,12 +3670,10 @@ class PlayerService {
         deviceInfo.hasAttachedUac2Device ||
         deviceInfo.looksLikeUsbAudioRoute;
 
-    final pathManagement = !Platform.isAndroid
-        ? AudioPathManagement.androidManagedShared
-        : !usesRustDiagnostics
-        ? AudioPathManagement.androidManagedShared
-        : directUsbActive
+    final pathManagement = directUsbActive
         ? AudioPathManagement.directUsbExperimental
+        : !Platform.isAndroid || !usesRustDiagnostics
+        ? AudioPathManagement.androidManagedShared
         : outputSignature?.startsWith('android-alsa:') == true
         ? AudioPathManagement.alsaDirectDap
         : outputSignature?.startsWith('android-direct:') == true
@@ -3688,16 +3709,17 @@ class PlayerService {
         ? (directUsbBitPerfectVerified && passthroughAllowed &&
             directUsbClockVerificationPassed && usbStreamStable && !resamplerActive)
         : (usesRustDiagnostics && passthroughAllowed && !resamplerActive);
-    final verificationReason =
-        (!usesRustDiagnostics ? null : engineVerificationReason) ??
-        (pathManagement == AudioPathManagement.directUsbExperimental
-            ? directUsbRefusalReason ??
-                  directUsbLastError ??
-                  directUsbEngineStateReason ??
-                  (!directUsbClockVerificationPassed
-                      ? 'Direct USB verification failed'
-                      : null)
-            : null);
+    final verificationReason = directUsbTransportInterrupted
+        ? directUsbLastError ?? 'USB transport interrupted or unverified'
+        : (!usesRustDiagnostics ? null : engineVerificationReason) ??
+              (pathManagement == AudioPathManagement.directUsbExperimental
+                  ? directUsbRefusalReason ??
+                        directUsbLastError ??
+                        directUsbEngineStateReason ??
+                        (!directUsbClockVerificationPassed
+                            ? 'Direct USB verification failed'
+                            : null)
+                  : null);
     final outputStrategyLabel = !usesRustDiagnostics
         ? 'Android shared'
         : switch (outputStrategy) {
@@ -3899,6 +3921,9 @@ class PlayerService {
             underrunCount: underrunCount,
             producerFrames: producerFrames,
             consumerFrames: consumerFrames,
+            lostFrames: lostFrames,
+            dataUrbTimeouts: dataUrbTimeouts,
+            transportUnverified: transportUnverified,
             driftMsFromTarget: driftMsFromTarget,
           )
         : null;
@@ -4059,6 +4084,8 @@ class PlayerService {
       'pcmClippedSamples=${_intValue(pcmCallbackState?['clipped_samples']) ?? -1}, '
       'pcmNonFiniteSamples=${_intValue(pcmCallbackState?['non_finite_samples']) ?? -1}, '
       'producerFrames=${producerFrames ?? -1}, consumerFrames=${consumerFrames ?? -1}, '
+      'lostFrames=${lostFrames ?? -1}, dataUrbTimeouts=${dataUrbTimeouts ?? -1}, '
+      'transportUnverified=$transportUnverified, '
       'driftMs=${driftMsFromTarget ?? -999}, '
       'resampler=$resamplerActive, passthrough=$passthroughAllowed, '
       'transport=${transportFormat ?? 'none'}/${transportBitResolution ?? -1}/'

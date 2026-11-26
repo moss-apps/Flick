@@ -9,9 +9,16 @@ use libusb1_sys::{
 
 const MAX_DIAGNOSTIC_PACKETS: usize = 32;
 
-/// Validate ISO OUT completions against the exact submitted schedule, including
-/// variable-size and feedback-paced packets. A nominal floor/ceiling size or an
-/// equal byte total cannot establish that each submitted packet was transferred.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct CompletionStats {
+    pub short_packets: u64,
+    pub zero_packets: u64,
+    /// Submitted PCM frames that could not be credited as delivered.
+    pub lost_frames: u64,
+}
+
+/// Exact validation for DSD, DoP and diagnostic probes. Totals cannot
+/// establish that each packet retained its submitted length and boundaries.
 pub(crate) fn validate_iso_packet_descriptors(
     packet_sizes: &[usize],
     descriptors: &[libusb_iso_packet_descriptor],
@@ -20,15 +27,95 @@ pub(crate) fn validate_iso_packet_descriptors(
         && packet_sizes
             .iter()
             .zip(descriptors)
-            .all(|(requested, packet)| {
+            .all(|(&requested, packet)| {
                 packet.status == LIBUSB_TRANSFER_COMPLETED
+                    && packet.length as usize == requested
                     && packet.actual_length == packet.length
-                    && packet.actual_length as usize == *requested
             })
     {
-        return Ok(());
+        Ok(())
+    } else {
+        Err(format_diagnostics(
+            packet_sizes,
+            descriptors,
+            "expected exact packet completions",
+        ))
+    }
+}
+
+/// Account for a completed or timed-out PCM OUT transfer. Packet buffers have
+/// fixed offsets: a short packet cannot be made up by a larger neighbor. Only a
+/// whole-frame shortfall within the original descriptor is recoverable.
+///
+/// linux_usbfs copies each retired URB's results before issuing the timeout
+/// callback. usbfs maps packet cancellations to COMPLETED with zero bytes.
+/// On timeout only full, completed packets are credited. A generic packet
+/// error is distinct from cancellation and remains fatal.
+pub(crate) fn account_pcm_completion(
+    packet_sizes: &[usize],
+    descriptors: &[libusb_iso_packet_descriptor],
+    bytes_per_frame: usize,
+    timed_out: bool,
+) -> Result<CompletionStats, String> {
+    let invalid = |reason| format_diagnostics(packet_sizes, descriptors, reason);
+    if packet_sizes.len() != descriptors.len() {
+        return Err(invalid("packet count changed"));
+    }
+    if bytes_per_frame == 0 {
+        return Err(invalid("invalid PCM frame size"));
     }
 
+    let mut stats = CompletionStats::default();
+    for (&requested, packet) in packet_sizes.iter().zip(descriptors) {
+        let actual = packet.actual_length as usize;
+        if packet.length as usize != requested {
+            return Err(invalid("descriptor length changed"));
+        }
+        if packet.status == LIBUSB_TRANSFER_NO_DEVICE {
+            return Err(invalid("USB DAC disconnected"));
+        }
+        let cancelled_by_timeout = timed_out
+            && actual == 0
+            && matches!(
+                packet.status,
+                LIBUSB_TRANSFER_CANCELLED | LIBUSB_TRANSFER_TIMED_OUT
+            );
+        if packet.status != LIBUSB_TRANSFER_COMPLETED && !cancelled_by_timeout {
+            return Err(invalid(
+                "packet status is not completed or cancelled by timeout",
+            ));
+        }
+        if actual > requested {
+            return Err(invalid("packet exceeds its submitted length"));
+        }
+        if requested % bytes_per_frame != 0 || actual % bytes_per_frame != 0 {
+            return Err(invalid("packet is not frame-aligned"));
+        }
+        if actual == requested {
+            continue;
+        }
+
+        if actual == 0 {
+            stats.zero_packets += 1;
+        } else {
+            stats.short_packets += 1;
+        }
+        let missing = if timed_out {
+            requested
+        } else {
+            requested - actual
+        };
+        stats.lost_frames += (missing / bytes_per_frame) as u64;
+    }
+
+    Ok(stats)
+}
+
+fn format_diagnostics(
+    packet_sizes: &[usize],
+    descriptors: &[libusb_iso_packet_descriptor],
+    reason: &str,
+) -> String {
     // Only allocate/format diagnostics on failure. These are sums of individual
     // packet lengths: libusb_transfer.actual_length is not meaningful for ISO.
     let requested_total: u64 = packet_sizes.iter().map(|length| *length as u64).sum();
@@ -78,11 +165,13 @@ pub(crate) fn validate_iso_packet_descriptors(
         })
         .collect::<Vec<_>>();
 
-    Err(format!(
-        "isochronous transfer completed with packet errors: \
-         packet_counts=requested:{},descriptors:{} requested_total={} descriptor_total={} \
-         actual_total={} actual_minus_requested={} status_errors={} descriptor_changes={} \
-         length_mismatches={}; packet_results=[{}] omitted_packets={}",
+    format!(
+        "isochronous transfer completed with packet errors: {}; \
+         packet_counts=requested:{},descriptors:{} \
+         requested_total={} descriptor_total={} actual_total={} actual_minus_requested={} \
+         status_errors={} descriptor_changes={} length_mismatches={}; \
+         packet_results=[{}] omitted_packets={}",
+        reason,
         packet_sizes.len(),
         descriptors.len(),
         requested_total,
@@ -94,7 +183,7 @@ pub(crate) fn validate_iso_packet_descriptors(
         length_mismatches,
         packet_results.join(","),
         packet_count.saturating_sub(MAX_DIAGNOSTIC_PACKETS),
-    ))
+    )
 }
 
 pub(crate) fn iso_transfer_status_label(status: i32) -> &'static str {

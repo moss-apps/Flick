@@ -1500,6 +1500,59 @@ void main() {
     },
   );
 
+  test('a native transport latch clears direct USB verification', () async {
+    final usb = _Usb();
+    final player = _player(AudioEngineType.usbDacExperimental, usb);
+    final directUsb = <String, Object>{
+      'bit_perfect_verified': true,
+      'clock_verification_passed': true,
+      'usb_stream_stable': true,
+      'lost_frames': 0,
+    };
+    usb.playbackDebugState = {
+      'rustAudioState': {
+        'engine': {
+          'direct_usb_active': true,
+          'passthrough_allowed': true,
+          'output_strategy': 'usb_direct',
+        },
+        'direct_usb': directUsb,
+      },
+    };
+
+    await player.refreshAudioOutputDiagnosticsForTesting();
+    var diagnostics = player.audioOutputDiagnosticsNotifier.value!;
+    expect(diagnostics.capabilityFlags.supportsVerifiedBitPerfect, isTrue);
+    expect(diagnostics.usbStreamStable, isTrue);
+
+    directUsb['transport_unverified'] = true;
+    directUsb['data_urb_timeouts'] = 1;
+    await player.refreshAudioOutputDiagnosticsForTesting();
+    diagnostics = player.audioOutputDiagnosticsNotifier.value!;
+    expect(diagnostics.capabilityFlags.supportsVerifiedBitPerfect, isFalse);
+    expect(diagnostics.usbStreamStable, isFalse);
+    expect(diagnostics.urbTransport?.transportInterrupted, isTrue);
+    expect(diagnostics.urbTransport?.lostFrames, 0);
+    expect(diagnostics.urbTransport?.dataUrbTimeouts, 1);
+    expect(
+      diagnostics.verificationReason,
+      contains('USB transport interrupted'),
+    );
+
+    directUsb
+      ..remove('transport_unverified')
+      ..remove('data_urb_timeouts');
+    await player.refreshAudioOutputDiagnosticsForTesting();
+    expect(
+      player
+          .audioOutputDiagnosticsNotifier
+          .value!
+          .capabilityFlags
+          .supportsVerifiedBitPerfect,
+      isTrue,
+    );
+  });
+
   test(
     'an older pre-play restore cannot clear a newer failed safety stop',
     () async {

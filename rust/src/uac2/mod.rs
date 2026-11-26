@@ -48,6 +48,8 @@ pub(crate) mod iso_packet_scheduler;
 #[cfg(feature = "uac2")]
 mod iso_packet_validation;
 #[cfg(feature = "uac2")]
+mod iso_transport_loss;
+#[cfg(feature = "uac2")]
 mod logging;
 #[cfg(feature = "uac2")]
 mod payload_audit_latch;
