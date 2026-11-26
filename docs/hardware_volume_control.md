@@ -66,6 +66,11 @@ Key details:
 - Transient handle does **not** claim/release the AudioControl interface — control transfers on endpoint 0 don't need claims on Android, and claiming could conflict with the streaming handle.
 - Resolution-aware quantization selects a supported raw dB step. Post-write
   readback must match the normalized quantized target within 1e-6.
+- The slider follows the finger: while it is dragged, `setVolume` hands every
+  value to `LatestValueWriter`, which keeps one DAC write in flight and lets the
+  newest value replace any queued one. Each write that runs still goes through
+  the full `_setHardwareVolume` gating, and the final value is always written.
+  The slider thumb holds the finger's value until that final write is read back.
 
 ### Tier 2: eligible PCM DSP without hardware authority
 
@@ -95,9 +100,21 @@ UI slider → player_service.setVolume()
 ## Safe Restoration and Authority Changes
 
 Hardware percentage is a position in the DAC's advertised dB range, not the
-software curve. Hardware and software levels are stored in separate per-device
-slots (`uac2_usb_device_volume_authorities`). Legacy untyped values remain
-available as software levels but cannot authorize a hardware restore.
+software curve. 0 is the DAC minimum (silence); above 0 the slider spans
+max(DAC minimum, -80 dB) to the DAC maximum, so a DAC reporting -127 dB does not
+spend most of the slider below audibility (`normalize_volume` /
+`quantize_volume` in `rust/src/uac2/volume_control.rs`; a DAC whose minimum is
+above -80 dB is unchanged). Hardware and software levels are stored in separate
+per-device slots (`uac2_usb_device_volume_authorities`). Legacy untyped values
+remain available as software levels but cannot authorize a hardware restore.
+
+A hardware level saved before the -80 dB floor was a fraction of the DAC's whole
+range, so the same number is now louder. Saved hardware levels carry
+`hardwareCurve: 2`; one without it is handed back as `legacyHardware`, never as
+`hardware`. The pre-playback restore converts it to the same attenuation from
+the DAC range in the Rust diagnostics (`legacyUsbDacVolumeToCurrent`), still
+capped by the low default and the current DAC readback, and saves the result in
+the current form. If the range is unavailable it falls back to the 40% default.
 
 A new DAC or ambiguous legacy record uses the existing 40% first-use default,
 without requiring a slider gesture. A lower current DAC readback is retained,

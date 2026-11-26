@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -123,11 +125,15 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
 
   void _onSliderChanged(double volume) {
     setState(() => _draggingVolume = volume);
+    // The DAC follows the finger; PlayerService keeps one write in flight and
+    // applies only the newest value.
+    final playerService = ref.read(playerServiceProvider);
+    if (playerService.isHardwareVolumeAuthority) {
+      unawaited(playerService.setVolume(volume));
+    }
   }
 
   Future<void> _onSliderChangeEnd(double volume) async {
-    setState(() => _draggingVolume = null);
-
     final playerService = ref.read(playerServiceProvider);
     final hardwareAuthority = playerService.isHardwareVolumeAuthority;
     if (!hardwareAuthority &&
@@ -137,7 +143,13 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
     }
     // Do not couple a hardware volume write to an implicit unmute.
     await playerService.setVolume(volume);
-    if (mounted) setState(() {});
+    // Hold the finger's value until the final write is read back, so the thumb
+    // never shows an older level in between (unless a new drag has begun).
+    if (mounted) {
+      setState(() {
+        if (_draggingVolume == volume) _draggingVolume = null;
+      });
+    }
   }
 
   Future<void> _toggleMute() async {

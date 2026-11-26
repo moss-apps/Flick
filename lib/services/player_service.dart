@@ -50,6 +50,7 @@ import 'package:flick/services/wav_stream_audio_source.dart';
 import 'package:flick/services/casting/casting_service.dart';
 import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
+import 'package:flick/core/utils/latest_value_writer.dart';
 import 'package:flick/core/utils/volume_curve.dart';
 
 /// Coalesce progress updates without indefinitely postponing diagnostics.
@@ -2517,6 +2518,12 @@ class PlayerService {
     }
   }
 
+  /// A dragged slider asks for DAC levels faster than a SET_CUR and its
+  /// readback complete. One write is in flight; the newest request replaces any
+  /// queued one. Every write still runs the full [_setHardwareVolume] gating.
+  late final LatestValueWriter<double> _hardwareVolumeWriter =
+      LatestValueWriter<double>(_setHardwareVolume);
+
   Future<void> _setHardwareVolume(double volume) async {
     final directUsb = _isDirectUsbPath;
     final device = _uac2Service.currentDeviceStatus?.device;
@@ -2544,6 +2551,20 @@ class PlayerService {
       _rememberSoftwareVolume(volume);
     }
     if (currentSafety()) await _onHwVolumeResult(success);
+  }
+
+  /// [legacy], saved against the DAC's whole volume range, as the same
+  /// attenuation on today's floored curve; null if the range is unknown.
+  Future<double?> _legacyHardwareVolume(double? legacy) async {
+    if (legacy == null) return null;
+    final debugState = await _uac2Service.getAndroidPlaybackDebugState();
+    final directUsb = _mapValue(
+      _mapValue(debugState?['rustAudioState'])?['direct_usb'],
+    );
+    final minRaw = _intValue(directUsb?['hardware_volume_min_raw']);
+    final maxRaw = _intValue(directUsb?['hardware_volume_max_raw']);
+    if (minRaw == null || maxRaw == null) return null;
+    return legacyUsbDacVolumeToCurrent(legacy, minRaw: minRaw, maxRaw: maxRaw);
   }
 
   @visibleForTesting
@@ -2897,11 +2918,19 @@ class PlayerService {
         safetyGeneration = await _confirmUsbVolumeSafety(requirePause: true);
         ensureRestoreCurrent();
       }
+      // A level saved before the slider was floored at -80 dB keeps its
+      // attenuation, not its number; it is still capped by the low default.
+      final legacyHardware = settings.hardware == null && _currentVolume != 0.0
+          ? await _legacyHardwareVolume(settings.legacyHardware)
+          : null;
+      ensureRestoreCurrent();
       // Only exact mute transfers between software and hardware authority;
       // the same nonzero percentage need not mean the same acoustic level.
       var targetVolume = _currentVolume == 0.0
           ? 0.0
-          : settings.hardware ?? Uac2PreferencesService.defaultUsbDacVolume;
+          : settings.hardware ??
+                legacyHardware ??
+                Uac2PreferencesService.defaultUsbDacVolume;
       if (useLowDefault) {
         targetVolume = math.min(
           targetVolume,
@@ -7126,7 +7155,7 @@ class PlayerService {
     if (_usbDsdWireActive) {
       if (tier == VolumeTier.hardware) {
         _debugLog('[VolFlow] DSD HW path: uac2 setVolume($clampedVolume)');
-        await _setHardwareVolume(clampedVolume);
+        await _hardwareVolumeWriter.submit(clampedVolume);
       } else if (Uac2PreferencesService.autoSwitchDsdForVolumeSync &&
           clampedVolume < 1.0 &&
           _usingRustBackend &&
@@ -7145,7 +7174,7 @@ class PlayerService {
     switch (tier) {
       case VolumeTier.hardware:
         _debugLog('[VolFlow] HW path: uac2 setVolume($clampedVolume)');
-        await _setHardwareVolume(clampedVolume);
+        await _hardwareVolumeWriter.submit(clampedVolume);
         await _reconcileSystemVolumeBoost(0.0);
         break;
       case VolumeTier.software:

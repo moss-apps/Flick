@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,10 +63,18 @@ class _TestPlayer extends Fake implements PlayerService {
   final writes = <double>[];
   bool acceptWrites = true;
 
+  /// Holds every write until completed, like a DAC that answers slowly.
+  Completer<void>? writeGate;
+
+  /// Reports the level read back from an accepted write.
+  void Function(double volume)? readBack;
+
   @override
   Future<void> setVolume(double volume) async {
     writes.add(volume);
+    await writeGate?.future;
     if (acceptWrites) currentVolume = volume;
+    if (acceptWrites) readBack?.call(volume);
   }
 }
 
@@ -76,6 +86,8 @@ class _TestStatus extends Uac2DeviceStatusNotifier {
 
   @override
   Uac2DeviceStatus build() => initial;
+
+  void publishVolume(double volume) => state = state!.copyWith(volume: volume);
 
   @override
   Future<bool> setMute(bool muted) async {
@@ -302,6 +314,67 @@ void main() {
         expect(find.byTooltip(l10n.unmute), findsOneWidget);
       },
     );
+
+    testWidgets('$surface dragging a DAC slider writes live without a stale thumb', (
+      tester,
+    ) async {
+      final player = _TestPlayer(VolumeTier.hardware);
+      final status = _TestStatus(_status(hardware: true, muted: false));
+      player.readBack = status.publishVolume;
+      addTearDown(player.volumeTierNotifier.dispose);
+      await _pumpControl(tester, player: player, status: status, popup: popup);
+      double thumb() => tester.widget<Slider>(find.byType(Slider)).value;
+
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChanged!(0.3);
+      await tester.pump();
+      slider.onChanged!(0.6);
+      await tester.pump();
+      expect(player.writes, [0.3, 0.6]); // PlayerService coalesces these.
+      expect(thumb(), 0.6);
+
+      // An older write's read-back lands mid-drag: the thumb stays with the finger.
+      status.publishVolume(0.3);
+      await tester.pump();
+      expect(thumb(), 0.6);
+
+      // Lifting the finger holds the thumb until the final write is read back.
+      player.writeGate = Completer<void>();
+      tester.widget<Slider>(find.byType(Slider)).onChangeEnd!(0.6);
+      await tester.pump();
+      expect(player.writes, [0.3, 0.6, 0.6]); // The final value is always sent.
+      expect(thumb(), 0.6);
+      status.publishVolume(0.45);
+      await tester.pump();
+      expect(thumb(), 0.6);
+
+      player.writeGate!.complete();
+      await tester.pumpAndSettle();
+      expect(thumb(), 0.6); // The final read-back, not a stale one.
+    });
+
+    testWidgets('$surface dragging a DSP slider writes only when released', (
+      tester,
+    ) async {
+      final player = _TestPlayer(VolumeTier.software);
+      addTearDown(player.volumeTierNotifier.dispose);
+      await _pumpControl(
+        tester,
+        player: player,
+        status: _TestStatus(_status()),
+        popup: popup,
+      );
+
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChanged!(0.3);
+      slider.onChanged!(0.6);
+      await tester.pump();
+      expect(player.writes, isEmpty);
+      expect(tester.widget<Slider>(find.byType(Slider)).value, 0.6);
+      tester.widget<Slider>(find.byType(Slider)).onChangeEnd!(0.6);
+      await tester.pumpAndSettle();
+      expect(player.writes, [0.6]);
+    });
 
     testWidgets('$surface reacts when hardware authority fails or recovers', (
       tester,

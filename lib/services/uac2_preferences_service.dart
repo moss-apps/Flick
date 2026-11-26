@@ -16,7 +16,16 @@ class UsbDeviceVolumeSettings {
   final double? hardware;
   final double software;
 
-  const UsbDeviceVolumeSettings({required this.hardware, required this.software});
+  /// A DAC level saved before the slider was floored at -80 dB. It is a
+  /// fraction of the DAC's whole range, so it needs the device range to convert
+  /// and must never be replayed as a [hardware] level.
+  final double? legacyHardware;
+
+  const UsbDeviceVolumeSettings({
+    required this.hardware,
+    required this.software,
+    this.legacyHardware,
+  });
 }
 
 enum DsdOutputMode { auto, forcePcm, forceDop, native }
@@ -58,6 +67,11 @@ class Uac2PreferencesService {
 
   /// Safe first-use level for a USB DAC that has never had a level saved.
   static const double defaultUsbDacVolume = 0.40;
+
+  /// Curve a saved `hardware` level was normalized with: 2 floors the DAC
+  /// range at -80 dB (see `normalize_volume` in rust/src/uac2/volume_control.rs).
+  /// A level without this tag was saved against the whole range.
+  static const int _hardwareCurveVersion = 2;
   static const _keyKillIsochronousUsbOnQuit = 'uac2_kill_isochronous_usb_on_quit';
   static const _keyGaplessPlaybackEnabled = 'gapless_playback_enabled';
   static const _keyDuckOnInterruption = 'duck_on_interruption_enabled';
@@ -475,6 +489,9 @@ class Uac2PreferencesService {
         final key = usbDeviceVolumeKey(device);
         final entry = Map<String, dynamic>.from(volumes[key] as Map? ?? {});
         entry[authority.name] = volume.clamp(0.0, 1.0);
+        if (authority == UsbVolumeAuthority.hardware) {
+          entry['hardwareCurve'] = _hardwareCurveVersion;
+        }
         volumes[key] = entry;
         await prefs.setString(_keyUsbDeviceVolumeAuthorities, jsonEncode(volumes));
         return;
@@ -502,7 +519,10 @@ class Uac2PreferencesService {
           value is num && value.isFinite && value >= 0.0 && value <= 1.0
           ? value.toDouble()
           : null;
-      final hardware = level(entry?['hardware']);
+      final savedHardware = level(entry?['hardware']);
+      final hardware = entry?['hardwareCurve'] == _hardwareCurveVersion
+          ? savedHardware
+          : null;
       final software = level(entry?['software']);
       final legacyRaw = prefs.getString(_keyUsbDeviceVolumes);
       final legacy = legacyRaw == null ? {} : jsonDecode(legacyRaw) as Map;
@@ -510,6 +530,7 @@ class Uac2PreferencesService {
       return UsbDeviceVolumeSettings(
         hardware: hardware ?? (ambiguous ? null : defaultUsbDacVolume),
         software: software ?? legacySoftware,
+        legacyHardware: hardware == null ? savedHardware : null,
       );
     } catch (e) {
       devLog('Failed to load authority-specific USB volume: $e');

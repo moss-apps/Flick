@@ -198,6 +198,42 @@ void main() {
     expect((await Uac2PreferencesService().getUsbVolumeSettingsForDevice(deviceA)).hardware, isNull);
   });
 
+  test('a hardware level saved before the -80 dB floor is held back, not replayed', () async {
+    final key = Uac2PreferencesService.usbDeviceVolumeKey(deviceA);
+    SharedPreferences.setMockInitialValues({
+      'uac2_usb_device_volume_authorities': '{"$key":{"hardware":0.7,"software":0.3}}',
+    });
+    final settings = await Uac2PreferencesService().getUsbVolumeSettingsForDevice(deviceA);
+    expect(settings.hardware, isNull); // Low default, never the old number.
+    expect(settings.legacyHardware, 0.7);
+    expect(settings.software, 0.3);
+  });
+
+  test('saving a hardware level replaces the legacy one and stays current', () async {
+    final key = Uac2PreferencesService.usbDeviceVolumeKey(deviceA);
+    SharedPreferences.setMockInitialValues({
+      'uac2_usb_device_volume_authorities': '{"$key":{"hardware":0.7}}',
+    });
+    final prefs = Uac2PreferencesService();
+    await prefs.setUsbVolumeForDevice(deviceA, 0.25, authority: UsbVolumeAuthority.hardware);
+    final settings = await prefs.getUsbVolumeSettingsForDevice(deviceA);
+    expect(settings.hardware, 0.25);
+    expect(settings.legacyHardware, isNull);
+  });
+
+  test('a software write does not make a legacy hardware level current', () async {
+    final key = Uac2PreferencesService.usbDeviceVolumeKey(deviceA);
+    SharedPreferences.setMockInitialValues({
+      'uac2_usb_device_volume_authorities': '{"$key":{"hardware":0.7}}',
+    });
+    final prefs = Uac2PreferencesService();
+    await prefs.setUsbVolumeForDevice(deviceA, 0.2, authority: UsbVolumeAuthority.software);
+    final settings = await prefs.getUsbVolumeSettingsForDevice(deviceA);
+    expect(settings.hardware, isNull);
+    expect(settings.legacyHardware, 0.7);
+    expect(settings.software, 0.2);
+  });
+
   test('clearing preferences also removes authority-specific levels', () async {
     final prefs = Uac2PreferencesService();
     await prefs.setUsbVolumeForDevice(deviceA, 0.2, authority: UsbVolumeAuthority.hardware);

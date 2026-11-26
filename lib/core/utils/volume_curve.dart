@@ -28,3 +28,26 @@ String formatSoftwareVolumeDb(double volume) {
   if (volume <= 0.0) return '-∞';
   return softwareVolumeToDb(volume).toStringAsFixed(1);
 }
+
+/// Quietest USB DAC level the slider reaches above silence, in the UAC
+/// Feature Unit's 1/256 dB units. Mirrors `VOLUME_FLOOR_RAW` in
+/// `rust/src/uac2/volume_control.rs`.
+const int usbDacVolumeFloorRaw = -80 * 256;
+
+/// Converts a DAC level saved when the slider spanned the DAC's whole range
+/// into the same attenuation on today's floored curve, for a DAC reporting
+/// [minRaw]..[maxRaw]. Mirrors `normalize_volume` there. Returns null when the
+/// range is unusable.
+double? legacyUsbDacVolumeToCurrent(
+  double legacy, {
+  required int minRaw,
+  required int maxRaw,
+}) {
+  if (!legacy.isFinite || minRaw >= maxRaw) return null;
+  final raw = minRaw + legacy.clamp(0.0, 1.0) * (maxRaw - minRaw);
+  final floor = maxRaw > usbDacVolumeFloorRaw
+      ? math.max(minRaw, usbDacVolumeFloorRaw)
+      : minRaw;
+  if (raw <= floor) return 0.0;
+  return ((raw - floor) / (maxRaw - floor)).clamp(0.0, 1.0).toDouble();
+}
