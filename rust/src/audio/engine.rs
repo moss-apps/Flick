@@ -206,6 +206,11 @@ pub struct AudioCallbackData {
     playback_speed: std::sync::atomic::AtomicU32, // Using AtomicU32 for f32 bit pattern
     /// Pause state
     paused: AtomicBool,
+    /// Direct USB drops queued samples whenever the command thread changes this.
+    output_flush_generation: AtomicU64,
+    /// Serialize direct USB rendering with commands that pause or replace a
+    /// source. The USB writer doesn't take this lock and keeps the bus running.
+    usb_render_gate: Mutex<()>,
     /// Pipeline mode (Passthrough or Dsp) — immutable after creation.
     /// Stored as AtomicU8 for lock-free reads from the audio callback.
     pipeline_mode: AtomicU8,
@@ -414,6 +419,8 @@ impl AudioCallbackData {
             volume: std::sync::atomic::AtomicU32::new(1.0f32.to_bits()),
             playback_speed: std::sync::atomic::AtomicU32::new(initial_speed.to_bits()),
             paused: AtomicBool::new(false),
+            output_flush_generation: AtomicU64::new(0),
+            usb_render_gate: Mutex::new(()),
             pipeline_mode: AtomicU8::new(pipeline_mode as u8),
             base_pipeline_mode: AtomicU8::new(pipeline_mode as u8),
             channels,
@@ -911,12 +918,73 @@ impl AudioCallbackData {
 
     #[inline]
     pub fn is_paused(&self) -> bool {
-        self.paused.load(Ordering::Relaxed)
+        self.paused.load(Ordering::Acquire)
     }
 
     #[inline]
     pub fn set_paused(&self, paused: bool) {
-        self.paused.store(paused, Ordering::Relaxed);
+        self.paused.store(paused, Ordering::Release);
+    }
+
+    /// Called under `usb_render_gate` before replacing the source, so the USB
+    /// writer drops old audio while the renderer waits for the replacement.
+    fn request_output_flush(&self) {
+        self.output_flush_generation.fetch_add(1, Ordering::Release);
+    }
+
+    fn flush_held_usb_audio(&self) -> Option<parking_lot::MutexGuard<'_, ()>> {
+        self.is_paused().then(|| {
+            let guard = self.usb_render_gate.lock();
+            self.request_output_flush();
+            guard
+        })
+    }
+
+    #[inline]
+    pub(crate) fn output_flush_generation(&self) -> u64 {
+        self.output_flush_generation.load(Ordering::Acquire)
+    }
+
+    /// Render without applying master gain: queued PCM gets the current gain
+    /// when it is sent to USB. Never wait for a command on the render thread.
+    #[cfg(any(all(feature = "uac2", target_os = "android"), test))]
+    pub(crate) fn render_for_direct_usb(
+        &self,
+        output: &mut [f32],
+        event_tx: &Sender<AudioEvent>,
+        generation: u64,
+        wait_for_decoder: bool,
+    ) -> bool {
+        let Some(_guard) = self.usb_render_gate.try_lock() else {
+            return false;
+        };
+        if self.is_paused() || self.output_flush_generation() != generation {
+            return false;
+        }
+        if wait_for_decoder {
+            let speed = self.get_playback_speed();
+            let channels = self.channels();
+            let min_samples = if channels > 0
+                && !self.is_dop()
+                && !self.is_passthrough()
+                && !self.crossfade_active.load(Ordering::Relaxed)
+                && (speed - 1.0).abs() >= 0.001
+            {
+                speed_input_samples(output.len() / channels, channels, speed)
+            } else {
+                output.len()
+            };
+            let decoder_ready = self.sources.try_lock().is_some_and(|sources| {
+                sources.current().is_some_and(|source| {
+                    source.has_buffered_samples_or_decoder_finished(min_samples)
+                })
+            });
+            if !decoder_ready {
+                return false;
+            }
+        }
+        audio_callback_unpaused(output, self, event_tx, true);
+        true
     }
 
     #[inline]
@@ -4121,12 +4189,11 @@ fn volume_to_gain(volume: f32) -> f32 {
     }
 }
 
-/// Run the DSP effects that are actually active and finish with the master
-/// volume stage. Inactive effects are never locked, which keeps their control
-/// mutexes out of the real-time callback entirely. An active effect whose lock
+/// Run the DSP effects that are actually active. Inactive effects keep their
+/// control mutexes out of the real-time callback. An active effect whose lock
 /// is busy is counted as skipped instead of being silently bypassed.
 #[inline]
-fn process_dsp_effects(data: &AudioCallbackData, output: &mut [f32], channels: usize, volume: f32) {
+fn process_dsp_effects(data: &AudioCallbackData, output: &mut [f32], channels: usize) {
     if data.pitch_shift_forces_dsp.load(Ordering::Relaxed) {
         match data.pitch_shifter.try_lock() {
             Some(mut pitch) => pitch.process(output, channels),
@@ -4177,10 +4244,11 @@ fn process_dsp_effects(data: &AudioCallbackData, output: &mut [f32], channels: u
             }
         }
     }
+}
 
-    // Volume is always applied last, after all DSP processing. This is also the
-    // single point where the callback measures the final signal level without
-    // logging or allocating on the audio thread.
+/// Apply managed PCM master gain after the DSP chain and measure the output.
+#[inline]
+fn apply_managed_master_gain(data: &AudioCallbackData, output: &mut [f32], volume: f32) {
     let mut peak = 0.0f32;
     let mut clipped = 0u64;
     let mut non_finite = 0u64;
@@ -4199,6 +4267,11 @@ fn process_dsp_effects(data: &AudioCallbackData, output: &mut [f32], channels: u
         }
     }
     data.note_output_peak(peak, clipped, non_finite);
+}
+
+#[inline]
+fn speed_input_samples(output_frames: usize, channels: usize, speed: f32) -> usize {
+    (output_frames as f64 * f64::from(speed) + 2.0) as usize * channels
 }
 
 pub(crate) struct FinishedTrack {
@@ -4233,7 +4306,16 @@ pub(crate) fn audio_callback(
         data.fill_silence(output);
         return;
     }
+    audio_callback_unpaused(output, data, event_tx, false);
+}
 
+#[inline]
+fn audio_callback_unpaused(
+    output: &mut [f32],
+    data: &AudioCallbackData,
+    event_tx: &Sender<AudioEvent>,
+    defer_master_gain: bool,
+) {
     data.apply_pending_equalizer();
 
     // Passthrough path: raw samples from decoder straight to output.
@@ -4294,7 +4376,7 @@ pub(crate) fn audio_callback(
 
     // --- DSP path: full processing chain ---
 
-    let volume = data.get_gain();
+    let volume = (!defer_master_gain).then(|| data.get_gain());
     let speed = data.get_playback_speed();
     let channels = data.channels();
 
@@ -4450,8 +4532,7 @@ pub(crate) fn audio_callback(
             };
 
             let output_frames = output.len() / channels;
-            let input_samples_needed =
-                ((output_frames as f64 * speed as f64) + 2.0) as usize * channels;
+            let input_samples_needed = speed_input_samples(output_frames, channels, speed);
 
             if speed_buf.len() < input_samples_needed {
                 output.fill(0.0);
@@ -4510,7 +4591,10 @@ pub(crate) fn audio_callback(
     // wait on the source/crossfade locks while the callback runs effects.
     drop(crossfader);
     drop(sources);
-    process_dsp_effects(data, output, channels, volume);
+    process_dsp_effects(data, output, channels);
+    if let Some(volume) = volume {
+        apply_managed_master_gain(data, output, volume);
+    }
     data.capture_visualizer(output);
 }
 
@@ -4632,11 +4716,15 @@ fn command_processing_loop(
                         // resume (audio_resume) silently "playing" nothing, which
                         // breaks resume after the queue ends. Skip the transition
                         // when there's no live source to pause.
-                        let has_source = callback_data.sources.lock().current().is_some();
-                        if has_source {
-                            callback_data.set_paused(true);
-                            state.store(PlaybackState::Paused as u8, Ordering::Relaxed);
-                        }
+                        let has_source = {
+                            let _guard = callback_data.usb_render_gate.lock();
+                            let has_source = callback_data.sources.lock().current().is_some();
+                            if has_source {
+                                callback_data.set_paused(true);
+                                state.store(PlaybackState::Paused as u8, Ordering::Relaxed);
+                            }
+                            has_source
+                        };
                         update_managed_output(&mut supervisor, &callback_data, &shutdown);
                         if has_source {
                             let _ = event_tx
@@ -4657,6 +4745,7 @@ fn command_processing_loop(
                     }
                     AudioCommand::Stop { completed } => {
                         {
+                            let _guard = callback_data.flush_held_usb_audio();
                             let mut sources = callback_data.sources.lock();
                             sources.stop();
                             callback_data.clear_progress_snapshot();
@@ -4678,8 +4767,6 @@ fn command_processing_loop(
                             &event_tx,
                             sample_rate,
                         );
-                        // Drop pre-seek audio still sitting in the shifter.
-                        callback_data.pitch_shifter.lock().reset();
                     }
                     AudioCommand::SetVolume { volume } => {
                         callback_data.set_volume(volume.clamp(0.0, MAX_VOLUME));
@@ -5011,6 +5098,7 @@ fn handle_play(
     event_tx: &Sender<AudioEvent>,
     sample_rate: u32,
 ) {
+    let _guard = callback_data.flush_held_usb_audio();
     state.store(PlaybackState::Buffering as u8, Ordering::Relaxed);
     let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Buffering));
 
@@ -5082,6 +5170,7 @@ fn handle_play_prepared(
     event_tx: &Sender<AudioEvent>,
     sample_rate: u32,
 ) {
+    let _guard = callback_data.flush_held_usb_audio();
     state.store(PlaybackState::Buffering as u8, Ordering::Relaxed);
     let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Buffering));
 
@@ -5496,6 +5585,8 @@ fn handle_skip_to_next(
     state: &Arc<AtomicU8>,
     event_tx: &Sender<AudioEvent>,
 ) {
+    let paused = callback_data.is_paused();
+    let _guard = paused.then(|| callback_data.usb_render_gate.lock());
     let mut sources = callback_data.sources.lock();
     let mut crossfader = callback_data.crossfader.lock();
 
@@ -5535,6 +5626,9 @@ fn handle_skip_to_next(
 
     if !started {
         // Immediate transition
+        if paused {
+            callback_data.request_output_flush();
+        }
         sources.advance_to_next();
         state.store(PlaybackState::Playing as u8, Ordering::Relaxed);
     }
@@ -5548,6 +5642,7 @@ fn handle_seek(
     event_tx: &Sender<AudioEvent>,
     sample_rate: u32,
 ) {
+    let _guard = callback_data.usb_render_gate.lock();
     let target_secs = position_secs.max(0.0);
 
     // The Dart UI hands the playlist over to the incoming track the moment a
@@ -5608,6 +5703,7 @@ fn handle_seek(
         return;
     }
 
+    callback_data.request_output_flush();
     let was_paused = callback_data.is_paused();
 
     state.store(PlaybackState::Buffering as u8, Ordering::Relaxed);
@@ -5631,6 +5727,7 @@ fn handle_seek(
         callback_data.sources.lock().take_current()
     };
     callback_data.crossfader.lock().reset();
+    callback_data.pitch_shifter.lock().reset();
     callback_data.crossfade_active.store(false, Ordering::Relaxed);
     *callback_data.speed_frac_pos.lock() = 0.0;
 
@@ -6684,6 +6781,159 @@ mod tests {
         assert!(data.is_paused());
         assert!(transition_rx.recv_timeout(timeout).unwrap());
         assert!(!transition_rx.recv_timeout(timeout).unwrap());
+        command_tx.send(AudioCommand::Shutdown).unwrap();
+        thread.join().unwrap();
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(unused_path);
+    }
+
+    #[test]
+    fn direct_usb_render_waits_for_the_seek_and_its_first_decoded_samples() {
+        let data = build_passthrough_callback_data(48_000, 2);
+        data.sources
+            .lock()
+            .set_current(build_source(&[0.75; 8], 48_000, 2));
+        let (event_tx, _event_rx) = bounded(8);
+        let mut output = [0.0; 4];
+        assert!(data.render_for_direct_usb(&mut output, &event_tx, 0, false));
+        assert_eq!(output, [0.75; 4]);
+
+        let seek = data.usb_render_gate.lock();
+        data.request_output_flush();
+        let generation = data.output_flush_generation();
+        assert!(!data.render_for_direct_usb(&mut output, &event_tx, generation, true));
+
+        let (source, mut decoder) = AudioSource::new(queued_source_info("seek.wav", 48_000, 2));
+        data.sources.lock().set_current(source);
+        drop(seek);
+        assert!(!data.render_for_direct_usb(&mut output, &event_tx, 0, true));
+        assert_eq!(decoder.write(&[0.25, -0.25]), 2);
+        assert!(!data.render_for_direct_usb(&mut output, &event_tx, generation, true));
+        assert_eq!(decoder.write(&[0.5, -0.5]), 2);
+        assert!(data.render_for_direct_usb(&mut output, &event_tx, generation, true));
+        assert_eq!(output, [0.25, -0.25, 0.5, -0.5]);
+    }
+
+    #[test]
+    fn direct_usb_dsp_render_leaves_master_gain_to_the_writer() {
+        let data = build_callback_data(48_000, 2);
+        data.set_playback_speed(1.0);
+        data.set_volume(0.5);
+        data.sources
+            .lock()
+            .set_current(build_source(&[0.5; 8], 48_000, 2));
+        let (event_tx, _event_rx) = bounded(8);
+        let mut output = [0.0; 4];
+        assert!(data.render_for_direct_usb(&mut output, &event_tx, 0, false));
+        assert_eq!(output, [0.5; 4]);
+        audio_callback(&mut output, &data, &event_tx);
+        assert_eq!(output, [0.5 * data.get_gain(); 4]);
+    }
+
+    #[test]
+    fn direct_usb_refill_waits_for_the_dsp_input_at_faster_speed() {
+        let data = build_callback_data(48_000, 2);
+        data.set_playback_speed(2.0);
+        let (source, mut decoder) = AudioSource::new(queued_source_info("seek.wav", 48_000, 2));
+        data.sources.lock().set_current(source);
+        let (event_tx, _event_rx) = bounded(8);
+        let mut output = [0.0; 4];
+
+        assert_eq!(decoder.write(&[0.25; 4]), 4);
+        assert!(!data.render_for_direct_usb(&mut output, &event_tx, 0, true));
+        assert_eq!(decoder.write(&[0.5; 8]), 8);
+        assert!(data.render_for_direct_usb(&mut output, &event_tx, 0, true));
+        assert_eq!(output, [0.25, 0.25, 0.5, 0.5]);
+    }
+
+    #[test]
+    fn output_flush_is_requested_only_for_audio_a_seek_or_pause_made_stale() {
+        let (path, unused_path) = seek_test_fixtures("output_flush");
+        let (data, finished_rx) = build_callback_data_with_finished(48_000, 2);
+        let data = Arc::new(data);
+        let thread_data = data.clone();
+        let (command_tx, command_rx) = bounded(8);
+        let (event_tx, _event_rx) = bounded(64);
+        let state = Arc::new(AtomicU8::new(PlaybackState::Idle as u8));
+        let thread = std::thread::spawn(move || {
+            command_processing_loop(
+                command_rx,
+                finished_rx,
+                event_tx,
+                thread_data,
+                state,
+                Arc::new(Mutex::new(Vec::new())),
+                48_000,
+                Arc::new(AtomicBool::new(false)),
+                None,
+            );
+        });
+        let timeout = std::time::Duration::from_secs(2);
+        // Commands run in order, so a completed Pause/Resume proves every
+        // earlier command has been handled.
+        let pause = || {
+            let (completed, completion) = bounded(1);
+            command_tx.send(AudioCommand::Pause { completed }).unwrap();
+            completion.recv_timeout(timeout).unwrap();
+        };
+        let resume = || {
+            let (completed, completion) = bounded(1);
+            command_tx.send(AudioCommand::Resume { completed }).unwrap();
+            completion.recv_timeout(timeout).unwrap();
+        };
+        let stop = || {
+            let (completed, completion) = bounded(1);
+            command_tx.send(AudioCommand::Stop { completed }).unwrap();
+            completion.recv_timeout(timeout).unwrap();
+        };
+
+        command_tx
+            .send(AudioCommand::Play { path: path.clone() })
+            .unwrap();
+        pause();
+        assert_eq!(
+            data.output_flush_generation(),
+            0,
+            "playing a track and pausing it keeps the queued audio for resume"
+        );
+
+        command_tx
+            .send(AudioCommand::Seek { position_secs: 0.1 })
+            .unwrap();
+        pause();
+        assert_eq!(data.output_flush_generation(), 1, "seek drops queued audio");
+        assert!(data.is_paused(), "a paused seek stays paused");
+
+        stop();
+        assert_eq!(
+            data.output_flush_generation(),
+            2,
+            "stopping while paused drops the audio held by the pause"
+        );
+
+        command_tx
+            .send(AudioCommand::Play { path: path.clone() })
+            .unwrap();
+        resume();
+        assert_eq!(
+            data.output_flush_generation(),
+            3,
+            "a new source replacing a paused one drops the held audio"
+        );
+        assert!(!data.is_paused());
+
+        stop();
+        assert_eq!(
+            data.output_flush_generation(),
+            3,
+            "stopping while playing leaves the final tail to finish"
+        );
+        command_tx
+            .send(AudioCommand::Play { path: path.clone() })
+            .unwrap();
+        pause();
+        assert_eq!(data.output_flush_generation(), 3);
+
         command_tx.send(AudioCommand::Shutdown).unwrap();
         thread.join().unwrap();
         let _ = std::fs::remove_file(path);
