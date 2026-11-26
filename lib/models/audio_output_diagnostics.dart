@@ -46,6 +46,9 @@ class UrbTransportInfo {
     this.underrunCount,
     this.producerFrames,
     this.consumerFrames,
+    this.lostFrames,
+    this.dataUrbTimeouts,
+    this.transportUnverified = false,
     this.driftMsFromTarget,
   });
 
@@ -66,7 +69,20 @@ class UrbTransportInfo {
   final int? underrunCount;
   final int? producerFrames;
   final int? consumerFrames;
+
+  /// Submitted PCM frames that completions did not credit, including packets
+  /// whose partial result cannot be trusted after a timeout.
+  final int? lostFrames;
+  final int? dataUrbTimeouts;
+
+  /// Latched for the stream even if a timeout reported no frame deficit.
+  final bool transportUnverified;
   final int? driftMsFromTarget;
+
+  bool get transportInterrupted =>
+      transportUnverified ||
+      (lostFrames ?? 0) > 0 ||
+      (dataUrbTimeouts ?? 0) > 0;
 }
 
 @immutable
