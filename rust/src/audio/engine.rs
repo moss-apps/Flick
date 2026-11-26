@@ -206,6 +206,9 @@ pub struct AudioCallbackData {
     playback_speed: std::sync::atomic::AtomicU32, // Using AtomicU32 for f32 bit pattern
     /// Pause state
     paused: AtomicBool,
+    /// Bumped to make the output stage drop audio it already queued (direct-USB
+    /// PCM ring): a seek, or a new source replacing a paused one.
+    output_flush_generation: AtomicU64,
     /// Pipeline mode (Passthrough or Dsp) — immutable after creation.
     /// Stored as AtomicU8 for lock-free reads from the audio callback.
     pipeline_mode: AtomicU8,
@@ -414,6 +417,7 @@ impl AudioCallbackData {
             volume: std::sync::atomic::AtomicU32::new(1.0f32.to_bits()),
             playback_speed: std::sync::atomic::AtomicU32::new(initial_speed.to_bits()),
             paused: AtomicBool::new(false),
+            output_flush_generation: AtomicU64::new(0),
             pipeline_mode: AtomicU8::new(pipeline_mode as u8),
             base_pipeline_mode: AtomicU8::new(pipeline_mode as u8),
             channels,
@@ -917,6 +921,18 @@ impl AudioCallbackData {
     #[inline]
     pub fn set_paused(&self, paused: bool) {
         self.paused.store(paused, Ordering::Relaxed);
+    }
+
+    /// Ask the output stage to discard audio it has already queued. Call it
+    /// after the replacement source is installed so only stale audio is lost.
+    #[inline]
+    pub fn request_output_flush(&self) {
+        self.output_flush_generation.fetch_add(1, Ordering::Release);
+    }
+
+    #[inline]
+    pub fn output_flush_generation(&self) -> u64 {
+        self.output_flush_generation.load(Ordering::Acquire)
     }
 
     #[inline]
@@ -4233,7 +4249,18 @@ pub(crate) fn audio_callback(
         data.fill_silence(output);
         return;
     }
+    audio_callback_unpaused(output, data, event_tx);
+}
 
+/// `audio_callback` minus the pause check, for a caller that already decided to
+/// render. The direct-USB render thread uses it so a pause landing mid-render
+/// cannot turn a chunk into silence that is then queued in front of the music.
+#[inline]
+pub(crate) fn audio_callback_unpaused(
+    output: &mut [f32],
+    data: &AudioCallbackData,
+    event_tx: &Sender<AudioEvent>,
+) {
     data.apply_pending_equalizer();
 
     // Passthrough path: raw samples from decoder straight to output.
@@ -4664,6 +4691,11 @@ fn command_processing_loop(
                         callback_data.crossfader.lock().reset();
                         callback_data.pitch_shifter.lock().reset();
                         callback_data.crossfade_active.store(false, Ordering::Relaxed);
+                        // Output held back by a pause belongs to the stopped
+                        // source; it must not play once something resumes.
+                        if callback_data.is_paused() {
+                            callback_data.request_output_flush();
+                        }
                         state.store(PlaybackState::Stopped as u8, Ordering::Relaxed);
                         update_managed_output(&mut supervisor, &callback_data, &shutdown);
                         let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Stopped));
@@ -4678,8 +4710,10 @@ fn command_processing_loop(
                             &event_tx,
                             sample_rate,
                         );
-                        // Drop pre-seek audio still sitting in the shifter.
+                        // Drop pre-seek audio still sitting in the shifter and
+                        // in the output queue (direct-USB PCM ring).
                         callback_data.pitch_shifter.lock().reset();
+                        callback_data.request_output_flush();
                     }
                     AudioCommand::SetVolume { volume } => {
                         callback_data.set_volume(volume.clamp(0.0, MAX_VOLUME));
@@ -5226,6 +5260,10 @@ fn start_playback_source(
         let mut sources = callback_data.sources.lock();
         sources.set_current(source);
         callback_data.publish_progress_snapshot(&sources);
+    }
+    // Output held back by a pause belongs to the previous source.
+    if callback_data.is_paused() {
+        callback_data.request_output_flush();
     }
     callback_data.set_paused(false);
     decoders.lock().push(decoder_handle);
@@ -6684,6 +6722,100 @@ mod tests {
         assert!(data.is_paused());
         assert!(transition_rx.recv_timeout(timeout).unwrap());
         assert!(!transition_rx.recv_timeout(timeout).unwrap());
+        command_tx.send(AudioCommand::Shutdown).unwrap();
+        thread.join().unwrap();
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(unused_path);
+    }
+
+    #[test]
+    fn output_flush_is_requested_only_for_audio_a_seek_or_pause_made_stale() {
+        let (path, unused_path) = seek_test_fixtures("output_flush");
+        let (data, finished_rx) = build_callback_data_with_finished(48_000, 2);
+        let data = Arc::new(data);
+        let thread_data = data.clone();
+        let (command_tx, command_rx) = bounded(8);
+        let (event_tx, _event_rx) = bounded(64);
+        let state = Arc::new(AtomicU8::new(PlaybackState::Idle as u8));
+        let thread = std::thread::spawn(move || {
+            command_processing_loop(
+                command_rx,
+                finished_rx,
+                event_tx,
+                thread_data,
+                state,
+                Arc::new(Mutex::new(Vec::new())),
+                48_000,
+                Arc::new(AtomicBool::new(false)),
+                None,
+            );
+        });
+        let timeout = std::time::Duration::from_secs(2);
+        // Commands run in order, so a completed Pause/Resume proves every
+        // earlier command has been handled.
+        let pause = || {
+            let (completed, completion) = bounded(1);
+            command_tx.send(AudioCommand::Pause { completed }).unwrap();
+            completion.recv_timeout(timeout).unwrap();
+        };
+        let resume = || {
+            let (completed, completion) = bounded(1);
+            command_tx.send(AudioCommand::Resume { completed }).unwrap();
+            completion.recv_timeout(timeout).unwrap();
+        };
+        let stop = || {
+            let (completed, completion) = bounded(1);
+            command_tx.send(AudioCommand::Stop { completed }).unwrap();
+            completion.recv_timeout(timeout).unwrap();
+        };
+
+        command_tx
+            .send(AudioCommand::Play { path: path.clone() })
+            .unwrap();
+        pause();
+        assert_eq!(
+            data.output_flush_generation(),
+            0,
+            "playing a track and pausing it keeps the queued audio for resume"
+        );
+
+        command_tx
+            .send(AudioCommand::Seek { position_secs: 0.1 })
+            .unwrap();
+        pause();
+        assert_eq!(data.output_flush_generation(), 1, "seek drops queued audio");
+        assert!(data.is_paused(), "a paused seek stays paused");
+
+        stop();
+        assert_eq!(
+            data.output_flush_generation(),
+            2,
+            "stopping while paused drops the audio held by the pause"
+        );
+
+        command_tx
+            .send(AudioCommand::Play { path: path.clone() })
+            .unwrap();
+        resume();
+        assert_eq!(
+            data.output_flush_generation(),
+            3,
+            "a new source replacing a paused one drops the held audio"
+        );
+        assert!(!data.is_paused());
+
+        stop();
+        assert_eq!(
+            data.output_flush_generation(),
+            3,
+            "stopping while playing leaves the final tail to finish"
+        );
+        command_tx
+            .send(AudioCommand::Play { path: path.clone() })
+            .unwrap();
+        pause();
+        assert_eq!(data.output_flush_generation(), 3);
+
         command_tx.send(AudioCommand::Shutdown).unwrap();
         thread.join().unwrap();
         let _ = std::fs::remove_file(path);

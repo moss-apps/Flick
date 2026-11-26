@@ -1,7 +1,7 @@
 use crate::dev_eprintln;
 
 use crate::audio::commands::AudioEvent;
-use crate::audio::engine::{audio_callback, AudioCallbackData};
+use crate::audio::engine::{audio_callback_unpaused, AudioCallbackData};
 use crate::uac2::endpoint::{select_explicit_feedback_endpoint, FeedbackEndpointCandidate};
 use crate::uac2::iso_packet_validation::{iso_transfer_status_label, validate_iso_packet_descriptors};
 use crate::uac2::payload_audit_latch::PayloadAuditLatch;
@@ -649,6 +649,9 @@ struct AndroidDirectUsbPcmRingBuffer {
     write_index: usize,
     len_samples: usize,
     dop_marker_is_fa: bool,
+    /// Set by `clear`: hold wire silence until the ring can fill a transfer, so
+    /// a flush never shows up as an underrun or a half-padded transfer.
+    refill_pending: bool,
 }
 
 struct AndroidDirectUsbLock {
@@ -1354,11 +1357,31 @@ impl AndroidDirectUsbPcmRingBuffer {
             write_index: 0,
             len_samples: 0,
             dop_marker_is_fa: false,
+            refill_pending: false,
         }
     }
 
     fn len_samples(&self) -> usize {
         self.len_samples
+    }
+
+    /// Drops every queued sample (seek). The DoP marker phase is wire state and
+    /// survives, so the stream stays continuous across the flush.
+    fn clear(&mut self) {
+        self.read_index = 0;
+        self.write_index = 0;
+        self.len_samples = 0;
+        self.refill_pending = true;
+    }
+
+    /// True while `clear` is waiting for `needed_samples` of new audio. The
+    /// caller then sends silence via `fill_wire_silence` instead of popping.
+    fn awaiting_refill(&mut self, needed_samples: usize) -> bool {
+        if self.refill_pending && self.len_samples < needed_samples {
+            return true;
+        }
+        self.refill_pending = false;
+        false
     }
 
     fn push_samples(&mut self, input: &[i32]) -> usize {
@@ -1399,28 +1422,44 @@ impl AndroidDirectUsbPcmRingBuffer {
         if underrun {
             // Zero is full-scale DC for native DSD and breaks DoP marker sync;
             // pad with a silent but valid bitstream instead.
-            for sample in output[readable..].iter_mut() {
-                *sample = match dsd_transport {
-                    DsdTransportMode::Native => 0x69,
-                    DsdTransportMode::DoP => 0x00696900,
-                    DsdTransportMode::None => 0,
-                };
-            }
+            output[readable..].fill(wire_silence_sample(dsd_transport));
         }
 
-        // The final USB stream owns marker phase. Decoder restarts and inserted
-        // silence must not reset it or give L/R different markers.
-        if dsd_transport == DsdTransportMode::DoP {
-            for frame in output.chunks_exact_mut(self.channels) {
-                let marker = if self.dop_marker_is_fa { 0xFAu32 } else { 0x05 };
-                for sample in frame {
-                    *sample = ((*sample as u32 & 0x00ff_ffff) | marker << 24) as i32;
-                }
-                self.dop_marker_is_fa = !self.dop_marker_is_fa;
-            }
-        }
+        self.stamp_dop_markers(output, dsd_transport);
 
         underrun
+    }
+
+    /// Fills `output` with wire-correct silence and leaves the queue untouched.
+    /// Used while paused (or refilling after `clear`) to keep the isochronous
+    /// stream running without consuming audio the user has not heard yet. DoP
+    /// markers advance exactly as for real audio.
+    fn fill_wire_silence(&mut self, output: &mut [i32], dsd_transport: DsdTransportMode) {
+        output.fill(wire_silence_sample(dsd_transport));
+        self.stamp_dop_markers(output, dsd_transport);
+    }
+
+    // The final USB stream owns marker phase. Decoder restarts and inserted
+    // silence must not reset it or give L/R different markers.
+    fn stamp_dop_markers(&mut self, output: &mut [i32], dsd_transport: DsdTransportMode) {
+        if dsd_transport != DsdTransportMode::DoP {
+            return;
+        }
+        for frame in output.chunks_exact_mut(self.channels) {
+            let marker = if self.dop_marker_is_fa { 0xFAu32 } else { 0x05 };
+            for sample in frame {
+                *sample = ((*sample as u32 & 0x00ff_ffff) | marker << 24) as i32;
+            }
+            self.dop_marker_is_fa = !self.dop_marker_is_fa;
+        }
+    }
+}
+
+fn wire_silence_sample(dsd_transport: DsdTransportMode) -> i32 {
+    match dsd_transport {
+        DsdTransportMode::Native => 0x69,
+        DsdTransportMode::DoP => 0x00696900,
+        DsdTransportMode::None => 0,
     }
 }
 
@@ -5303,6 +5342,7 @@ fn create_android_usb_backend_inner(
     let usb_stop = Arc::clone(&stop);
     let usb_buffer = Arc::clone(&pcm_buffer);
     let usb_stats = Arc::clone(&runtime_stats);
+    let usb_callback_data = Arc::clone(&callback_data);
     let backend_product_name = state.device.product_name.clone();
     let backend_endpoint_address = candidate.endpoint_address;
     let backend_interface_number = candidate.interface_number;
@@ -5324,6 +5364,7 @@ fn create_android_usb_backend_inner(
                     event_tx,
                     usb_buffer,
                     usb_stats,
+                    usb_callback_data,
                     usb_stop,
                 );
             }));
@@ -5461,8 +5502,34 @@ fn run_usb_render_loop(
         callback_data.set_dsd_wire_silence(true);
     }
 
+    let mut applied_flush_generation = callback_data.output_flush_generation();
     while !usb_stop_requested(&stop) {
         let cycle_start = Instant::now();
+        // Seek (or a new source replacing a paused one): drop what is queued so
+        // the output thread cannot play stale audio. This also runs while
+        // paused, when no chunk is being rendered.
+        let flush_generation = callback_data.output_flush_generation();
+        if flush_generation != applied_flush_generation {
+            let dropped_samples = {
+                let mut guard = pcm_buffer.lock();
+                let dropped_samples = guard.len_samples();
+                guard.clear();
+                dropped_samples
+            };
+            runtime_stats.buffered_samples.store(0, Ordering::Relaxed);
+            applied_flush_generation = flush_generation;
+            dev_eprintln!(
+                "[USB] output flush dropped {}ms of queued audio",
+                samples_to_millis(dropped_samples, ring_rate, channels)
+            );
+        }
+        // Paused: stop rendering instead of queueing silence. The ring keeps
+        // the audio already rendered, so resume continues exactly where the
+        // pause landed while the output thread sends silence in the meantime.
+        if callback_data.is_paused() {
+            thread::sleep(Duration::from_millis(ANDROID_USB_RENDER_POLL_MS));
+            continue;
+        }
         let buffered_samples = {
             let guard = pcm_buffer.lock();
             guard.len_samples()
@@ -5476,7 +5543,9 @@ fn run_usb_render_loop(
             continue;
         }
 
-        audio_callback(&mut render_buffer, &callback_data, &event_tx);
+        // Pause was checked above. If it lands mid-render this chunk is still
+        // real audio, so it must be queued rather than lost.
+        audio_callback_unpaused(&mut render_buffer, &callback_data, &event_tx);
         if cycle_start.elapsed() > chunk_deadline {
             let count = crate::audio::engine::XRUN_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
             dev_eprintln!(
@@ -5670,6 +5739,7 @@ fn prepare_iso_transfer_payload(
     dsd_transport: DsdTransportMode,
     dsd_big_endian: bool,
     dsd_bit_reverse: bool,
+    paused: bool,
 ) -> Result<Option<IsoTransferPayload>, String> {
     let packet_sizes = scheduler.next_transfer_packet_bytes();
     let total_bytes: usize = packet_sizes.iter().sum();
@@ -5703,13 +5773,23 @@ fn prepare_iso_transfer_payload(
         total_bytes / slot_bytes
     };
     let mut packet_samples = vec![0i32; total_samples];
-    let underrun = {
+    // Held transfers carry wire silence but keep the iso stream (and the DAC's
+    // clock lock) running. They neither consume the ring nor count as an
+    // underrun, and they skip the payload audit: silence is expected there and
+    // must not clear the verified state.
+    let (underrun, held) = {
         let mut guard = pcm_buffer.lock();
-        let underrun = guard.pop_into_or_pad(&mut packet_samples, channels, dsd_transport);
+        let held = paused || guard.awaiting_refill(total_samples);
+        let underrun = if held {
+            guard.fill_wire_silence(&mut packet_samples, dsd_transport);
+            false
+        } else {
+            guard.pop_into_or_pad(&mut packet_samples, channels, dsd_transport)
+        };
         runtime_stats
             .buffered_samples
             .store(guard.len_samples(), Ordering::Relaxed);
-        underrun
+        (underrun, held)
     };
 
     let mut transfer_buffer = vec![0u8; total_bytes];
@@ -5723,7 +5803,9 @@ fn prepare_iso_transfer_payload(
         dsd_big_endian,
         dsd_bit_reverse,
     )?;
-    if dsd_transport != DsdTransportMode::None {
+    if held {
+        // Expected silence: leave the audit latch alone.
+    } else if dsd_transport != DsdTransportMode::None {
         observe_dsd_payload_audit(audit_dsd_payload(
             &transfer_buffer,
             dsd_transport,
@@ -5951,6 +6033,7 @@ fn run_usb_output_loop(
     event_tx: Sender<AudioEvent>,
     pcm_buffer: Arc<Mutex<AndroidDirectUsbPcmRingBuffer>>,
     runtime_stats: Arc<AndroidDirectUsbRuntimeStats>,
+    callback_data: Arc<AudioCallbackData>,
     stop: Arc<AtomicBool>,
 ) {
     let AndroidDirectUsbClaimedHandle {
@@ -6125,6 +6208,7 @@ fn run_usb_output_loop(
                 playback_format.dsd_transport,
                 dsd_big_endian,
                 dsd_bit_reverse,
+                callback_data.is_paused(),
             ) {
                 Ok(Some(payload)) => payload,
                 Ok(None) => continue,
@@ -6278,6 +6362,7 @@ fn run_usb_output_loop(
                     playback_format.dsd_transport,
                     dsd_big_endian,
                     dsd_bit_reverse,
+                    callback_data.is_paused(),
                 ) {
                     Ok(Some(payload)) => {
                         record_prepared_iso_transfer(
@@ -8912,5 +8997,232 @@ mod dsd_bitperfect_tests {
             decode_feedback_report(&bytes, 125, Speed::High).unwrap();
         assert!((frames_per_packet - 44.1).abs() < 0.000_1);
         assert!((estimated_rate - 352_800.0).abs() < 0.01);
+    }
+}
+
+#[cfg(test)]
+mod pcm_ring_hold_tests {
+    use super::*;
+
+    fn dop_frame(marker_bits: u32, payload: u32) -> [i32; 2] {
+        [(marker_bits << 24 | payload) as i32; 2]
+    }
+
+    fn markers(output: &[i32], channels: usize) -> Vec<u32> {
+        output
+            .chunks_exact(channels)
+            .map(|frame| {
+                assert!(
+                    frame
+                        .iter()
+                        .all(|s| (*s as u32) >> 24 == (frame[0] as u32) >> 24),
+                    "channels of one frame must share a marker: {frame:x?}"
+                );
+                (frame[0] as u32) >> 24
+            })
+            .collect()
+    }
+
+    #[test]
+    fn clear_discards_queued_audio_and_waits_for_a_whole_transfer() {
+        let mut ring = AndroidDirectUsbPcmRingBuffer::new(16, 2);
+        assert_eq!(ring.push_samples(&[1, 2, 3, 4, 5, 6, 7, 8]), 8);
+        ring.clear();
+        assert_eq!(ring.len_samples(), 0);
+
+        // Nothing to play yet: hold silence instead of reporting an underrun.
+        assert!(ring.awaiting_refill(4));
+        assert_eq!(ring.push_samples(&[20, 21]), 2);
+        assert!(ring.awaiting_refill(4), "half a transfer is not enough");
+        assert_eq!(ring.push_samples(&[22, 23]), 2);
+        assert!(!ring.awaiting_refill(4));
+
+        let mut out = [0i32; 4];
+        assert!(!ring.pop_into_or_pad(&mut out, 2, DsdTransportMode::None));
+        assert_eq!(out, [20, 21, 22, 23], "only post-clear audio is played");
+
+        // The hold is one-shot: a later drain is a genuine underrun again.
+        assert!(!ring.awaiting_refill(4));
+        assert!(ring.pop_into_or_pad(&mut out, 2, DsdTransportMode::None));
+    }
+
+    #[test]
+    fn paused_pcm_silence_does_not_consume_the_ring() {
+        let mut ring = AndroidDirectUsbPcmRingBuffer::new(16, 2);
+        assert_eq!(ring.push_samples(&[1, 2, 3, 4, 5, 6]), 6);
+
+        let mut first = [0i32; 2];
+        assert!(!ring.pop_into_or_pad(&mut first, 2, DsdTransportMode::None));
+        assert_eq!(first, [1, 2]);
+
+        let mut paused = [9i32; 8];
+        ring.fill_wire_silence(&mut paused, DsdTransportMode::None);
+        assert_eq!(paused, [0; 8]);
+        assert_eq!(ring.len_samples(), 4, "pause must keep the queued audio");
+
+        let mut resumed = [0i32; 4];
+        assert!(!ring.pop_into_or_pad(&mut resumed, 2, DsdTransportMode::None));
+        assert_eq!(
+            resumed,
+            [3, 4, 5, 6],
+            "nothing lost or repeated across pause"
+        );
+    }
+
+    #[test]
+    fn paused_native_dsd_silence_is_the_idle_pattern_not_dc() {
+        let mut ring = AndroidDirectUsbPcmRingBuffer::new(16, 2);
+        assert_eq!(ring.push_samples(&[0x11, 0x22]), 2);
+
+        let mut paused = [0i32; 4];
+        ring.fill_wire_silence(&mut paused, DsdTransportMode::Native);
+        assert_eq!(paused, [0x69; 4]);
+        assert_eq!(ring.len_samples(), 2);
+    }
+
+    #[test]
+    fn dop_markers_alternate_across_paused_and_resumed_pops() {
+        let mut ring = AndroidDirectUsbPcmRingBuffer::new(16, 2);
+        // Stale marker bits on the queued frames must not leak onto the wire.
+        for frame in [
+            dop_frame(0xAA, 0x112233),
+            dop_frame(0xAA, 0x445566),
+            dop_frame(0xAA, 0x778899),
+        ] {
+            assert_eq!(ring.push_samples(&frame), 2);
+        }
+
+        let mut before = [0i32; 2];
+        assert!(!ring.pop_into_or_pad(&mut before, 2, DsdTransportMode::DoP));
+        let mut paused = [0i32; 6];
+        ring.fill_wire_silence(&mut paused, DsdTransportMode::DoP);
+        let mut after = [0i32; 4];
+        assert!(!ring.pop_into_or_pad(&mut after, 2, DsdTransportMode::DoP));
+
+        let mut wire = Vec::new();
+        wire.extend_from_slice(&before);
+        wire.extend_from_slice(&paused);
+        wire.extend_from_slice(&after);
+        assert_eq!(
+            markers(&wire, 2),
+            [0x05, 0xFA, 0x05, 0xFA, 0x05, 0xFA],
+            "one unbroken 05/FA alternation across pause and resume"
+        );
+        assert_eq!(paused.map(|s| s as u32 & 0x00ff_ffff), [0x696900; 6]);
+        assert_eq!(
+            after.map(|s| s as u32 & 0x00ff_ffff),
+            [0x445566, 0x445566, 0x778899, 0x778899],
+            "the retained audio resumes where it stopped"
+        );
+    }
+
+    #[test]
+    fn clear_keeps_the_dop_marker_phase() {
+        let mut ring = AndroidDirectUsbPcmRingBuffer::new(16, 2);
+        let mut first = [0i32; 2];
+        ring.fill_wire_silence(&mut first, DsdTransportMode::DoP);
+        assert_eq!(markers(&first, 2), [0x05]);
+
+        ring.clear();
+        let mut next = [0i32; 4];
+        ring.fill_wire_silence(&mut next, DsdTransportMode::DoP);
+        assert_eq!(markers(&next, 2), [0xFA, 0x05]);
+    }
+
+    fn pcm_candidate() -> AndroidIsoStreamCandidate {
+        AndroidIsoStreamCandidate {
+            interface_number: 1,
+            alt_setting: 1,
+            endpoint_address: 0x01,
+            endpoint_interval: 1,
+            service_interval_us: 125,
+            usb_speed: Speed::High,
+            max_packet_bytes: 1024,
+            sync_type: SyncType::Adaptive,
+            usage_type: UsageType::Data,
+            format_tag: FORMAT_TAG_PCM,
+            channels: 2,
+            subslot_size: 2,
+            bit_resolution: 16,
+            sample_rates: vec![48_000],
+            refresh: 0,
+            synch_address: 0,
+            feedback_endpoint: None,
+            terminal_link: None,
+            is_uac1: false,
+        }
+    }
+
+    fn prepare(
+        ring: &Arc<Mutex<AndroidDirectUsbPcmRingBuffer>>,
+        stats: &AndroidDirectUsbRuntimeStats,
+        paused: bool,
+    ) -> IsoTransferPayload {
+        let candidate = pcm_candidate();
+        let mut scheduler = IsoPacketScheduler::new(48_000, 4, candidate.service_interval_us);
+        prepare_iso_transfer_payload(
+            &mut scheduler,
+            ring,
+            stats,
+            &candidate,
+            2,
+            2,
+            4,
+            DsdTransportMode::None,
+            false,
+            false,
+            paused,
+        )
+        .unwrap()
+        .unwrap()
+    }
+
+    #[test]
+    fn held_transfers_are_silent_unconsumed_and_not_underruns() {
+        let stats = AndroidDirectUsbRuntimeStats::new(48_000, 2, 200, 100);
+        let ring = Arc::new(Mutex::new(AndroidDirectUsbPcmRingBuffer::new(
+            stats.buffer_capacity_samples,
+            2,
+        )));
+        // Distinct 16-bit values so the payload audit sees real audio.
+        let music: Vec<i32> = (1..=2_000).map(|i| i << 16).collect();
+        assert_eq!(ring.lock().push_samples(&music), 2_000);
+        USB_PCM_PAYLOAD_LATCH.lock().reset();
+
+        let paused = prepare(&ring, &stats, true);
+        assert!(!paused.underrun);
+        assert!(paused.transfer_buffer.iter().all(|byte| *byte == 0));
+        assert_eq!(ring.lock().len_samples(), 2_000, "pause consumes nothing");
+        {
+            let latch = USB_PCM_PAYLOAD_LATCH.lock();
+            assert!(!latch.is_verified());
+            assert_eq!(latch.constant_for(Instant::now()), None, "audit untouched");
+        }
+
+        let playing = prepare(&ring, &stats, false);
+        assert!(!playing.underrun);
+        assert!(playing.transfer_buffer.iter().any(|byte| *byte != 0));
+        let consumed = 2_000 - ring.lock().len_samples();
+        assert_eq!(consumed, playing.packet_samples.len());
+        assert_eq!(
+            playing.packet_samples[0],
+            1 << 16,
+            "resume starts at the pause point"
+        );
+        assert!(USB_PCM_PAYLOAD_LATCH.lock().is_verified());
+
+        // A flushed ring holds silence until a whole transfer is queued.
+        ring.lock().clear();
+        let flushed = prepare(&ring, &stats, false);
+        assert!(!flushed.underrun, "a flush is not an underrun");
+        assert!(flushed.transfer_buffer.iter().all(|byte| *byte == 0));
+        assert_eq!(ring.lock().len_samples(), 0);
+
+        // Once the ring has been refilled, a drain is a genuine underrun.
+        assert_eq!(ring.lock().push_samples(&music[..1_000]), 1_000);
+        assert!(!prepare(&ring, &stats, false).underrun);
+        ring.lock()
+            .pop_into_or_pad(&mut vec![0; 4_000], 2, DsdTransportMode::None);
+        assert!(prepare(&ring, &stats, false).underrun);
     }
 }
