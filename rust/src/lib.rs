@@ -16,7 +16,7 @@ use std::{ffi::c_void, sync::OnceLock};
 #[cfg(target_os = "android")]
 use jni::{
     objects::{Global, JIntArray, JObject, JString},
-    sys::{jboolean, jdouble, jint, jstring},
+    sys::{jboolean, jdouble, jint, jlong, jstring},
     JNIEnv, JavaVM,
 };
 
@@ -339,12 +339,34 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeGetRustDirectU
 
 #[cfg(all(target_os = "android", feature = "uac2"))]
 #[no_mangle]
+pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeGetRustDirectUsbHardwareVolumeGeneration(
+    _env: JNIEnv<'_>,
+    _activity: JObject<'_>,
+    require_hardware_control: jboolean,
+) -> jlong {
+    crate::uac2::android_direct_hardware_volume_generation(require_hardware_control)
+        .map_or(-1, |generation| generation as jlong)
+}
+
+#[cfg(all(target_os = "android", not(feature = "uac2")))]
+#[no_mangle]
+pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeGetRustDirectUsbHardwareVolumeGeneration(
+    _env: JNIEnv<'_>,
+    _activity: JObject<'_>,
+    _require_hardware_control: jboolean,
+) -> jlong {
+    -1
+}
+
+#[cfg(all(target_os = "android", feature = "uac2"))]
+#[no_mangle]
 pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectUsbHardwareVolume(
     _env: JNIEnv<'_>,
     _activity: JObject<'_>,
     volume: jdouble,
+    generation: jlong,
 ) -> jboolean {
-    match crate::uac2::android_direct_set_hardware_volume(volume) {
+    match crate::uac2::android_direct_set_hardware_volume(volume, generation as u64) {
         Ok(()) => true,
         Err(error) => {
             dev_eprintln!(
@@ -362,6 +384,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
     _env: JNIEnv<'_>,
     _activity: JObject<'_>,
     _volume: jdouble,
+    _generation: jlong,
 ) -> jboolean {
     false
 }
@@ -372,8 +395,14 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeQueueRustDirec
     _env: JNIEnv<'_>,
     _activity: JObject<'_>,
     volume: jdouble,
+    generation: jlong,
+    stage_only: jboolean,
 ) -> jboolean {
-    match crate::uac2::android_direct_queue_hardware_volume_restore(volume) {
+    match crate::uac2::android_direct_queue_hardware_volume_restore(
+        volume,
+        generation as u64,
+        stage_only,
+    ) {
         Ok(()) => true,
         Err(error) => {
             dev_eprintln!(
@@ -391,6 +420,8 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeQueueRustDirec
     _env: JNIEnv<'_>,
     _activity: JObject<'_>,
     _volume: jdouble,
+    _generation: jlong,
+    _stage_only: jboolean,
 ) -> jboolean {
     false
 }
@@ -423,8 +454,9 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
     _env: JNIEnv<'_>,
     _activity: JObject<'_>,
     muted: jboolean,
+    generation: jlong,
 ) -> jboolean {
-    match crate::uac2::android_direct_set_hardware_mute(muted) {
+    match crate::uac2::android_direct_set_hardware_mute(muted, generation as u64) {
         Ok(()) => true,
         Err(error) => {
             dev_eprintln!("Failed to set Android direct USB hardware mute: {}", error);
@@ -439,6 +471,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
     _env: JNIEnv<'_>,
     _activity: JObject<'_>,
     _muted: jboolean,
+    _generation: jlong,
 ) -> jboolean {
     false
 }
@@ -448,13 +481,17 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
 pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeVerifyRustDirectUsbHardwareVolumeHealth(
     _env: JNIEnv<'_>,
     _activity: JObject<'_>,
+    generation: jlong,
 ) -> jint {
-    match crate::uac2::android_direct_verify_hardware_volume_health() {
-        Ok(true) => 1,
-        Ok(false) => 0,
+    let generation = generation as u64;
+    match crate::uac2::android_direct_verify_hardware_volume_health(generation) {
+        Ok(()) => 1,
         Err(error) => {
+            if crate::uac2::android_direct_hardware_volume_generation(true) != Some(generation) {
+                return -1;
+            }
             dev_eprintln!("Failed to read Android direct USB hardware volume: {}", error);
-            if crate::uac2::android_direct_has_hardware_volume_control() { 0 } else { -1 }
+            0
         }
     }
 }
@@ -464,6 +501,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeVerifyRustDire
 pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeVerifyRustDirectUsbHardwareVolumeHealth(
     _env: JNIEnv<'_>,
     _activity: JObject<'_>,
+    _generation: jlong,
 ) -> jint {
     -1
 }

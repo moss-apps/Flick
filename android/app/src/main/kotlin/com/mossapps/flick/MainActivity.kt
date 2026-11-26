@@ -75,12 +75,14 @@ import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugins.GeneratedPluginRegistrant
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -929,11 +931,13 @@ class MainActivity: FlutterActivity() {
                 "setRouteVolume" -> {
                     val volume = call.argument<Double>("volume")
                     if (volume != null) {
-                        result.success(setRouteVolume(
-                            volume,
-                            hardwareOnly = call.argument<Boolean>("hardwareOnly") == true,
-                            expectedDeviceName = call.argument<String>("deviceName"),
-                        ))
+                        replyToRouteVolumeOperation(result) {
+                            setRouteVolume(
+                                volume,
+                                hardwareOnly = call.argument<Boolean>("hardwareOnly") == true,
+                                expectedDeviceName = call.argument<String>("deviceName"),
+                            )
+                        }
                     } else {
                         result.error("INVALID_ARGUMENT", "volume is required", null)
                     }
@@ -947,11 +951,13 @@ class MainActivity: FlutterActivity() {
                 "setRouteMuted" -> {
                     val muted = call.argument<Boolean>("muted")
                     if (muted != null) {
-                        result.success(setRouteMuted(
-                            muted,
-                            hardwareOnly = call.argument<Boolean>("hardwareOnly") == true,
-                            expectedDeviceName = call.argument<String>("deviceName"),
-                        ))
+                        replyToRouteVolumeOperation(result) {
+                            setRouteMuted(
+                                muted,
+                                hardwareOnly = call.argument<Boolean>("hardwareOnly") == true,
+                                expectedDeviceName = call.argument<String>("deviceName"),
+                            )
+                        }
                     } else {
                         result.error("INVALID_ARGUMENT", "muted is required", null)
                     }
@@ -963,22 +969,24 @@ class MainActivity: FlutterActivity() {
                     ))
                 }
                 "verifyHardwareVolumeHealth" -> {
-                    result.success(verifyHardwareVolumeHealth())
+                    replyToRouteVolumeOperation(result) { verifyHardwareVolumeHealth() }
                 }
                 "activateDirectUsb" -> {
                     val deviceName = call.argument<String>("deviceName")
                     val restoreVolume = call.argument<Double>("restoreVolume")
                     if (deviceName != null) {
-                        try {
-                            result.success(activateDirectUsb(
-                                deviceName,
-                                restoreVolume,
-                                expectedSerial = call.argument<String>("expectedSerial"),
-                                expectedVendorId = call.argument<Int>("expectedVendorId"),
-                                expectedProductId = call.argument<Int>("expectedProductId"),
-                            ))
-                        } catch (e: DirectUsbClaimException) {
-                            result.error("DIRECT_USB_CLAIM_FAILED", e.message, null)
+                        mainScope.launch(Dispatchers.Main.immediate) {
+                            try {
+                                result.success(activateDirectUsb(
+                                    deviceName,
+                                    restoreVolume,
+                                    expectedSerial = call.argument<String>("expectedSerial"),
+                                    expectedVendorId = call.argument<Int>("expectedVendorId"),
+                                    expectedProductId = call.argument<Int>("expectedProductId"),
+                                ))
+                            } catch (e: DirectUsbClaimException) {
+                                result.error("DIRECT_USB_CLAIM_FAILED", e.message, null)
+                            }
                         }
                     } else {
                         result.error("INVALID_ARGUMENT", "deviceName is required", null)
@@ -988,12 +996,8 @@ class MainActivity: FlutterActivity() {
                     val deviceName = call.argument<String>("deviceName")
                     val restoreVolume = call.argument<Double>("restoreVolume")
                     if (deviceName != null && restoreVolume != null) {
-                        if (activeDirectUsbDeviceName != deviceName) {
-                            result.success(false)
-                        } else {
-                            result.success(
-                                restoreDirectUsbHardwareVolume(deviceName, restoreVolume)
-                            )
+                        replyToRouteVolumeOperation(result) {
+                            restoreDirectUsbHardwareVolume(deviceName, restoreVolume)
                         }
                     } else {
                         result.error(
@@ -4256,7 +4260,7 @@ class MainActivity: FlutterActivity() {
         request.callbacks.forEach { it(granted) }
     }
 
-    private fun activateDirectUsb(
+    private suspend fun activateDirectUsb(
         deviceName: String,
         restoreVolume: Double? = null,
         expectedSerial: String? = null,
@@ -4321,7 +4325,7 @@ class MainActivity: FlutterActivity() {
             }
             directUsbConnection = registration
 
-            if (!restoreDirectUsbHardwareVolume(deviceName, restoreVolume)) {
+            if (!restoreDirectUsbHardwareVolume(deviceName, restoreVolume, justRegistered = true)) {
                 deactivateDirectUsb()
                 return false
             }
@@ -4336,6 +4340,8 @@ class MainActivity: FlutterActivity() {
         } catch (e: DirectUsbClaimException) {
             Log.w("UAC2", e.message ?: "USB audio interface claim failed")
             throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e("UAC2", "Failed to activate direct USB DAC: ${e.message}", e)
             if (activeDirectUsbDeviceName == deviceName) deactivateDirectUsb()
@@ -4343,17 +4349,31 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    private fun restoreDirectUsbHardwareVolume(deviceName: String, volume: Double?): Boolean {
+    private suspend fun restoreDirectUsbHardwareVolume(
+        deviceName: String,
+        volume: Double?,
+        justRegistered: Boolean = false,
+    ): Boolean {
         if (volume == null) return true
+        if (activeDirectUsbDeviceName != deviceName) return false
         if (!volume.isFinite() || volume !in 0.0..1.0) {
             Log.e("UAC2", "Invalid hardware volume restore value: $volume")
             return false
         }
-        if (!nativeQueueRustDirectUsbHardwareVolumeRestore(volume)) {
-            Log.e("UAC2", "Rust could not restore hardware volume for $deviceName")
-            return false
+        val restored = if (justRegistered) {
+            // Stage the level before making the registration available to Flutter.
+            // This path is not allowed to perform a live USB write.
+            val generation = nativeGetRustDirectUsbHardwareVolumeGeneration(false)
+            generation >= 0 && nativeQueueRustDirectUsbHardwareVolumeRestore(volume, generation, true)
+        } else {
+            runDirectUsbVolumeOperation(false, requireHardwareControl = false) { generation ->
+                nativeQueueRustDirectUsbHardwareVolumeRestore(volume, generation, false)
+            }
         }
-        return true
+        if (!restored) {
+            Log.e("UAC2", "Rust could not restore hardware volume for $deviceName")
+        }
+        return restored
     }
 
     private class DirectUsbClaimException(message: String) : Exception(message)
@@ -5131,7 +5151,7 @@ class MainActivity: FlutterActivity() {
         }
         // STREAM_MUSIC does not control a libusb stream. Never substitute it
         // for a missing or disconnected DAC Feature Unit.
-        if (hardwareOnly || activeDirectUsbDeviceName != null) return null
+        if (hardwareOnly || directUsbConnection != null) return null
 
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return null
         val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
@@ -5141,23 +5161,65 @@ class MainActivity: FlutterActivity() {
         return (currentVolume.toDouble() / maxVolume.toDouble()).coerceIn(0.0, 1.0)
     }
 
-    /// Returns: 1 = readable hardware level, 0 = control failure, -1 = unavailable.
-    private fun verifyHardwareVolumeHealth(): Int {
-        if (!hasDirectUsbHardwareVolume()) return -1
-        return nativeVerifyRustDirectUsbHardwareVolumeHealth()
+    private fun replyToRouteVolumeOperation(
+        result: MethodChannel.Result,
+        operation: suspend () -> Any?,
+    ) {
+        mainScope.launch(Dispatchers.Main.immediate) {
+            val value = try {
+                operation()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("UAC2", "Route volume operation failed", e)
+                result.error("ROUTE_VOLUME_FAILED", e.message, null)
+                return@launch
+            }
+            result.success(value)
+        }
     }
 
-    private fun setRouteVolume(volume: Double, hardwareOnly: Boolean = false, expectedDeviceName: String? = null): Boolean {
+    private suspend fun <T> runDirectUsbVolumeOperation(
+        unavailable: T,
+        requireHardwareControl: Boolean = true,
+        operation: (Long) -> T,
+    ): T {
+        if (directUsbReleasePending) return unavailable
+        val registration = directUsbConnection ?: return unavailable
+        val generation = nativeGetRustDirectUsbHardwareVolumeGeneration(requireHardwareControl)
+        if (generation < 0 || !directUsbVolumePermits.tryAcquire()) return unavailable
+        try {
+            // Requests share a worker across Activity recreation. An admitted
+            // write reports the native result, even if USB responds slowly.
+            val result = withContext(directUsbVolumeDispatcher) { operation(generation) }
+            val sameRegistration = !directUsbReleasePending && directUsbConnection === registration
+            val sameControl = !requireHardwareControl ||
+                nativeGetRustDirectUsbHardwareVolumeGeneration(true) == generation
+            return if (sameRegistration && sameControl) result else unavailable
+        } finally {
+            directUsbVolumePermits.release()
+        }
+    }
+
+    /// Returns: 1 = readable hardware level, 0 = control failure, -1 = unavailable.
+    private suspend fun verifyHardwareVolumeHealth(): Int {
+        // Do not queue a periodic query ahead of other volume adjustments.
+        if (directUsbVolumePermits.availablePermits != MAX_DIRECT_USB_VOLUME_OPERATIONS) return -1
+        return runDirectUsbVolumeOperation(-1) { nativeVerifyRustDirectUsbHardwareVolumeHealth(it) }
+    }
+
+    private suspend fun setRouteVolume(
+        volume: Double,
+        hardwareOnly: Boolean,
+        expectedDeviceName: String?,
+    ): Boolean {
         if (!volume.isFinite()) return false
         if (expectedDeviceName != null && expectedDeviceName != activeDirectUsbDeviceName) return false
-        if (hasDirectUsbHardwareVolume()) {
+        if (directUsbConnection != null) {
             val clamped = volume.coerceIn(0.0, 1.0)
-            Log.d("VolFlow", "setRouteVolume hw: sending SET_CUR $clamped")
-            val ok = nativeSetRustDirectUsbHardwareVolume(clamped)
-            Log.d("VolFlow", "setRouteVolume hw: native returned $ok")
-            return ok
+            return runDirectUsbVolumeOperation(false) { nativeSetRustDirectUsbHardwareVolume(clamped, it) }
         }
-        if (hardwareOnly || activeDirectUsbDeviceName != null) return false
+        if (hardwareOnly) return false
 
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
         if (audioManager.isVolumeFixed) return false
@@ -5184,7 +5246,7 @@ class MainActivity: FlutterActivity() {
                 else -> null
             }
         }
-        if (hardwareOnly || activeDirectUsbDeviceName != null) return null
+        if (hardwareOnly || directUsbConnection != null) return null
 
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
         val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -5195,12 +5257,16 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    private fun setRouteMuted(muted: Boolean, hardwareOnly: Boolean = false, expectedDeviceName: String? = null): Boolean {
+    private suspend fun setRouteMuted(
+        muted: Boolean,
+        hardwareOnly: Boolean,
+        expectedDeviceName: String?,
+    ): Boolean {
         if (expectedDeviceName != null && expectedDeviceName != activeDirectUsbDeviceName) return false
-        if (hasDirectUsbHardwareVolume()) {
-            return nativeSetRustDirectUsbHardwareMute(muted)
+        if (directUsbConnection != null) {
+            return runDirectUsbVolumeOperation(false) { nativeSetRustDirectUsbHardwareMute(muted, it) }
         }
-        if (hardwareOnly || activeDirectUsbDeviceName != null) return false
+        if (hardwareOnly) return false
 
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
         if (audioManager.isVolumeFixed) return false
@@ -5788,6 +5854,9 @@ class MainActivity: FlutterActivity() {
         private var directUsbReleasePending = false
         private val directUsbReleaseHandler = Handler(Looper.getMainLooper())
         private val directUsbReleaseWaiters = mutableListOf<MethodChannel.Result>()
+        private const val MAX_DIRECT_USB_VOLUME_OPERATIONS = 4
+        private val directUsbVolumeDispatcher = Dispatchers.IO.limitedParallelism(1)
+        private val directUsbVolumePermits = Semaphore(MAX_DIRECT_USB_VOLUME_OPERATIONS)
     }
 
     private external fun nativeInitRustAndroidContext(context: Context): Boolean
@@ -5809,11 +5878,16 @@ class MainActivity: FlutterActivity() {
     private external fun nativeSetRustDirectUsbLockEnabled(enabled: Boolean): Boolean
     private external fun nativeHasRustDirectUsbHardwareVolume(): Boolean
     private external fun nativeGetRustDirectUsbHardwareVolume(): Double
-    private external fun nativeSetRustDirectUsbHardwareVolume(volume: Double): Boolean
-    private external fun nativeQueueRustDirectUsbHardwareVolumeRestore(volume: Double): Boolean
+    private external fun nativeGetRustDirectUsbHardwareVolumeGeneration(requireHardwareControl: Boolean): Long
+    private external fun nativeSetRustDirectUsbHardwareVolume(volume: Double, generation: Long): Boolean
+    private external fun nativeQueueRustDirectUsbHardwareVolumeRestore(
+        volume: Double,
+        generation: Long,
+        stageOnly: Boolean,
+    ): Boolean
     private external fun nativeGetRustDirectUsbHardwareMute(): Int
-    private external fun nativeSetRustDirectUsbHardwareMute(muted: Boolean): Boolean
-    private external fun nativeVerifyRustDirectUsbHardwareVolumeHealth(): Int
+    private external fun nativeSetRustDirectUsbHardwareMute(muted: Boolean, generation: Long): Boolean
+    private external fun nativeVerifyRustDirectUsbHardwareVolumeHealth(generation: Long): Int
     private external fun nativeGetRustAudioDebugStateJson(): String?
     private external fun nativeClearRustDirectUsbPlayback(): Boolean
     private external fun nativeWaitRustDirectUsbSessionStopped(timeoutMs: Int): Boolean
