@@ -5,6 +5,10 @@ use crate::audio::engine::{audio_callback, AudioCallbackData};
 use crate::uac2::endpoint::{select_explicit_feedback_endpoint, FeedbackEndpointCandidate};
 use crate::uac2::iso_packet_validation::{iso_transfer_status_label, validate_iso_packet_descriptors};
 use crate::uac2::payload_audit_latch::PayloadAuditLatch;
+use crate::uac2::stream_control::{
+    route_hardware_control, stream_control_channel, ControlError, ControlRoute, StreamControlHandle,
+    StreamControlService, UsbControl,
+};
 use crate::uac2::volume_control::{
     normalize_volume, parse_uac2_volume_ranges, quantize_volume, read_hardware_volume_snapshot, volume_bounds,
     AudioControlProtocol, VolumeRange,
@@ -1451,11 +1455,12 @@ static DIRECT_USB_STATE: Lazy<Mutex<Option<AndroidDirectUsbState>>> =
 static DIRECT_USB_LOCK: Lazy<Mutex<Option<AndroidDirectUsbLock>>> = Lazy::new(|| Mutex::new(None));
 static DIRECT_USB_LIFECYCLE_STATE: Lazy<Mutex<AndroidDirectUsbLifecycleState>> =
     Lazy::new(|| Mutex::new(AndroidDirectUsbLifecycleState::default()));
-/// Serializes JNI hardware volume/mute control transfers. Reusing the idle
-/// `DIRECT_USB_LOCK` handle for feature-unit writes would require partial
-/// interface release; a second transient open remains necessary, but we avoid
-/// overlapping transient claims from concurrent UI/sync calls.
+/// Serializes JNI hardware volume/mute control transfers so concurrent UI/sync
+/// calls never interleave their multi-transfer sequences.
 static ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+/// Request queue of the streaming thread while isochronous URBs are in flight
+/// on its context. See `HardwareControlPort`.
+static STREAM_CONTROL: Lazy<Mutex<Option<StreamControlHandle>>> = Lazy::new(|| Mutex::new(None));
 static DIRECT_USB_DISCOVERY_DISABLED: Once = Once::new();
 static ANDROID_DIRECT_USB_ENABLED: AtomicBool = AtomicBool::new(true);
 static USB_SESSION_CLEAR_PENDING: AtomicBool = AtomicBool::new(false);
@@ -3262,6 +3267,144 @@ fn open_transient_usb_handle(
     })
 }
 
+/// Where a Feature Unit control transfer runs. libusb's usbfs backend reaps
+/// completed URBs per fd regardless of which context submitted them, so a second
+/// context on the stream's fd would steal the stream's isochronous completions.
+enum HardwareControlPort {
+    /// A stream is active: the request is queued to its thread and runs on its
+    /// own handle between isochronous resubmissions.
+    Stream(StreamControlHandle),
+    /// No stream, but the idle lock holds a handle for this device. It is
+    /// locked per transfer, never across a `DIRECT_USB_STATE` access
+    /// (`register_android_usb_device` takes those two in the opposite order).
+    IdleLock { device_fd: RawFd },
+    /// Nothing else touches the fd, so a throwaway context is harmless.
+    Transient(AndroidDirectUsbClaimedHandle),
+}
+
+fn open_hardware_control_port(
+    device: &AndroidDirectUsbDevice,
+) -> Result<HardwareControlPort, String> {
+    let stream = STREAM_CONTROL.lock().clone();
+    let idle_lock_held = DIRECT_USB_LOCK
+        .lock()
+        .as_ref()
+        .is_some_and(|lock| lock.device_fd == device.fd);
+    match route_hardware_control(stream.is_some(), idle_lock_held) {
+        ControlRoute::Stream => stream
+            .map(HardwareControlPort::Stream)
+            .ok_or_else(|| "USB stream control queue is unavailable".to_string()),
+        ControlRoute::IdleLock => Ok(HardwareControlPort::IdleLock {
+            device_fd: device.fd,
+        }),
+        ControlRoute::Transient => {
+            open_transient_usb_handle(device).map(HardwareControlPort::Transient)
+        }
+    }
+}
+
+impl UsbControl for HardwareControlPort {
+    fn control_in(
+        &self,
+        request_type: u8,
+        request: u8,
+        value: u16,
+        index: u16,
+        buf: &mut [u8],
+        timeout: Duration,
+    ) -> Result<usize, ControlError> {
+        match self {
+            Self::Stream(stream) => {
+                stream.control_in(request_type, request, value, index, buf, timeout)
+            }
+            Self::IdleLock { device_fd } => with_idle_lock_handle(*device_fd, |handle| {
+                handle.control_in(request_type, request, value, index, buf, timeout)
+            }),
+            Self::Transient(claimed) => {
+                claimed.handle.control_in(request_type, request, value, index, buf, timeout)
+            }
+        }
+    }
+
+    fn control_out(
+        &self,
+        request_type: u8,
+        request: u8,
+        value: u16,
+        index: u16,
+        buf: &[u8],
+        timeout: Duration,
+    ) -> Result<usize, ControlError> {
+        match self {
+            Self::Stream(stream) => {
+                stream.control_out(request_type, request, value, index, buf, timeout)
+            }
+            Self::IdleLock { device_fd } => with_idle_lock_handle(*device_fd, |handle| {
+                handle.control_out(request_type, request, value, index, buf, timeout)
+            }),
+            Self::Transient(claimed) => {
+                claimed.handle.control_out(request_type, request, value, index, buf, timeout)
+            }
+        }
+    }
+}
+
+fn with_idle_lock_handle<T>(
+    device_fd: RawFd,
+    transfer: impl FnOnce(&DeviceHandle<Context>) -> Result<T, ControlError>,
+) -> Result<T, ControlError> {
+    // A stream starting meanwhile takes the handle out of the lock.
+    DIRECT_USB_LOCK
+        .lock()
+        .as_ref()
+        .filter(|lock| lock.device_fd == device_fd)
+        .map_or(Err(ControlError::HandleReleased), |lock| {
+            transfer(&lock.handle)
+        })
+}
+
+/// Owns the streaming thread's side of its control queue and publishes the
+/// caller side in `STREAM_CONTROL`. Dropping it, including on unwind, fails
+/// anything still queued and unpublishes the queue.
+struct StreamControlRegistration {
+    service: Option<StreamControlService>,
+}
+
+impl StreamControlRegistration {
+    fn register() -> Self {
+        let (handle, service) = stream_control_channel();
+        *STREAM_CONTROL.lock() = Some(handle);
+        Self {
+            service: Some(service),
+        }
+    }
+
+    /// Runs at most one queued control transfer on `handle`.
+    fn service_next(&self, handle: &DeviceHandle<Context>) {
+        if let Some(service) = self.service.as_ref() {
+            service.service_next(Instant::now(), |transfer, timeout| {
+                transfer.run_on(handle, timeout)
+            });
+        }
+    }
+
+    /// Fails queued requests and rejects new ones at once. The queue stays
+    /// published, so callers fail fast instead of opening a second context
+    /// while the stream is still draining its URBs.
+    fn close(&mut self) {
+        if let Some(service) = self.service.take() {
+            service.close();
+        }
+    }
+}
+
+impl Drop for StreamControlRegistration {
+    fn drop(&mut self) {
+        self.close();
+        *STREAM_CONTROL.lock() = None;
+    }
+}
+
 #[derive(Debug, Clone)]
 struct AndroidAudioControlTopology {
     interface_number: u8,
@@ -3355,7 +3498,7 @@ fn parse_audio_control_topologies(
 }
 
 fn read_feature_unit_i16_control(
-    handle: &DeviceHandle<Context>,
+    handle: &impl UsbControl,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3367,7 +3510,7 @@ fn read_feature_unit_i16_control(
     let index = (interface_number as u16) | ((feature_unit_id as u16) << 8);
     let mut data = [0u8; 2];
     let transferred = handle
-        .read_control(
+        .control_in(
             request_type,
             request,
             value,
@@ -3389,7 +3532,7 @@ fn read_feature_unit_i16_control(
 }
 
 fn write_feature_unit_i16_control(
-    handle: &DeviceHandle<Context>,
+    handle: &impl UsbControl,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3401,7 +3544,7 @@ fn write_feature_unit_i16_control(
     let index = (interface_number as u16) | ((feature_unit_id as u16) << 8);
     let data = value_raw.to_le_bytes();
     let transferred = handle
-        .write_control(
+        .control_out(
             request_type,
             UAC2_REQUEST_SET_CUR,
             value,
@@ -3421,7 +3564,7 @@ fn write_feature_unit_i16_control(
 }
 
 fn read_feature_unit_bool_control(
-    handle: &DeviceHandle<Context>,
+    handle: &impl UsbControl,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3433,7 +3576,7 @@ fn read_feature_unit_bool_control(
     let index = (interface_number as u16) | ((feature_unit_id as u16) << 8);
     let mut data = [0u8; 1];
     let transferred = handle
-        .read_control(
+        .control_in(
             request_type,
             protocol.current_request(),
             value,
@@ -3455,7 +3598,7 @@ fn read_feature_unit_bool_control(
 }
 
 fn write_feature_unit_bool_control(
-    handle: &DeviceHandle<Context>,
+    handle: &impl UsbControl,
     interface_number: u8,
     feature_unit_id: u8,
     channel: u16,
@@ -3467,7 +3610,7 @@ fn write_feature_unit_bool_control(
     let index = (interface_number as u16) | ((feature_unit_id as u16) << 8);
     let data = [u8::from(enabled)];
     let transferred = handle
-        .write_control(
+        .control_out(
             request_type,
             UAC2_REQUEST_SET_CUR,
             value,
@@ -3664,7 +3807,7 @@ fn discover_android_usb_hardware_volume_control(
 }
 
 fn refresh_android_usb_hardware_volume_snapshot_with_handle(
-    handle: &DeviceHandle<Context>,
+    handle: &impl UsbControl,
     control: &AndroidDirectUsbHardwareVolumeControl,
 ) -> Result<(f64, Option<bool>), String> {
     const GET_CUR_RETRIES: u32 = 3;
@@ -3726,7 +3869,7 @@ pub fn android_direct_cached_hardware_mute() -> Option<bool> {
 }
 
 fn apply_android_usb_hardware_volume_with_handle(
-    handle: &DeviceHandle<Context>,
+    handle: &impl UsbControl,
     control: &AndroidDirectUsbHardwareVolumeControl,
     generation: u64,
     volume: f64,
@@ -3800,14 +3943,14 @@ fn set_android_usb_hardware_volume_for_state(
         .hardware_volume_control
         .clone()
         .ok_or_else(|| "Android direct USB hardware volume is unavailable".to_string())?;
-    let claimed_handle = open_transient_usb_handle(&state.device)
+    let port = open_hardware_control_port(&state.device)
         .inspect_err(|e| {
-            dev_eprintln!("[VolFlow] open_transient_usb_handle failed: {e}");
+            dev_eprintln!("[VolFlow] open_hardware_control_port failed: {e}");
             set_hardware_volume_error(Some(e.clone()));
         })?;
 
     let (normalized, muted) = apply_android_usb_hardware_volume_with_handle(
-        &claimed_handle.handle,
+        &port,
         &control,
         state.hardware_volume_generation,
         volume,
@@ -3841,14 +3984,14 @@ pub fn android_direct_verify_hardware_volume_health() -> Result<bool, String> {
         .hardware_volume_control
         .clone()
         .ok_or_else(|| "Android direct USB hardware volume is unavailable".to_string())?;
-    let claimed_handle = open_transient_usb_handle(&state.device)
+    let port = open_hardware_control_port(&state.device)
         .inspect_err(|e| {
-            dev_eprintln!("[VolFlow] health: open_transient_usb_handle failed: {e}");
+            dev_eprintln!("[VolFlow] health: open_hardware_control_port failed: {e}");
             set_hardware_volume_error(Some(e.clone()));
         })?;
 
     let (normalized, muted) = refresh_android_usb_hardware_volume_snapshot_with_handle(
-        &claimed_handle.handle, &control,
+        &port, &control,
     ).inspect_err(|e| set_hardware_volume_error(Some(e.clone())))?;
     publish_hardware_volume_snapshot(state.hardware_volume_generation, normalized, muted)?;
     Ok(true)
@@ -3868,14 +4011,14 @@ pub fn android_direct_set_hardware_mute(muted: bool) -> Result<(), String> {
     let mute_channel = control
         .mute_channel
         .ok_or_else(|| "Android direct USB hardware mute is unavailable".to_string())?;
-    let claimed_handle = open_transient_usb_handle(&state.device)?;
+    let port = open_hardware_control_port(&state.device)?;
 
     if !DIRECT_USB_STATE.lock().as_ref()
         .is_some_and(|current| current.hardware_volume_generation == state.hardware_volume_generation) {
         return Err("USB mute route changed before write".to_string());
     }
     let write_result = write_feature_unit_bool_control(
-        &claimed_handle.handle,
+        &port,
         control.interface_number,
         control.feature_unit_id,
         mute_channel,
@@ -3884,7 +4027,7 @@ pub fn android_direct_set_hardware_mute(muted: bool) -> Result<(), String> {
     );
     write_result?;
     let snapshot_result =
-        refresh_android_usb_hardware_volume_snapshot_with_handle(&claimed_handle.handle, &control);
+        refresh_android_usb_hardware_volume_snapshot_with_handle(&port, &control);
     let (normalized, snapshot_muted) = snapshot_result?;
     // Publish the observed state even when mute readback fails or disagrees.
     // Healthy volume must remain usable, and an unknown mute must not stay cached.
@@ -6111,6 +6254,9 @@ fn run_usb_output_loop(
         }
     }
 
+    // Isochronous URBs go in flight on this context from here on, so hardware
+    // volume/mute control transfers must run on this thread's own handle.
+    let mut stream_control = StreamControlRegistration::register();
     let stream_started_at = Instant::now();
     if fatal_error.is_none() {
         for slot in slots.iter_mut() {
@@ -6410,7 +6556,17 @@ fn run_usb_output_loop(
                 set_usb_stream_stable(false);
             }
         }
+
+        // After resubmission, so the stream is as far ahead as it gets before
+        // it pauses for the one bounded control transfer.
+        if fatal_error.is_none() {
+            stream_control.service_next(&handle);
+        }
     }
+
+    // Fail queued control requests now; callers must not open a second context
+    // on this fd while the URBs below are still being drained.
+    stream_control.close();
 
     if let Some(error) = fatal_error {
         set_usb_stream_stable(false);
@@ -6436,6 +6592,7 @@ fn run_usb_output_loop(
         current_lock_requested_for_fd(device_fd),
     );
     set_stream_active(false);
+    drop(stream_control);
     set_runtime_stats(None);
     set_usb_stream_stable(false);
     USB_SESSION_ACTIVE.store(false, Ordering::SeqCst);
@@ -8912,5 +9069,171 @@ mod dsd_bitperfect_tests {
             decode_feedback_report(&bytes, 125, Speed::High).unwrap();
         assert!((frames_per_packet - 44.1).abs() < 0.000_1);
         assert!((estimated_rate - 352_800.0).abs() < 0.01);
+    }
+}
+
+#[cfg(test)]
+mod hardware_control_port_tests {
+    use super::*;
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    /// `DIRECT_USB_STATE` is process-global; keep these tests off each other.
+    static STATE_LOCK: StdMutex<()> = StdMutex::new(());
+
+    fn stereo_control() -> AndroidDirectUsbHardwareVolumeControl {
+        AndroidDirectUsbHardwareVolumeControl {
+            interface_number: 0,
+            feature_unit_id: 9,
+            protocol: AudioControlProtocol::Uac2,
+            volume_channels: vec![1, 2],
+            ranges: vec![VolumeRange { min: -1000, max: 0, resolution: 10 }],
+            mute_channel: None,
+            min_volume_raw: -1000,
+            max_volume_raw: 0,
+            resolution_raw: 10,
+        }
+    }
+
+    fn install_state(control: &AndroidDirectUsbHardwareVolumeControl) -> u64 {
+        let device = AndroidDirectUsbDevice::try_new(
+            1, 0x1234, 0x5678, "test".into(), "test".into(), None, None,
+        )
+        .unwrap();
+        let generation = HARDWARE_VOLUME_GENERATION.fetch_add(1, Ordering::Relaxed);
+        *DIRECT_USB_STATE.lock() = Some(AndroidDirectUsbState {
+            device,
+            requested_playback_format: None,
+            playback_format: None,
+            lock_requested: false,
+            stream_active: true,
+            active_transport: None,
+            capability_model: None,
+            clock_status: None,
+            clock_control_attempted: false,
+            clock_control_succeeded: false,
+            clock_verification_passed: false,
+            require_verified_rate: false,
+            dac_clock_policy: DacClockPolicy::AllowUnverified,
+            dac_mode: DacMode::FullControl,
+            last_error: None,
+            direct_mode_refusal_reason: None,
+            usb_stream_stable: false,
+            bit_perfect_verified: false,
+            software_volume_active: false,
+            hardware_volume_control: Some(control.clone()),
+            hardware_volume_generation: generation,
+            hardware_volume_error: None,
+            hardware_volume_normalized: None,
+            hardware_mute_active: None,
+            pending_hardware_volume_restore: None,
+            packet_schedule_frames_preview: Vec::new(),
+            runtime_stats: None,
+        });
+        generation
+    }
+
+    /// A DAC with one raw volume register per channel.
+    struct FakeDac {
+        raw: RefCell<HashMap<u16, i16>>,
+        fail_write_on_channel: Option<u16>,
+        requests: RefCell<Vec<(u8, u8, u16, u16)>>,
+    }
+
+    impl FakeDac {
+        fn new(initial: i16, fail_write_on_channel: Option<u16>) -> Self {
+            Self {
+                raw: RefCell::new(HashMap::from([(1, initial), (2, initial)])),
+                fail_write_on_channel,
+                requests: RefCell::new(Vec::new()),
+            }
+        }
+    }
+
+    impl UsbControl for FakeDac {
+        fn control_in(
+            &self, request_type: u8, request: u8, value: u16, index: u16, buf: &mut [u8], _timeout: Duration,
+        ) -> Result<usize, ControlError> {
+            self.requests.borrow_mut().push((request_type, request, value, index));
+            buf.copy_from_slice(&self.raw.borrow()[&(value & 0xff)].to_le_bytes());
+            Ok(buf.len())
+        }
+
+        fn control_out(
+            &self, request_type: u8, request: u8, value: u16, index: u16, buf: &[u8], _timeout: Duration,
+        ) -> Result<usize, ControlError> {
+            self.requests.borrow_mut().push((request_type, request, value, index));
+            let channel = value & 0xff;
+            if self.fail_write_on_channel == Some(channel) {
+                return Err(ControlError::Usb(UsbError::Pipe));
+            }
+            self.raw.borrow_mut().insert(channel, i16::from_le_bytes([buf[0], buf[1]]));
+            Ok(buf.len())
+        }
+    }
+
+    #[test]
+    fn feature_unit_requests_keep_their_class_request_encoding() {
+        let dac = FakeDac::new(-500, None);
+        assert_eq!(
+            read_feature_unit_i16_control(&dac, 3, 9, 1, 0x01, UAC2_FEATURE_UNIT_VOLUME_CONTROL),
+            Ok(-500)
+        );
+        write_feature_unit_i16_control(&dac, 3, 9, 2, UAC2_FEATURE_UNIT_VOLUME_CONTROL, -20).unwrap();
+        assert_eq!(
+            *dac.requests.borrow(),
+            [
+                // GET_CUR: IN | class | interface; selector<<8 | channel; unit<<8 | interface.
+                (0xa1, 0x01, 0x0201, 0x0903),
+                // SET_CUR: OUT | class | interface.
+                (0x21, 0x01, 0x0202, 0x0903),
+            ]
+        );
+        assert_eq!(dac.raw.borrow()[&2], -20);
+    }
+
+    #[test]
+    fn grouped_write_rolls_back_earlier_channels_when_a_later_one_fails() {
+        let _serial = STATE_LOCK.lock().unwrap();
+        let control = stereo_control();
+        let generation = install_state(&control);
+        let dac = FakeDac::new(-500, Some(2));
+
+        let error = apply_android_usb_hardware_volume_with_handle(&dac, &control, generation, 1.0)
+            .unwrap_err();
+
+        assert!(error.contains("SET_CUR") && error.contains("Pipe error"), "{error}");
+        assert_eq!(dac.raw.borrow()[&1], -500, "channel 1 must be restored");
+    }
+
+    #[test]
+    fn write_is_verified_by_readback_and_blocked_after_the_route_changes() {
+        let _serial = STATE_LOCK.lock().unwrap();
+        let control = stereo_control();
+        let generation = install_state(&control);
+
+        let dac = FakeDac::new(-500, None);
+        let (volume, muted) =
+            apply_android_usb_hardware_volume_with_handle(&dac, &control, generation, 1.0).unwrap();
+        assert_eq!((volume, muted), (1.0, None));
+        assert_eq!(dac.raw.borrow()[&1], 0);
+        assert_eq!(dac.raw.borrow()[&2], 0);
+
+        let stale = FakeDac::new(-500, None);
+        let error =
+            apply_android_usb_hardware_volume_with_handle(&stale, &control, generation + 1, 1.0)
+                .unwrap_err();
+        assert_eq!(error, "USB volume route changed before write");
+        assert_eq!(stale.raw.borrow()[&1], -500, "no write may precede the generation check");
+    }
+
+    #[test]
+    fn helpers_report_a_finished_stream_instead_of_hanging() {
+        let (handle, service) = stream_control_channel();
+        service.close();
+
+        let error = read_feature_unit_i16_control(&handle, 0, 9, 1, 0x01, UAC2_FEATURE_UNIT_VOLUME_CONTROL)
+            .unwrap_err();
+        assert!(error.ends_with("USB stream ended before the control request completed"), "{error}");
     }
 }

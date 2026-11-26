@@ -60,6 +60,8 @@ mod ring_buffer;
 #[cfg(feature = "uac2")]
 mod stream_config;
 #[cfg(feature = "uac2")]
+mod stream_control;
+#[cfg(feature = "uac2")]
 mod stream_setup;
 #[cfg(feature = "uac2")]
 mod transfer;
