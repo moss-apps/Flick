@@ -36,6 +36,15 @@ saved preferences alone do not take ownership of the DAC.
   On that setup, the author also measured lower CPU use with 16 × 8 than
   with 8 × 16 at 44.1 kHz. This does not establish a host-controller limit.
 
+## Playback controls
+
+Pause keeps the USB stream and DAC clock running with format-correct silence.
+Already submitted USB transfers finish, but Flick holds the rest of the buffer
+for resume. Buffered PCM uses the current software volume when sent to the DAC,
+including a volume change made while paused. Seek discards audio from the old
+position and sends silence until the new decoder can supply audio. Intentional
+silence does not count as an underrun, and transport errors still count.
+
 ## Reconnect
 
 Automatic resume requires the same track, enabled USB auto-engage and
@@ -65,10 +74,13 @@ disconnect** is disabled and no DAC is present.
    is audible and the DAC reports the expected rate. Note any clock refusal,
    unexpected fallback, packet-length mismatch, or timeout.
 3. Play 48 and 96 kHz PCM, a 16-bit track, and a higher rate such as 192 or
-   384 kHz if the DAC supports it. Pause, resume, and seek. If the
-   DAC supports hardware volume, change it at a safe level during playback
-   and listen for interruptions. On a compatible DAC, repeat with native DSD
-   and DoP. With pause-on-connect off, unplug during playback and reconnect
+   384 kHz if the DAC supports it. Check quick and long pauses, then seek while
+   playing and while paused. Listen for old audio after the seek and confirm
+   the DAC stays locked. With PCM software volume, lower it while paused and
+   check the first audio after resume. If the DAC supports hardware volume,
+   change it at a safe level during playback and listen for interruptions.
+   On a compatible DAC, repeat pause and seek with native DSD and DoP.
+   With pause-on-connect off, unplug during playback and reconnect
    the same DAC. Check that playback continues once at the retained position
    after the safe level is restored. Repeat after a manual pause, with
    pause-on-connect on, and using a different DAC. None should resume.

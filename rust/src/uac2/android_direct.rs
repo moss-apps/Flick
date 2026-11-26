@@ -1,7 +1,7 @@
 use crate::dev_eprintln;
 
 use crate::audio::commands::AudioEvent;
-use crate::audio::engine::{audio_callback, AudioCallbackData};
+use crate::audio::engine::AudioCallbackData;
 use crate::uac2::endpoint::{select_explicit_feedback_endpoint, FeedbackEndpointCandidate};
 use crate::uac2::iso_packet_validation::{
     account_pcm_completion, iso_transfer_status_label, validate_iso_packet_descriptors,
@@ -684,14 +684,13 @@ struct AndroidDirectUsbRuntimeStats {
     last_submit_gap_us: AtomicU64,
     max_submit_gap_us: AtomicU64,
     effective_consumer_rate_milli_hz: AtomicU64,
-    /// Max |f32| over the `pcm_samples` prefix that was actually pushed (post-convert).
+    /// Peak of the last queued PCM block before master gain.
     last_push_max_abs_f32_bits: AtomicU32,
-    /// Max |linear i32| over the pushed prefix (matches USB encoding input scale).
-    last_push_max_abs_i32: AtomicU32,
 }
 
 #[derive(Debug)]
 struct AndroidDirectUsbPcmRingBuffer {
+    /// Unscaled f32 bits for PCM, unchanged bitstream words for DSD/DoP.
     samples: Vec<i32>,
     capacity_samples: usize,
     channels: usize,
@@ -699,6 +698,10 @@ struct AndroidDirectUsbPcmRingBuffer {
     write_index: usize,
     len_samples: usize,
     dop_marker_is_fa: bool,
+    flush_generation: u64,
+    /// Hold wire silence until the ring can fill a transfer after a flush or
+    /// a pause during priming.
+    refill_pending: bool,
 }
 
 struct AndroidDirectUsbLock {
@@ -1407,7 +1410,6 @@ impl AndroidDirectUsbRuntimeStats {
             max_submit_gap_us: AtomicU64::new(0),
             effective_consumer_rate_milli_hz: AtomicU64::new(0),
             last_push_max_abs_f32_bits: AtomicU32::new(0),
-            last_push_max_abs_i32: AtomicU32::new(0),
         }
     }
 
@@ -1459,11 +1461,34 @@ impl AndroidDirectUsbPcmRingBuffer {
             write_index: 0,
             len_samples: 0,
             dop_marker_is_fa: false,
+            flush_generation: 0,
+            refill_pending: false,
         }
     }
 
     fn len_samples(&self) -> usize {
         self.len_samples
+    }
+
+    /// Either worker can observe a flush. Clearing once per generation keeps
+    /// fresh audio intact and preserves the DoP phase of the running wire.
+    fn observe_flush(&mut self, generation: u64) {
+        if generation != self.flush_generation {
+            self.read_index = 0;
+            self.write_index = 0;
+            self.len_samples = 0;
+            self.refill_pending = true;
+            self.flush_generation = generation;
+        }
+    }
+
+    /// True while waiting for enough audio to fill the first transfer.
+    fn awaiting_refill(&mut self, needed_samples: usize) -> bool {
+        if self.refill_pending && self.len_samples < needed_samples {
+            return true;
+        }
+        self.refill_pending = false;
+        false
     }
 
     fn push_samples(&mut self, input: &[i32]) -> usize {
@@ -1504,28 +1529,44 @@ impl AndroidDirectUsbPcmRingBuffer {
         if underrun {
             // Zero is full-scale DC for native DSD and breaks DoP marker sync;
             // pad with a silent but valid bitstream instead.
-            for sample in output[readable..].iter_mut() {
-                *sample = match dsd_transport {
-                    DsdTransportMode::Native => 0x69,
-                    DsdTransportMode::DoP => 0x00696900,
-                    DsdTransportMode::None => 0,
-                };
-            }
+            output[readable..].fill(wire_silence_sample(dsd_transport));
         }
 
-        // The final USB stream owns marker phase. Decoder restarts and inserted
-        // silence must not reset it or give L/R different markers.
-        if dsd_transport == DsdTransportMode::DoP {
-            for frame in output.chunks_exact_mut(self.channels) {
-                let marker = if self.dop_marker_is_fa { 0xFAu32 } else { 0x05 };
-                for sample in frame {
-                    *sample = ((*sample as u32 & 0x00ff_ffff) | marker << 24) as i32;
-                }
-                self.dop_marker_is_fa = !self.dop_marker_is_fa;
-            }
-        }
+        self.stamp_dop_markers(output, dsd_transport);
 
         underrun
+    }
+
+    /// Fills `output` with wire-correct silence and leaves the queue untouched.
+    /// Used while paused or refilling after a flush to keep the isochronous
+    /// stream running without consuming audio the user has not heard yet. DoP
+    /// markers advance exactly as for real audio.
+    fn fill_wire_silence(&mut self, output: &mut [i32], dsd_transport: DsdTransportMode) {
+        output.fill(wire_silence_sample(dsd_transport));
+        self.stamp_dop_markers(output, dsd_transport);
+    }
+
+    // The final USB stream owns marker phase. Decoder restarts and inserted
+    // silence must not reset it or give L/R different markers.
+    fn stamp_dop_markers(&mut self, output: &mut [i32], dsd_transport: DsdTransportMode) {
+        if dsd_transport != DsdTransportMode::DoP {
+            return;
+        }
+        for frame in output.chunks_exact_mut(self.channels) {
+            let marker = if self.dop_marker_is_fa { 0xFAu32 } else { 0x05 };
+            for sample in frame {
+                *sample = ((*sample as u32 & 0x00ff_ffff) | marker << 24) as i32;
+            }
+            self.dop_marker_is_fa = !self.dop_marker_is_fa;
+        }
+    }
+}
+
+fn wire_silence_sample(dsd_transport: DsdTransportMode) -> i32 {
+    match dsd_transport {
+        DsdTransportMode::Native => 0x69,
+        DsdTransportMode::DoP => 0x00696900,
+        DsdTransportMode::None => 0,
     }
 }
 
@@ -5287,6 +5328,7 @@ fn create_android_usb_backend_inner(
     let usb_stop = Arc::clone(&stop);
     let usb_buffer = Arc::clone(&pcm_buffer);
     let usb_stats = Arc::clone(&runtime_stats);
+    let usb_callback_data = Arc::clone(&callback_data);
     let backend_product_name = state.device.product_name.clone();
     let backend_endpoint_address = candidate.endpoint_address;
     let backend_interface_number = candidate.interface_number;
@@ -5314,6 +5356,7 @@ fn create_android_usb_backend_inner(
                     event_tx,
                     usb_buffer,
                     usb_stats,
+                    usb_callback_data,
                     usb_stop,
                 );
             }));
@@ -5431,10 +5474,11 @@ fn run_usb_render_loop(
     let chunk_samples = chunk_frames.saturating_mul(channels);
     let target_samples = runtime_stats.buffer_target_samples;
     let mut render_buffer = vec![0.0f32; chunk_samples];
-    let mut pcm_samples = vec![0i32; chunk_samples];
+    let mut sample_bits = vec![0i32; chunk_samples];
     let mut warned_no_frames = false;
     let mut logged_render_preview = false;
     let chunk_deadline = Duration::from_millis(ANDROID_USB_RENDER_CHUNK_MS as u64);
+    let is_pcm = !playback_format.is_dop && playback_format.dsd_transport == DsdTransportMode::None;
 
     // Starvation fills must match the wire format: 0x00 bytes are DC on a
     // native DSD wire and zero words break DoP marker sync.
@@ -5446,20 +5490,33 @@ fn run_usb_render_loop(
 
     while !usb_stop_requested(&stop) {
         let cycle_start = Instant::now();
-        let buffered_samples = {
-            let guard = pcm_buffer.lock();
-            guard.len_samples()
+        let (generation, buffered_samples, wait_for_decoder) = {
+            let mut guard = pcm_buffer.lock();
+            let generation = callback_data.output_flush_generation();
+            guard.observe_flush(generation);
+            let buffered_samples = guard.len_samples();
+            (
+                generation,
+                buffered_samples,
+                guard.refill_pending && buffered_samples == 0,
+            )
         };
         runtime_stats
             .buffered_samples
             .store(buffered_samples, Ordering::Relaxed);
 
-        if buffered_samples >= target_samples {
+        if buffered_samples >= target_samples
+            || !callback_data.render_for_direct_usb(
+                &mut render_buffer,
+                &event_tx,
+                generation,
+                wait_for_decoder,
+            )
+        {
             thread::sleep(Duration::from_millis(ANDROID_USB_RENDER_POLL_MS));
             continue;
         }
 
-        audio_callback(&mut render_buffer, &callback_data, &event_tx);
         if cycle_start.elapsed() > chunk_deadline {
             let count = crate::audio::engine::XRUN_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
             dev_eprintln!(
@@ -5480,75 +5537,25 @@ fn run_usb_render_loop(
             continue;
         }
 
-        let is_raw_bitstream =
-            playback_format.is_dop || playback_format.dsd_transport == DsdTransportMode::Native;
-
-        // ponytail: direct-USB runs the engine in Passthrough, so audio_callback
-        // returns raw decoder samples WITHOUT applying engine gain. Apply it here
-        // for the PCM path so DACs without UAC2 HW volume get audible software
-        // gain. When HW volume is active, _reconcileVolumeForTier pins engine
-        // gain to 1.0, so this is a no-op (bit-perfect preserved). DSP-mode
-        // (tuning/crossfade/pitch) makes is_passthrough() false and audio_callback
-        // already applied gain, so we skip to avoid double-apply. Raw DSD/DoP
-        // bitstreams are skipped to avoid corrupting framing markers.
-        if !is_raw_bitstream && callback_data.is_passthrough() {
-            let gain = callback_data.get_gain();
-            if gain != 1.0 {
-                for sample in render_buffer.iter_mut() {
-                    *sample *= gain;
-                }
-            }
+        for (bits, sample) in sample_bits.iter_mut().zip(&render_buffer) {
+            *bits = sample.to_bits() as i32;
         }
 
-        if is_raw_bitstream {
-            for (dst, src) in pcm_samples.iter_mut().zip(render_buffer.iter()) {
-                *dst = src.to_bits() as i32;
-            }
-        } else if let Err(error) =
-            convert_f32_to_pcm_samples(&render_buffer, &mut pcm_samples, playback_format.bit_depth)
-        {
-            let message = format!("Android USB direct PCM render conversion failed: {}", error);
-            dev_eprintln!("{}", message);
-            set_last_error(Some(message.clone()));
-            set_android_usb_engine_state(AndroidDirectUsbEngineState::Error, Some(message.clone()));
-            let _ = event_tx.try_send(AudioEvent::Error { message });
-            break;
-        }
-
-        {
+        if is_pcm && !logged_render_preview {
             let non_zero = render_buffer.iter().filter(|s| **s != 0.0).count();
-            if !logged_render_preview && non_zero > 0 {
+            if non_zero > 0 {
                 let f32_min = render_buffer.iter().cloned().fold(f32::INFINITY, f32::min);
                 let f32_max = render_buffer
                     .iter()
                     .cloned()
                     .fold(f32::NEG_INFINITY, f32::max);
                 let f32_max_abs = render_buffer.iter().fold(0.0f32, |m, &s| m.max(s.abs()));
-                let i32_min = pcm_samples.iter().copied().min().unwrap_or(0);
-                let i32_max = pcm_samples.iter().copied().max().unwrap_or(0);
-                let i32_max_abs = pcm_samples
-                    .iter()
-                    .map(|&s| (s as i64).unsigned_abs())
-                    .max()
-                    .unwrap_or(0);
                 let preview_base = render_buffer
                     .iter()
                     .enumerate()
                     .find_map(|(i, s)| (*s != 0.0).then_some(i))
                     .unwrap_or(0);
                 let preview_len = 16.min(render_buffer.len().saturating_sub(preview_base));
-                let f32_preview: Vec<f32> = render_buffer
-                    .iter()
-                    .skip(preview_base)
-                    .take(preview_len)
-                    .copied()
-                    .collect();
-                let i32_preview: Vec<i32> = pcm_samples
-                    .iter()
-                    .skip(preview_base)
-                    .take(preview_len)
-                    .copied()
-                    .collect();
                 log_info!(
                     "[USB-RENDER] === PIPELINE CHECK (first non-zero) === bit_depth={} channels={} chunk_frames={}{}",
                     playback_format.bit_depth,
@@ -5561,10 +5568,9 @@ fn run_usb_render_loop(
                     },
                 );
                 log_info!(
-                    "[USB-RENDER] preview @sample_index={} ({} values): f32 {:?}",
+                    "[USB-RENDER] pre-gain f32 preview @sample_index={}: {:?}",
                     preview_base,
-                    preview_len,
-                    f32_preview,
+                    &render_buffer[preview_base..preview_base + preview_len],
                 );
                 log_info!(
                     "[USB-RENDER] f32 stats: non_zero={}/{} min={:.6} max={:.6} max_abs={:.6}",
@@ -5574,26 +5580,25 @@ fn run_usb_render_loop(
                     f32_max,
                     f32_max_abs,
                 );
-                log_info!(
-                    "[USB-RENDER] i32 preview: {:?} | min={} max={} max_abs={} (linear i32 = clamp(f32 * 2147483647); USB 16-bit uses >>16)",
-                    i32_preview,
-                    i32_min,
-                    i32_max,
-                    i32_max_abs,
-                );
                 logged_render_preview = true;
             }
         }
 
         debug_assert!(
-            pcm_samples.len() % channels == 0,
+            sample_bits.len() % channels == 0,
             "push_samples: input length {} is not frame-aligned (channels={})",
-            pcm_samples.len(),
+            sample_bits.len(),
             channels,
         );
         let written_samples = {
             let mut guard = pcm_buffer.lock();
-            let written = guard.push_samples(&pcm_samples);
+            let current_generation = callback_data.output_flush_generation();
+            guard.observe_flush(current_generation);
+            let written = if current_generation == generation {
+                guard.push_samples(&sample_bits)
+            } else {
+                0
+            };
             runtime_stats
                 .buffered_samples
                 .store(guard.len_samples(), Ordering::Relaxed);
@@ -5603,22 +5608,13 @@ fn run_usb_render_loop(
             .producer_frames
             .fetch_add((written_samples / channels) as u64, Ordering::Relaxed);
 
-        if written_samples > 0 {
+        if is_pcm && written_samples > 0 {
             let push_max_abs_f32 = render_buffer[..written_samples]
                 .iter()
                 .fold(0.0f32, |max_abs, sample| max_abs.max(sample.abs()));
-            let push_max_abs_i32_u32 = pcm_samples[..written_samples]
-                .iter()
-                .map(|&s| (s as i64).unsigned_abs())
-                .max()
-                .unwrap_or(0)
-                .min(u64::from(u32::MAX)) as u32;
             runtime_stats
                 .last_push_max_abs_f32_bits
                 .store(push_max_abs_f32.to_bits(), Ordering::Relaxed);
-            runtime_stats
-                .last_push_max_abs_i32
-                .store(push_max_abs_i32_u32, Ordering::Relaxed);
         }
 
         if written_samples > 0 && warned_no_frames {
@@ -5653,6 +5649,7 @@ fn prepare_iso_transfer_payload(
     dsd_transport: DsdTransportMode,
     dsd_big_endian: bool,
     dsd_bit_reverse: bool,
+    callback_data: &AudioCallbackData,
 ) -> Result<Option<IsoTransferPayload>, String> {
     let packet_sizes = scheduler.next_transfer_packet_bytes();
     let total_bytes: usize = packet_sizes.iter().sum();
@@ -5686,15 +5683,33 @@ fn prepare_iso_transfer_payload(
         total_bytes / slot_bytes
     };
     let mut packet_samples = vec![0i32; total_samples];
-    let underrun = {
+    // Held transfers carry wire silence but keep the iso stream (and the DAC's
+    // clock lock) running. They neither consume the ring nor count as an
+    // underrun, and they skip the payload audit: silence is expected there and
+    // must not clear the verified state.
+    let (underrun, held) = {
         let mut guard = pcm_buffer.lock();
-        let underrun = guard.pop_into_or_pad(&mut packet_samples, channels, dsd_transport);
+        guard.observe_flush(callback_data.output_flush_generation());
+        let paused = callback_data.is_paused();
+        if paused {
+            guard.refill_pending = true;
+        }
+        let held = paused || guard.awaiting_refill(total_samples);
+        let underrun = if held {
+            guard.fill_wire_silence(&mut packet_samples, dsd_transport);
+            false
+        } else {
+            guard.pop_into_or_pad(&mut packet_samples, channels, dsd_transport)
+        };
         runtime_stats
             .buffered_samples
             .store(guard.len_samples(), Ordering::Relaxed);
-        underrun
+        (underrun, held)
     };
 
+    if !held && dsd_transport == DsdTransportMode::None {
+        apply_usb_pcm_gain(&mut packet_samples, callback_data);
+    }
     let mut transfer_buffer = vec![0u8; total_bytes];
     encode_usb_pcm_slots(
         &packet_samples,
@@ -5706,7 +5721,9 @@ fn prepare_iso_transfer_payload(
         dsd_big_endian,
         dsd_bit_reverse,
     )?;
-    if dsd_transport != DsdTransportMode::None {
+    if held {
+        // Expected silence: leave the audit latch alone.
+    } else if dsd_transport != DsdTransportMode::None {
         observe_dsd_payload_audit(audit_dsd_payload(
             &transfer_buffer,
             dsd_transport,
@@ -5868,7 +5885,9 @@ fn record_prepared_iso_transfer(
         .max()
         .unwrap_or(0);
     let packet_peak_equiv_f32 = (packet_max_abs_i64 as f64 / 2_147_483_647.0).min(1.0);
-    if packet_peak_equiv_f32 >= f64::from(ANDROID_USB_LOUD_RENDER_LOG_THRESHOLD) {
+    if playback_format.dsd_transport == DsdTransportMode::None
+        && packet_peak_equiv_f32 >= f64::from(ANDROID_USB_LOUD_RENDER_LOG_THRESHOLD)
+    {
         *loud_transfer_log_count = (*loud_transfer_log_count).saturating_add(1);
         if *loud_transfer_log_count <= 4
             || *loud_transfer_log_count % ANDROID_USB_LOUD_TRANSFER_LOG_INTERVAL == 0
@@ -5879,21 +5898,19 @@ fn record_prepared_iso_transfer(
                 .map(|sample| i32::from(linear_pcm_i32_to_i16(*sample)).abs())
                 .max()
                 .unwrap_or(0);
-            let last_push_i32 = runtime_stats.last_push_max_abs_i32.load(Ordering::Relaxed);
             let last_push_f32 = f32::from_bits(
                 runtime_stats
                     .last_push_max_abs_f32_bits
                     .load(Ordering::Relaxed),
             );
             log_info!(
-                "[USB-PEAK] loud_packet packet_peak_equiv_f32={:.6} max_abs_i32={} max_abs_i16={} samples={} subslot={} bit_resolution={} last_push_max_abs_i32={} last_push_peak_abs_f32={:.6}",
+                "[USB-PEAK] loud_packet packet_peak_equiv_f32={:.6} max_abs_i32={} max_abs_i16={} samples={} subslot={} bit_resolution={} last_push_pre_gain_peak={:.6}",
                 packet_peak_equiv_f32,
                 packet_max_abs_i64,
                 max_abs_i16,
                 payload.packet_samples.len(),
                 candidate.subslot_size,
                 candidate.bit_resolution,
-                last_push_i32,
                 last_push_f32,
             );
         }
@@ -5954,6 +5971,7 @@ fn run_usb_output_loop(
     event_tx: Sender<AudioEvent>,
     pcm_buffer: Arc<Mutex<AndroidDirectUsbPcmRingBuffer>>,
     runtime_stats: Arc<AndroidDirectUsbRuntimeStats>,
+    callback_data: Arc<AudioCallbackData>,
     stop: Arc<AtomicBool>,
 ) {
     let AndroidDirectUsbClaimedHandle {
@@ -6111,6 +6129,13 @@ fn run_usb_output_loop(
         priming_target,
     );
     while !usb_stop_requested(&stop) {
+        // Pause or seek can arrive before priming finishes. Start with valid
+        // silence instead of waiting on a held or cleared ring. Protect the
+        // first transfer even if the user resumes before we prepare it.
+        if callback_data.is_paused() || callback_data.output_flush_generation() != 0 {
+            pcm_buffer.lock().refill_pending = true;
+            break;
+        }
         let buffered = runtime_stats.buffered_samples.load(Ordering::Relaxed);
         if buffered >= priming_target {
             log_info!(
@@ -6160,6 +6185,7 @@ fn run_usb_output_loop(
                 playback_format.dsd_transport,
                 dsd_big_endian,
                 dsd_bit_reverse,
+                &callback_data,
             ) {
                 Ok(Some(payload)) => payload,
                 Ok(None) => continue,
@@ -6388,6 +6414,7 @@ fn run_usb_output_loop(
                     playback_format.dsd_transport,
                     dsd_big_endian,
                     dsd_bit_reverse,
+                    &callback_data,
                 ) {
                     Ok(Some(payload)) => {
                         record_prepared_iso_transfer(
@@ -8227,42 +8254,30 @@ fn validate_transport_against_playback_format(
     Ok(())
 }
 
-/// Convert f32 samples (range [-1.0, 1.0]) to linear full-scale `i32` PCM values.
-///
-/// USB 16-bit packing takes the top 16 bits (`sample >> 16`) via [`linear_pcm_i32_to_i16`],
-/// matching UAC-style scaling from a 32-bit linear container.
-fn convert_f32_to_pcm_samples(
-    input: &[f32],
-    output: &mut [i32],
-    bit_depth: u8,
-) -> Result<(), String> {
-    if output.len() != input.len() {
-        return Err(format!(
-            "PCM sample buffer size mismatch: expected {}, got {}",
-            input.len(),
-            output.len()
-        ));
+/// Apply the current master gain before quantizing queued PCM to linear i32.
+/// This also covers a volume change during pause, without touching raw DSD.
+fn apply_usb_pcm_gain(samples: &mut [i32], callback_data: &AudioCallbackData) {
+    let gain = callback_data.get_gain();
+    let mut peak = 0.0f32;
+    let mut clipped = 0;
+    let mut non_finite = 0;
+    for bits in samples {
+        let sample = f32::from_bits(*bits as u32) * gain;
+        if sample.is_finite() {
+            peak = peak.max(sample.abs());
+            clipped += u64::from(sample.abs() > 1.0);
+        } else {
+            non_finite += 1;
+        }
+        *bits = (f64::from(sample.clamp(-1.0, 1.0)) * f64::from(i32::MAX)) as i32;
     }
-
-    for (destination, sample) in output.iter_mut().zip(input.iter()) {
-        let clamped = sample.clamp(-1.0, 1.0);
-        *destination = match bit_depth {
-            16 | 24 | 32 => {
-                let scaled = (clamped as f64 * 2_147_483_647.0) as i64;
-                scaled.clamp(i32::MIN as i64, i32::MAX as i64) as i32
-            }
-            _ => return Err(format!("Unsupported PCM bit depth: {}", bit_depth)),
-        };
-    }
-
-    Ok(())
+    callback_data.note_output_peak(peak, clipped, non_finite);
 }
 
-/// Map linear PCM `i32` from [`convert_f32_to_pcm_samples`] to 16-bit samples for USB.
+/// Map linear PCM `i32` to 16-bit samples for USB.
 ///
-/// Uses the top 16 bits (arithmetic shift), matching UAC2-style downscale from a 32-bit
-/// linear container and avoiding a float round-trip. For values produced by
-/// `convert_f32_to_pcm_samples`, `sample >> 16` is always in `i16` range.
+/// Uses the top 16 bits (arithmetic shift), matching UAC2-style downscale from
+/// a 32-bit linear container and avoiding a float round-trip.
 #[inline]
 fn linear_pcm_i32_to_i16(sample: i32) -> i16 {
     (sample >> 16) as i16
@@ -8426,7 +8441,7 @@ fn encode_dop_slots(input: &[i32], output: &mut [u8], subslot_size: u8, _bit_res
     }
 }
 
-/// 16-bit PCM: linear i32 (from `convert_f32_to_pcm_samples`) → i16 (MSB extract) → LE.
+/// 16-bit PCM: linear i32 → i16 (MSB extract) → LE.
 fn encode_pcm_i16_le(input: &[i32], output: &mut [u8]) {
     debug_assert_eq!(output.len(), input.len() * 2);
     for (i, &sample) in input.iter().enumerate() {
@@ -9056,6 +9071,9 @@ mod dsd_bitperfect_tests {
 }
 
 #[cfg(test)]
+static PCM_AUDIT_TEST_MUTEX: Mutex<()> = Mutex::new(());
+
+#[cfg(test)]
 mod transport_loss_tests {
     use super::*;
 
@@ -9134,6 +9152,7 @@ mod transport_loss_tests {
 
     #[test]
     fn lost_frames_clear_the_bit_perfect_claim_until_a_new_stream() {
+        let _guard = PCM_AUDIT_TEST_MUTEX.lock();
         let stats = new_stream_stats();
         let state = streaming_state(Arc::clone(&stats));
         assert!(direct_path_is_bit_perfect(&state));
@@ -9154,6 +9173,7 @@ mod transport_loss_tests {
 
     #[test]
     fn a_lossless_tracker_never_latches_the_stream() {
+        let _guard = PCM_AUDIT_TEST_MUTEX.lock();
         let stats = new_stream_stats();
         let state = streaming_state(Arc::clone(&stats));
         publish_transport_loss(&stats, &lossy_tracker(0));
@@ -9196,6 +9216,7 @@ mod transport_loss_tests {
 
     #[test]
     fn timeout_invalidates_verification_without_inventing_a_frame_deficit() {
+        let _guard = PCM_AUDIT_TEST_MUTEX.lock();
         let stats = new_stream_stats();
         let state = streaming_state(Arc::clone(&stats));
         let mut tracker = lossy_tracker(0);
@@ -9218,5 +9239,244 @@ mod transport_loss_tests {
         let frames = lost_frame_budget(44_100, ANDROID_USB_MAX_LOST_AUDIO_MS);
         assert_eq!(frames, 4_410);
         assert_eq!(ANDROID_USB_MAX_CONSECUTIVE_LOSSY_URBS, 3);
+    }
+}
+
+#[cfg(test)]
+mod pcm_ring_hold_tests {
+    use super::*;
+    use crate::audio::engine::{EngineDsdMode, PipelineMode};
+    use crossbeam_channel::bounded;
+
+    fn dop_frame(marker_bits: u32, payload: u32) -> [i32; 2] {
+        [(marker_bits << 24 | payload) as i32; 2]
+    }
+
+    fn markers(output: &[i32], channels: usize) -> Vec<u32> {
+        output
+            .chunks_exact(channels)
+            .map(|frame| {
+                assert!(
+                    frame
+                        .iter()
+                        .all(|s| (*s as u32) >> 24 == (frame[0] as u32) >> 24),
+                    "channels of one frame must share a marker: {frame:x?}"
+                );
+                (frame[0] as u32) >> 24
+            })
+            .collect()
+    }
+
+    #[test]
+    fn clear_discards_queued_audio_and_waits_for_a_whole_transfer() {
+        let mut ring = AndroidDirectUsbPcmRingBuffer::new(16, 2);
+        assert_eq!(ring.push_samples(&[1, 2, 3, 4, 5, 6, 7, 8]), 8);
+        ring.observe_flush(1);
+        assert_eq!(ring.len_samples(), 0);
+
+        // Nothing to play yet: hold silence instead of reporting an underrun.
+        assert!(ring.awaiting_refill(4));
+        assert_eq!(ring.push_samples(&[20, 21]), 2);
+        assert!(ring.awaiting_refill(4), "half a transfer is not enough");
+        assert_eq!(ring.push_samples(&[22, 23]), 2);
+        // A second worker observing the same seek must leave its new audio.
+        ring.observe_flush(1);
+        assert!(!ring.awaiting_refill(4));
+
+        let mut out = [0i32; 4];
+        assert!(!ring.pop_into_or_pad(&mut out, 2, DsdTransportMode::None));
+        assert_eq!(out, [20, 21, 22, 23], "only post-clear audio is played");
+
+        // The hold is one-shot: a later drain is a genuine underrun again.
+        assert!(!ring.awaiting_refill(4));
+        assert!(ring.pop_into_or_pad(&mut out, 2, DsdTransportMode::None));
+    }
+
+    #[test]
+    fn paused_pcm_silence_does_not_consume_the_ring() {
+        let mut ring = AndroidDirectUsbPcmRingBuffer::new(16, 2);
+        assert_eq!(ring.push_samples(&[1, 2, 3, 4, 5, 6]), 6);
+
+        let mut first = [0i32; 2];
+        assert!(!ring.pop_into_or_pad(&mut first, 2, DsdTransportMode::None));
+        assert_eq!(first, [1, 2]);
+
+        let mut paused = [9i32; 8];
+        ring.fill_wire_silence(&mut paused, DsdTransportMode::None);
+        assert_eq!(paused, [0; 8]);
+        assert_eq!(ring.len_samples(), 4, "pause must keep the queued audio");
+
+        let mut resumed = [0i32; 4];
+        assert!(!ring.pop_into_or_pad(&mut resumed, 2, DsdTransportMode::None));
+        assert_eq!(
+            resumed,
+            [3, 4, 5, 6],
+            "nothing lost or repeated across pause"
+        );
+    }
+
+    #[test]
+    fn paused_native_dsd_silence_is_the_idle_pattern_not_dc() {
+        let mut ring = AndroidDirectUsbPcmRingBuffer::new(16, 2);
+        assert_eq!(ring.push_samples(&[0x11, 0x22]), 2);
+
+        let mut paused = [0i32; 4];
+        ring.fill_wire_silence(&mut paused, DsdTransportMode::Native);
+        assert_eq!(paused, [0x69; 4]);
+        assert_eq!(ring.len_samples(), 2);
+    }
+
+    #[test]
+    fn dop_markers_alternate_across_paused_and_resumed_pops() {
+        let mut ring = AndroidDirectUsbPcmRingBuffer::new(16, 2);
+        // Stale marker bits on the queued frames must not leak onto the wire.
+        for frame in [
+            dop_frame(0xAA, 0x112233),
+            dop_frame(0xAA, 0x445566),
+            dop_frame(0xAA, 0x778899),
+        ] {
+            assert_eq!(ring.push_samples(&frame), 2);
+        }
+
+        let mut before = [0i32; 2];
+        assert!(!ring.pop_into_or_pad(&mut before, 2, DsdTransportMode::DoP));
+        let mut paused = [0i32; 6];
+        ring.fill_wire_silence(&mut paused, DsdTransportMode::DoP);
+        let mut after = [0i32; 4];
+        assert!(!ring.pop_into_or_pad(&mut after, 2, DsdTransportMode::DoP));
+
+        let mut wire = Vec::new();
+        wire.extend_from_slice(&before);
+        wire.extend_from_slice(&paused);
+        wire.extend_from_slice(&after);
+        assert_eq!(
+            markers(&wire, 2),
+            [0x05, 0xFA, 0x05, 0xFA, 0x05, 0xFA],
+            "one unbroken 05/FA alternation across pause and resume"
+        );
+        assert_eq!(paused.map(|s| s as u32 & 0x00ff_ffff), [0x696900; 6]);
+        assert_eq!(
+            after.map(|s| s as u32 & 0x00ff_ffff),
+            [0x445566, 0x445566, 0x778899, 0x778899],
+            "the retained audio resumes where it stopped"
+        );
+    }
+
+    #[test]
+    fn clear_keeps_the_dop_marker_phase() {
+        let mut ring = AndroidDirectUsbPcmRingBuffer::new(16, 2);
+        let mut first = [0i32; 2];
+        ring.fill_wire_silence(&mut first, DsdTransportMode::DoP);
+        assert_eq!(markers(&first, 2), [0x05]);
+
+        ring.observe_flush(1);
+        let mut next = [0i32; 4];
+        ring.fill_wire_silence(&mut next, DsdTransportMode::DoP);
+        assert_eq!(markers(&next, 2), [0xFA, 0x05]);
+    }
+
+    fn pcm_candidate() -> AndroidIsoStreamCandidate {
+        AndroidIsoStreamCandidate {
+            interface_number: 1,
+            alt_setting: 1,
+            endpoint_address: 0x01,
+            endpoint_interval: 1,
+            service_interval_us: 125,
+            usb_speed: Speed::High,
+            max_packet_bytes: 1024,
+            sync_type: SyncType::Adaptive,
+            usage_type: UsageType::Data,
+            format_tag: FORMAT_TAG_PCM,
+            channels: 2,
+            subslot_size: 2,
+            bit_resolution: 16,
+            sample_rates: vec![48_000],
+            refresh: 0,
+            synch_address: 0,
+            feedback_endpoint: None,
+            terminal_link: None,
+            is_uac1: false,
+        }
+    }
+
+    fn prepare(
+        ring: &Arc<Mutex<AndroidDirectUsbPcmRingBuffer>>,
+        stats: &AndroidDirectUsbRuntimeStats,
+        callback_data: &AudioCallbackData,
+    ) -> IsoTransferPayload {
+        let candidate = pcm_candidate();
+        let mut scheduler = IsoPacketScheduler::new(48_000, 4, candidate.service_interval_us);
+        prepare_iso_transfer_payload(
+            &mut scheduler,
+            ring,
+            stats,
+            &candidate,
+            2,
+            2,
+            4,
+            DsdTransportMode::None,
+            false,
+            false,
+            callback_data,
+        )
+        .unwrap()
+        .unwrap()
+    }
+
+    #[test]
+    fn held_transfers_are_silent_unconsumed_and_not_underruns() {
+        let _guard = PCM_AUDIT_TEST_MUTEX.lock();
+        let stats = AndroidDirectUsbRuntimeStats::new(48_000, 2, 200, 100);
+        let ring = Arc::new(Mutex::new(AndroidDirectUsbPcmRingBuffer::new(
+            stats.buffer_capacity_samples,
+            2,
+        )));
+        let (finished_tx, _finished_rx) = bounded(1);
+        let callback_data = AudioCallbackData::new(
+            48_000,
+            2,
+            finished_tx,
+            PipelineMode::Passthrough,
+            EngineDsdMode::Pcm,
+        );
+        let music: Vec<i32> = (0..2_000)
+            .map(|i| (0.5_f32 + i as f32 / 8_000.0).to_bits() as i32)
+            .collect();
+        assert_eq!(ring.lock().push_samples(&music), 2_000);
+        USB_PCM_PAYLOAD_LATCH.lock().reset();
+
+        callback_data.set_paused(true);
+        let paused = prepare(&ring, &stats, &callback_data);
+        assert!(!paused.underrun);
+        assert!(paused.transfer_buffer.iter().all(|byte| *byte == 0));
+        assert_eq!(ring.lock().len_samples(), 2_000, "pause consumes nothing");
+        {
+            let latch = USB_PCM_PAYLOAD_LATCH.lock();
+            assert!(!latch.is_verified());
+            assert_eq!(latch.constant_for(Instant::now()), None, "audit untouched");
+        }
+
+        // Lower the volume after render. Resume must apply the new gain even
+        // to the first sample already queued at the old volume.
+        callback_data.set_volume(0.5);
+        callback_data.set_paused(false);
+        let playing = prepare(&ring, &stats, &callback_data);
+        assert!(!playing.underrun);
+        assert!(playing.transfer_buffer.iter().any(|byte| *byte != 0));
+        let consumed = 2_000 - ring.lock().len_samples();
+        assert_eq!(consumed, playing.packet_samples.len());
+        assert_eq!(&playing.transfer_buffer[..2], &1638i16.to_le_bytes());
+        assert!(USB_PCM_PAYLOAD_LATCH.lock().is_verified());
+
+        // Muting must also affect any queued audio.
+        callback_data.set_volume(0.0);
+        let muted = prepare(&ring, &stats, &callback_data);
+        assert!(!muted.underrun);
+        assert!(muted.transfer_buffer.iter().all(|byte| *byte == 0));
+
+        // A drain during playback is still a genuine underrun.
+        ring.lock()
+            .pop_into_or_pad(&mut vec![0; 4_000], 2, DsdTransportMode::None);
+        assert!(prepare(&ring, &stats, &callback_data).underrun);
     }
 }
