@@ -42,7 +42,7 @@ class LastFmAuthService {
     try {
       final data = await _client.post({'method': 'auth.getToken'});
       final token = data['token'] as String;
-      devLog('[LastFm] getTokenAndLaunchAuth: Token received: ${token.substring(0, 8)}...');
+      devLog('[LastFm] getTokenAndLaunchAuth: Token received');
 
       await _credentials.setPendingToken(token);
       devLog('[LastFm] getTokenAndLaunchAuth: Pending token saved');
@@ -51,7 +51,7 @@ class LastFmAuthService {
         'https://www.last.fm/api/auth/'
         '?api_key=$apiKey&token=$token',
       );
-      devLog('[LastFm] getTokenAndLaunchAuth: Auth URL: ${authUri.toString()}');
+      devLog('[LastFm] getTokenAndLaunchAuth: Auth URL prepared');
 
       try {
         devLog('[LastFm] getTokenAndLaunchAuth: Attempting to launch URL');
@@ -69,16 +69,20 @@ class LastFmAuthService {
         }
         
         devLog('[LastFm] getTokenAndLaunchAuth: Successfully launched browser');
-      } catch (e, stackTrace) {
-        devLog('[LastFm] getTokenAndLaunchAuth: ERROR during launch - $e');
-        devLog('[LastFm] getTokenAndLaunchAuth: Stack trace: $stackTrace');
+      } catch (e) {
+        devLog(
+          '[LastFm] getTokenAndLaunchAuth: launch failed '
+          '(${e.runtimeType})',
+        );
         // Clean up pending token on any launch error
         await _credentials.deletePendingToken();
         rethrow;
       }
-    } catch (e, stackTrace) {
-      devLog('[LastFm] getTokenAndLaunchAuth: ERROR during token request - $e');
-      devLog('[LastFm] getTokenAndLaunchAuth: Stack trace: $stackTrace');
+    } catch (e) {
+      devLog(
+        '[LastFm] getTokenAndLaunchAuth: token request failed '
+        '(${e.runtimeType})',
+      );
       rethrow;
     }
   }
@@ -91,7 +95,7 @@ class LastFmAuthService {
     devLog('[LastFm] exchangeTokenForSession: Pending token exists: ${token != null}');
     
     if (token == null) {
-      devLog('[LastFm] exchangeTokenForSession: ERROR - No pending token');
+      devLog('[LastFm] exchangeTokenForSession: No pending token');
       throw Exception('No pending Last.fm token found. Start auth again.');
     }
 
@@ -108,7 +112,7 @@ class LastFmAuthService {
         username: raw['name'] as String,
       );
       
-      devLog('[LastFm] exchangeTokenForSession: Session received for user: ${session.username}');
+      devLog('[LastFm] exchangeTokenForSession: Session received');
 
       await _credentials.setSessionKey(session.sessionKey);
       await _credentials.setUsername(session.username);
@@ -117,9 +121,11 @@ class LastFmAuthService {
       devLog('[LastFm] exchangeTokenForSession: Session saved successfully');
 
       return session;
-    } catch (e, stackTrace) {
-      devLog('[LastFm] exchangeTokenForSession: ERROR - $e');
-      devLog('[LastFm] exchangeTokenForSession: Stack trace: $stackTrace');
+    } catch (e) {
+      devLog(
+        '[LastFm] exchangeTokenForSession: exchange failed '
+        '(${e.runtimeType})',
+      );
       // Clean up stale pending token on failure so it doesn't linger
       await _credentials.deletePendingToken();
       rethrow;

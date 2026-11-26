@@ -2,35 +2,62 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-// ponytail: one-file embedded HTTP server so the renderer can pull bytes from
-// the phone. Covers local files and SMB/cached sources that have no LAN URL.
-// Token paths on a home LAN are enough auth; add TLS/pins if this ever leaves
-// the house.
+/// Serves only the current cast track on the LAN, under a random URL. The
+/// renderer never receives the credentials used to download a network file.
 class CastContentServer {
   CastContentServer._();
   static final instance = CastContentServer._();
 
-  HttpServer? _server;
-  final Map<String, String> _paths = {};
+  static const _grantIdleTimeout = Duration(minutes: 30);
+  static final _rangePattern = RegExp(r'^bytes=(\d*)-(\d*)$');
+
+  Future<HttpServer>? _server;
+  _ServedFile? _grant;
+  int _generation = 0;
   final _rand = Random.secure();
 
   /// Serve [filePath] and return a LAN-reachable URL for it.
-  Future<String> serve(String filePath, {required String filename}) async {
-    final server = _server ??= await _bind();
-    final token = _token();
-    _paths[token] = filePath;
+  ///
+  /// Replaces the previous grant. Returns null if superseded or stopped.
+  Future<String?> serve(String filePath, {required String filename}) async {
+    final generation = ++_generation;
+    _grant = null;
+    final pending = _server ??= _bind();
+    final HttpServer server;
+    try {
+      server = await pending;
+    } catch (_) {
+      if (identical(_server, pending)) _server = null;
+      rethrow;
+    }
+    if (_generation != generation) return null;
     final ip = await _lanIp();
-    final safe = Uri.encodeComponent(
-      filename.replaceAll(RegExp(r'[^A-Za-z0-9._\- ]'), ''),
+    if (_generation != generation) return null;
+    final token = _token();
+    _grant = _ServedFile(
+      token,
+      filePath,
+      DateTime.now().add(_grantIdleTimeout),
     );
-    return 'http://$ip:${server.port}/$token/$safe';
+    return Uri(
+      scheme: 'http',
+      host: ip,
+      port: server.port,
+      pathSegments: [token, filename.replaceAll(RegExp(r'[^A-Za-z0-9._\- ]'), '')],
+    ).toString();
   }
 
   Future<void> stop() async {
-    _paths.clear();
-    final server = _server;
+    _generation++;
+    _grant = null;
+    final pending = _server;
     _server = null;
-    await server?.close(force: true);
+    if (pending == null) return;
+    try {
+      await (await pending).close(force: true);
+    } catch (_) {
+      // A pending bind may have failed before there was a listener to close.
+    }
   }
 
   String _token() {
@@ -73,13 +100,24 @@ class CastContentServer {
     final token = req.uri.pathSegments.isNotEmpty
         ? req.uri.pathSegments.first
         : '';
-    final path = _paths[token];
-    if (path == null) {
+    final grant = _grant;
+    final now = DateTime.now();
+    if (grant == null ||
+        token != grant.token ||
+        !grant.expiresAt.isAfter(now)) {
       req.response.statusCode = HttpStatus.notFound;
       await req.response.close();
       return;
     }
+    if (req.method != 'GET' && req.method != 'HEAD') {
+      req.response.statusCode = HttpStatus.methodNotAllowed;
+      req.response.headers.set(HttpHeaders.allowHeader, 'GET, HEAD');
+      await req.response.close();
+      return;
+    }
+    grant.expiresAt = now.add(_grantIdleTimeout);
 
+    final path = grant.path;
     final file = File(path);
     if (!await file.exists()) {
       req.response.statusCode = HttpStatus.notFound;
@@ -87,28 +125,31 @@ class CastContentServer {
       return;
     }
     final total = await file.length();
-    final range = req.headers.value(HttpHeaders.rangeHeader);
+    final range = req.method == 'GET'
+        ? req.headers.value(HttpHeaders.rangeHeader)
+        : null;
 
     var start = 0;
     var end = total - 1;
     var status = HttpStatus.ok;
-    if (range != null) {
-      final m = RegExp(r'bytes=(\d*)-(\d*)').firstMatch(range);
-      if (m != null) {
-        if (m.group(1)!.isNotEmpty) start = int.parse(m.group(1)!);
-        if (m.group(2)!.isNotEmpty) end = int.parse(m.group(2)!);
-        if (start >= total) {
-          req.response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
-          req.response.headers.set(
-            HttpHeaders.contentRangeHeader,
-            'bytes */$total',
-          );
-          await req.response.close();
-          return;
-        }
-        if (m.group(2)!.isEmpty) end = total - 1;
-        status = HttpStatus.partialContent;
+    final bounds = range == null ? null : _rangePattern.firstMatch(range);
+    if (bounds != null) {
+      final first = bounds.group(1)!;
+      final last = bounds.group(2)!;
+      if (first.isEmpty) {
+        final suffix = int.tryParse(last) ?? 0;
+        start = max(0, total - suffix);
+      } else {
+        start = int.tryParse(first) ?? total;
+        if (last.isNotEmpty) end = min(end, int.tryParse(last) ?? end);
       }
+      if (start > end) {
+        req.response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
+        req.response.headers.set(HttpHeaders.contentRangeHeader, 'bytes */$total');
+        await req.response.close();
+        return;
+      }
+      status = HttpStatus.partialContent;
     }
 
     final length = end - start + 1;
@@ -122,6 +163,10 @@ class CastContentServer {
         'bytes $start-$end/$total',
       );
     }
+    if (req.method == 'HEAD') {
+      await req.response.close();
+      return;
+    }
 
     // ponytail: chunked manual copy; StreamedResponse plumbing adds nothing
     // for a LAN-local single consumer.
@@ -130,18 +175,28 @@ class CastContentServer {
       await raf.setPosition(start);
       var remaining = length;
       const chunk = 64 * 1024;
-      while (remaining > 0) {
+      while (remaining > 0 && identical(_grant, grant)) {
         final read = await raf.read(min(chunk, remaining));
         if (read.isEmpty) break;
+        if (!identical(_grant, grant)) break;
         req.response.add(read);
         remaining -= read.length;
         await req.response.flush();
+        grant.expiresAt = DateTime.now().add(_grantIdleTimeout);
       }
     } finally {
       await raf.close();
       await req.response.close();
     }
   }
+}
+
+class _ServedFile {
+  _ServedFile(this.token, this.path, this.expiresAt);
+
+  final String token;
+  final String path;
+  DateTime expiresAt;
 }
 
 ContentType _contentTypeFor(String path) {

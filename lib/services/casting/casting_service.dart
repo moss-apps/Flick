@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../models/song.dart';
 import '../player_service.dart';
 import '../remote_source_service.dart';
+import '../sources/network_source_service.dart';
 import 'cast_content_server.dart';
 import 'cast_device.dart';
 import 'dlna_backend.dart';
@@ -51,6 +52,7 @@ class CastingService {
   StreamSubscription<Map<String, dynamic>>? _ccEventsSub;
   bool _wasPlayingBeforeCast = false;
   bool _tearingDown = false;
+  int _playGeneration = 0;
 
   bool get isActive => _activeDevice != null;
   CastDevice? get activeDevice => _activeDevice;
@@ -136,6 +138,7 @@ class CastingService {
     final wasPlaying = _wasPlayingBeforeCast;
     _wasPlayingBeforeCast = false;
     final dev = _activeDevice!;
+    _playGeneration++;
     _activeDevice = null;
     _currentSong = null;
     activeDeviceNotifier.value = null;
@@ -143,6 +146,7 @@ class CastingService {
     remoteVolumeNotifier.value = null;
 
     try {
+      await CastContentServer.instance.stop();
       if (dev.backend == CastBackend.chromecast) {
         await _chromecast.disconnect();
       } else {
@@ -153,7 +157,6 @@ class CastingService {
         }
         _unselectDlnaRoute();
       }
-      await CastContentServer.instance.stop();
     } finally {
       _tearingDown = false;
     }
@@ -176,31 +179,53 @@ class CastingService {
 
   // Called by PlayerService._playInternal hook. Returns true if handled.
   Future<bool> delegatePlay(Song song) async {
-    if (_activeDevice == null) return false;
+    final dev = _activeDevice;
+    if (dev == null) return false;
+    final generation = ++_playGeneration;
+    bool isCurrent() => generation == _playGeneration && identical(_activeDevice, dev);
+    _pollTimer?.cancel();
+    final retired = CastContentServer.instance.stop();
     _currentSong = song;
     final ps = PlayerService();
     ps.currentSongNotifier.value = song;
     ps.durationNotifier.value = song.duration;
     ps.positionNotifier.value = Duration.zero;
-    final resolved = await RemoteSourceService.instance.resolveHttpPlayback(
-      song,
-    );
-    final url = resolved?.url ?? await _serveFromPhone(song);
+    await retired;
+    if (!isCurrent()) return true;
+    String? url;
+    // Only ask for a renderer URL from sources that don't attach account
+    // credentials. Tidal's CDN URL is scoped to the current track.
+    if (song.sourceType == NetworkProtocol.upnp ||
+        song.sourceType == NetworkProtocol.tidal) {
+      final resolved = await RemoteSourceService.instance.resolveHttpPlayback(song);
+      if (!isCurrent()) return true;
+      if (resolved != null && resolved.headers.isEmpty) {
+        final uri = Uri.tryParse(resolved.url);
+        if (uri != null &&
+            (uri.scheme == 'https' || uri.scheme == 'http') &&
+            uri.host.isNotEmpty &&
+            uri.userInfo.isEmpty) {
+          url = resolved.url;
+        }
+      }
+    }
+    url ??= await _serveFromPhone(song, isCurrent);
+    if (!isCurrent()) return true;
     if (url == null) {
       // Content-URI locals and unresolvable sources stay local-only.
       return false;
     }
-    final dev = _activeDevice!;
     if (dev.backend == CastBackend.dlna) {
       final control = dev.controlUrl;
       if (control == null) return false;
       await _dlna.setUri(control, url, title: song.title);
+      if (!isCurrent()) return true;
       await _dlna.play(control);
-      _startDlnaPolling(control, dev.renderingControlUrl);
+      if (isCurrent()) _startDlnaPolling(control, dev.renderingControlUrl, isCurrent);
     } else {
       await _chromecast.load(url, title: song.title, artist: song.artist);
     }
-    ps.isPlayingNotifier.value = true;
+    if (isCurrent()) ps.isPlayingNotifier.value = true;
     return true;
   }
 
@@ -235,9 +260,15 @@ class CastingService {
   }
 
   Future<void> delegateStop() async {
-    if (_activeDevice == null) return;
-    if (_activeDevice!.backend == CastBackend.dlna) {
-      await _dlna.stop(_activeDevice!.controlUrl!);
+    final dev = _activeDevice;
+    if (dev == null) return;
+    final generation = ++_playGeneration;
+    _pollTimer?.cancel();
+    await CastContentServer.instance.stop();
+    if (_playGeneration != generation) return;
+    if (dev.backend == CastBackend.dlna) {
+      final control = dev.controlUrl;
+      if (control != null) await _dlna.stop(control);
     } else {
       await _chromecast.stop();
     }
@@ -346,7 +377,7 @@ class CastingService {
   /// Last-resort cast source: serve the bytes from this phone via the
   /// embedded HTTP server. Covers local files, SMB, and cached network songs
   /// (including formats the local engine can't decode — the renderer decodes).
-  Future<String?> _serveFromPhone(Song song) async {
+  Future<String?> _serveFromPhone(Song song, bool Function() isCurrent) async {
     try {
       String? path;
       if (song.isNetworkSource) {
@@ -357,7 +388,7 @@ class CastingService {
           path = p;
         }
       }
-      if (path == null) return null;
+      if (path == null || !isCurrent()) return null;
       final ext = song.fileType.toLowerCase();
       final title = song.title.replaceAll(RegExp(r'[^A-Za-z0-9._\- ]'), '');
       return await CastContentServer.instance.serve(
@@ -369,13 +400,17 @@ class CastingService {
     }
   }
 
-  void _startDlnaPolling(String controlUrl, String? renderingControlUrl) {
+  void _startDlnaPolling(
+    String controlUrl,
+    String? renderingControlUrl,
+    bool Function() isCurrent,
+  ) {
     _pollTimer?.cancel();
     var tick = 0;
     _pollTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-      if (_activeDevice == null) return;
+      if (!isCurrent()) return;
       final info = await _dlna.getPosition(controlUrl);
-      if (info == null) return;
+      if (info == null || !isCurrent()) return;
       final ps = PlayerService();
       ps.positionNotifier.value = info.position;
       if (info.duration.inMilliseconds > 0) {
@@ -385,7 +420,7 @@ class CastingService {
       // Volume poll is half-rate; each tick is already 2 SOAP calls.
       if (renderingControlUrl != null && tick++ % 2 == 0) {
         final v = await _dlna.getVolume(renderingControlUrl);
-        if (v != null) remoteVolumeNotifier.value = v / 100.0;
+        if (v != null && isCurrent()) remoteVolumeNotifier.value = v / 100.0;
       }
     });
   }

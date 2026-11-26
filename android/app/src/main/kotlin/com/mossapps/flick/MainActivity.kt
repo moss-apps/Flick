@@ -74,6 +74,7 @@ import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.StandardMethodCodec
 import io.flutter.plugins.GeneratedPluginRegistrant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -3907,7 +3908,42 @@ class MainActivity: FlutterActivity() {
 
             GeneratedPluginRegistrant.registerWith(engine)
             engine.plugins.add(FlickVisualizerPlugin())
+            registerNetworkCredentialChannel(engine)
             registeredMainEngineIdentity = engineIdentity
+        }
+    }
+
+    private fun registerNetworkCredentialChannel(engine: FlutterEngine) {
+        val messenger = engine.dartExecutor.binaryMessenger
+        val appContext = applicationContext
+        MethodChannel(
+            messenger,
+            "com.mossapps.flick/network_credentials",
+            StandardMethodCodec.INSTANCE,
+            messenger.makeBackgroundTaskQueue(),
+        ).setMethodCallHandler { call, result ->
+            if (call.method != "flush") {
+                result.notImplemented()
+                return@setMethodCallHandler
+            }
+            // flutter_secure_storage 10.3.x uses apply(). Commit a non-secret
+            // marker with each prefs snapshot to persist it before Isar is
+            // updated, even if an earlier asynchronous write failed.
+            val prefs = listOf(
+                "FlutterSecureKeyStorage:network_credentials",
+                "FlutterSecureStorageConfiguration:network_credentials",
+                "network_credentials",
+            )
+            try {
+                result.success(prefs.all { name ->
+                    appContext.getSharedPreferences(name, Context.MODE_PRIVATE)
+                        .edit()
+                        .putString("flick_flush_marker", System.nanoTime().toString())
+                        .commit()
+                })
+            } catch (_: Exception) {
+                result.success(false)
+            }
         }
     }
 

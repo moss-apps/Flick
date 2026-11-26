@@ -3823,7 +3823,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get howWideEachCardSpansAcross => '每张卡片在屏幕上的宽度';
 
   @override
-  String get httpBasicNeedsItRecoverableStored => 'HTTP Basic 需要可还原的密码；以编码形式存储';
+  String get httpBasicNeedsItRecoverableStored => '在此设备上加密，用于 HTTP Basic 登录';
 
   @override
   String hz(Object rate) {
@@ -6555,6 +6555,58 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverUrl => '服务器 URL';
 
   @override
+  String get allowInsecureHttp => '允许不安全的 HTTP';
+
+  @override
+  String get allowInsecureHttpDescription => '凭据将以未加密方式发送。仅对受信任的局域网服务器启用。';
+
+  @override
+  String get serverPasswordReentryRequired => '请重新输入新服务器 URL 或账户的密码。';
+
+  @override
+  String get serverUrlContainsCredentials => '请从服务器 URL 中移除用户名或密码；请改用用户名和密码字段。';
+
+  @override
+  String serverUrlInvalid(String label) {
+    return '$label 的服务器 URL 无效。';
+  }
+
+  @override
+  String serverUrlUnsupportedScheme(String label) {
+    return '$label 的 URL 协议不受支持。';
+  }
+
+  @override
+  String get serverRequiresHttps =>
+      '此服务器使用未加密的 HTTP。请使用 https:// URL，或为受信任的局域网服务器启用“允许不安全的 HTTP”。';
+
+  @override
+  String get credentialStorageVerifyFailed => '无法验证安全凭据存储。请重试。';
+
+  @override
+  String get credentialStorageSaveFailed => '无法安全保存凭据。请重试。';
+
+  @override
+  String get credentialStorageDecryptFailed =>
+      '无法在此设备上解密已保存的凭据。请在“设置”>“网络来源”中重新输入。';
+
+  @override
+  String get credentialStorageUnreadable => '已保存的凭据无法读取。请在“设置”>“网络来源”中重新输入。';
+
+  @override
+  String credentialServerMismatch(String label) {
+    return '已保存的凭据属于其他服务器或账户。请重新输入 $label 的密码。';
+  }
+
+  @override
+  String credentialMissing(String label) {
+    return '缺少 $label 的凭据。请在“设置”>“网络来源”中重新输入。';
+  }
+
+  @override
+  String get credentialSaveConflict => '此服务器在编辑期间已更改。请重新打开后再试。';
+
+  @override
   String get session => '会话';
 
   @override
@@ -7336,11 +7388,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storeOn => '存储位置';
 
   @override
-  String get storedAsASaltedHashNever => '以加盐哈希存储，绝不保存明文';
+  String get storedAsASaltedHashNever => '加盐哈希在此设备上加密存储';
 
   @override
-  String get storedEncodedPlaybackUnavailableInThis =>
-      '以 Base64 编码存储——NTLM 登录需要此格式';
+  String get storedEncodedPlaybackUnavailableInThis => '在此设备上加密，用于 NTLM 登录';
 
   @override
   String get stormChasers => '追风者';
@@ -8896,4 +8947,124 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get audioAnalysisSourceNote =>
       '测量基于对源文件的独立解码。某些格式包含解码器填充，可能影响时长和静音测量。播放、DSP 和标签均不变。';
+
+  @override
+  String get integrationsPrivacyNoteTitle => '这些服务会收到什么';
+
+  @override
+  String get integrationsPrivacyNoteSubtitle => '只发送你开启的内容。点按查看详情。';
+
+  @override
+  String get integrationsPrivacySheetTitle => '离开此设备的内容';
+
+  @override
+  String get integrationsPrivacyIntro => 'Flick 没有账户或云端。数据只会发送到你连接的服务。';
+
+  @override
+  String get integrationsLastFmHeading => 'Last.fm';
+
+  @override
+  String get integrationsLastFmBody =>
+      '当你记录收听时，Flick 会将曲名、艺术家、专辑和播放时间发送到 Last.fm。你的登录密钥会加密保存在此手机上。';
+
+  @override
+  String get integrationsListenBrainzHeading => 'ListenBrainz';
+
+  @override
+  String get integrationsListenBrainzBody =>
+      '当你收听时，Flick 会将相同的收听信息发送到 ListenBrainz。你的令牌会加密保存在此手机上。';
+
+  @override
+  String get integrationsAppleMusicHeading => 'Apple Music 目录';
+
+  @override
+  String get integrationsAppleMusicBody =>
+      '当 Flick 查询封面或元数据时，会将专辑、艺术家和歌曲名称发送到 Apple。不会使用 Apple 账户或密码。';
+
+  @override
+  String get integrationsDisconnectHeading => '断开连接后';
+
+  @override
+  String get integrationsDisconnectBody =>
+      'Flick 会停止发送新数据。过去的收听记录会保留在该服务上，直到你在那里删除。';
+
+  @override
+  String get networkPrivacyNoteTitle => '连接方式';
+
+  @override
+  String get networkPrivacyNoteSubtitle => '直接连接，登录信息加密保存。点按查看详情。';
+
+  @override
+  String get networkPrivacySheetTitle => '你的服务器，你的数据';
+
+  @override
+  String get networkPrivacyIntro => 'Flick 直接连接你添加的服务器。数据不会经过 Flick 的服务器。';
+
+  @override
+  String get networkCredentialsHeading => '登录';
+
+  @override
+  String get networkCredentialsBody => '用户名、密码和访问令牌会加密保存在此手机上，不会以明文保存。';
+
+  @override
+  String get networkLibraryHeading => '媒体库';
+
+  @override
+  String get networkLibraryBody => '同步会将歌曲信息和封面复制到此手机。音频保留在你的服务器上，并通过网络播放。';
+
+  @override
+  String get networkHttpHeading => '明文 HTTP';
+
+  @override
+  String get networkHttpBody =>
+      '使用 HTTP 时，该网络上的其他人可能读取你的登录信息与收听数据。服务器支持时请使用 HTTPS。仅在你信任的网络上允许 HTTP。';
+
+  @override
+  String get networkRemovalHeading => '移除服务器';
+
+  @override
+  String get networkRemovalBody => '移除后，此手机上保存的登录信息和已同步歌曲会被删除。服务器上的内容不会改变。';
+
+  @override
+  String get networkBackupHeading => '备份与转移';
+
+  @override
+  String get networkBackupBody =>
+      'Android 备份和手机间转移会跳过已保存的登录信息和 Flick 数据库。在新手机上重新添加服务器即可。音乐仍保留在服务器上。';
+
+  @override
+  String get castPrivacyNoteTitle => '接收设备能看到什么';
+
+  @override
+  String get castPrivacyNoteSubtitle => '临时的单曲链接，而不是你的密码。点按查看详情。';
+
+  @override
+  String get castPrivacySheetTitle => '投屏如何处理访问权限';
+
+  @override
+  String get castPrivacyIntro => '投屏会将播放内容从此手机发送到你选择的设备。';
+
+  @override
+  String get castLinkHeading => '需要登录的服务器';
+
+  @override
+  String get castLinkBody => '接收设备会收到此手机为当前曲目生成的临时链接。它不会收到服务器密码或令牌。';
+
+  @override
+  String get castOpenHeading => '开放来源';
+
+  @override
+  String get castOpenBody => 'UPnP 和 Tidal 曲目会直接从对应来源加载。不会使用你的服务器登录信息。';
+
+  @override
+  String get castDownloadHeading => '开始播放前';
+
+  @override
+  String get castDownloadBody => '需要登录的服务器上的曲目可能会先完整下载再开始投屏，因为接收设备无法使用服务器登录信息。';
+
+  @override
+  String get castStopHeading => '停止';
+
+  @override
+  String get castStopBody => '切换曲目、停止投屏或断开连接都会关闭旧链接。';
 }

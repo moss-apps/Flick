@@ -44,7 +44,9 @@ import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/usb_dac_volume_restore.dart';
 import 'package:flick/services/alac_converter_service.dart';
 import 'package:flick/services/playback_cache_preferences_service.dart';
+import 'package:flick/services/authenticated_http_audio_source.dart';
 import 'package:flick/services/remote_source_service.dart';
+import 'package:flick/services/sources/network_source_service.dart';
 import 'package:flick/services/sources/smb_failure.dart';
 import 'package:flick/services/wav_stream_audio_source.dart';
 import 'package:flick/services/casting/casting_service.dart';
@@ -257,15 +259,6 @@ bool shouldStopForRustOnlyContainer({
   required bool requiresRustDecoder,
 }) {
   return !revived && requiresRustDecoder;
-}
-
-/// just_audio routes any non-`file://` URI through its local HTTP proxy as
-/// soon as the headers map is non-null (even when empty), and that proxy can
-/// only speak HTTP — `content://` sources then fail with "Unsupported scheme
-/// 'content'". Passing null keeps ExoPlayer on its native content resolver.
-@visibleForTesting
-Map<String, String>? proxySafeHeaders(Map<String, String> headers) {
-  return headers.isEmpty ? null : headers;
 }
 
 @visibleForTesting
@@ -4911,14 +4904,33 @@ class PlayerService {
       return streamSource;
     }
 
-    final resolved = await _resolvePlaybackUri(song);
-    final uri = resolved.uri;
-    final headers = proxySafeHeaders(resolved.headers);
+    if (song.isNetworkSource) {
+      final needsClipping = song.startOffsetMs != null || song.endOffsetMs != null;
+      final protected = NetworkProtocol.usesAuthenticatedHttp(song.sourceType);
+      final remote = RemoteSourceService.instance;
+      final stream = protected && needsClipping
+          ? null
+          : await remote.resolveHttpPlayback(song);
+      if (stream != null) {
+        if (!protected && stream.headers.isEmpty) {
+          return clipPlaybackSource(
+            song,
+            just_audio.AudioSource.uri(Uri.parse(stream.url)),
+          );
+        }
+        if (!needsClipping) {
+          return AuthenticatedHttpAudioSource(
+            resolve: () => remote.resolveHttpPlayback(song),
+          );
+        }
+      }
+    }
 
-    return clipPlaybackSource(
-      song,
-      just_audio.AudioSource.uri(uri, headers: headers),
-    );
+    // ClippingAudioSource requires a URI. A clipped authenticated track uses
+    // the original cached file rather than handing ExoPlayer credentials.
+    final path = await _resolvePreparedPlaybackPath(song);
+    final uri = path == null || path.isEmpty ? Uri() : _toPlaybackUri(path);
+    return clipPlaybackSource(song, just_audio.AudioSource.uri(uri));
   }
 
   /// Decodes ALAC/M4A/AIFF through the Rust engine without writing a WAV.
@@ -4957,41 +4969,6 @@ class PlayerService {
     if (playlistIndex < _audioSourceSequence!.children.length) {
       _audioSourceSequence!.removeAt(playlistIndex);
     }
-  }
-
-  Future<({Uri uri, Map<String, String> headers})> _resolvePlaybackUri(
-    Song song,
-  ) async {
-    // ponytail: HTTP-first for network sources. Hand ExoPlayer the ranged URL
-    // so playback starts while bytes stream in, instead of blocking on a full
-    // cache download before the first frame. Falls back to cache-then-play
-    // (ensureLocal) for protocols without byte-range support (SMB/UPnP) or on
-    // resolve failure. Matches the Rust backend's existing strategy.
-    // Headers must travel with the URL: WebDAV returns Basic auth and
-    // ExoPlayer fetches the stream itself.
-    if (song.isNetworkSource) {
-      try {
-        final http = await RemoteSourceService.instance.resolveHttpPlayback(
-          song,
-        );
-        if (http != null) {
-          return (uri: Uri.parse(http.url), headers: http.headers);
-        }
-      } catch (e) {
-        _debugLog(
-          '[Playback] HTTP-first resolve failed for "${song.title}": $e',
-        );
-      }
-    }
-    final resolvedPath = await _resolvePreparedPlaybackPath(song);
-    if (resolvedPath == null || resolvedPath.isEmpty) {
-      return (uri: Uri.parse(''), headers: const <String, String>{});
-    }
-
-    return (
-      uri: _toPlaybackUri(resolvedPath),
-      headers: const <String, String>{},
-    );
   }
 
   Future<String?> _resolvePreparedPlaybackPath(Song song) async {
@@ -5278,7 +5255,7 @@ class PlayerService {
     try {
       return await RemoteSourceService.instance.resolveHttpPlayback(song);
     } catch (e) {
-      _debugLog('HTTP source resolve failed: $e');
+      _debugLog('HTTP source resolve failed (${e.runtimeType})');
       return null;
     }
   }
@@ -6432,7 +6409,7 @@ class PlayerService {
           return;
         }
       } catch (e) {
-        _debugLog('HTTP queue-next failed, falling back to cache: $e');
+        _debugLog('HTTP queue-next failed, falling back to cache (${e.runtimeType})');
       }
     }
 

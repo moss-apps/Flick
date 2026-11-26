@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/features/settings/widgets/settings_info_sheet.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/casting/cast_device.dart';
@@ -72,6 +73,36 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          SettingsInfoBanner(
+            icon: LucideIcons.cast,
+            title: l10n.castPrivacyNoteTitle,
+            subtitle: l10n.castPrivacyNoteSubtitle,
+            onTap: () => showSettingsInfoSheet(
+              context,
+              icon: LucideIcons.cast,
+              title: l10n.castPrivacySheetTitle,
+              intro: l10n.castPrivacyIntro,
+              sections: [
+                SettingsInfoSection(
+                  heading: l10n.castLinkHeading,
+                  body: l10n.castLinkBody,
+                ),
+                SettingsInfoSection(
+                  heading: l10n.castOpenHeading,
+                  body: l10n.castOpenBody,
+                ),
+                SettingsInfoSection(
+                  heading: l10n.castDownloadHeading,
+                  body: l10n.castDownloadBody,
+                ),
+                SettingsInfoSection(
+                  heading: l10n.castStopHeading,
+                  body: l10n.castStopBody,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
           SettingsSectionHeader(l10n.englishForFilipino.availableDevices, sectionId: 'availableDevices'),
           SettingsCard(
             children: [

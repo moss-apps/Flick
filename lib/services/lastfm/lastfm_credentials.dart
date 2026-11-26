@@ -69,9 +69,18 @@ class LastFmCredentials {
     await _storage.delete(key: _kPendingToken);
   }
 
-  // Clear all
+  // Clear only this service's keys. `deleteAll()` would also wipe ListenBrainz
+  // and Jellyfin secrets that share the default secure-storage namespace.
   Future<void> clearAll() async {
-    await _storage.deleteAll();
+    for (final key in const [
+      _kApiKey,
+      _kSharedSecret,
+      _kSessionKey,
+      _kUsername,
+      _kPendingToken,
+    ]) {
+      await _storage.delete(key: key);
+    }
   }
 
   // Clear only session (keep credentials)

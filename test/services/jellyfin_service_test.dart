@@ -1,40 +1,22 @@
 import 'dart:convert';
 
 import 'package:flick/data/entities/network_server_entity.dart';
-import 'package:flick/services/sources/jellyfin_password_store.dart';
 import 'package:flick/services/sources/jellyfin_service.dart';
+import 'package:flick/services/sources/network_credential_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-NetworkServerEntity _server({String? token}) {
+import 'network_credential_fixture.dart';
+
+NetworkServerEntity _server({String? token, String? password}) {
   final entity = NetworkServerEntity()
     ..id = 3
     ..label = 'Jf'
     ..protocol = 'jellyfin'
     ..baseUrl = 'https://jf.example.com'
-    ..username = 'demo'
-    ..token = token;
-  return entity;
-}
-
-class _FakePasswordStore extends JellyfinPasswordStore {
-  _FakePasswordStore(this.passwords);
-
-  final Map<int, String> passwords;
-
-  @override
-  Future<String?> read(int serverId) async => passwords[serverId];
-
-  @override
-  Future<void> write(int serverId, String password) async {
-    passwords[serverId] = password;
-  }
-
-  @override
-  Future<void> delete(int serverId) async {
-    passwords.remove(serverId);
-  }
+    ..username = 'demo';
+  return withCredential(entity, token, password: password);
 }
 
 void main() {
@@ -105,7 +87,6 @@ void main() {
     test('ping exchanges stored password for a fresh token and retries',
         () async {
       final calls = <String>[];
-      final persisted = <String>[];
       final client = MockClient((request) async {
         if (request.url.path == '/Users/AuthenticateByName') {
           calls.add('auth:${request.body}');
@@ -127,23 +108,19 @@ void main() {
       });
       final server = _server(
         token: jsonEncode({'userId': 'user-1', 'token': 'tok-dead'}),
+        password: 'hunter2',
       );
-      final store = _FakePasswordStore({3: 'hunter2'});
-      final service = JellyfinService.create(
-        client: client,
-        passwordStore: store,
-        persistToken: (s, token) async => persisted.add(token),
-      );
+      final service = JellyfinService.create(client: client);
 
       final ok = await service.ping(server);
 
       expect(ok, isTrue);
       expect(calls, ['info:dead', 'auth:{"Username":"demo","Pw":"hunter2"}', 'info:fresh']);
-      expect(persisted, hasLength(1));
-      final decoded = jsonDecode(persisted.single) as Map<String, dynamic>;
+      final credential = await NetworkCredentialStore.instance.require(server);
+      final decoded = jsonDecode(credential.secret) as Map<String, dynamic>;
       expect(decoded['token'], 'tok-fresh');
-      // In-memory entity carries the fresh token so the sync keeps going.
-      expect(server.token, persisted.single);
+      expect(credential.password, 'hunter2');
+      expect(server.token, isNull);
     });
 
     test('ping stays false on 401 when no password is stored', () async {
@@ -155,10 +132,7 @@ void main() {
         infoCalls++;
         return http.Response('', 401);
       });
-      final service = JellyfinService.create(
-        client: client,
-        passwordStore: _FakePasswordStore({}),
-      );
+      final service = JellyfinService.create(client: client);
 
       final ok = await service.ping(_server(
         token: jsonEncode({'userId': 'user-1', 'token': 'tok-dead'}),
@@ -179,13 +153,11 @@ void main() {
         infoCalls++;
         return http.Response('', 401);
       });
-      final service = JellyfinService.create(
-        client: client,
-        passwordStore: _FakePasswordStore({3: 'wrong-pass'}),
-      );
+      final service = JellyfinService.create(client: client);
 
       final ok = await service.ping(_server(
         token: jsonEncode({'userId': 'user-1', 'token': 'tok-dead'}),
+        password: 'wrong-pass',
       ));
 
       expect(ok, isFalse);
@@ -195,16 +167,15 @@ void main() {
     });
   });
 
-  group('password store', () {
-    test('persistPassword writes and forgetPassword deletes', () async {
-      final store = _FakePasswordStore({});
-      final service = JellyfinService.create(passwordStore: store);
+  test('changing the endpoint cannot reuse a bound token or password', () async {
+    final service = JellyfinService.create(client: MockClient((_) async {
+      fail('a credential bound to another endpoint must never be sent');
+    }));
+    final server = _server(
+      token: jsonEncode({'userId': 'user-1', 'token': 'tok-xyz'}),
+      password: 'hunter2',
+    )..baseUrl = 'https://other.example.com';
 
-      await service.persistPassword(_server(), 'hunter2');
-      expect(store.passwords[3], 'hunter2');
-
-      await service.forgetPassword(3);
-      expect(store.passwords, isEmpty);
-    });
+    expect(await service.ping(server), isFalse);
   });
 }

@@ -6,15 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'network_credential_fixture.dart';
+
 NetworkServerEntity _server({String? token}) {
   final entity = NetworkServerEntity()
     ..id = 7
     ..label = 'Test'
     ..protocol = 'subsonic'
     ..baseUrl = 'https://music.example.com/subsonic'
-    ..username = 'demo'
-    ..token = token;
-  return entity;
+    ..username = 'demo';
+  return withCredential(entity, token);
 }
 
 void main() {

@@ -1,23 +1,25 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flick/data/entities/network_server_entity.dart';
+import 'package:flick/services/sources/network_credential_store.dart';
 import 'package:flick/services/sources/tidal_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'network_credential_fixture.dart';
+
 NetworkServerEntity _server({String? token}) {
-  return NetworkServerEntity()
+  final server = NetworkServerEntity()
     ..id = 9
     ..label = 'Tidal'
     ..protocol = 'tidal'
-    ..baseUrl = TidalService.tidalBaseUrl
-    ..username = null
-    ..token = token;
+    ..baseUrl = TidalService.tidalBaseUrl;
+  return withCredential(server, token);
 }
 
-/// A far-future token blob so [TidalService._ensureValidToken] skips refresh
-/// (and therefore skips the DB write inside [_persist]).
+/// A token blob that won't refresh until rejected by the server.
 String _validToken() => jsonEncode({
       'access_token': 'acc-xyz',
       'refresh_token': 'ref-xyz',
@@ -262,7 +264,7 @@ void main() {
 
       expect(reportedLink, 'https://link.tidal.com/ZZ');
       expect(tokenCalls, 2); // one pending, then success
-      final decoded = jsonDecode(token!) as Map<String, dynamic>;
+      final decoded = jsonDecode(token) as Map<String, dynamic>;
       expect(decoded['access_token'], 'a');
     });
 
@@ -362,6 +364,43 @@ void main() {
       final service =
           TidalService.create(client: MockClient((_) async => http.Response('{}', 200)));
       expect(await service.ping(_server(token: null)), isFalse);
+    });
+
+    test('concurrent 401s use a single refresh and retry with the new token', () async {
+      final bothRejected = Completer<void>();
+      final server = _server(token: _validToken());
+      var oldRequests = 0;
+      var renewals = 0;
+      var newRequests = 0;
+      final service = TidalService.create(client: MockClient((request) async {
+        if (request.url.path.endsWith('/token')) {
+          renewals++;
+          expect(request.bodyFields['refresh_token'], 'ref-xyz');
+          await bothRejected.future;
+          return http.Response(jsonEncode({
+            'access_token': 'acc-new',
+            'refresh_token': 'ref-new',
+            'expires_in': 3600,
+          }), 200);
+        }
+        final authorization = request.headers['Authorization'];
+        if (authorization == 'Bearer acc-xyz') {
+          oldRequests++;
+          if (oldRequests == 2) bothRejected.complete();
+          return http.Response('', 401);
+        }
+        expect(authorization, 'Bearer acc-new');
+        newRequests++;
+        return http.Response('{}', 200);
+      }));
+
+      final results = await Future.wait([service.ping(server), service.ping(server)]);
+      final credential = await NetworkCredentialStore.instance.require(server);
+      expect(results, [true, true]);
+      expect(renewals, 1);
+      expect(newRequests, 2);
+      expect(jsonDecode(credential.secret)['refresh_token'], 'ref-new');
+      expect(server.token, isNull);
     });
   });
 }

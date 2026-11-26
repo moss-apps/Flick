@@ -14,6 +14,7 @@ import 'package:flick/services/permission_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/playback_cache_maintenance.dart';
 import 'package:flick/services/process_exit_diagnostics_service.dart';
+import 'package:flick/services/sources/network_credential_migration.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/core/utils/app_log.dart';
@@ -61,6 +62,10 @@ Future<void> main() async {
   unawaited(ProcessExitDiagnosticsService().reportPreviousExits());
 
   await Database.init();
+  // Move legacy plaintext network secrets into Keystore-backed storage before
+  // any startup network work reads them. A server's migration failure leaves
+  // that row unchanged and does not prevent local playback.
+  await NetworkCredentialMigration.run();
 
   final externalPlaybackHandled = await ExternalPlaybackService().initialize();
   if (!externalPlaybackHandled) {

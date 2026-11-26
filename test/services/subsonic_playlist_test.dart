@@ -6,13 +6,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-NetworkServerEntity _server() => NetworkServerEntity()
-  ..id = 7
-  ..label = 'Test'
-  ..protocol = 'subsonic'
-  ..baseUrl = 'https://music.example.com/subsonic'
-  ..username = 'demo'
-  ..token = 'c19b2d:26719a1196d2a940705a59634eb18eab';
+import 'network_credential_fixture.dart';
+
+NetworkServerEntity _server() => withCredential(
+  NetworkServerEntity()
+    ..id = 7
+    ..label = 'Test'
+    ..protocol = 'subsonic'
+    ..baseUrl = 'https://music.example.com/subsonic'
+    ..username = 'demo',
+  'c19b2d:26719a1196d2a940705a59634eb18eab',
+);
 
 void main() {
   group('playlist endpoints', () {

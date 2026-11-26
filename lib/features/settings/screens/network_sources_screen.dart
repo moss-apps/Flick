@@ -12,6 +12,7 @@ import '../../../data/repositories/song_repository.dart';
 import '../../../services/library_scanner_service.dart' show ScanProgress;
 import '../../../services/sources/network_source_service.dart';
 import '../../../widgets/common/brand_icon.dart';
+import '../widgets/settings_info_sheet.dart';
 import '../widgets/settings_widgets.dart';
 import 'network_server_edit_screen.dart';
 import 'package:flick/l10n/settings_l10n.dart';
@@ -139,6 +140,42 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          SettingsInfoBanner(
+            warning: true,
+            icon: LucideIcons.shieldAlert,
+            title: l10n.networkPrivacyNoteTitle,
+            subtitle: l10n.networkPrivacyNoteSubtitle,
+            onTap: () => showSettingsInfoSheet(
+              context,
+              warning: true,
+              icon: LucideIcons.shieldAlert,
+              title: l10n.networkPrivacySheetTitle,
+              intro: l10n.networkPrivacyIntro,
+              sections: [
+                SettingsInfoSection(
+                  heading: l10n.networkCredentialsHeading,
+                  body: l10n.networkCredentialsBody,
+                ),
+                SettingsInfoSection(
+                  heading: l10n.networkLibraryHeading,
+                  body: l10n.networkLibraryBody,
+                ),
+                SettingsInfoSection(
+                  heading: l10n.networkHttpHeading,
+                  body: l10n.networkHttpBody,
+                ),
+                SettingsInfoSection(
+                  heading: l10n.networkRemovalHeading,
+                  body: l10n.networkRemovalBody,
+                ),
+                SettingsInfoSection(
+                  heading: l10n.networkBackupHeading,
+                  body: l10n.networkBackupBody,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingLg),
           if (_servers.isEmpty)
             _buildEmptyState(context)
           else ...[

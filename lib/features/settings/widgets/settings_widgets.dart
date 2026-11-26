@@ -280,6 +280,98 @@ class InfoSetting extends StatelessWidget {
   }
 }
 
+/// Card that opens a bottom sheet explaining how a feature handles data.
+class SettingsInfoBanner extends StatelessWidget {
+  const SettingsInfoBanner({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.warning = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool warning;
+
+  static const _warningColor = Color(0xFFD4A030);
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = warning ? _warningColor : context.adaptiveTextSecondary;
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          color: AppColors.surface.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          border: Border.all(
+            color: warning
+                ? _warningColor.withValues(alpha: 0.35)
+                : AppColors.glassBorder,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          onTap: () {
+            AppHaptics.tap();
+            onTap();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(AppConstants.spacingMd),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+                  ),
+                  child: Icon(icon, size: 18, color: accent),
+                ),
+                const SizedBox(width: AppConstants.spacingMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: context.adaptiveTextPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.adaptiveTextTertiary,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppConstants.spacingSm),
+                Icon(
+                  LucideIcons.chevronRight,
+                  size: 18,
+                  color: context.adaptiveTextTertiary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Row with a radio-like selection indicator. Disabled when [onTap] is null.
 class SelectionSetting extends StatelessWidget {
   const SelectionSetting({

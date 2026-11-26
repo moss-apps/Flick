@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 and lower (android:fullBackupContent).
+
+  The Isar database is deliberately excluded from OS backup/transfer: older
+  builds stored network-source tokens and reversible WebDAV/SMB passwords in
+  NetworkServerEntity.token. Startup migration moves them to Keystore-backed
+  storage, but a backup taken before that migration must not capture the legacy
+  row. Excluding it also protects old data pages after migration.
+
+  Logs are excluded because older builds could write Last.fm auth URLs/tokens
+  and raw HTTP errors. Ordinary settings remain eligible.
+-->
+<full-backup-content>
+    <!-- app_flutter is getApplicationDocumentsDirectory(): private app data root. -->
+    <exclude domain="root" path="app_flutter/flick_player.isar" />
+    <exclude domain="root" path="app_flutter/flick_player.isar.lock" />
+
+    <!-- getApplicationSupportDirectory()/logs/flick_log.jsonl -->
+    <exclude domain="file" path="logs/" />
+
+    <!--
+      flutter_secure_storage ciphertext is useless without the Android Keystore
+      key, and restoring it can make the plugin report a corrupt store. Exclude
+      the default namespace (Last.fm, ListenBrainz, Jellyfin passwords) and the
+      network credential namespace added for server tokens.
+    -->
+    <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+    <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration.xml" />
+    <exclude domain="sharedpref" path="FlutterSecureKeyStorage.xml" />
+    <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:FlutterSecureStorage.xml" />
+    <exclude domain="sharedpref" path="FlutterSecureKeyStorage:FlutterSecureStorage.xml" />
+    <exclude domain="sharedpref" path="network_credentials.xml" />
+    <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:network_credentials.xml" />
+    <exclude domain="sharedpref" path="FlutterSecureKeyStorage:network_credentials.xml" />
+</full-backup-content>

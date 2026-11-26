@@ -4109,7 +4109,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get httpBasicNeedsItRecoverableStored =>
-      'HTTP Basic needs it recoverable; stored encoded';
+      'Encrypted on this device; used for HTTP Basic sign-in';
 
   @override
   String hz(Object rate) {
@@ -7030,6 +7030,65 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverUrl => 'Server URL';
 
   @override
+  String get allowInsecureHttp => 'Allow insecure HTTP';
+
+  @override
+  String get allowInsecureHttpDescription =>
+      'Credentials are sent unencrypted. Enable only for a trusted LAN server.';
+
+  @override
+  String get serverPasswordReentryRequired =>
+      'Enter the password again for the new server URL or account.';
+
+  @override
+  String get serverUrlContainsCredentials =>
+      'Remove the username or password from the server URL; use the username and password fields instead.';
+
+  @override
+  String serverUrlInvalid(String label) {
+    return 'Invalid server URL for $label.';
+  }
+
+  @override
+  String serverUrlUnsupportedScheme(String label) {
+    return 'Unsupported URL scheme for $label.';
+  }
+
+  @override
+  String get serverRequiresHttps =>
+      'This server uses unencrypted HTTP. Use an https:// URL, or enable \"Allow insecure HTTP\" for a trusted LAN server.';
+
+  @override
+  String get credentialStorageVerifyFailed =>
+      'Could not verify secure credential storage. Try again.';
+
+  @override
+  String get credentialStorageSaveFailed =>
+      'Could not save credentials securely. Try again.';
+
+  @override
+  String get credentialStorageDecryptFailed =>
+      'Stored credentials could not be decrypted on this device. Re-enter them in Settings > Network sources.';
+
+  @override
+  String get credentialStorageUnreadable =>
+      'Stored credentials are unreadable. Re-enter them in Settings > Network sources.';
+
+  @override
+  String credentialServerMismatch(String label) {
+    return 'The saved credentials belong to a different server or account. Re-enter the password for $label.';
+  }
+
+  @override
+  String credentialMissing(String label) {
+    return 'Credentials for $label are missing. Re-enter them in Settings > Network sources.';
+  }
+
+  @override
+  String get credentialSaveConflict =>
+      'This server changed while you were editing it. Reopen it and try again.';
+
+  @override
   String get session => 'Session';
 
   @override
@@ -7917,11 +7976,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get storedAsASaltedHashNever =>
-      'Stored as a salted hash, never in plaintext';
+      'The salted hash is encrypted on this device';
 
   @override
   String get storedEncodedPlaybackUnavailableInThis =>
-      'Stored base64-encoded — required for NTLM sign-in';
+      'Encrypted on this device; used for NTLM sign-in';
 
   @override
   String get stormChasers => 'Storm Chasers';
@@ -9605,4 +9664,137 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get audioAnalysisSourceNote =>
       'Measured from a separate source-file decode. Some formats include decoder padding, which can affect duration and silence measurements. Playback, DSP, and tags are unchanged.';
+
+  @override
+  String get integrationsPrivacyNoteTitle => 'What these services receive';
+
+  @override
+  String get integrationsPrivacyNoteSubtitle =>
+      'Only what you turn on. Tap for details.';
+
+  @override
+  String get integrationsPrivacySheetTitle => 'What leaves this device';
+
+  @override
+  String get integrationsPrivacyIntro =>
+      'Flick has no account or cloud. Data goes only to the services you connect.';
+
+  @override
+  String get integrationsLastFmHeading => 'Last.fm';
+
+  @override
+  String get integrationsLastFmBody =>
+      'When you scrobble, Flick sends the track title, artist, album, and play time to Last.fm. Your sign-in key is stored encrypted on this phone.';
+
+  @override
+  String get integrationsListenBrainzHeading => 'ListenBrainz';
+
+  @override
+  String get integrationsListenBrainzBody =>
+      'When you listen, Flick sends the same listening details to ListenBrainz. Your token is stored encrypted on this phone.';
+
+  @override
+  String get integrationsAppleMusicHeading => 'Apple Music catalog';
+
+  @override
+  String get integrationsAppleMusicBody =>
+      'Album, artist, and song names are sent to Apple when Flick looks up artwork or metadata. No Apple account or password is used.';
+
+  @override
+  String get integrationsDisconnectHeading => 'After disconnecting';
+
+  @override
+  String get integrationsDisconnectBody =>
+      'Flick stops sending new data. Past scrobbles stay on the service until you remove them there.';
+
+  @override
+  String get networkPrivacyNoteTitle => 'How connections work';
+
+  @override
+  String get networkPrivacyNoteSubtitle =>
+      'Direct connection, stored sign-in. Tap for details.';
+
+  @override
+  String get networkPrivacySheetTitle => 'Your server, your data';
+
+  @override
+  String get networkPrivacyIntro =>
+      'Flick connects directly to the server you add. Nothing passes through a Flick server.';
+
+  @override
+  String get networkCredentialsHeading => 'Sign-in';
+
+  @override
+  String get networkCredentialsBody =>
+      'Usernames, passwords, and access tokens are stored encrypted on this phone, not in plain text.';
+
+  @override
+  String get networkLibraryHeading => 'Library';
+
+  @override
+  String get networkLibraryBody =>
+      'Sync copies song details and artwork to this phone. Audio stays on your server and plays over the network.';
+
+  @override
+  String get networkHttpHeading => 'Plain HTTP';
+
+  @override
+  String get networkHttpBody =>
+      'With HTTP, your sign-in and listening data can be read by others on that network. Use HTTPS when the server supports it. Allow HTTP only for a network you trust.';
+
+  @override
+  String get networkRemovalHeading => 'Removing a server';
+
+  @override
+  String get networkRemovalBody =>
+      'Removing it deletes the saved sign-in and synced songs from this phone. It does not change anything on the server.';
+
+  @override
+  String get networkBackupHeading => 'Backup and transfer';
+
+  @override
+  String get networkBackupBody =>
+      'Android backup and phone-to-phone transfer skip saved sign-ins and Flick\'s database. Add the server again on a new phone. Your music stays on the server.';
+
+  @override
+  String get castPrivacyNoteTitle => 'What the receiver can see';
+
+  @override
+  String get castPrivacyNoteSubtitle =>
+      'Temporary track links, not your password. Tap for details.';
+
+  @override
+  String get castPrivacySheetTitle => 'How casting handles access';
+
+  @override
+  String get castPrivacyIntro =>
+      'Casting sends playback from this phone to the device you choose.';
+
+  @override
+  String get castLinkHeading => 'Signed-in servers';
+
+  @override
+  String get castLinkBody =>
+      'The receiver gets a temporary link from this phone for the current track. It never gets the server password or token.';
+
+  @override
+  String get castOpenHeading => 'Open sources';
+
+  @override
+  String get castOpenBody =>
+      'UPnP and Tidal tracks load directly from that source. Your server sign-in is not used.';
+
+  @override
+  String get castDownloadHeading => 'Before playback';
+
+  @override
+  String get castDownloadBody =>
+      'Tracks from signed-in servers may download fully before casting starts, because the receiver cannot use the server sign-in.';
+
+  @override
+  String get castStopHeading => 'Stopping';
+
+  @override
+  String get castStopBody =>
+      'Switching tracks, stopping the cast, or disconnecting closes the old link.';
 }

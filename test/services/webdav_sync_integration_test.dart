@@ -12,6 +12,8 @@ import 'package:http/testing.dart';
 import 'package:isar_community/isar.dart';
 import 'package:path/path.dart' as p;
 
+import 'network_credential_fixture.dart';
+
 const _serverId = 42;
 
 typedef _Entry = ({String href, bool collection, int? size});
@@ -123,9 +125,8 @@ void main() async {
       ..label = 'Test Dav'
       ..protocol = 'webdav'
       ..baseUrl = 'https://dav.example.com/music'
-      ..username = 'alice'
-      ..token = base64Encode(utf8.encode('secret'));
-    return entity;
+      ..username = 'alice';
+    return withCredential(entity, base64Encode(utf8.encode('secret')));
   }
 
   MockClient fixtureClient({

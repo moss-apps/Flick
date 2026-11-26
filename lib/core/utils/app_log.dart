@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'log_redactor.dart';
+
 enum LogSource { dart, rust, crash, zone, platform }
 
 class LogEntry {
@@ -33,17 +35,17 @@ class AppLog extends ChangeNotifier {
   List<LogEntry> get entries => _entries;
 
   void add(String message, {LogSource source = LogSource.dart}) {
-    final entry = LogEntry(DateTime.now(), message, source);
+    final entry = LogEntry(
+      DateTime.now(),
+      redactSensitiveLogText(message),
+      source,
+    );
     _entries.add(entry);
     if (_entries.length > maxEntries) {
       _entries.removeRange(0, _entries.length - maxEntries);
     }
     if (_persistenceInitialized) {
-      _pendingLines.add(jsonEncode({
-        't': entry.timestamp.millisecondsSinceEpoch,
-        's': source.name,
-        'm': message,
-      }));
+      _pendingLines.add(_encodeEntry(entry));
     }
     notifyListeners();
   }
@@ -73,13 +75,28 @@ class AppLog extends ChangeNotifier {
     if (file == null || !await file.exists()) return;
     try {
       final lines = await file.readAsLines();
-      final start = math.max(0, lines.length - maxEntries);
-      for (final line in lines.sublist(start)) {
+      final sanitized = <LogEntry>[];
+      var changed = false;
+      for (final line in lines) {
         final entry = _decodeEntry(line);
-        if (entry != null) {
-          _entries.add(entry);
+        if (entry == null) {
+          changed = true;
+          continue;
         }
+        final safe = redactSensitiveLogText(entry.message);
+        changed |= safe != entry.message;
+        sanitized.add(LogEntry(entry.timestamp, safe, entry.source));
       }
+      if (changed) {
+        // Scrub legacy entries from disk before replay so copying the file
+        // later cannot reintroduce old auth URLs/tokens.
+        await file.writeAsString(
+          '${sanitized.map(_encodeEntry).join('\n')}\n',
+          flush: true,
+        );
+      }
+      final start = math.max(0, sanitized.length - maxEntries);
+      _entries.addAll(sanitized.skip(start));
       if (_entries.length > maxEntries) {
         _entries.removeRange(0, _entries.length - maxEntries);
       }
@@ -116,6 +133,12 @@ class AppLog extends ChangeNotifier {
         : lines;
     await file.writeAsString('${keep.join('\n')}\n', flush: true);
   }
+
+  String _encodeEntry(LogEntry entry) => jsonEncode({
+    't': entry.timestamp.millisecondsSinceEpoch,
+    's': entry.source.name,
+    'm': entry.message,
+  });
 
   LogEntry? _decodeEntry(String line) {
     try {

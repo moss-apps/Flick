@@ -18,21 +18,31 @@ const NetworkServerEntitySchema = CollectionSchema(
   name: r'NetworkServerEntity',
   id: 6116953719064664553,
   properties: {
-    r'baseUrl': PropertySchema(id: 0, name: r'baseUrl', type: IsarType.string),
-    r'label': PropertySchema(id: 1, name: r'label', type: IsarType.string),
-    r'lastSyncedAt': PropertySchema(
+    r'allowInsecureHttp': PropertySchema(
+      id: 0,
+      name: r'allowInsecureHttp',
+      type: IsarType.bool,
+    ),
+    r'baseUrl': PropertySchema(id: 1, name: r'baseUrl', type: IsarType.string),
+    r'credentialRef': PropertySchema(
       id: 2,
+      name: r'credentialRef',
+      type: IsarType.string,
+    ),
+    r'label': PropertySchema(id: 3, name: r'label', type: IsarType.string),
+    r'lastSyncedAt': PropertySchema(
+      id: 4,
       name: r'lastSyncedAt',
       type: IsarType.dateTime,
     ),
     r'protocol': PropertySchema(
-      id: 3,
+      id: 5,
       name: r'protocol',
       type: IsarType.string,
     ),
-    r'token': PropertySchema(id: 4, name: r'token', type: IsarType.string),
+    r'token': PropertySchema(id: 6, name: r'token', type: IsarType.string),
     r'username': PropertySchema(
-      id: 5,
+      id: 7,
       name: r'username',
       type: IsarType.string,
     ),
@@ -60,6 +70,12 @@ int _networkServerEntityEstimateSize(
 ) {
   var bytesCount = offsets.last;
   bytesCount += 3 + object.baseUrl.length * 3;
+  {
+    final value = object.credentialRef;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.label.length * 3;
   bytesCount += 3 + object.protocol.length * 3;
   {
@@ -83,12 +99,14 @@ void _networkServerEntitySerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.baseUrl);
-  writer.writeString(offsets[1], object.label);
-  writer.writeDateTime(offsets[2], object.lastSyncedAt);
-  writer.writeString(offsets[3], object.protocol);
-  writer.writeString(offsets[4], object.token);
-  writer.writeString(offsets[5], object.username);
+  writer.writeBool(offsets[0], object.allowInsecureHttp);
+  writer.writeString(offsets[1], object.baseUrl);
+  writer.writeString(offsets[2], object.credentialRef);
+  writer.writeString(offsets[3], object.label);
+  writer.writeDateTime(offsets[4], object.lastSyncedAt);
+  writer.writeString(offsets[5], object.protocol);
+  writer.writeString(offsets[6], object.token);
+  writer.writeString(offsets[7], object.username);
 }
 
 NetworkServerEntity _networkServerEntityDeserialize(
@@ -98,13 +116,15 @@ NetworkServerEntity _networkServerEntityDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = NetworkServerEntity();
-  object.baseUrl = reader.readString(offsets[0]);
+  object.allowInsecureHttp = reader.readBool(offsets[0]);
+  object.baseUrl = reader.readString(offsets[1]);
+  object.credentialRef = reader.readStringOrNull(offsets[2]);
   object.id = id;
-  object.label = reader.readString(offsets[1]);
-  object.lastSyncedAt = reader.readDateTimeOrNull(offsets[2]);
-  object.protocol = reader.readString(offsets[3]);
-  object.token = reader.readStringOrNull(offsets[4]);
-  object.username = reader.readStringOrNull(offsets[5]);
+  object.label = reader.readString(offsets[3]);
+  object.lastSyncedAt = reader.readDateTimeOrNull(offsets[4]);
+  object.protocol = reader.readString(offsets[5]);
+  object.token = reader.readStringOrNull(offsets[6]);
+  object.username = reader.readStringOrNull(offsets[7]);
   return object;
 }
 
@@ -116,16 +136,20 @@ P _networkServerEntityDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readString(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 1:
       return (reader.readString(offset)) as P;
     case 2:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 3:
       return (reader.readString(offset)) as P;
     case 4:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 5:
+      return (reader.readString(offset)) as P;
+    case 6:
+      return (reader.readStringOrNull(offset)) as P;
+    case 7:
       return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -236,6 +260,15 @@ extension NetworkServerEntityQueryFilter
           NetworkServerEntity,
           QFilterCondition
         > {
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  allowInsecureHttpEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'allowInsecureHttp', value: value),
+      );
+    });
+  }
+
   QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
   baseUrlEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -373,6 +406,165 @@ extension NetworkServerEntityQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         FilterCondition.greaterThan(property: r'baseUrl', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'credentialRef'),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'credentialRef'),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefEqualTo(String? value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'credentialRef',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'credentialRef',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'credentialRef',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'credentialRef',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'credentialRef',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'credentialRef',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'credentialRef',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'credentialRef',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'credentialRef', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterFilterCondition>
+  credentialRefIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'credentialRef', value: ''),
       );
     });
   }
@@ -1125,6 +1317,20 @@ extension NetworkServerEntityQueryLinks
 extension NetworkServerEntityQuerySortBy
     on QueryBuilder<NetworkServerEntity, NetworkServerEntity, QSortBy> {
   QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterSortBy>
+  sortByAllowInsecureHttp() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'allowInsecureHttp', Sort.asc);
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterSortBy>
+  sortByAllowInsecureHttpDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'allowInsecureHttp', Sort.desc);
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterSortBy>
   sortByBaseUrl() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'baseUrl', Sort.asc);
@@ -1135,6 +1341,20 @@ extension NetworkServerEntityQuerySortBy
   sortByBaseUrlDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'baseUrl', Sort.desc);
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterSortBy>
+  sortByCredentialRef() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'credentialRef', Sort.asc);
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterSortBy>
+  sortByCredentialRefDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'credentialRef', Sort.desc);
     });
   }
 
@@ -1212,6 +1432,20 @@ extension NetworkServerEntityQuerySortBy
 extension NetworkServerEntityQuerySortThenBy
     on QueryBuilder<NetworkServerEntity, NetworkServerEntity, QSortThenBy> {
   QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterSortBy>
+  thenByAllowInsecureHttp() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'allowInsecureHttp', Sort.asc);
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterSortBy>
+  thenByAllowInsecureHttpDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'allowInsecureHttp', Sort.desc);
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterSortBy>
   thenByBaseUrl() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'baseUrl', Sort.asc);
@@ -1222,6 +1456,20 @@ extension NetworkServerEntityQuerySortThenBy
   thenByBaseUrlDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'baseUrl', Sort.desc);
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterSortBy>
+  thenByCredentialRef() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'credentialRef', Sort.asc);
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QAfterSortBy>
+  thenByCredentialRefDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'credentialRef', Sort.desc);
     });
   }
 
@@ -1313,9 +1561,26 @@ extension NetworkServerEntityQuerySortThenBy
 extension NetworkServerEntityQueryWhereDistinct
     on QueryBuilder<NetworkServerEntity, NetworkServerEntity, QDistinct> {
   QueryBuilder<NetworkServerEntity, NetworkServerEntity, QDistinct>
+  distinctByAllowInsecureHttp() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'allowInsecureHttp');
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QDistinct>
   distinctByBaseUrl({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'baseUrl', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, NetworkServerEntity, QDistinct>
+  distinctByCredentialRef({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(
+        r'credentialRef',
+        caseSensitive: caseSensitive,
+      );
     });
   }
 
@@ -1363,10 +1628,24 @@ extension NetworkServerEntityQueryProperty
     });
   }
 
+  QueryBuilder<NetworkServerEntity, bool, QQueryOperations>
+  allowInsecureHttpProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'allowInsecureHttp');
+    });
+  }
+
   QueryBuilder<NetworkServerEntity, String, QQueryOperations>
   baseUrlProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'baseUrl');
+    });
+  }
+
+  QueryBuilder<NetworkServerEntity, String?, QQueryOperations>
+  credentialRefProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'credentialRef');
     });
   }
 

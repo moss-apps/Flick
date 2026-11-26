@@ -19,8 +19,13 @@ import '../../../data/database.dart';
 import '../../../data/repositories/song_repository.dart';
 import '../../../providers/providers.dart';
 import '../../../services/playlist_service.dart';
+import '../../../services/sources/jellyfin_password_store.dart';
 import '../../../services/sources/jellyfin_service.dart';
+import '../../../services/sources/network_credential_store.dart';
+import '../../../services/sources/network_endpoint_policy.dart';
 import '../../../services/sources/network_source_service.dart';
+import '../../../services/sources/smb_failure.dart';
+import '../../../services/sources/smb_service.dart';
 import '../../../services/sources/tidal_service.dart';
 import '../../../widgets/common/brand_icon.dart';
 import '../widgets/settings_widgets.dart';
@@ -135,13 +140,22 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
   String? _testVerificationUri;
   bool _saving = false;
   bool _isValid = false;
+  String? _insecureHttpEndpoint;
 
   bool get _isNew => widget.server == null;
+  bool get _busy => _testing || _saving;
 
   bool get _isTidal => _selectedProtocol == NetworkProtocol.tidal;
 
-  /// Tidal OAuth token resolved during this session (device-code login).
-  String? _resolvedToken;
+  bool get _showInsecureHttpOption =>
+      NetworkProtocol.usesAuthenticatedHttp(_selectedProtocol) &&
+      NetworkEndpointPolicy.isInsecureHttp(_urlController.text);
+
+  String get _enteredEndpoint =>
+      NetworkCredentialStore.normalizeEndpoint(_urlController.text);
+
+  /// Kept in memory if Tidal sign-in succeeds but saving it needs a retry.
+  NetworkCredential? _tidalSignIn;
 
   _ProtocolMeta get _meta =>
       _protocolsFor(l10n).firstWhere((p) => p.id == _selectedProtocol);
@@ -157,11 +171,12 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
     _urlController = TextEditingController(text: server?.baseUrl ?? '');
     _usernameController = TextEditingController(text: server?.username ?? '');
     _passwordController = TextEditingController();
+    if (server?.allowInsecureHttp ?? false) {
+      _insecureHttpEndpoint = _enteredEndpoint;
+    }
     _labelController.addListener(_updateValidity);
-    _urlController.addListener(_updateValidity);
-    _isValid =
-        _labelController.text.trim().isNotEmpty &&
-        _urlController.text.trim().isNotEmpty;
+    _urlController.addListener(_endpointChanged);
+    _isValid = _hasRequiredFields;
   }
 
   @override
@@ -173,36 +188,31 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
     super.dispose();
   }
 
+  bool get _hasRequiredFields =>
+      _labelController.text.trim().isNotEmpty &&
+      (_isTidal || _urlController.text.trim().isNotEmpty);
+
   void _updateValidity() {
-    final valid = _labelController.text.trim().isNotEmpty &&
-        (_isTidal || _urlController.text.trim().isNotEmpty);
+    final valid = _hasRequiredFields;
     if (_isValid != valid) setState(() => _isValid = valid);
   }
 
-  /// Resolve the token to persist. When a password is typed it's resolved
-  /// through the protocol service (local transform for Subsonic/WebDAV, a
-  /// sign-in round-trip for Jellyfin). Otherwise the existing token is kept.
-  /// Tidal has no password field — its device-code token is captured in
-  /// [_resolvedToken] during [_testConnection], or the previously-stored
-  /// sign-in is reused.
-  Future<String?> _resolvePersistedToken() async {
-    if (_isTidal) {
-      if (_resolvedToken != null) return _resolvedToken;
-      return widget.server?.token;
-    }
-    final password = _passwordController.text;
-    if (password.isNotEmpty) {
-      final draft = _draftEntity(token: null);
-      return await networkSourceServiceFor(_selectedProtocol)
-          .resolveToken(draft, password);
-    }
-    return widget.server?.token;
+  void _endpointChanged() {
+    setState(() {
+      _isValid = _hasRequiredFields;
+      if (_enteredEndpoint != _insecureHttpEndpoint) {
+        _insecureHttpEndpoint = null;
+      }
+      _testPassed = null;
+      _testError = null;
+    });
   }
 
-  // Fresh entity, never the caller's in-memory row. Test Connection resolves
-  // tokens from whatever is typed; mutating the shared entity here leaked
-  // untested credentials into the list screen even when the edit was abandoned.
-  NetworkServerEntity _draftEntity({String? token}) {
+  NetworkCredentialStore get _credentials => NetworkCredentialStore.instance;
+
+  // Snapshot the endpoint, account and HTTP consent together, before awaiting
+  // any login or storage operation.
+  NetworkServerEntity _draftEntity() {
     final old = widget.server;
     return NetworkServerEntity()
       ..id = old?.id ?? Isar.autoIncrement
@@ -213,14 +223,71 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
       ..protocol = _selectedProtocol
       ..baseUrl = _isTidal
           ? TidalService.tidalBaseUrl
-          : _urlController.text.trim().replaceAll(RegExp(r'/+$'), '')
+          : _enteredEndpoint
       ..username = _usernameController.text.trim().isEmpty
           ? null
           : _usernameController.text.trim()
-      ..token = token ?? old?.token;
+      ..allowInsecureHttp =
+          _showInsecureHttpOption && _insecureHttpEndpoint == _enteredEndpoint;
+  }
+
+  void _validateEndpoint(NetworkServerEntity draft) {
+    if (NetworkProtocol.usesAuthenticatedHttp(draft.protocol)) {
+      NetworkEndpointPolicy.requireAllowed(draft);
+    } else if (draft.protocol == NetworkProtocol.smb) {
+      try {
+        SmbService.parseServerUrl(draft.baseUrl);
+      } on FormatException catch (e) {
+        throw NetworkCredentialException(e.message);
+      }
+    }
+  }
+
+  Future<NetworkCredential?> _prepareCredential(
+    NetworkServerEntity draft,
+    String password,
+  ) async {
+    _validateEndpoint(draft);
+    if (draft.protocol == NetworkProtocol.tidal && _tidalSignIn != null) {
+      return _tidalSignIn;
+    }
+    if (password.isNotEmpty && draft.protocol != NetworkProtocol.upnp) {
+      final secret = await networkSourceServiceFor(draft.protocol)
+          .resolveToken(draft, password);
+      if (secret == null || secret.isEmpty) {
+        throw NetworkCredentialException(l10n.credentialMissing(draft.label));
+      }
+      return NetworkCredential.forServer(
+        draft,
+        secret,
+        password: draft.protocol == NetworkProtocol.jellyfin ? password : null,
+      );
+    }
+    final old = widget.server;
+    if (old != null && NetworkCredentialStore.sameDestination(old, draft)) {
+      // Validate the current slot, but don't rewrite it on a label or consent
+      // edit. An in-flight renewal may have just rotated its secret.
+      await _credentials.read(old);
+      draft.credentialRef = old.credentialRef;
+    } else if (old != null &&
+        (old.credentialRef != null ||
+            (old.token?.isNotEmpty ?? false)) &&
+        draft.protocol != NetworkProtocol.tidal) {
+      throw NetworkCredentialException(l10n.serverPasswordReentryRequired);
+    }
+    if (draft.credentialRef == null &&
+        (draft.protocol == NetworkProtocol.jellyfin ||
+            draft.protocol == NetworkProtocol.subsonic ||
+            draft.protocol == NetworkProtocol.tidal)) {
+      throw NetworkCredentialException(l10n.credentialMissing(draft.label));
+    }
+    return null;
   }
 
   Future<void> _testConnection() async {
+    if (_busy) return;
+    final draft = _draftEntity();
+    final password = _passwordController.text;
     setState(() {
       _testing = true;
       _testPassed = null;
@@ -228,26 +295,15 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
       _testVerificationUri = null;
     });
     AppHaptics.tap();
-    String? token;
     try {
-      token = await _resolvePersistedToken();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _testing = false;
-        _testPassed = false;
-        _testError = _humanError(e);
-      });
-      return;
-    }
-    if (_isTidal) {
-      await _testTidal(token);
-      return;
-    }
-    final entity = _draftEntity(token: token);
-    try {
-      final service = networkSourceServiceFor(_selectedProtocol);
-      final ok = await service.ping(entity);
+      if (draft.protocol == NetworkProtocol.tidal) {
+        await _testTidal(draft);
+        return;
+      }
+      final credential = await _prepareCredential(draft, password);
+      if (credential != null) _credentials.setDraft(draft, credential);
+      final service = networkSourceServiceFor(draft.protocol);
+      final ok = await service.ping(draft);
       if (!mounted) return;
       setState(() {
         _testing = false;
@@ -266,83 +322,107 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
 
   /// Tidal's test button means "sign in and connect": ping any stored session,
   /// and when it's missing OR dead (expired/revoked refresh token — the old
-  /// flow could never recover from that), run the device-code login. A fresh
-  /// sign-in is persisted immediately; previously the token only lived in
-  /// [_resolvedToken] and was silently dropped unless the user also tapped
-  /// Add Server, so the account never stayed signed in.
-  Future<void> _testTidal(String? storedToken) async {
-    try {
-      var ok = storedToken != null &&
-          storedToken.isNotEmpty &&
-          await TidalService.instance.ping(_draftEntity(token: storedToken));
-      if (!ok) {
-        final token = await TidalService.instance.signIn(
-          onVerificationLink: (uri) {
-            if (!mounted) return;
-            setState(() => _testVerificationUri = uri);
-          },
-        );
-        _resolvedToken = token;
-        if (!mounted) return;
-        setState(() => _testVerificationUri = null);
-        ok = await TidalService.instance.ping(_draftEntity(token: token));
-      }
+  /// flow could never recover from that), run the device-code login. Ping a
+  /// saved session through its real ref so a refresh updates the saved token.
+  Future<void> _testTidal(NetworkServerEntity draft) async {
+    final tidal = TidalService.instance;
+    final old = widget.server;
+    final pending = _tidalSignIn;
+    if (pending != null) {
+      _credentials.setDraft(draft, pending);
+    } else if (old != null &&
+        NetworkCredentialStore.sameDestination(old, draft)) {
+      draft.credentialRef = old.credentialRef;
+    }
+    var ok = await tidal.ping(draft);
+    if (!mounted) return;
+    if (!ok) {
+      final token = await tidal.signIn(
+        onVerificationLink: (uri) {
+          if (mounted) setState(() => _testVerificationUri = uri);
+        },
+      );
       if (!mounted) return;
-      setState(() {
-        _testing = false;
-        _testPassed = ok;
-      });
-      if (ok && _resolvedToken != null) await _save(force: true);
-    } catch (e) {
+      draft.credentialRef = null;
+      _credentials.setDraft(draft, NetworkCredential.forServer(draft, token));
+      setState(() => _testVerificationUri = null);
+      ok = await tidal.ping(draft);
+    }
+    if (!mounted) return;
+    if (ok && draft.credentialRef == null) {
+      _tidalSignIn = await _credentials.read(draft);
       if (!mounted) return;
-      setState(() {
-        _testing = false;
-        _testPassed = false;
-        _testError = _humanError(e);
-      });
+    }
+    setState(() {
+      _testing = false;
+      _testPassed = ok;
+    });
+    if (ok && _tidalSignIn != null) {
+      await _saveDraft(draft, '');
     }
   }
 
-  Future<void> _save({bool force = false}) async {
-    if (!_isValid && !force) return;
+  Future<void> _save() async {
+    if (_busy || !_isValid) return;
+    await _saveDraft(_draftEntity(), _passwordController.text);
+  }
+
+  Future<void> _saveDraft(NetworkServerEntity draft, String password) async {
     setState(() => _saving = true);
-    String? token;
+    final old = widget.server;
+    final providers = ProviderScope.containerOf(context, listen: false);
+    String? stagedRef;
     try {
-      token = await _resolvePersistedToken();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _testPassed = false;
-        _testError = _humanError(e);
+      final credential = await _prepareCredential(draft, password);
+      if (credential != null) {
+        stagedRef = await _credentials.stage(credential);
+        draft.credentialRef = stagedRef;
+      }
+      await Database.instance.writeTxn(() async {
+        if (old != null) {
+          final current = await Database.networkServers.get(old.id);
+          if (current == null ||
+              current.credentialRef != old.credentialRef ||
+              current.allowInsecureHttp != old.allowInsecureHttp ||
+              !NetworkCredentialStore.sameDestination(current, old)) {
+            throw NetworkCredentialException(l10n.credentialSaveConflict);
+          }
+          draft.lastSyncedAt = current.lastSyncedAt;
+        }
+        await Database.networkServers.put(draft);
       });
+    } catch (e) {
+      await _credentials.deleteRef(stagedRef);
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _testPassed = false;
+          _testError = _humanError(e);
+        });
+      }
       return;
     }
-    final password = _passwordController.text;
-    if (_selectedProtocol == NetworkProtocol.jellyfin &&
-        token != null &&
-        password.isNotEmpty) {
-      await JellyfinService.instance
-          .persistPassword(_draftEntity(token: token), password);
+    if (old?.credentialRef != draft.credentialRef) {
+      await _credentials.deleteRef(old?.credentialRef);
     }
-    await Database.instance.writeTxn(() async {
-      await Database.networkServers.put(_draftEntity(token: token));
-    });
-    ref.invalidate(networkServersProvider);
+    providers.invalidate(networkServersProvider);
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
 
   String _humanError(Object e) {
-    final raw = e.toString();
-    // Trim the "UnsupportedError: " / "Exception: " boilerplate.
-    final colon = raw.indexOf(': ');
-    return colon > 0 && colon < 24 ? raw.substring(colon + 2) : raw;
+    return switch (e) {
+      NetworkCredentialException() => e.message,
+      JellyfinNetworkException() => e.message,
+      TidalException() => e.message,
+      SmbFailure() => e.message,
+      _ => l10n.couldNotReachTheServer,
+    };
   }
 
   Future<void> _delete() async {
     final server = widget.server;
-    if (server == null) return;
+    if (server == null || _busy) return;
     AppHaptics.tap();
     final confirmed = await FlickDialogs.confirm(
       context,
@@ -352,16 +432,33 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
       confirmLabel: l10n.englishForFilipino.delete,
       destructive: true,
     );
-    if (!confirmed) return;
-    if (server.protocol == NetworkProtocol.jellyfin) {
-      await JellyfinService.instance.forgetPassword(server.id);
+    if (!confirmed || !mounted || _busy) return;
+    setState(() => _saving = true);
+    final providers = ProviderScope.containerOf(context, listen: false);
+    try {
+      final removed = await Database.instance.writeTxn(() async {
+        final current = await Database.networkServers.get(server.id);
+        await Database.networkServers.delete(server.id);
+        return current;
+      });
+      await _credentials.deleteRef(removed?.credentialRef);
+      await SongRepository().deleteSongsForRemoteServer(server.id);
+      await PlaylistService.instance.removeNetworkPlaylistsForServer('${server.id}');
+      if (removed?.protocol == NetworkProtocol.jellyfin) {
+        await JellyfinPasswordStore().delete(server.id);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _testPassed = false;
+          _testError = _humanError(e);
+        });
+      }
+      return;
+    } finally {
+      providers.invalidate(networkServersProvider);
     }
-    await Database.instance.writeTxn(() async {
-      await Database.networkServers.delete(server.id);
-    });
-    await SongRepository().deleteSongsForRemoteServer(server.id);
-    await PlaylistService.instance.removeNetworkPlaylistsForServer('${server.id}');
-    ref.invalidate(networkServersProvider);
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
@@ -378,8 +475,7 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
       return _isTidal ? l10n.signInFailedRetry : l10n.connectionFailedRetry;
     }
     if (_isTidal) {
-      final hasToken = _resolvedToken != null ||
-          (widget.server?.token?.isNotEmpty ?? false);
+      final hasToken = _tidalSignIn != null || widget.server?.credentialRef != null;
       return hasToken ? l10n.testConnection : l10n.signInWithTidal;
     }
     return l10n.testConnection;
@@ -407,7 +503,7 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
                   title: protocols[i].label,
                   subtitle: protocols[i].subtitle,
                   selected: _selectedProtocol == protocols[i].id,
-                  onTap: _isNew
+                   onTap: _isNew && !_busy
                       ? () {
                           AppHaptics.tap();
                           setState(() {
@@ -415,7 +511,9 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
                             _testPassed = null;
                             _testError = null;
                             _testVerificationUri = null;
-                            _resolvedToken = null;
+                             _tidalSignIn = null;
+                             _insecureHttpEndpoint = null;
+                              _isValid = _hasRequiredFields;
                           });
                         }
                       : null,
@@ -454,6 +552,7 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
           SettingsCard(
             children: [
               _TextFieldSetting(
+                enabled: !_busy,
                 controller: _labelController,
                 icon: LucideIcons.tag,
                 label: l10n.englishForFilipino.label,
@@ -462,20 +561,40 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
               if (!_isTidal) ...[
                 const SettingsDivider(),
                 _TextFieldSetting(
+                  enabled: !_busy,
                   controller: _urlController,
                   icon: LucideIcons.link,
                   label: l10n.englishForFilipino.serverUrl,
                   hint: _meta.urlHint,
                   keyboardType: TextInputType.url,
                 ),
+                if (_showInsecureHttpOption) ...[
+                  const SettingsDivider(),
+                  ToggleSetting(
+                    icon: LucideIcons.triangleAlert,
+                    title: l10n.allowInsecureHttp,
+                    subtitle: l10n.allowInsecureHttpDescription,
+                     value: _insecureHttpEndpoint == _enteredEndpoint,
+                     onChanged: (value) {
+                       if (_busy) return;
+                       setState(() {
+                         _insecureHttpEndpoint = value ? _enteredEndpoint : null;
+                        _testPassed = null;
+                        _testError = null;
+                      });
+                    },
+                  ),
+                ],
                 const SettingsDivider(),
                 _TextFieldSetting(
+                  enabled: !_busy,
                   controller: _usernameController,
                   icon: LucideIcons.user,
                   label: l10n.englishForFilipino.username,
                 ),
                 const SettingsDivider(),
                 _TextFieldSetting(
+                  enabled: !_busy,
                   controller: _passwordController,
                   icon: LucideIcons.lock,
                   label: l10n.englishForFilipino.password,
@@ -491,7 +610,7 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
           SizedBox(
             width: double.infinity,
             child: FilledButton.tonalIcon(
-              onPressed: _testing || _saving ? null : _testConnection,
+              onPressed: _busy ? null : _testConnection,
               icon: _testing
                   ? const SizedBox(
                       width: 16,
@@ -520,7 +639,7 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: (_saving || !_isValid) ? null : _save,
+              onPressed: (_busy || !_isValid) ? null : _save,
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -540,7 +659,7 @@ class _NetworkServerEditScreenState extends ConsumerState<NetworkServerEditScree
             const SizedBox(height: AppConstants.spacingLg),
             Center(
               child: TextButton.icon(
-                onPressed: _saving ? null : _delete,
+                onPressed: _busy ? null : _delete,
                 icon: const Icon(LucideIcons.trash2, size: 16),
                 label: Text(l10n.removeServer2),
                 style: TextButton.styleFrom(
@@ -717,6 +836,7 @@ class _TextFieldSetting extends StatefulWidget {
     this.helperText,
     this.obscureText = false,
     this.keyboardType,
+    this.enabled = true,
   });
 
   final TextEditingController controller;
@@ -726,6 +846,7 @@ class _TextFieldSetting extends StatefulWidget {
   final String? helperText;
   final bool obscureText;
   final TextInputType? keyboardType;
+  final bool enabled;
 
   @override
   State<_TextFieldSetting> createState() => _TextFieldSettingState();
@@ -758,10 +879,11 @@ class _TextFieldSettingState extends State<_TextFieldSetting> {
                 const SizedBox(height: 6),
                 TextField(
                   controller: widget.controller,
+                  enabled: widget.enabled,
                   obscureText: _obscured,
                   keyboardType: widget.keyboardType,
                   autocorrect: false,
-                  enableSuggestions: !_obscured,
+                  enableSuggestions: !widget.obscureText,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: context.adaptiveTextPrimary,
                   ),

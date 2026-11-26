@@ -19,9 +19,17 @@ class NetworkServerEntity {
   /// User name used for authentication.
   String? username;
 
-  /// Secret, never plaintext: Subsonic stores the salt+md5 hex form
-  /// (`salt:md5hex`), Jellyfin stores the server-issued token, WebDAV the
-  /// bearer token.
+  /// Explicit opt-in for sending credentials over plain HTTP. HTTPS is the
+  /// default; users can enable this for a trusted LAN endpoint.
+  bool allowInsecureHttp = false;
+
+  /// Non-secret reference into the Android Keystore-backed credential store.
+  /// The actual protocol token/password is never written to Isar.
+  String? credentialRef;
+
+  /// Legacy secret column. Read only by [NetworkCredentialMigration] to move
+  /// existing installs into secure storage, then cleared. New code must use
+  /// [credentialRef] and `NetworkCredentialStore`.
   String? token;
 
   /// Last time a library sync (metadata fetch) succeeded for this server.

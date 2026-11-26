@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (android:dataExtractionRules).
+
+  Same policy as backup_rules.xml: never transfer the legacy mixed Isar database,
+  logs that may contain old credentials, or Keystore-backed secure storage
+  ciphertext that cannot be decrypted on the destination. Ordinary settings
+  remain eligible for both cloud backup and device-to-device transfer.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="app_flutter/flick_player.isar" />
+        <exclude domain="root" path="app_flutter/flick_player.isar.lock" />
+        <exclude domain="file" path="logs/" />
+
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:FlutterSecureStorage.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage:FlutterSecureStorage.xml" />
+        <exclude domain="sharedpref" path="network_credentials.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:network_credentials.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage:network_credentials.xml" />
+
+        <!-- Direct-boot/device-protected storage, if ever used. -->
+        <exclude domain="device_root" path="app_flutter/flick_player.isar" />
+        <exclude domain="device_root" path="app_flutter/flick_player.isar.lock" />
+        <exclude domain="device_file" path="logs/" />
+        <exclude domain="device_sharedpref" path="FlutterSecureStorage.xml" />
+        <exclude domain="device_sharedpref" path="network_credentials.xml" />
+    </cloud-backup>
+
+    <device-transfer>
+        <exclude domain="root" path="app_flutter/flick_player.isar" />
+        <exclude domain="root" path="app_flutter/flick_player.isar.lock" />
+        <exclude domain="file" path="logs/" />
+
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:FlutterSecureStorage.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage:FlutterSecureStorage.xml" />
+        <exclude domain="sharedpref" path="network_credentials.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:network_credentials.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage:network_credentials.xml" />
+
+        <exclude domain="device_root" path="app_flutter/flick_player.isar" />
+        <exclude domain="device_root" path="app_flutter/flick_player.isar.lock" />
+        <exclude domain="device_file" path="logs/" />
+        <exclude domain="device_sharedpref" path="FlutterSecureStorage.xml" />
+        <exclude domain="device_sharedpref" path="network_credentials.xml" />
+    </device-transfer>
+</data-extraction-rules>

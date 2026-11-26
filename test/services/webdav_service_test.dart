@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
 
+import 'network_credential_fixture.dart';
+
 const _multistatus = '<?xml version="1.0"?>'
     '<D:multistatus xmlns:D="DAV:">'
     '<D:response>'
@@ -31,9 +33,8 @@ NetworkServerEntity _server({String? token}) {
     ..label = 'Dav'
     ..protocol = 'webdav'
     ..baseUrl = 'https://dav.example.com/music'
-    ..username = 'alice'
-    ..token = token;
-  return entity;
+    ..username = 'alice';
+  return withCredential(entity, token);
 }
 
 void main() {

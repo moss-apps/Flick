@@ -7036,7 +7036,7 @@ abstract class AppLocalizations {
   /// lib/features/settings/screens/network_server_edit_screen.dart:77
   ///
   /// In en, this message translates to:
-  /// **'HTTP Basic needs it recoverable; stored encoded'**
+  /// **'Encrypted on this device; used for HTTP Basic sign-in'**
   String get httpBasicNeedsItRecoverableStored;
 
   /// lib/features/player/widgets/bit_perfect_indicator.dart:1145
@@ -12012,6 +12012,90 @@ abstract class AppLocalizations {
   /// **'Server URL'**
   String get serverUrl;
 
+  /// lib/features/settings/screens/network_server_edit_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Allow insecure HTTP'**
+  String get allowInsecureHttp;
+
+  /// lib/features/settings/screens/network_server_edit_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials are sent unencrypted. Enable only for a trusted LAN server.'**
+  String get allowInsecureHttpDescription;
+
+  /// lib/features/settings/screens/network_server_edit_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the password again for the new server URL or account.'**
+  String get serverPasswordReentryRequired;
+
+  /// lib/services/sources/network_endpoint_policy.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the username or password from the server URL; use the username and password fields instead.'**
+  String get serverUrlContainsCredentials;
+
+  /// lib/services/sources/network_endpoint_policy.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid server URL for {label}.'**
+  String serverUrlInvalid(String label);
+
+  /// lib/services/sources/network_endpoint_policy.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported URL scheme for {label}.'**
+  String serverUrlUnsupportedScheme(String label);
+
+  /// lib/services/sources/network_endpoint_policy.dart
+  ///
+  /// In en, this message translates to:
+  /// **'This server uses unencrypted HTTP. Use an https:// URL, or enable \"Allow insecure HTTP\" for a trusted LAN server.'**
+  String get serverRequiresHttps;
+
+  /// lib/services/sources/network_credential_store.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Could not verify secure credential storage. Try again.'**
+  String get credentialStorageVerifyFailed;
+
+  /// lib/services/sources/network_credential_store.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save credentials securely. Try again.'**
+  String get credentialStorageSaveFailed;
+
+  /// lib/services/sources/network_credential_store.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Stored credentials could not be decrypted on this device. Re-enter them in Settings > Network sources.'**
+  String get credentialStorageDecryptFailed;
+
+  /// lib/services/sources/network_credential_store.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Stored credentials are unreadable. Re-enter them in Settings > Network sources.'**
+  String get credentialStorageUnreadable;
+
+  /// lib/services/sources/network_credential_store.dart
+  ///
+  /// In en, this message translates to:
+  /// **'The saved credentials belong to a different server or account. Re-enter the password for {label}.'**
+  String credentialServerMismatch(String label);
+
+  /// lib/services/sources/network_credential_store.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials for {label} are missing. Re-enter them in Settings > Network sources.'**
+  String credentialMissing(String label);
+
+  /// lib/features/settings/screens/network_server_edit_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'This server changed while you were editing it. Reopen it and try again.'**
+  String get credentialSaveConflict;
+
   /// lib/features/settings/screens/casting_settings_screen.dart:107
   ///
   /// In en, this message translates to:
@@ -13449,13 +13533,13 @@ abstract class AppLocalizations {
   /// lib/features/settings/screens/network_server_edit_screen.dart:61
   ///
   /// In en, this message translates to:
-  /// **'Stored as a salted hash, never in plaintext'**
+  /// **'The salted hash is encrypted on this device'**
   String get storedAsASaltedHashNever;
 
   /// lib/features/settings/screens/network_server_edit_screen.dart:93
   ///
   /// In en, this message translates to:
-  /// **'Stored base64-encoded — required for NTLM sign-in'**
+  /// **'Encrypted on this device; used for NTLM sign-in'**
   String get storedEncodedPlaybackUnavailableInThis;
 
   /// lib/models/song.dart:376
@@ -16227,6 +16311,234 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Measured from a separate source-file decode. Some formats include decoder padding, which can affect duration and silence measurements. Playback, DSP, and tags are unchanged.'**
   String get audioAnalysisSourceNote;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'What these services receive'**
+  String get integrationsPrivacyNoteTitle;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Only what you turn on. Tap for details.'**
+  String get integrationsPrivacyNoteSubtitle;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'What leaves this device'**
+  String get integrationsPrivacySheetTitle;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Flick has no account or cloud. Data goes only to the services you connect.'**
+  String get integrationsPrivacyIntro;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Last.fm'**
+  String get integrationsLastFmHeading;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'When you scrobble, Flick sends the track title, artist, album, and play time to Last.fm. Your sign-in key is stored encrypted on this phone.'**
+  String get integrationsLastFmBody;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'ListenBrainz'**
+  String get integrationsListenBrainzHeading;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'When you listen, Flick sends the same listening details to ListenBrainz. Your token is stored encrypted on this phone.'**
+  String get integrationsListenBrainzBody;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Music catalog'**
+  String get integrationsAppleMusicHeading;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Album, artist, and song names are sent to Apple when Flick looks up artwork or metadata. No Apple account or password is used.'**
+  String get integrationsAppleMusicBody;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'After disconnecting'**
+  String get integrationsDisconnectHeading;
+
+  /// lib/features/settings/screens/integrations_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Flick stops sending new data. Past scrobbles stay on the service until you remove them there.'**
+  String get integrationsDisconnectBody;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'How connections work'**
+  String get networkPrivacyNoteTitle;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Direct connection, stored sign-in. Tap for details.'**
+  String get networkPrivacyNoteSubtitle;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Your server, your data'**
+  String get networkPrivacySheetTitle;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Flick connects directly to the server you add. Nothing passes through a Flick server.'**
+  String get networkPrivacyIntro;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in'**
+  String get networkCredentialsHeading;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Usernames, passwords, and access tokens are stored encrypted on this phone, not in plain text.'**
+  String get networkCredentialsBody;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get networkLibraryHeading;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Sync copies song details and artwork to this phone. Audio stays on your server and plays over the network.'**
+  String get networkLibraryBody;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Plain HTTP'**
+  String get networkHttpHeading;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'With HTTP, your sign-in and listening data can be read by others on that network. Use HTTPS when the server supports it. Allow HTTP only for a network you trust.'**
+  String get networkHttpBody;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Removing a server'**
+  String get networkRemovalHeading;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Removing it deletes the saved sign-in and synced songs from this phone. It does not change anything on the server.'**
+  String get networkRemovalBody;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Backup and transfer'**
+  String get networkBackupHeading;
+
+  /// lib/features/settings/screens/network_sources_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Android backup and phone-to-phone transfer skip saved sign-ins and Flick\'s database. Add the server again on a new phone. Your music stays on the server.'**
+  String get networkBackupBody;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'What the receiver can see'**
+  String get castPrivacyNoteTitle;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Temporary track links, not your password. Tap for details.'**
+  String get castPrivacyNoteSubtitle;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'How casting handles access'**
+  String get castPrivacySheetTitle;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Casting sends playback from this phone to the device you choose.'**
+  String get castPrivacyIntro;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Signed-in servers'**
+  String get castLinkHeading;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'The receiver gets a temporary link from this phone for the current track. It never gets the server password or token.'**
+  String get castLinkBody;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Open sources'**
+  String get castOpenHeading;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'UPnP and Tidal tracks load directly from that source. Your server sign-in is not used.'**
+  String get castOpenBody;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Before playback'**
+  String get castDownloadHeading;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Tracks from signed-in servers may download fully before casting starts, because the receiver cannot use the server sign-in.'**
+  String get castDownloadBody;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping'**
+  String get castStopHeading;
+
+  /// lib/features/settings/screens/casting_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Switching tracks, stopping the cast, or disconnecting closes the old link.'**
+  String get castStopBody;
 }
 
 class _AppLocalizationsDelegate

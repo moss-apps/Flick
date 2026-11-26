@@ -11,14 +11,16 @@ import '../../data/repositories/song_repository.dart';
 import '../library_scanner_service.dart' show ScanProgress;
 import '../network_cache_service.dart';
 import '../../src/rust/api/smb_api.dart';
+import 'network_credential_store.dart';
 import 'network_source_service.dart';
 import 'smb_failure.dart';
 import 'package:flick/l10n/l10n.dart';
 
 /// SMB2/3 client backed by the pure-Rust `smb2` crate (via flutter_rust_bridge).
 ///
-/// Auth: NTLM needs the recoverable password, so [NetworkServerEntity.token]
-/// stores `base64(password)` (not a hash) — same tradeoff as WebDAV.
+/// Auth: NTLM needs the recoverable password. The protocol-specific
+/// `base64(password)` secret lives in Keystore-backed secure storage, never in
+/// Isar; [NetworkServerEntity] only holds its opaque `credentialRef`.
 ///
 /// Metadata limitation: SMB exposes only filename + size + mtime. Title is
 /// derived from the filename, album from the parent folder, artist from the
@@ -51,10 +53,12 @@ class SmbService implements NetworkSourceService {
     NetworkCacheService? networkCache,
     SmbDownloader? downloader,
     SmbConnectionTest? connectionTest,
+    NetworkCredentialStore? credentialStore,
   }) : _songRepository = songRepository,
        _networkCache = networkCache,
        _downloader = downloader ?? smbDownloadFile,
-       _connectionTest = connectionTest ?? smbPing;
+       _connectionTest = connectionTest ?? smbPing,
+       _credentials = credentialStore ?? NetworkCredentialStore.instance;
 
   static SmbService instance = SmbService._();
 
@@ -63,14 +67,17 @@ class SmbService implements NetworkSourceService {
     required NetworkCacheService networkCache,
     required SmbDownloader downloader,
     SmbConnectionTest? connectionTest,
+    NetworkCredentialStore? credentialStore,
   }) => SmbService._(
     networkCache: networkCache,
     downloader: downloader,
     connectionTest: connectionTest,
+    credentialStore: credentialStore,
   );
 
   final SmbDownloader _downloader;
   final SmbConnectionTest _connectionTest;
+  final NetworkCredentialStore _credentials;
   final _downloads = <(int, String), _SmbDownload>{};
 
   static const _audioExtensions = {
@@ -119,12 +126,14 @@ class SmbService implements NetworkSourceService {
     return password.isEmpty ? null : base64Encode(utf8.encode(password));
   }
 
-  String _password(NetworkServerEntity server) {
-    if (server.token == null || server.token!.isEmpty) return '';
+  Future<String> _password(NetworkServerEntity server) async {
+    final credential = await _credentials.read(server);
+    final stored = credential?.secret;
+    if (stored == null || stored.isEmpty) return '';
     try {
-      return utf8.decode(base64Decode(server.token!));
-    } catch (_) {
-      return '';
+      return utf8.decode(base64Decode(stored));
+    } on FormatException {
+      throw NetworkCredentialException(l10n.credentialStorageUnreadable);
     }
   }
 
@@ -189,7 +198,7 @@ class SmbService implements NetworkSourceService {
         port: s.port,
         share: s.share,
         user: server.username ?? '',
-        pass: _password(server),
+        pass: await _password(server),
         rootPath: s.rootPath,
       );
       AppLog.instance.add(
@@ -210,6 +219,7 @@ class SmbService implements NetworkSourceService {
 
   /// Turn a native error into safe, actionable guidance (never raw text).
   static String describePingError(Object error) {
+    if (error is NetworkCredentialException) return error.message;
     final raw = error.toString();
     final lower = raw.toLowerCase();
     if (lower.contains('authentication failed') ||
@@ -261,7 +271,7 @@ class SmbService implements NetworkSourceService {
       share: s.share,
       path: path,
       user: server.username ?? '',
-      pass: _password(server),
+      pass: await _password(server),
     );
   }
 
@@ -342,7 +352,7 @@ class SmbService implements NetworkSourceService {
         share: s.share,
         path: remoteId,
         user: server.username ?? '',
-        pass: _password(server),
+        pass: await _password(server),
         destPath: destPath,
       )) {
         received = p.received.toInt();
@@ -382,6 +392,7 @@ class SmbService implements NetworkSourceService {
           /* Best effort: native staging already isolates partials. */
         }
       }
+      if (e is NetworkCredentialException) rethrow;
       final failure = e is FileSystemException
           ? const SmbFailure('cache', 'storage')
           : SmbFailure.from(e);
@@ -405,7 +416,7 @@ class SmbService implements NetworkSourceService {
   Stream<ScanProgress> syncLibrary(NetworkServerEntity server) async* {
     final s = _parseServer(server);
     final user = server.username ?? '';
-    final pass = _password(server);
+    final pass = await _password(server);
 
     // Remember the sizes of already-listed rows so a replaced file invalidates
     // its cached bytes as well as its metadata. SMB listings expose size only.

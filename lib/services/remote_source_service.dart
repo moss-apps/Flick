@@ -66,6 +66,9 @@ class RemoteSourceService {
     if (server == null) {
       throw StateError('Network server $serverId not found');
     }
+    if (server.protocol != song.sourceType) {
+      throw StateError('Network song protocol does not match its server');
+    }
     return server;
   }
 
@@ -75,16 +78,12 @@ class RemoteSourceService {
     if (!song.isNetworkSource) {
       throw StateError('Song is not a network source');
     }
-    final sourceType = song.sourceType;
-    if (sourceType == null) {
-      throw StateError('Network song has no source type');
-    }
     final server = await _serverFor(song);
     final remoteId = song.remoteId;
     if (remoteId == null) {
       throw StateError('Network song has no remote id');
     }
-    final service = networkSourceServiceFor(sourceType);
+    final service = networkSourceServiceFor(server.protocol);
     try {
       final path = await service.stream(
         server,
@@ -148,19 +147,18 @@ class RemoteSourceService {
     Song song,
   ) async {
     if (!song.isNetworkSource) return null;
-    final sourceType = song.sourceType;
     final remoteId = song.remoteId;
-    if (sourceType == null || remoteId == null) return null;
+    if (remoteId == null) return null;
     try {
       final server = await _serverFor(song);
-      final service = networkSourceServiceFor(sourceType);
+      final service = networkSourceServiceFor(server.protocol);
       return await service.streamDescriptor(
         server,
         remoteId,
         extension: song.fileType,
       );
     } catch (e) {
-      AppLog.instance.add('HTTP stream resolve failed for "${song.title}": $e');
+      AppLog.instance.add('HTTP stream resolve failed (${e.runtimeType})');
       return null;
     }
   }

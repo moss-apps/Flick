@@ -5123,7 +5123,7 @@
   "@howWideEachCardSpansAcross": {
     "description": "lib/features/settings/screens/orbit_settings_screen.dart:92"
   },
-  "httpBasicNeedsItRecoverableStored": "HTTP Basic needs it recoverable; stored encoded",
+  "httpBasicNeedsItRecoverableStored": "Encrypted on this device; used for HTTP Basic sign-in",
   "@httpBasicNeedsItRecoverableStored": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:77"
   },
@@ -9051,6 +9051,82 @@
   "@serverUrl": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:442"
   },
+  "allowInsecureHttp": "Allow insecure HTTP",
+  "@allowInsecureHttp": {
+    "description": "lib/features/settings/screens/network_server_edit_screen.dart"
+  },
+  "allowInsecureHttpDescription": "Credentials are sent unencrypted. Enable only for a trusted LAN server.",
+  "@allowInsecureHttpDescription": {
+    "description": "lib/features/settings/screens/network_server_edit_screen.dart"
+  },
+  "serverPasswordReentryRequired": "Enter the password again for the new server URL or account.",
+  "@serverPasswordReentryRequired": {
+    "description": "lib/features/settings/screens/network_server_edit_screen.dart"
+  },
+  "serverUrlContainsCredentials": "Remove the username or password from the server URL; use the username and password fields instead.",
+  "@serverUrlContainsCredentials": {
+    "description": "lib/services/sources/network_endpoint_policy.dart"
+  },
+  "serverUrlInvalid": "Invalid server URL for {label}.",
+  "@serverUrlInvalid": {
+    "description": "lib/services/sources/network_endpoint_policy.dart",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "serverUrlUnsupportedScheme": "Unsupported URL scheme for {label}.",
+  "@serverUrlUnsupportedScheme": {
+    "description": "lib/services/sources/network_endpoint_policy.dart",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "serverRequiresHttps": "This server uses unencrypted HTTP. Use an https:// URL, or enable \"Allow insecure HTTP\" for a trusted LAN server.",
+  "@serverRequiresHttps": {
+    "description": "lib/services/sources/network_endpoint_policy.dart"
+  },
+  "credentialStorageVerifyFailed": "Could not verify secure credential storage. Try again.",
+  "@credentialStorageVerifyFailed": {
+    "description": "lib/services/sources/network_credential_store.dart"
+  },
+  "credentialStorageSaveFailed": "Could not save credentials securely. Try again.",
+  "@credentialStorageSaveFailed": {
+    "description": "lib/services/sources/network_credential_store.dart"
+  },
+  "credentialStorageDecryptFailed": "Stored credentials could not be decrypted on this device. Re-enter them in Settings > Network sources.",
+  "@credentialStorageDecryptFailed": {
+    "description": "lib/services/sources/network_credential_store.dart"
+  },
+  "credentialStorageUnreadable": "Stored credentials are unreadable. Re-enter them in Settings > Network sources.",
+  "@credentialStorageUnreadable": {
+    "description": "lib/services/sources/network_credential_store.dart"
+  },
+  "credentialServerMismatch": "The saved credentials belong to a different server or account. Re-enter the password for {label}.",
+  "@credentialServerMismatch": {
+    "description": "lib/services/sources/network_credential_store.dart",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "credentialMissing": "Credentials for {label} are missing. Re-enter them in Settings > Network sources.",
+  "@credentialMissing": {
+    "description": "lib/services/sources/network_credential_store.dart",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "credentialSaveConflict": "This server changed while you were editing it. Reopen it and try again.",
+  "@credentialSaveConflict": {
+    "description": "lib/features/settings/screens/network_server_edit_screen.dart"
+  },
   "session": "Session",
   "@session": {
     "description": "lib/features/settings/screens/casting_settings_screen.dart:107"
@@ -10137,11 +10213,11 @@
   "@storeOn": {
     "description": "lib/features/playlists/screens/playlists_screen.dart:372"
   },
-  "storedAsASaltedHashNever": "Stored as a salted hash, never in plaintext",
+  "storedAsASaltedHashNever": "The salted hash is encrypted on this device",
   "@storedAsASaltedHashNever": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:61"
   },
-  "storedEncodedPlaybackUnavailableInThis": "Stored base64-encoded — required for NTLM sign-in",
+  "storedEncodedPlaybackUnavailableInThis": "Encrypted on this device; used for NTLM sign-in",
   "@storedEncodedPlaybackUnavailableInThis": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:93"
   },
@@ -12238,5 +12314,157 @@
   "audioAnalysisSourceNote": "Measured from a separate source-file decode. Some formats include decoder padding, which can affect duration and silence measurements. Playback, DSP, and tags are unchanged.",
   "@audioAnalysisSourceNote": {
     "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "integrationsPrivacyNoteTitle": "What these services receive",
+  "@integrationsPrivacyNoteTitle": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsPrivacyNoteSubtitle": "Only what you turn on. Tap for details.",
+  "@integrationsPrivacyNoteSubtitle": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsPrivacySheetTitle": "What leaves this device",
+  "@integrationsPrivacySheetTitle": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsPrivacyIntro": "Flick has no account or cloud. Data goes only to the services you connect.",
+  "@integrationsPrivacyIntro": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsLastFmHeading": "Last.fm",
+  "@integrationsLastFmHeading": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsLastFmBody": "When you scrobble, Flick sends the track title, artist, album, and play time to Last.fm. Your sign-in key is stored encrypted on this phone.",
+  "@integrationsLastFmBody": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsListenBrainzHeading": "ListenBrainz",
+  "@integrationsListenBrainzHeading": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsListenBrainzBody": "When you listen, Flick sends the same listening details to ListenBrainz. Your token is stored encrypted on this phone.",
+  "@integrationsListenBrainzBody": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsAppleMusicHeading": "Apple Music catalog",
+  "@integrationsAppleMusicHeading": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsAppleMusicBody": "Album, artist, and song names are sent to Apple when Flick looks up artwork or metadata. No Apple account or password is used.",
+  "@integrationsAppleMusicBody": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsDisconnectHeading": "After disconnecting",
+  "@integrationsDisconnectHeading": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsDisconnectBody": "Flick stops sending new data. Past scrobbles stay on the service until you remove them there.",
+  "@integrationsDisconnectBody": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "networkPrivacyNoteTitle": "How connections work",
+  "@networkPrivacyNoteTitle": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkPrivacyNoteSubtitle": "Direct connection, stored sign-in. Tap for details.",
+  "@networkPrivacyNoteSubtitle": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkPrivacySheetTitle": "Your server, your data",
+  "@networkPrivacySheetTitle": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkPrivacyIntro": "Flick connects directly to the server you add. Nothing passes through a Flick server.",
+  "@networkPrivacyIntro": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkCredentialsHeading": "Sign-in",
+  "@networkCredentialsHeading": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkCredentialsBody": "Usernames, passwords, and access tokens are stored encrypted on this phone, not in plain text.",
+  "@networkCredentialsBody": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkLibraryHeading": "Library",
+  "@networkLibraryHeading": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkLibraryBody": "Sync copies song details and artwork to this phone. Audio stays on your server and plays over the network.",
+  "@networkLibraryBody": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkHttpHeading": "Plain HTTP",
+  "@networkHttpHeading": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkHttpBody": "With HTTP, your sign-in and listening data can be read by others on that network. Use HTTPS when the server supports it. Allow HTTP only for a network you trust.",
+  "@networkHttpBody": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkRemovalHeading": "Removing a server",
+  "@networkRemovalHeading": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkRemovalBody": "Removing it deletes the saved sign-in and synced songs from this phone. It does not change anything on the server.",
+  "@networkRemovalBody": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkBackupHeading": "Backup and transfer",
+  "@networkBackupHeading": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkBackupBody": "Android backup and phone-to-phone transfer skip saved sign-ins and Flick's database. Add the server again on a new phone. Your music stays on the server.",
+  "@networkBackupBody": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "castPrivacyNoteTitle": "What the receiver can see",
+  "@castPrivacyNoteTitle": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castPrivacyNoteSubtitle": "Temporary track links, not your password. Tap for details.",
+  "@castPrivacyNoteSubtitle": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castPrivacySheetTitle": "How casting handles access",
+  "@castPrivacySheetTitle": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castPrivacyIntro": "Casting sends playback from this phone to the device you choose.",
+  "@castPrivacyIntro": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castLinkHeading": "Signed-in servers",
+  "@castLinkHeading": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castLinkBody": "The receiver gets a temporary link from this phone for the current track. It never gets the server password or token.",
+  "@castLinkBody": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castOpenHeading": "Open sources",
+  "@castOpenHeading": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castOpenBody": "UPnP and Tidal tracks load directly from that source. Your server sign-in is not used.",
+  "@castOpenBody": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castDownloadHeading": "Before playback",
+  "@castDownloadHeading": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castDownloadBody": "Tracks from signed-in servers may download fully before casting starts, because the receiver cannot use the server sign-in.",
+  "@castDownloadBody": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castStopHeading": "Stopping",
+  "@castStopHeading": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castStopBody": "Switching tracks, stopping the cast, or disconnecting closes the old link.",
+  "@castStopBody": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
   }
 }

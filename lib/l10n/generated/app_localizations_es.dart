@@ -4165,7 +4165,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get httpBasicNeedsItRecoverableStored =>
-      'HTTP Basic necesita poder recuperar la contraseña; se guarda codificada';
+      'Se cifra en este dispositivo y se usa para iniciar sesión con HTTP Basic';
 
   @override
   String hz(Object rate) {
@@ -7117,6 +7117,65 @@ class AppLocalizationsEs extends AppLocalizations {
   String get serverUrl => 'URL del servidor';
 
   @override
+  String get allowInsecureHttp => 'Permitir HTTP no seguro';
+
+  @override
+  String get allowInsecureHttpDescription =>
+      'Las credenciales se envían sin cifrar. Actívalo solo para un servidor de LAN de confianza.';
+
+  @override
+  String get serverPasswordReentryRequired =>
+      'Vuelve a introducir la contraseña para la nueva URL o cuenta del servidor.';
+
+  @override
+  String get serverUrlContainsCredentials =>
+      'Quita el usuario o la contraseña de la URL del servidor; usa los campos de usuario y contraseña.';
+
+  @override
+  String serverUrlInvalid(String label) {
+    return 'URL de servidor no válida para $label.';
+  }
+
+  @override
+  String serverUrlUnsupportedScheme(String label) {
+    return 'Esquema de URL no compatible para $label.';
+  }
+
+  @override
+  String get serverRequiresHttps =>
+      'Este servidor usa HTTP sin cifrar. Usa una URL https:// o activa \"Permitir HTTP no seguro\" para un servidor de LAN de confianza.';
+
+  @override
+  String get credentialStorageVerifyFailed =>
+      'No se pudo verificar el almacenamiento seguro de credenciales. Inténtalo de nuevo.';
+
+  @override
+  String get credentialStorageSaveFailed =>
+      'No se pudieron guardar las credenciales de forma segura. Inténtalo de nuevo.';
+
+  @override
+  String get credentialStorageDecryptFailed =>
+      'No se pudieron descifrar las credenciales guardadas en este dispositivo. Vuelve a introducirlas en Ajustes > Fuentes de red.';
+
+  @override
+  String get credentialStorageUnreadable =>
+      'Las credenciales guardadas no se pueden leer. Vuelve a introducirlas en Ajustes > Fuentes de red.';
+
+  @override
+  String credentialServerMismatch(String label) {
+    return 'Las credenciales guardadas pertenecen a otro servidor u otra cuenta. Vuelve a introducir la contraseña de $label.';
+  }
+
+  @override
+  String credentialMissing(String label) {
+    return 'Faltan las credenciales de $label. Vuelve a introducirlas en Ajustes > Fuentes de red.';
+  }
+
+  @override
+  String get credentialSaveConflict =>
+      'Este servidor cambió mientras lo editabas. Vuelve a abrirlo e inténtalo de nuevo.';
+
+  @override
   String get session => 'Sesión';
 
   @override
@@ -8013,11 +8072,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get storedAsASaltedHashNever =>
-      'Se guarda como un hash con sal, nunca como texto sin cifrar';
+      'El hash con sal se cifra en este dispositivo';
 
   @override
   String get storedEncodedPlaybackUnavailableInThis =>
-      'Se guarda codificado en Base64; es necesario para iniciar sesión con NTLM';
+      'Se cifra en este dispositivo y se usa para iniciar sesión con NTLM';
 
   @override
   String get stormChasers => 'Cazatormentas';
@@ -9726,4 +9785,137 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get audioAnalysisSourceNote =>
       'Medido a partir de una decodificación independiente del archivo fuente. Algunos formatos incluyen relleno del decodificador, que puede afectar la duración y las mediciones de silencio. La reproducción, el DSP y las etiquetas no cambian.';
+
+  @override
+  String get integrationsPrivacyNoteTitle => 'Lo que reciben estos servicios';
+
+  @override
+  String get integrationsPrivacyNoteSubtitle =>
+      'Solo lo que actives. Toca para ver los detalles.';
+
+  @override
+  String get integrationsPrivacySheetTitle => 'Qué sale de este dispositivo';
+
+  @override
+  String get integrationsPrivacyIntro =>
+      'Flick no tiene cuenta ni nube. Los datos solo van a los servicios que conectas.';
+
+  @override
+  String get integrationsLastFmHeading => 'Last.fm';
+
+  @override
+  String get integrationsLastFmBody =>
+      'Cuando haces scrobble, Flick envía a Last.fm el título, el artista, el álbum y la hora de reproducción. Tu clave de acceso se guarda cifrada en este teléfono.';
+
+  @override
+  String get integrationsListenBrainzHeading => 'ListenBrainz';
+
+  @override
+  String get integrationsListenBrainzBody =>
+      'Cuando escuchas, Flick envía los mismos datos de escucha a ListenBrainz. Tu token se guarda cifrado en este teléfono.';
+
+  @override
+  String get integrationsAppleMusicHeading => 'Catálogo de Apple Music';
+
+  @override
+  String get integrationsAppleMusicBody =>
+      'Flick envía nombres de álbumes, artistas y canciones a Apple cuando busca portadas o metadatos. No se usa ninguna cuenta ni contraseña de Apple.';
+
+  @override
+  String get integrationsDisconnectHeading => 'Después de desconectar';
+
+  @override
+  String get integrationsDisconnectBody =>
+      'Flick deja de enviar datos nuevos. Los scrobbles anteriores permanecen en el servicio hasta que los borres allí.';
+
+  @override
+  String get networkPrivacyNoteTitle => 'Cómo funcionan las conexiones';
+
+  @override
+  String get networkPrivacyNoteSubtitle =>
+      'Conexión directa, acceso guardado. Toca para ver los detalles.';
+
+  @override
+  String get networkPrivacySheetTitle => 'Tu servidor, tus datos';
+
+  @override
+  String get networkPrivacyIntro =>
+      'Flick se conecta directamente al servidor que añades. Nada pasa por un servidor de Flick.';
+
+  @override
+  String get networkCredentialsHeading => 'Acceso';
+
+  @override
+  String get networkCredentialsBody =>
+      'Los usuarios, las contraseñas y los tokens de acceso se guardan cifrados en este teléfono, no en texto plano.';
+
+  @override
+  String get networkLibraryHeading => 'Biblioteca';
+
+  @override
+  String get networkLibraryBody =>
+      'La sincronización copia los datos de las canciones y las portadas a este teléfono. El audio permanece en tu servidor y se reproduce por la red.';
+
+  @override
+  String get networkHttpHeading => 'HTTP sin cifrar';
+
+  @override
+  String get networkHttpBody =>
+      'Con HTTP, otras personas en esa red pueden leer tu acceso y tus datos de escucha. Usa HTTPS cuando el servidor lo admita. Permite HTTP solo en una red de confianza.';
+
+  @override
+  String get networkRemovalHeading => 'Quitar un servidor';
+
+  @override
+  String get networkRemovalBody =>
+      'Al quitarlo se borran de este teléfono el acceso guardado y las canciones sincronizadas. No cambia nada en el servidor.';
+
+  @override
+  String get networkBackupHeading => 'Copia de seguridad y transferencia';
+
+  @override
+  String get networkBackupBody =>
+      'La copia de seguridad de Android y la transferencia entre teléfonos omiten los accesos guardados y la base de datos de Flick. Añade el servidor de nuevo en un teléfono nuevo. Tu música sigue en el servidor.';
+
+  @override
+  String get castPrivacyNoteTitle => 'Lo que puede ver el receptor';
+
+  @override
+  String get castPrivacyNoteSubtitle =>
+      'Enlaces temporales por pista, no tu contraseña. Toca para ver los detalles.';
+
+  @override
+  String get castPrivacySheetTitle => 'Cómo gestiona el acceso la transmisión';
+
+  @override
+  String get castPrivacyIntro =>
+      'La transmisión envía la reproducción desde este teléfono al dispositivo que elijas.';
+
+  @override
+  String get castLinkHeading => 'Servidores con acceso';
+
+  @override
+  String get castLinkBody =>
+      'El receptor recibe un enlace temporal de este teléfono para la pista actual. Nunca recibe la contraseña ni el token del servidor.';
+
+  @override
+  String get castOpenHeading => 'Fuentes abiertas';
+
+  @override
+  String get castOpenBody =>
+      'Las pistas de UPnP y Tidal se cargan directamente desde esa fuente. No se usa el acceso a tu servidor.';
+
+  @override
+  String get castDownloadHeading => 'Antes de reproducir';
+
+  @override
+  String get castDownloadBody =>
+      'Las pistas de servidores con acceso pueden descargarse por completo antes de iniciar la transmisión, porque el receptor no puede usar el acceso al servidor.';
+
+  @override
+  String get castStopHeading => 'Detener';
+
+  @override
+  String get castStopBody =>
+      'Cambiar de pista, detener la transmisión o desconectarte cierra el enlace anterior.';
 }

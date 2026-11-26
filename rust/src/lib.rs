@@ -88,6 +88,13 @@ pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _reserved: *mut c_void) -> jni::s
             } else {
                 log::LevelFilter::Info
             })
+            // ureq's debug messages include full URLs and request headers.
+            .with_filter(
+                android_logger::FilterBuilder::new()
+                    .filter_level(log::LevelFilter::Debug)
+                    .filter_module("ureq", log::LevelFilter::Off)
+                    .build(),
+            )
             .with_tag("RustUSB"),
     );
     jni::JNIVersion::V1_6.into()

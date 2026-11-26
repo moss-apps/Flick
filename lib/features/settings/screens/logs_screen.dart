@@ -18,6 +18,7 @@ import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/app_log.dart';
+import 'package:flick/core/utils/log_redactor.dart';
 import 'package:flick/l10n/settings_l10n.dart';
 
 class LogsScreen extends ConsumerStatefulWidget {
@@ -68,7 +69,9 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
       '${t.second.toString().padLeft(2, '0')}.'
       '${t.millisecond.toString().padLeft(3, '0')}';
 
-  String _format(LogEntry e) => '${_ts(e.timestamp)} [${e.source.name}] ${e.message}';
+  String _format(LogEntry e) =>
+      '${_ts(e.timestamp)} [${e.source.name}] '
+      '${redactSensitiveLogText(e.message)}';
 
   Color _sourceColor(LogSource s) {
     switch (s) {

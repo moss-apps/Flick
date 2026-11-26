@@ -10,6 +10,8 @@ import 'package:flick/services/sources/smb_service.dart';
 import 'package:flick/src/rust/api/smb_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'network_credential_fixture.dart';
+
 void main() {
   late Directory root;
   late NetworkCacheService cache;
@@ -22,11 +24,15 @@ void main() {
   setUp(() async {
     root = await Directory.systemTemp.createTemp('smb_download_test');
     cache = NetworkCacheService(rootDirectory: root, sizeCapBytes: 100);
-    server = NetworkServerEntity()
-      ..id = 7
-      ..baseUrl = 'smb://private-host/private-share/Albums'
-      ..username = 'private-user'
-      ..token = base64Encode(utf8.encode('private-password'));
+    server = withCredential(
+      NetworkServerEntity()
+        ..id = 7
+        ..label = 'SMB'
+        ..protocol = 'smb'
+        ..baseUrl = 'smb://private-host/private-share/Albums'
+        ..username = 'private-user',
+      base64Encode(utf8.encode('private-password')),
+    );
     progress = StreamController<SmbProgress>();
     started = Completer<String>();
     calls = 0;

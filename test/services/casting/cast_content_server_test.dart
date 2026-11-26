@@ -13,9 +13,14 @@ void main() {
       await file.writeAsBytes(bytes);
 
       final server = CastContentServer.instance;
+      addTearDown(() async {
+        await server.stop();
+        await dir.delete(recursive: true);
+      });
       final url = await server.serve(file.path, filename: 'track.m4a');
-      final uri = Uri.parse(url).replace(host: '127.0.0.1');
+      final uri = Uri.parse(url!).replace(host: '127.0.0.1');
       final client = HttpClient();
+      addTearDown(() => client.close(force: true));
 
       Future<HttpClientResponse> get(Map<String, String> headers) async {
         final req = await client.getUrl(uri);
@@ -43,16 +48,38 @@ void main() {
       expect(openEnded.statusCode, 206);
       expect(await body(openEnded), bytes.sublist(90));
 
+      final suffix = await get({HttpHeaders.rangeHeader: 'bytes=-5'});
+      expect(suffix.statusCode, 206);
+      expect(await body(suffix), bytes.sublist(95));
+
+      final head = await (await client.headUrl(uri)).close();
+      expect(head.contentLength, 100);
+      expect(await body(head), isEmpty);
+
       final invalid = await get({HttpHeaders.rangeHeader: 'bytes=500-'});
       expect(invalid.statusCode, 416);
+      await invalid.drain<void>();
 
       final req = await client.getUrl(uri.replace(path: '/deadbeef/x.m4a'));
       final notFound = await req.close();
       expect(notFound.statusCode, 404);
+      await notFound.drain<void>();
 
-      client.close(force: true);
-      await server.stop();
-      await dir.delete(recursive: true);
+      final replacement = await server.serve(file.path, filename: 'next.m4a');
+      expect(
+        Uri.parse(replacement!).pathSegments.first,
+        isNot(uri.pathSegments.first),
+      );
+      final retired = await get({});
+      expect(retired.statusCode, 404);
+      await retired.drain<void>();
     });
+  });
+
+  test('stopping while a grant is being published cancels it', () async {
+    final server = CastContentServer.instance;
+    final pending = server.serve('/unused.flac', filename: 'unused.flac');
+    await server.stop();
+    expect(await pending, isNull);
   });
 }

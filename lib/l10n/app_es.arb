@@ -5123,7 +5123,7 @@
   "@howWideEachCardSpansAcross": {
     "description": "lib/features/settings/screens/orbit_settings_screen.dart:92"
   },
-  "httpBasicNeedsItRecoverableStored": "HTTP Basic necesita poder recuperar la contraseña; se guarda codificada",
+  "httpBasicNeedsItRecoverableStored": "Se cifra en este dispositivo y se usa para iniciar sesión con HTTP Basic",
   "@httpBasicNeedsItRecoverableStored": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:77"
   },
@@ -9051,6 +9051,82 @@
   "@serverUrl": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:442"
   },
+  "allowInsecureHttp": "Permitir HTTP no seguro",
+  "@allowInsecureHttp": {
+    "description": "lib/features/settings/screens/network_server_edit_screen.dart"
+  },
+  "allowInsecureHttpDescription": "Las credenciales se envían sin cifrar. Actívalo solo para un servidor de LAN de confianza.",
+  "@allowInsecureHttpDescription": {
+    "description": "lib/features/settings/screens/network_server_edit_screen.dart"
+  },
+  "serverPasswordReentryRequired": "Vuelve a introducir la contraseña para la nueva URL o cuenta del servidor.",
+  "@serverPasswordReentryRequired": {
+    "description": "lib/features/settings/screens/network_server_edit_screen.dart"
+  },
+  "serverUrlContainsCredentials": "Quita el usuario o la contraseña de la URL del servidor; usa los campos de usuario y contraseña.",
+  "@serverUrlContainsCredentials": {
+    "description": "lib/services/sources/network_endpoint_policy.dart"
+  },
+  "serverUrlInvalid": "URL de servidor no válida para {label}.",
+  "@serverUrlInvalid": {
+    "description": "lib/services/sources/network_endpoint_policy.dart",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "serverUrlUnsupportedScheme": "Esquema de URL no compatible para {label}.",
+  "@serverUrlUnsupportedScheme": {
+    "description": "lib/services/sources/network_endpoint_policy.dart",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "serverRequiresHttps": "Este servidor usa HTTP sin cifrar. Usa una URL https:// o activa \"Permitir HTTP no seguro\" para un servidor de LAN de confianza.",
+  "@serverRequiresHttps": {
+    "description": "lib/services/sources/network_endpoint_policy.dart"
+  },
+  "credentialStorageVerifyFailed": "No se pudo verificar el almacenamiento seguro de credenciales. Inténtalo de nuevo.",
+  "@credentialStorageVerifyFailed": {
+    "description": "lib/services/sources/network_credential_store.dart"
+  },
+  "credentialStorageSaveFailed": "No se pudieron guardar las credenciales de forma segura. Inténtalo de nuevo.",
+  "@credentialStorageSaveFailed": {
+    "description": "lib/services/sources/network_credential_store.dart"
+  },
+  "credentialStorageDecryptFailed": "No se pudieron descifrar las credenciales guardadas en este dispositivo. Vuelve a introducirlas en Ajustes > Fuentes de red.",
+  "@credentialStorageDecryptFailed": {
+    "description": "lib/services/sources/network_credential_store.dart"
+  },
+  "credentialStorageUnreadable": "Las credenciales guardadas no se pueden leer. Vuelve a introducirlas en Ajustes > Fuentes de red.",
+  "@credentialStorageUnreadable": {
+    "description": "lib/services/sources/network_credential_store.dart"
+  },
+  "credentialServerMismatch": "Las credenciales guardadas pertenecen a otro servidor u otra cuenta. Vuelve a introducir la contraseña de {label}.",
+  "@credentialServerMismatch": {
+    "description": "lib/services/sources/network_credential_store.dart",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "credentialMissing": "Faltan las credenciales de {label}. Vuelve a introducirlas en Ajustes > Fuentes de red.",
+  "@credentialMissing": {
+    "description": "lib/services/sources/network_credential_store.dart",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "credentialSaveConflict": "Este servidor cambió mientras lo editabas. Vuelve a abrirlo e inténtalo de nuevo.",
+  "@credentialSaveConflict": {
+    "description": "lib/features/settings/screens/network_server_edit_screen.dart"
+  },
   "session": "Sesión",
   "@session": {
     "description": "lib/features/settings/screens/casting_settings_screen.dart:107"
@@ -10137,11 +10213,11 @@
   "@storeOn": {
     "description": "lib/features/playlists/screens/playlists_screen.dart:372"
   },
-  "storedAsASaltedHashNever": "Se guarda como un hash con sal, nunca como texto sin cifrar",
+  "storedAsASaltedHashNever": "El hash con sal se cifra en este dispositivo",
   "@storedAsASaltedHashNever": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:61"
   },
-  "storedEncodedPlaybackUnavailableInThis": "Se guarda codificado en Base64; es necesario para iniciar sesión con NTLM",
+  "storedEncodedPlaybackUnavailableInThis": "Se cifra en este dispositivo y se usa para iniciar sesión con NTLM",
   "@storedEncodedPlaybackUnavailableInThis": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:93"
   },
@@ -12242,5 +12318,157 @@
   "audioAnalysisUnsupportedMultichannel": "El análisis de origen solo admite archivos mono y estéreo.",
   "@audioAnalysisUnsupportedMultichannel": {
     "description": "lib/features/player/widgets/audio_analysis_sheet.dart"
+  },
+  "integrationsPrivacyNoteTitle": "Lo que reciben estos servicios",
+  "@integrationsPrivacyNoteTitle": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsPrivacyNoteSubtitle": "Solo lo que actives. Toca para ver los detalles.",
+  "@integrationsPrivacyNoteSubtitle": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsPrivacySheetTitle": "Qué sale de este dispositivo",
+  "@integrationsPrivacySheetTitle": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsPrivacyIntro": "Flick no tiene cuenta ni nube. Los datos solo van a los servicios que conectas.",
+  "@integrationsPrivacyIntro": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsLastFmHeading": "Last.fm",
+  "@integrationsLastFmHeading": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsLastFmBody": "Cuando haces scrobble, Flick envía a Last.fm el título, el artista, el álbum y la hora de reproducción. Tu clave de acceso se guarda cifrada en este teléfono.",
+  "@integrationsLastFmBody": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsListenBrainzHeading": "ListenBrainz",
+  "@integrationsListenBrainzHeading": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsListenBrainzBody": "Cuando escuchas, Flick envía los mismos datos de escucha a ListenBrainz. Tu token se guarda cifrado en este teléfono.",
+  "@integrationsListenBrainzBody": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsAppleMusicHeading": "Catálogo de Apple Music",
+  "@integrationsAppleMusicHeading": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsAppleMusicBody": "Flick envía nombres de álbumes, artistas y canciones a Apple cuando busca portadas o metadatos. No se usa ninguna cuenta ni contraseña de Apple.",
+  "@integrationsAppleMusicBody": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsDisconnectHeading": "Después de desconectar",
+  "@integrationsDisconnectHeading": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "integrationsDisconnectBody": "Flick deja de enviar datos nuevos. Los scrobbles anteriores permanecen en el servicio hasta que los borres allí.",
+  "@integrationsDisconnectBody": {
+    "description": "lib/features/settings/screens/integrations_settings_screen.dart"
+  },
+  "networkPrivacyNoteTitle": "Cómo funcionan las conexiones",
+  "@networkPrivacyNoteTitle": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkPrivacyNoteSubtitle": "Conexión directa, acceso guardado. Toca para ver los detalles.",
+  "@networkPrivacyNoteSubtitle": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkPrivacySheetTitle": "Tu servidor, tus datos",
+  "@networkPrivacySheetTitle": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkPrivacyIntro": "Flick se conecta directamente al servidor que añades. Nada pasa por un servidor de Flick.",
+  "@networkPrivacyIntro": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkCredentialsHeading": "Acceso",
+  "@networkCredentialsHeading": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkCredentialsBody": "Los usuarios, las contraseñas y los tokens de acceso se guardan cifrados en este teléfono, no en texto plano.",
+  "@networkCredentialsBody": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkLibraryHeading": "Biblioteca",
+  "@networkLibraryHeading": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkLibraryBody": "La sincronización copia los datos de las canciones y las portadas a este teléfono. El audio permanece en tu servidor y se reproduce por la red.",
+  "@networkLibraryBody": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkHttpHeading": "HTTP sin cifrar",
+  "@networkHttpHeading": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkHttpBody": "Con HTTP, otras personas en esa red pueden leer tu acceso y tus datos de escucha. Usa HTTPS cuando el servidor lo admita. Permite HTTP solo en una red de confianza.",
+  "@networkHttpBody": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkRemovalHeading": "Quitar un servidor",
+  "@networkRemovalHeading": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkRemovalBody": "Al quitarlo se borran de este teléfono el acceso guardado y las canciones sincronizadas. No cambia nada en el servidor.",
+  "@networkRemovalBody": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkBackupHeading": "Copia de seguridad y transferencia",
+  "@networkBackupHeading": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "networkBackupBody": "La copia de seguridad de Android y la transferencia entre teléfonos omiten los accesos guardados y la base de datos de Flick. Añade el servidor de nuevo en un teléfono nuevo. Tu música sigue en el servidor.",
+  "@networkBackupBody": {
+    "description": "lib/features/settings/screens/network_sources_screen.dart"
+  },
+  "castPrivacyNoteTitle": "Lo que puede ver el receptor",
+  "@castPrivacyNoteTitle": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castPrivacyNoteSubtitle": "Enlaces temporales por pista, no tu contraseña. Toca para ver los detalles.",
+  "@castPrivacyNoteSubtitle": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castPrivacySheetTitle": "Cómo gestiona el acceso la transmisión",
+  "@castPrivacySheetTitle": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castPrivacyIntro": "La transmisión envía la reproducción desde este teléfono al dispositivo que elijas.",
+  "@castPrivacyIntro": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castLinkHeading": "Servidores con acceso",
+  "@castLinkHeading": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castLinkBody": "El receptor recibe un enlace temporal de este teléfono para la pista actual. Nunca recibe la contraseña ni el token del servidor.",
+  "@castLinkBody": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castOpenHeading": "Fuentes abiertas",
+  "@castOpenHeading": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castOpenBody": "Las pistas de UPnP y Tidal se cargan directamente desde esa fuente. No se usa el acceso a tu servidor.",
+  "@castOpenBody": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castDownloadHeading": "Antes de reproducir",
+  "@castDownloadHeading": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castDownloadBody": "Las pistas de servidores con acceso pueden descargarse por completo antes de iniciar la transmisión, porque el receptor no puede usar el acceso al servidor.",
+  "@castDownloadBody": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castStopHeading": "Detener",
+  "@castStopHeading": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
+  },
+  "castStopBody": "Cambiar de pista, detener la transmisión o desconectarte cierra el enlace anterior.",
+  "@castStopBody": {
+    "description": "lib/features/settings/screens/casting_settings_screen.dart"
   }
 }

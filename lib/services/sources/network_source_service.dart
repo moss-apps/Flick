@@ -13,7 +13,7 @@ import 'webdav_service.dart';
 /// Each protocol plugs into the same four flows: connectivity test
 /// ([ping]), library sync ([syncLibrary]), audio download ([stream]) and
 /// cover-art fetch ([getCoverArt]). The [resolveToken] hook turns a typed
-/// password into the opaque string stored in [NetworkServerEntity.token] —
+/// password into the opaque secret stored in the secure credential bundle —
 /// a local transform for Subsonic/WebDAV, a server round-trip for Jellyfin.
 ///
 /// Song rows produced during sync use a scheme-prefixed [SongEntity.filePath]
@@ -28,7 +28,7 @@ abstract class NetworkSourceService {
   /// passed back to [getCoverArt].
   String get coverScheme;
 
-  /// Resolve the value to persist in [NetworkServerEntity.token] for a typed
+  /// Resolve the value to persist in the secure credential bundle for a typed
   /// [password]. Returns null when the protocol stores no secret (anonymous
   /// UPnP). May perform a network round-trip (Jellyfin authenticateByName).
   Future<String?> resolveToken(
@@ -81,6 +81,9 @@ class NetworkProtocol {
   static const upnp = 'upnp';
   static const smb = 'smb';
   static const tidal = 'tidal';
+
+  static bool usesAuthenticatedHttp(String? protocol) =>
+      protocol == subsonic || protocol == jellyfin || protocol == webdav;
 
   static const all = [subsonic, jellyfin, webdav, upnp, smb, tidal];
 }

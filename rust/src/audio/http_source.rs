@@ -14,19 +14,36 @@ use symphonia::core::io::MediaSource;
 const BLOCK_SIZE: usize = 1024 * 1024; // 1 MiB
 
 // ponytail: global timeouts so a stalled network can't pin the command thread.
-fn http_agent() -> &'static ureq::Agent {
-    static AGENT: std::sync::OnceLock<ureq::Agent> = std::sync::OnceLock::new();
-    AGENT.get_or_init(|| {
-        ureq::AgentBuilder::new()
+fn http_agent(authenticated: bool) -> &'static ureq::Agent {
+    static PUBLIC: std::sync::OnceLock<ureq::Agent> = std::sync::OnceLock::new();
+    static AUTHENTICATED: std::sync::OnceLock<ureq::Agent> = std::sync::OnceLock::new();
+    let agent = if authenticated { &AUTHENTICATED } else { &PUBLIC };
+    agent.get_or_init(|| {
+        let builder = ureq::AgentBuilder::new()
             .timeout_connect(Duration::from_secs(10))
-            .timeout_read(Duration::from_secs(30))
-            .build()
+            .timeout_read(Duration::from_secs(30));
+        if authenticated {
+            builder.redirects(0).build()
+        } else {
+            builder.build()
+        }
     })
+}
+
+// WebDAV and Jellyfin send credentials in headers. Subsonic sends its
+// reusable hash and salt (`t` and `s`) in the query instead.
+fn has_subsonic_auth(url: &str) -> bool {
+    let Some((_, query)) = url.split_once('?') else {
+        return false;
+    };
+    let mut keys = query.split('#').next().unwrap_or_default().split('&');
+    keys.clone().any(|part| part.starts_with("t=")) && keys.any(|part| part.starts_with("s="))
 }
 
 pub struct HttpMediaSource {
     url: String,
     headers: HashMap<String, String>,
+    authenticated: bool,
     pos: u64,
     len: Option<u64>,
     buf: Vec<u8>,
@@ -35,9 +52,11 @@ pub struct HttpMediaSource {
 
 impl HttpMediaSource {
     pub fn new(url: String, headers: HashMap<String, String>) -> Self {
+        let authenticated = !headers.is_empty() || has_subsonic_auth(&url);
         Self {
             url,
             headers,
+            authenticated,
             pos: 0,
             len: None,
             buf: Vec::new(),
@@ -54,17 +73,26 @@ impl HttpMediaSource {
         }
 
         let end = self.pos + BLOCK_SIZE as u64 - 1;
-        let mut req = http_agent().get(&self.url);
+        let mut req = http_agent(self.authenticated).get(&self.url);
         for (k, v) in &self.headers {
             req = req.set(k, v);
         }
         req = req.set("Range", &format!("bytes={}-{}", self.pos, end));
 
-        let resp = req
-            .call()
-            .map_err(|e| io::Error::other(format!("HTTP GET failed: {}", e)))?;
+        let resp = req.call().map_err(|error| match error {
+            ureq::Error::Status(status, _) => {
+                io::Error::other(format!("HTTP GET failed (status {status})"))
+            }
+            // ureq's error text can include the complete URL and its query.
+            ureq::Error::Transport(_) => io::Error::other("HTTP GET failed"),
+        })?;
 
         let status = resp.status();
+        if !matches!(status, 200 | 206) {
+            return Err(io::Error::other(format!(
+                "HTTP GET failed (status {status})"
+            )));
+        }
         let content_range = resp.header("Content-Range").map(|s| s.to_string());
         let content_length = resp.header("Content-Length").map(|s| s.to_string());
 
@@ -256,5 +284,38 @@ mod tests {
         src.seek(SeekFrom::Start(0)).unwrap();
         let n = src.read(&mut got).unwrap();
         assert_eq!(&got[..n], &data_box[0..1024]);
+    }
+
+    #[test]
+    fn authenticated_requests_stop_at_redirects() {
+        for (query, headers) in [
+            (
+                "",
+                HashMap::from([("Authorization".into(), "Bearer test-session".into())]),
+            ),
+            ("?u=demo&t=test-hash&s=test-salt", HashMap::new()),
+        ] {
+            let origin = TcpListener::bind("127.0.0.1:0").unwrap();
+            let target = TcpListener::bind("127.0.0.1:0").unwrap();
+            target.set_nonblocking(true).unwrap();
+            let url = format!("http://{}/track{query}", origin.local_addr().unwrap());
+            let location = format!("http://{}/track", target.local_addr().unwrap());
+            let response = thread::spawn(move || {
+                let (mut stream, _) = origin.accept().unwrap();
+                let mut request = [0; 1024];
+                stream.read(&mut request).unwrap();
+                write!(
+                    stream,
+                    "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                )
+                .unwrap();
+            });
+
+            let mut source = HttpMediaSource::new(url, headers);
+            let error = source.read(&mut [0; 16]).unwrap_err();
+            response.join().unwrap();
+            assert_eq!(error.to_string(), "HTTP GET failed (status 302)");
+            assert_eq!(target.accept().unwrap_err().kind(), io::ErrorKind::WouldBlock);
+        }
     }
 }

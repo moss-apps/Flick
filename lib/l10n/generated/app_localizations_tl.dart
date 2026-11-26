@@ -4159,7 +4159,7 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get httpBasicNeedsItRecoverableStored =>
-      'Kailangang mabawi ito para sa HTTP Basic; naka-encode na nakaimbak';
+      'Naka-encrypt sa device na ito at ginagamit sa pag-sign in gamit ang HTTP Basic';
 
   @override
   String hz(Object rate) {
@@ -7107,6 +7107,65 @@ class AppLocalizationsTl extends AppLocalizations {
   String get serverUrl => 'URL ng server';
 
   @override
+  String get allowInsecureHttp => 'Payagan ang hindi ligtas na HTTP';
+
+  @override
+  String get allowInsecureHttpDescription =>
+      'Ipapadala ang mga kredensyal nang walang encryption. I-enable lang ito para sa pinagkakatiwalaang server sa lokal na network.';
+
+  @override
+  String get serverPasswordReentryRequired =>
+      'Ilagay ulit ang password para sa bagong URL o account ng server.';
+
+  @override
+  String get serverUrlContainsCredentials =>
+      'Alisin ang username o password sa URL ng server. Ilagay ang mga ito sa nakalaang field.';
+
+  @override
+  String serverUrlInvalid(String label) {
+    return 'Hindi wastong URL ng server para sa $label.';
+  }
+
+  @override
+  String serverUrlUnsupportedScheme(String label) {
+    return 'Hindi suportado ang uri ng URL para sa $label.';
+  }
+
+  @override
+  String get serverRequiresHttps =>
+      'Gumagamit ang server na ito ng HTTP na walang encryption. Gumamit ng https:// na URL o i-enable ang \"Payagan ang hindi ligtas na HTTP\" para sa pinagkakatiwalaang server sa lokal na network.';
+
+  @override
+  String get credentialStorageVerifyFailed =>
+      'Hindi makumpirma na ligtas na na-save ang mga kredensyal. Subukan ulit.';
+
+  @override
+  String get credentialStorageSaveFailed =>
+      'Hindi ligtas na na-save ang mga kredensyal. Subukan ulit.';
+
+  @override
+  String get credentialStorageDecryptFailed =>
+      'Hindi ma-decrypt ang mga naka-save na kredensyal sa device na ito. Ilagay ulit ang mga ito sa Mga pagsasaayos > Mga network source.';
+
+  @override
+  String get credentialStorageUnreadable =>
+      'Hindi mabasa ang mga naka-save na kredensyal. Ilagay ulit ang mga ito sa Mga pagsasaayos > Mga network source.';
+
+  @override
+  String credentialServerMismatch(String label) {
+    return 'Para sa ibang server o account ang mga naka-save na kredensyal. Ilagay ulit ang password para sa $label.';
+  }
+
+  @override
+  String credentialMissing(String label) {
+    return 'Walang naka-save na kredensyal para sa $label. Ilagay ulit ang mga ito sa Mga pagsasaayos > Mga network source.';
+  }
+
+  @override
+  String get credentialSaveConflict =>
+      'May nagbago sa server habang ine-edit mo ito. Buksan ito ulit at subukan muli.';
+
+  @override
   String get session => 'Sesyon';
 
   @override
@@ -8001,11 +8060,11 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get storedAsASaltedHashNever =>
-      'Nakaimbak bilang salted hash, hindi kailanman bilang payak na teksto';
+      'Naka-encrypt ang salted hash sa device na ito';
 
   @override
   String get storedEncodedPlaybackUnavailableInThis =>
-      'Nakaimbak na base64-encoded — kailangan sa NTLM sign-in';
+      'Naka-encrypt sa device na ito at ginagamit sa pag-sign in gamit ang NTLM';
 
   @override
   String get stormChasers => 'Mga humahabol sa bagyo';
@@ -9717,6 +9776,141 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get audioAnalysisSourceNote =>
       'Sinukat mula sa hiwalay na decode ng source file. May decoder padding ang ilang format, na puwedeng makaapekto sa duration at silence measurements. Hindi nagbabago ang playback, DSP, at tags.';
+
+  @override
+  String get integrationsPrivacyNoteTitle =>
+      'Ano ang natatanggap ng mga serbisyong ito';
+
+  @override
+  String get integrationsPrivacyNoteSubtitle =>
+      'Tanging ang iyong pinagana. I-tap para sa detalye.';
+
+  @override
+  String get integrationsPrivacySheetTitle =>
+      'Ano ang lumalabas sa device na ito';
+
+  @override
+  String get integrationsPrivacyIntro =>
+      'Walang account o cloud ang Flick. Sa mga serbisyong ikinonekta mo lang pumupunta ang data.';
+
+  @override
+  String get integrationsLastFmHeading => 'Last.fm';
+
+  @override
+  String get integrationsLastFmBody =>
+      'Kapag nag-scrobble ka, ipinapadala ng Flick sa Last.fm ang pamagat ng kanta, artist, album, at oras ng pag-play. Naka-encrypt sa phone na ito ang sign-in key mo.';
+
+  @override
+  String get integrationsListenBrainzHeading => 'ListenBrainz';
+
+  @override
+  String get integrationsListenBrainzBody =>
+      'Kapag nakinig ka, ipinapadala ng Flick ang parehong detalye ng pakikinig sa ListenBrainz. Naka-encrypt sa phone na ito ang token mo.';
+
+  @override
+  String get integrationsAppleMusicHeading => 'Apple Music catalog';
+
+  @override
+  String get integrationsAppleMusicBody =>
+      'Ipinapadala sa Apple ang mga pangalan ng album, artist, at kanta kapag naghahanap ang Flick ng artwork o metadata. Walang Apple account o password na ginagamit.';
+
+  @override
+  String get integrationsDisconnectHeading => 'Pagkatapos mag-disconnect';
+
+  @override
+  String get integrationsDisconnectBody =>
+      'Hihinto ang Flick sa pagpapadala ng bagong data. Mananatili sa serbisyo ang mga dating scrobble hanggang tanggalin mo ang mga ito doon.';
+
+  @override
+  String get networkPrivacyNoteTitle => 'Paano gumagana ang koneksyon';
+
+  @override
+  String get networkPrivacyNoteSubtitle =>
+      'Direktang koneksyon, naka-encrypt na sign-in. I-tap para sa detalye.';
+
+  @override
+  String get networkPrivacySheetTitle => 'Ang server mo, ang data mo';
+
+  @override
+  String get networkPrivacyIntro =>
+      'Direktang kumokonekta ang Flick sa server na idinagdag mo. Walang dumadaan sa server ng Flick.';
+
+  @override
+  String get networkCredentialsHeading => 'Sign-in';
+
+  @override
+  String get networkCredentialsBody =>
+      'Naka-encrypt sa phone na ito ang mga username, password, at access token — hindi plain text.';
+
+  @override
+  String get networkLibraryHeading => 'Library';
+
+  @override
+  String get networkLibraryBody =>
+      'Kinokopya ng sync ang detalye ng kanta at artwork sa phone na ito. Nasa server mo ang audio at doon ito nag-stream.';
+
+  @override
+  String get networkHttpHeading => 'Plain HTTP';
+
+  @override
+  String get networkHttpBody =>
+      'Sa HTTP, mababasa ng iba sa network ang sign-in at listening data mo. Gumamit ng HTTPS kapag sinusuportahan ito ng server. Payagan lang ang HTTP sa network na pinagkakatiwalaan mo.';
+
+  @override
+  String get networkRemovalHeading => 'Pag-alis ng server';
+
+  @override
+  String get networkRemovalBody =>
+      'Tinatanggal nito sa phone ang naka-save na sign-in at mga na-sync na kanta. Walang binabago sa server.';
+
+  @override
+  String get networkBackupHeading => 'Backup at transfer';
+
+  @override
+  String get networkBackupBody =>
+      'Nilalaktawan ng Android backup at phone-to-phone transfer ang mga naka-save na sign-in at ang database ng Flick. Idagdag muli ang server sa bagong phone. Nasa server pa rin ang musika mo.';
+
+  @override
+  String get castPrivacyNoteTitle => 'Ano ang nakikita ng receiver';
+
+  @override
+  String get castPrivacyNoteSubtitle =>
+      'Pansamantalang link ng kanta, hindi ang password mo. I-tap para sa detalye.';
+
+  @override
+  String get castPrivacySheetTitle => 'Paano hinahawakan ng casting ang access';
+
+  @override
+  String get castPrivacyIntro =>
+      'Ipinapadala ng casting ang playback mula sa phone na ito papunta sa piniling device.';
+
+  @override
+  String get castLinkHeading => 'Mga server na may sign-in';
+
+  @override
+  String get castLinkBody =>
+      'Nakakatanggap ang receiver ng pansamantalang link mula sa phone na ito para sa kasalukuyang kanta. Hindi nito nakukuha ang password o token ng server.';
+
+  @override
+  String get castOpenHeading => 'Bukas na source';
+
+  @override
+  String get castOpenBody =>
+      'Direktang naglo-load ang mga UPnP at Tidal track mula sa source na iyon. Hindi ginagamit ang sign-in mo sa server.';
+
+  @override
+  String get castDownloadHeading => 'Bago mag-play';
+
+  @override
+  String get castDownloadBody =>
+      'Maaaring ma-download nang buo ang mga track mula sa server na may sign-in bago magsimula ang casting, dahil hindi magagamit ng receiver ang sign-in sa server.';
+
+  @override
+  String get castStopHeading => 'Pag-stop';
+
+  @override
+  String get castStopBody =>
+      'Isinasara ang lumang link kapag nagpalit ng track, nag-stop ng cast, o nag-disconnect.';
 }
 
 /// The translations for Tagalog, using the Tagalog Baybayin Alibata script (`tl_Tglg`).

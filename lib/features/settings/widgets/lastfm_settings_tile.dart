@@ -73,10 +73,9 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
         setState(() => _awaitingCallback = true);
         devLog('[LastFm] _startAuth: Set _awaitingCallback=true');
       }
-    } catch (e, stackTrace) {
-      devLog('[LastFm] _startAuth: ERROR - $e');
-      devLog('[LastFm] _startAuth: Stack trace: $stackTrace');
-      
+    } catch (e) {
+      devLog('[LastFm] _startAuth failed (${e.runtimeType})');
+
       if (mounted) {
         // Provide more specific error message for network issues
         final errorMessage = e.toString().contains('SocketException') ||
@@ -99,9 +98,8 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
       devLog('[LastFm] _completeAuth: Token exchange successful');
       ref.invalidate(lastFmSessionProvider);
       _showSuccess(l10n.lastFmConnected2);
-    } catch (e, stackTrace) {
-      devLog('[LastFm] _completeAuth: ERROR - $e');
-      devLog('[LastFm] _completeAuth: Stack trace: $stackTrace');
+    } catch (e) {
+      devLog('[LastFm] _completeAuth failed (${e.runtimeType})');
       _showError(
         'Authorization failed. Make sure you approved access on Last.fm.',
       );

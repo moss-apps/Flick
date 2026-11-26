@@ -34,17 +34,6 @@ void main() {
     });
   });
 
-  group('proxySafeHeaders', () {
-    test('drops an empty map so local URIs skip the just_audio proxy', () {
-      expect(proxySafeHeaders(const <String, String>{}), isNull);
-    });
-
-    test('passes non-empty headers through for network sources', () {
-      const headers = <String, String>{'Authorization': 'Bearer token'};
-      expect(proxySafeHeaders(headers), same(headers));
-    });
-  });
-
   group('shouldForceRustEngineFallback', () {
     final now = DateTime(2026, 9, 30, 12, 0, 0);
 

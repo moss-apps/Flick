@@ -10,27 +10,32 @@ import 'package:http/http.dart' as http;
 import '../../core/utils/app_log.dart';
 import '../../data/database.dart';
 import '../../data/repositories/song_repository.dart';
+import '../../l10n/l10n.dart';
 import '../../models/playlist.dart';
 import '../library_scanner_service.dart' show ScanProgress;
 import '../network_cache_service.dart';
 import '../playlist_service.dart';
+import 'network_credential_store.dart';
+import 'network_endpoint_policy.dart';
 import 'network_source_service.dart';
 
 /// Subsonic API client (JSON variant, no transcoding params).
 ///
 /// Auth: Subsonic token auth, `t = md5(password + salt)`, `s = salt`.
-/// The stored server token is the `salt:md5hex` pair, so the plaintext
-/// password is never persisted or transmitted.
+/// The `salt:md5hex` pair lives in Keystore-backed secure storage, so the
+/// plaintext password is never persisted or transmitted.
 class SubsonicService implements NetworkSourceService {
   SubsonicService._({
     http.Client? client,
     SongRepository? songRepository,
     NetworkCacheService? networkCache,
     PlaylistService? playlistService,
-  })  : _client = client ?? http.Client(),
+    NetworkCredentialStore? credentialStore,
+  })  : _client = NetworkEndpointPolicy.secureClient(client),
         _songRepository = songRepository,
         _networkCache = networkCache,
-        _playlistService = playlistService;
+        _playlistService = playlistService,
+        _credentials = credentialStore ?? NetworkCredentialStore.instance;
 
   /// Singleton used by the app.
   static SubsonicService instance = SubsonicService._();
@@ -42,12 +47,14 @@ class SubsonicService implements NetworkSourceService {
     SongRepository? songRepository,
     NetworkCacheService? networkCache,
     PlaylistService? playlistService,
+    NetworkCredentialStore? credentialStore,
   }) {
     return SubsonicService._(
       client: client,
       songRepository: songRepository,
       networkCache: networkCache,
       playlistService: playlistService,
+      credentialStore: credentialStore,
     );
   }
 
@@ -71,6 +78,7 @@ class SubsonicService implements NetworkSourceService {
   }
 
   final http.Client _client;
+  final NetworkCredentialStore _credentials;
 
   // Lazy: only sync/stream touch these, keep HTTP-only tests DB-free.
   // ponytail: lazy init, eager if tests start needing injection everywhere
@@ -89,10 +97,10 @@ class SubsonicService implements NetworkSourceService {
 
   /// Build the shared auth query params. Throws if the server has no token
   /// stored (i.e. it was never saved through the settings screen).
-  Map<String, String> _authParams(NetworkServerEntity server) {
-    final stored = server.token;
-    if (stored == null || !stored.contains(':')) {
-      throw StateError('Server "${server.label}" has no stored credentials');
+  Future<Map<String, String>> _authParams(NetworkServerEntity server) async {
+    final stored = (await _credentials.require(server)).secret;
+    if (!stored.contains(':')) {
+      throw NetworkCredentialException(l10n.credentialStorageUnreadable);
     }
     final separator = stored.indexOf(':');
     return {
@@ -119,11 +127,13 @@ class SubsonicService implements NetworkSourceService {
     return List.generate(10, (_) => chars[random.nextInt(chars.length)]).join();
   }
 
-  Uri _endpoint(NetworkServerEntity server, String method,
-      [Map<String, dynamic> extra = const {}]) {
-    final base = server.baseUrl.replaceAll(RegExp(r'/+$'), '');
+  Future<Uri> _endpoint(NetworkServerEntity server, String method,
+      [Map<String, dynamic> extra = const {}]) async {
+    final base = NetworkEndpointPolicy.requireAllowed(server)
+        .toString()
+        .replaceAll(RegExp(r'/+$'), '');
     return Uri.parse('$base/rest/$method.view').replace(
-      queryParameters: {..._authParams(server), ...extra},
+      queryParameters: {...await _authParams(server), ...extra},
     );
   }
 
@@ -133,18 +143,23 @@ class SubsonicService implements NetworkSourceService {
     Map<String, dynamic> extra = const {},
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    final uri = _endpoint(server, method, extra);
+    final uri = await _endpoint(server, method, extra);
     final response = await _client.get(uri).timeout(timeout);
     if (response.statusCode != 200) {
       throw SubsonicNetworkException('HTTP ${response.statusCode} for $method');
     }
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final payload = body['subsonic-response'] as Map<String, dynamic>;
+    final Map<String, dynamic> payload;
+    try {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      payload = body['subsonic-response'] as Map<String, dynamic>;
+    } catch (_) {
+      throw SubsonicNetworkException('Invalid Subsonic response for $method');
+    }
     if (payload['status'] != 'ok') {
       final error = payload['error'] as Map<String, dynamic>?;
       throw SubsonicNetworkException(
-        error?['message'] as String? ?? 'Subsonic error for $method',
-        code: error?['code'] as int?,
+        'Subsonic request failed for $method',
+        code: error?['code'] is int ? error!['code'] as int : null,
       );
     }
     return payload;
@@ -160,7 +175,7 @@ class SubsonicService implements NetworkSourceService {
       await _getJson(server, 'ping');
       return true;
     } catch (e) {
-      AppLog.instance.add('Subsonic ping failed: $e');
+      AppLog.instance.add('Subsonic ping failed (${e.runtimeType})');
       return false;
     }
   }
@@ -272,7 +287,7 @@ class SubsonicService implements NetworkSourceService {
     NetworkServerEntity server,
     String coverArtId,
   ) async {
-    final uri = _endpoint(server, 'getCoverArt', {'id': coverArtId});
+    final uri = await _endpoint(server, 'getCoverArt', {'id': coverArtId});
     final response =
         await _client.get(uri).timeout(const Duration(seconds: 30));
     if (response.statusCode != 200) {
@@ -297,12 +312,13 @@ class SubsonicService implements NetworkSourceService {
         extension: extension);
     if (cached != null) return cached;
 
-    final uri = _endpoint(server, 'stream', {'id': songId});
+    final uri = await _endpoint(server, 'stream', {'id': songId});
     final request = http.Request('GET', uri);
     final response = await _client
         .send(request)
         .timeout(const Duration(minutes: 5));
     if (response.statusCode != 200) {
+      await response.stream.listen(null).cancel();
       throw SubsonicNetworkException(
           'HTTP ${response.statusCode} for stream');
     }
@@ -328,7 +344,10 @@ class SubsonicService implements NetworkSourceService {
   }) async {
     // ponytail: Subsonic auth is entirely URL-embedded (u/p/t+s query params),
     // so headers are empty. Range support is universal across servers.
-    return (url: _endpoint(server, 'stream', {'id': songId}).toString(), headers: const <String, String>{});
+    return (
+      url: (await _endpoint(server, 'stream', {'id': songId})).toString(),
+      headers: const <String, String>{},
+    );
   }
 
   // --- Library sync -------------------------------------------------------
