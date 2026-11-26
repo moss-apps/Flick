@@ -35,9 +35,16 @@ fn test_variable_44100_hz_packets_match_the_submitted_schedule() {
 #[test]
 fn test_issue_354_mismatches_report_a_frame_deficit_not_harmless_alternation() {
     let mut scheduler = IsoPacketScheduler::new(44_100, 4, 125);
-    scheduler.next_transfer_packet_bytes();
-    scheduler.next_transfer_packet_bytes();
-    let packet_sizes = scheduler.next_transfer_packet_bytes();
+    // The issue's capture is a 32-packet window starting 64 packets into the
+    // stream. Transfers are shorter than that now, so skip 64 packets and
+    // join the next 32.
+    let packets_per_transfer = scheduler.packets_per_transfer();
+    for _ in 0..(64 / packets_per_transfer) {
+        scheduler.next_transfer_packet_bytes();
+    }
+    let packet_sizes: Vec<usize> = (0..(32 / packets_per_transfer))
+        .flat_map(|_| scheduler.next_transfer_packet_bytes())
+        .collect();
     let mut descriptors = completed_packets(&packet_sizes);
 
     // Reconstruct the issue's 23 actual/expected mismatches. Here descriptor
@@ -191,8 +198,11 @@ fn test_feedback_paced_packets_use_the_actual_submitted_schedule() {
 fn test_reused_slot_cannot_validate_against_an_old_schedule() {
     let mut scheduler = IsoPacketScheduler::new(44_100, 4, 125);
     let old_packet_sizes = scheduler.next_transfer_packet_bytes();
-    scheduler.next_transfer_packet_bytes();
-    let current_packet_sizes = scheduler.next_transfer_packet_bytes();
+    // Advance until the fractional-frame schedule differs from the old one.
+    let current_packet_sizes = (0..64)
+        .map(|_| scheduler.next_transfer_packet_bytes())
+        .find(|sizes| *sizes != old_packet_sizes)
+        .expect("44.1 kHz schedule must vary between transfers");
     let descriptors = completed_packets(&current_packet_sizes);
 
     assert!(validate_iso_packet_descriptors(&old_packet_sizes, &descriptors).is_err());

@@ -22,13 +22,15 @@ class RustAudioEngine implements AudioEngine {
     required RustEngineDisposer disposeEngine,
     RustHttpSourceResolver? resolveHttpSource,
     Future<bool> Function()? requestAudioFocus,
+    bool Function()? canStartPlayback,
   }) : _playbackMode = playbackMode,
        _rustAudioService = rustAudioService,
        _ensureInitialized = ensureInitialized,
        _resolvePlaybackPath = resolvePlaybackPath,
        _disposeEngine = disposeEngine,
        _resolveHttpSource = resolveHttpSource,
-       _requestAudioFocus = requestAudioFocus;
+       _requestAudioFocus = requestAudioFocus,
+       _canStartPlayback = canStartPlayback;
 
   final AudioEngineType _playbackMode;
   final RustAudioService _rustAudioService;
@@ -37,6 +39,13 @@ class RustAudioEngine implements AudioEngine {
   final RustEngineDisposer _disposeEngine;
   final RustHttpSourceResolver? _resolveHttpSource;
   final Future<bool> Function()? _requestAudioFocus;
+  final bool Function()? _canStartPlayback;
+
+  void _checkCanStartPlayback() {
+    if (_canStartPlayback?.call() == false) {
+      throw StateError('Direct USB reconnect was cancelled');
+    }
+  }
 
   final StreamController<PlaybackState> _controller =
       StreamController<PlaybackState>.broadcast();
@@ -164,6 +173,7 @@ class RustAudioEngine implements AudioEngine {
     // reused, and prewarming one must not take audio away from another device.
     final requestAudioFocus = _requestAudioFocus;
     if (requestAudioFocus != null && !await requestAudioFocus()) return;
+    _checkCanStartPlayback();
     if (track == null) {
       await _rustAudioService.resume();
       _emit(_state.copyWith(isPlaying: true));
@@ -197,6 +207,7 @@ class RustAudioEngine implements AudioEngine {
         final http = await httpResolver(track);
         if (http != null) {
           try {
+            _checkCanStartPlayback();
             await _rustAudioService.playHttp(
               url: http.url,
               headers: http.headers,
@@ -224,7 +235,9 @@ class RustAudioEngine implements AudioEngine {
       }
     }
 
+    _checkCanStartPlayback();
     final path = await _resolvePlaybackPath(track);
+    _checkCanStartPlayback();
     if (path == null || path.isEmpty) {
       final sourcePath = track.filePath ?? '';
       final scheme = Uri.tryParse(sourcePath)?.scheme ?? '';

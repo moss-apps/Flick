@@ -1,6 +1,9 @@
+import 'package:flick/models/song.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/android_audio_engine.dart';
+import 'package:flick/services/uac2_service.dart';
+import 'package:flick/src/rust/api/audio_api.dart' show AudioProbeFormat;
 
 void main() {
   group('canonicalPlaybackFileType', () {
@@ -30,6 +33,100 @@ void main() {
       expect(
         canonicalPlaybackFileType(fileType: '.oga', filePath: null),
         'ogg',
+      );
+    });
+  });
+
+  group('resolveDirectUsbTrackFormat', () {
+    const flac = Song(
+      id: 'flac',
+      title: '24-bit test track',
+      artist: 'Test',
+      duration: Duration(seconds: 1),
+      fileType: 'FLAC',
+      sampleRate: 44100,
+    );
+    const assumed = Uac2AudioFormat(
+      sampleRate: 44100,
+      bitDepth: 16,
+      channels: 2,
+    );
+
+    test('uses the file format instead of a guessed 16-bit depth', () async {
+      final result = await resolveDirectUsbTrackFormat(
+        flac,
+        metadataFormat: assumed,
+        probe: () async => const AudioProbeFormat(
+          sampleRate: 96000,
+          bitsPerSample: 24,
+          channels: 2,
+        ),
+      );
+      expect(result?.sampleRate, 96000);
+      expect(result?.bitDepth, 24);
+      expect(result?.channels, 2);
+    });
+
+    test('does not guess when the source has no readable FLAC depth', () async {
+      expect(
+        await resolveDirectUsbTrackFormat(
+          flac,
+          metadataFormat: assumed,
+          probe: () async => const AudioProbeFormat(
+            sampleRate: 44100,
+            channels: 2,
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        await resolveDirectUsbTrackFormat(
+          flac,
+          metadataFormat: assumed,
+          probe: () async => null,
+        ),
+        isNull,
+      );
+    });
+
+    test('a successful probe can correct complete but stale FLAC metadata', () async {
+      final result = await resolveDirectUsbTrackFormat(
+        flac.copyWith(bitDepth: 16),
+        metadataFormat: assumed,
+        probe: () async => const AudioProbeFormat(
+          sampleRate: 44100,
+          bitsPerSample: 24,
+          channels: 2,
+        ),
+      );
+      expect(result?.bitDepth, 24);
+    });
+
+    test('keeps complete FLAC metadata if probing fails', () async {
+      expect(
+        await resolveDirectUsbTrackFormat(
+          flac.copyWith(bitDepth: 16),
+          metadataFormat: assumed,
+          probe: () async => throw StateError('unexpected probe'),
+        ),
+        same(assumed),
+      );
+    });
+
+    test('does not probe DSD transport as PCM', () async {
+      const dsd = Uac2AudioFormat(
+        sampleRate: 176400,
+        bitDepth: 24,
+        channels: 2,
+        isDop: true,
+      );
+      expect(
+        await resolveDirectUsbTrackFormat(
+          flac.copyWith(fileType: 'DSF'),
+          metadataFormat: dsd,
+          probe: () async => throw StateError('unexpected probe'),
+        ),
+        same(dsd),
       );
     });
   });

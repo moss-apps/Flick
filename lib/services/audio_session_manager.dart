@@ -298,11 +298,13 @@ class AudioSessionManager {
       rust_audio.AudioCapabilityType.usbDac,
     );
     final looksLikeUsbAudioRoute = info.looksLikeUsbAudioRoute;
+    final directUsbClaimed = _uac2Service.hasClaimedDirectUsbDac;
 
     _debugLog(
       '[Session] Resolve inputs: route=${info.routeLabel ?? info.routeType ?? 'unknown'} '
       'attachedUac2=${info.hasAttachedUac2Device} audioManagerUsb=${info.hasUsbDac} '
       'capabilityUsb=$capabilityReportsUsb routeLooksUsb=$looksLikeUsbAudioRoute '
+      'directUsbClaimed=$directUsbClaimed '
       'isBt=${info.isBluetoothRoute} btLowLatency=${Uac2PreferencesService.isBtLowLatencyModeSync} '
       'btHiResDirect=${Uac2PreferencesService.isBtHiResDirectSync} '
       'bitPerfect=$bitPerfectEnabled dapBitPerfect=$dapBitPerfectEnabled '
@@ -340,7 +342,8 @@ class AudioSessionManager {
       return AudioEngineType.normalAndroid;
     }
 
-    if (info.hasAttachedUac2Device ||
+    if (directUsbClaimed ||
+        info.hasAttachedUac2Device ||
         info.hasUsbDac ||
         capabilityReportsUsb ||
         looksLikeUsbAudioRoute) {
