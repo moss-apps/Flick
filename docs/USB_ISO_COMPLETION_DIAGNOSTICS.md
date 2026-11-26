@@ -1,10 +1,32 @@
 # USB isochronous completion diagnostics (#354)
 
-This is the diagnostic stage of [issue #354](https://github.com/moss-apps/Flick/issues/354),
-not a compatibility workaround. Packet acceptance and fallback remain strict:
-each ISO OUT packet must complete successfully with its exact submitted length.
-No resampling, format conversion, startup-packet skipping, or new DAC quirks are
-introduced.
+These diagnostics were introduced for [issue #354](https://github.com/moss-apps/Flick/issues/354).
+Direct USB PCM can continue through bounded, reported shortfalls. The report
+still compares every packet with its original submission. Native DSD, DoP,
+and diagnostic probes require exact, successful completions.
+
+## PCM completion policy
+
+- A completed packet may be shorter than submitted if the descriptor is
+  unchanged and both lengths are whole PCM frames. The missing frames are
+  counted as loss rather than consumed. On timeout, only successful packets
+  that reported the full original length are credited. A partly reported
+  packet from a timed-out transfer is counted in full as uncredited.
+- Any reported shortfall or timeout clears stream stability and bit-perfect
+  verification until a new stream starts. A timeout with full-length packets
+  still clears verification without adding invented lost frames.
+- An oversized packet, descriptor rewrite, malformed completion, or other
+  packet error stops playback on this transport. Matching total lengths
+  cannot make two mismatched packets valid. Recovery stops after a fourth
+  consecutive interrupted completion in callback order or when uncredited
+  frames exceed 100 ms of PCM since stream start.
+- New submissions carry new audio. Later audio is already queued, so dropped
+  packets are never replayed or filled by resampling. Audible gaps may remain.
+
+The first recoverable interruption is recorded in the shareable log.
+`[USB-TIMING]` reports `lostFrames`, `shortPackets`, `zeroPackets`,
+`dataUrbTimeouts`, and `transportUnverified` for the current stream. These
+are completion-based counts, not measurements of the bytes received by the DAC.
 
 ## Collecting a reproduction
 
@@ -14,7 +36,8 @@ introduced.
 2. Connect the affected Redmi 12C / KT-Micro KT-384/32 DAC combination and select
    direct USB / bit-perfect playback.
 3. Start a local 44.1 kHz, 16-bit stereo track and export Flick's logs immediately
-   after playback falls back. Include the app version and source audio format.
+   after an interruption or fallback. Include the app version and source format
+   and whether the bit-perfect indicator changed.
 4. If possible, repeat with a 48 kHz track, then with the same DAC on another
    Android device. Keep each reproduction's logs separate.
 
@@ -52,7 +75,7 @@ saved requests. Reconstructing its 23 reported mismatches against a matching
 deficit for 16-bit stereo. This may be bad completion metadata or actual loss;
 the diagnostic snapshot must not be interpreted as proof of either on its own.
 
-## Validation before changing acceptance
+## Validation
 
 Run the Rust library tests and cross-compile the Android audio path. The pure
 validation tests run on the host without USB hardware:
@@ -77,9 +100,8 @@ flutter build apk --flavor full --debug
 The APK is written to `build/app/outputs/flutter-apk/app-full-debug.apk`. The
 signing-key warning above applies; successful compilation is not DAC validation.
 
-Use reporter hardware results to determine whether to fix submission/lifecycle
-bookkeeping or investigate a narrowly scoped USB-stack reporting quirk. Do not
-replace exact packet checks with a nominal floor/ceiling whitelist or skip empty
-completions. Recheck both sample-rate families, supported bit depths, DSD/DoP,
-seeking, pause/resume, foregrounding and unplugging before shipping a behavioral
-fix. Real DAC verification is still required.
+Recheck both sample-rate families, supported bit depths, DSD/DoP, seeking,
+pause/resume, foregrounding and unplugging. The earlier #354 capture included
+packets larger than submitted. PCM shortfall recovery does not accept those
+completions. Retest the affected hardware to establish what it reports with this
+build.
