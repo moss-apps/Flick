@@ -124,6 +124,13 @@ class ToggleSetting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SettingsSearchAnchor(
+      titles: [title],
+      child: _buildRow(context),
+    );
+  }
+
+  Widget _buildRow(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -187,6 +194,13 @@ class NavigationSetting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SettingsSearchAnchor(
+      titles: [title],
+      child: _buildRow(context),
+    );
+  }
+
+  Widget _buildRow(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -248,6 +262,13 @@ class InfoSetting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SettingsSearchAnchor(
+      titles: [title],
+      child: _buildRow(context),
+    );
+  }
+
+  Widget _buildRow(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(AppConstants.spacingLg),
       child: Row(
@@ -395,6 +416,13 @@ class SelectionSetting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SettingsSearchAnchor(
+      titles: [title],
+      child: _buildRow(context),
+    );
+  }
+
+  Widget _buildRow(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -470,6 +498,13 @@ class ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SettingsSearchAnchor(
+      titles: [title],
+      child: _buildRow(context),
+    );
+  }
+
+  Widget _buildRow(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -609,6 +644,13 @@ class SliderSetting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SettingsSearchAnchor(
+      titles: [title],
+      child: _buildRow(context),
+    );
+  }
+
+  Widget _buildRow(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppConstants.spacingLg,
