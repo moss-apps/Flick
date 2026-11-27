@@ -64,11 +64,6 @@ MIT. No ads, no premium features, no tracking.
 
 Contributions are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). Start by running `git pull` on `main`.
 
-## Contributors
-
-- [@Harleythetech](https://github.com/Harleythetech)
-- [@MagosVox](https://github.com/MagosVox)
-
 ---
 
 I build this with [OpenCode](https://opencode.ai). It writes some of the comments and docs, and it's bailed me out of more than a few nasty-ass bugs. The code, the design calls, and the fuck-ups are all mine.
