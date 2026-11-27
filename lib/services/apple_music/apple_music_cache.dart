@@ -81,7 +81,9 @@ class AppleMusicCache {
     );
     _mem[key] = entry;
     if (!transient) {
-      unawaited(_writeDisk(key, entry));
+      // Await the write so a cache opened immediately afterwards (for example
+      // by a new service instance) can read the value back from disk.
+      await _writeDisk(key, entry);
     }
     return value;
   }
