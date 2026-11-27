@@ -1816,6 +1816,9 @@ class AppLocalizationsEs extends AppLocalizations {
       'Seguir recorriendo toda tu biblioteca';
 
   @override
+  String get contributors => 'Colaboradores';
+
+  @override
   String get controls => 'Controles';
 
   @override

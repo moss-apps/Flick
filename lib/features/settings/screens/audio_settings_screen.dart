@@ -10,6 +10,7 @@ import 'package:flick/models/audio_engine_type.dart';
 import 'package:flick/features/settings/screens/equalizer_screen.dart';
 import 'package:flick/features/settings/screens/uac2_settings_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
+import 'package:flick/features/settings/widgets/settings_scroll_target.dart';
 import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/player_provider.dart';
@@ -529,11 +530,14 @@ class _CrossfeedLevelPicker extends StatelessWidget {
               ) ...[
                 if (i > 0) const SizedBox(width: AppConstants.spacingSm),
                 Expanded(
-                  child: _CurveChip(
-                    label: levelLabels[i],
-                    selected: i == selectedIndex,
-                    enabled: enabled,
-                    onTap: enabled ? () => onSelect?.call(i) : null,
+                  child: SettingsSearchAnchor(
+                    titles: [levelLabels[i]],
+                    child: _CurveChip(
+                      label: levelLabels[i],
+                      selected: i == selectedIndex,
+                      enabled: enabled,
+                      onTap: enabled ? () => onSelect?.call(i) : null,
+                    ),
                   ),
                 ),
               ],
@@ -590,11 +594,14 @@ class _CrossfadeCurvePicker extends StatelessWidget {
               ) ...[
                 if (i > 0) const SizedBox(width: AppConstants.spacingSm),
                 Expanded(
-                  child: _CurveChip(
-                    label: curveLabels[i],
-                    selected: i == selectedIndex,
-                    enabled: enabled,
-                    onTap: enabled ? () => onSelect?.call(i) : null,
+                  child: SettingsSearchAnchor(
+                    titles: [curveLabels[i]],
+                    child: _CurveChip(
+                      label: curveLabels[i],
+                      selected: i == selectedIndex,
+                      enabled: enabled,
+                      onTap: enabled ? () => onSelect?.call(i) : null,
+                    ),
                   ),
                 ),
               ],

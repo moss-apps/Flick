@@ -764,6 +764,7 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
           ('viewOnboarding', l10n.viewOnboarding),
           ('interactiveTutorial', l10n.interactiveTutorial),
         ]),
+        _section('contributors', l10n.contributors, []),
         _section('support', l10n.support, []),
       ],
     ),

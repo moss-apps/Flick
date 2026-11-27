@@ -28,6 +28,7 @@ import 'package:flick/widgets/common/baybayin_text.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
 import '../data/settings_search.dart';
 import '../data/settings_search_catalog.dart';
+import '../widgets/settings_scroll_target.dart';
 import '../widgets/settings_search_results.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -96,9 +97,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: SettingsSearchResults(
                   query: _query,
                   results: searchSettings(_query, buildSettingsSearchCatalog()),
-                  onOpen: (page, sectionId) {
+                  onOpen: (page, sectionId, item) {
                     FocusScope.of(context).unfocus();
-                    _navigate(context, page.buildPage(sectionId));
+                    _navigate(
+                      context,
+                      page.buildPage(sectionId),
+                      itemTitle: item?.title,
+                    );
                   },
                 ),
               )
@@ -419,10 +424,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _navigate(BuildContext context, Widget screen) {
+  void _navigate(BuildContext context, Widget screen, {String? itemTitle}) {
     NavigationHelper.pushOnRoot(
       context,
-      MaterialPageRoute<void>(builder: (_) => screen),
+      MaterialPageRoute<void>(
+        builder: (_) => itemTitle == null
+            ? screen
+            : SettingsSearchArrival(itemTitle: itemTitle, child: screen),
+      ),
     );
   }
 }

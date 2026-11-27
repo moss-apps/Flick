@@ -17,6 +17,7 @@ import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
 import 'package:flick/features/settings/screens/privacy_policy_screen.dart';
 import 'package:flick/features/settings/screens/support_flick_screen.dart';
+import 'package:flick/features/settings/widgets/contributors_card.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/models/update_channel.dart';
 import 'package:flick/providers/providers.dart';
@@ -830,6 +831,12 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
               ),
             ],
           ),
+          const SizedBox(height: AppConstants.spacingLg),
+          SettingsSectionHeader(
+            l10n.englishForFilipino.contributors,
+            sectionId: 'contributors',
+          ),
+          const ContributorsCard(),
           const SizedBox(height: AppConstants.spacingLg),
           SettingsSectionHeader(l10n.englishForFilipino.support, sectionId: 'support'),
           AnimatedBuilder(

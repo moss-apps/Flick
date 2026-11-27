@@ -29,7 +29,7 @@ void main() {
                     child: SettingsSearchResults(
                       query: query,
                       results: const [],
-                      onOpen: (_, _) {},
+                      onOpen: (_, _, _) {},
                     ),
                   ),
                 ],
@@ -73,7 +73,7 @@ void main() {
           body: SettingsSearchResults(
             query: 'a very long query that does not match any setting',
             results: const [],
-            onOpen: (_, _) {},
+            onOpen: (_, _, _) {},
           ),
         ),
       ),
@@ -105,14 +105,15 @@ void main() {
         ]),
       ],
     );
-    final opened = <(String, String?)>[];
+    final opened = <(String, String?, String?)>[];
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: SettingsSearchResults(
             query: 'preamp',
             results: searchSettings('preamp', [page]),
-            onOpen: (page, section) => opened.add((page.id, section)),
+            onOpen: (page, section, item) =>
+                opened.add((page.id, section, item?.id)),
           ),
         ),
       ),
@@ -121,7 +122,7 @@ void main() {
     expect(find.text('ReplayGain'), findsOneWidget);
     await tester.tap(find.text('Pre-amp'));
     await tester.tap(find.text('Audio'));
-    expect(opened, [('audio', 'gain'), ('audio', null)]);
+    expect(opened, [('audio', 'gain', 'preamp'), ('audio', null, null)]);
     expect(built, isFalse);
   });
 
@@ -145,7 +146,7 @@ void main() {
             body: SettingsSearchResults(
               query: query,
               results: const [],
-              onOpen: (_, _) {},
+              onOpen: (_, _, _) {},
             ),
           ),
         ),
@@ -180,7 +181,7 @@ void main() {
             body: SettingsSearchResults(
               query: 'keep playing',
               results: searchSettings('keep playing', [page]),
-              onOpen: (_, _) {},
+              onOpen: (_, _, _) {},
             ),
           ),
         ),

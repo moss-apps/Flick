@@ -16,7 +16,11 @@ class SettingsSearchResults extends StatelessWidget {
 
   final String query;
   final List<SettingsSearchResult> results;
-  final void Function(SettingsSearchPage page, String? sectionId) onOpen;
+  final void Function(
+    SettingsSearchPage page,
+    String? sectionId,
+    SettingsSearchItem? item,
+  ) onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +71,7 @@ class SettingsSearchResults extends StatelessWidget {
               icon: result.page.icon,
               title: result.page.title,
               subtitle: result.page.category,
-              onTap: () => onOpen(result.page, null),
+              onTap: () => onOpen(result.page, null, null),
             ),
             for (final match in result.matches) ...[
               const SettingsDivider(),
@@ -77,7 +81,7 @@ class SettingsSearchResults extends StatelessWidget {
                 subtitle: match.item == null
                     ? result.page.title
                     : match.section.title,
-                onTap: () => onOpen(result.page, match.section.id),
+                onTap: () => onOpen(result.page, match.section.id, match.item),
               ),
             ],
           ],

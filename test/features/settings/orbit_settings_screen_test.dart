@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/features/settings/screens/orbit_settings_screen.dart';
+import 'package:flick/features/settings/widgets/settings_scroll_target.dart';
 import 'package:flick/features/songs/widgets/orbit_scroll.dart';
 import 'package:flick/features/songs/widgets/song_card.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -31,44 +32,104 @@ class _PreviewPreferences extends AppPreferencesNotifier {
   }
 }
 
-Widget _host({double textScale = 1, List<Song> songs = const []}) =>
-    ProviderScope(
-      overrides: [
-        currentSongProvider.overrideWithValue(null),
-        songsProvider.overrideWith(() => _PreviewSongs(songs)),
-        appPreferencesProvider.overrideWith(_PreviewPreferences.new),
-      ],
-      child: MaterialApp(
-        theme: AppTheme.darkTheme,
-        locale: kFallbackLocale,
-        supportedLocales: kSupportedLocales,
-        localizationsDelegates: kAppLocalizationsDelegates,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
-        ),
-        home: const OrbitSettingsScreen(),
+Widget _host({
+  double textScale = 1,
+  List<Song> songs = const [],
+  String? initialSection,
+  String? arrivalTitle,
+}) {
+  final screen = OrbitSettingsScreen(initialSection: initialSection);
+  return ProviderScope(
+    overrides: [
+      currentSongProvider.overrideWithValue(null),
+      songsProvider.overrideWith(() => _PreviewSongs(songs)),
+      appPreferencesProvider.overrideWith(_PreviewPreferences.new),
+    ],
+    child: MaterialApp(
+      theme: AppTheme.darkTheme,
+      locale: kFallbackLocale,
+      supportedLocales: kSupportedLocales,
+      localizationsDelegates: kAppLocalizationsDelegates,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
       ),
-    );
+      home: arrivalTitle == null
+          ? screen
+          : SettingsSearchArrival(itemTitle: arrivalTitle, child: screen),
+    ),
+  );
+}
 
 Future<void> _pumpScreen(
   WidgetTester tester, {
   Size size = const Size(411, 900),
   double textScale = 1,
   List<Song> songs = const [],
+  String? initialSection,
+  String? arrivalTitle,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(_host(textScale: textScale, songs: songs));
+  await tester.pumpWidget(
+    _host(
+      textScale: textScale,
+      songs: songs,
+      initialSection: initialSection,
+      arrivalTitle: arrivalTitle,
+    ),
+  );
   await tester.pumpAndSettle();
 }
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets('search arrival scrolls to and highlights a real setting row', (
+    tester,
+  ) async {
+    final copy = lookupFlickLocalizations(kFallbackLocale);
+
+    await _pumpScreen(
+      tester,
+      initialSection: 'sizing',
+      arrivalTitle: copy.cardSize,
+    );
+
+    final scrollable = tester.state<ScrollableState>(
+      find
+          .descendant(
+            of: find.byType(SettingsScrollTarget),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(scrollable.position.pixels, greaterThan(0));
+
+    final title = find.text(copy.cardSize);
+    expect(title, findsOneWidget);
+    final rect = tester.getRect(title);
+    expect(rect.top, greaterThan(0));
+    expect(rect.bottom, lessThan(900));
+
+    final anchor = find.ancestor(
+      of: title,
+      matching: find.byType(SettingsSearchAnchor),
+    );
+    expect(anchor, findsOneWidget);
+    final frame = tester.widget<AnimatedContainer>(
+      find
+          .descendant(of: anchor, matching: find.byType(AnimatedContainer))
+          .first,
+    );
+    final color = (frame.decoration as BoxDecoration?)?.color;
+    expect(color, isNot(Colors.transparent));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('profile selector switches without rotating the window', (
     tester,

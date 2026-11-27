@@ -3139,6 +3139,12 @@ abstract class AppLocalizations {
   /// **'Continue through your entire library'**
   String get continueThroughYourEntireLibrary;
 
+  /// Settings → App Info section with the GitHub profile pictures of Flick's contributors.
+  ///
+  /// In en, this message translates to:
+  /// **'Contributors'**
+  String get contributors;
+
   /// lib/features/manual/data/manual_data.dart
   ///
   /// In en, this message translates to:

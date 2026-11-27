@@ -1680,6 +1680,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get continueThroughYourEntireLibrary => '在整个音乐库中继续播放';
 
   @override
+  String get contributors => '贡献者';
+
+  @override
   String get controls => '控件';
 
   @override

@@ -27,6 +27,53 @@ Widget _body(
   );
 }
 
+Widget _searchBody(
+  ScrollController controller, {
+  required String arrivalTitle,
+  String rowTitle = 'Ignore tracks under 60 seconds',
+  String? target = 'volume',
+}) {
+  return SettingsSearchArrival(
+    itemTitle: arrivalTitle,
+    child: SettingsScrollTarget(
+      initialSection: target,
+      child: SingleChildScrollView(
+        controller: controller,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 1000),
+            const SettingsSectionAnchor(
+              id: 'volume',
+              child: SizedBox(
+                key: ValueKey('section'),
+                height: 50,
+                child: Text('Volume'),
+              ),
+            ),
+            SettingsSearchAnchor(
+              titles: [rowTitle],
+              child: SizedBox(
+                key: const ValueKey('row'),
+                height: 80,
+                child: Text(rowTitle),
+              ),
+            ),
+            const SizedBox(height: 1000),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Color? _frameColor(WidgetTester tester, Finder child) {
+  final frame = tester.widget<AnimatedContainer>(
+    find.ancestor(of: child, matching: find.byType(AnimatedContainer)).first,
+  );
+  return (frame.decoration as BoxDecoration?)?.color;
+}
+
 void main() {
   testWidgets(
     'reveals a stable ID once and does not override later scrolling',
@@ -178,5 +225,156 @@ void main() {
     );
     expect(controller.offset, closeTo(1000, 1));
     expect(controller.position.isScrollingNotifier.value, isFalse);
+  });
+
+  testWidgets('search arrival scrolls to the exact row and highlights it', (
+    tester,
+  ) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: _searchBody(
+            controller,
+            arrivalTitle: 'Ignore tracks under 60 seconds',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(controller.offset, closeTo(956.4, 1));
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('row'))).dy,
+      closeTo(93.6, 1),
+    );
+    expect(
+      _frameColor(tester, find.byKey(const ValueKey('row'))),
+      isNot(Colors.transparent),
+    );
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(
+      _frameColor(tester, find.byKey(const ValueKey('row'))),
+      Colors.transparent,
+    );
+  });
+
+  testWidgets('repeated row titles resolve to the selected section', (
+    tester,
+  ) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsSearchArrival(
+            itemTitle: 'Text Size',
+            child: SettingsScrollTarget(
+              initialSection: 'second',
+              child: SingleChildScrollView(
+                controller: controller,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 100),
+                    const SettingsSectionAnchor(
+                      id: 'first',
+                      child: SizedBox(height: 40, child: Text('First')),
+                    ),
+                    SettingsSearchAnchor(
+                      titles: const ['Text Size'],
+                      child: const SizedBox(
+                        key: ValueKey('firstRow'),
+                        height: 80,
+                        child: Text('Text Size'),
+                      ),
+                    ),
+                    const SizedBox(height: 300),
+                    const SettingsSectionAnchor(
+                      id: 'second',
+                      child: SizedBox(
+                        key: ValueKey('secondSection'),
+                        height: 40,
+                        child: Text('Second'),
+                      ),
+                    ),
+                    SettingsSearchAnchor(
+                      titles: const ['Text Size'],
+                      child: const SizedBox(
+                        key: ValueKey('secondRow'),
+                        height: 80,
+                        child: Text('Text Size'),
+                      ),
+                    ),
+                    const SizedBox(height: 1000),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('secondRow'))).dy,
+      closeTo(93.6, 1),
+    );
+    expect(
+      _frameColor(tester, find.byKey(const ValueKey('firstRow'))),
+      Colors.transparent,
+    );
+    expect(
+      _frameColor(tester, find.byKey(const ValueKey('secondRow'))),
+      isNot(Colors.transparent),
+    );
+  });
+
+  testWidgets('missing rows fall back to their section and highlight it', (
+    tester,
+  ) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: _searchBody(controller, arrivalTitle: 'Hidden control'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(controller.offset, closeTo(1000, 1));
+    expect(
+      _frameColor(tester, find.byKey(const ValueKey('section'))),
+      isNot(Colors.transparent),
+    );
+  });
+
+  testWidgets('reduced motion highlights the arrived row immediately', (
+    tester,
+  ) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: Scaffold(
+            body: _searchBody(
+              controller,
+              arrivalTitle: 'Ignore tracks under 60 seconds',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(controller.offset, closeTo(956.4, 1));
+    expect(
+      _frameColor(tester, find.byKey(const ValueKey('row'))),
+      isNot(Colors.transparent),
+    );
   });
 }
