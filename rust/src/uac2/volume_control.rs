@@ -50,12 +50,22 @@ impl VolumeRange {
     }
 
     fn nearest(self, target: f64) -> i16 {
+        self.nearest_at_or_above(target, self.min).unwrap_or(self.min)
+    }
+
+    fn nearest_at_or_above(self, target: f64, floor: i16) -> Option<i16> {
         let target = target.clamp(self.min as f64, self.max as f64);
-        let step = i32::from(self.resolution).max(1) as f64;
+        let step = i32::from(self.resolution).max(1);
+        let offset = (i32::from(floor) - i32::from(self.min)).max(0);
+        let first_step = (offset + step - 1) / step;
         // Round inside the supported lattice; MAX need not be step-aligned.
-        let last_step = ((i32::from(self.max) - i32::from(self.min)) as f64 / step).floor();
-        let index = ((target - self.min as f64) / step).round().clamp(0.0, last_step);
-        (self.min as f64 + index * step) as i16
+        let last_step = (i32::from(self.max) - i32::from(self.min)) / step;
+        if first_step > last_step {
+            return None;
+        }
+        let index = (((target - self.min as f64) / f64::from(step)).round() as i32)
+            .clamp(first_step, last_step);
+        Some((i32::from(self.min) + index * step) as i16)
     }
 }
 
@@ -97,8 +107,47 @@ pub(crate) fn quantize_volume(volume: f64, ranges: &[VolumeRange]) -> i16 {
     }).unwrap_or(min)
 }
 
+/// The floor applies to explicit slider gestures only. Readback, saved
+/// levels and automatic restoration still use the whole device range.
+const SLIDER_FLOOR_RAW: i16 = -80 * 256;
+
+fn slider_floor_raw(ranges: &[VolumeRange]) -> i16 {
+    let (min, max) = volume_bounds(ranges);
+    if min < SLIDER_FLOOR_RAW && max > SLIDER_FLOOR_RAW
+        && ranges.iter().any(|range| {
+            range.nearest_at_or_above(f64::from(max), SLIDER_FLOOR_RAW + 1).is_some()
+        })
+    {
+        SLIDER_FLOOR_RAW
+    } else {
+        min
+    }
+}
+
+pub(crate) fn volume_slider_floor(ranges: &[VolumeRange]) -> f64 {
+    normalize_volume(slider_floor_raw(ranges), ranges)
+}
+
+pub(crate) fn quantize_slider_volume(volume: f64, ranges: &[VolumeRange]) -> i16 {
+    let (min, max) = volume_bounds(ranges);
+    let floor = slider_floor_raw(ranges);
+    let volume = volume.clamp(0.0, 1.0);
+    if volume == 0.0 {
+        return min;
+    }
+    let target = f64::from(floor) + volume * (f64::from(max) - f64::from(floor));
+    let lowest_step = if floor > min { floor + 1 } else { min };
+    ranges.iter().filter_map(|range| range.nearest_at_or_above(target, lowest_step))
+        .min_by(|a, b| {
+            (f64::from(*a) - target).abs().total_cmp(&(f64::from(*b) - target).abs())
+                .then(a.cmp(b))
+        })
+        .unwrap_or(min)
+}
+
 #[derive(Debug, PartialEq)]
 pub(crate) struct HardwareVolumeSnapshot {
+    pub(crate) raw: i16,
     pub(crate) volume: f64,
     pub(crate) muted: Option<bool>,
     pub(crate) mute_error: Option<String>,
@@ -127,6 +176,7 @@ pub(crate) fn read_hardware_volume_snapshot(
         Err(error) => (None, Some(error)),
     };
     Ok(HardwareVolumeSnapshot {
+        raw,
         volume: normalize_volume(raw, ranges),
         muted,
         mute_error,
@@ -181,6 +231,44 @@ mod tests {
     const TEST_RANGES: [VolumeRange; 1] = [VolumeRange {
         min: -25600, max: 0, resolution: 256,
     }];
+
+    #[test]
+    fn slider_floor_does_not_change_startup_or_saved_levels() {
+        let ranges = [VolumeRange { min: -127 * 256, max: 0, resolution: 256 }];
+        assert_eq!(quantize_volume(0.4, &ranges), -76 * 256);
+        assert_eq!(quantize_slider_volume(0.4, &ranges), -48 * 256);
+        assert_eq!(quantize_slider_volume(0.0, &ranges), -127 * 256);
+        assert_eq!(quantize_slider_volume(0.001, &ranges), -79 * 256);
+        assert_eq!(quantize_slider_volume(1.0, &ranges), 0);
+        assert_eq!(volume_slider_floor(&ranges), 47.0 / 127.0);
+        for raw in [-100 * 256, -80 * 256, -76 * 256] {
+            assert_eq!(quantize_volume(normalize_volume(raw, &ranges), &ranges), raw);
+        }
+    }
+
+    #[test]
+    fn slider_selects_supported_steps_across_disjoint_or_coarse_ranges() {
+        let mut ranges = [
+            VolumeRange { min: -127 * 256, max: -90 * 256, resolution: 256 },
+            VolumeRange { min: -60 * 256, max: -100, resolution: 256 },
+        ];
+        assert_eq!(quantize_slider_volume(0.01, &ranges), -60 * 256);
+        assert_eq!(quantize_slider_volume(1.0, &ranges), -256);
+        // The advertised maximum is above the floor, but there are no steps there.
+        ranges[0].max = -20000;
+        ranges[0].resolution = 20000;
+        assert_eq!(quantize_slider_volume(0.5, &ranges[..1]), -127 * 256);
+        assert_eq!(volume_slider_floor(&ranges[..1]), 0.0);
+    }
+
+    #[test]
+    fn slider_preserves_the_range_when_it_is_entirely_above_or_below_the_floor() {
+        for (min, max) in [(-60 * 256, 0), (-120 * 256, -90 * 256)] {
+            let ranges = [VolumeRange { min, max, resolution: 256 }];
+            assert_eq!(volume_slider_floor(&ranges), 0.0);
+            assert_eq!(quantize_slider_volume(0.6, &ranges), quantize_volume(0.6, &ranges));
+        }
+    }
 
     #[test]
     fn optional_mute_failure_does_not_disable_master_volume() {

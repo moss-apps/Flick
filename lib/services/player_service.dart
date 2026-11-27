@@ -52,6 +52,7 @@ import 'package:flick/services/wav_stream_audio_source.dart';
 import 'package:flick/services/casting/casting_service.dart';
 import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
+import 'package:flick/core/utils/latest_value_writer.dart';
 import 'package:flick/core/utils/volume_curve.dart';
 
 /// Coalesce progress updates without indefinitely postponing diagnostics.
@@ -76,6 +77,34 @@ Timer coalescePlaybackDiagnosticsRefresh({
 ///
 /// Reconciliation: [PlayerService._reconcileVolumeForTier]
 enum VolumeTier { hardware, software, system, unavailable }
+
+typedef _VolumeRoute = ({
+  bool casting,
+  AudioEngineType engine,
+  VolumeTier tier,
+  Uac2DeviceInfo? device,
+  int? usbConnection,
+  int? hardwareGeneration,
+});
+
+typedef _HardwareVolumeRequest = ({
+  double volume,
+  _VolumeRoute route,
+  bool sliderCurve,
+});
+
+/// One slider gesture, bound to the output that was active when it started.
+class VolumeSliderAdjustment {
+  const VolumeSliderAdjustment({
+    required this.live,
+    required this.isCurrent,
+    required this.apply,
+  });
+
+  final bool live;
+  final bool Function() isCurrent;
+  final Future<void> Function(double volume) apply;
+}
 
 /// Pure tier decision for [PlayerService._determineCurrentTier].
 ///
@@ -2758,14 +2787,21 @@ class PlayerService {
     }
   }
 
-  Future<void> _setHardwareVolume(double volume) async {
+  /// A dragged slider asks for DAC levels faster than a SET_CUR and its
+  /// readback complete. One write is in flight; the newest request replaces any
+  /// queued one. Every write still runs the full [_setHardwareVolume] gating.
+  late final _hardwareVolumeWriter =
+      LatestValueWriter<_HardwareVolumeRequest>(_setHardwareVolume);
+
+  Future<void> _setHardwareVolume(_HardwareVolumeRequest request) async {
+    final (:volume, :route, :sliderCurve) = request;
+    if (!_isCurrentVolumeRoute(route)) return;
     final directUsb = _isDirectUsbPath;
-    final device = _uac2Service.currentDeviceStatus?.device;
+    final device = route.device;
     final generation = _usbDacVolumeRestore.connectionGeneration;
     bool currentRoute() =>
         generation == _usbDacVolumeRestore.connectionGeneration &&
-        (!directUsb || _isDirectUsbPath) &&
-        _sameUsbVolumeDevice(device, _uac2Service.currentDeviceStatus?.device);
+        _isCurrentVolumeRoute(route);
     // Do not write DAC gain during a safety pause or a change of authority.
     final safetyGeneration = directUsb
         ? await _confirmUsbVolumeSafety(
@@ -2773,10 +2809,14 @@ class PlayerService {
           )
         : null;
     bool currentSafety() =>
-        !directUsb ||
-        (safetyGeneration == _usbVolumeSafetyGeneration && currentRoute());
+        currentRoute() &&
+        (!directUsb || safetyGeneration == _usbVolumeSafetyGeneration);
     if (!currentSafety()) return;
-    final success = await _uac2Service.setVolume(volume);
+    final success = await _uac2Service.setVolume(
+      volume,
+      hardwareSliderCurve: sliderCurve,
+      expectedHardwareGeneration: route.hardwareGeneration,
+    );
     if (!currentSafety()) return;
     if (success) {
       _currentVolume = _uac2Service.currentDeviceStatus?.volume ?? _currentVolume;
@@ -2849,7 +2889,15 @@ class PlayerService {
   /// authority; the UI should display the DAC level only then. Otherwise the
   /// bar shows [currentVolume], which is what [setVolume] actually writes.
   bool get isHardwareVolumeAuthority =>
-      _determineCurrentTier() == VolumeTier.hardware;
+      !_castingService.isActive && _determineCurrentTier() == VolumeTier.hardware;
+
+  double get hardwareVolumeSliderValue {
+    final status = _uac2Service.currentDeviceStatus;
+    return hardwareVolumeToSlider(
+      status?.volume ?? _currentVolume,
+      floor: status?.hardwareVolumeSliderFloor ?? 0.0,
+    );
+  }
 
   /// Maximum volume the user may select right now. Extended boost (2.0) is
   /// only available on the software and system tiers when the toggle is on;
@@ -7498,17 +7546,64 @@ class PlayerService {
 
   // ==================== Volume ====================
 
-  Future<void> setVolume(double volume) async {
+  _VolumeRoute _captureVolumeRoute() {
+    final tier = _determineCurrentTier();
+    final hardware = tier == VolumeTier.hardware;
+    final usb = _isDirectUsbPath || hardware;
+    final status = _uac2Service.currentDeviceStatus;
+    return (
+      casting: _castingService.isActive,
+      engine: currentEngineType,
+      tier: tier,
+      device: usb ? status?.device : null,
+      usbConnection: usb ? _usbConnectionGeneration : null,
+      hardwareGeneration: hardware ? status?.hardwareVolumeGeneration : null,
+    );
+  }
+
+  bool _isCurrentVolumeRoute(_VolumeRoute route) {
+    final current = _captureVolumeRoute();
+    return current.casting == route.casting &&
+        current.engine == route.engine &&
+        current.tier == route.tier &&
+        current.usbConnection == route.usbConnection &&
+        current.hardwareGeneration == route.hardwareGeneration &&
+        _sameUsbVolumeDevice(current.device, route.device);
+  }
+
+  VolumeSliderAdjustment beginVolumeSliderAdjustment() {
+    final route = _captureVolumeRoute();
+    final live =
+        !route.casting && route.tier == VolumeTier.hardware && _isDirectUsbPath;
+    return VolumeSliderAdjustment(
+      live: live,
+      isCurrent: () => _isCurrentVolumeRoute(route),
+      apply: (volume) => _setVolumeOnRoute(volume, route, sliderCurve: live),
+    );
+  }
+
+  Future<void> setVolume(double volume) =>
+      _setVolumeOnRoute(volume, _captureVolumeRoute());
+
+  Future<void> _setVolumeOnRoute(
+    double volume,
+    _VolumeRoute route, {
+    bool sliderCurve = false,
+  }) async {
     // A user adjustment follows (rather than racing) the one-shot safety write.
     await _waitForPhysicalOutputVolumeGuard();
-    if (!volume.isFinite || _switchingDsdForVolume) return;
-    final tier = _determineCurrentTier();
+    if (!volume.isFinite ||
+        _switchingDsdForVolume ||
+        !_isCurrentVolumeRoute(route)) {
+      return;
+    }
+    final tier = route.tier;
     final tierSupportsBoost = _extendedVolumeEnabled &&
         (tier == VolumeTier.software || tier == VolumeTier.system);
     final maxForTier = tierSupportsBoost ? 2.0 : 1.0;
     final clampedVolume = volume.clamp(0.0, maxForTier).toDouble();
 
-    if (_castingService.isActive) {
+    if (route.casting) {
       // Cast devices cannot exceed 100 %.
       _currentVolume = clampedVolume.clamp(0.0, 1.0);
       await _castingService.delegateSetVolume(_currentVolume);
@@ -7525,7 +7620,12 @@ class PlayerService {
     if (_usbDsdWireActive) {
       if (tier == VolumeTier.hardware) {
         _debugLog('[VolFlow] DSD HW path: uac2 setVolume($clampedVolume)');
-        await _setHardwareVolume(clampedVolume);
+        await _hardwareVolumeWriter.submit((
+          volume: clampedVolume,
+          route: route,
+          sliderCurve: sliderCurve,
+        ));
+        if (!_isCurrentVolumeRoute(route)) return;
       } else if (Uac2PreferencesService.autoSwitchDsdForVolumeSync &&
           clampedVolume < 1.0 &&
           _usingRustBackend &&
@@ -7544,8 +7644,14 @@ class PlayerService {
     switch (tier) {
       case VolumeTier.hardware:
         _debugLog('[VolFlow] HW path: uac2 setVolume($clampedVolume)');
-        await _setHardwareVolume(clampedVolume);
-        await _reconcileSystemVolumeBoost(0.0);
+        await _hardwareVolumeWriter.submit((
+          volume: clampedVolume,
+          route: route,
+          sliderCurve: sliderCurve,
+        ));
+        if (_isCurrentVolumeRoute(route)) {
+          await _reconcileSystemVolumeBoost(0.0);
+        }
         break;
       case VolumeTier.software:
         if (_usingRustBackend) {

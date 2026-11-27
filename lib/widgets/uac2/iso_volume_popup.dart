@@ -9,6 +9,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/player_service.dart' show VolumeTier;
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/uac2/volume_slider_interaction.dart';
 
 VoidCallback? showIsoVolumePopup(BuildContext context, GlobalKey buttonKey) {
   final buttonContext = buttonKey.currentContext;
@@ -68,7 +69,9 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
   bool _isDismissing = false;
   bool _muteUpdateInFlight = false;
   double _preMuteVolume = 1.0;
-  double? _draggingVolume;
+  late final _slider = VolumeSliderInteraction(() {
+    if (mounted) setState(() {});
+  });
 
   @override
   void initState() {
@@ -121,23 +124,15 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
     super.dispose();
   }
 
-  void _onSliderChanged(double volume) {
-    setState(() => _draggingVolume = volume);
-  }
-
   Future<void> _onSliderChangeEnd(double volume) async {
-    setState(() => _draggingVolume = null);
-
     final playerService = ref.read(playerServiceProvider);
-    final hardwareAuthority = playerService.isHardwareVolumeAuthority;
-    if (!hardwareAuthority &&
+    if (_slider.isCurrent &&
+        !playerService.isHardwareVolumeAuthority &&
         volume == 0.0 &&
         playerService.currentVolume > 0.0) {
       _preMuteVolume = playerService.currentVolume.clamp(0.01, 1.0);
     }
-    // Do not couple a hardware volume write to an implicit unmute.
-    await playerService.setVolume(volume);
-    if (mounted) setState(() {});
+    await _slider.finish(volume);
   }
 
   Future<void> _toggleMute() async {
@@ -175,11 +170,16 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
     final safetyBlocked = ref.watch(usbVolumeSafetyBlockedProvider);
     final isAvailable = tier != VolumeTier.unavailable;
     final playerVolume = ref.watch(playerVolumeProvider);
-    final hardwareAuthority = tier == VolumeTier.hardware;
+    final hardwareAuthority =
+        tier == VolumeTier.hardware &&
+        ref.read(playerServiceProvider).isHardwareVolumeAuthority;
     final effectiveVolume = isAvailable
-        ? (_draggingVolume ??
+        ? (_slider.value ??
                   (hardwareAuthority
-                      ? (deviceStatus.volume ?? playerVolume)
+                      ? hardwareVolumeToSlider(
+                          deviceStatus.volume ?? playerVolume,
+                          floor: deviceStatus.hardwareVolumeSliderFloor,
+                        )
                       : playerVolume))
               .clamp(0.0, 1.0)
         : 1.0;
@@ -285,8 +285,14 @@ class _IsoVolumePopupOverlayState extends ConsumerState<_IsoVolumePopupOverlay>
                                   semanticFormatterCallback: !isAvailable
                                       ? (_) => l10n.unavailable2
                                       : null,
+                                  onChangeStart: volumeControlWritable
+                                      ? (value) => _slider.start(
+                                          ref.read(playerServiceProvider),
+                                          value,
+                                        )
+                                      : null,
                                   onChanged: volumeControlWritable
-                                      ? _onSliderChanged
+                                      ? _slider.change
                                       : null,
                                   onChangeEnd: volumeControlWritable
                                       ? _onSliderChangeEnd

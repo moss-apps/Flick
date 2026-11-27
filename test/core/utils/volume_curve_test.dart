@@ -2,6 +2,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flick/core/utils/volume_curve.dart';
 
 void main() {
+  test(
+    'the audible slider displays readback without changing its full-range value',
+    () {
+      const floor = 47 / 127;
+      expect(hardwareVolumeToSlider(0.0, floor: floor), 0.0);
+      expect(hardwareVolumeToSlider(27 / 127, floor: floor), 0.0);
+      expect(
+        hardwareVolumeToSlider(63 / 127, floor: floor),
+        closeTo(0.2, 1e-9),
+      );
+      expect(hardwareVolumeToSlider(1.0, floor: floor), 1.0);
+      expect(hardwareVolumeToSlider(0.4, floor: 0.0), 0.4);
+    },
+  );
+
   group('softwareVolumeToDb', () {
     test('matches the Rust engine curve', () {
       expect(softwareVolumeToDb(1.0), 0.0);
