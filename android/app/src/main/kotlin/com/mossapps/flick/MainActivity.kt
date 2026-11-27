@@ -63,6 +63,7 @@ import androidx.mediarouter.media.MediaRouter
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.util.Log
+import android.view.KeyEvent
 import android.os.PowerManager
 import android.os.storage.StorageManager
 import android.os.storage.StorageVolume
@@ -134,6 +135,7 @@ class MainActivity: FlutterActivity() {
     private val promptedUsbPermissionDeviceNames = mutableSetOf<String>()
     private var uac2DeviceCache: List<Map<String, Any?>>? = null
     private var uac2Channel: MethodChannel? = null
+    private var playerChannel: MethodChannel? = null
     private var audioDeviceChannel: MethodChannel? = null
     private val activeDirectUsbDeviceName: String?
         get() = if (directUsbReleasePending) null else directUsbConnection?.deviceName
@@ -696,7 +698,8 @@ class MainActivity: FlutterActivity() {
         // Engine is already cached in provideFlutterEngine
         
         // Player channel for notification control
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PLAYER_CHANNEL).setMethodCallHandler { call, result ->
+        playerChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PLAYER_CHANNEL)
+        playerChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "showNotification" -> {
                     val title = call.argument<String>("title")
@@ -800,6 +803,20 @@ class MainActivity: FlutterActivity() {
                         startForegroundService(intent)
                     } else {
                         startService(intent)
+                    }
+                    result.success(null)
+                }
+                "updateDacVolume" -> {
+                    val generation = call.argument<Number>("generation")?.toLong()
+                    val percent = call.argument<Int>("volume")
+                    if (generation == null) {
+                        DacVolumeKeys.state = null
+                    } else if (percent != null && activeDirectUsbDeviceName != null &&
+                        hasExpectedHardwareVolumeGeneration(generation)
+                    ) {
+                        DacVolumeKeys.state = DacVolumeState(generation, percent.coerceIn(0, 100))
+                    } else if (DacVolumeKeys.state?.generation == generation) {
+                        DacVolumeKeys.state = null
                     }
                     result.success(null)
                 }
@@ -4586,6 +4603,7 @@ class MainActivity: FlutterActivity() {
     private fun deactivateDirectUsb(): Boolean {
         return try {
             if (directUsbReleasePending) return false
+            DacVolumeKeys.state = null
             directUsbPlaybackActive = false
             nativeSetRustDirectUsbLockEnabled(false)
             nativeClearRustDirectUsbPlayback()
@@ -5878,6 +5896,37 @@ class MainActivity: FlutterActivity() {
         } catch (e: Exception) {
             Log.w("AudioDevice", "AudioDeviceCallback registration failed: ${e.message}")
         }
+    }
+
+    private val foregroundVolumeKeys = ForegroundVolumeKeys()
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val direction = volumeKeyDirection(event.keyCode)
+        if (direction == 0) return super.dispatchKeyEvent(event)
+        when (event.action) {
+            KeyEvent.ACTION_DOWN -> {
+                val channel = playerChannel
+                val current = DacVolumeKeys.state?.generation?.takeIf {
+                    channel != null && hasExpectedHardwareVolumeGeneration(it)
+                }
+                val captured = foregroundVolumeKeys.down(
+                    event.deviceId, direction, event.downTime, event.repeatCount, current,
+                )
+                if (captured != null) {
+                    if (captured == current) {
+                        channel?.invokeMethod(
+                            "adjustDacVolume",
+                            mapOf("direction" to direction, "generation" to captured, "showFeedback" to true),
+                        )
+                    }
+                    return true
+                }
+            }
+            KeyEvent.ACTION_UP -> if (foregroundVolumeKeys.up(event.deviceId, direction, event.downTime)) {
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onDestroy() {

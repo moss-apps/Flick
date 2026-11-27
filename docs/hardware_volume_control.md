@@ -70,6 +70,20 @@ Key details:
 - A hardware volume gesture never changes mute. Software, system and cast
   sliders still apply their values on release.
 
+#### Phone volume keys
+
+When direct USB has a verified hardware level, the activity sends volume up and
+down to that DAC. Foreground presses show the confirmed level in the app.
+Outside the app, Android can route volume events through Flick's active media
+session, including while the screen is off. Cast volume takes priority in the
+media session, and without a verified DAC the keys keep their usual behavior.
+
+A press and its repeats stay tied to the claim that received the initial key
+down. Replacing or unplugging the DAC discards stale requests, including those
+already waiting in the same writer used by the slider. The keys adjust the
+full-range DAC level, independently of mute. DAC level updates reuse the
+running media session and never start the notification service.
+
 ### Tier 2: eligible PCM DSP without hardware authority
 
 ```
