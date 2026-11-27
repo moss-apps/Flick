@@ -62,6 +62,9 @@ class MusicNotificationService : Service() {
     private var castDeviceName: String? = null
     private var castVolumePercent: Int = 70
     private var castVolumeProvider: VolumeProviderCompat? = null
+    private var dacVolumeProvider: VolumeProviderCompat? = null
+    private var dacVolumeProviderGeneration: Long? = null
+    private val dacVolumeListener: () -> Unit = ::syncVolumeRouting
 
     private var cachedAlbumArt: Bitmap? = null
     private var cachedAlbumArtPath: String? = null
@@ -149,6 +152,7 @@ class MusicNotificationService : Service() {
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel()
         setupMediaSession()
+        DacVolumeKeys.onChange = dacVolumeListener
 
         val filter = IntentFilter().apply {
             addAction(ACTION_PLAY_PAUSE)
@@ -200,7 +204,6 @@ class MusicNotificationService : Service() {
             if (it.hasExtra("castVolume")) {
                 castVolumePercent = it.getIntExtra("castVolume", 70).coerceIn(0, 100)
             }
-
             it.getStringExtra("floating")?.let { action ->
                 when (action) {
                     "show" -> showFloatingOverlay()
@@ -217,7 +220,7 @@ class MusicNotificationService : Service() {
         }
 
         syncAudioFocusState()
-        syncCastRouting()
+        syncVolumeRouting()
 
         val notification = buildNotification()
 
@@ -279,7 +282,9 @@ class MusicNotificationService : Service() {
             wakeLock?.release()
         }
         wakeLock = null
+        if (DacVolumeKeys.onChange === dacVolumeListener) DacVolumeKeys.onChange = null
         detachCastVolume()
+        detachDacVolume()
         mediaSession.release()
         isForegroundServiceStarted = false
         hideFloatingOverlay()
@@ -520,13 +525,32 @@ class MusicNotificationService : Service() {
     // ponytail: setPlaybackToRemote is what flips the system volume panel to the
     // cast target (TV icon, remote slider, hardware keys forwarded to us).
     // Route descriptor publishing alone doesn't do that.
-    private fun syncCastRouting() {
-        if (isCasting && castVolumeProvider == null) {
-            attachCastVolume()
-        } else if (!isCasting && castVolumeProvider != null) {
-            detachCastVolume()
+    //
+    // The session has one remote volume, so the cast target and the DAC share it
+    // through sessionVolumeRoute(): cast wins, and the DAC (hardware volume
+    // authority on direct USB) only gets the panel and the background volume
+    // keys when nothing is being cast. Each attach replaces the other provider.
+    private fun syncVolumeRouting() {
+        val dac = DacVolumeKeys.state
+        when (sessionVolumeRoute(isCasting, dac != null)) {
+            SessionVolumeRoute.CAST -> {
+                dacVolumeProvider = null
+                dacVolumeProviderGeneration = null
+                if (castVolumeProvider == null) attachCastVolume()
+                castVolumeProvider?.setCurrentVolume(castVolumePercent)
+            }
+            SessionVolumeRoute.DAC -> if (dac != null) {
+                castVolumeProvider = null
+                if (dacVolumeProviderGeneration != dac.generation) attachDacVolume(dac)
+                dacVolumeProvider?.let {
+                    if (it.currentVolume != dac.percent) it.setCurrentVolume(dac.percent)
+                }
+            }
+            SessionVolumeRoute.LOCAL -> {
+                detachCastVolume()
+                detachDacVolume()
+            }
         }
-        castVolumeProvider?.setCurrentVolume(castVolumePercent)
     }
 
     private fun attachCastVolume() {
@@ -536,13 +560,22 @@ class MusicNotificationService : Service() {
             castVolumePercent
         ) {
             override fun onSetVolumeTo(volumeIndex: Int) {
-                val clamped = volumeIndex.coerceIn(0, 100)
-                castVolumePercent = clamped
-                sendCommandToFlutter("setCastVolume", mapOf("volume" to clamped / 100.0))
+                sendCastVolume { volumeIndex }
             }
 
             override fun onAdjustVolume(direction: Int) {
-                onSetVolumeTo(castVolumePercent + direction * 10)
+                sendCastVolume { castVolumePercent + direction * 10 }
+            }
+
+            private fun sendCastVolume(level: () -> Int) {
+                val provider = this
+                android.os.Handler(mainLooper).post {
+                    if (!isCasting || castVolumeProvider !== provider) return@post
+                    castVolumePercent = level().coerceIn(0, 100)
+                    sendCommandToFlutter("setCastVolume", mapOf("volume" to castVolumePercent / 100.0)) {
+                        isCasting && castVolumeProvider === provider
+                    }
+                }
             }
         }
         castVolumeProvider = provider
@@ -555,6 +588,44 @@ class MusicNotificationService : Service() {
         mediaSession.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
         castVolumeProvider = null
         android.util.Log.d("MusicNotification", "[Cast] MediaSession → local volume")
+    }
+
+    // The DAC's own volume (UAC feature unit) is the only thing that changes
+    // the level over direct USB, so the panel and the volume keys must reach it
+    // rather than STREAM_MUSIC. Requests go to Dart, which owns the safety gates.
+    private fun attachDacVolume(dac: DacVolumeState) {
+        val provider = object : VolumeProviderCompat(
+            VOLUME_CONTROL_ABSOLUTE,
+            100,
+            dac.percent
+        ) {
+            override fun onSetVolumeTo(volumeIndex: Int) {
+                sendDacCommand("setDacVolume", "volume", volumeIndex.coerceIn(0, 100) / 100.0)
+            }
+
+            override fun onAdjustVolume(direction: Int) {
+                val step = remoteVolumeAdjustStep(direction)
+                if (step != 0) sendDacCommand("adjustDacVolume", "direction", step)
+            }
+
+            private fun sendDacCommand(command: String, key: String, value: Number) {
+                sendCommandToFlutter(command, mapOf(key to value, "generation" to dac.generation)) {
+                    !isCasting && dacVolumeProvider === this && DacVolumeKeys.state?.generation == dac.generation
+                }
+            }
+        }
+        dacVolumeProvider = provider
+        dacVolumeProviderGeneration = dac.generation
+        mediaSession.setPlaybackToRemote(provider)
+        android.util.Log.d("MusicNotification", "[DAC] MediaSession → DAC volume")
+    }
+
+    private fun detachDacVolume() {
+        if (dacVolumeProvider == null) return
+        mediaSession.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+        dacVolumeProvider = null
+        dacVolumeProviderGeneration = null
+        android.util.Log.d("MusicNotification", "[DAC] MediaSession → local volume")
     }
 
     private fun buildNotification(): Notification {
@@ -722,8 +793,13 @@ class MusicNotificationService : Service() {
         floatingOverlay?.hide()
     }
 
-    private fun sendCommandToFlutter(command: String, args: Map<String, Any>? = null) {
+    private fun sendCommandToFlutter(
+        command: String,
+        args: Map<String, Any>? = null,
+        shouldSend: () -> Boolean = { true },
+    ) {
         android.os.Handler(mainLooper).post {
+            if (!shouldSend()) return@post
             try {
                 if (methodChannel == null) {
                     android.util.Log.w("MusicNotification", "Method channel null, reconnecting…")

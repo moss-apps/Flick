@@ -87,10 +87,20 @@ typedef _VolumeRoute = ({
   int? hardwareGeneration,
 });
 
+typedef _DacVolumeKeyChange = ({int revision, bool relative});
+
 typedef _HardwareVolumeRequest = ({
   double volume,
   _VolumeRoute route,
   bool sliderCurve,
+  _DacVolumeKeyChange? keyChange,
+});
+
+typedef _DacVolumeKeyRemainder = ({
+  double requested,
+  double verified,
+  int volumeRevision,
+  _VolumeRoute route,
 });
 
 /// One slider gesture, bound to the output that was active when it started.
@@ -144,6 +154,39 @@ VolumeTier determineVolumeTier({
     return usingRustBackend ? VolumeTier.software : VolumeTier.system;
   }
   return isPassthrough ? VolumeTier.unavailable : VolumeTier.software;
+}
+
+/// Volume-key steps across the full DAC range, independently of mute.
+const int dacVolumeKeySteps = 16;
+
+/// Whether the phone's volume keys (and the media session's remote volume)
+/// drive the DAC's own volume. Only on direct USB, with the DAC hardware
+/// volume as the authority; a cast target keeps its remote volume.
+bool shouldRouteVolumeKeysToDac({
+  required VolumeTier tier,
+  required bool isDirectUsbPath,
+  required bool isCasting,
+}) => tier == VolumeTier.hardware && isDirectUsbPath && !isCasting;
+
+/// One volume-key step from [current]. The DAC quantizes the resulting level
+/// to a supported hardware setting.
+double stepDacVolume(
+  double current,
+  int direction, {
+  int steps = dacVolumeKeySteps,
+}) {
+  if (!current.isFinite) return current;
+  return (current + direction.sign / steps).clamp(0.0, 1.0).toDouble();
+}
+
+/// A change the user should see right now, e.g. after a volume key. Equality
+/// is by identity so a press at the end of the range still re-shows it.
+@immutable
+class VolumeKeyFeedback {
+  const VolumeKeyFeedback(this.level, {this.muted = false});
+
+  final double level;
+  final bool muted;
 }
 
 /// Loop mode for playback
@@ -736,6 +779,11 @@ class PlayerService {
   final ValueNotifier<VolumeTier> volumeTierNotifier =
       ValueNotifier(VolumeTier.system);
 
+  /// Shown by the app-level volume indicator after a phone volume key moves
+  /// the DAC; there is no system panel to do it while the DAC owns the keys.
+  final ValueNotifier<VolumeKeyFeedback?> volumeKeyFeedbackNotifier =
+      ValueNotifier(null);
+
   // Timer to periodically save position
   Timer? _positionSaveTimer;
 
@@ -873,9 +921,24 @@ class PlayerService {
       onToggleShuffle: toggleShuffle,
       onToggleFavorite: _toggleFavoriteFromNotification,
       onDisconnectCast: () => unawaited(_castingService.disconnect()),
-      onSetCastVolume: (volume) => unawaited(setVolume(volume)),
+      onSetCastVolume: (volume) {
+        final route = _captureVolumeRoute();
+        if (route.casting) unawaited(_setVolumeOnRoute(volume, route));
+      },
+      onSetDacVolume: (volume, generation) =>
+          setDacVolumeFromSession(volume, generation: generation),
+      onAdjustDacVolume: (direction, generation, showFeedback) =>
+          stepDacVolumeFromKey(
+            direction,
+            generation: generation,
+            showFeedback: showFeedback,
+          ),
     );
     _castingService.remoteVolumeNotifier.addListener(_onRemoteVolumeChanged);
+    volumeTierNotifier.addListener(_syncDacVolumeKeys);
+    currentVolumeNotifier.addListener(_syncDacVolumeKeys);
+    _castingService.isActiveNotifier.addListener(_syncDacVolumeKeys);
+    _sessionManager.initializedModeNotifier.addListener(_syncDacVolumeKeys);
     _sessionManager.selectedModeNotifier.addListener(() {
       unawaited(
         _refreshAudioOutputDiagnostics(
@@ -920,6 +983,9 @@ class PlayerService {
     bitPerfectProcessingLockedNotifier.addListener(_bitPerfectLockedListener!);
     _updateBitPerfectProcessingLocked();
     _uac2Service.addStatusListener(_mirrorUsbVolumeFromUac2Status);
+    _removeUsbVolumeStatusListener =
+        () => _uac2Service.removeStatusListener(_mirrorUsbVolumeFromUac2Status);
+    _syncDacVolumeKeys(force: true);
     _notifyQueueChanged();
     unawaited(_loadGaplessPlaybackPreference());
     unawaited(_loadDuckOnInterruptionPreference());
@@ -1010,6 +1076,8 @@ class PlayerService {
         AudioEngineType.usbDacExperimental;
     final intent = _rememberDirectUsbPlayback();
     final generation = ++_usbConnectionGeneration;
+    _detachedDacVolumeGeneration = status?.hardwareVolumeGeneration;
+    _syncDacVolumeKeys();
     if (_activeUsbReconnect != null) {
       unawaited(_uac2Service.setAndroidUsbReconnectTarget(null, cancel: true));
     }
@@ -1246,6 +1314,7 @@ class PlayerService {
   ///   Instead, we only re-push the existing [_currentVolume] to the engine
   ///   to keep it in sync after status refreshes.
   void _mirrorUsbVolumeFromUac2Status(Uac2DeviceStatus? status) {
+    _syncDacVolumeKeys();
     if (status == null) {
       _hwVolumeFailed = false;
       _hardwareVolumeGeneration = null;
@@ -2738,6 +2807,7 @@ class PlayerService {
       _debugLog('[VolFlow] Holding direct USB playback: $reason');
     }
     usbVolumeSafetyBlockedNotifier.value = true;
+    volumeKeyFeedbackNotifier.value = null;
     _usbHardwareVolumeReadyFor = null;
     _usbHardwareVolumeVerifiedLevel = null;
     _wasPlayingBeforeAudioInterruption = false;
@@ -2794,14 +2864,18 @@ class PlayerService {
       LatestValueWriter<_HardwareVolumeRequest>(_setHardwareVolume);
 
   Future<void> _setHardwareVolume(_HardwareVolumeRequest request) async {
-    final (:volume, :route, :sliderCurve) = request;
-    if (!_isCurrentVolumeRoute(route)) return;
+    final (:volume, :route, :sliderCurve, :keyChange) = request;
+    bool routeStillAcceptsWrite() =>
+        _isCurrentVolumeRoute(route) &&
+        (keyChange == null ||
+            route.hardwareGeneration == _dacVolumeKeyGeneration);
+    if (!routeStillAcceptsWrite()) return;
     final directUsb = _isDirectUsbPath;
     final device = route.device;
     final generation = _usbDacVolumeRestore.connectionGeneration;
     bool currentRoute() =>
         generation == _usbDacVolumeRestore.connectionGeneration &&
-        _isCurrentVolumeRoute(route);
+        routeStillAcceptsWrite();
     // Do not write DAC gain during a safety pause or a change of authority.
     final safetyGeneration = directUsb
         ? await _confirmUsbVolumeSafety(
@@ -2812,19 +2886,37 @@ class PlayerService {
         currentRoute() &&
         (!directUsb || safetyGeneration == _usbVolumeSafetyGeneration);
     if (!currentSafety()) return;
+    final previousLevel = _uac2Service.currentDeviceStatus?.volume;
     final success = await _uac2Service.setVolume(
       volume,
       hardwareSliderCurve: sliderCurve,
       expectedHardwareGeneration: route.hardwareGeneration,
     );
     if (!currentSafety()) return;
+    final verifiedLevel = _uac2Service.currentDeviceStatus?.volume;
     if (success) {
-      _currentVolume = _uac2Service.currentDeviceStatus?.volume ?? _currentVolume;
+      _currentVolume = verifiedLevel ?? _currentVolume;
     } else if (!directUsb && !_isPassthroughActive && _usingRustBackend) {
       await _rustAudioService.setVolume(volume);
       _rememberSoftwareVolume(volume);
     }
-    if (currentSafety()) await _onHwVolumeResult(success);
+    if (!currentSafety()) return;
+    await _onHwVolumeResult(success);
+    if (success &&
+        keyChange?.relative == true &&
+        keyChange?.revision == _dacVolumeKeyRevision &&
+        routeStillAcceptsWrite() &&
+        verifiedLevel != null &&
+        verifiedLevel == previousLevel) {
+      // A device with coarse steps may confirm the old level. Keep the
+      // fractional press so the next press can reach the next supported step.
+      _dacVolumeKeyRemainder = (
+        requested: volume,
+        verified: verifiedLevel,
+        volumeRevision: _usbHardwareVolumeRevision,
+        route: route,
+      );
+    }
   }
 
   @visibleForTesting
@@ -3035,6 +3127,7 @@ class PlayerService {
     // ready may now be running after hardware volume has been verified.
     final tier = playbackMode == null ? _determineCurrentTier() : requestedTier;
     volumeTierNotifier.value = tier;
+    _syncDacVolumeKeys();
     final directUsb = (Platform.isAndroid || _testDirectUsb) &&
         (playbackMode ?? currentEngineType) == AudioEngineType.usbDacExperimental;
     if (directUsb) {
@@ -7589,6 +7682,7 @@ class PlayerService {
     double volume,
     _VolumeRoute route, {
     bool sliderCurve = false,
+    _DacVolumeKeyChange? keyChange,
   }) async {
     // A user adjustment follows (rather than racing) the one-shot safety write.
     await _waitForPhysicalOutputVolumeGuard();
@@ -7624,6 +7718,7 @@ class PlayerService {
           volume: clampedVolume,
           route: route,
           sliderCurve: sliderCurve,
+          keyChange: keyChange,
         ));
         if (!_isCurrentVolumeRoute(route)) return;
       } else if (Uac2PreferencesService.autoSwitchDsdForVolumeSync &&
@@ -7648,6 +7743,7 @@ class PlayerService {
           volume: clampedVolume,
           route: route,
           sliderCurve: sliderCurve,
+          keyChange: keyChange,
         ));
         if (_isCurrentVolumeRoute(route)) {
           await _reconcileSystemVolumeBoost(0.0);
@@ -7683,6 +7779,162 @@ class PlayerService {
         );
         await _reconcileSystemVolumeBoost(0.0);
         break;
+    }
+  }
+
+  // ==================== Volume keys ====================
+
+  int? get _dacVolumeKeyGeneration {
+    final status = _uac2Service.currentDeviceStatus;
+    final generation = status?.hardwareVolumeGeneration;
+    if (_dacVolumeKeysDisposed ||
+        generation == null ||
+        generation == _detachedDacVolumeGeneration ||
+        status?.directUsbRegistered != true ||
+        status?.volumeControlWritable != true ||
+        status?.volume?.isFinite != true ||
+        _sessionManager.initializedMode != AudioEngineType.usbDacExperimental ||
+        !shouldRouteVolumeKeysToDac(
+          tier: _determineCurrentTier(),
+          isDirectUsbPath: _isDirectUsbPath,
+          isCasting: _castingService.isActive,
+        )) {
+      return null;
+    }
+    return generation;
+  }
+
+  bool get dacVolumeKeysActive => _dacVolumeKeyGeneration != null;
+
+  ({int generation, int percent})? _dacVolumeKeysPublished;
+  int? _detachedDacVolumeGeneration;
+  ({double level, _VolumeRoute route})? _pendingDacVolumeKey;
+  _DacVolumeKeyRemainder? _dacVolumeKeyRemainder;
+  int _dacVolumeKeyRevision = 0;
+  bool _dacVolumeKeysDisposed = false;
+  VoidCallback? _removeUsbVolumeStatusListener;
+
+  void _syncDacVolumeKeys({bool force = false}) {
+    final generation = _dacVolumeKeyGeneration;
+    final state = generation == null
+        ? null
+        : (
+            generation: generation,
+            percent:
+                (_uac2Service.currentDeviceStatus!.volume!.clamp(0.0, 1.0) * 100)
+                    .round(),
+          );
+    if (!force && state == _dacVolumeKeysPublished) return;
+    final pending = _pendingDacVolumeKey;
+    if (pending != null &&
+        (generation != pending.route.hardwareGeneration ||
+            !_isCurrentVolumeRoute(pending.route))) {
+      _pendingDacVolumeKey = null;
+      _dacVolumeKeyRevision++;
+    }
+    if (generation != _dacVolumeKeysPublished?.generation) {
+      _dacVolumeKeyRemainder = null;
+      volumeKeyFeedbackNotifier.value = null;
+    }
+    _dacVolumeKeysPublished = state;
+    unawaited(
+      _notificationService.updateDacVolume(
+        generation: state?.generation,
+        volumePercent: state?.percent,
+      ),
+    );
+  }
+
+  @visibleForTesting
+  void syncDacVolumeKeysForTesting() => _syncDacVolumeKeys();
+
+  /// One volume key press (or media-session volume step), [direction] +1 or -1.
+  /// Presses that arrive while a USB write is in flight build on the pending
+  /// target instead of the stale level, so a held key keeps its pace.
+  Future<void> stepDacVolumeFromKey(
+    int direction, {
+    required int generation,
+    bool showFeedback = true,
+  }) async {
+    if (direction == 0 || generation != _dacVolumeKeyGeneration) return;
+    final route = _captureVolumeRoute();
+    final pending = _pendingDacVolumeKey;
+    final remainder = _dacVolumeKeyRemainder;
+    final currentLevel = _uac2Service.currentDeviceStatus!.volume!;
+    var base = currentLevel;
+    if (pending != null && _isCurrentVolumeRoute(pending.route)) {
+      base = pending.level;
+    } else if (remainder != null &&
+        remainder.verified == currentLevel &&
+        remainder.volumeRevision == _usbHardwareVolumeRevision &&
+        (remainder.requested - currentLevel) * direction > 0 &&
+        !usbVolumeSafetyBlockedNotifier.value &&
+        _isCurrentVolumeRoute(remainder.route)) {
+      base = remainder.requested;
+    }
+    final target = stepDacVolume(base, direction);
+    if (target == base) {
+      if (pending == null && showFeedback) _showVolumeKeyFeedback(currentLevel);
+      return;
+    }
+    await _driveDacVolumeTo(
+      target,
+      route,
+      relative: true,
+      showFeedback: showFeedback,
+    );
+  }
+
+  /// The media session's volume panel asked for an absolute level.
+  Future<void> setDacVolumeFromSession(
+    double volume, {
+    required int generation,
+  }) async {
+    if (!volume.isFinite || generation != _dacVolumeKeyGeneration) return;
+    await _driveDacVolumeTo(
+      volume.clamp(0.0, 1.0).toDouble(),
+      _captureVolumeRoute(),
+      relative: false,
+      showFeedback: false,
+    );
+  }
+
+  Future<void> _driveDacVolumeTo(
+    double target,
+    _VolumeRoute route, {
+    required bool relative,
+    required bool showFeedback,
+  }) async {
+    final revision = ++_dacVolumeKeyRevision;
+    _pendingDacVolumeKey = (level: target, route: route);
+    _dacVolumeKeyRemainder = null;
+    try {
+      // Use the same coalescer and safety gates as the slider, but keep the
+      // claim captured by the key press, and use the DAC's full-range scale.
+      await _setVolumeOnRoute(
+        target,
+        route,
+        keyChange: (revision: revision, relative: relative),
+      );
+      if (showFeedback &&
+          revision == _dacVolumeKeyRevision &&
+          route.hardwareGeneration == _dacVolumeKeyGeneration &&
+          _isCurrentVolumeRoute(route)) {
+        _showVolumeKeyFeedback(_uac2Service.currentDeviceStatus!.volume!);
+      }
+    } catch (error) {
+      _debugLog('[VolFlow] DAC volume key failed: $error');
+    } finally {
+      if (revision == _dacVolumeKeyRevision) _pendingDacVolumeKey = null;
+    }
+  }
+
+  void _showVolumeKeyFeedback(double level) {
+    if (!usbVolumeSafetyBlockedNotifier.value) {
+      volumeKeyFeedbackNotifier.value = VolumeKeyFeedback(
+        level.clamp(0.0, 1.0),
+        muted: _uac2Service.currentDeviceStatus?.muted == true,
+      );
     }
   }
 
@@ -8404,6 +8656,14 @@ class PlayerService {
         _bitPerfectLockedListener!,
       );
     }
+    _castingService.isActiveNotifier.removeListener(_syncDacVolumeKeys);
+    _castingService.remoteVolumeNotifier.removeListener(_onRemoteVolumeChanged);
+    _sessionManager.initializedModeNotifier.removeListener(_syncDacVolumeKeys);
+    _removeUsbVolumeStatusListener?.call();
+    _removeUsbVolumeStatusListener = null;
+    _dacVolumeKeysDisposed = true;
+    _syncDacVolumeKeys();
+    volumeKeyFeedbackNotifier.dispose();
     _sessionManager.dispose();
     audioOutputDiagnosticsNotifier.dispose();
     volumeTierNotifier.dispose();
