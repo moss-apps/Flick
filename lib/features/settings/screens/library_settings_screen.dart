@@ -1802,59 +1802,62 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   Widget _buildExpandableScanSettings(LibraryScanPreferences prefs) {
     final content = Column(
       children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () =>
-                setState(() => _scanSettingsExpanded = !_scanSettingsExpanded),
-            child: Padding(
-              padding: const EdgeInsets.all(AppConstants.spacingMd),
-              child: Row(
-                children: [
-                  Container(
-                    width: context.scaleSize(AppConstants.containerSizeMd),
-                    height: context.scaleSize(AppConstants.containerSizeMd),
-                    decoration: BoxDecoration(
-                      color: AppColors.glassBackgroundStrong,
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusSm,
+        SettingsSectionAnchor(
+          id: 'scanningSettings',
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () =>
+                  setState(() => _scanSettingsExpanded = !_scanSettingsExpanded),
+              child: Padding(
+                padding: const EdgeInsets.all(AppConstants.spacingMd),
+                child: Row(
+                  children: [
+                    Container(
+                      width: context.scaleSize(AppConstants.containerSizeMd),
+                      height: context.scaleSize(AppConstants.containerSizeMd),
+                      decoration: BoxDecoration(
+                        color: AppColors.glassBackgroundStrong,
+                        borderRadius: BorderRadius.circular(
+                          AppConstants.radiusSm,
+                        ),
+                      ),
+                      child: Icon(
+                        LucideIcons.settings2,
+                        color: context.adaptiveTextSecondary,
+                        size: context.responsiveIcon(AppConstants.iconSizeMd),
                       ),
                     ),
-                    child: Icon(
-                      LucideIcons.settings2,
-                      color: context.adaptiveTextSecondary,
-                      size: context.responsiveIcon(AppConstants.iconSizeMd),
+                    const SizedBox(width: AppConstants.spacingMd),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.englishForFilipino.scanningSettings,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: context.adaptiveTextPrimary),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            l10n.filterFilesSizeLimitsAndPlaylist,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: context.adaptiveTextTertiary),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: AppConstants.spacingMd),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.englishForFilipino.scanningSettings,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(color: context.adaptiveTextPrimary),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10n.filterFilesSizeLimitsAndPlaylist,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: context.adaptiveTextTertiary),
-                        ),
-                      ],
+                    AnimatedRotation(
+                      turns: _scanSettingsExpanded ? 0.5 : 0,
+                      duration: AppConstants.animationNormal,
+                      child: Icon(
+                        LucideIcons.chevronDown,
+                        color: context.adaptiveTextTertiary,
+                        size: 20,
+                      ),
                     ),
-                  ),
-                  AnimatedRotation(
-                    turns: _scanSettingsExpanded ? 0.5 : 0,
-                    duration: AppConstants.animationNormal,
-                    child: Icon(
-                      LucideIcons.chevronDown,
-                      color: context.adaptiveTextTertiary,
-                      size: 20,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -1969,7 +1972,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         ),
       ],
     );
-    return SettingsSectionAnchor(id: 'scanningSettings', child: content);
+    return content;
   }
 
   @override
