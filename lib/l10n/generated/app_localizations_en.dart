@@ -1794,6 +1794,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Continue through your entire library';
 
   @override
+  String get contributors => 'Contributors';
+
+  @override
   String get controls => 'Controls';
 
   @override

@@ -514,6 +514,7 @@
   "continueLabel": "继续",
   "continueThroughTheSearchResults": "在搜索结果中继续播放",
   "continueThroughYourEntireLibrary": "在整个音乐库中继续播放",
+  "contributors": "贡献者",
   "controls": "控件",
   "conversionFailed": "转换失败：{error}",
   "convertedAudioCacheCleared": "转换音频缓存已清除",

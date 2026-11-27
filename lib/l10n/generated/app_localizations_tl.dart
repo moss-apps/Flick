@@ -1815,6 +1815,9 @@ class AppLocalizationsTl extends AppLocalizations {
       'Magpatuloy sa iyong buong aklatan';
 
   @override
+  String get contributors => 'Contributors';
+
+  @override
   String get controls => 'Mga kontrol';
 
   @override
