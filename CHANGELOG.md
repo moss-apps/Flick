@@ -14,6 +14,7 @@
 ### USB DAC volume
 - **Live DAC slider:** Dragging adjusts the connected DAC as you move. The newest value replaces any waiting write, and the thumb stays put until readback. Changing routes discards the old gesture.
 - **Audible slider range:** On DACs with steps on both sides of −80 dB, nonzero slider positions use the range above that threshold. Zero still selects the DAC minimum without changing mute. Saved DAC levels and the first-use volume keep their existing scale.
+- **Phone volume keys:** Volume up and down adjust the verified direct USB DAC. A held key cannot carry over to a replacement DAC, and casting retains its own volume controls.
 
 ## 0.23.3-beta.5 (2026-11-20)
 

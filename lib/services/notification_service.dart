@@ -28,6 +28,9 @@ class NotificationService {
     required VoidCallback onToggleFavorite,
     VoidCallback? onDisconnectCast,
     Function(double)? onSetCastVolume,
+    Future<void> Function(double volume, int generation)? onSetDacVolume,
+    Future<void> Function(int direction, int generation, bool showFeedback)?
+    onAdjustDacVolume,
   }) {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
@@ -67,6 +70,26 @@ class NotificationService {
         case 'setCastVolume':
           final volume = (call.arguments['volume'] as num?)?.toDouble();
           if (volume != null) onSetCastVolume?.call(volume);
+          break;
+        case 'setDacVolume':
+          final args = call.arguments as Map?;
+          final volume = (args?['volume'] as num?)?.toDouble();
+          final generation = args?['generation'] as int?;
+          if (volume != null && generation != null) {
+            await onSetDacVolume?.call(volume, generation);
+          }
+          break;
+        case 'adjustDacVolume':
+          final args = call.arguments as Map?;
+          final direction = args?['direction'] as int?;
+          final generation = args?['generation'] as int?;
+          if (direction != null && generation != null) {
+            await onAdjustDacVolume?.call(
+              direction,
+              generation,
+              args?['showFeedback'] == true,
+            );
+          }
           break;
       }
     });
@@ -158,7 +181,6 @@ class NotificationService {
         args['castDeviceName'] = castDeviceName;
         if (castVolumePercent != null) args['castVolume'] = castVolumePercent;
       }
-
       await _channel.invokeMethod('updateNotification', args);
       _isNotificationVisible = true;
     } catch (e) {
@@ -184,6 +206,23 @@ class NotificationService {
       await _channel.invokeMethod('updateNotification', args);
     } catch (e) {
       devLog('Failed to update cast state: $e');
+    }
+  }
+
+  /// Publishes the current DAC claim and verified level to the activity and any
+  /// existing media session. A null generation releases the volume keys.
+  Future<void> updateDacVolume({
+    required int? generation,
+    int? volumePercent,
+  }) async {
+    try {
+      final args = <String, dynamic>{
+        'generation': generation,
+        'volume': ?volumePercent,
+      };
+      await _channel.invokeMethod('updateDacVolume', args);
+    } catch (e) {
+      devLog('Failed to update DAC volume state: $e');
     }
   }
 

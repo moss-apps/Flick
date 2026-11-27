@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'package:flick/widgets/common/flick_snackbar.dart';
 
@@ -49,6 +50,7 @@ import 'package:flick/widgets/common/floating_scan_progress.dart';
 import 'package:flick/widgets/common/connection_notice_host.dart';
 import 'package:flick/widgets/common/display_mode_controller.dart';
 import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
+import 'package:flick/widgets/uac2/volume_key_hud.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/library_scanner_service.dart';
 import 'package:flick/services/player_service.dart';
@@ -94,6 +96,9 @@ class FlickPlayerApp extends StatelessWidget {
             return Consumer(
               builder: (context, ref, _) {
                 ref.watch(lockScreenVisualizerProvider);
+                final tutorial = TutorialHost(
+                  child: child ?? const SizedBox.shrink(),
+                );
                 return AnnotatedRegion<SystemUiOverlayStyle>(
                   // App-wide fallback. A route that paints a light surface
                   // (the onboarding pages) declares its own region; once it
@@ -106,9 +111,14 @@ class FlickPlayerApp extends StatelessWidget {
                         (preferences) => preferences.connectionNoticesEnabled,
                       ),
                     ),
-                    child: TutorialHost(
-                      child: child ?? const SizedBox.shrink(),
-                    ),
+                    child: Platform.isAndroid
+                        ? VolumeKeyHudHost(
+                            feedback: ref
+                                .watch(playerServiceProvider)
+                                .volumeKeyFeedbackNotifier,
+                            child: tutorial,
+                          )
+                        : tutorial,
                   ),
                 );
               },
