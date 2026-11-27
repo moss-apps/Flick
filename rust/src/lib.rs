@@ -367,13 +367,34 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeGetRustDirectU
 
 #[cfg(all(target_os = "android", feature = "uac2"))]
 #[no_mangle]
+pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeGetRustDirectUsbHardwareVolumeSliderFloor(
+    _env: JNIEnv<'_>,
+    _activity: JObject<'_>,
+    generation: jlong,
+) -> jdouble {
+    crate::uac2::android_direct_hardware_volume_slider_floor(generation as u64).unwrap_or(f64::NAN)
+}
+
+#[cfg(all(target_os = "android", not(feature = "uac2")))]
+#[no_mangle]
+pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeGetRustDirectUsbHardwareVolumeSliderFloor(
+    _env: JNIEnv<'_>,
+    _activity: JObject<'_>,
+    _generation: jlong,
+) -> jdouble {
+    f64::NAN
+}
+
+#[cfg(all(target_os = "android", feature = "uac2"))]
+#[no_mangle]
 pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectUsbHardwareVolume(
     _env: JNIEnv<'_>,
     _activity: JObject<'_>,
     volume: jdouble,
     generation: jlong,
+    slider_curve: jboolean,
 ) -> jboolean {
-    match crate::uac2::android_direct_set_hardware_volume(volume, generation as u64) {
+    match crate::uac2::android_direct_set_hardware_volume(volume, generation as u64, slider_curve) {
         Ok(()) => true,
         Err(error) => {
             dev_eprintln!(
@@ -392,6 +413,7 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeSetRustDirectU
     _activity: JObject<'_>,
     _volume: jdouble,
     _generation: jlong,
+    _slider_curve: jboolean,
 ) -> jboolean {
     false
 }

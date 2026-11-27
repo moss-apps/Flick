@@ -11,6 +11,10 @@
 - **Direct USB playback controls:** Pause keeps the DAC locked without letting the audio buffer play out. Resume uses the current software volume, and seek drops buffered audio from the previous position.
 - **Direct USB hardware volume:** Live DAC volume, mute, and readback run separately from audio transfers. Failed verification attempts to restore the previous hardware setting, and pending commands are discarded when the USB route changes.
 
+### USB DAC volume
+- **Live DAC slider:** Dragging adjusts the connected DAC as you move. The newest value replaces any waiting write, and the thumb stays put until readback. Changing routes discards the old gesture.
+- **Audible slider range:** On DACs with steps on both sides of −80 dB, nonzero slider positions use the range above that threshold. Zero still selects the DAC minimum without changing mute. Saved DAC levels and the first-use volume keep their existing scale.
+
 ## 0.23.3-beta.5 (2026-11-20)
 
 ### Equalizer

@@ -28,3 +28,9 @@ String formatSoftwareVolumeDb(double volume) {
   if (volume <= 0.0) return '-∞';
   return softwareVolumeToDb(volume).toStringAsFixed(1);
 }
+
+/// Displays a full-range DAC level on the audible slider. The original
+/// readback remains the source for saving and restoring hardware levels.
+double hardwareVolumeToSlider(double volume, {required double floor}) {
+  return ((volume - floor) / (1.0 - floor)).clamp(0.0, 1.0).toDouble();
+}

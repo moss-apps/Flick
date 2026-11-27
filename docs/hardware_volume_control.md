@@ -44,18 +44,15 @@ DAC-volume safety blocks whose hardware control is no longer available.
 ### Tier 1: DAC has verified hardware volume
 
 ```
-UI slider → player_service.setVolume()
+UI slider → route-bound gesture → latest-value writer
   → tier = _determineCurrentTier() == VolumeTier.hardware
   → uac2_service.setVolume()            (platform channel)
   → Kotlin setRouteVolume()
   → nativeSetRustDirectUsbHardwareVolume()
   → android_direct_set_hardware_volume()     (Rust)
-  → open_transient_usb_handle(device_fd)     (separate libusb, no interface claim)
-  → quantize_hardware_volume()               (f64 target → i16 raw)
-  → write_feature_unit_i16_control()         (SET_CUR → DAC)
-  → refresh_android_usb_hardware_volume_snapshot_with_handle()  (GET_CUR readback)
-  → quantize_then_normalize(volume, &control)  (expected value)
-  → compare readback vs quantized expected value
+  → quantize_slider_volume()                  (slider position → supported i16 dB step)
+  → synchronous USBDEVFS_CONTROL              (SET_CUR → DAC, on the volume worker)
+  → GET_CUR readback must match the exact raw step
   → if OK: mirror actual DAC level, persist hardware slot, establish readiness
   → if mismatch/STALL: pause transport and block automatic volume changes
 ```
@@ -63,9 +60,15 @@ UI slider → player_service.setVolume()
 Key details:
 - Native discovery establishes writable Feature Unit capability; the Dart write
   validates route identity and mirrors actual readback, not an optimistic target.
-- Transient handle does **not** claim/release the AudioControl interface — control transfers on endpoint 0 don't need claims on Android, and claiming could conflict with the streaming handle.
-- Resolution-aware quantization selects a supported raw dB step. Post-write
-  readback must match the normalized quantized target within 1e-6.
+- The bounded Kotlin volume worker uses the existing direct USB connection.
+  Synchronous controls do not reap isochronous completions or run on the
+  submission thread. Native rejects stale hardware-control generations.
+- A live slider gesture binds to its route before the first tick. One write is
+  in flight and the latest value replaces any waiting write. Changing the DAC
+  or volume authority discards pending values. The thumb holds the final
+  requested position until verified readback, then shows the actual step.
+- A hardware volume gesture never changes mute. Software, system and cast
+  sliders still apply their values on release.
 
 ### Tier 2: eligible PCM DSP without hardware authority
 
@@ -94,12 +97,19 @@ UI slider → player_service.setVolume()
 
 ## Safe Restoration and Authority Changes
 
-Hardware percentage is a position in the DAC's advertised dB range, not the
-software curve. Hardware and software levels are stored in separate per-device
-slots (`uac2_usb_device_volume_authorities`). Legacy untyped values remain
-available as software levels but cannot authorize a hardware restore.
+Readback, saved settings and automatic hardware restore use the same
+full-range fractions as before (`normalize_volume` and `quantize_volume`).
+Only explicit slider gestures use the compressed scale. When the DAC exposes
+steps on both sides of −80 dB, positive slider values choose supported steps
+above −80 dB. Zero selects the absolute device minimum, which is not
+necessarily silence. A DAC already set at or below the slider floor is still
+read and restored at its actual level, even though the thumb displays zero.
 
-A new DAC or ambiguous legacy record uses the existing 40% first-use default,
+Hardware and software levels are stored in separate per-device slots
+(`uac2_usb_device_volume_authorities`). No saved hardware values are migrated.
+Legacy untyped values cannot authorize a hardware restore.
+
+A new DAC or ambiguous legacy record uses the existing 40% full-range first-use default,
 without requiring a slider gesture. A lower current DAC readback is retained,
 including silence. Hardware discovery after software use pauses before removing
 software attenuation, then a playback request restores a verified low level.
@@ -157,3 +167,14 @@ are also logged with that prefix.
 - **VolumeTier state machine**: replaced implicit tier routing (scattered `_hasBitPerfectUsbHardwareVolumeControl()` checks + `_currentVolume` drift) with explicit `VolumeTier` tracking + `_reconcileVolumeForTier()` single point.
 - **Single hardware authority on direct USB** (#352): a trusted Feature Unit is Tier 1 regardless of the PCM bit-perfect toggle, removing stacked hardware + engine attenuation. The software-tier dB label now mirrors the engine's −40 dB curve (50 % = −20 dB) instead of the stale −60 dB approximation.
 - **Safe authority handoffs** (#352 review): split hardware/software preferences, automatically restore a low verified level for ambiguous legacy records, retry on Play after hardware-control failure, and preserve linear-gain ducking through reconciliation.
+- **Separated control worker** (#415): use synchronous native Feature Unit transfers on the owned USB connection and roll back failed or unverifiable writes.
+- **Route-bound slider** (#416): coalesce live hardware gestures, keep the audible slider scale separate from saved levels, and verify raw readback.
+
+## Hardware check
+
+With a DAC in direct USB mode, compare the level after reopening playback with
+its saved level before touching the slider. Move the slider in both directions
+while playing, and check that volume settles on the last position without
+dropouts. With hardware mute on, move the slider and check that mute stays on.
+If another DAC is available, release the slider after disconnecting the first
+DAC and confirm the replacement's level does not change.

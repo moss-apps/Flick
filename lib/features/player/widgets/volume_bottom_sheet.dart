@@ -3,9 +3,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
+import 'package:flick/widgets/uac2/volume_slider_interaction.dart';
 import 'package:flick/l10n/l10n.dart';
 
-class VolumeBottomSheet extends StatelessWidget {
+class VolumeBottomSheet extends StatefulWidget {
   final PlayerService playerService;
   const VolumeBottomSheet({super.key, required this.playerService});
 
@@ -20,6 +21,17 @@ class VolumeBottomSheet extends StatelessWidget {
   }
 
   @override
+  State<VolumeBottomSheet> createState() => _VolumeBottomSheetState();
+}
+
+class _VolumeBottomSheetState extends State<VolumeBottomSheet> {
+  PlayerService get playerService => widget.playerService;
+
+  late final _slider = VolumeSliderInteraction(() {
+    if (mounted) setState(() {});
+  });
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: Listenable.merge([
@@ -27,142 +39,122 @@ class VolumeBottomSheet extends StatelessWidget {
         playerService.currentVolumeNotifier,
         playerService.usbVolumeSafetyBlockedNotifier,
       ]),
-      builder: (context, _) => _buildVolumeSheet(
-        context,
-        playerService.volumeTierNotifier.value,
-      ),
+      builder: (context, _) =>
+          _buildVolumeSheet(context, playerService.volumeTierNotifier.value),
     );
   }
 
   Widget _buildVolumeSheet(BuildContext context, VolumeTier tier) {
     final maxVolume = playerService.maxVolume;
-    final initialVolume = playerService.currentVolume.clamp(0.0, maxVolume);
+    final hardware =
+        tier == VolumeTier.hardware && playerService.isHardwareVolumeAuthority;
+    final currentVolume =
+        (_slider.value ??
+                (hardware
+                    ? playerService.hardwareVolumeSliderValue
+                    : playerService.currentVolume))
+            .clamp(0.0, maxVolume);
     final isAvailable = tier != VolumeTier.unavailable;
-    double currentVolume = initialVolume;
-    return StatefulBuilder(
-      builder: (context, setSheetState) {
-        return AppBottomSheetSurface(
-          scrollable: true,
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return AppBottomSheetSurface(
+      scrollable: true,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Icon(
-                    currentVolume > 0
-                        ? LucideIcons.volume2
-                        : LucideIcons.volumeX,
-                    color: AppColors.accent,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    l10n.volume,
-                    style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    isAvailable ? '${(currentVolume * 100).round()}%' : '—',
-                    semanticsLabel: isAvailable ? null : l10n.unavailable2,
-                    style: const TextStyle(
-                      fontFamily: 'GoogleSansFlex',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+              Icon(
+                hardware || currentVolume > 0
+                    ? LucideIcons.volume2
+                    : LucideIcons.volumeX,
+                color: AppColors.accent,
+                size: 24,
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Icon(
-                    LucideIcons.volume1,
-                    color: AppColors.textTertiary,
-                    size: 20,
-                  ),
-                  Expanded(
-                    child: Slider(
-                      value: isAvailable ? currentVolume : 1.0,
-                      min: 0.0,
-                      max: maxVolume,
-                      divisions: (maxVolume * 100).round(),
-                      label: isAvailable
-                          ? '${(currentVolume * 100).round()}%'
-                          : l10n.unavailable2,
-                      semanticFormatterCallback: !isAvailable
-                          ? (_) => l10n.unavailable2
-                          : null,
-                      onChanged: isAvailable
-                          ? (value) {
-                              setSheetState(() {
-                                currentVolume = value;
-                              });
-                            }
-                          : null,
-                      onChangeEnd: isAvailable
-                          ? (value) async {
-                              await playerService.setVolume(value);
-                              if (context.mounted) {
-                                setSheetState(() {
-                                  currentVolume = playerService.currentVolume
-                                      .clamp(0.0, maxVolume);
-                                });
-                              }
-                            }
-                          : null,
-                      activeColor: AppColors.accent,
-                      inactiveColor: AppColors.textTertiary.withValues(
-                        alpha: 0.3,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    LucideIcons.volume2,
-                    color: AppColors.textTertiary,
-                    size: 20,
-                  ),
-                ],
+              const SizedBox(width: 12),
+              Text(
+                l10n.volume,
+                style: TextStyle(
+                  fontFamily: 'GoogleSansFlex',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
               ),
-              if (playerService.usbVolumeSafetyBlockedNotifier.value) ...[
-                const SizedBox(height: 8),
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    l10n.usbVolumeSafetyPaused,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+              const Spacer(),
+              Text(
+                isAvailable ? '${(currentVolume * 100).round()}%' : '—',
+                semanticsLabel: isAvailable ? null : l10n.unavailable2,
+                style: const TextStyle(
+                  fontFamily: 'GoogleSansFlex',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
                 ),
-              ] else if (!isAvailable) ...[
-                const SizedBox(height: 8),
-                Text(
-                  l10n.volumeIsFixedWhileBitPerfect,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
+              ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Icon(
+                LucideIcons.volume1,
+                color: AppColors.textTertiary,
+                size: 20,
+              ),
+              Expanded(
+                child: Slider(
+                  value: isAvailable ? currentVolume : 1.0,
+                  min: 0.0,
+                  max: maxVolume,
+                  divisions: (maxVolume * 100).round(),
+                  label: isAvailable
+                      ? '${(currentVolume * 100).round()}%'
+                      : l10n.unavailable2,
+                  semanticFormatterCallback: !isAvailable
+                      ? (_) => l10n.unavailable2
+                      : null,
+                  onChangeStart: isAvailable
+                      ? (value) => _slider.start(playerService, value)
+                      : null,
+                  onChanged: isAvailable ? _slider.change : null,
+                  onChangeEnd: isAvailable ? _slider.finish : null,
+                  activeColor: AppColors.accent,
+                  inactiveColor: AppColors.textTertiary.withValues(alpha: 0.3),
+                ),
+              ),
+              Icon(
+                LucideIcons.volume2,
+                color: AppColors.textTertiary,
+                size: 20,
+              ),
+            ],
+          ),
+          if (playerService.usbVolumeSafetyBlockedNotifier.value) ...[
+            const SizedBox(height: 8),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                l10n.usbVolumeSafetyPaused,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+          ] else if (!isAvailable) ...[
+            const SizedBox(height: 8),
+            Text(
+              l10n.volumeIsFixedWhileBitPerfect,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+        ],
+      ),
     );
   }
 }

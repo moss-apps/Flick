@@ -9,6 +9,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/uac2_service.dart';
 import 'package:flick/services/player_service.dart' show VolumeTier;
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/uac2/volume_slider_interaction.dart';
 
 class Uac2VolumeControl extends ConsumerStatefulWidget {
   final bool useGradientBackground;
@@ -30,32 +31,19 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
   /// Volume level to restore when unmuting via button.
   double _preMuteVolume = 1.0;
 
-  /// Optimistic volume while the user is dragging the slider.
-  double? _draggingVolume;
+  late final _slider = VolumeSliderInteraction(() {
+    if (mounted) setState(() {});
+  });
 
-  /// Called on every slider tick during drag — optimistic UI only, no platform call.
-  void _onSliderChanged(double volume) {
-    setState(() => _draggingVolume = volume);
-  }
-
-  /// Called when the user lifts the finger — commits the value to the
-  /// platform. PlayerService.setVolume is the single entry point; it routes
-  /// to the DAC Feature Unit (hardware), the engine (software/DSP) or drops
-  /// the write when volume is unavailable (bit-perfect passthrough).
   Future<void> _onSliderChangeEnd(double volume) async {
-    setState(() => _draggingVolume = null);
-
     final playerService = ref.read(playerServiceProvider);
-    final hardwareAuthority = playerService.isHardwareVolumeAuthority;
-    if (!hardwareAuthority &&
+    if (_slider.isCurrent &&
+        !playerService.isHardwareVolumeAuthority &&
         volume == 0.0 &&
         playerService.currentVolume > 0.0) {
       _preMuteVolume = playerService.currentVolume.clamp(0.01, 1.0);
     }
-    // Hardware volume and mute are independent. Moving the slider must not
-    // unmute the DAC (especially after a failed or ignored volume write).
-    await playerService.setVolume(volume);
-    if (mounted) setState(() {});
+    await _slider.finish(volume);
   }
 
   Future<void> _toggleMute() async {
@@ -91,11 +79,16 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
     final safetyBlocked = ref.watch(usbVolumeSafetyBlockedProvider);
     final isAvailable = tier != VolumeTier.unavailable;
     final playerVolume = ref.watch(playerVolumeProvider);
-    final hardwareAuthority = tier == VolumeTier.hardware;
+    final hardwareAuthority =
+        tier == VolumeTier.hardware &&
+        ref.read(playerServiceProvider).isHardwareVolumeAuthority;
     final effectiveVolume = isAvailable
-        ? (_draggingVolume ??
+        ? (_slider.value ??
                   (hardwareAuthority
-                      ? (deviceStatus.volume ?? playerVolume)
+                      ? hardwareVolumeToSlider(
+                          deviceStatus.volume ?? playerVolume,
+                          floor: deviceStatus.hardwareVolumeSliderFloor,
+                        )
                       : playerVolume))
               .clamp(0.0, 1.0)
         : 1.0;
@@ -211,7 +204,13 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                   semanticFormatterCallback: !isAvailable
                       ? (_) => l10n.unavailable2
                       : null,
-                  onChanged: volumeControlWritable ? _onSliderChanged : null,
+                  onChangeStart: volumeControlWritable
+                      ? (value) => _slider.start(
+                          ref.read(playerServiceProvider),
+                          value,
+                        )
+                      : null,
+                  onChanged: volumeControlWritable ? _slider.change : null,
                   onChangeEnd: volumeControlWritable
                       ? _onSliderChangeEnd
                       : null,
