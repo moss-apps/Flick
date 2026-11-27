@@ -2163,6 +2163,9 @@
     "description": "lib/features/settings/screens/interface_settings_screen.dart:265"
   },
   "contributors": "Colaboradores",
+  "@contributors": {
+    "description": "Settings → App Info section with the GitHub profile pictures of Flick's contributors."
+  },
   "controls": "Controles",
   "@controls": {
     "description": "lib/features/manual/data/manual_data.dart"
