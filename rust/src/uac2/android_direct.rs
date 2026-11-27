@@ -15,8 +15,8 @@ use crate::uac2::iso_transport_loss::{
 };
 use crate::uac2::payload_audit_latch::PayloadAuditLatch;
 use crate::uac2::volume_control::{
-    normalize_volume, parse_uac2_volume_ranges, quantize_volume, read_hardware_volume_snapshot, volume_bounds,
-    AudioControlProtocol, VolumeRange,
+    parse_uac2_volume_ranges, quantize_slider_volume, quantize_volume, read_hardware_volume_snapshot,
+    volume_bounds, volume_slider_floor, AudioControlProtocol, HardwareVolumeSnapshot, VolumeRange,
 };
 use crate::uac2::{
     iso_packet_scheduler::{IsoPacketScheduler, IsoQueueGeometry},
@@ -2049,7 +2049,7 @@ pub fn android_direct_queue_hardware_volume_restore(
         if stage_only {
             return Err("USB hardware volume was prepared before restore".into());
         }
-        return set_android_usb_hardware_volume_for_state(&state, volume);
+        return set_android_usb_hardware_volume_for_state(&state, volume, false);
     }
     let mut guard = DIRECT_USB_STATE.lock();
     let state = guard.as_mut()
@@ -3765,7 +3765,7 @@ fn discover_android_usb_hardware_volume_control(
 fn refresh_android_usb_hardware_volume_snapshot(
     device: &impl FeatureUnitControl,
     control: &AndroidDirectUsbHardwareVolumeControl,
-) -> Result<(f64, Option<bool>), String> {
+) -> Result<HardwareVolumeSnapshot, String> {
     const GET_CUR_RETRIES: u32 = 3;
     const RETRY_DELAY_MS: u64 = 10;
 
@@ -3785,10 +3785,10 @@ fn refresh_android_usb_hardware_volume_snapshot(
         );
         match read {
             Ok(snapshot) => {
-                if let Some(error) = snapshot.mute_error {
+                if let Some(error) = &snapshot.mute_error {
                     log_warn!("[USB] Hardware volume remains available; optional mute unavailable: {error}");
                 }
-                return Ok((snapshot.volume, snapshot.muted));
+                return Ok(snapshot);
             }
             Err(e) => {
                 dev_eprintln!("[VolFlow] GET_CUR attempt {} failed: {e}", attempt + 1);
@@ -3850,6 +3850,15 @@ pub fn android_direct_cached_hardware_volume() -> Option<f64> {
         .and_then(|state| state.hardware_volume_normalized)
 }
 
+pub fn android_direct_hardware_volume_slider_floor(generation: u64) -> Option<f64> {
+    DIRECT_USB_STATE
+        .lock()
+        .as_ref()
+        .filter(|state| volume_generation_is_current(state, generation))
+        .and_then(|state| state.hardware_volume_control.as_ref())
+        .map(|control| volume_slider_floor(&control.ranges))
+}
+
 pub fn android_direct_cached_hardware_mute() -> Option<bool> {
     DIRECT_USB_STATE
         .lock()
@@ -3860,16 +3869,12 @@ pub fn android_direct_cached_hardware_mute() -> Option<bool> {
 fn apply_android_usb_hardware_volume(
     device: &impl FeatureUnitControl,
     control: &AndroidDirectUsbHardwareVolumeControl,
-    volume: f64,
+    target_raw: i16,
     route_is_current: impl Fn() -> bool,
 ) -> Result<(f64, Option<bool>), String> {
-    if !volume.is_finite() {
-        return Err("USB hardware volume must be finite".to_string());
-    }
     if !route_is_current() {
         return Err("USB volume route changed before write".into());
     }
-    let target_raw = quantize_volume(volume, &control.ranges);
     dev_eprintln!(
         "[VolFlow] min={} max={} res={} -> raw={target_raw}",
         control.min_volume_raw, control.max_volume_raw, control.resolution_raw
@@ -3910,17 +3915,17 @@ fn apply_android_usb_hardware_volume(
         if !route_is_current() {
             return Err("USB volume route changed before readback".into());
         }
-        let (normalized, muted) = refresh_android_usb_hardware_volume_snapshot(device, control)?;
+        let snapshot = refresh_android_usb_hardware_volume_snapshot(device, control)?;
         if !route_is_current() {
             return Err("USB volume route changed during readback".into());
         }
-        let expected = normalize_volume(target_raw, &control.ranges);
-        if (normalized - expected).abs() > 1e-6 {
+        if snapshot.raw != target_raw {
             return Err(format!(
-                "volume verification failed: expected {expected:.3}, got {normalized:.3}"
+                "volume verification failed: expected raw {target_raw}, got {}",
+                snapshot.raw,
             ));
         }
-        Ok((normalized, muted))
+        Ok((snapshot.volume, snapshot.muted))
     })();
     let Err(error) = result else {
         return result;
@@ -4090,7 +4095,7 @@ mod feature_unit_control_tests {
     fn grouped_write_restores_both_channels_when_later_set_cur_fails() {
         let dac = FakeDac::new();
         dac.failed_write_channel.set(Some(2));
-        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 1.0, || true)
+        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 0, || true)
             .unwrap_err();
         assert!(error.contains("SET_CUR") && error.contains("channel=2"), "{error}");
         assert_eq!(*dac.volume.borrow(), [-500, -500]);
@@ -4100,7 +4105,7 @@ mod feature_unit_control_tests {
     fn grouped_write_rolls_back_when_the_new_level_cannot_be_read() {
         let dac = FakeDac::new();
         dac.readback_failures.set(3);
-        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 1.0, || true)
+        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 0, || true)
             .unwrap_err();
         assert!(error.contains("USB volume read request"), "{error}");
         assert_eq!(*dac.volume.borrow(), [-500, -500]);
@@ -4112,7 +4117,7 @@ mod feature_unit_control_tests {
             ignore_higher_volume: true,
             ..FakeDac::new()
         };
-        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 1.0, || true)
+        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 0, || true)
             .unwrap_err();
         assert!(error.contains("volume verification failed"), "{error}");
         assert_eq!(*dac.volume.borrow(), [-500, -500]);
@@ -4127,7 +4132,7 @@ mod feature_unit_control_tests {
             ..FakeDac::new()
         };
         assert_eq!(
-            apply_android_usb_hardware_volume(&dac, &stereo_control(), 0.752, || true),
+            apply_android_usb_hardware_volume(&dac, &stereo_control(), -250, || true),
             Ok((0.75, None))
         );
         assert_eq!(*dac.volume.borrow(), [-250, -250]);
@@ -4137,7 +4142,7 @@ mod feature_unit_control_tests {
     fn stale_control_generation_sends_no_requests() {
         let dac = FakeDac::new();
         assert_eq!(
-            apply_android_usb_hardware_volume(&dac, &stereo_control(), 1.0, || false),
+            apply_android_usb_hardware_volume(&dac, &stereo_control(), 0, || false),
             Err("USB volume route changed before write".into())
         );
         assert!(dac.requests.borrow().is_empty());
@@ -4146,7 +4151,7 @@ mod feature_unit_control_tests {
     #[test]
     fn route_invalidation_mid_write_restores_the_original_device() {
         let dac = FakeDac::new();
-        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 1.0, || {
+        let error = apply_android_usb_hardware_volume(&dac, &stereo_control(), 0, || {
             dac.volume.borrow()[0] == -500
         })
         .unwrap_err();
@@ -4174,28 +4179,38 @@ mod feature_unit_control_tests {
     }
 }
 
-pub fn android_direct_set_hardware_volume(volume: f64, generation: u64) -> Result<(), String> {
+pub fn android_direct_set_hardware_volume(
+    volume: f64,
+    generation: u64,
+    slider_curve: bool,
+) -> Result<(), String> {
     if !volume.is_finite() {
         return Err("USB hardware volume must be finite".to_string());
     }
     let _hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
     let state = hardware_volume_state(generation)?;
-    set_android_usb_hardware_volume_for_state(&state, volume)
+    set_android_usb_hardware_volume_for_state(&state, volume, slider_curve)
 }
 
 /// Caller holds ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX across write/readback.
 fn set_android_usb_hardware_volume_for_state(
     state: &AndroidDirectUsbState,
     volume: f64,
+    slider_curve: bool,
 ) -> Result<(), String> {
     let control = state
         .hardware_volume_control
         .clone()
         .ok_or_else(|| "Android direct USB hardware volume is unavailable".to_string())?;
+    let target_raw = if slider_curve {
+        quantize_slider_volume(volume, &control.ranges)
+    } else {
+        quantize_volume(volume, &control.ranges)
+    };
     let (normalized, muted) = apply_android_usb_hardware_volume(
         &state.device,
         &control,
-        volume,
+        target_raw,
         || android_direct_hardware_volume_generation(true) == Some(state.hardware_volume_generation),
     )
     .inspect_err(|e| {
@@ -4225,9 +4240,9 @@ pub fn android_direct_verify_hardware_volume_health(generation: u64) -> Result<(
         .hardware_volume_control
         .clone()
         .ok_or_else(|| "Android direct USB hardware volume is unavailable".to_string())?;
-    let (normalized, muted) = refresh_android_usb_hardware_volume_snapshot(&state.device, &control)
+    let snapshot = refresh_android_usb_hardware_volume_snapshot(&state.device, &control)
         .inspect_err(|e| record_hardware_volume_error(generation, e))?;
-    publish_hardware_volume_snapshot(generation, normalized, muted)
+    publish_hardware_volume_snapshot(generation, snapshot.volume, snapshot.muted)
 }
 
 fn apply_android_usb_hardware_mute(
@@ -4751,7 +4766,7 @@ fn create_android_usb_backend_inner(
             match apply_android_usb_hardware_volume(
                 &state.device,
                 control,
-                target,
+                quantize_volume(target, &control.ranges),
                 || android_direct_hardware_volume_generation(true) == Some(generation),
             )
             .and_then(|snapshot| {
@@ -4778,6 +4793,7 @@ fn create_android_usb_backend_inner(
             }
         } else {
             refresh_android_usb_hardware_volume_snapshot(&state.device, control)
+                .map(|snapshot| (snapshot.volume, snapshot.muted))
         };
         match snapshot {
             Ok((volume, muted)) => {

@@ -129,6 +129,8 @@ class Uac2DeviceStatus {
   final Uac2VolumeMode volumeMode;
   final bool hasVolumeControl;
   final bool volumeControlWritable;
+  final int? hardwareVolumeGeneration;
+  final double hardwareVolumeSliderFloor;
   final double? volume;
   final bool? muted;
 
@@ -146,6 +148,8 @@ class Uac2DeviceStatus {
     this.volumeMode = Uac2VolumeMode.unavailable,
     this.hasVolumeControl = false,
     this.volumeControlWritable = true,
+    this.hardwareVolumeGeneration,
+    this.hardwareVolumeSliderFloor = 0.0,
     this.volume,
     this.muted,
   });
@@ -164,6 +168,8 @@ class Uac2DeviceStatus {
     final hasVolumeControl = volumeMode != Uac2VolumeMode.unavailable &&
         routeStatus['hasVolumeControl'] == true;
     final volume = (routeStatus['volume'] as num?)?.toDouble();
+    final sliderFloor =
+        (routeStatus['hardwareVolumeSliderFloor'] as num?)?.toDouble();
 
     return Uac2DeviceStatus(
       device: device,
@@ -189,6 +195,15 @@ class Uac2DeviceStatus {
       hasVolumeControl: hasVolumeControl,
       volumeControlWritable: hasVolumeControl &&
           routeStatus['volumeControlWritable'] != false,
+      hardwareVolumeGeneration:
+          routeStatus['hardwareVolumeGeneration'] as int?,
+      hardwareVolumeSliderFloor:
+          sliderFloor != null &&
+              sliderFloor.isFinite &&
+              sliderFloor >= 0 &&
+              sliderFloor < 1
+          ? sliderFloor
+          : 0.0,
       volume: hasVolumeControl && volume != null && volume.isFinite
           ? volume.clamp(0.0, 1.0)
           : null,
@@ -210,6 +225,8 @@ class Uac2DeviceStatus {
     Uac2VolumeMode? volumeMode,
     bool? hasVolumeControl,
     bool? volumeControlWritable,
+    Object? hardwareVolumeGeneration = _unset,
+    double? hardwareVolumeSliderFloor,
     Object? volume = _unset,
     Object? muted = _unset,
   }) {
@@ -238,6 +255,11 @@ class Uac2DeviceStatus {
       hasVolumeControl: hasVolumeControl ?? this.hasVolumeControl,
       volumeControlWritable:
           volumeControlWritable ?? this.volumeControlWritable,
+      hardwareVolumeGeneration: identical(hardwareVolumeGeneration, _unset)
+          ? this.hardwareVolumeGeneration
+          : hardwareVolumeGeneration as int?,
+      hardwareVolumeSliderFloor:
+          hardwareVolumeSliderFloor ?? this.hardwareVolumeSliderFloor,
       volume: identical(volume, _unset) ? this.volume : volume as double?,
       muted: identical(muted, _unset) ? this.muted : muted as bool?,
     );
@@ -427,12 +449,15 @@ class Uac2Service {
           if (args == null) return;
           final volume = (args['volume'] as num?)?.toDouble();
           final muted = args['muted'] as bool?;
-          if (_currentDeviceStatus != null &&
+          final status = _currentDeviceStatus;
+          if (status != null &&
+              status.hardwareVolumeGeneration ==
+                  args['hardwareVolumeGeneration'] &&
               (volume != null || muted != null)) {
             _updateStatus(
-              _currentDeviceStatus!.copyWith(
-                volume: volume ?? _currentDeviceStatus!.volume,
-                muted: muted ?? _currentDeviceStatus!.muted,
+              status.copyWith(
+                volume: volume ?? status.volume,
+                muted: muted ?? status.muted,
               ),
             );
           }
@@ -1253,7 +1278,14 @@ Future<void> stopPriorityAnchor() async {
   ///
   /// [persist] is false for startup restoration: a remembered level is being
   /// replayed, not chosen by the user, and must not overwrite the preference.
-  Future<bool> setVolume(double volume, {bool persist = true}) async {
+  /// [hardwareSliderCurve] interprets only a live DAC gesture on the audible
+  /// portion of the range. Stored levels and returned readback remain linear.
+  Future<bool> setVolume(
+    double volume, {
+    bool persist = true,
+    bool hardwareSliderCurve = false,
+    int? expectedHardwareGeneration,
+  }) async {
     final status = _currentDeviceStatus;
     if (status == null || !volume.isFinite) return false;
     if (volume < 0.0 || volume > 1.0) return false;
@@ -1266,19 +1298,28 @@ Future<void> stopPriorityAnchor() async {
     try {
       if (Platform.isAndroid) {
         final hardwareOnly = status.volumeMode == Uac2VolumeMode.hardware;
+        if (hardwareSliderCurve &&
+            (!hardwareOnly || expectedHardwareGeneration == null)) {
+          return false;
+        }
+        if (expectedHardwareGeneration != null &&
+            status.hardwareVolumeGeneration != expectedHardwareGeneration) {
+          return false;
+        }
         final result = await _channel.invokeMethod<bool>('setRouteVolume', {
           'volume': volume,
-          'hardwareOnly': hardwareOnly,
-          if (hardwareOnly) 'deviceName': status.device.deviceName,
+          ..._routeVolumeArguments(status),
+          if (hardwareSliderCurve) 'hardwareSliderCurve': true,
         });
-        if (result != true || _currentDeviceStatus?.device != status.device ||
-            _currentDeviceStatus?.volumeMode != status.volumeMode) {
+        if (result != true || !_isCurrentVolumeStatus(status)) {
           return false;
         }
         // Native success includes GET_CUR verification. Display that actual,
         // quantized level, not the slider's unachievable requested value.
         final actual = await getVolume();
+        if (!_isCurrentVolumeStatus(status)) return false;
         if (hardwareOnly) await getMute();
+        if (!_isCurrentVolumeStatus(status)) return false;
         if (hardwareOnly && persist && actual != null) {
           await _preferencesService.setUsbVolumeForDevice(
             status.device,
@@ -1288,6 +1329,7 @@ Future<void> stopPriorityAnchor() async {
         }
         return actual != null;
       }
+      if (hardwareSliderCurve) return false;
       if (!rust_uac2.uac2IsAvailable()) return false;
       await rust_uac2.uac2SetVolume(volume: volume);
       _updateStatus(_currentDeviceStatus!.copyWith(volume: volume));
@@ -1296,6 +1338,27 @@ Future<void> stopPriorityAnchor() async {
       devLog('Uac2Service.setVolume failed: $e');
       return false;
     }
+  }
+
+  Map<String, Object?> _routeVolumeArguments(Uac2DeviceStatus status) {
+    final hardwareOnly = status.volumeMode == Uac2VolumeMode.hardware;
+    return {
+      'hardwareOnly': hardwareOnly,
+      if (hardwareOnly) 'deviceName': status.device.deviceName,
+      'hardwareVolumeGeneration': ?status.hardwareVolumeGeneration,
+    };
+  }
+
+  bool _isCurrentVolumeStatus(Uac2DeviceStatus status) {
+    final current = _currentDeviceStatus;
+    if (current == null ||
+        current.volumeMode != status.volumeMode ||
+        current.hardwareVolumeGeneration != status.hardwareVolumeGeneration) {
+      return false;
+    }
+    return current.device == status.device ||
+        (status.hardwareVolumeGeneration != null &&
+            current.device.deviceName == status.device.deviceName);
   }
 
   /// Refresh the actual DAC level through GET_CUR. A physical button change is
@@ -1327,18 +1390,17 @@ Future<void> stopPriorityAnchor() async {
 
     try {
       if (Platform.isAndroid) {
-        final hardwareOnly = status.volumeMode == Uac2VolumeMode.hardware;
-        final volume = await _channel.invokeMethod<double>('getRouteVolume', {
-          'hardwareOnly': hardwareOnly,
-          if (hardwareOnly) 'deviceName': status.device.deviceName,
-        });
-        final current = _currentDeviceStatus;
-        if (volume == null || !volume.isFinite || current == null ||
-            current.device != status.device || current.volumeMode != status.volumeMode) {
+        final volume = await _channel.invokeMethod<double>(
+          'getRouteVolume',
+          _routeVolumeArguments(status),
+        );
+        if (volume == null ||
+            !volume.isFinite ||
+            !_isCurrentVolumeStatus(status)) {
           return null;
         }
         final actual = volume.clamp(0.0, 1.0).toDouble();
-        _updateStatus(current.copyWith(volume: actual));
+        _updateStatus(_currentDeviceStatus!.copyWith(volume: actual));
         return actual;
       }
       if (!rust_uac2.uac2IsAvailable()) return null;
@@ -1360,20 +1422,15 @@ Future<void> stopPriorityAnchor() async {
 
     try {
       if (Platform.isAndroid) {
-        final hardwareOnly = status.volumeMode == Uac2VolumeMode.hardware;
         final result = await _channel.invokeMethod<bool>('setRouteMuted', {
           'muted': muted,
-          'hardwareOnly': hardwareOnly,
-          if (hardwareOnly) 'deviceName': status.device.deviceName,
+          ..._routeVolumeArguments(status),
         });
-        if (_currentDeviceStatus?.device != status.device ||
-            _currentDeviceStatus?.volumeMode != status.volumeMode) {
-          return false;
-        }
+        if (!_isCurrentVolumeStatus(status)) return false;
         // A failed mute write can still produce a fresh (possibly unknown)
         // snapshot. Do not leave the previous mute state displayed as verified.
         final actual = await getMute();
-        return result == true && actual == muted;
+        return result == true && actual == muted && _isCurrentVolumeStatus(status);
       }
       if (!rust_uac2.uac2IsAvailable()) return false;
       await rust_uac2.uac2SetMute(muted: muted);
@@ -1391,27 +1448,20 @@ Future<void> stopPriorityAnchor() async {
 
     try {
       if (Platform.isAndroid) {
-        final hardwareOnly = status.volumeMode == Uac2VolumeMode.hardware;
-        final muted = await _channel.invokeMethod<bool>('getRouteMuted', {
-          'hardwareOnly': hardwareOnly,
-          if (hardwareOnly) 'deviceName': status.device.deviceName,
-        });
-        final current = _currentDeviceStatus;
-        if (current == null || current.device != status.device ||
-            current.volumeMode != status.volumeMode) {
-          return null;
-        }
-        _updateStatus(current.copyWith(muted: muted));
+        final muted = await _channel.invokeMethod<bool>(
+          'getRouteMuted',
+          _routeVolumeArguments(status),
+        );
+        if (!_isCurrentVolumeStatus(status)) return null;
+        _updateStatus(_currentDeviceStatus!.copyWith(muted: muted));
         return muted;
       }
       if (!rust_uac2.uac2IsAvailable()) return null;
       return rust_uac2.uac2GetMute();
     } catch (e) {
       devLog('Uac2Service.getMute failed: $e');
-      final current = _currentDeviceStatus;
-      if (Platform.isAndroid && current != null &&
-          current.device == status.device && current.volumeMode == status.volumeMode) {
-        _updateStatus(current.copyWith(muted: null));
+      if (Platform.isAndroid && _isCurrentVolumeStatus(status)) {
+        _updateStatus(_currentDeviceStatus!.copyWith(muted: null));
       }
       return null;
     }

@@ -230,6 +230,7 @@ class _Usb extends Fake implements Uac2Service {
   double initialHardwareVolume = 1.0;
   Map<String, dynamic>? playbackDebugState;
   final writes = <double>[];
+  final sliderWrites = <double>[];
   int refreshes = 0;
   Future<void> Function()? onRouteRefresh;
   Uac2DeviceStatus status = _status(_attachedDevice);
@@ -279,12 +280,26 @@ class _Usb extends Fake implements Uac2Service {
   }
 
   @override
-  Future<bool> setVolume(double volume, {bool persist = true}) async {
+  Future<bool> setVolume(
+    double volume, {
+    bool persist = true,
+    bool hardwareSliderCurve = false,
+    int? expectedHardwareGeneration,
+  }) async {
+    if (expectedHardwareGeneration != null &&
+        expectedHardwareGeneration != status.hardwareVolumeGeneration) {
+      return false;
+    }
     writes.add(volume);
+    if (hardwareSliderCurve) sliderWrites.add(volume);
     volumeWriteStarted?.complete();
     volumeWriteStarted = null;
     await volumeWrite?.future;
     if (!volumeWriteSucceeds) return false;
+    if (expectedHardwareGeneration != null &&
+        expectedHardwareGeneration != status.hardwareVolumeGeneration) {
+      return false;
+    }
     status = status.copyWith(volume: volume);
     if (persist) {
       await Uac2PreferencesService().setUsbVolumeForDevice(
@@ -1658,6 +1673,73 @@ void main() {
     expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
     expect(rust.commands, [1.0]);
     expect(usb.writes, [0.4]);
+  });
+
+  test('a dragged hardware slider writes the first and newest values on its own scale', () async {
+    final usb = _Usb(hardware: true);
+    final player = _player(AudioEngineType.usbDacExperimental, usb, rust: _Rust());
+    expect(await player.enableUsbDacBitPerfect(), isTrue);
+    expect(usb.writes, [Uac2PreferencesService.defaultUsbDacVolume]);
+    expect(usb.sliderWrites, isEmpty);
+    final drag = player.beginVolumeSliderAdjustment();
+    expect(drag.live, isTrue);
+    final started = Completer<void>();
+    final write = Completer<void>();
+    usb.volumeWriteStarted = started;
+    usb.volumeWrite = write;
+
+    final updates = [for (final level in [0.2, 0.3, 0.4, 0.6]) drag.apply(level)];
+    await started.future;
+    await Future<void>.delayed(Duration.zero);
+    expect(usb.sliderWrites, [0.2]);
+
+    write.complete();
+    await Future.wait(updates);
+    expect(usb.sliderWrites, [0.2, 0.6]);
+    expect(player.currentVolume, 0.6);
+    expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
+  });
+
+  test('a queued drag and its release cannot adjust a new USB registration', () async {
+    final usb = _Usb(hardware: true);
+    final rust = _Rust();
+    final player = _player(AudioEngineType.usbDacExperimental, usb, rust: rust);
+    expect(await player.enableUsbDacBitPerfect(), isTrue);
+    usb.status = usb.status.copyWith(hardwareVolumeGeneration: 1);
+    final drag = player.beginVolumeSliderAdjustment();
+    final started = Completer<void>();
+    final write = Completer<void>();
+    usb.volumeWriteStarted = started;
+    usb.volumeWrite = write;
+
+    final first = drag.apply(0.3);
+    await started.future;
+    final queued = drag.apply(1.0);
+    await Future<void>.delayed(Duration.zero);
+    // The OS can reuse the same USB address after re-registration.
+    usb.status = usb.status.copyWith(hardwareVolumeGeneration: 2);
+    write.complete();
+    await Future.wait([first, queued, drag.apply(0.9)]);
+
+    expect(drag.isCurrent(), isFalse);
+    expect(usb.sliderWrites, [0.3]);
+    expect(player.currentVolume, Uac2PreferencesService.defaultUsbDacVolume);
+    expect(player.usbVolumeSafetyBlockedNotifier.value, isFalse);
+  });
+
+  test('rejected live volume write still pauses the direct transport', () async {
+    final usb = _Usb(hardware: true);
+    final rust = _Rust();
+    final player = _player(AudioEngineType.usbDacExperimental, usb, rust: rust);
+    expect(await player.enableUsbDacBitPerfect(), isTrue);
+    rust.commands.clear();
+    usb.volumeWriteSucceeds = false;
+    await player.beginVolumeSliderAdjustment().apply(0.8);
+
+    expect(usb.sliderWrites, [0.8]);
+    expect(rust.commands, contains('pause'));
+    expect(player.usbVolumeSafetyBlockedNotifier.value, isTrue);
+    expect(player.currentVolume, Uac2PreferencesService.defaultUsbDacVolume);
   });
 
   test('a late hardware write cannot approve a different DAC', () async {

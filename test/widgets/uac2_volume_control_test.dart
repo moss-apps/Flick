@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,13 +60,38 @@ class _TestPlayer extends Fake implements PlayerService {
   bool get isHardwareVolumeAuthority =>
       volumeTierNotifier.value == VolumeTier.hardware;
 
+  @override
+  double get hardwareVolumeSliderValue => currentVolume;
+
+  int outputGeneration = 0;
+
+  @override
+  VolumeSliderAdjustment beginVolumeSliderAdjustment() {
+    final tier = volumeTierNotifier.value;
+    final generation = outputGeneration;
+    return VolumeSliderAdjustment(
+      live: tier == VolumeTier.hardware,
+      isCurrent: () =>
+          volumeTierNotifier.value == tier && outputGeneration == generation,
+      apply: setVolume,
+    );
+  }
+
   final writes = <double>[];
   bool acceptWrites = true;
+
+  /// Holds every write until completed, like a DAC that answers slowly.
+  Completer<void>? writeGate;
+
+  /// Reports the level read back from an accepted write.
+  void Function(double volume)? readBack;
 
   @override
   Future<void> setVolume(double volume) async {
     writes.add(volume);
+    await writeGate?.future;
     if (acceptWrites) currentVolume = volume;
+    if (acceptWrites) readBack?.call(volume);
   }
 }
 
@@ -76,6 +103,8 @@ class _TestStatus extends Uac2DeviceStatusNotifier {
 
   @override
   Uac2DeviceStatus build() => initial;
+
+  void publishVolume(double volume) => state = state!.copyWith(volume: volume);
 
   @override
   Future<bool> setMute(bool muted) async {
@@ -211,6 +240,7 @@ void main() {
 
       final slider = tester.widget<Slider>(find.byType(Slider));
       expect(slider.onChanged, isNotNull);
+      slider.onChangeStart!(slider.value);
       slider.onChangeEnd!(0.4);
       await tester.pumpAndSettle();
       expect(player.writes, [0.4]);
@@ -294,7 +324,9 @@ void main() {
           popup: popup,
         );
 
-        tester.widget<Slider>(find.byType(Slider)).onChangeEnd!(0.8);
+        final slider = tester.widget<Slider>(find.byType(Slider));
+        slider.onChangeStart!(slider.value);
+        slider.onChangeEnd!(0.8);
         await tester.pumpAndSettle();
         expect(player.writes, [0.8]);
         expect(status.muteWrites, isEmpty);
@@ -302,6 +334,128 @@ void main() {
         expect(find.byTooltip(l10n.unmute), findsOneWidget);
       },
     );
+
+    testWidgets(
+      '$surface dragging a DAC slider writes live without a stale thumb',
+      (tester) async {
+        final player = _TestPlayer(VolumeTier.hardware);
+        final status = _TestStatus(_status(hardware: true, muted: false));
+        player.readBack = status.publishVolume;
+        addTearDown(player.volumeTierNotifier.dispose);
+        await _pumpControl(
+          tester,
+          player: player,
+          status: status,
+          popup: popup,
+        );
+        double thumb() => tester.widget<Slider>(find.byType(Slider)).value;
+
+        final slider = tester.widget<Slider>(find.byType(Slider));
+        slider.onChangeStart!(slider.value);
+        slider.onChanged!(0.3);
+        await tester.pump();
+        player.writeGate = Completer<void>();
+        slider.onChanged!(0.6);
+        await tester.pump();
+        expect(player.writes, [0.3, 0.6]); // PlayerService coalesces these.
+        expect(thumb(), 0.6);
+
+        // An older write's read-back lands mid-drag: the thumb stays with the finger.
+        status.publishVolume(0.3);
+        await tester.pump();
+        expect(thumb(), 0.6);
+
+        // Lifting the finger holds the thumb until the final write is read back.
+        tester.widget<Slider>(find.byType(Slider)).onChangeEnd!(0.6);
+        await tester.pump();
+        expect(player.writes, [
+          0.3,
+          0.6,
+        ]); // Release waits for the final preview.
+        expect(thumb(), 0.6);
+        status.publishVolume(0.45);
+        await tester.pump();
+        expect(thumb(), 0.6);
+
+        player.writeGate!.complete();
+        await tester.pumpAndSettle();
+        expect(thumb(), 0.6); // The final read-back, not a stale one.
+      },
+    );
+
+    testWidgets(
+      '$surface leaves a below-floor DAC level alone on a tap at zero',
+      (tester) async {
+        final player = _TestPlayer(VolumeTier.hardware);
+        addTearDown(player.volumeTierNotifier.dispose);
+        await _pumpControl(
+          tester,
+          player: player,
+          status: _TestStatus(
+            _status(
+              hardware: true,
+              muted: false,
+            ).copyWith(hardwareVolumeSliderFloor: 0.37),
+          ),
+          popup: popup,
+        );
+
+        final slider = tester.widget<Slider>(find.byType(Slider));
+        expect(slider.value, 0.0);
+        slider.onChangeStart!(slider.value);
+        slider.onChangeEnd!(slider.value);
+        await tester.pumpAndSettle();
+        expect(player.writes, isEmpty);
+        expect(find.byTooltip(l10n.mute), findsOneWidget);
+      },
+    );
+
+    testWidgets('$surface ignores a gesture after its DAC is replaced', (
+      tester,
+    ) async {
+      final player = _TestPlayer(VolumeTier.hardware);
+      addTearDown(player.volumeTierNotifier.dispose);
+      await _pumpControl(
+        tester,
+        player: player,
+        status: _TestStatus(_status(hardware: true, muted: false)),
+        popup: popup,
+      );
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChangeStart!(slider.value);
+      slider.onChanged!(0.2);
+      await tester.pump();
+
+      player.outputGeneration++;
+      slider.onChanged!(1.0);
+      slider.onChangeEnd!(1.0);
+      await tester.pumpAndSettle();
+      expect(player.writes, [0.2]);
+    });
+
+    testWidgets('$surface dragging a DSP slider writes only when released', (
+      tester,
+    ) async {
+      final player = _TestPlayer(VolumeTier.software);
+      addTearDown(player.volumeTierNotifier.dispose);
+      await _pumpControl(
+        tester,
+        player: player,
+        status: _TestStatus(_status()),
+        popup: popup,
+      );
+
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChangeStart!(slider.value);
+      slider.onChanged!(0.3);
+      slider.onChanged!(0.6);
+      await tester.pump();
+      expect(player.writes, isEmpty);
+      expect(tester.widget<Slider>(find.byType(Slider)).value, 0.6);
+      tester.widget<Slider>(find.byType(Slider)).onChangeEnd!(0.6);
+      await tester.pumpAndSettle();
+      expect(player.writes, [0.6]);
+    });
 
     testWidgets('$surface reacts when hardware authority fails or recovers', (
       tester,
@@ -430,7 +584,9 @@ void main() {
           home: Scaffold(body: VolumeBottomSheet(playerService: player)),
         ),
       );
-      tester.widget<Slider>(find.byType(Slider)).onChangeEnd!(0.8);
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChangeStart!(slider.value);
+      slider.onChangeEnd!(0.8);
       await tester.pump();
       expect(tester.widget<Slider>(find.byType(Slider)).value, 0.13);
       player.volumeTierNotifier.value = VolumeTier.unavailable;

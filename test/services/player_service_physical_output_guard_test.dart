@@ -128,7 +128,12 @@ class _Usb extends Fake implements Uac2Service {
   }) async {}
 
   @override
-  Future<bool> setVolume(double volume, {bool persist = true}) async {
+  Future<bool> setVolume(
+    double volume, {
+    bool persist = true,
+    bool hardwareSliderCurve = false,
+    int? expectedHardwareGeneration,
+  }) async {
     writes.add(volume);
     if (!volumeWriteSucceeds) return false;
     status = status.copyWith(volume: volume);
