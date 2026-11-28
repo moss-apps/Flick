@@ -186,11 +186,9 @@ class _MainShellState extends ConsumerState<MainShell>
         initialConfig.orderedButtons.contains(NavBarButton.songs)
         ? NavBarButton.songs.pageIndex
         : NavBarButton.menu.pageIndex;
-    ref.read(navigationIndexProvider.notifier).setIndex(defaultPage);
-    final initialIndex = ref.read(navigationIndexProvider);
     final initialOrder = _getPageOrder(initialConfig);
     final initialPosition = initialOrder.indexWhere(
-      (b) => b.pageIndex == initialIndex,
+      (b) => b.pageIndex == defaultPage,
     );
     _pageController = PageController(
       initialPage: initialPosition >= 0 ? initialPosition : 0,
@@ -358,6 +356,9 @@ class _MainShellState extends ConsumerState<MainShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
+      }
+      if (ref.read(navigationIndexProvider) != defaultPage) {
+        ref.read(navigationIndexProvider.notifier).setIndex(defaultPage);
       }
       _maybeOpenExternalPlayer(ref.read(currentSongProvider));
       _refreshLibraryDeletions();
