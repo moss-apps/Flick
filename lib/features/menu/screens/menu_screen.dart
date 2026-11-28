@@ -22,6 +22,7 @@ import 'package:flick/features/folders/screens/folders_screen.dart';
 import 'package:flick/features/menu/screens/smart_mix_detail_screen.dart';
 import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
 import 'package:flick/features/playlists/screens/playlists_screen.dart';
+import 'package:flick/features/playlists/widgets/playlist_preview_card.dart';
 import 'package:flick/features/queue/screens/queue_screen.dart';
 import 'package:flick/features/recap/screens/listening_recap_screen.dart';
 import 'package:flick/features/recently_added/screens/recently_added_screen.dart';
@@ -1111,7 +1112,13 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                     ),
                                   )
                                 : SizedBox(
-                                    height: 280,
+                                    height: math.max(
+                                      280.0,
+                                      PlaylistPreviewCard.heightFor(
+                                        context,
+                                        PlaylistPreviewCard.defaultArtworkHeight,
+                                      ),
+                                    ),
                                     child: ListView.separated(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: AppConstants.spacingLg,
@@ -1126,7 +1133,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                       itemBuilder: (context, index) {
                                         final preview =
                                             homeData.playlistPreviews[index];
-                                        return _PlaylistPreviewCard(
+                                        return PlaylistPreviewCard(
                                           preview: preview,
                                           onTap: () => _navigateTo(
                                             context,
@@ -1903,7 +1910,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
     return mixes.where((mix) => mix.songs.isNotEmpty).toList();
   }
 
-  List<_PlaylistPreview> _buildPlaylistPreviews({
+  List<PlaylistPreview> _buildPlaylistPreviews({
     required List<Playlist> playlists,
     required Map<String, Song> songById,
   }) {
@@ -1914,47 +1921,10 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
         return rightUpdated.compareTo(leftUpdated);
       });
 
-    return sortedPlaylists.take(8).map((playlist) {
-      final songs = playlist.songIds
-          .map((songId) => songById[songId])
-          .whereType<Song>()
-          .toList();
-
-      final coverPath = playlist.coverPath;
-
-      return _PlaylistPreview(
-        playlist: playlist,
-        coverArtPath: coverPath ?? songs.firstOrNull?.albumArt,
-        coverArtPaths: coverPath != null
-            ? [coverPath]
-            : songs
-                  .map((song) => song.albumArt)
-                  .whereType<String>()
-                  .where((path) => path.isNotEmpty)
-                  .toSet()
-                  .take(4)
-                  .toList(),
-        subtitle: _buildPlaylistSubtitle(songs),
-        songCount: songs.length,
-        updatedAt: playlist.updatedAt ?? playlist.createdAt,
-      );
-    }).toList();
-  }
-
-  String _buildPlaylistSubtitle(List<Song> songs) {
-    final uniqueArtists = songs
-        .map((song) => _normalizeArtist(song.artist))
-        .toSet()
-        .take(2)
+    return sortedPlaylists
+        .take(8)
+        .map((playlist) => PlaylistPreview.fromPlaylist(playlist, songById, l10n))
         .toList();
-
-    if (uniqueArtists.isEmpty) {
-      return l10n.personalPlaylist;
-    }
-    if (uniqueArtists.length == 1) {
-      return uniqueArtists.first;
-    }
-    return l10n.more2(uniqueArtists.first, uniqueArtists.length - 1);
   }
 
   String _normalizeArtist(String rawArtist) {
@@ -2909,184 +2879,6 @@ class _RecentTrackCard extends StatelessWidget {
   }
 }
 
-class _PlaylistPreviewCard extends StatelessWidget {
-  final _PlaylistPreview preview;
-  final VoidCallback onTap;
-
-  const _PlaylistPreviewCard({required this.preview, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n.englishForFilipino;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(26),
-        child: Ink(
-          width: 188,
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
-          decoration: BoxDecoration(
-            color: AppColors.surface.withValues(alpha: 0.72),
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: AppColors.glassBorder),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.14),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                children: [
-                  _PlaylistArtworkGrid(preview: preview),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.38),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.14),
-                        ),
-                      ),
-                      child: const Icon(
-                        LucideIcons.play,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              Text(
-                preview.playlist.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.w700,
-                  height: 1.15,
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingXxs),
-              Text(
-                preview.subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.adaptiveTextTertiary,
-                ),
-              ),
-              const Spacer(),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppConstants.spacingXs,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.glassBackgroundStrong,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: AppColors.glassBorder),
-                    ),
-                    child: Text(
-                      l10n.songs3(preview.songCount),
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: context.adaptiveTextSecondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    preview.relativeUpdatedLabel,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaylistArtworkGrid extends StatelessWidget {
-  final _PlaylistPreview preview;
-
-  const _PlaylistArtworkGrid({required this.preview});
-
-  @override
-  Widget build(BuildContext context) {
-    final artPaths = preview.coverArtPaths;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: SizedBox(
-        width: double.infinity,
-        height: 136,
-        child: artPaths.isEmpty
-            ? Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF26313A), Color(0xFF141B20)],
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    LucideIcons.listMusic,
-                    color: context.adaptiveTextSecondary,
-                    size: 28,
-                  ),
-                ),
-              )
-            : artPaths.length == 1
-            ? CachedImageWidget(
-                imagePath: artPaths.first,
-                fit: BoxFit.cover,
-                useThumbnail: true,
-                thumbnailWidth: 260,
-                thumbnailHeight: 260,
-              )
-            : GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 2,
-                  crossAxisSpacing: 2,
-                ),
-                itemCount: artPaths.length.clamp(0, 4),
-                itemBuilder: (context, index) {
-                  return CachedImageWidget(
-                    imagePath: artPaths[index],
-                    fit: BoxFit.cover,
-                    useThumbnail: true,
-                    thumbnailWidth: 140,
-                    thumbnailHeight: 140,
-                  );
-                },
-              ),
-      ),
-    );
-  }
-}
-
 class _EmptyShelfCard extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -3230,7 +3022,7 @@ class _MenuHomeData {
   final List<Song> recentTracks;
   final List<_ArtistSpotlight> recentArtists;
   final List<_SmartMix> smartMixes;
-  final List<_PlaylistPreview> playlistPreviews;
+  final List<PlaylistPreview> playlistPreviews;
   final String? favoriteArtPath;
 
   const _MenuHomeData({
@@ -3291,46 +3083,6 @@ class _SmartMix {
   });
 
   String? get coverArtPath => songs.firstOrNull?.albumArt;
-}
-
-class _PlaylistPreview {
-  final Playlist playlist;
-  final String? coverArtPath;
-  final List<String> coverArtPaths;
-  final String subtitle;
-  final int songCount;
-  final DateTime updatedAt;
-
-  const _PlaylistPreview({
-    required this.playlist,
-    required this.coverArtPath,
-    required this.coverArtPaths,
-    required this.subtitle,
-    required this.songCount,
-    required this.updatedAt,
-  });
-
-  String get relativeUpdatedLabel {
-    final now = DateTime.now();
-    final difference = now.difference(updatedAt);
-
-    if (difference.inDays <= 0) {
-      return l10n.englishForFilipino.today;
-    }
-    if (difference.inDays == 1) {
-      return l10n.englishForFilipino.yesterday;
-    }
-    if (difference.inDays < 7) {
-      return l10n.englishForFilipino.dAgo(difference.inDays);
-    }
-    if (difference.inDays < 30) {
-      return l10n.englishForFilipino.wAgo((difference.inDays / 7).floor());
-    }
-    if (difference.inDays < 365) {
-      return l10n.englishForFilipino.moAgo((difference.inDays / 30).floor());
-    }
-    return l10n.englishForFilipino.yAgo((difference.inDays / 365).floor());
-  }
 }
 
 extension<T> on List<T> {

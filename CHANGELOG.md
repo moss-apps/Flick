@@ -18,6 +18,9 @@
 - **Audible slider range:** On DACs with steps on both sides of −80 dB, nonzero slider positions use the range above that threshold. Zero still selects the DAC minimum without changing mute. Saved DAC levels and the first-use volume keep their existing scale.
 - **Phone volume keys:** Volume up and down adjust the verified direct USB DAC. A held key cannot carry over to a replacement DAC, and casting retains its own volume controls.
 
+### Playlists
+- **Playlist grid** — switch between the list and a two-column artwork grid from the Playlists header. Flick remembers your preferred view, and playlist actions are available in both layouts.
+
 ## 0.23.3-beta.5 (2026-11-20)
 
 ### Equalizer
