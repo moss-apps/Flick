@@ -8,6 +8,8 @@ import 'package:flick/features/recap/screens/listening_recap_screen.dart';
 
 /// Helper class to prevent duplicate navigation to FullPlayerScreen
 class NavigationHelper {
+  static const _fullPlayerRoute = '/full_player';
+
   // Track if navigation is in progress to prevent double navigation
   static bool _isNavigating = false;
   static Timer? _navigationTimer;
@@ -24,7 +26,7 @@ class NavigationHelper {
 
     // Check the current route
     final route = ModalRoute.of(context);
-    if (route?.settings.name == '/full_player') {
+    if (route?.settings.name == _fullPlayerRoute) {
       return true;
     }
 
@@ -37,7 +39,16 @@ class NavigationHelper {
   static Future<int?> navigateToFullPlayer(
     BuildContext context, {
     required String heroTag,
+    bool revealExisting = false,
   }) async {
+    if (revealExisting && _isFullPlayerOpen && context.mounted) {
+      final navigator = rootNavigatorKey.currentState ?? Navigator.of(context);
+      navigator.popUntil(
+        (route) => route.isFirst || route.settings.name == _fullPlayerRoute,
+      );
+      return null;
+    }
+
     // Prevent multiple simultaneous navigations
     if (_isNavigating || _isFullPlayerOpen) {
       return null;
@@ -101,7 +112,7 @@ class NavigationHelper {
           transitionDuration: AppConstants.animationNormal,
           opaque: false,
           barrierColor: Colors.black,
-          settings: const RouteSettings(name: '/full_player'),
+          settings: const RouteSettings(name: _fullPlayerRoute),
         ),
       );
 

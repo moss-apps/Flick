@@ -13,6 +13,7 @@ void main() {
   late WidgetIntentHandler handler;
   late int recapOpens;
   late int queueOpens;
+  late int fullPlayerOpens;
   late int pluginLaunchReads;
   String? pendingUri;
   Completer<String?>? handshake;
@@ -33,6 +34,7 @@ void main() {
       widgetRef,
       onOpenRecap: () => recapOpens++,
       onOpenQueue: () => queueOpens++,
+      onOpenFullPlayer: () => fullPlayerOpens++,
     );
     addTearDown(handler.detach);
   }
@@ -52,7 +54,7 @@ void main() {
   }
 
   setUp(() {
-    recapOpens = queueOpens = pluginLaunchReads = 0;
+    recapOpens = queueOpens = fullPlayerOpens = pluginLaunchReads = 0;
     pendingUri = null;
     handshake = null;
     final messenger =
@@ -109,6 +111,20 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('Now Playing opens the full player on cold and warm taps', (
+    tester,
+  ) async {
+    await mount(tester);
+    pendingUri = 'flickwidget://player/full';
+    await handler.attach();
+    expect(fullPlayerOpens, 1);
+    await dispatch(tester, 'channelReady');
+    await dispatch(tester, 'dispatch', 'flickwidget://player/open');
+    expect(fullPlayerOpens, 1);
+    await dispatch(tester, 'dispatch', 'flickwidget://player/full');
+    expect(fullPlayerOpens, 2);
+  });
 
   testWidgets('cached engine reattachment drains the next tap only once', (
     tester,

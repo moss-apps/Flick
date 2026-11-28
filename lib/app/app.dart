@@ -218,6 +218,7 @@ class _MainShellState extends ConsumerState<MainShell>
       ref,
       onOpenQueue: () => NavigationHelper.navigateToQueue(context),
       onOpenRecap: _openRecapFromWidget,
+      onOpenFullPlayer: _openFullPlayerFromWidget,
     );
     unawaited(_widgetIntentHandler.attach());
 
@@ -633,14 +634,16 @@ class _MainShellState extends ConsumerState<MainShell>
       _cancelIdleTimer();
       ref.read(autoLibrarySyncServiceProvider).notifyPaused();
       unawaited(ref.read(playerServiceProvider).persistLastPlayed());
-      unawaited(WidgetSyncService.instance.pushPaused());
+      final playerState = ref.read(playerProvider);
+      unawaited(
+        WidgetSyncService.instance.pushPaused(isPlaying: playerState.isPlaying),
+      );
       unawaited(ref.read(playerServiceProvider).onAppPaused());
       unawaited(AppLog.instance.flushToDisk());
 
       // Attempt to scrobble the current track before the app suspends.
       // Only fire if playback is not active — audio apps often keep playing
       // in the background, so treat this as a true "end" only when paused.
-      final playerState = ref.read(playerProvider);
       final song = playerState.currentSong;
       if (song != null && !song.isExternal && !playerState.isPlaying) {
         final notifier = ref.read(playerProvider.notifier);
@@ -719,6 +722,20 @@ class _MainShellState extends ConsumerState<MainShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       NavigationHelper.navigateToRecap(context);
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  void _openFullPlayerFromWidget() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ref.read(currentSongProvider) == null) return;
+      unawaited(
+        NavigationHelper.navigateToFullPlayer(
+          context,
+          heroTag: 'widget_now_playing',
+          revealExisting: true,
+        ),
+      );
     });
     WidgetsBinding.instance.scheduleFrame();
   }

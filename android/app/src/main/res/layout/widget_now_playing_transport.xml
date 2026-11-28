@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/now_playing_controls"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:visibility="gone">
+
+    <ImageButton
+        android:id="@+id/now_playing_prev"
+        style="@style/WidgetTransportButton"
+        android:contentDescription="@string/widget_previous"
+        android:src="@drawable/widget_ic_previous" />
+
+    <ImageButton
+        android:id="@+id/now_playing_play"
+        style="@style/WidgetTransportButton"
+        android:background="@drawable/widget_now_playing_play_dark"
+        android:contentDescription="@string/widget_play"
+        android:src="@drawable/widget_ic_play" />
+
+    <ImageButton
+        android:id="@+id/now_playing_next"
+        style="@style/WidgetTransportButton"
+        android:contentDescription="@string/widget_next"
+        android:src="@drawable/widget_ic_next" />
+</LinearLayout>

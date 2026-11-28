@@ -204,7 +204,11 @@ class MainActivity: FlutterActivity() {
     }
 
     override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
+        // Widget launches already go through dispatchWidgetIntent.
+        val flutterIntent = if (intent.action == HOME_WIDGET_LAUNCH_ACTION) {
+            Intent(intent).apply { data = null }
+        } else intent
+        super.onNewIntent(flutterIntent)
         setIntent(intent)
         dispatchWidgetIntent(intent)
         handleExternalPlaybackIntent(intent)

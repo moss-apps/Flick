@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/now_playing_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:importantForAccessibility="no"
+    android:background="@drawable/widget_now_playing_surface">
+
+    <ImageView
+        android:id="@+id/now_playing_surface"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY" />
+
+    <LinearLayout
+        android:id="@+id/now_playing_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <include layout="@layout/widget_now_playing_metadata" />
+
+        <include layout="@layout/widget_now_playing_transport" />
+
+        <include layout="@layout/widget_now_playing_progress" />
+    </LinearLayout>
+</FrameLayout>

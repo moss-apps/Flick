@@ -73,6 +73,7 @@ internal object WidgetPrefs {
             FlagshipWidgetProvider::class.java,
             CompactWidgetProvider::class.java,
             ReplayWidgetProvider::class.java,
+            NowPlayingWidgetProvider::class.java,
         ).forEach { cls ->
             val ids = mgr.getAppWidgetIds(ComponentName(context, cls))
             if (ids.isNotEmpty()) {

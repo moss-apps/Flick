@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Home Widgets
+- **Flick Now Playing** — a resizable 4×1 home-screen widget with cover art, track details, transport controls, and playback progress. Tap the artwork or title to open the full player.
+
 ### Playback
 - **Now Playing** — fixed an error when opening or reopening the full player with a track already loaded.
 - **In-app USB exclusive routing:** Flick claims the DAC for direct playback without requiring Android's global USB routing setting. Android gets the interfaces back after the stream has stopped.

@@ -32,6 +32,10 @@
     <string name="widget_compact_name">Flick Player 2×2</string>
     <string name="widget_compact_desc">Title and artist with transport controls</string>
 
+    <string name="widget_now_playing_name">Flick Now Playing</string>
+    <string name="widget_now_playing_desc">Track details and playback controls</string>
+    <string name="widget_open_full_player">Open full player</string>
+
     <string name="widget_replay_name">Flick Replay</string>
     <string name="widget_replay_desc">Today\'s listening at a glance</string>
     <string name="widget_replay_brand">Flick Replay</string>

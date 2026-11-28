@@ -2,6 +2,24 @@ package com.mossapps.flick.widgets
 
 internal data class WidgetSize(val widthDp: Int, val heightDp: Int)
 
+internal data class NowPlayingGeometry(
+    val controlsBelow: Boolean,
+    val showPrevious: Boolean,
+    val showNext: Boolean,
+    val horizontalPaddingDp: Int,
+    val artDp: Int,
+    val metadataWidthDp: Int,
+    val showArtist: Boolean,
+    val progressGapDp: Int?,
+) {
+    val showProgress: Boolean get() = progressGapDp != null
+}
+
+internal data class NowPlayingColors(
+    val start: Int, val end: Int, val foreground: Int, val secondary: Int,
+    val progressTrack: Int, val playIcon: Int, val lightText: Boolean,
+)
+
 internal enum class CompactLayout { REGULAR, SHORT, NARROW }
 
 internal data class FlagshipGeometry(
@@ -182,6 +200,66 @@ internal object WidgetLayoutPolicy {
     val miniDefault = WidgetSize(320, MINI_HEIGHT_DP)
     val compactDefault = WidgetSize(168, 168)
     val flagshipDefault = WidgetSize(320, 240)
+
+    val nowPlayingDefault = WidgetSize(320, 80)
+    private const val NOW_PLAYING_INK = 0xFF22251B.toInt()
+    private const val WHITE = 0xFFFFFFFF.toInt()
+    private const val BLACK = 0xFF000000.toInt()
+
+    fun nowPlayingColors(background: Int, gradient: Boolean): NowPlayingColors {
+        val foreground = when {
+            ReplayPalette.contrast(background, NOW_PLAYING_INK) >= 4.5 -> NOW_PLAYING_INK
+            ReplayPalette.contrast(background, WHITE) >= 4.5 -> WHITE
+            else -> BLACK
+        }
+        val lightText = foreground == WHITE
+        val tone = if (lightText) BLACK else WHITE
+        val start = background
+        val end = if (gradient) ReplayPalette.lerp(start, tone, 0.16f) else start
+        val secondary = ReplayPalette.lerp(start, foreground, 0.82f)
+            .takeIf { ReplayPalette.contrast(it, start) >= 4.5 } ?: foreground
+        val playIcon = if (lightText) NOW_PLAYING_INK
+            else start.takeIf { ReplayPalette.contrast(it, NOW_PLAYING_INK) >= 4.5 } ?: WHITE
+        return NowPlayingColors(start, end, foreground, secondary,
+            ReplayPalette.lerp(start, foreground, 0.20f), playIcon, lightText)
+    }
+
+    fun nowPlaying(
+        size: WidgetSize, hasSong: Boolean, titleHeightDp: Int = 22, artistHeightDp: Int = 16,
+    ): NowPlayingGeometry {
+        val (width, height) = size
+        val preferredPadding = when {
+            width < 200 -> 4
+            width < 256 -> 8
+            else -> 12
+        }
+        val controlsBelow = hasSong && width in 160..243 && height >= 96
+        val metadataMin = 40
+        val previous = hasSong && (controlsBelow || width >= 144 + metadataMin)
+        val next = hasSong && (controlsBelow || width >= 96 + metadataMin)
+        val controlsWidth = if (hasSong) 48 + (if (previous) 48 else 0) + (if (next) 48 else 0) else 0
+        val textAndArtWidth = width - if (controlsBelow) 0 else controlsWidth
+        val artworkGap = 8
+        val minCover = 24
+        val titleWithArtworkMin = 64
+        val coverBudget = textAndArtWidth - titleWithArtworkMin - artworkGap
+        val coverFits = !controlsBelow && coverBudget >= minCover && height >= minCover + 8
+        val paddingBudget = if (coverFits) coverBudget - minCover else textAndArtWidth - metadataMin
+        val padding = minOf(preferredPadding, (paddingBudget / 2).coerceAtLeast(0))
+        val preferredCover = (width * 18 / 100).coerceIn(minCover, 80)
+        val art = if (coverFits) minOf(preferredCover, height - 8, coverBudget - 2 * padding) else 0
+        val textWidth = textAndArtWidth - 2 * padding - if (art > 0) art + artworkGap else 0
+        val metadataHeight = titleHeightDp + artistHeightDp + 3
+        // Reserve the progress line before deciding whether two text lines fit.
+        val showArtist = hasSong && !controlsBelow && textWidth >= titleWithArtworkMin && metadataHeight + 2 <= height
+        val textHeight = if (showArtist) metadataHeight else titleHeightDp
+        val rowHeight = maxOf(48, textHeight) + if (controlsBelow) 48 else 0
+        val progressSpace = height - rowHeight - 2
+        return NowPlayingGeometry(
+            controlsBelow, previous, next, padding, art, textWidth,
+            showArtist, progressGapDp = if (hasSong && progressSpace >= 0) minOf(8, progressSpace) else null,
+        )
+    }
 
     fun miniTextWidth(size: WidgetSize, showArt: Boolean, hasSong: Boolean): Int =
         (size.widthDp - 16 - (if (showArt) MINI_HEIGHT_DP else 0) - (if (hasSong) 48 else 0))

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/data/database.dart';
 import 'package:flick/features/player/screens/full_player_screen.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -52,6 +53,7 @@ void main() {
         fileType: 'FLAC',
       );
       final navigator = GlobalKey<NavigatorState>();
+      final home = GlobalKey();
       try {
         await tester.pumpWidget(
           ProviderScope(
@@ -59,20 +61,42 @@ void main() {
               navigatorKey: navigator,
               locale: kFallbackLocale,
               localizationsDelegates: kAppLocalizationsDelegates,
-              home: const SizedBox.shrink(),
+              home: SizedBox.shrink(key: home),
             ),
           ),
         );
 
         for (var opening = 0; opening < 2; opening++) {
           unawaited(
-            navigator.currentState!.push<void>(
-              MaterialPageRoute(builder: (_) => const FullPlayerScreen()),
+            NavigationHelper.navigateToFullPlayer(
+              home.currentContext!,
+              heroTag: 'widget_now_playing',
             ),
           );
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
           expect(find.text('Selected track'), findsAtLeastNWidgets(1));
+          final playerState = tester.state(find.byType(FullPlayerScreen));
+          unawaited(
+            navigator.currentState!.push<void>(
+              MaterialPageRoute(
+                builder: (_) => const SizedBox(key: Key('queue')),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('queue')), findsOneWidget);
+          await NavigationHelper.navigateToFullPlayer(
+            home.currentContext!,
+            heroTag: 'widget_now_playing',
+            revealExisting: true,
+          );
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('queue')), findsNothing);
+          expect(
+            tester.state(find.byType(FullPlayerScreen)),
+            same(playerState),
+          );
           navigator.currentState!.pop();
           await tester.pumpAndSettle();
         }

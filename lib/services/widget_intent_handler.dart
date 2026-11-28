@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
 
-import '../models/song.dart';
 import '../providers/player_provider.dart';
+import 'widget_sync_service.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
 class WidgetIntentHandler {
@@ -13,12 +13,15 @@ class WidgetIntentHandler {
     this._ref, {
     VoidCallback? onOpenQueue,
     VoidCallback? onOpenRecap,
+    VoidCallback? onOpenFullPlayer,
   }) : _onOpenQueue = onOpenQueue,
-       _onOpenRecap = onOpenRecap;
+       _onOpenRecap = onOpenRecap,
+       _onOpenFullPlayer = onOpenFullPlayer;
 
   final WidgetRef _ref;
   final VoidCallback? _onOpenQueue;
   final VoidCallback? _onOpenRecap;
+  final VoidCallback? _onOpenFullPlayer;
   MethodChannel? _channel;
   int _generation = 0;
 
@@ -85,7 +88,9 @@ class WidgetIntentHandler {
     if (uri == null || uri.scheme != 'flickwidget') return;
     try {
       final segments = uri.pathSegments;
-      if (uri.host == 'player') {
+      if (uri.host == 'player' && uri.path == '/full') {
+        _onOpenFullPlayer?.call();
+      } else if (uri.host == 'player') {
         _handlePlayer(segments.isEmpty ? '' : segments.first);
       } else if (uri.host == 'queue' && uri.path == '/open') {
         _onOpenQueue?.call();
@@ -124,31 +129,9 @@ class WidgetIntentHandler {
     }
   }
 
-  static const _provider = 'com.mossapps.flick.widgets.MiniPlayerWidgetProvider';
-  static const _flagshipProvider = 'com.mossapps.flick.widgets.FlagshipWidgetProvider';
-  static const _compactProvider = 'com.mossapps.flick.widgets.CompactWidgetProvider';
-  static const _replayProvider = 'com.mossapps.flick.widgets.ReplayWidgetProvider';
-
   Future<void> _pushWidgetState() async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 100));
-      final state = _ref.read(playerProvider);
-      final Song? song = state.currentSong;
-      await HomeWidget.saveWidgetData('flick_widget_is_playing', state.isPlaying);
-      await HomeWidget.saveWidgetData('flick_widget_has_song', song != null);
-      if (song != null) {
-        await HomeWidget.saveWidgetData('flick_widget_title', song.title);
-        await HomeWidget.saveWidgetData('flick_widget_artist', song.artist);
-        await HomeWidget.saveWidgetData('flick_widget_album_art', song.albumArt ?? '');
-      }
-      await HomeWidget.saveWidgetData('flick_widget_is_shuffle', state.isShuffle);
-      await HomeWidget.saveWidgetData('flick_widget_loop_mode', state.loopMode.index);
-      await HomeWidget.updateWidget(qualifiedAndroidName: _provider);
-      await HomeWidget.updateWidget(qualifiedAndroidName: _flagshipProvider);
-      await HomeWidget.updateWidget(qualifiedAndroidName: _compactProvider);
-      await HomeWidget.updateWidget(qualifiedAndroidName: _replayProvider);
-    } catch (e) {
-      devLog('WidgetIntentHandler: failed to push widget state: $e');
-    }
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    if (!_ref.context.mounted) return;
+    await WidgetSyncService.instance.refreshPlayback(_ref.read(playerProvider));
   }
 }

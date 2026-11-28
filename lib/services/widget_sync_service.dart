@@ -29,6 +29,7 @@ class WidgetSyncService {
   static const String miniPlayerProvider = 'com.mossapps.flick.widgets.MiniPlayerWidgetProvider';
   static const String flagshipProvider = 'com.mossapps.flick.widgets.FlagshipWidgetProvider';
   static const String compactProvider = 'com.mossapps.flick.widgets.CompactWidgetProvider';
+  static const String nowPlayingProvider = 'com.mossapps.flick.widgets.NowPlayingWidgetProvider';
   static const String replayProvider = 'com.mossapps.flick.widgets.ReplayWidgetProvider';
 
   static const String keyFlagshipAccent = 'flick_widget_flagship_accent';
@@ -76,6 +77,8 @@ class WidgetSyncService {
 
   bool _initialized = false;
   Timer? _debounce;
+  Future<void>? _playbackPush;
+  PlayerState? _pendingPlayback;
   String? _lastPushedSongId;
   bool? _lastPushedIsPlaying;
   bool? _lastPushedIsShuffle;
@@ -166,6 +169,7 @@ class WidgetSyncService {
     await HomeWidget.updateWidget(qualifiedAndroidName: miniPlayerProvider);
     await HomeWidget.updateWidget(qualifiedAndroidName: flagshipProvider);
     await HomeWidget.updateWidget(qualifiedAndroidName: compactProvider);
+    await HomeWidget.updateWidget(qualifiedAndroidName: nowPlayingProvider);
     await HomeWidget.updateWidget(qualifiedAndroidName: replayProvider);
   }
 
@@ -185,11 +189,35 @@ class WidgetSyncService {
         loopChanged ||
         upcomingChanged) {
       _debounce?.cancel();
-      unawaited(_push(state));
+      unawaited(_enqueuePlayback(state));
     } else if (_debounce?.isActive != true) {
       _debounce = Timer(const Duration(seconds: 2), () {
-        unawaited(_push(state));
+        unawaited(_enqueuePlayback(state));
       });
+    }
+  }
+
+  Future<void> refreshPlayback(PlayerState state) {
+    _debounce?.cancel();
+    return _enqueuePlayback(state);
+  }
+
+  Future<void> _enqueuePlayback(PlayerState state) {
+    _pendingPlayback = state;
+    return _playbackPush ??= _drainPlayback();
+  }
+
+  Future<void> _drainPlayback() async {
+    try {
+      // A skip can arrive while the platform is writing another track's data.
+      var pending = _pendingPlayback;
+      while (pending != null) {
+        _pendingPlayback = null;
+        await _push(pending);
+        pending = _pendingPlayback;
+      }
+    } finally {
+      _playbackPush = null;
     }
   }
 
@@ -368,10 +396,10 @@ class WidgetSyncService {
     return changed;
   }
 
-  Future<void> pushPaused() async {
+  Future<void> pushPaused({required bool isPlaying}) async {
     try {
       await _ensureInit();
-      await HomeWidget.saveWidgetData<bool>(keyIsPlaying, false);
+      await HomeWidget.saveWidgetData<bool>(keyIsPlaying, isPlaying);
       await _pushReplaySnapshot(_clock());
       await _updateAll();
     } catch (e, st) {

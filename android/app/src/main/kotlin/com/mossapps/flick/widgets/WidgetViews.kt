@@ -120,10 +120,10 @@ internal object WidgetViews {
     fun playButton(
         context: Context, views: RemoteViews, state: WidgetPlaybackState,
         playId: Int, backgroundRes: Int, foreground: Int,
+        playIcon: Int = R.drawable.widget_ic_lucide_play, pauseIcon: Int = R.drawable.widget_ic_lucide_pause,
     ) {
         views.setViewVisibility(playId, if (state.hasSong) View.VISIBLE else View.GONE)
-        views.setImageViewResource(playId,
-            if (state.isPlaying) R.drawable.widget_ic_lucide_pause else R.drawable.widget_ic_lucide_play)
+        views.setImageViewResource(playId, if (state.isPlaying) pauseIcon else playIcon)
         // Background tint setters are not remotely callable on Android 8.
         views.setInt(playId, "setBackgroundResource", backgroundRes)
         views.setInt(playId, "setColorFilter", foreground)

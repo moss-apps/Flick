@@ -325,6 +325,7 @@ void main() {
           WidgetSyncService.miniPlayerProvider,
           WidgetSyncService.flagshipProvider,
           WidgetSyncService.compactProvider,
+          WidgetSyncService.nowPlayingProvider,
           WidgetSyncService.replayProvider,
         ]);
       }
