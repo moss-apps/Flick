@@ -38,6 +38,75 @@ VolumeTier effectiveTier(Uac2DeviceStatus status, {bool passthrough = true}) =>
     );
 
 void main() {
+  group('direct USB format changes', () {
+    final playing = statusFromRoute({
+      'volumeMode': 'hardware',
+      'hasVolumeControl': true,
+      'volumeControlWritable': true,
+      'hardwareVolumeGeneration': 7,
+      'volume': 0.67,
+      'muted': true,
+    });
+    const sameConnection = Uac2DeviceInfo(
+      vendorId: 1,
+      productId: 2,
+      productName: 'USB-Audio - Test USB DAC',
+      manufacturer: 'Android route',
+      deviceName: '/dev/bus/usb/001/002',
+    );
+
+    test('selecting the same claimed DAC emits no volume authority change', () {
+      final update = Uac2Service.connectingStatusForSelection(
+        playing,
+        sameConnection,
+        reconnecting: false,
+      );
+      expect(update, isNull);
+    });
+
+    test('a reconnect still starts with unverified hardware volume', () {
+      final update = Uac2Service.connectingStatusForSelection(
+        playing,
+        sameConnection,
+        reconnecting: true,
+      );
+      expect(update?.state, Uac2State.connecting);
+      expect(update?.hardwareVolumeGeneration, isNull);
+      expect(update?.volumeMode, Uac2VolumeMode.unavailable);
+      expect(update?.volume, isNull);
+    });
+
+    test('a different DAC at the same USB address needs a fresh status', () {
+      const replacement = Uac2DeviceInfo(
+        vendorId: 1,
+        productId: 2,
+        productName: 'Test USB DAC',
+        manufacturer: 'Test',
+        deviceName: '/dev/bus/usb/001/002',
+        serial: 'replacement',
+      );
+      final update = Uac2Service.connectingStatusForSelection(
+        playing,
+        replacement,
+        reconnecting: false,
+      );
+      expect(update?.device, replacement);
+      expect(update?.state, Uac2State.connecting);
+      expect(update?.directUsbRegistered, isFalse);
+      expect(update?.volume, isNull);
+    });
+
+    test('an Android-managed DAC still goes through initial selection', () {
+      final update = Uac2Service.connectingStatusForSelection(
+        playing.copyWith(directUsbRegistered: false),
+        sameConnection,
+        reconnecting: false,
+      );
+      expect(update?.state, Uac2State.connecting);
+      expect(update?.directUsbRegistered, isFalse);
+    });
+  });
+
   test(
     'direct USB unavailable stays unavailable, without stale system volume',
     () {
